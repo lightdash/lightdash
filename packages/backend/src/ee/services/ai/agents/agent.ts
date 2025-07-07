@@ -9,14 +9,13 @@ import {
 } from 'ai';
 import type { ZodType } from 'zod';
 import Logger from '../../../../logging/logger';
-import { getExploreInformationPrompt } from '../prompts/exploreInformation';
 import { getSystemPrompt } from '../prompts/system';
+import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
-import { getGenerateCsv } from '../tools/generateCsv';
-import { getGenerateQueryFilters } from '../tools/generateQueryFilters';
-import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfigTool';
-import { getGetOneLineResult } from '../tools/getOneLineResult';
+import { getGenerateOneLineResult } from '../tools/generateOneLineResult';
+import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
+import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -33,18 +32,18 @@ const defaultAgentOptions = {
 const getAgentTelemetryConfig = (
     functionId: string,
     {
-        agentUuid,
+        agentSettings,
         threadUuid,
         promptUuid,
-    }: Pick<AiAgentArgs, 'agentUuid' | 'threadUuid' | 'promptUuid'>,
+    }: Pick<AiAgentArgs, 'agentSettings' | 'threadUuid' | 'promptUuid'>,
 ) =>
     ({
         functionId,
         isEnabled: true,
-        recordInputs: true,
-        recordOutputs: true,
+        recordInputs: false,
+        recordOutputs: false,
         metadata: {
-            agentUuid,
+            agentUuid: agentSettings.uuid,
             threadUuid,
             promptUuid,
         },
@@ -54,34 +53,17 @@ const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
 ) => {
+    const findExplores = getFindExplores({
+        getExplores: dependencies.getExplores,
+    });
+
     const findFields = getFindFields({
         getExplore: dependencies.getExplore,
         searchFields: dependencies.searchFields,
     });
 
-    const generateQueryFilters = getGenerateQueryFilters({
-        getExplore: dependencies.getExplore,
-        promptUuid: args.promptUuid,
-        updatePrompt: dependencies.updatePrompt,
-    });
-
     const generateBarVizConfig = getGenerateBarVizConfig({
-        updateProgress: dependencies.updateProgress,
-        runMiniMetricQuery: dependencies.runMiniMetricQuery,
-        getPrompt: dependencies.getPrompt,
-        updatePrompt: dependencies.updatePrompt,
-        sendFile: dependencies.sendFile,
-    });
-
-    const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
-        updateProgress: dependencies.updateProgress,
-        runMiniMetricQuery: dependencies.runMiniMetricQuery,
-        getPrompt: dependencies.getPrompt,
-        updatePrompt: dependencies.updatePrompt,
-        sendFile: dependencies.sendFile,
-    });
-
-    const generateCsv = getGenerateCsv({
+        getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -90,7 +72,28 @@ const getAgentTools = (
         maxLimit: args.maxLimit,
     });
 
-    const getOneLineResult = getGetOneLineResult({
+    const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
+        getExplore: dependencies.getExplore,
+        updateProgress: dependencies.updateProgress,
+        runMiniMetricQuery: dependencies.runMiniMetricQuery,
+        getPrompt: dependencies.getPrompt,
+        updatePrompt: dependencies.updatePrompt,
+        sendFile: dependencies.sendFile,
+        maxLimit: args.maxLimit,
+    });
+
+    const generateTableVizConfig = getGenerateTableVizConfig({
+        getExplore: dependencies.getExplore,
+        updateProgress: dependencies.updateProgress,
+        runMiniMetricQuery: dependencies.runMiniMetricQuery,
+        getPrompt: dependencies.getPrompt,
+        updatePrompt: dependencies.updatePrompt,
+        sendFile: dependencies.sendFile,
+        maxLimit: args.maxLimit,
+    });
+
+    const generateOneLineResult = getGenerateOneLineResult({
+        getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -98,12 +101,12 @@ const getAgentTools = (
     });
 
     const tools = {
+        findExplores,
         findFields,
-        generateQueryFilters,
         generateBarVizConfig,
-        generateCsv,
         generateTimeSeriesVizConfig,
-        getOneLineResult,
+        generateTableVizConfig,
+        generateOneLineResult,
     };
 
     return tools;
@@ -111,11 +114,8 @@ const getAgentTools = (
 
 const getAgentMessages = (args: AiAgentArgs) => [
     getSystemPrompt({
-        agentName: args.agentName,
-        instructions: args.instruction || undefined,
-    }),
-    getExploreInformationPrompt({
-        exploreInformation: args.aiAgentExploreSummaries,
+        agentName: args.agentSettings.name,
+        instructions: args.agentSettings.instruction || undefined,
     }),
     ...args.messageHistory,
 ];
@@ -298,10 +298,24 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: ({ text }) => {
+            onFinish: ({ text, usage, steps }) => {
                 void dependencies.updatePrompt({
                     response: text,
                     promptUuid: args.promptUuid,
+                });
+
+                dependencies.trackEvent({
+                    event: 'ai_agent.response_streamed',
+                    userId: args.userId,
+                    properties: {
+                        organizationId: args.organizationId,
+                        projectId: args.agentSettings.projectUuid,
+                        aiAgentId: args.agentSettings.uuid,
+                        agentName: args.agentSettings.name,
+                        usageTokensCount: usage.totalTokens,
+                        stepsCount: steps.length,
+                        model: args.model.modelId,
+                    },
                 });
             },
             experimental_transform: smoothStream({

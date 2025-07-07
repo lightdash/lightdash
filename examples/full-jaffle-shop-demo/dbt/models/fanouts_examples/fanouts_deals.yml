@@ -1,0 +1,89 @@
+version: 2
+models:
+  - name: fanouts_deals
+    meta: 
+      required_attributes: 
+        is_admin_saas_demo: 'true'
+      primary_key: deal_id
+    columns:
+      - name: deal_id
+        description: "Unique identifier for this deal"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_deal_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique Deal Count"
+              description: "✅ CORRECT: Count distinct deals"
+
+            inflated_deal_count:
+              type: count
+              label: "🚨 INFLATED Deal Count"
+              description: "❌ WRONG: Each deal gets multiplied by (users × events) in that
+                account"
+
+      - name: account_id
+        description: "Links to the account table"
+        meta:
+          dimension:
+            type: string
+
+      - name: stage
+        description: "Current stage of the deal"
+        meta:
+          dimension:
+            type: string
+
+      - name: amount
+        description: "Deal value in dollars"
+        meta:
+          dimension:
+            type: number
+          metrics:
+            inflated_total_deal_value:
+              label: "🚨 INFLATED Total Deal Value"
+              description: "❌ WRONG: Deal amounts get multiplied by (users × events). A $1000
+                deal becomes $1000 × users × events!"
+              format: 'usd'
+              type: sum
+
+            inflated_average_deal_value:
+              type: average
+              label: "🚨 INFLATED Average Deal Value"
+              description: "❌ WRONG: Average is calculated on inflated rows, not actual deals"
+              format: 'usd'
+
+            max_deal_value:
+              type: max
+              label: "✅ FANOUT SAFE Max Deal Value"
+              description: "Maximum deal value in the dataset"
+              format: 'usd'
+
+            min_deal_value:
+              type: max
+              label: "✅ FANOUT SAFE Min Deal Value"
+              description: "Minimum deal value in the dataset"
+              format: 'usd'
+
+            median_deal_value:
+              type: median
+              label: "🚨 INFLATED Median Deal Value"
+              description: "Median deal value in the dataset"
+              format: 'usd'
+
+      - name: created_date
+        description: "When the deal was created"
+        meta:
+          dimension:
+            type: date
+      - name: plan
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: seats
+        description: ""
+        meta:
+          dimension:
+            type: number

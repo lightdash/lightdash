@@ -1,18 +1,19 @@
 // organize-imports-ignore
 // eslint-disable-next-line import/order
 import './sentry'; // Sentry has to be initialized before anything else
-
 import {
+    Account,
     AnyType,
     ApiError,
+    getErrorMessage,
     LightdashError,
     LightdashMode,
-    SessionServiceAccount,
     LightdashVersionHeader,
+    MissingConfigError,
+    Project,
+    ServiceAccount,
     SessionUser,
     UnexpectedServerError,
-    InvalidUser,
-    ServiceAccount,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -70,6 +71,9 @@ import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
+import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
+import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -82,10 +86,13 @@ declare global {
         interface Request {
             services: ServiceRepository;
             serviceAccount?: Pick<ServiceAccount, 'organizationUuid'>;
+            // The project associated with this request
+            project?: Pick<Project, 'projectUuid'>;
             /**
              * @deprecated Clients should be used inside services. This will be removed soon.
              */
             clients: ClientRepository;
+            account?: Account;
         }
 
         interface User extends SessionUser {}
@@ -276,9 +283,21 @@ export default class App {
             );
         }
 
-        await this.serviceRepository
-            .getOrganizationService()
-            .initializeInstance();
+        try {
+            const instanceConfigurationService =
+                this.serviceRepository.getInstanceConfigurationService<InstanceConfigurationService>();
+            await instanceConfigurationService.initializeInstance();
+        } catch (e) {
+            if (e instanceof MissingConfigError) {
+                Logger.debug(
+                    `No instance configuration service found: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            } else {
+                throw e;
+            }
+        }
     }
 
     private async initExpress(expressApp: Express) {
@@ -515,6 +534,10 @@ export default class App {
             next();
         });
 
+        // Add JWT parsing here so we can get services off the request
+        // We'll also be able to add the user to Sentry for embedded users.
+        expressApp.use(jwtAuthMiddleware);
+
         expressApp.use((req, res, next) => {
             if (req.user) {
                 Sentry.setUser({
@@ -677,6 +700,9 @@ export default class App {
         if (snowflakePassportStrategy) {
             passport.use('snowflake', snowflakePassportStrategy);
             refresh.use('snowflake', snowflakePassportStrategy);
+        }
+        if (slackPassportStrategy) {
+            passport.use('slack', slackPassportStrategy);
         }
 
         passport.serializeUser((user, done) => {

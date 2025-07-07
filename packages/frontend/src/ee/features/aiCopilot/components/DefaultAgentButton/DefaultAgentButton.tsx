@@ -7,6 +7,7 @@ import {
 import { IconStar } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
+    useDeleteUserAgentPreferences,
     useGetUserAgentPreferences,
     useUpdateUserAgentPreferences,
 } from '../../hooks/useUserAgentPreferences';
@@ -29,22 +30,31 @@ export const DefaultAgentButton: React.FC<Props> = ({
     const { mutateAsync: setDefaultAgentUuid } = useUpdateUserAgentPreferences(
         projectUuid!,
     );
+    const { mutateAsync: deleteUserPreferences } =
+        useDeleteUserAgentPreferences(projectUuid!);
 
     const isDefault = userAgentPreferences?.defaultAgentUuid === agentUuid;
 
     return (
-        <Tooltip label={isDefault ? 'Default agent' : 'Set as default agent'}>
+        <Tooltip
+            label={
+                isDefault ? 'Remove as default agent' : 'Set as default agent'
+            }
+        >
             <ActionIcon
                 className={styles.button}
                 radius="md"
                 variant="subtle"
                 color="gray"
-                onClick={() => {
-                    void setDefaultAgentUuid({
-                        defaultAgentUuid: agentUuid,
-                    });
+                onClick={async () => {
+                    if (isDefault) {
+                        await deleteUserPreferences();
+                    } else {
+                        await setDefaultAgentUuid({
+                            defaultAgentUuid: agentUuid,
+                        });
+                    }
                 }}
-                disabled={isDefault}
                 size={size}
                 {...props}
             >

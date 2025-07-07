@@ -1,6 +1,11 @@
-import { MetricQuery, SlackPrompt } from '@lightdash/common';
+import {
+    followUpToolsSchema,
+    followUpToolsText,
+    MetricQuery,
+    parseVizConfig,
+    SlackPrompt,
+} from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
-import { followUpToolsSchema, followUpToolsText } from '../types/followUpTools';
 
 export function getFollowUpToolBlocks(slackPrompt: SlackPrompt): KnownBlock[] {
     const { vizConfigOutput } = slackPrompt;
@@ -44,7 +49,7 @@ export function getFollowUpToolBlocks(slackPrompt: SlackPrompt): KnownBlock[] {
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
 ): (Block | KnownBlock)[] {
-    if (!slackPrompt.metricQuery) {
+    if (!slackPrompt.vizConfigOutput) {
         return [];
     }
 
@@ -93,21 +98,28 @@ export function getFeedbackBlocks(
 export function getExploreBlocks(
     slackPrompt: SlackPrompt,
     siteUrl: string,
+    maxQueryLimit: number,
 ): (Block | KnownBlock)[] {
-    const { metricQuery: unverifiedMetricQuery } = slackPrompt;
-    if (!unverifiedMetricQuery) {
+    const { vizConfigOutput } = slackPrompt;
+    if (!vizConfigOutput) {
         return [];
     }
-    const metricQuery = unverifiedMetricQuery as MetricQuery;
+
+    const vizConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
+    if (!vizConfig) {
+        throw new Error('Failed to parse viz config');
+    }
 
     const configState = {
-        tableName: metricQuery.exploreName,
+        tableName: vizConfig.metricQuery.exploreName,
         metricQuery: {
-            ...metricQuery,
+            ...vizConfig.metricQuery,
             tableCalculations: [],
         },
         tableConfig: {
-            columnOrder: metricQuery.dimensions.concat(metricQuery.metrics),
+            columnOrder: vizConfig.metricQuery.dimensions.concat(
+                vizConfig.metricQuery.metrics,
+            ),
         },
         chartConfig: {
             type: 'table',
@@ -129,7 +141,7 @@ export function getExploreBlocks(
         create_saved_chart_version: JSON.stringify(configState),
     });
 
-    const exploreUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/tables/${metricQuery.exploreName}?${configStateQueryString}`;
+    const exploreUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}?${configStateQueryString}`;
 
     return [
         {
@@ -154,11 +166,7 @@ export function getDeepLinkBlocks(
     slackPrompt: SlackPrompt,
     siteUrl: string,
 ): (Block | KnownBlock)[] {
-    if (
-        !slackPrompt.metricQuery ||
-        !slackPrompt.vizConfigOutput ||
-        !slackPrompt.vizConfigOutput
-    ) {
+    if (!slackPrompt.vizConfigOutput) {
         return [];
     }
 

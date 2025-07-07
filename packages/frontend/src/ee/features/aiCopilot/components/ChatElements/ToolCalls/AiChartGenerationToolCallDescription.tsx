@@ -14,7 +14,7 @@ export const AiChartGenerationToolCallDescription = ({
     dimensions: string[];
     metrics: string[];
     breakdownByDimension?: string | null;
-    sql?: string | null;
+    sql: string | undefined;
 }) => {
     return (
         <Stack gap="xs">

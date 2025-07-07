@@ -63,6 +63,14 @@ Sentry.init({
         ) {
             return 0.0;
         }
+
+        if (
+            request?.url?.includes('aiAgents') &&
+            request?.url?.endsWith('stream')
+        ) {
+            return 1.0;
+        }
+
         if (context.parentSampled) {
             return context.parentSampled;
         }

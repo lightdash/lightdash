@@ -409,51 +409,6 @@ type SpaceBreadcrumbClickedEvent = {
     };
 };
 
-// AI Agent Events
-type AiAgentCreatedEvent = {
-    name: EventName.AI_AGENT_CREATED;
-    properties: {
-        userId: string;
-        organizationId: string;
-        projectId: string;
-        aiAgentId: string;
-        agentName: string;
-    };
-};
-
-type AiAgentDeletedEvent = {
-    name: EventName.AI_AGENT_DELETED;
-    properties: {
-        userId: string;
-        organizationId: string;
-        projectId: string;
-        aiAgentId: string;
-        agentName: string;
-    };
-};
-
-type AiAgentUpdatedEvent = {
-    name: EventName.AI_AGENT_UPDATED;
-    properties: {
-        userId: string;
-        organizationId: string;
-        projectId: string;
-        aiAgentId: string;
-        agentName: string;
-    };
-};
-
-type AiAgentPromptCreatedEvent = {
-    name: EventName.AI_AGENT_PROMPT_CREATED;
-    properties: {
-        userId: string;
-        organizationId: string;
-        projectId: string;
-        aiAgentId: string;
-        threadId: string | undefined;
-    };
-};
-
 type AiAgentChartHowItsCalculatedClickedEvent = {
     name: EventName.AI_AGENT_CHART_HOW_ITS_CALCULATED_CLICKED;
     properties: {
@@ -528,10 +483,6 @@ export type EventData =
     | DashboardChartLoadedEvent
     | CustomMetricReplacementEvent
     | SpaceBreadcrumbClickedEvent
-    | AiAgentCreatedEvent
-    | AiAgentDeletedEvent
-    | AiAgentUpdatedEvent
-    | AiAgentPromptCreatedEvent
     | AiAgentChartHowItsCalculatedClickedEvent
     | AiAgentChartCreatedEvent
     | AiAgentChartExploredEvent;

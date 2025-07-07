@@ -1,0 +1,189 @@
+version: 2
+models:
+  - name: orders
+    description: |
+      This table has basic information about orders, as well as some derived
+      facts based on payments
+
+      {{ doc("orders_status") }}
+    config:
+      meta:
+        primary_key: order_id
+        spotlight:
+          categories:
+            - sales
+        joins:
+          - join: customers
+            sql_on: ${customers.customer_id} = ${orders.customer_id}
+            relationship: many-to-one
+        metrics:
+          completion_percentage:
+            type: number
+            sql: ${total_completed_order_amount}/${total_order_amount}
+            format: percent
+        default_time_dimension:
+          field: order_date
+          interval: MONTH
+        explores:
+          simple_orders:
+            description: This is a simple explore of the orders table
+            label: Simple Orders
+          orders_and_payments:
+            description: This explore joins the orders and payments tables
+            label: Orders and Payments
+            joins:
+              - join: payments
+                sql_on: ${orders.order_id} = ${payments.order_id}
+                relationship: one-to-many
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+        description: This is a unique identifier for an order
+        config:
+          meta:
+            metrics:
+              unique_order_count:
+                type: count_distinct
+              completed_order_count:
+                label: Completed order count
+                description: Total number of completed orders
+                type: count_distinct
+                filters:
+                  - is_completed: "true"
+              completed_or_shipped_order_count:
+                label: Completed or Shipped Order Count
+                type: count_distinct
+                filters:
+                  - status:
+                      - completed
+                      - shipped
+
+      - name: is_completed
+        description: Boolean indicating if status is completed
+        config:
+          meta:
+            metrics:
+              fulfillment_rate:
+                type: average
+                format: percent
+                round: 1
+                sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
+                show_underlying_values:
+                  - amount
+                  - customers.first_name
+              fulfillment_rate_with_format_expression:
+                type: average
+                format: "#,##0.0%"
+                sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
+                show_underlying_values:
+                  - amount
+                  - customers.first_name
+      - name: customer_id
+        description: Foreign key to the customers table
+        tests:
+          - not_null
+          - relationships:
+              to: ref('customers')
+              field: customer_id
+      - name: order_date
+        description: Date (UTC) that the order was placed
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [ "DAY", "WEEK", "MONTH", "YEAR" ]
+            metrics:
+              date_of_first_order:
+                type: min
+              date_of_most_recent_order:
+                type: max
+      - name: status
+        description: '{{ doc("orders_status") }}'
+        config:
+          meta:
+            dimension:
+              colors:
+                # Hex colors are supported in both chart config and echarts
+                "placed": "#e6fa0f"
+                "completed": "#00FF00"
+                # Rgb/rgba/name colors are not supported in chart config, but supported in echarts
+                "shipped": "rgba(47, 119, 150, 0.7)"
+                "return_pending": "orange"
+                "returned": "rgb(247, 32, 32)"
+        tests:
+          - accepted_values:
+              values:
+                - placed
+                - shipped
+                - completed
+                - return_pending
+                - returned
+      - name: amount
+        description: Total amount (USD) of the order
+        tests:
+          - not_null
+        config:
+          meta:
+            metrics:
+              average_order_size:
+                type: average
+                format: usd
+                round: 2
+              total_order_amount:
+                type: sum
+                format: usd
+                round: 2
+                default_time_dimension:
+                  field: order_date
+                  interval: DAY
+              total_completed_order_amount:
+                type: sum
+                format: usd
+                round: 2
+                filters:
+                  - is_completed: "true"
+              total_completed_order_amount_eur:
+                type: sum
+                format: eur
+                filters:
+                  - is_completed: "true"
+              total_non_completed_order_amount:
+                type: number
+                format: "$#,##0.00"
+                sql: ${total_order_amount}-${total_completed_order_amount}
+            dimension:
+              hidden: true
+      - name: credit_card_amount
+        description: Amount of the order (AUD) paid for by credit card
+        tests:
+          - not_null
+        config:
+          meta:
+            dimension:
+              hidden: true
+      - name: coupon_amount
+        description: Amount of the order (AUD) paid for by coupon
+        tests:
+          - not_null
+        config:
+          meta:
+            dimension:
+              hidden: true
+      - name: bank_transfer_amount
+        description: Amount of the order (AUD) paid for by bank transfer
+        tests:
+          - not_null
+        config:
+          meta:
+            dimension:
+              hidden: true
+      - name: gift_card_amount
+        description: Amount of the order (AUD) paid for by gift card
+        tests:
+          - not_null
+        config:
+          meta:
+            dimension:
+              hidden: true

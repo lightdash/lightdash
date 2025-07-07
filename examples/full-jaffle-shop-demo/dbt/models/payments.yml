@@ -1,0 +1,35 @@
+version: 2
+models:
+  - name: payments
+    description: This table has information about individual payments
+    config:
+      meta:
+        primary_key: payment_id
+        joins:
+          - join: orders
+            sql_on: ${orders.order_id} = ${payments.order_id}
+            relationship: many-to-one
+          - join: customers
+            sql_on: ${customers.customer_id} = ${orders.customer_id}
+            relationship: many-to-one
+    columns:
+      - name: payment_id
+        description: This is a unique identifier for a payment
+        config:
+          meta:
+            metrics:
+              unique_payment_count:
+                type: count_distinct
+                description: count of all payments
+      - name: order_id
+        description: Foreign key to the orders table
+      - name: payment_method
+        description: Method of payment used, for example credit card
+      - name: amount
+        description: Total amount (AUD) of the individual payment
+        config:
+          meta:
+            metrics:
+              total_revenue:
+                type: sum
+                description: Sum of all payments

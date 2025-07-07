@@ -5,6 +5,7 @@ export enum OpenIdIdentityIssuerType {
     AZUREAD = 'azuread',
     GENERIC_OIDC = 'oidc',
     SNOWFLAKE = 'snowflake',
+    SLACK = 'slack',
 }
 
 export const isOpenIdIdentityIssuerType = (
@@ -21,6 +22,7 @@ export type CreateOpenIdIdentity = {
     userId: number;
     email: string;
     refreshToken?: string; // Used in google to access google drive files
+    teamId?: string;
 };
 
 export type UpdateOpenIdentity = Pick<

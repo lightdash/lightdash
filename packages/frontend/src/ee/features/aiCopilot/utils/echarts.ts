@@ -1,13 +1,15 @@
 import {
-    AiChartType,
+    AiResultType,
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
+    parseVizConfig,
+    type AiVizMetadata,
     type ChartConfig,
-    type CsvFileVizConfigSchemaType,
     type MetricQuery,
     type PivotReference,
     type ResultRow,
+    type TableVizConfigSchemaType,
     type TimeSeriesMetricVizConfigSchemaType,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
@@ -18,6 +20,7 @@ const getVerticalBarMetricEchartsConfig = (
     config: VerticalBarMetricVizConfigSchemaType,
     metricQuery: MetricQuery,
     rows: Record<string, unknown>[],
+    metadata: AiVizMetadata,
 ): ChartConfig => {
     let metrics: (string | PivotReference)[] = config.yMetrics;
     const dimensions = [
@@ -48,7 +51,7 @@ const getVerticalBarMetricEchartsConfig = (
                 yField: metricQuery.metrics,
             },
             eChartsConfig: {
-                ...(config.title ? { title: { text: config.title } } : {}),
+                ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
                     type: 'plain',
@@ -107,6 +110,7 @@ const getTimeSeriesMetricEchartsConfig = (
     config: TimeSeriesMetricVizConfigSchemaType,
     metricQuery: MetricQuery,
     _rows: Record<string, unknown>[],
+    metadata: AiVizMetadata,
 ): ChartConfig => {
     // TODO :: pivot for time series
     // if (config.breakdownByDimension) {
@@ -130,7 +134,7 @@ const getTimeSeriesMetricEchartsConfig = (
                 yField: metricQuery.metrics,
             },
             eChartsConfig: {
-                ...(config.title ? { title: { text: config.title } } : {}),
+                ...(metadata.title ? { title: { text: metadata.title } } : {}),
                 legend: {
                     show: true,
                     type: 'plain',
@@ -163,9 +167,10 @@ const getTimeSeriesMetricEchartsConfig = (
     };
 };
 
-const getCsvMetricEchartsConfig = (
-    _config: CsvFileVizConfigSchemaType,
+const getTableMetricEchartsConfig = (
+    _config: TableVizConfigSchemaType,
     _rows: Record<string, unknown>[],
+    _metadata: AiVizMetadata,
 ): ChartConfig => {
     return {
         type: ChartType.TABLE,
@@ -173,35 +178,63 @@ const getCsvMetricEchartsConfig = (
 };
 
 export const getChartConfigFromAiAgentVizConfig = ({
-    config,
-    rows,
-    type,
+    vizConfigOutput,
     metricQuery,
+    rows,
+    maxQueryLimit,
 }: {
+    vizConfigOutput: object | null;
     metricQuery: MetricQuery;
     rows: Record<string, unknown>[];
-} & (
-    | {
-          type: AiChartType.VERTICAL_BAR_CHART;
-          config: VerticalBarMetricVizConfigSchemaType;
-      }
-    | {
-          type: AiChartType.TIME_SERIES_CHART;
-          config: TimeSeriesMetricVizConfigSchemaType;
-      }
-    | {
-          type: AiChartType.CSV;
-          config: CsvFileVizConfigSchemaType;
-      }
-)): ChartConfig => {
-    switch (type) {
-        case AiChartType.VERTICAL_BAR_CHART:
-            return getVerticalBarMetricEchartsConfig(config, metricQuery, rows);
-        case AiChartType.TIME_SERIES_CHART:
-            return getTimeSeriesMetricEchartsConfig(config, metricQuery, rows);
-        case AiChartType.CSV:
-            return getCsvMetricEchartsConfig(config, rows);
+    maxQueryLimit?: number;
+}) => {
+    const parsedConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
+    if (!parsedConfig) {
+        throw new Error('Invalid viz config');
+    }
+
+    switch (parsedConfig.type) {
+        case AiResultType.VERTICAL_BAR_RESULT:
+            return {
+                ...parsedConfig,
+                echartsConfig: getVerticalBarMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    metricQuery,
+                    rows,
+                    {
+                        title: parsedConfig.vizTool.title,
+                        description: parsedConfig.vizTool.description,
+                    },
+                ),
+            };
+        case AiResultType.TIME_SERIES_RESULT:
+            return {
+                ...parsedConfig,
+                echartsConfig: getTimeSeriesMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    metricQuery,
+                    rows,
+                    {
+                        title: parsedConfig.vizTool.title,
+                        description: parsedConfig.vizTool.description,
+                    },
+                ),
+            };
+        case AiResultType.TABLE_RESULT:
+            return {
+                ...parsedConfig,
+                echartsConfig: getTableMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    rows,
+                    {
+                        title: parsedConfig.vizTool.title,
+                        description: parsedConfig.vizTool.description,
+                    },
+                ),
+            };
+        case AiResultType.ONE_LINE_RESULT:
+            throw new Error('One line result does not have a visualization');
         default:
-            throw assertUnreachable(type, 'Invalid chart type');
+            return assertUnreachable(parsedConfig, 'Invalid chart type');
     }
 };

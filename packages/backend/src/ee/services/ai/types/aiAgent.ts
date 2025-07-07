@@ -1,30 +1,32 @@
+import { AiAgent } from '@lightdash/common';
 import { CoreMessage, LanguageModelV1 } from 'ai';
 import {
     GetExploreFn,
+    GetExploresFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     SearchFieldsFn,
     SendFileFn,
     StoreToolCallFn,
     StoreToolResultsFn,
+    TrackEventFn,
     UpdateProgressFn,
     UpdatePromptFn,
 } from './aiAgentDependencies';
-import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
 export type AiAgentArgs = {
     model: LanguageModelV1;
-    promptUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    agentName: string;
-    instruction: string | null;
+    agentSettings: AiAgent;
     messageHistory: CoreMessage[];
-    aiAgentExploreSummaries: AiAgentExploreSummary[];
+    promptUuid: string;
+    threadUuid: string;
     maxLimit: number;
+    organizationId: string;
+    userId: string;
 };
 
 export type AiAgentDependencies = {
+    getExplores: GetExploresFn;
     getExplore: GetExploreFn;
     searchFields: SearchFieldsFn | undefined;
     runMiniMetricQuery: RunMiniMetricQueryFn;
@@ -34,6 +36,7 @@ export type AiAgentDependencies = {
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
+    trackEvent: TrackEventFn;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;

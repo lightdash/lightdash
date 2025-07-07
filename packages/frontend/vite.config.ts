@@ -115,6 +115,9 @@ export default defineConfig({
             'solucia-analytics-backend.ngrok.app'
 
         ],
+        watch: {
+            ignored: ['!**/node_modules/@lightdash/common/**'],
+        },
         proxy: {
             '/api': {
                 target: 'http://localhost:8080',

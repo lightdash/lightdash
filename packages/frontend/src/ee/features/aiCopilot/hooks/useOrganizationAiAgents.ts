@@ -1,6 +1,5 @@
 import type {
     AiAgent,
-    AiAgentMessageAssistant,
     ApiAiAgentResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
@@ -12,7 +11,12 @@ import type {
     ApiError,
     ApiSuccessEmpty,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import useHealth from '../../../../hooks/health/useHealth';
@@ -395,11 +399,24 @@ export const useCreateAgentThreadMessageMutation = (
     });
 };
 
-export const useAiAgentThreadMessageVizQuery = (args: {
-    projectUuid: string | undefined;
-    message: AiAgentMessageAssistant;
-    agentUuid: string;
-}) => {
+export const useAiAgentThreadMessageVizQuery = (
+    {
+        // request should be scoped to a project
+        projectUuid: _projectUuid,
+        agentUuid,
+        threadUuid,
+        messageUuid,
+    }: {
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        messageUuid: string;
+    },
+    useQueryOptions?: UseQueryOptions<
+        ApiAiAgentThreadMessageVizQuery,
+        ApiError
+    >,
+) => {
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
@@ -408,30 +425,29 @@ export const useAiAgentThreadMessageVizQuery = (args: {
         queryKey: [
             AI_AGENTS_KEY,
             'viz-query',
-            args.agentUuid,
+            agentUuid,
             'threads',
-            args.message.threadUuid,
+            threadUuid,
             'message',
-            args.message.uuid,
+            messageUuid,
         ],
-        queryFn: () =>
-            getAgentThreadMessageVizQuery({
-                agentUuid: args.agentUuid,
-                threadUuid: args.message.threadUuid,
-                messageUuid: args.message.uuid,
-            }),
+        ...useQueryOptions,
+        queryFn: () => {
+            return getAgentThreadMessageVizQuery({
+                agentUuid,
+                threadUuid,
+                messageUuid,
+            });
+        },
         onError: (error: ApiError) => {
             showToastApiError({
                 title: 'Failed to fetch visualization',
                 apiError: error.error,
             });
+
+            useQueryOptions?.onError?.(error);
         },
-        enabled:
-            !!args.message.metricQuery &&
-            !!args.message.vizConfigOutput &&
-            !!args.projectUuid &&
-            !!health.data &&
-            !!org.data,
+        enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
     });
 };
 

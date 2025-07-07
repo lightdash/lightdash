@@ -841,7 +841,7 @@ export const getJoinedTables = (
 /**
  * Determines if a metric type is "inflation-proof" (not affected by join inflation)
  */
-const isInflationProofMetric = (metricType: MetricType): boolean =>
+export const isInflationProofMetric = (metricType: MetricType): boolean =>
     [MetricType.COUNT_DISTINCT, MetricType.MIN, MetricType.MAX].includes(
         metricType,
     );
@@ -911,7 +911,7 @@ const findChainedOneToOneTableJoins = ({
     return result;
 };
 
-const findTablesWithMetricInflation = ({
+export const findTablesWithMetricInflation = ({
     baseTable,
     joinedTables,
     possibleJoins,

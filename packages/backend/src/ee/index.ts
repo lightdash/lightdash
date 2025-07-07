@@ -4,6 +4,7 @@ import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
@@ -104,8 +105,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
-                    schedulerClient:
-                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectService: repository.getProjectService(),
                     catalogService:
                         repository.getCatalogService() as CommercialCatalogService,
@@ -183,20 +182,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
                 }),
-            organizationService: ({ models, context, repository }) =>
-                new OrganizationService({
+            instanceConfigurationService: ({ models, context, repository }) =>
+                new InstanceConfigurationService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     organizationModel: models.getOrganizationModel(),
                     projectModel: models.getProjectModel(),
-                    onboardingModel: models.getOnboardingModel(),
-                    inviteLinkModel: models.getInviteLinkModel(),
-                    organizationMemberProfileModel:
-                        models.getOrganizationMemberProfileModel(),
                     userModel: models.getUserModel(),
                     organizationAllowedEmailDomainsModel:
                         models.getOrganizationAllowedEmailDomainsModel(),
-                    groupsModel: models.getGroupsModel(),
                     personalAccessTokenModel:
                         models.getPersonalAccessTokenModel(),
                     emailModel: models.getEmailModel(),

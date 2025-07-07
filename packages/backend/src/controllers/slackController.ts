@@ -2,7 +2,9 @@ import {
     ApiErrorPayload,
     ApiSlackChannelsResponse,
     ApiSlackCustomSettingsResponse,
+    ApiSuccessEmpty,
     ForbiddenError,
+    OpenIdIdentityIssuerType,
     SlackAppCustomSettings,
 } from '@lightdash/common';
 import {
@@ -90,6 +92,32 @@ export class SlackController extends BaseController {
                     organizationUuid,
                     body,
                 ),
+        };
+    }
+
+    /**
+     * Check if the user has an OpenID identity for Slack
+     * @param req express request
+     */
+    @Middlewares([isAuthenticated])
+    @Get('/is-authenticated')
+    @OperationId('IsSlackOpenIdLinked')
+    async isSlackOpenIdLinked(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        // This will throw a 404 if not found
+        await req.services
+            .getUserService()
+            .isOpenIdLinked(
+                req.user?.userUuid!,
+                OpenIdIdentityIssuerType.SLACK,
+            );
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

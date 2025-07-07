@@ -126,7 +126,6 @@ import type {
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiConversationMessages,
-    ApiAiConversationResponse,
     ApiAiConversations,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
@@ -882,7 +881,6 @@ type ApiResults =
     | ApiCatalogAnalyticsResults
     | ApiAiConversations['results']
     | ApiAiConversationMessages['results']
-    | ApiAiConversationResponse['results']
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results']

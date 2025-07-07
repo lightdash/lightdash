@@ -634,6 +634,18 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "Pick_Organization.organizationUuid_": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the organization",
+                        "format": "uuid"
+                    }
+                },
+                "required": ["organizationUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -655,6 +667,9 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
+                    },
                     "dashboardUuids": {
                         "items": {
                             "type": "string"
@@ -673,6 +688,7 @@
                 },
                 "required": [
                     "projectUuid",
+                    "organization",
                     "dashboardUuids",
                     "allowAllDashboards",
                     "createdAt",
@@ -856,6 +872,14 @@
             },
             "CreateEmbedJwt": {
                 "properties": {
+                    "exp": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "iat": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "expiresIn": {
                         "type": "string"
                     },
@@ -4897,10 +4921,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "integrations": {
@@ -4944,8 +4968,8 @@
                     "name",
                     "projectUuid",
                     "createdAt",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "integrations",
                     "tags",
                     "updatedAt",
@@ -4987,10 +5011,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "integrations": {
@@ -5034,8 +5058,8 @@
                     "name",
                     "projectUuid",
                     "createdAt",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "integrations",
                     "tags",
                     "updatedAt",
@@ -5508,12 +5532,16 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "AiChartType": {
-                "description": "Supported AI visualization chart types",
-                "enum": ["time_series_chart", "vertical_bar_chart", "csv"],
+            "AiResultType": {
+                "enum": [
+                    "time_series_chart",
+                    "vertical_bar_chart",
+                    "one_line_result",
+                    "table"
+                ],
                 "type": "string"
             },
-            "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_": {
+            "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_": {
                 "properties": {
                     "metrics": {
                         "items": {
@@ -5539,9 +5567,6 @@
                     },
                     "exploreName": {
                         "type": "string"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/Filters"
                     }
                 },
                 "required": [
@@ -5549,14 +5574,13 @@
                     "dimensions",
                     "sorts",
                     "limit",
-                    "exploreName",
-                    "filters"
+                    "exploreName"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiMetricQuery": {
-                "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_"
+                "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_"
             },
             "Record_string.AnyType_": {
                 "properties": {},
@@ -5592,7 +5616,7 @@
                         "$ref": "#/components/schemas/AiMetricQuery"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/AiChartType"
+                        "$ref": "#/components/schemas/AiResultType"
                     }
                 },
                 "required": ["results", "metricQuery", "type"],
@@ -5693,7 +5717,7 @@
                         "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/AiChartType"
+                        "$ref": "#/components/schemas/AiResultType"
                     }
                 },
                 "required": ["metadata", "query", "type"],
@@ -5869,112 +5893,6 @@
                             "$ref": "#/components/schemas/AiConversationMessage"
                         },
                         "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiPrompt": {
-                "properties": {
-                    "metricQuery": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "humanScore": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "vizConfigOutput": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "filtersOutput": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "response": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "prompt": {
-                        "type": "string"
-                    },
-                    "createdByUserUuid": {
-                        "type": "string"
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string"
-                    },
-                    "agentUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "metricQuery",
-                    "humanScore",
-                    "vizConfigOutput",
-                    "filtersOutput",
-                    "response",
-                    "createdAt",
-                    "prompt",
-                    "createdByUserUuid",
-                    "threadUuid",
-                    "promptUuid",
-                    "agentUuid",
-                    "projectUuid",
-                    "organizationUuid"
-                ],
-                "type": "object"
-            },
-            "AiWebAppPrompt": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/AiPrompt"
-                    },
-                    {
-                        "properties": {
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["userUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiAiConversationResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "prompt": {
-                                "$ref": "#/components/schemas/AiWebAppPrompt"
-                            }
-                        },
-                        "required": ["prompt"],
-                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -6270,8 +6188,33 @@
             },
             "LightdashUser": {
                 "properties": {
+                    "isActive": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "organizationCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
                     "userUuid": {
                         "type": "string"
+                    },
+                    "userId": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["lightdash"],
+                        "nullable": false
                     },
                     "email": {
                         "type": "string"
@@ -6282,16 +6225,6 @@
                     "lastName": {
                         "type": "string"
                     },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "organizationName": {
-                        "type": "string"
-                    },
-                    "organizationCreatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
                     "isTrackingAnonymized": {
                         "type": "boolean"
                     },
@@ -6301,9 +6234,6 @@
                     "isSetupComplete": {
                         "type": "boolean"
                     },
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -6312,25 +6242,21 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "isActive": {
-                        "type": "boolean",
-                        "description": "Whether the user can login"
-                    },
                     "isPending": {
-                        "type": "boolean",
-                        "description": "Whether the user doesn't have an authentication method (password or openId)"
+                        "type": "boolean"
                     }
                 },
                 "required": [
+                    "isActive",
                     "userUuid",
+                    "userId",
                     "firstName",
                     "lastName",
                     "isTrackingAnonymized",
                     "isMarketingOptedIn",
                     "isSetupComplete",
                     "createdAt",
-                    "updatedAt",
-                    "isActive"
+                    "updatedAt"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -6808,7 +6734,8 @@
                     "oneLogin",
                     "azuread",
                     "oidc",
-                    "snowflake"
+                    "snowflake",
+                    "slack"
                 ],
                 "type": "string"
             },
@@ -7865,18 +7792,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_Organization.organizationUuid_": {
-                "properties": {
-                    "organizationUuid": {
-                        "type": "string",
-                        "description": "The unique identifier of the organization",
-                        "format": "uuid"
-                    }
-                },
-                "required": ["organizationUuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
             "SqlChart": {
                 "properties": {
                     "lastViewedAt": {
@@ -8374,10 +8289,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "spaceUuid": {
@@ -8405,8 +8320,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "spaceUuid",
                     "pinnedListUuid",
                     "slug",
@@ -8550,10 +8465,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -8595,8 +8510,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -8651,10 +8566,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -8697,8 +8612,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -9943,10 +9858,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -10025,8 +9940,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -10083,18 +9998,15 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
                     },
                     "spaceUuid": {
                         "type": "string"
@@ -10143,6 +10055,9 @@
                         },
                         "type": "array"
                     },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -10156,10 +10071,9 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
-                    "filters",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -10169,6 +10083,7 @@
                     "firstViewedAt",
                     "dashboardVersionId",
                     "tiles",
+                    "filters",
                     "tabs"
                 ],
                 "type": "object",
@@ -11277,10 +11192,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -11309,8 +11224,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -12451,22 +12366,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -12891,10 +12806,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -12920,8 +12835,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -13851,7 +13766,11 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Project.Exclude_keyofProject.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid__": {
+            "CreateProjectTableConfiguration": {
+                "enum": ["prod", "all"],
+                "type": "string"
+            },
+            "Pick_CreateProject.Exclude_keyofCreateProject.warehouseConnection__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -13865,22 +13784,28 @@
                     "dbtConnection": {
                         "$ref": "#/components/schemas/DbtProjectConfig"
                     },
-                    "warehouseConnection": {
-                        "$ref": "#/components/schemas/WarehouseCredentials"
-                    },
                     "upstreamProjectUuid": {
                         "type": "string"
                     },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
+                    },
+                    "copyWarehouseConnectionFromUpstreamProject": {
+                        "type": "boolean"
+                    },
+                    "tableConfiguration": {
+                        "$ref": "#/components/schemas/CreateProjectTableConfiguration"
+                    },
+                    "copyContent": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["name", "type", "dbtConnection", "dbtVersion"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_Project.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid_": {
-                "$ref": "#/components/schemas/Pick_Project.Exclude_keyofProject.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid__",
+            "Omit_CreateProject.warehouseConnection_": {
+                "$ref": "#/components/schemas/Pick_CreateProject.Exclude_keyofCreateProject.warehouseConnection__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "SshTunnelConfiguration": {
@@ -14349,31 +14274,17 @@
                     }
                 ]
             },
-            "CreateProjectTableConfiguration": {
-                "enum": ["prod", "all"],
-                "type": "string"
-            },
-            "CreateProject": {
+            "CreateProjectOptionalCredentials": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_Project.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid_"
+                        "$ref": "#/components/schemas/Omit_CreateProject.warehouseConnection_"
                     },
                     {
                         "properties": {
-                            "copyContent": {
-                                "type": "boolean"
-                            },
-                            "tableConfiguration": {
-                                "$ref": "#/components/schemas/CreateProjectTableConfiguration"
-                            },
-                            "copyWarehouseConnectionFromUpstreamProject": {
-                                "type": "boolean"
-                            },
                             "warehouseConnection": {
                                 "$ref": "#/components/schemas/CreateWarehouseCredentials"
                             }
                         },
-                        "required": ["warehouseConnection"],
                         "type": "object"
                     }
                 ]
@@ -16641,6 +16552,10 @@
                     },
                     {
                         "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"
                             },
@@ -17646,7 +17561,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1775.2",
+        "version": "0.1788.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -20437,6 +20352,37 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/slack/is-authenticated": {
+            "get": {
+                "operationId": "IsSlackOpenIdLinked",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Check if the user has an OpenID identity for Slack",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/auth/shopify/setup": {
@@ -23827,7 +23773,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateProject"
+                                "$ref": "#/components/schemas/CreateProjectOptionalCredentials"
                             }
                         }
                     }

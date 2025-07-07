@@ -108,7 +108,7 @@ export const AgentChatInput = ({
                             bottom: 12,
                             right: 12,
                         }}
-                        color="violet"
+                        color="dark.5"
                         disabled={disabled || isComposing}
                         loading={loading}
                         onClick={() => {
@@ -124,7 +124,7 @@ export const AgentChatInput = ({
                 }
             />
 
-            {!disabled || (disabled && disabledReason) ? (
+            {disabled && disabledReason ? (
                 <Paper
                     px="sm"
                     py={rem(4)}
@@ -137,12 +137,6 @@ export const AgentChatInput = ({
                         borderBottomRightRadius: rem(12),
                     }}
                 >
-                    {!disabled && (
-                        <Text size="xs" c="dimmed">
-                            Agent can make mistakes. Please double-check
-                            responses.
-                        </Text>
-                    )}
                     {disabled && disabledReason && (
                         <Text
                             size="xs"

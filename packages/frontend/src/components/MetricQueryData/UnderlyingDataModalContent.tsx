@@ -11,28 +11,32 @@ import {
     isDimension,
     isField,
     isMetric,
+    QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
     type Filters,
     type Metric,
 } from '@lightdash/common';
-import { Box, Button, Group, Modal, Title } from '@mantine/core';
+import { Box, Button, Group, Modal, Popover, Title } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconShare2 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
-import { downloadCsv } from '../../api/csv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useUnderlyingDataResults } from '../../hooks/useUnderlyingDataResults';
+import {
+    getUnderlyingDataResults,
+    useUnderlyingDataResults,
+} from '../../hooks/useUnderlyingDataResults';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
-import ExportCSVModal from '../ExportCSV/ExportCSVModal';
+import { convertDateFilters } from '../../utils/dateFilter';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
 import MantineIcon from '../common/MantineIcon';
 import { type TableColumn } from '../common/Table/types';
+import ExportResults from '../ExportResults';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
@@ -253,24 +257,35 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         return `${pathname}?${search}`;
     }, [resultsData, projectUuid]);
 
-    const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        if (projectUuid && resultsData) {
-            return downloadCsv({
-                projectUuid,
-                tableId: tableName,
-                query: resultsData.metricQuery,
-                csvLimit: limit,
-                onlyRaw,
-                showTableNames: true,
-                columnOrder: [],
-                pivotConfig: undefined, // underlying data is always unpivoted
-            });
-        } else {
-            throw new Error('Project UUID is missing');
-        }
-    };
-
-    const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
+    const getDownloadQueryUuid = useCallback(
+        async (limit: number | null) => {
+            if (limit === null || limit !== resultsData?.rows.length) {
+                // Get new query uuid with new limit
+                const newQuery = await getUnderlyingDataResults(projectUuid!, {
+                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                    underlyingDataSourceQueryUuid: queryUuid!,
+                    underlyingDataItemId,
+                    filters: convertDateFilters(filters),
+                    dateZoom: underlyingDataConfig?.dateZoom,
+                    limit: limit ?? Number.MAX_SAFE_INTEGER,
+                });
+                return newQuery.queryUuid;
+            }
+            if (!resultsData) {
+                throw new Error('No results data');
+            }
+            // Use existing query uuid
+            return resultsData.queryUuid;
+        },
+        [
+            filters,
+            projectUuid,
+            queryUuid,
+            resultsData,
+            underlyingDataConfig?.dateZoom,
+            underlyingDataItemId,
+        ],
+    );
 
     return (
         <Modal.Content
@@ -294,31 +309,40 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                     projectUuid: projectUuid,
                                 })}
                             >
-                                <Button
-                                    leftIcon={<MantineIcon icon={IconShare2} />}
-                                    variant="subtle"
-                                    compact
-                                    onClick={() =>
-                                        setIsCSVExportModalOpen(true)
-                                    }
+                                <Popover
                                     disabled={!resultsData}
+                                    position="bottom-end"
+                                    withArrow
                                 >
-                                    Export CSV
-                                </Button>
-                                {!!projectUuid && (
-                                    <ExportCSVModal
-                                        getCsvLink={getCsvLink}
-                                        onClose={() =>
-                                            setIsCSVExportModalOpen(false)
-                                        }
-                                        onConfirm={() =>
-                                            setIsCSVExportModalOpen(false)
-                                        }
-                                        opened={isCSVExportModalOpen}
-                                        projectUuid={projectUuid}
-                                        totalResults={resultsData?.rows.length}
-                                    />
-                                )}
+                                    <Popover.Target>
+                                        <Button
+                                            leftIcon={
+                                                <MantineIcon
+                                                    icon={IconShare2}
+                                                />
+                                            }
+                                            variant="subtle"
+                                            compact
+                                            disabled={!resultsData}
+                                        >
+                                            Export CSV
+                                        </Button>
+                                    </Popover.Target>
+                                    <Popover.Dropdown>
+                                        {!!projectUuid && (
+                                            <ExportResults
+                                                projectUuid={projectUuid}
+                                                showTableNames
+                                                totalResults={
+                                                    resultsData?.rows.length
+                                                }
+                                                getDownloadQueryUuid={
+                                                    getDownloadQueryUuid
+                                                }
+                                            />
+                                        )}
+                                    </Popover.Dropdown>
+                                </Popover>
                             </Can>
                             <Can
                                 I="manage"

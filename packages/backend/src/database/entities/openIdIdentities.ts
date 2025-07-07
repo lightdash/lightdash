@@ -9,6 +9,7 @@ export type DbOpenIdIdentity = {
     created_at: Date;
     email: string;
     refresh_token?: string;
+    team_id?: string;
 };
 
 export const OpenIdIdentitiesTableName = 'openid_identities';

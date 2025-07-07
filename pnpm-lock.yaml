@@ -371,6 +371,9 @@ importers:
       passport-openidconnect:
         specifier: ^0.1.1
         version: 0.1.1
+      passport-slack-oauth2:
+        specifier: ^1.2.0
+        version: 1.2.0
       passport-strategy:
         specifier: ^1.0.0
         version: 1.0.0
@@ -6023,7 +6026,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -11064,6 +11066,9 @@ packages:
   passport-openidconnect@0.1.1:
     resolution: {integrity: sha512-r0QJiWEzwCg2MeCIXVP5G6YxVRqnEsZ2HpgKRthZ9AiQHJrgGUytXpsdcGF9BRwd3yMrEesb/uG/Yxb86rrY0g==}
     engines: {node: '>= 0.6.0'}
+
+  passport-slack-oauth2@1.2.0:
+    resolution: {integrity: sha512-SeQl8uPoi4ajhzgIvwQM7gW/6yPrKH0hPFjxcP/426SOZ0M9ZNDOfSa32q3NTw7KcwYOTjyWX/2xdJndQE7Rkg==}
 
   passport-strategy@1.0.0:
     resolution: {integrity: sha512-CB97UUvDKJde2V0KDWWB3lyf6PC3FaZP7YxZ2G8OAtn9p4HI9j9JLP9qjOGZFvyl8uwNT8qM+hGnz/n16NI7oA==}
@@ -18067,7 +18072,7 @@ snapshots:
 
   '@slack/logger@4.0.0':
     dependencies:
-      '@types/node': 22.13.1
+      '@types/node': 22.15.3
 
   '@slack/oauth@2.6.3':
     dependencies:
@@ -19922,7 +19927,7 @@ snapshots:
 
   '@types/through@0.0.30':
     dependencies:
-      '@types/node': 22.13.1
+      '@types/node': 22.15.3
 
   '@types/tough-cookie@4.0.5': {}
 
@@ -26811,6 +26816,10 @@ snapshots:
     dependencies:
       oauth: 0.9.15
       passport-strategy: 1.0.0
+
+  passport-slack-oauth2@1.2.0:
+    dependencies:
+      passport-oauth2: 1.8.0
 
   passport-strategy@1.0.0: {}
 
