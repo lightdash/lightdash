@@ -11,7 +11,7 @@ export type DbSlackAuthTokens = {
     created_at: Date;
     notification_channel: string | null;
     app_profile_photo_url: string | null;
-    ai_thread_access_consent: boolean | null;
+    ai_thread_access_consent: boolean;
 };
 
 export type CreateDbSlackAuthTokens = Pick<

@@ -135,8 +135,7 @@ export class SlackAuthenticationModel {
             appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
             ...(includeAiThreadAccessConsent
                 ? {
-                      aiThreadAccessConsent:
-                          row.ai_thread_access_consent ?? false,
+                      aiThreadAccessConsent: row.ai_thread_access_consent,
                   }
                 : {}),
         };
