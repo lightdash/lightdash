@@ -77,6 +77,19 @@ export const getValidChartConfig = (
                         : {},
             };
         }
+        case ChartType.TREEMAP: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
+            return {
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.TREEMAP
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : {},
+            };
+        }
         case ChartType.CUSTOM: {
             const cachedConfig = cachedConfigs?.[chartType];
 

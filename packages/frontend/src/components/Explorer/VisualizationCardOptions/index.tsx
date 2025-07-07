@@ -12,6 +12,7 @@ import {
     IconChartDots,
     IconChartLine,
     IconChartPie,
+    IconChartTreemap,
     IconChevronDown,
     IconCode,
     IconFilter,
@@ -31,6 +32,7 @@ import {
     isFunnelVisualizationConfig,
     isPieVisualizationConfig,
     isTableVisualizationConfig,
+    isTreemapVisualizationConfig,
 } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
@@ -163,6 +165,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Funnel chart',
                     icon: <MantineIcon icon={IconFilter} color="gray" />,
+                };
+            case ChartType.TREEMAP:
+                return {
+                    text: 'Treemap',
+                    icon: <MantineIcon icon={IconChartTreemap} color="gray" />,
                 };
             case ChartType.CUSTOM:
                 return {
@@ -354,6 +361,24 @@ const VisualizationCardOptions: FC = memo(() => {
                     }}
                 >
                     Funnel chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isTreemapVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconChartTreemap} />}
+                    onClick={() => {
+                        setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.TREEMAP);
+                    }}
+                >
+                    Treemap
                 </Menu.Item>
 
                 <Menu.Item
