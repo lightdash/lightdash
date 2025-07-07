@@ -1,3 +1,10 @@
+## [0.1788.3](https://github.com/lightdash/lightdash/compare/0.1788.2...0.1788.3) (2025-07-07)
+
+
+### Bug Fixes
+
+* handle SCIM root path requests ([#15754](https://github.com/lightdash/lightdash/issues/15754)) ([b3311c9](https://github.com/lightdash/lightdash/commit/b3311c9f0ea2d335e3e91e9117bbaed1aed093ba)), closes [#15753](https://github.com/lightdash/lightdash/issues/15753)
+
 ## [0.1788.2](https://github.com/lightdash/lightdash/compare/0.1788.1...0.1788.2) (2025-07-07)
 
 
