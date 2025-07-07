@@ -143,11 +143,17 @@ const getTimeSeriesMetricEchartsConfig = (
                 xAxis: [
                     {
                         type: 'time',
+                        ...(config.xAxisLabel
+                            ? { name: config.xAxisLabel }
+                            : {}),
                     },
                 ] as Axis[],
                 yAxis: [
                     {
                         type: 'value',
+                        ...(config.yAxisLabel
+                            ? { name: config.yAxisLabel }
+                            : {}),
                     },
                 ] as Axis[],
                 series: config.yMetrics.map((metric) => {

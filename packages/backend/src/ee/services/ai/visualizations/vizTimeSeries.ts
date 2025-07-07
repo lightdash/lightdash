@@ -52,11 +52,17 @@ export const echartsConfigTimeSeriesMetric = async (
         xAxis: [
             {
                 type: 'time',
+                ...(vizTool.vizConfig.xAxisLabel
+                    ? { name: vizTool.vizConfig.xAxisLabel }
+                    : {}),
             },
         ],
         yAxis: [
             {
                 type: 'value',
+                ...(vizTool.vizConfig.yAxisLabel
+                    ? { name: vizTool.vizConfig.yAxisLabel }
+                    : {}),
             },
         ],
         series: metrics.map((metric) => ({
