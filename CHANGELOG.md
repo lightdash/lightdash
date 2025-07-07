@@ -1,3 +1,11 @@
+## [0.1786.1](https://github.com/lightdash/lightdash/compare/0.1786.0...0.1786.1) (2025-07-07)
+
+
+### Bug Fixes
+
+* display table label in dashboard filter menu ([#15727](https://github.com/lightdash/lightdash/issues/15727)) ([49c8666](https://github.com/lightdash/lightdash/commit/49c86667eda46f8ae20ac1bbd737d078989e7677))
+* Prevent autocompletion errors when no table names are available ([#15717](https://github.com/lightdash/lightdash/issues/15717)) ([61c461c](https://github.com/lightdash/lightdash/commit/61c461c147761356900b1c170bf4b8faea9168cb))
+
 # [0.1786.0](https://github.com/lightdash/lightdash/compare/0.1785.2...0.1786.0) (2025-07-07)
 
 
