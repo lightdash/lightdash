@@ -77,3 +77,25 @@ export type AiAgentInstructionVersionsTable = Knex.CompositeTableType<
     >
     // update - defaults to partial of insert
 >;
+
+export const AiAgentGroupAccessTableName = 'ai_agent_group_access';
+
+export type DbAiAgentGroupAccess = {
+    group_uuid: string;
+    ai_agent_uuid: string;
+    created_at: Date;
+};
+
+export type AiAgentGroupAccessTable = Knex.CompositeTableType<
+    // base
+    DbAiAgentGroupAccess,
+    // insert
+    Omit<DbAiAgentGroupAccess, 'created_at'>,
+    // update
+    Partial<
+        Omit<
+            DbAiAgentGroupAccess,
+            'group_uuid' | 'ai_agent_uuid' | 'created_at'
+        >
+    >
+>;
