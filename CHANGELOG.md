@@ -1,3 +1,10 @@
+## [0.1792.1](https://github.com/lightdash/lightdash/compare/0.1792.0...0.1792.1) (2025-07-08)
+
+
+### Bug Fixes
+
+* set snowflake timeout values for login ([#15767](https://github.com/lightdash/lightdash/issues/15767)) ([64e9838](https://github.com/lightdash/lightdash/commit/64e9838950591fbcda4ecd83199769e079a26ca4))
+
 # [0.1792.0](https://github.com/lightdash/lightdash/compare/0.1791.0...0.1792.0) (2025-07-08)
 
 
