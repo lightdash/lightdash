@@ -110,7 +110,8 @@ export const useDetectedTableFields = ({
     sql: string;
     quoteChar: string;
     projectUuid: string;
-    transformedData?: { database: string; tablesBySchema: TablesBySchema };
+    // TODO: Update this type to use the results of the API call, transformedData is now Partial
+    transformedData?: { database?: string; tablesBySchema?: TablesBySchema };
 }) => {
     // Parse SQL to detect table references
     const detectedTables = useMemo(() => {
@@ -132,7 +133,7 @@ export const useDetectedTableFields = ({
 
             const matchesCurrentDatabase =
                 tableRef.database?.toLowerCase() ===
-                transformedData.database.toLowerCase();
+                transformedData.database?.toLowerCase();
 
             // Find the matching schema (case-insensitive) - do this once
             const matchingSchema = transformedData.tablesBySchema?.find(
