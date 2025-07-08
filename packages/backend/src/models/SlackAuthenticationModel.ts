@@ -113,7 +113,7 @@ export class SlackAuthenticationModel {
     async getInstallationFromOrganizationUuid(
         organizationUuid: string,
         includeAiThreadAccessConsent = false,
-    ): Promise<SlackSettings | undefined> {
+    ): Promise<Omit<SlackSettings, 'hasRequiredScopes'> | undefined> {
         const [row] = await this.database(SlackAuthTokensTableName)
             .leftJoin(
                 'organizations',

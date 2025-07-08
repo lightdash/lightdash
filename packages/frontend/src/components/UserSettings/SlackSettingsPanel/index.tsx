@@ -44,7 +44,6 @@ import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
-import { hasRequiredScopes } from './utils';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 const MAX_SLACK_CHANNELS = 100000;
@@ -342,9 +341,9 @@ const SlackSettingsPanel: FC = () => {
                             </Group>
 
                             {organizationHasSlack &&
-                                !hasRequiredScopes(slackInstallation) && (
+                                !slackInstallation.hasRequiredScopes && (
                                     <Alert
-                                        color="blue"
+                                        color="yellow"
                                         icon={
                                             <MantineIcon
                                                 icon={IconAlertCircle}

@@ -171,6 +171,7 @@ export class ClientRepository
             () =>
                 new SlackClient({
                     lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
                 }),

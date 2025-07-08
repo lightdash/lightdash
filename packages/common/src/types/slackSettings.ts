@@ -11,18 +11,5 @@ export type SlackSettings = {
     appProfilePhotoUrl: string | undefined;
     slackChannelProjectMappings?: SlackChannelProjectMapping[];
     aiThreadAccessConsent?: boolean;
+    hasRequiredScopes: boolean;
 };
-
-export const slackRequiredScopes = [
-    'links:read',
-    'links:write',
-    'chat:write',
-    'chat:write.customize',
-    'channels:read',
-    'channels:join',
-    'groups:read',
-    'users:read',
-    'app_mentions:read',
-    'files:write',
-    'files:read',
-];
