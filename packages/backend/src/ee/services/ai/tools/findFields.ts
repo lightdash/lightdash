@@ -61,22 +61,20 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
     };
 
     return tool({
-        description: `Pick an explore/model and generate embedded search queries by breaking down user input into questions, ensuring each part of the input is addressed.
-Include all relevant information without omitting any names, companies, dates, or other pertinent details.
-Assume all potential fields, including company names and personal names, exist in the explore.
-It is important to find fields for the filters as well.`,
+        description: `Use this tool to find the Fields (Metrics and Dimensions) most relevant to the user's request, once you have information about the available Explores. If the available fields aren't suitable, you can retry the tool with another available Explore.`,
         parameters: schema,
-        execute: async ({ exploreName, embeddingSearchQueries }) => {
+        execute: async ({ exploreName }) => {
             try {
                 const explore = await getExplore({ exploreName });
                 const tables = await getMinimalTableInformation({
                     explore,
-                    embeddingSearchQueries,
+                    // TODO: we should implement hybrid search for this tool
+                    // and LLM should fill in the schema with possible search queries
+                    // embeddingSearchQueries,
+                    embeddingSearchQueries: [],
                 });
 
-                return `Here are the available fields for explore named "${exploreName}":
-- Read field labels and descriptions carefully to understand their usage.
-- Look for hints in the field descriptions on how to/when to use the fields and ask the user for clarification if the field information is ambiguous or incomplete.
+                return `Here are the available Fields (Metrics and Dimensions) for explore named "${exploreName}":
 
 ${serializeData(tables, 'json')}`;
             } catch (error) {

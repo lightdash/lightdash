@@ -8,12 +8,12 @@ type Dependencies = {
 };
 
 export const getFindExplores = ({ getExplores }: Dependencies) => {
-    // TODO: empty schema for now, but we should implement hybrid search for this tool
+    // TODO: we should implement hybrid search for this tool
     // and LLM should fill in the schema with possible search queries
     const schema = toolFindExploresArgsSchema;
 
     return tool({
-        description: `Get an information about explores/models you have access to.`,
+        description: `Use this tool to get information about Explores (models) available to you.`,
         parameters: schema,
         execute: async () => {
             try {
