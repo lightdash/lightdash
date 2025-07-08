@@ -40,8 +40,6 @@ import {
     getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
-    getItemLabel,
-    getItemLabelWithoutTableName,
     getItemMap,
     GroupByColumn,
     isCartesianChartConfig,
@@ -54,6 +52,7 @@ import {
     isUserWithOrg,
     isVizTableConfig,
     ItemsMap,
+    JobPriority,
     MAX_SAFE_INTEGER,
     MetricQuery,
     NotFoundError,
@@ -69,6 +68,7 @@ import {
     ResultRow,
     type RunQueryTags,
     S3Error,
+    SCHEDULER_TASKS,
     SchedulerFormat,
     SessionUser,
     sleep,
@@ -214,7 +214,7 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    private getCacheExpiresAt(baseDate: Date) {
+    public getCacheExpiresAt(baseDate: Date) {
         return new Date(
             baseDate.getTime() +
                 this.lightdashConfig.results.cacheStateTimeSeconds * 1000,
@@ -992,7 +992,7 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query and transforms the rows if pivoting is enabled
      * Code pivot transformation taken from ProjectService.pivotQueryWorkerTask
      */
-    private static async runQueryAndTransformRows({
+    static async runQueryAndTransformRows({
         warehouseClient,
         query,
         queryTags,
@@ -1143,6 +1143,7 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
+     * TODO: Remove once feature flag `WorkerQueryExecution` is completely removed as this is duplicated in SchedulerTask.runAsyncWarehouseQuery
      */
     private async runAsyncWarehouseQuery({
         user,
@@ -1150,8 +1151,7 @@ export class AsyncQueryService extends ProjectService {
         query,
         fieldsMap,
         queryTags,
-        warehouseClient,
-        sshTunnel,
+        warehouseCredentials,
         queryHistoryUuid,
         cacheKey,
         pivotConfiguration,
@@ -1164,8 +1164,7 @@ export class AsyncQueryService extends ProjectService {
         fieldsMap: ItemsMap;
         queryHistoryUuid: string;
         cacheKey: string;
-        warehouseClient: WarehouseClient;
-        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        warehouseCredentials: CreateWarehouseCredentials;
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -1180,7 +1179,19 @@ export class AsyncQueryService extends ProjectService {
                   close: () => Promise<void>;
               }
             | undefined;
+
+        let sshTunnel: SshTunnel<CreateWarehouseCredentials> | undefined;
+
         try {
+            // Get warehouse client using the projectService
+            const { warehouseClient, sshTunnel: warehouseSshTunnel } =
+                await this._getWarehouseClient(
+                    projectUuid,
+                    warehouseCredentials,
+                );
+
+            sshTunnel = warehouseSshTunnel;
+
             const fileName =
                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
 
@@ -1293,7 +1304,7 @@ export class AsyncQueryService extends ProjectService {
                 properties: {
                     queryId: queryHistoryUuid,
                     projectId: projectUuid,
-                    warehouseType: warehouseClient.credentials.type,
+                    warehouseType: warehouseCredentials.type,
                 },
             });
             await this.queryHistoryModel.update(
@@ -1306,7 +1317,7 @@ export class AsyncQueryService extends ProjectService {
                 },
             );
         } finally {
-            void sshTunnel.disconnect();
+            void sshTunnel?.disconnect();
             void stream?.close();
         }
     }
@@ -1399,13 +1410,7 @@ export class AsyncQueryService extends ProjectService {
             originalColumns?: ResultColumns;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-        {
-            warehouseClient,
-            sshTunnel,
-        }: {
-            warehouseClient: WarehouseClient;
-            sshTunnel: SshTunnel<CreateWarehouseCredentials>;
-        },
+        warehouseCredentials: CreateWarehouseCredentials,
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -1455,14 +1460,14 @@ export class AsyncQueryService extends ProjectService {
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',
-                        warehouseClient.credentials.type,
+                        warehouseCredentials.type,
                     );
 
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
                         pivotedQuery =
                             await ProjectService.applyPivotToSqlQuery({
-                                warehouseType: warehouseClient.credentials.type,
+                                warehouseType: warehouseCredentials.type,
                                 sql: compiledQuery,
                                 indexColumn: pivotConfiguration.indexColumn,
                                 valuesColumns: pivotConfiguration.valuesColumns,
@@ -1526,7 +1531,7 @@ export class AsyncQueryService extends ProjectService {
                             projectId: projectUuid,
                             context,
                             queryId: queryHistoryUuid,
-                            warehouseType: warehouseClient.credentials.type,
+                            warehouseType: warehouseCredentials.type,
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery,
@@ -1580,20 +1585,52 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    // Trigger query in the background, update query history when complete
-                    void this.runAsyncWarehouseQuery({
-                        user,
-                        projectUuid,
-                        query,
-                        fieldsMap,
-                        queryTags,
-                        warehouseClient,
-                        sshTunnel,
-                        queryHistoryUuid,
-                        pivotConfiguration,
-                        cacheKey,
-                        originalColumns,
-                    });
+                    const isWorkerQueryExecutionEnabled =
+                        await isFeatureFlagEnabled(
+                            FeatureFlags.WorkerQueryExecution,
+                            user,
+                            { throwOnTimeout: false },
+                            false, // default value
+                        );
+
+                    if (isWorkerQueryExecutionEnabled) {
+                        this.logger.info(
+                            `Queuing query ${queryHistoryUuid} for execution in a worker`,
+                        );
+                        await this.schedulerClient.scheduleTask(
+                            SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                queryTags,
+                                query,
+                                fieldsMap,
+                                queryHistoryUuid,
+                                cacheKey,
+                                warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
+                                pivotConfiguration,
+                                originalColumns,
+                            },
+                            JobPriority.HIGH,
+                        );
+                    } else {
+                        this.logger.info(
+                            `Executing query ${queryHistoryUuid} in the main loop`,
+                        );
+                        void this.runAsyncWarehouseQuery({
+                            user,
+                            projectUuid,
+                            query,
+                            fieldsMap,
+                            queryTags,
+                            warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
+                            queryHistoryUuid,
+                            pivotConfiguration,
+                            cacheKey,
+                            originalColumns,
+                        });
+                    }
 
                     return {
                         queryUuid: queryHistoryUuid,
@@ -1687,6 +1724,9 @@ export class AsyncQueryService extends ProjectService {
                 warehouseClient: warehouseConnection.warehouseClient,
             });
 
+        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
+        await warehouseConnection.sshTunnel.disconnect();
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
@@ -1702,7 +1742,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
             },
             requestParameters,
-            warehouseConnection,
+            warehouseConnection.warehouseClient.credentials,
         );
 
         return {
@@ -1827,6 +1867,9 @@ export class AsyncQueryService extends ProjectService {
                 warehouseClient: warehouseConnection.warehouseClient,
             });
 
+        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
+        await warehouseConnection.sshTunnel.disconnect();
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
@@ -1841,7 +1884,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
             },
             requestParameters,
-            warehouseConnection,
+            warehouseConnection.warehouseClient.credentials,
         );
 
         return {
@@ -2024,6 +2067,9 @@ export class AsyncQueryService extends ProjectService {
             warehouseClient: warehouseConnection.warehouseClient,
         });
 
+        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
+        await warehouseConnection.sshTunnel.disconnect();
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
@@ -2039,7 +2085,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
             },
             requestParameters,
-            warehouseConnection,
+            warehouseConnection.warehouseClient.credentials,
         );
 
         return {
@@ -2194,6 +2240,9 @@ export class AsyncQueryService extends ProjectService {
                 warehouseClient: warehouseConnection.warehouseClient,
             });
 
+        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
+        await warehouseConnection.sshTunnel.disconnect();
+
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
                 {
@@ -2210,7 +2259,7 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                 },
                 requestParameters,
-                warehouseConnection,
+                warehouseConnection.warehouseClient.credentials,
             );
 
         return {
@@ -2267,6 +2316,9 @@ export class AsyncQueryService extends ProjectService {
             limit,
         });
 
+        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
+        await warehouseConnection.sshTunnel.disconnect();
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
@@ -2283,7 +2335,7 @@ export class AsyncQueryService extends ProjectService {
                 query: metricQuery,
                 invalidateCache,
             },
-            warehouseConnection,
+            warehouseConnection.warehouseClient.credentials,
             pivotConfiguration,
         );
 
@@ -2528,6 +2580,9 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? sqlChart.limit,
         });
 
+        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
+        await warehouseConnection.sshTunnel.disconnect();
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
@@ -2544,7 +2599,7 @@ export class AsyncQueryService extends ProjectService {
                 query: metricQuery,
                 invalidateCache,
             },
-            warehouseConnection,
+            warehouseConnection.warehouseClient.credentials,
             pivotConfiguration,
         );
 
@@ -2610,6 +2665,9 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? savedChart.limit,
         });
 
+        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
+        await warehouseConnection.sshTunnel.disconnect();
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
@@ -2626,7 +2684,7 @@ export class AsyncQueryService extends ProjectService {
                 query: metricQuery,
                 invalidateCache,
             },
-            warehouseConnection,
+            warehouseConnection.warehouseClient.credentials,
             pivotConfiguration,
         );
 

@@ -3,6 +3,7 @@ import {
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    SCHEDULER_TASKS,
     VizAggregationOptions,
     VizIndexType,
     type CreateWarehouseCredentials,
@@ -40,6 +41,7 @@ import type { UserAttributesModel } from '../../models/UserAttributesModel';
 import type { UserModel } from '../../models/UserModel';
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/queryBuilder.mock';
@@ -63,6 +65,13 @@ import {
 } from '../ProjectService/ProjectService.mock';
 import { AsyncQueryService } from './AsyncQueryService';
 import type { ExecuteAsyncQueryReturn } from './types';
+
+// Mock the isFeatureFlagEnabled function
+jest.mock('../../postHog', () => ({
+    isFeatureFlagEnabled: jest.fn(),
+}));
+
+// Import the mocked function
 
 const mockSshTunnel = {
     connect: jest.fn(() => warehouseClientMock.credentials),
@@ -136,7 +145,9 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
                 isVerified: true,
             }),
         } as unknown as EmailModel,
-        schedulerClient: {} as SchedulerClient,
+        schedulerClient: {
+            scheduleTask: jest.fn(),
+        } as unknown as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         s3Client: {} as S3Client,
         groupsModel: {} as GroupsModel,
@@ -185,6 +196,10 @@ describe('AsyncQueryService', () => {
             serviceWithCache.cacheService = {} as ICacheService;
 
             jest.clearAllMocks();
+
+            // Mock isFeatureFlagEnabled to return false by default
+            (isFeatureFlagEnabled as jest.Mock).mockResolvedValue(true);
+
             // Mock the resultsCacheModel.createOrGetExistingCache method
             serviceWithCache.findResultsCache = jest.fn().mockImplementation(
                 async () =>
@@ -253,10 +268,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                 },
                 { query: metricQueryMock },
-                {
-                    warehouseClient: warehouseClientMock,
-                    sshTunnel: mockSshTunnel,
-                },
+                warehouseClientMock.credentials,
             );
 
             expect(result).toEqual({
@@ -314,10 +326,10 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on the warehouse client executeAsyncQuery method
-            const warehouseClientExecuteAsyncQuerySpy = jest.spyOn(
-                warehouseClientMock,
-                'executeAsyncQuery',
+            // Spy on the scheduler client scheduleTask method
+            const schedulerClientScheduleTaskSpy = jest.spyOn(
+                serviceWithCache.schedulerClient,
+                'scheduleTask',
             );
 
             const result = await serviceWithCache.executeAsyncQuery(
@@ -336,10 +348,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                 },
                 { query: metricQueryMock },
-                {
-                    warehouseClient: warehouseClientMock,
-                    sshTunnel: mockSshTunnel,
-                },
+                warehouseClientMock.credentials,
             );
 
             expect(result).toEqual({
@@ -371,17 +380,26 @@ describe('AsyncQueryService', () => {
                 },
             );
 
-            // Verify that the warehouse client executeAsyncQuery method was not called
-            expect(warehouseClientExecuteAsyncQuerySpy).toHaveBeenCalledWith(
-                {
-                    sql: expect.any(String),
-                    tags: {
+            // Verify that the scheduler client scheduleTask method was called
+            expect(schedulerClientScheduleTaskSpy).toHaveBeenCalledWith(
+                SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                expect.objectContaining({
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                },
-                expect.any(Function),
+                    query: 'SELECT * FROM test',
+                    fieldsMap: {},
+                    queryHistoryUuid: 'test-query-uuid',
+                    cacheKey: expect.any(String),
+                    warehouseCredentials: warehouseClientMock.credentials,
+                    pivotConfiguration: undefined,
+                    originalColumns: undefined,
+                }),
+                expect.any(Number),
             );
-            expect(write).toHaveBeenCalled();
         });
 
         test('should invalidate cache when invalidateCache is true', async () => {
@@ -392,10 +410,10 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Spy on the warehouse client executeAsyncQuery method
-            const warehouseClientExecuteAsyncQuerySpy = jest.spyOn(
-                warehouseClientMock,
-                'executeAsyncQuery',
+            // Spy on the scheduler client scheduleTask method
+            const schedulerClientScheduleTaskSpy = jest.spyOn(
+                serviceWithCache.schedulerClient,
+                'scheduleTask',
             );
 
             await serviceWithCache.executeAsyncQuery(
@@ -414,10 +432,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                 },
                 { query: metricQueryMock },
-                {
-                    warehouseClient: warehouseClientMock,
-                    sshTunnel: mockSshTunnel,
-                },
+                warehouseClientMock.credentials,
             );
 
             // Verify that createOrGetExistingCache was called with invalidateCache: true
@@ -447,17 +462,26 @@ describe('AsyncQueryService', () => {
                 },
             );
 
-            // Verify that the warehouse client executeAsyncQuery method was called
-            expect(warehouseClientExecuteAsyncQuerySpy).toHaveBeenCalledWith(
-                {
-                    sql: expect.any(String),
-                    tags: {
+            // Verify that the scheduler client scheduleTask method was called
+            expect(schedulerClientScheduleTaskSpy).toHaveBeenCalledWith(
+                SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                expect.objectContaining({
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                },
-                expect.any(Function),
+                    query: 'SELECT * FROM test',
+                    fieldsMap: {},
+                    queryHistoryUuid: 'test-query-uuid',
+                    cacheKey: expect.any(String),
+                    warehouseCredentials: warehouseClientMock.credentials,
+                    pivotConfiguration: undefined,
+                    originalColumns: undefined,
+                }),
+                expect.any(Number),
             );
-            expect(write).toHaveBeenCalled();
         });
     });
 
@@ -840,13 +864,11 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            // Mock the private method using bracket notation (common Jest pattern)
-            const mockRunAsyncWarehouseQuery = jest
-                .fn()
-                .mockResolvedValue(undefined);
-            // eslint-disable-next-line @typescript-eslint/dot-notation
-            serviceWithCache['runAsyncWarehouseQuery'] =
-                mockRunAsyncWarehouseQuery;
+            // Spy on the scheduler client scheduleTask method
+            const schedulerClientScheduleTaskSpy = jest.spyOn(
+                serviceWithCache.schedulerClient,
+                'scheduleTask',
+            );
 
             await serviceWithCache.executeAsyncQuery(
                 {
@@ -865,18 +887,126 @@ describe('AsyncQueryService', () => {
                     originalColumns: mockOriginalColumns,
                 },
                 { query: metricQueryMock },
-                {
-                    warehouseClient: warehouseClientMock,
-                    sshTunnel: mockSshTunnel,
-                },
+                warehouseClientMock.credentials,
             );
 
-            // Verify that original columns are passed to runAsyncWarehouseQuery
-            expect(mockRunAsyncWarehouseQuery).toHaveBeenCalledWith(
+            // Verify that original columns are passed to the scheduler task
+            expect(schedulerClientScheduleTaskSpy).toHaveBeenCalledWith(
+                SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
                 }),
+                expect.any(Number),
             );
+        });
+    });
+
+    describe('Feature flag scenarios', () => {
+        describe('WorkerQueryExecution flag is off', () => {
+            beforeEach(() => {
+                (isFeatureFlagEnabled as jest.Mock).mockResolvedValue(false);
+            });
+
+            it('executeAsyncQuery does not schedule task', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const schedulerSpy = jest.spyOn(
+                    service.schedulerClient,
+                    'scheduleTask',
+                );
+
+                (
+                    service.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'query-uuid',
+                });
+
+                const args = {
+                    user,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    metricQuery: metricQueryMock,
+                    queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                    explore: validExplore,
+                    sql: 'SELECT 1',
+                    fields: {},
+                    originalColumns: undefined,
+                    dateZoom: undefined,
+                    invalidateCache: false,
+                };
+                const requestParameters = { query: metricQueryMock };
+                const warehouseCredentials = warehouseClientMock.credentials;
+
+                await service.executeAsyncQuery(
+                    args,
+                    requestParameters,
+                    warehouseCredentials,
+                );
+
+                // Verify that the scheduler was NOT called when the feature flag is off
+                expect(schedulerSpy).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('WorkerQueryExecution flag is on', () => {
+            beforeEach(() => {
+                (isFeatureFlagEnabled as jest.Mock).mockResolvedValue(true);
+            });
+
+            it('executeAsyncQuery schedules task', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const schedulerSpy = jest.spyOn(
+                    service.schedulerClient,
+                    'scheduleTask',
+                );
+
+                (
+                    service.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'query-uuid',
+                });
+
+                const args = {
+                    user,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    metricQuery: metricQueryMock,
+                    queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                    explore: validExplore,
+                    sql: 'SELECT 1',
+                    fields: {},
+                    originalColumns: undefined,
+                    dateZoom: undefined,
+                    invalidateCache: false,
+                };
+                const requestParameters = { query: metricQueryMock };
+                const warehouseCredentials = warehouseClientMock.credentials;
+
+                await service.executeAsyncQuery(
+                    args,
+                    requestParameters,
+                    warehouseCredentials,
+                );
+
+                expect(schedulerSpy).toHaveBeenCalledWith(
+                    SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                    expect.objectContaining({
+                        organizationUuid: user.organizationUuid,
+                        userUuid: user.userUuid,
+                        projectUuid,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        query: 'SELECT 1',
+                        fieldsMap: {},
+                        queryHistoryUuid: 'query-uuid',
+                        cacheKey: expect.any(String),
+                        warehouseCredentials: warehouseClientMock.credentials,
+                        pivotConfiguration: undefined,
+                        originalColumns: undefined,
+                    }),
+                    expect.any(Number),
+                );
+            });
         });
     });
 });
