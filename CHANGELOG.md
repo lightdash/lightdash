@@ -1,3 +1,10 @@
+# [0.1792.0](https://github.com/lightdash/lightdash/compare/0.1791.0...0.1792.0) (2025-07-08)
+
+
+### Features
+
+* use filters and userAttributes from req.account in EmbedService ([#15621](https://github.com/lightdash/lightdash/issues/15621)) ([61a520c](https://github.com/lightdash/lightdash/commit/61a520cc1719a11053e8fa4cc538005b54626566))
+
 # [0.1791.0](https://github.com/lightdash/lightdash/compare/0.1790.0...0.1791.0) (2025-07-08)
 
 
