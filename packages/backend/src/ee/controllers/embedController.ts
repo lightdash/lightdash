@@ -5,6 +5,7 @@ import {
     ApiCalculateTotalResponse,
     ApiErrorPayload,
     ApiSuccessEmpty,
+    assertEmbeddedAuth,
     CacheMetadata,
     CreateEmbed,
     CreateEmbedJwt,
@@ -16,8 +17,6 @@ import {
     EmbedUrl,
     Explore,
     FieldValueSearchResult,
-    FilterInteractivityValues,
-    ForbiddenError,
     Item,
     MetricQueryResponse,
     SavedChart,
@@ -176,9 +175,9 @@ export class EmbedController extends BaseController {
         @Path() projectUuid: string,
     ): Promise<ApiEmbedDashboardResponse> {
         this.setStatus(200);
-        if (!req.account) {
-            throw new ForbiddenError('Account is missing');
-        }
+
+        assertEmbeddedAuth(req.account);
+
         return {
             status: 'ok',
             results: await this.getEmbedService().getDashboard(
@@ -197,9 +196,9 @@ export class EmbedController extends BaseController {
         @Body() body: SavedChartsInfoForDashboardAvailableFilters,
     ): Promise<ApiEmbedDashboardAvailableFiltersResponse> {
         this.setStatus(200);
-        if (!req.account) {
-            throw new ForbiddenError('Account is missing');
-        }
+
+        assertEmbeddedAuth(req.account);
+
         return {
             status: 'ok',
             results:
@@ -226,9 +225,9 @@ export class EmbedController extends BaseController {
         },
     ): Promise<ApiEmbedChartAndResultsResponse> {
         this.setStatus(200);
-        if (!req.account) {
-            throw new ForbiddenError('Account is missing');
-        }
+
+        assertEmbeddedAuth(req.account);
+
         return {
             status: 'ok',
             results: await this.getEmbedService().getChartAndResults(
@@ -256,9 +255,9 @@ export class EmbedController extends BaseController {
         },
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
-        if (!req.account) {
-            throw new ForbiddenError('Account is missing');
-        }
+
+        assertEmbeddedAuth(req.account);
+
         return {
             status: 'ok',
             results: await this.getEmbedService().calculateTotalFromSavedChart(
@@ -292,9 +291,7 @@ export class EmbedController extends BaseController {
         this.setStatus(200);
         const { search, limit, filters, forceRefresh } = body;
 
-        if (!req.account) {
-            throw new ForbiddenError('Account is missing');
-        }
+        assertEmbeddedAuth(req.account);
 
         const results = await this.getEmbedService().searchFilterValues({
             account: req.account,

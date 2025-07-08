@@ -5,16 +5,16 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import express from 'express';
-import { JWT_HEADER_NAME } from '../auth/lightdashJwt';
+import { JWT_HEADER_NAME } from '../../auth/lightdashJwt';
 import { jwtAuthMiddleware } from './jwtAuthMiddleware';
 
 // Mock the JWT utility
-jest.mock('../auth/lightdashJwt', () => ({
+jest.mock('../../auth/lightdashJwt', () => ({
     decodeLightdashJwt: jest.fn(),
     JWT_HEADER_NAME: 'lightdash-embed-token',
 }));
 
-const { decodeLightdashJwt } = require('../auth/lightdashJwt');
+const { decodeLightdashJwt } = require('../../auth/lightdashJwt');
 
 describe('Embed Auth Middleware', () => {
     let mockRequest: Partial<express.Request>;
@@ -39,8 +39,19 @@ describe('Embed Auth Middleware', () => {
         },
     };
 
-    const mockOrganization: Pick<Organization, 'organizationUuid'> = {
+    const mockOrganization: Pick<Organization, 'organizationUuid' | 'name'> = {
         organizationUuid: mockOrganizationUuid,
+        name: 'Test Organization',
+    };
+
+    const mockEmbedService = {
+        getEmbeddingByProjectId: jest.fn().mockResolvedValue({
+            encodedSecret: mockEncodedSecret,
+            organization: mockOrganization,
+        }),
+        getDashboardUuidFromJwt: jest
+            .fn()
+            .mockResolvedValue('test-dashboard-uuid'),
     };
 
     beforeEach(() => {
@@ -65,13 +76,6 @@ describe('Embed Auth Middleware', () => {
 
     describe('Successful authentication scenarios', () => {
         it('should authenticate with embed token from lightdash-embed-token header', async () => {
-            const mockEmbedService = {
-                getEmbeddingByProjectId: jest.fn().mockResolvedValue({
-                    encodedSecret: mockEncodedSecret,
-                    organization: mockOrganization,
-                }),
-            };
-
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
             mockRequest.services!.getEmbedService = jest
                 .fn()
@@ -144,13 +148,6 @@ describe('Embed Auth Middleware', () => {
 
     describe('Error handling scenarios', () => {
         it('should return 403 ForbiddenError when token is expired', async () => {
-            const mockEmbedService = {
-                getEmbeddingByProjectId: jest.fn().mockResolvedValue({
-                    encodedSecret: mockEncodedSecret,
-                    organization: mockOrganization,
-                }),
-            };
-
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
             mockRequest.services!.getEmbedService = jest
                 .fn()
@@ -178,13 +175,6 @@ describe('Embed Auth Middleware', () => {
         });
 
         it('should return 403 ParameterError when token is invalid', async () => {
-            const mockEmbedService = {
-                getEmbeddingByProjectId: jest.fn().mockResolvedValue({
-                    encodedSecret: mockEncodedSecret,
-                    organization: mockOrganization,
-                }),
-            };
-
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
             mockRequest.services!.getEmbedService = jest
                 .fn()
@@ -212,13 +202,6 @@ describe('Embed Auth Middleware', () => {
         });
 
         it('should pass unexpected errors to next middleware', async () => {
-            const mockEmbedService = {
-                getEmbeddingByProjectId: jest.fn().mockResolvedValue({
-                    encodedSecret: mockEncodedSecret,
-                    organization: mockOrganization,
-                }),
-            };
-
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
             mockRequest.services!.getEmbedService = jest
                 .fn()
@@ -241,12 +224,6 @@ describe('Embed Auth Middleware', () => {
         });
 
         it('should handle embed service errors gracefully', async () => {
-            const mockEmbedService = {
-                getEmbeddingByProjectId: jest
-                    .fn()
-                    .mockRejectedValue(new Error('Database error')),
-            };
-
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
             mockRequest.services!.getEmbedService = jest
                 .fn()
@@ -277,13 +254,6 @@ describe('Embed Auth Middleware', () => {
             async ({ path, projectUuid }) => {
                 mockRequest.path = path;
                 mockRequest.query = { embedToken: mockEmbedToken };
-
-                const mockEmbedService = {
-                    getEmbeddingByProjectId: jest.fn().mockResolvedValue({
-                        encodedSecret: mockEncodedSecret,
-                        organization: mockOrganization,
-                    }),
-                };
 
                 mockRequest.services!.getEmbedService = jest
                     .fn()
@@ -330,13 +300,6 @@ describe('Embed Auth Middleware', () => {
 
     describe('Token extraction', () => {
         it('should use header token', async () => {
-            const mockEmbedService = {
-                getEmbeddingByProjectId: jest.fn().mockResolvedValue({
-                    encodedSecret: mockEncodedSecret,
-                    organization: mockOrganization,
-                }),
-            };
-
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
             mockRequest.services!.getEmbedService = jest
                 .fn()

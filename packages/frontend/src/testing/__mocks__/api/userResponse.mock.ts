@@ -1,6 +1,6 @@
 import {
-    OrganizationMemberRole,
     type LightdashUserWithAbilityRules,
+    OrganizationMemberRole,
 } from '@lightdash/common';
 
 export function mockUserResponse(
@@ -9,7 +9,6 @@ export function mockUserResponse(
     return {
         userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
         userId: 1,
-        type: 'lightdash',
         email: 'demo@lightdash.com',
         firstName: 'David',
         lastName: 'Attenborough',

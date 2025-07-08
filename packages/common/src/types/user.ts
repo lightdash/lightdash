@@ -2,24 +2,50 @@ import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
+import { type Organization } from './organization';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 
-export type BaseUser = {
+export type AccountUser = {
+    id: string;
+    email: string | undefined;
+    /* Whether the user can login */
+    isActive: boolean;
+    abilityRules: AbilityBuilder<MemberAbility>['rules'];
+    ability: MemberAbility;
+    type: 'lightdash' | 'external';
+};
+
+export interface LightdashUser {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
     organizationUuid?: string;
     organizationName?: string;
     organizationCreatedAt?: Date;
+    userId: number;
     role?: OrganizationMemberRole;
+    isTrackingAnonymized: boolean;
+    isMarketingOptedIn: boolean;
+    isSetupComplete: boolean;
+    email: string | undefined;
     /* Whether the user can login */
     isActive: boolean;
-};
+    createdAt: Date;
+    updatedAt: Date;
+    /* Whether the user doesn't have an authentication method (password or openId) */
+    isPending?: boolean;
+}
 
-export interface LightdashUser extends BaseUser {
+export interface LightdashSessionUser extends AccountUser {
+    type: 'lightdash';
+    // The current effective primary key for users. It duplicates user.id.
     userUuid: string;
+    // The old sequential primary key for users
     userId: number;
-    type?: 'lightdash';
-    email: string | undefined;
     firstName: string;
     lastName: string;
+    organization: Pick<Organization, 'organizationUuid' | 'name'>;
+    role?: OrganizationMemberRole;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
@@ -29,13 +55,11 @@ export interface LightdashUser extends BaseUser {
     isPending?: boolean;
 }
 
-export type ExternalUser = BaseUser &
-    Partial<LightdashUser> & {
-        externalId: string;
-        type: 'external';
-    };
+export interface ExternalUser extends AccountUser {
+    type: 'external';
+}
 
-export type LightdashUserWithOrg = Required<LightdashUser | ExternalUser>;
+export type LightdashUserWithOrg = Required<LightdashUser>;
 
 export const isUserWithOrg = (
     user: LightdashUser,

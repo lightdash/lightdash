@@ -5,7 +5,7 @@ import assertUnreachable from '../../utils/assertUnreachable';
 
 export type Embed = {
     projectUuid: string;
-    organization: Pick<Organization, 'organizationUuid'>;
+    organization: Pick<Organization, 'organizationUuid' | 'name'>;
     encodedSecret: string;
     dashboardUuids: string[];
     allowAllDashboards: boolean;
@@ -97,8 +97,7 @@ export const EmbedJwtSchema = z
 export type EmbedJwt = z.infer<typeof EmbedJwtSchema>;
 
 // Note: we can't extend zod types since tsoa doesn't support it
-
-export type CommonEmbedJwtContent = {
+type CommonEmbedJwtContent = {
     type: 'dashboard';
     projectUuid?: string;
     isPreview?: boolean;
