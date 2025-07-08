@@ -6,9 +6,6 @@
  */
 export enum FeatureFlags {
     /**/
-    PassthroughLogin = 'passthrough-login',
-
-    /**/
     ShowDbtCloudProjectOption = 'show-dbt-cloud-project-option',
 
     /* Show user groups */

@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    SnowflakeAuthenticationType,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -18,7 +14,6 @@ import {
 import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import {
     useIsSnowflakeAuthenticated,
     useSnowflakeDatasets,
@@ -102,9 +97,6 @@ const SnowflakeForm: FC<{
 
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
-    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
-        FeatureFlags.PassthroughLogin,
-    );
 
     if (form.values.warehouse?.type !== WarehouseTypes.SNOWFLAKE) {
         throw new Error('Snowflake form is not used for this warehouse type');
@@ -366,20 +358,18 @@ const SnowflakeForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
-                        {isPassthroughLoginFeatureEnabled && (
-                            <BooleanSwitch
-                                name="warehouse.requireUserCredentials"
-                                label="Require users to provide their own credentials"
-                                defaultChecked={
-                                    SnowflakeDefaultValues.requireUserCredentials
-                                }
-                                disabled={disabled}
-                                {...form.getInputProps(
-                                    'warehouse.requireUserCredentials',
-                                    { type: 'checkbox' },
-                                )}
-                            />
-                        )}
+                        <BooleanSwitch
+                            name="warehouse.requireUserCredentials"
+                            label="Require users to provide their own credentials"
+                            defaultChecked={
+                                SnowflakeDefaultValues.requireUserCredentials
+                            }
+                            disabled={disabled}
+                            {...form.getInputProps(
+                                'warehouse.requireUserCredentials',
+                                { type: 'checkbox' },
+                            )}
+                        />
 
                         <BooleanSwitch
                             name="warehouse.clientSessionKeepAlive"

@@ -1,4 +1,4 @@
-import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -14,7 +14,6 @@ import {
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -75,10 +74,6 @@ const RedshiftForm: FC<{
         },
     });
 
-    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
-        FeatureFlags.PassthroughLogin,
-    );
-
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -127,20 +122,18 @@ const RedshiftForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
-                        {isPassthroughLoginFeatureEnabled && (
-                            <BooleanSwitch
-                                name="warehouse.requireUserCredentials"
-                                label="Require users to provide their own credentials"
-                                {...form.getInputProps(
-                                    'warehouse.requireUserCredentials',
-                                    { type: 'checkbox' },
-                                )}
-                                defaultChecked={
-                                    RedshiftDefaultValues.requireUserCredentials
-                                }
-                                disabled={disabled}
-                            />
-                        )}
+                        <BooleanSwitch
+                            name="warehouse.requireUserCredentials"
+                            label="Require users to provide their own credentials"
+                            {...form.getInputProps(
+                                'warehouse.requireUserCredentials',
+                                { type: 'checkbox' },
+                            )}
+                            defaultChecked={
+                                RedshiftDefaultValues.requireUserCredentials
+                            }
+                            disabled={disabled}
+                        />
 
                         <NumberInput
                             name="warehouse.port"
