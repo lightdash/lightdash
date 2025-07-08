@@ -1,3 +1,10 @@
+# [0.1790.0](https://github.com/lightdash/lightdash/compare/0.1789.2...0.1790.0) (2025-07-08)
+
+
+### Features
+
+* run async warehouse query on worker ([#15730](https://github.com/lightdash/lightdash/issues/15730)) ([5eee6e6](https://github.com/lightdash/lightdash/commit/5eee6e6fe72b38e91cb006635a3f63aaffa892ae))
+
 ## [0.1789.2](https://github.com/lightdash/lightdash/compare/0.1789.1...0.1789.2) (2025-07-08)
 
 
