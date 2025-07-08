@@ -1,3 +1,10 @@
+## [0.1793.1](https://github.com/lightdash/lightdash/compare/0.1793.0...0.1793.1) (2025-07-08)
+
+
+### Bug Fixes
+
+* use MAX_SAFE_INTEGER constant instead of Number.MAX_SAFE_INTEGER ([#15771](https://github.com/lightdash/lightdash/issues/15771)) ([7a6662a](https://github.com/lightdash/lightdash/commit/7a6662a0dffbbb47d93ecd586aac02eca60b9c88))
+
 # [0.1793.0](https://github.com/lightdash/lightdash/compare/0.1792.1...0.1793.0) (2025-07-08)
 
 
