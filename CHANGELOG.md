@@ -1,3 +1,10 @@
+# [0.1791.0](https://github.com/lightdash/lightdash/compare/0.1790.0...0.1791.0) (2025-07-08)
+
+
+### Features
+
+* hydate req.account in jwt middleware ([#15599](https://github.com/lightdash/lightdash/issues/15599)) ([7c7396b](https://github.com/lightdash/lightdash/commit/7c7396be941e242f09180a2fec28e38f3f8c60fe))
+
 # [0.1790.0](https://github.com/lightdash/lightdash/compare/0.1789.2...0.1790.0) (2025-07-08)
 
 
