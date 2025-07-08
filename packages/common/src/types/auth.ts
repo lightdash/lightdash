@@ -1,11 +1,16 @@
-import { type CreateEmbedJwt } from '../ee';
+import {
+    type CreateEmbedJwt,
+    type DashboardFilterInteractivityOptions,
+} from '../ee';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
 import {
     type AccountUser,
     type ExternalUser,
+    type IntrinsicUserAttributes,
     type LightdashSessionUser,
 } from './user';
+import { type UserAttributeValueMap } from './userAttributes';
 
 type AccountAuthType =
     | 'session'
@@ -56,6 +61,24 @@ type LightdashAccountAuth =
     | LightdashUserAccountAuth
     | ServiceAccountAuth;
 
+export type AccountAccessControls = {
+    userAttributes: UserAttributeValueMap;
+    intrinsicUserAttributes: IntrinsicUserAttributes;
+};
+
+/**
+ * The dynamic access permissions the account has
+ */
+export type AccountAccess = {
+    /**
+     * The dashboard ID the account has access to.
+     * This is for backwards compatibility with the current JWT Embed API.
+     * */
+    dashboardId: string;
+    filtering?: DashboardFilterInteractivityOptions;
+    controls?: AccountAccessControls;
+};
+
 type AccountOrganization = Pick<Organization, 'organizationUuid' | 'name'>;
 
 type ILightdashAccount = {
@@ -70,6 +93,8 @@ export type ExternalAccount = LightdashAccount<{
     organization: AccountOrganization;
     authentication: EmbeddedAccountAuth;
     user: ExternalUser;
+    /** The access permissions the account has */
+    access: AccountAccess;
 }>;
 
 export type SessionAccount = LightdashAccount<{

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 // This rule is failing in CI but passes locally
 import { ForbiddenError, ParameterError } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
@@ -28,7 +28,7 @@ const parseProjectUuid = (path: string) => {
  * Middleware to authenticate embed tokens
  * If an embed token is provided, it will be decoded and attached to the request
  * If no embed token is provided, it will call next() to let regular auth middleware handle it
- * We add to req.user as well as req.account
+ * We add to `req.user` as well as `req.account`
  */
 export async function jwtAuthMiddleware(
     req: Request,
@@ -65,10 +65,18 @@ export async function jwtAuthMiddleware(
         const { encodedSecret, organization } =
             await embedService.getEmbeddingByProjectId(projectUuid);
         const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
-        const dashboardUuid = await embedService.getDashboardUuidFromJwt(
+        const userAttributesPromise = embedService.getEmbedUserAttributes(
+            organization.organizationUuid,
+            decodedToken,
+        );
+        const dashboardUuidPromise = embedService.getDashboardUuidFromJwt(
             decodedToken,
             projectUuid,
         );
+        const [dashboardUuid, userAttributes] = await Promise.all([
+            dashboardUuidPromise,
+            userAttributesPromise,
+        ]);
 
         if (!dashboardUuid) {
             res.status(404).json({
@@ -83,6 +91,7 @@ export async function jwtAuthMiddleware(
             decodedToken,
             embedToken,
             dashboardUuid,
+            userAttributes,
         );
 
         next();

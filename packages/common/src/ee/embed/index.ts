@@ -18,7 +18,8 @@ export type DecodedEmbed = Omit<Embed, 'encodedSecret'> & {
     secret: string;
 };
 
-export type CreateEmbed = {
+// tsoa can't differentiate betwen CreateEmbed and CreatedEmbedJwt so we opt for a more unique name
+export type CreateEmbedRequestBody = {
     dashboardUuids: string[];
 };
 

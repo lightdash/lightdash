@@ -7,8 +7,8 @@ import {
     ApiSuccessEmpty,
     assertEmbeddedAuth,
     CacheMetadata,
-    CreateEmbed,
     CreateEmbedJwt,
+    CreateEmbedRequestBody,
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilters,
@@ -113,7 +113,7 @@ export class EmbedController extends BaseController {
     async saveEmbedConfig(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: CreateEmbed,
+        @Body() body: CreateEmbedRequestBody,
     ): Promise<ApiEmbedConfigResponse> {
         this.setStatus(201);
         return {
