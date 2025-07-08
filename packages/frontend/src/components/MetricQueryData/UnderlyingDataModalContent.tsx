@@ -11,6 +11,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    MAX_SAFE_INTEGER,
     QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
@@ -267,7 +268,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     underlyingDataItemId,
                     filters: convertDateFilters(filters),
                     dateZoom: underlyingDataConfig?.dateZoom,
-                    limit: limit ?? Number.MAX_SAFE_INTEGER,
+                    limit: limit ?? MAX_SAFE_INTEGER,
                 });
                 return newQuery.queryUuid;
             }
