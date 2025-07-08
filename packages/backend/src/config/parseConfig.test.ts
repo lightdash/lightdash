@@ -1,4 +1,5 @@
 import {
+    ALL_TASK_NAMES,
     LightdashMode,
     OrganizationMemberRole,
     ParameterError,
@@ -415,6 +416,127 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
         test('should throw error if personal access token is not prefixed with "pat-"', () => {
             process.env.LD_SETUP_PROJECT_PAT = 'personal-access-token';
             expect(() => parseConfig()).toThrowError(ParseError);
+        });
+    });
+});
+
+describe('parseAndSanitizeSchedulerTasks', () => {
+    beforeEach(() => {
+        // Clear scheduler environment variables before each test
+        delete process.env.SCHEDULER_INCLUDE_TASKS;
+        delete process.env.SCHEDULER_EXCLUDE_TASKS;
+        // Mock console.warn to capture warning messages
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    describe('Default behavior', () => {
+        test('should return all tasks when scheduler tasks environment variables are not set or empty', () => {
+            // Test with no environment variables set
+            const config1 = parseConfig();
+            expect(config1.scheduler.tasks).toEqual(ALL_TASK_NAMES);
+
+            // Test with empty string
+            process.env.SCHEDULER_INCLUDE_TASKS = '';
+            process.env.SCHEDULER_EXCLUDE_TASKS = '';
+            const config2 = parseConfig();
+            expect(config2.scheduler.tasks).toEqual(ALL_TASK_NAMES);
+        });
+    });
+
+    describe('Include tasks validation', () => {
+        test.each([
+            ['handleScheduledDelivery', ['handleScheduledDelivery']],
+            [
+                'handleScheduledDelivery,sendSlackNotification',
+                ['handleScheduledDelivery', 'sendSlackNotification'],
+            ],
+        ])(
+            'should return array with valid include tasks: %s',
+            (input, expected) => {
+                process.env.SCHEDULER_INCLUDE_TASKS = input;
+                const config = parseConfig();
+                expect(config.scheduler.tasks).toEqual(expected);
+            },
+        );
+
+        test('should filter out invalid tasks and warn about them', () => {
+            process.env.SCHEDULER_INCLUDE_TASKS =
+                'handleScheduledDelivery,invalidTask,sendSlackNotification';
+            const config = parseConfig();
+            expect(config.scheduler.tasks).toEqual([
+                'handleScheduledDelivery',
+                'sendSlackNotification',
+            ]);
+            expect(console.warn).toHaveBeenCalledWith(
+                'Invalid scheduler tasks found in SCHEDULER_INCLUDE_TASKS environment variable: invalidTask. These tasks will be ignored.',
+            );
+        });
+    });
+
+    describe('Exclude tasks validation', () => {
+        test('should return all tasks except excluded ones', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS =
+                'sendEmailNotification,uploadGsheets';
+            const config = parseConfig();
+            expect(config.scheduler.tasks).toEqual(
+                expect.arrayContaining(
+                    ALL_TASK_NAMES.filter(
+                        (task) =>
+                            task !== 'sendEmailNotification' &&
+                            task !== 'uploadGsheets',
+                    ),
+                ),
+            );
+        });
+
+        test('should filter out invalid exclude tasks and warn about them', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS =
+                'invalidTask,sendEmailNotification';
+            const config = parseConfig();
+            expect(config.scheduler.tasks).toEqual(
+                expect.arrayContaining([
+                    'handleScheduledDelivery',
+                    'sendSlackNotification',
+                ]),
+            );
+            expect(config.scheduler.tasks).not.toEqual(
+                expect.arrayContaining(['sendEmailNotification']),
+            );
+            expect(console.warn).toHaveBeenCalledWith(
+                'Invalid scheduler tasks found in SCHEDULER_EXCLUDE_TASKS environment variable: invalidTask. These tasks will be ignored.',
+            );
+        });
+    });
+
+    describe('Include and exclude together', () => {
+        test('should throw error if both include and exclude are set', () => {
+            process.env.SCHEDULER_INCLUDE_TASKS =
+                'handleScheduledDelivery,sendSlackNotification,sendEmailNotification,uploadGsheets';
+            process.env.SCHEDULER_EXCLUDE_TASKS = 'sendEmailNotification';
+            expect(() => parseConfig()).toThrowError(ParseError);
+        });
+    });
+
+    describe('Edge cases', () => {
+        test('should handle whitespace in include task list', () => {
+            process.env.SCHEDULER_INCLUDE_TASKS =
+                ' handleScheduledDelivery , sendSlackNotification ';
+            const config = parseConfig();
+            expect(config.scheduler.tasks).toEqual([
+                'handleScheduledDelivery',
+                'sendSlackNotification',
+            ]);
+        });
+
+        test('should not warn when all include tasks are valid', () => {
+            process.env.SCHEDULER_INCLUDE_TASKS =
+                'handleScheduledDelivery,sendSlackNotification';
+            parseConfig();
+            expect(console.warn).not.toHaveBeenCalled();
         });
     });
 });

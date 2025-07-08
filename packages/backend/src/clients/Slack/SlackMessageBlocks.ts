@@ -3,7 +3,6 @@ import {
     friendlyName,
     LightdashPage,
     operatorActionValue,
-    ThresholdOperator,
     ThresholdOptions,
 } from '@lightdash/common';
 import {

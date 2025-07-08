@@ -1,4 +1,4 @@
-import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -14,7 +14,6 @@ import {
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -81,10 +80,6 @@ const PostgresForm: FC<{
         },
     });
 
-    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
-        FeatureFlags.PassthroughLogin,
-    );
-
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -133,22 +128,20 @@ const PostgresForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
-                        {isPassthroughLoginFeatureEnabled && (
-                            <BooleanSwitch
-                                name="warehouse.requireUserCredentials"
-                                {...form.getInputProps(
-                                    'warehouse.requireUserCredentials',
-                                    {
-                                        type: 'checkbox',
-                                    },
-                                )}
-                                label="Require users to provide their own credentials"
-                                disabled={disabled}
-                                defaultChecked={
-                                    PostgresDefaultValues.requireUserCredentials
-                                }
-                            />
-                        )}
+                        <BooleanSwitch
+                            name="warehouse.requireUserCredentials"
+                            {...form.getInputProps(
+                                'warehouse.requireUserCredentials',
+                                {
+                                    type: 'checkbox',
+                                },
+                            )}
+                            label="Require users to provide their own credentials"
+                            disabled={disabled}
+                            defaultChecked={
+                                PostgresDefaultValues.requireUserCredentials
+                            }
+                        />
                         <NumberInput
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}

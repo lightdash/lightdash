@@ -13,16 +13,22 @@ import {
 } from '@slack/bolt';
 import { WebClient } from '@slack/web-api';
 import { type MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
-import { SlackBot, SlackBotArguments } from '../../../clients/Slack/Slackbot';
+import {
+    SlackClient,
+    SlackClientArguments,
+} from '../../../clients/Slack/SlackClient';
 import Logger from '../../../logging/logger';
+import { UnfurlService } from '../../../services/UnfurlService/UnfurlService';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { AiAgentService } from '../../services/AiAgentService';
 
-type CommercialSlackBotArguments = SlackBotArguments & {
+type CommercialSlackClientArguments = Omit<
+    SlackClientArguments,
+    'slackAuthenticationModel'
+> & {
     schedulerClient: CommercialSchedulerClient;
-    aiAgentService: AiAgentService;
     aiAgentModel: AiAgentModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
 };
@@ -31,32 +37,46 @@ type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
 >;
 
-export class CommercialSlackBot extends SlackBot {
+export class CommercialSlackClient extends SlackClient {
     private readonly schedulerClient: CommercialSchedulerClient;
-
-    private readonly aiAgentService: AiAgentService;
 
     private readonly aiAgentModel: AiAgentModel;
 
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
 
-    constructor(args: CommercialSlackBotArguments) {
+    constructor(args: CommercialSlackClientArguments) {
         super(args);
-        this.schedulerClient = args.schedulerClient;
-        this.aiAgentService = args.aiAgentService;
-        this.aiAgentModel = args.aiAgentModel;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
+        this.schedulerClient = args.schedulerClient;
+        this.aiAgentModel = args.aiAgentModel;
     }
 
-    protected addEventListeners(app: App) {
-        super.addEventListeners(app);
+    public getRequiredScopes() {
+        return [...super.getRequiredScopes(), 'channels:history'];
+    }
+
+    protected addEventListeners(
+        app: App,
+        unfurlService: UnfurlService,
+        aiAgentService: AiAgentService,
+    ) {
+        if (!aiAgentService) {
+            throw new Error(
+                'AiAgentService is required for CommercialSlackClient',
+            );
+        }
+
+        super.addEventListeners(app, unfurlService, aiAgentService);
 
         if (this.lightdashConfig.ai.copilot.enabled) {
-            app.event('app_mention', (m) => this.handleAppMention(m));
-            this.handlePromptUpvote(app);
-            this.handlePromptDownvote(app);
-            this.handleClickExploreButton(app);
-            this.handleExecuteFollowUpTool(app);
+            // TODO: all of the handlers should be in a service
+            app.event('app_mention', (m) =>
+                this.handleAppMention(m, aiAgentService),
+            );
+            CommercialSlackClient.handlePromptUpvote(app, aiAgentService);
+            CommercialSlackClient.handlePromptDownvote(app, aiAgentService);
+            CommercialSlackClient.handleClickExploreButton(app);
+            this.handleExecuteFollowUpTool(app, aiAgentService);
         } else {
             Logger.info(
                 'AI Copilot is disabled, skipping event listener registration',
@@ -78,16 +98,13 @@ export class CommercialSlackBot extends SlackBot {
     }
 
     // TODO: remove this once we have analytics tracking
-    // eslint-disable-next-line class-methods-use-this
-    private handleClickExploreButton(app: App) {
+    static handleClickExploreButton(app: App) {
         app.action('actions.explore_button_click', async ({ ack, body }) => {
             await ack();
-            // TODO: add analytics tracking
-            // console.log(JSON.stringify(body, null, 2));
         });
     }
 
-    private handlePromptUpvote(app: App) {
+    static handlePromptUpvote(app: App, aiAgentService: AiAgentService) {
         app.action(
             'prompt_human_score.upvote',
             async ({ ack, body, respond }) => {
@@ -109,7 +126,7 @@ export class CommercialSlackBot extends SlackBot {
                         if (!promptUuid) {
                             return;
                         }
-                        await this.aiAgentService.updateHumanScoreForSlackPrompt(
+                        await aiAgentService.updateHumanScoreForSlackPrompt(
                             promptUuid,
                             1,
                         );
@@ -120,7 +137,7 @@ export class CommercialSlackBot extends SlackBot {
 
                         await respond({
                             replace_original: true,
-                            blocks: CommercialSlackBot.replaceSlackBlockByBlockId(
+                            blocks: CommercialSlackClient.replaceSlackBlockByBlockId(
                                 blocks,
                                 'prompt_human_score',
                                 newBlock,
@@ -132,7 +149,7 @@ export class CommercialSlackBot extends SlackBot {
         );
     }
 
-    private handlePromptDownvote(app: App) {
+    static handlePromptDownvote(app: App, aiAgentService: AiAgentService) {
         app.action(
             'prompt_human_score.downvote',
             async ({ ack, body, respond }) => {
@@ -154,7 +171,7 @@ export class CommercialSlackBot extends SlackBot {
                         if (!promptUuid) {
                             return;
                         }
-                        await this.aiAgentService.updateHumanScoreForSlackPrompt(
+                        await aiAgentService.updateHumanScoreForSlackPrompt(
                             promptUuid,
                             -1,
                         );
@@ -164,7 +181,7 @@ export class CommercialSlackBot extends SlackBot {
 
                             await respond({
                                 replace_original: true,
-                                blocks: CommercialSlackBot.replaceSlackBlockByBlockId(
+                                blocks: CommercialSlackClient.replaceSlackBlockByBlockId(
                                     blocks,
                                     'prompt_human_score',
                                     newBlock,
@@ -177,7 +194,10 @@ export class CommercialSlackBot extends SlackBot {
         );
     }
 
-    private handleExecuteFollowUpTool(app: App) {
+    private handleExecuteFollowUpTool(
+        app: App,
+        aiAgentService: AiAgentService,
+    ) {
         Object.values(FollowUpTools).forEach((tool) => {
             app.action(
                 `execute_follow_up_tool.${tool}`,
@@ -230,21 +250,18 @@ export class CommercialSlackBot extends SlackBot {
 
                             try {
                                 [slackPromptUuid] =
-                                    await this.aiAgentService.createSlackPrompt(
-                                        {
-                                            userUuid,
-                                            projectUuid:
-                                                prevSlackPrompt.projectUuid,
-                                            slackUserId: context.botUserId,
-                                            slackChannelId: channel.id,
-                                            slackThreadTs:
-                                                prevSlackPrompt.slackThreadTs,
-                                            prompt: response.message.text,
-                                            promptSlackTs: response.ts,
-                                            agentUuid:
-                                                prevSlackPrompt.agentUuid,
-                                        },
-                                    );
+                                    await aiAgentService.createSlackPrompt({
+                                        userUuid,
+                                        projectUuid:
+                                            prevSlackPrompt.projectUuid,
+                                        slackUserId: context.botUserId,
+                                        slackChannelId: channel.id,
+                                        slackThreadTs:
+                                            prevSlackPrompt.slackThreadTs,
+                                        prompt: response.message.text,
+                                        promptSlackTs: response.ts,
+                                        agentUuid: prevSlackPrompt.agentUuid,
+                                    });
                             } catch (e) {
                                 if (e instanceof AiDuplicateSlackPromptError) {
                                     Logger.debug(
@@ -279,12 +296,15 @@ export class CommercialSlackBot extends SlackBot {
     }
 
     // WARNING: Needs - channels:history scope for all slack apps
-    private async handleAppMention({
-        event,
-        context,
-        say,
-        client,
-    }: SlackEventMiddlewareArgs<'app_mention'> & AllMiddlewareArgs) {
+    private async handleAppMention(
+        {
+            event,
+            context,
+            say,
+            client,
+        }: SlackEventMiddlewareArgs<'app_mention'> & AllMiddlewareArgs,
+        aiAgentService: AiAgentService,
+    ) {
         Logger.info(`Got app_mention event ${event.text}`);
 
         const { teamId } = context;
@@ -326,7 +346,7 @@ export class CommercialSlackBot extends SlackBot {
                 // Consent is granted - fetch thread messages
                 if (aiThreadAccessConsent === true && context.botId) {
                     threadMessages =
-                        await CommercialSlackBot.fetchThreadMessages({
+                        await CommercialSlackClient.fetchThreadMessages({
                             client,
                             channelId: event.channel,
                             threadTs: event.thread_ts,
@@ -337,7 +357,7 @@ export class CommercialSlackBot extends SlackBot {
             }
 
             [slackPromptUuid, createdThread] =
-                await this.aiAgentService.createSlackPrompt({
+                await aiAgentService.createSlackPrompt({
                     userUuid,
                     projectUuid: agentConfig.projectUuid,
                     slackUserId: event.user,
@@ -468,13 +488,13 @@ export class CommercialSlackBot extends SlackBot {
                 limit: 100, // TODO: What should be the limit?
             });
 
-            return CommercialSlackBot.processThreadMessages(
+            return CommercialSlackClient.processThreadMessages(
                 threadHistory.messages,
                 excludeMessageTs,
                 botId,
             );
         } catch (error) {
-            Logger.warn(
+            Logger.error(
                 'Failed to fetch thread history, using original message only:',
                 error,
             );

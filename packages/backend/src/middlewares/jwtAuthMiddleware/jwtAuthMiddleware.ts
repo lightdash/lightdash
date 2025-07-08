@@ -1,15 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 // This rule is failing in CI but passes locally
-import {
-    Account,
-    ForbiddenError,
-    ParameterError,
-    SessionUser,
-} from '@lightdash/common';
+import { ForbiddenError, ParameterError } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
-import { decodeLightdashJwt, JWT_HEADER_NAME } from '../auth/lightdashJwt';
-import { EmbedService } from '../ee/services/EmbedService/EmbedService';
-import Logger from '../logging/logger';
+import { decodeLightdashJwt, JWT_HEADER_NAME } from '../../auth/lightdashJwt';
+import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
+import Logger from '../../logging/logger';
+import { hydrateEmbeddedAccount } from './hydrateEmbeddedAccount';
 
 /**
  * We don't have the parsed routes yet, so we get the path params in a
@@ -32,7 +28,7 @@ const parseProjectUuid = (path: string) => {
  * Middleware to authenticate embed tokens
  * If an embed token is provided, it will be decoded and attached to the request
  * If no embed token is provided, it will call next() to let regular auth middleware handle it
- * We add to req.user as well as req.account
+ * We add to `req.user` as well as `req.account`
  */
 export async function jwtAuthMiddleware(
     req: Request,
@@ -69,17 +65,34 @@ export async function jwtAuthMiddleware(
         const { encodedSecret, organization } =
             await embedService.getEmbeddingByProjectId(projectUuid);
         const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
+        const userAttributesPromise = embedService.getEmbedUserAttributes(
+            organization.organizationUuid,
+            decodedToken,
+        );
+        const dashboardUuidPromise = embedService.getDashboardUuidFromJwt(
+            decodedToken,
+            projectUuid,
+        );
+        const [dashboardUuid, userAttributes] = await Promise.all([
+            dashboardUuidPromise,
+            userAttributesPromise,
+        ]);
 
-        req.account = {
-            authentication: {
-                type: 'jwt',
-                data: decodedToken,
-                source: embedToken,
-            },
+        if (!dashboardUuid) {
+            res.status(404).json({
+                status: 'error',
+                message: 'Cannot verify JWT. Dashboard ID not found',
+            });
+            return;
+        }
+
+        req.account = hydrateEmbeddedAccount(
             organization,
-            // FIXME: This is temporary until we parse user and abilities
-            user: {} as SessionUser,
-        } as Account;
+            decodedToken,
+            embedToken,
+            dashboardUuid,
+            userAttributes,
+        );
 
         next();
     } catch (error) {

@@ -212,6 +212,10 @@
               cloudflared
 
               git-secrets
+
+              google-cloud-sdk
+              kubectl
+              okteto
             ];
 
             # Environment setup

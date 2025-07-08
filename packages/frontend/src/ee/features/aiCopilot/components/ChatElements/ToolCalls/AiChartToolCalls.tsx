@@ -9,7 +9,7 @@ import {
     type ToolName,
     ToolNameSchema,
 } from '@lightdash/common';
-import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
+import { Badge, Stack, Text, Timeline } from '@mantine-8/core';
 import {
     IconChartHistogram,
     IconChartLine,
@@ -52,46 +52,25 @@ const ToolCallDescription: FC<{
         case 'find_explores':
             return null;
         case 'find_fields':
-            const { embeddingSearchQueries: fields, exploreName } = toolArgs;
+            const { exploreName } = toolArgs;
 
             return (
                 <>
                     <Text c="dimmed" size="xs">
-                        Found {fields.length} relevant field
-                        {fields.length !== 1 ? 's' : ''} in{' '}
-                        <Text
-                            variant="link"
-                            component="span"
-                            inherit
-                            c="dark.6"
-                            fw={500}
+                        Found relevant fields in{' '}
+                        <Badge
+                            color="gray"
+                            variant="light"
+                            size="xs"
+                            radius="sm"
+                            style={{
+                                textTransform: 'none',
+                                fontWeight: 400,
+                            }}
                         >
                             {exploreName}
-                        </Text>{' '}
-                        table
+                        </Badge>
                     </Text>
-                    {fields.length > 0 && (
-                        <Text size="xs" mt={4} c="dimmed">
-                            <Group gap="xs">
-                                Fields:
-                                {fields.map((field) => (
-                                    <Badge
-                                        key={field.name}
-                                        color="gray"
-                                        variant="light"
-                                        size="xs"
-                                        radius="sm"
-                                        style={{
-                                            textTransform: 'none',
-                                            fontWeight: 400,
-                                        }}
-                                    >
-                                        {field.name}
-                                    </Badge>
-                                ))}
-                            </Group>
-                        </Text>
-                    )}
                 </>
             );
         case AiResultType.VERTICAL_BAR_RESULT:

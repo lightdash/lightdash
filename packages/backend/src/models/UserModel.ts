@@ -77,7 +77,6 @@ export const mapDbUserDetailsToLightdashUser = (
 ): LightdashUser => ({
     userUuid: user.user_uuid,
     userId: user.user_id,
-    type: 'lightdash',
     email: user.email,
     firstName: user.first_name,
     lastName: user.last_name,

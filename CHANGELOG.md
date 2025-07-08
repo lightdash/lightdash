@@ -1,3 +1,66 @@
+## [0.1793.1](https://github.com/lightdash/lightdash/compare/0.1793.0...0.1793.1) (2025-07-08)
+
+
+### Bug Fixes
+
+* use MAX_SAFE_INTEGER constant instead of Number.MAX_SAFE_INTEGER ([#15771](https://github.com/lightdash/lightdash/issues/15771)) ([7a6662a](https://github.com/lightdash/lightdash/commit/7a6662a0dffbbb47d93ecd586aac02eca60b9c88))
+
+# [0.1793.0](https://github.com/lightdash/lightdash/compare/0.1792.1...0.1793.0) (2025-07-08)
+
+
+### Features
+
+* support dbt 1.10 ([#15761](https://github.com/lightdash/lightdash/issues/15761)) ([8a955bb](https://github.com/lightdash/lightdash/commit/8a955bbd1e895f829d18141862f3d2c7077ab638))
+
+## [0.1792.1](https://github.com/lightdash/lightdash/compare/0.1792.0...0.1792.1) (2025-07-08)
+
+
+### Bug Fixes
+
+* set snowflake timeout values for login ([#15767](https://github.com/lightdash/lightdash/issues/15767)) ([64e9838](https://github.com/lightdash/lightdash/commit/64e9838950591fbcda4ecd83199769e079a26ca4))
+
+# [0.1792.0](https://github.com/lightdash/lightdash/compare/0.1791.0...0.1792.0) (2025-07-08)
+
+
+### Features
+
+* use filters and userAttributes from req.account in EmbedService ([#15621](https://github.com/lightdash/lightdash/issues/15621)) ([61a520c](https://github.com/lightdash/lightdash/commit/61a520cc1719a11053e8fa4cc538005b54626566))
+
+# [0.1791.0](https://github.com/lightdash/lightdash/compare/0.1790.0...0.1791.0) (2025-07-08)
+
+
+### Features
+
+* hydate req.account in jwt middleware ([#15599](https://github.com/lightdash/lightdash/issues/15599)) ([7c7396b](https://github.com/lightdash/lightdash/commit/7c7396be941e242f09180a2fec28e38f3f8c60fe))
+
+# [0.1790.0](https://github.com/lightdash/lightdash/compare/0.1789.2...0.1790.0) (2025-07-08)
+
+
+### Features
+
+* run async warehouse query on worker ([#15730](https://github.com/lightdash/lightdash/issues/15730)) ([5eee6e6](https://github.com/lightdash/lightdash/commit/5eee6e6fe72b38e91cb006635a3f63aaffa892ae))
+
+## [0.1789.2](https://github.com/lightdash/lightdash/compare/0.1789.1...0.1789.2) (2025-07-08)
+
+
+### Bug Fixes
+
+* **test:** remove explores from meta tags ([#15763](https://github.com/lightdash/lightdash/issues/15763)) ([dfb6aa7](https://github.com/lightdash/lightdash/commit/dfb6aa7b8992a3ae0dab355568ad5b0e2bc0a37f))
+
+## [0.1789.1](https://github.com/lightdash/lightdash/compare/0.1789.0...0.1789.1) (2025-07-08)
+
+
+### Bug Fixes
+
+* remove PassthroughLogin feature flag ([#15760](https://github.com/lightdash/lightdash/issues/15760)) ([670f2ad](https://github.com/lightdash/lightdash/commit/670f2ad1b2d0a0e0505076141e2eb582b4e14743))
+
+# [0.1789.0](https://github.com/lightdash/lightdash/compare/0.1788.3...0.1789.0) (2025-07-08)
+
+
+### Features
+
+* add SCHEDULER_INCLUDE_TASKS and SCHEDULER_EXCLUDE_TASKS environment variables ([#15729](https://github.com/lightdash/lightdash/issues/15729)) ([3400151](https://github.com/lightdash/lightdash/commit/340015189a5df1d8aebc73df7ca014949f465422))
+
 ## [0.1788.3](https://github.com/lightdash/lightdash/compare/0.1788.2...0.1788.3) (2025-07-07)
 
 

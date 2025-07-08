@@ -1,4 +1,5 @@
 import {
+    MAX_SAFE_INTEGER,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -47,7 +48,7 @@ export const useDashboardChartDownload = (
                         dateZoom: dateZoomGranularity
                             ? { granularity: dateZoomGranularity }
                             : undefined,
-                        limit: limit ?? Number.MAX_SAFE_INTEGER,
+                        limit: limit ?? MAX_SAFE_INTEGER,
                         invalidateCache: false,
                     }),
                 });
