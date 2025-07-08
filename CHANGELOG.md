@@ -1,3 +1,10 @@
+## [0.1789.2](https://github.com/lightdash/lightdash/compare/0.1789.1...0.1789.2) (2025-07-08)
+
+
+### Bug Fixes
+
+* **test:** remove explores from meta tags ([#15763](https://github.com/lightdash/lightdash/issues/15763)) ([dfb6aa7](https://github.com/lightdash/lightdash/commit/dfb6aa7b8992a3ae0dab355568ad5b0e2bc0a37f))
+
 ## [0.1789.1](https://github.com/lightdash/lightdash/compare/0.1789.0...0.1789.1) (2025-07-08)
 
 
