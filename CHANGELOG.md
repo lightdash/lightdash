@@ -1,3 +1,10 @@
+# [0.1789.0](https://github.com/lightdash/lightdash/compare/0.1788.3...0.1789.0) (2025-07-08)
+
+
+### Features
+
+* add SCHEDULER_INCLUDE_TASKS and SCHEDULER_EXCLUDE_TASKS environment variables ([#15729](https://github.com/lightdash/lightdash/issues/15729)) ([3400151](https://github.com/lightdash/lightdash/commit/340015189a5df1d8aebc73df7ca014949f465422))
+
 ## [0.1788.3](https://github.com/lightdash/lightdash/compare/0.1788.2...0.1788.3) (2025-07-07)
 
 
