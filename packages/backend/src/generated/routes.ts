@@ -8611,6 +8611,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateDailyJobs'] },
                 { dataType: 'enum', enums: ['exportCsvDashboard'] },
                 { dataType: 'enum', enums: ['renameResources'] },
+                { dataType: 'enum', enums: ['runAsyncWarehouseQuery'] },
             ],
             validators: {},
         },
@@ -10281,7 +10282,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SupportedDbtVersions: {
         dataType: 'refEnum',
-        enums: ['v1.4', 'v1.5', 'v1.6', 'v1.7', 'v1.8', 'v1.9'],
+        enums: ['v1.4', 'v1.5', 'v1.6', 'v1.7', 'v1.8', 'v1.9', 'v1.10'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DbtVersionOptionLatest: {

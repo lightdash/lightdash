@@ -9419,7 +9419,8 @@
                     "indexCatalog",
                     "generateDailyJobs",
                     "exportCsvDashboard",
-                    "renameResources"
+                    "renameResources",
+                    "runAsyncWarehouseQuery"
                 ]
             },
             "SchedulerJobStatus": {
@@ -11130,7 +11131,15 @@
                 ]
             },
             "SupportedDbtVersions": {
-                "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8", "v1.9"],
+                "enum": [
+                    "v1.4",
+                    "v1.5",
+                    "v1.6",
+                    "v1.7",
+                    "v1.8",
+                    "v1.9",
+                    "v1.10"
+                ],
                 "type": "string"
             },
             "DbtVersionOptionLatest": {
@@ -17621,7 +17630,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1788.2",
+        "version": "0.1790.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
