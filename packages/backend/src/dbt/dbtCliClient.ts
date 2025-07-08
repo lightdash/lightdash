@@ -81,6 +81,7 @@ enum DbtCommands {
     DBT_1_7 = 'dbt1.7',
     DBT_1_8 = 'dbt1.8',
     DBT_1_9 = 'dbt1.9',
+    DBT_1_10 = 'dbt1.10',
 }
 
 export class DbtCliClient implements DbtClient {
@@ -165,6 +166,8 @@ export class DbtCliClient implements DbtClient {
                 return DbtCommands.DBT_1_8;
             case SupportedDbtVersions.V1_9:
                 return DbtCommands.DBT_1_9;
+            case SupportedDbtVersions.V1_10:
+                return DbtCommands.DBT_1_10;
             default:
                 return assertUnreachable(
                     this.dbtVersion,
