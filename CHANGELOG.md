@@ -1,3 +1,10 @@
+## [0.1793.2](https://github.com/lightdash/lightdash/compare/0.1793.1...0.1793.2) (2025-07-08)
+
+
+### Bug Fixes
+
+* improve OpenID authentication error messages ([#15766](https://github.com/lightdash/lightdash/issues/15766)) ([c442892](https://github.com/lightdash/lightdash/commit/c4428922ce2c9575859d2afc609940766d33976f))
+
 ## [0.1793.1](https://github.com/lightdash/lightdash/compare/0.1793.0...0.1793.1) (2025-07-08)
 
 

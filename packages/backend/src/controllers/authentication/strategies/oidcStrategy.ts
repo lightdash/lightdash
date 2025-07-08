@@ -31,9 +31,26 @@ const createOpenIdUserFromProfile = (
     const email = profile.emails?.[0]?.value || profile.email;
     const subject = profile.id || profile.sub;
 
-    if (!(email && subject)) {
+    if (!email) {
+        Logger.error(
+            `Authentication failed: missing email in OpenID profile. ${JSON.stringify(
+                profile,
+            )}`,
+        );
         return done(null, false, {
-            message: 'Could not parse authentication token',
+            message: 'Authentication failed: missing email in OpenID profile.',
+        });
+    }
+
+    if (!subject) {
+        Logger.error(
+            `Authentication failed: missing subject (user ID) in OpenID profile. ${JSON.stringify(
+                profile,
+            )}`,
+        );
+        return done(null, false, {
+            message:
+                'Authentication failed: missing subject (user ID) in OpenID profile.',
         });
     }
 
