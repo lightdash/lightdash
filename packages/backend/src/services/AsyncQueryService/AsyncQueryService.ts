@@ -1164,7 +1164,13 @@ export class AsyncQueryService extends ProjectService {
         fieldsMap: ItemsMap;
         queryHistoryUuid: string;
         cacheKey: string;
-        warehouseCredentials: CreateWarehouseCredentials;
+        warehouseCredentials: {
+            credentials: CreateWarehouseCredentials;
+            credentialOverrides: {
+                snowflakeVirtualWarehouse?: string;
+                databricksCompute?: string;
+            };
+        };
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -1187,7 +1193,8 @@ export class AsyncQueryService extends ProjectService {
             const { warehouseClient, sshTunnel: warehouseSshTunnel } =
                 await this._getWarehouseClient(
                     projectUuid,
-                    warehouseCredentials,
+                    warehouseCredentials.credentials,
+                    warehouseCredentials.credentialOverrides,
                 );
 
             sshTunnel = warehouseSshTunnel;
@@ -1304,7 +1311,7 @@ export class AsyncQueryService extends ProjectService {
                 properties: {
                     queryId: queryHistoryUuid,
                     projectId: projectUuid,
-                    warehouseType: warehouseCredentials.type,
+                    warehouseType: warehouseCredentials.credentials.type,
                 },
             });
             await this.queryHistoryModel.update(
@@ -1410,7 +1417,6 @@ export class AsyncQueryService extends ProjectService {
             originalColumns?: ResultColumns;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-        warehouseCredentials: CreateWarehouseCredentials,
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -1457,17 +1463,31 @@ export class AsyncQueryService extends ProjectService {
                         throw new ForbiddenError();
                     }
 
+                    const originalCredentials =
+                        await this.getWarehouseCredentials(
+                            projectUuid,
+                            user.userUuid,
+                        );
+
+                    const warehouseCredentials = {
+                        credentials: originalCredentials,
+                        credentialOverrides: {
+                            snowflakeVirtualWarehouse: explore.warehouse,
+                            databricksCompute: explore.databricksCompute,
+                        },
+                    };
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',
-                        warehouseCredentials.type,
+                        warehouseCredentials.credentials.type,
                     );
 
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
                         pivotedQuery =
                             await ProjectService.applyPivotToSqlQuery({
-                                warehouseType: warehouseCredentials.type,
+                                warehouseType:
+                                    warehouseCredentials.credentials.type,
                                 sql: compiledQuery,
                                 indexColumn: pivotConfiguration.indexColumn,
                                 valuesColumns: pivotConfiguration.valuesColumns,
@@ -1531,7 +1551,8 @@ export class AsyncQueryService extends ProjectService {
                             projectId: projectUuid,
                             context,
                             queryId: queryHistoryUuid,
-                            warehouseType: warehouseCredentials.type,
+                            warehouseType:
+                                warehouseCredentials.credentials.type,
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery,
@@ -1597,23 +1618,23 @@ export class AsyncQueryService extends ProjectService {
                         this.logger.info(
                             `Queuing query ${queryHistoryUuid} for execution in a worker`,
                         );
-                        await this.schedulerClient.scheduleTask(
-                            SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                                projectUuid,
-                                queryTags,
-                                query,
-                                fieldsMap,
-                                queryHistoryUuid,
-                                cacheKey,
-                                warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
-                                pivotConfiguration,
-                                originalColumns,
-                            },
-                            JobPriority.HIGH,
-                        );
+                        // await this.schedulerClient.scheduleTask(
+                        //     SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                        //     {
+                        //         organizationUuid,
+                        //         userUuid: user.userUuid,
+                        //         projectUuid,
+                        //         queryTags,
+                        //         query,
+                        //         fieldsMap,
+                        //         queryHistoryUuid,
+                        //         cacheKey,
+                        //         warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
+                        //         pivotConfiguration,
+                        //         originalColumns,
+                        //     },
+                        //     JobPriority.HIGH,
+                        // );
                     } else {
                         this.logger.info(
                             `Executing query ${queryHistoryUuid} in the main loop`,
@@ -1742,7 +1763,6 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
             },
             requestParameters,
-            warehouseConnection.warehouseClient.credentials,
         );
 
         return {
@@ -1884,7 +1904,6 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
             },
             requestParameters,
-            warehouseConnection.warehouseClient.credentials,
         );
 
         return {
@@ -2085,7 +2104,6 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
             },
             requestParameters,
-            warehouseConnection.warehouseClient.credentials,
         );
 
         return {
@@ -2259,7 +2277,6 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                 },
                 requestParameters,
-                warehouseConnection.warehouseClient.credentials,
             );
 
         return {
@@ -2335,7 +2352,6 @@ export class AsyncQueryService extends ProjectService {
                 query: metricQuery,
                 invalidateCache,
             },
-            warehouseConnection.warehouseClient.credentials,
             pivotConfiguration,
         );
 
@@ -2599,7 +2615,6 @@ export class AsyncQueryService extends ProjectService {
                 query: metricQuery,
                 invalidateCache,
             },
-            warehouseConnection.warehouseClient.credentials,
             pivotConfiguration,
         );
 
@@ -2684,7 +2699,6 @@ export class AsyncQueryService extends ProjectService {
                 query: metricQuery,
                 invalidateCache,
             },
-            warehouseConnection.warehouseClient.credentials,
             pivotConfiguration,
         );
 

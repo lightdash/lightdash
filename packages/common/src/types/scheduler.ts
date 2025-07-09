@@ -6,7 +6,6 @@ import { type ItemsMap } from './field';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type MetricQuery } from './metricQuery';
 import { type PivotConfig } from './pivot';
-import { type CreateWarehouseCredentials } from './projects';
 import { type ResultColumns } from './results';
 import {
     type GroupByColumn,
@@ -522,12 +521,13 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
 export type AsyncWarehouseQueryPayload = TraceTaskBase & {
     userUuid: string;
     projectUuid: string;
+    organizationUuid: string;
     queryTags: RunQueryTags;
     query: string;
     fieldsMap: ItemsMap;
     queryHistoryUuid: string;
     cacheKey: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    exploreName: string;
     pivotConfiguration?: {
         indexColumn: PivotIndexColum;
         valuesColumns: ValuesColumn[];
