@@ -83,7 +83,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         shadow="none"
                     >
                         {data && data.schedulers.length > 0 ? (
-                            <Schedulers {...data} projectUuid={projectUuid} />
+                            <Schedulers projectUuid={projectUuid} />
                         ) : (
                             <ResourceEmptyState
                                 title="No scheduled deliveries on this project"

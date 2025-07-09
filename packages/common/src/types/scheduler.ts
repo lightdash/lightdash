@@ -4,6 +4,7 @@ import { type AnyType } from './any';
 import { type Explore, type ExploreError } from './explore';
 import { type ItemsMap } from './field';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
+import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type PivotConfig } from './pivot';
 import { type ResultColumns } from './results';
@@ -344,6 +345,11 @@ export const isSchedulerGsheetsOptions = (
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
+};
+
+export type ApiSchedulersResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<SchedulerAndTargets[]>;
 };
 
 export type ScheduledJobs = {
