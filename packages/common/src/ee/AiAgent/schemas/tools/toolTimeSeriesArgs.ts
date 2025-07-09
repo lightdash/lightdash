@@ -27,8 +27,15 @@ export const toolTimeSeriesArgsSchema = visualizationMetadataSchema.extend({
 
 export type ToolTimeSeriesArgs = z.infer<typeof toolTimeSeriesArgsSchema>;
 
-export const toolTimeSeriesArgsSchemaTransformed =
-    toolTimeSeriesArgsSchema.transform((data) => ({
+export const toolTimeSeriesArgsSchemaTransformed = toolTimeSeriesArgsSchema
+    .extend({
+        // backwards compatibility for old viz configs
+        vizConfig: timeSeriesMetricVizConfigSchema.extend({
+            xAxisLabel: z.string().default(''),
+            yAxisLabel: z.string().default(''),
+        }),
+    })
+    .transform((data) => ({
         ...data,
         filters: filtersSchemaTransformed.parse(data.filters),
     }));

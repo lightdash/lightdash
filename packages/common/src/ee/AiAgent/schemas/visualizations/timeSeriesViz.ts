@@ -43,6 +43,14 @@ export const timeSeriesMetricVizConfigSchema = z.object({
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
         .nullable()
         .describe(`The total number of data points allowed on the chart.`),
+    xAxisLabel: z
+        .string()
+        .nullable()
+        .describe('A helpful label to explain the x-axis'),
+    yAxisLabel: z
+        .string()
+        .nullable()
+        .describe('A helpful label to explain the y-axis'),
 });
 
 export type TimeSeriesMetricVizConfigSchemaType = z.infer<
