@@ -71,11 +71,16 @@ export const getGenerateTableVizConfig = ({
                     vizTool,
                     maxLimit,
                 });
+                await updateProgress('✅ Done.');
 
                 isOneRow = results.rows.length === 1;
 
+                if (isOneRow) {
+                    return `Here's the result:
+${serializeData(csv, 'csv')}`;
+                }
+
                 if (isSlackPrompt(prompt)) {
-                    await updateProgress('✅ Done.');
                     await sendFile({
                         channelId: prompt.slackChannelId,
                         threadTs: prompt.slackThreadTs,
@@ -85,11 +90,6 @@ export const getGenerateTableVizConfig = ({
                         filename: 'lightdash-query-results.csv',
                         file: Buffer.from(csv, 'utf8'),
                     });
-                }
-
-                if (isOneRow) {
-                    return `Here's the result:
-${serializeData(csv, 'csv')}`;
                 }
 
                 return `Success.`;
