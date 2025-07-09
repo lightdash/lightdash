@@ -31,7 +31,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
     tileIndex,
     ...rest
 }) => {
-    const { languageMap } = useEmbed();
+    const { languageMap, onExplore } = useEmbed();
 
     const { isLoading, data, error } = useEmbedChartAndResults(
         projectUuid,
@@ -135,6 +135,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
             resultsData={resultData}
             dashboardChartReadyQuery={query}
             error={error}
+            onExplore={onExplore}
         />
     );
 };
