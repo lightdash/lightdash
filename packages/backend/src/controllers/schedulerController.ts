@@ -100,7 +100,7 @@ export class SchedulerController extends BaseController {
                 direction: sortDirection,
             };
         }
-        console.log('searchQuery -1', searchQuery);
+
         return {
             status: 'ok',
             results: await this.services
