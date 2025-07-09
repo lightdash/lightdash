@@ -8403,7 +8403,23 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'ThresholdOptions' },
                 },
                 options: { ref: 'SchedulerOptions', required: true },
+                dashboardName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 dashboardUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                savedChartName: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
@@ -8422,6 +8438,14 @@ const models: TsoaRoute.Models = {
                 timezone: { dataType: 'string' },
                 cron: { dataType: 'string', required: true },
                 format: { ref: 'SchedulerFormat', required: true },
+                createdByName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 createdBy: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
