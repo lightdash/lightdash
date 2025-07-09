@@ -104,7 +104,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             ) : (
                                 <ResourceEmptyState
                                     title="Scheduled deliveries have not run any jobs as of now"
-                                    description="Check in later of hit the refresh button to see if any jobs have run"
+                                    description="Check in later or hit the refresh button to see if any jobs have run"
                                 />
                             )
                         ) : (
