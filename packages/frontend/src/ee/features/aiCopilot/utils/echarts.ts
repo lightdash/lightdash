@@ -143,11 +143,17 @@ const getTimeSeriesMetricEchartsConfig = (
                 xAxis: [
                     {
                         type: 'time',
+                        ...(config.xAxisLabel
+                            ? { name: config.xAxisLabel }
+                            : {}),
                     },
                 ] as Axis[],
                 yAxis: [
                     {
                         type: 'value',
+                        ...(config.yAxisLabel
+                            ? { name: config.yAxisLabel }
+                            : {}),
                     },
                 ] as Axis[],
                 series: config.yMetrics.map((metric) => {
@@ -232,8 +238,6 @@ export const getChartConfigFromAiAgentVizConfig = ({
                     },
                 ),
             };
-        case AiResultType.ONE_LINE_RESULT:
-            throw new Error('One line result does not have a visualization');
         default:
             return assertUnreachable(parsedConfig, 'Invalid chart type');
     }

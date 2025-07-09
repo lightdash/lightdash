@@ -1,6 +1,7 @@
 import {
     friendlyName,
     getItemLabel,
+    getItemLabelWithoutTableName,
     isCompiledMetric,
     isDimension,
     isField,
@@ -10,7 +11,7 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Flex, HoverCard, Text } from '@mantine-8/core';
 import { lighten } from 'polished';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
 import { ItemDetailPreview } from '../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
@@ -21,7 +22,8 @@ const MetricDimensionItem: FC<{
     fieldId: string;
     type: 'metric' | 'dimension';
     fieldsMap: ItemsMap;
-}> = ({ fieldId, type, fieldsMap }) => {
+    showTablePrefix: boolean;
+}> = ({ fieldId, type, fieldsMap, showTablePrefix }) => {
     const field = fieldsMap[fieldId];
 
     if (!field) {
@@ -32,7 +34,11 @@ const MetricDimensionItem: FC<{
         return null;
     }
 
-    const displayName = field ? getItemLabel(field) : friendlyName(fieldId);
+    const displayName = field
+        ? showTablePrefix
+            ? getItemLabel(field)
+            : getItemLabelWithoutTableName(field)
+        : friendlyName(fieldId);
     const backgroundColor = lighten(0.05, getItemBgColor(field));
     const iconColor = type === 'dimension' ? 'blue.9' : 'yellow.9';
 
@@ -135,6 +141,22 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
     metricQuery,
     fieldsMap,
 }) => {
+    const numberOfExplores = useMemo(() => {
+        return new Set(
+            [...metricQuery.metrics, ...metricQuery.dimensions]
+                .map((fieldId) => {
+                    const field = fieldsMap[fieldId];
+                    if (field && isField(field)) {
+                        return field.table;
+                    }
+                    return null;
+                })
+                .filter((table) => table !== null),
+        ).size;
+    }, [metricQuery.metrics, metricQuery.dimensions, fieldsMap]);
+
+    const showTablePrefix = numberOfExplores > 1;
+
     if (!metricQuery.metrics.length && !metricQuery.dimensions.length) {
         return null;
     }
@@ -148,6 +170,7 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
                         fieldId={fieldId}
                         type="metric"
                         fieldsMap={fieldsMap}
+                        showTablePrefix={showTablePrefix}
                     />
                 ))}
                 {metricQuery.dimensions.map((fieldId) => (
@@ -156,6 +179,7 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
                         fieldId={fieldId}
                         type="dimension"
                         fieldsMap={fieldsMap}
+                        showTablePrefix={showTablePrefix}
                     />
                 ))}
             </Flex>

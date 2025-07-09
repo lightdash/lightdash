@@ -2,12 +2,10 @@ import {
     AiResultType,
     parseVizConfig,
     type AiAgentMessageAssistant,
-    type AiAgentMessageUser,
-    type AiAgentUser,
+    type ApiExecuteAsyncMetricQueryResults,
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Card,
     Center,
     CopyButton,
     Group,
@@ -27,13 +25,10 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { format, parseISO } from 'date-fns';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
-import useApp from '../../../../../providers/App/useApp';
 import {
     useAiAgentThreadMessageVizQuery,
     useUpdatePromptFeedbackMutation,
@@ -46,56 +41,11 @@ import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
-export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
-    message,
-}) => {
-    const timeAgo = useTimeAgo(message.createdAt);
-    const name = message.user.name;
-    const app = useApp();
-    const showUserName = app.user?.data?.userUuid !== message.user.uuid;
-
-    return (
-        <Stack gap="xs" style={{ alignSelf: 'flex-end' }}>
-            <Stack gap={0} align="flex-end">
-                {showUserName ? (
-                    <Text size="sm" c="gray.7" fw={600}>
-                        {name}
-                    </Text>
-                ) : null}
-                <Tooltip
-                    label={format(parseISO(message.createdAt), 'PPpp')}
-                    withinPortal
-                >
-                    <Text size="xs" c="dimmed">
-                        {timeAgo}
-                    </Text>
-                </Tooltip>
-            </Stack>
-
-            <Card
-                pos="relative"
-                radius="md"
-                py="xs"
-                px="sm"
-                withBorder={true}
-                bg="white"
-                color="white"
-                style={{
-                    overflow: 'unset',
-                }}
-            >
-                <MDEditor.Markdown
-                    source={message.message}
-                    style={{ backgroundColor: 'transparent' }}
-                />
-            </Card>
-        </Stack>
-    );
-};
-
-const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
-    message,
-}) => {
+const AssistantBubbleContent: FC<{
+    message: AiAgentMessageAssistant;
+    projectUuid: string;
+    metricQuery?: ApiExecuteAsyncMetricQueryResults['metricQuery'];
+}> = ({ message, metricQuery, projectUuid }) => {
     const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
     const isStubbed = isOptimisticMessageStub(message.message);
     const isStreaming =
@@ -106,20 +56,23 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
             : isStubbed // avoid brief flash of `THINKING_STUB`
             ? ''
             : message.message ?? 'No response...';
-
     return (
         <>
-            {isStreaming && (
-                <AiChartToolCalls
-                    toolCalls={streamingState?.toolCalls}
-                    type="streaming"
-                    compiledSql={undefined}
-                />
-            )}
-
+            <AiChartToolCalls
+                toolCalls={streamingState?.toolCalls ?? message.toolCalls}
+                type={
+                    streamingState
+                        ? isStreaming
+                            ? 'streaming'
+                            : 'finished-streaming'
+                        : 'persisted'
+                }
+                metricQuery={metricQuery}
+                projectUuid={projectUuid}
+            />
             <MDEditor.Markdown
                 source={messageContent}
-                style={{ backgroundColor: 'transparent' }}
+                style={{ backgroundColor: 'transparent', padding: `0.5rem 0` }}
             />
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
         </>
@@ -131,13 +84,23 @@ export const AssistantBubble: FC<{
     isPreview?: boolean;
 }> = memo(({ message, isPreview = false }) => {
     const { agentUuid, projectUuid } = useParams();
-
     if (!projectUuid) throw new Error(`Project Uuid not found`);
     if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
-    const vizConfig = parseVizConfig(message.vizConfigOutput);
+    const vizConfig = useMemo(
+        () => parseVizConfig(message.vizConfigOutput),
+        [message.vizConfigOutput],
+    );
+
+    const hasVizConfig = !!vizConfig;
+    const isChartVisualization =
+        hasVizConfig && vizConfig.type !== AiResultType.TABLE_RESULT;
+    const isTableVisualization =
+        hasVizConfig &&
+        vizConfig.type === AiResultType.TABLE_RESULT &&
+        vizConfig.vizTool.vizConfig.limit !== 1;
     const isVisualizationAvailable =
-        !!vizConfig && vizConfig?.type !== AiResultType.ONE_LINE_RESULT;
+        hasVizConfig && (isChartVisualization || isTableVisualization);
 
     const queryExecutionHandle = useAiAgentThreadMessageVizQuery(
         {
@@ -163,41 +126,29 @@ export const AssistantBubble: FC<{
         message.threadUuid,
     );
 
-    const upVoted = useMemo(
-        () =>
-            typeof message.humanScore === 'number' && message.humanScore === 1,
-        [message.humanScore],
-    );
-    const downVoted = useMemo(
-        () =>
-            typeof message.humanScore === 'number' && message.humanScore === -1,
-        [message.humanScore],
-    );
+    const upVoted = message.humanScore === 1;
+    const downVoted = message.humanScore === -1;
+    const hasRating = upVoted || downVoted;
 
     const handleUpvote = useCallback(() => {
-        if (!projectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        if (hasRating) return;
         updateFeedbackMutation.mutate({
             messageUuid: message.uuid,
             humanScore: 1,
         });
-    }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
+    }, [hasRating, updateFeedbackMutation, message.uuid]);
 
     const handleDownvote = useCallback(() => {
-        if (!projectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        if (hasRating) return;
         updateFeedbackMutation.mutate({
             messageUuid: message.uuid,
             humanScore: -1,
         });
-    }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
-
-    const hasRating =
-        message.humanScore !== undefined && message.humanScore !== null;
+    }, [hasRating, updateFeedbackMutation, message.uuid]);
 
     const isLoading =
         useAiAgentThreadStreaming(message.threadUuid) &&
         isOptimisticMessageStub(message.message);
-
-    if (!projectUuid) throw new Error(`Project Uuid not found`);
 
     return (
         <Stack
@@ -209,7 +160,11 @@ export const AssistantBubble: FC<{
                 borderStartStartRadius: '0px',
             }}
         >
-            <AssistantBubbleContent message={message} />
+            <AssistantBubbleContent
+                message={message}
+                metricQuery={queryExecutionHandle.data?.query.metricQuery}
+                projectUuid={projectUuid}
+            />
 
             {isVisualizationAvailable && (
                 <Paper

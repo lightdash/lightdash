@@ -1,21 +1,25 @@
 import {
+    friendlyName,
+    getFilterGroupItemsPropertyName,
+    getFilterRulesFromGroup,
+    getFilterTypeFromItemType,
+    getItemLabel,
+    getItemLabelWithoutTableName,
+    isAndFilterGroup,
+    isField,
+    isOrFilterGroup,
     type DimensionType,
     type FieldTarget,
     type FilterGroup,
     type FilterOperator,
     type FilterRule,
     type Filters,
-    friendlyName,
-    getFilterGroupItemsPropertyName,
-    getFilterRulesFromGroup,
-    getFilterTypeFromItemType,
-    isAndFilterGroup,
-    isOrFilterGroup,
+    type ItemsMap,
     type MetricType,
     type TableCalculationType,
 } from '@lightdash/common';
 import { Button, Flex, Text } from '@mantine-8/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { getConditionalRuleLabel } from '../../../../../components/common/Filters/FilterInputs/utils';
 
 import classes from './AgentVisualizationFilters.module.css';
@@ -27,10 +31,16 @@ const FilterRuleDisplay: FC<{
             type: DimensionType | MetricType | TableCalculationType;
         }
     >;
+    fieldsMap: ItemsMap;
+    showTablePrefix: boolean;
     compact?: boolean;
-}> = ({ rule, compact = false }) => {
-    const displayName = friendlyName(rule.target.fieldId);
-
+}> = ({ rule, fieldsMap, showTablePrefix, compact = false }) => {
+    const field = fieldsMap[rule.target.fieldId];
+    const displayName = field
+        ? showTablePrefix
+            ? getItemLabel(field)
+            : getItemLabelWithoutTableName(field)
+        : friendlyName(rule.target.fieldId);
     const filterType = getFilterTypeFromItemType(rule.target.type);
 
     const ruleLabels = getConditionalRuleLabel(rule, filterType, displayName);
@@ -73,10 +83,12 @@ const FilterRuleDisplay: FC<{
     );
 };
 
-const FilterGroupDisplay: FC<{ group: FilterGroup; compact?: boolean }> = ({
-    group,
-    compact = false,
-}) => {
+const FilterGroupDisplay: FC<{
+    group: FilterGroup;
+    fieldsMap: ItemsMap;
+    showTablePrefix: boolean;
+    compact?: boolean;
+}> = ({ group, fieldsMap, showTablePrefix, compact = false }) => {
     const rules = getFilterRulesFromGroup(group);
     const combinator = getFilterGroupItemsPropertyName(group);
 
@@ -88,6 +100,8 @@ const FilterGroupDisplay: FC<{ group: FilterGroup; compact?: boolean }> = ({
                 <Flex key={rule.id} align="center" gap={4}>
                     <FilterRuleDisplay
                         compact={compact}
+                        fieldsMap={fieldsMap}
+                        showTablePrefix={showTablePrefix}
                         rule={
                             rule as FilterRule<
                                 FilterOperator,
@@ -113,14 +127,15 @@ const FilterGroupDisplay: FC<{ group: FilterGroup; compact?: boolean }> = ({
 
 type Props = {
     filters: Filters;
+    fieldsMap: ItemsMap;
     compact?: boolean;
 };
 
-const AgentVisualizationFilters: FC<Props> = ({ filters, compact = false }) => {
-    if (!filters || (!filters.dimensions && !filters.metrics)) {
-        return null;
-    }
-
+const AgentVisualizationFilters: FC<Props> = ({
+    filters,
+    fieldsMap,
+    compact = false,
+}) => {
     const hasDimensionFilters =
         filters.dimensions &&
         ((isAndFilterGroup(filters.dimensions) &&
@@ -135,9 +150,42 @@ const AgentVisualizationFilters: FC<Props> = ({ filters, compact = false }) => {
             (isOrFilterGroup(filters.metrics) &&
                 filters.metrics.or.length > 0));
 
+    const numberOfExplores = useMemo(() => {
+        return new Set(
+            [
+                ...(hasDimensionFilters && filters.dimensions
+                    ? getFilterRulesFromGroup(filters.dimensions)
+                    : []),
+                ...(hasMetricFilters && filters.metrics
+                    ? getFilterRulesFromGroup(filters.metrics)
+                    : []),
+            ]
+                .map((rule) => {
+                    const field = fieldsMap[rule.target.fieldId];
+                    if (field && isField(field)) {
+                        return field.table;
+                    }
+                    return null;
+                })
+                .filter((table) => table !== null),
+        ).size;
+    }, [
+        hasDimensionFilters,
+        filters.dimensions,
+        hasMetricFilters,
+        filters.metrics,
+        fieldsMap,
+    ]);
+
+    if (!filters || (!filters.dimensions && !filters.metrics)) {
+        return null;
+    }
+
     if (!hasDimensionFilters && !hasMetricFilters) {
         return null;
     }
+
+    const showTablePrefix = numberOfExplores > 1;
 
     return (
         <>
@@ -145,12 +193,16 @@ const AgentVisualizationFilters: FC<Props> = ({ filters, compact = false }) => {
                 {hasDimensionFilters && filters.dimensions && (
                     <FilterGroupDisplay
                         group={filters.dimensions}
+                        fieldsMap={fieldsMap}
+                        showTablePrefix={showTablePrefix}
                         compact={compact}
                     />
                 )}
                 {hasMetricFilters && filters.metrics && (
                     <FilterGroupDisplay
                         group={filters.metrics}
+                        fieldsMap={fieldsMap}
+                        showTablePrefix={showTablePrefix}
                         compact={compact}
                     />
                 )}

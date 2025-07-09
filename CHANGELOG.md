@@ -1,3 +1,53 @@
+## [0.1796.4](https://github.com/lightdash/lightdash/compare/0.1796.3...0.1796.4) (2025-07-09)
+
+
+### Bug Fixes
+
+* missing font by adding Cairo, Pango, and RSVG dependencies and downgrade canvas package ([#15785](https://github.com/lightdash/lightdash/issues/15785)) ([d2dad4e](https://github.com/lightdash/lightdash/commit/d2dad4ec6d576648f97cfb3c747da1fa73846436))
+
+## [0.1796.3](https://github.com/lightdash/lightdash/compare/0.1796.2...0.1796.3) (2025-07-09)
+
+
+### Bug Fixes
+
+* update progress message and reorder single row result handling ([#15784](https://github.com/lightdash/lightdash/issues/15784)) ([c752e9c](https://github.com/lightdash/lightdash/commit/c752e9cbd7200b44bc8bbcab19eb9878d0a938b1))
+
+## [0.1796.2](https://github.com/lightdash/lightdash/compare/0.1796.1...0.1796.2) (2025-07-09)
+
+
+### Bug Fixes
+
+* install dbt1.10 on dockerfile ([#15782](https://github.com/lightdash/lightdash/issues/15782)) ([3048c1c](https://github.com/lightdash/lightdash/commit/3048c1c20eeeb68be1eb10c7e32bc0652a676b7b))
+
+## [0.1796.1](https://github.com/lightdash/lightdash/compare/0.1796.0...0.1796.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* remove duplicate fieldsMap props and move to correct component ([#15776](https://github.com/lightdash/lightdash/issues/15776)) ([b3bccfc](https://github.com/lightdash/lightdash/commit/b3bccfc18dbdf62b5e313d6278cce4e17134a10b))
+
+# [0.1796.0](https://github.com/lightdash/lightdash/compare/0.1795.0...0.1796.0) (2025-07-09)
+
+
+### Features
+
+* add x and y axis labels to time series visualization ([#15746](https://github.com/lightdash/lightdash/issues/15746)) ([6b2a223](https://github.com/lightdash/lightdash/commit/6b2a22303c9decd2fd40577d939e89f23c3b375b)), closes [#15453](https://github.com/lightdash/lightdash/issues/15453)
+
+# [0.1795.0](https://github.com/lightdash/lightdash/compare/0.1794.0...0.1795.0) (2025-07-09)
+
+
+### Features
+
+* show table prefixes in field names only when multiple explores are used ([#15745](https://github.com/lightdash/lightdash/issues/15745)) ([9f6b6c0](https://github.com/lightdash/lightdash/commit/9f6b6c080c31b62da7cd3521c628d9904885cd6f)), closes [#15455](https://github.com/lightdash/lightdash/issues/15455)
+
+# [0.1794.0](https://github.com/lightdash/lightdash/compare/0.1793.2...0.1794.0) (2025-07-09)
+
+
+### Features
+
+* Better error handling when parsing tools ([#15769](https://github.com/lightdash/lightdash/issues/15769)) ([ac9c5d3](https://github.com/lightdash/lightdash/commit/ac9c5d3dc7efc61bee35cadcef36655d470ec71f))
+* Display how it's calculated for one line answers ([#15768](https://github.com/lightdash/lightdash/issues/15768)) ([8a85327](https://github.com/lightdash/lightdash/commit/8a853272da7b89dc9435c52d1f118524684d99bd)), closes [#15705](https://github.com/lightdash/lightdash/issues/15705)
+
 ## [0.1793.2](https://github.com/lightdash/lightdash/compare/0.1793.1...0.1793.2) (2025-07-08)
 
 
