@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
-import { CsvService } from '../../../../services/CsvService/CsvService';
+import { CsvTransformer } from '../../../../services/CsvService/CsvTransformer';
 import type {
     GetExploreFn,
     GetPromptFn,
@@ -84,7 +84,7 @@ Rules for fetching the result:
                     ? Object.keys(results.rows[0])
                     : [];
                 const rows = results.rows.map((row) =>
-                    CsvService.convertRowToCsv(
+                    CsvTransformer.convertRowToCsv(
                         row,
                         results.fields,
                         true,

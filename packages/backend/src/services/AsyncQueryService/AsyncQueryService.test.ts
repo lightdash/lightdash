@@ -164,7 +164,6 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
                 return readable;
             }),
         } as unknown as S3ResultsFileStorageClient,
-        csvService: {} as CsvService,
     });
 
 describe('AsyncQueryService', () => {

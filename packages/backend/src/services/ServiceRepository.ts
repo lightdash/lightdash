@@ -265,6 +265,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectService: this.getProjectService(),
+                    asyncQueryService: this.getAsyncQueryService(),
                     userModel: this.models.getUserModel(),
                     s3Client: this.clients.getS3Client(),
                     dashboardModel: this.models.getDashboardModel(),
@@ -508,7 +509,6 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
-                    csvService: this.getCsvService(),
                 }),
         );
     }

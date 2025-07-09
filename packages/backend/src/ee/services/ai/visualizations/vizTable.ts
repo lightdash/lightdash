@@ -5,7 +5,7 @@ import {
     ToolTableVizArgsTransformed,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
-import { CsvService } from '../../../../services/CsvService/CsvService';
+import { CsvTransformer } from '../../../../services/CsvService/CsvTransformer';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 
 export const renderTableViz = async ({
@@ -35,7 +35,7 @@ export const renderTableViz = async ({
 
     const fields = results.rows[0] ? Object.keys(results.rows[0]) : [];
     const rows = results.rows.map((row) =>
-        CsvService.convertRowToCsv(row, results.fields, true, fields),
+        CsvTransformer.convertRowToCsv(row, results.fields, true, fields),
     );
 
     return {

@@ -27,11 +27,21 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    generateCsvFileId,
+    generateGenericFileId,
+    isRowValueDate,
+    isRowValueTimestamp,
+    isValidCsvFileId,
+    sanitizeGenericFileName,
+    streamJsonlData,
+} from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
-describe('Csv service', () => {
+describe('CsvService', () => {
     const csvService = new CsvService({
         lightdashConfig,
         analytics: analyticsMock,
@@ -67,6 +77,7 @@ describe('Csv service', () => {
             encryptionUtil: {} as EncryptionUtil,
             userModel: {} as UserModel,
         }),
+        asyncQueryService: {} as AsyncQueryService,
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,
         dashboardModel: {} as DashboardModel,
@@ -144,130 +155,47 @@ $4.00,value_4,2020-03-16
         );
     });
 
-    it('Should convert rows to csv', async () => {
-        const row = {
-            column_number: 1,
-            column_string: `value_1`,
-            column_date: '2020-03-16T11:32:55.000Z',
-        };
-
-        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
-            'column_number',
-            'column_string',
-            'column_date',
-        ]);
-
-        expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16']);
-    });
-    it('Should convert RAW rows to csv', async () => {
-        const row = {
-            column_number: 1,
-            column_string: `value_1`,
-            column_date: '2020-03-16T11:32:55.000Z',
-        };
-
-        const csv = CsvService.convertRowToCsv(row, itemMap, true, [
-            'column_number',
-            'column_string',
-            'column_date',
-        ]);
-
-        expect(csv).toEqual([1, 'value_1', '2020-03-16']);
-    });
-
-    it('Should convert with row with null date', async () => {
-        const row = {
-            column_number: 1,
-            column_string: `value_1`,
-            column_date: null,
-        };
-
-        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
-            'column_number',
-            'column_string',
-            'column_date',
-        ]);
-
-        expect(csv).toEqual(['$1.00', 'value_1', null]);
-    });
-
-    it('Should convert with row with undefined value', async () => {
-        const row = {
-            column_number: undefined,
-            column_string: `value_1`,
-            column_date: '2020-03-16T11:32:55.000Z',
-        };
-
-        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
-            'column_number',
-            'column_string',
-            'column_date',
-        ]);
-
-        expect(csv).toEqual([undefined, 'value_1', '2020-03-16']);
-    });
-
-    it('Should preserve milliseconds when converting timestamp rows to csv', async () => {
-        const row = {
-            column_number: 1,
-            column_string: `value_1`,
-            column_timestamp: '2020-03-16T11:32:55.123Z',
-        };
-
-        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
-            'column_number',
-            'column_string',
-            'column_timestamp',
-        ]);
-
-        expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16 11:32:55.123']);
-    });
-
     it('Should generate csv file ids', async () => {
         const time = moment('2023-09-07 12:13:45.123');
         const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
 
         expect(timestamp).toEqual(`2023-09-07-12-13-45-1230`);
 
-        expect(CsvService.generateFileId('payment', false, time)).toEqual(
+        expect(generateCsvFileId('payment', false, time)).toEqual(
             `csv-payment-${timestamp}.csv`,
         );
-        expect(CsvService.generateFileId('MyTable', false, time)).toEqual(
+        expect(generateCsvFileId('MyTable', false, time)).toEqual(
             `csv-MyTable-${timestamp}.csv`,
         );
-        expect(CsvService.generateFileId('my table', false, time)).toEqual(
+        expect(generateCsvFileId('my table', false, time)).toEqual(
             `csv-my table-${timestamp}.csv`,
         );
-        expect(CsvService.generateFileId('table!', false, time)).toEqual(
+        expect(generateCsvFileId('table!', false, time)).toEqual(
             `csv-table!-${timestamp}.csv`,
         );
+        expect(generateCsvFileId('this is a chart title', false, time)).toEqual(
+            `csv-this is a chart title-${timestamp}.csv`,
+        );
         expect(
-            CsvService.generateFileId('this is a chart title', false, time),
-        ).toEqual(`csv-this is a chart title-${timestamp}.csv`);
-        expect(
-            CsvService.generateFileId(
-                'another table (for testing)',
-                false,
-                time,
-            ),
+            generateCsvFileId('another table (for testing)', false, time),
         ).toEqual(`csv-another table (for testing)-${timestamp}.csv`);
-        expect(
-            CsvService.generateFileId('weird chars *!"()_-', false, time),
-        ).toEqual(`csv-weird chars _!_()_--${timestamp}.csv`);
+        expect(generateCsvFileId('weird chars *!"()_-', false, time)).toEqual(
+            `csv-weird chars _!_()_--${timestamp}.csv`,
+        );
 
         // Test without time
-        expect(CsvService.generateFileId('payment')).toContain(`csv-payment-`);
+        expect(generateCsvFileId('payment')).toContain(`csv-payment-`);
     });
 
     it('Should generate csv file for incomplete file', async () => {
         const time = moment('2023-09-07 12:13:45.123');
         const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
 
-        expect(CsvService.generateFileId('payment', true, time)).toEqual(
+        expect(generateCsvFileId('payment', true, time)).toEqual(
             `csv-incomplete_results-payment-${timestamp}.csv`,
         );
         // Test without time
-        expect(CsvService.generateFileId('payment', true)).toContain(
+        expect(generateCsvFileId('payment', true)).toContain(
             `csv-incomplete_results-payment-`,
         );
     });
@@ -295,14 +223,10 @@ $4.00,value_4,2020-03-16
             `csv-file\\invalid-${timestamp}.csv`,
         ];
         validNames.forEach((name) => {
-            expect(name + CsvService.isValidCsvFileId(name)).toEqual(
-                name + true,
-            );
+            expect(name + isValidCsvFileId(name)).toEqual(name + true);
         });
         invalidNames.forEach((name) => {
-            expect(name + CsvService.isValidCsvFileId(name)).toEqual(
-                name + false,
-            );
+            expect(name + isValidCsvFileId(name)).toEqual(name + false);
         });
     });
 });

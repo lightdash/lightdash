@@ -83,6 +83,33 @@ export function generateGenericFileId({
 }
 
 /**
+ * Generates a CSV file ID with the standard naming convention
+ */
+export function generateCsvFileId(
+    fileName: string,
+    truncated: boolean = false,
+    time: moment.Moment = moment(),
+): string {
+    return generateGenericFileId({
+        fileName,
+        fileExtension: DownloadFileType.CSV,
+        truncated,
+        time,
+    });
+}
+
+/**
+ * Validates if a file ID follows the CSV naming convention
+ */
+export function isValidCsvFileId(fileId: string): boolean {
+    // Updated regex to allow Unicode characters, spaces, mixed case, and common punctuation
+    // This matches our new sanitizeGenericFileName approach
+    return /^csv-(incomplete_results-)?[^/\\:*?"<>|]+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/.test(
+        fileId,
+    );
+}
+
+/**
  * Processes fields for file export, handling column ordering, filtering, and header generation
  * This utility is shared between CSV and Excel export services to avoid duplication
  */

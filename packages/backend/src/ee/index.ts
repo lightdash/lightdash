@@ -236,7 +236,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
                     storageClient: clients.getResultsFileStorageClient(),
-                    csvService: repository.getCsvService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({

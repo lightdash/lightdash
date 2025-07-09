@@ -93,7 +93,10 @@ import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryMo
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { wrapSentryTransaction } from '../../utils';
-import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import {
+    generateCsvFileId,
+    processFieldsForExport,
+} from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     QueryBuilder,
     ReferenceMap,
@@ -101,7 +104,7 @@ import {
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
-import { CsvService } from '../CsvService/CsvService';
+import { CsvTransformer } from '../CsvService/CsvTransformer';
 import { ExcelService } from '../ExcelService/ExcelService';
 import {
     ProjectService,
@@ -135,7 +138,6 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     storageClient: S3ResultsFileStorageClient;
-    csvService: CsvService;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -147,14 +149,11 @@ export class AsyncQueryService extends ProjectService {
 
     storageClient: S3ResultsFileStorageClient;
 
-    csvService: CsvService;
-
     constructor({
         queryHistoryModel,
         cacheService,
         savedSqlModel,
         storageClient,
-        csvService,
         ...projectServiceArgs
     }: AsyncQueryServiceArguments) {
         super(projectServiceArgs);
@@ -162,7 +161,6 @@ export class AsyncQueryService extends ProjectService {
         this.cacheService = cacheService;
         this.savedSqlModel = savedSqlModel;
         this.storageClient = storageClient;
-        this.csvService = csvService;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -827,29 +825,20 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
                 if (pivotConfig && queryHistory.metricQuery) {
-                    return this.csvService.downloadAsyncPivotTableCsv({
-                        resultsFileName,
-                        fields,
-                        metricQuery: queryHistory.metricQuery,
-                        projectUuid,
-                        storageClient: this.storageClient,
-                        options: {
-                            onlyRaw,
-                            showTableNames,
-                            customLabels,
-                            columnOrder,
-                            hiddenFields,
-                            pivotConfig,
-                            attachmentDownloadName,
-                        },
-                    });
+                    // TODO: Implement pivot table CSV download using CsvTransformer
+                    // This would require implementing downloadAsyncPivotTableCsv in CsvService
+                    // or creating a similar method here
+                    throw new Error(
+                        'Pivot table CSV download not yet implemented',
+                    );
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
                     resultFields,
                     {
-                        generateFileId: CsvService.generateFileId,
-                        streamJsonlRowsToFile: CsvService.streamJsonlRowsToFile,
+                        generateFileId: generateCsvFileId,
+                        streamJsonlRowsToFile:
+                            CsvTransformer.streamJsonlRowsToFile,
                     },
                     {
                         onlyRaw,
@@ -2231,6 +2220,8 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         limit,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
+        console.log('--------------------------------> executeAsyncSqlQuery');
+
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
         }
