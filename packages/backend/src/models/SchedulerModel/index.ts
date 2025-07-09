@@ -229,9 +229,7 @@ export class SchedulerModel {
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        let baseQuery = this.database(SchedulerTableName).select<SchedulerDb[]>(
-            `${SchedulerTableName}.*`,
-        );
+        let baseQuery = SchedulerModel.getBaseSchedulerQuery(this.database);
 
         // Apply search query if present
         if (searchQuery) {
@@ -242,11 +240,6 @@ export class SchedulerModel {
         // Create a union of two queries: one for saved charts and one for dashboards
         const schedulerCharts = baseQuery
             .clone()
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${SchedulerTableName}.saved_chart_uuid`,
-            )
             .leftJoin(SpaceTableName, function joinSpaces() {
                 this.on(
                     `${SpaceTableName}.space_id`,
@@ -264,11 +257,6 @@ export class SchedulerModel {
 
         const schedulerDashboards = baseQuery
             .clone()
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
-            )
             .leftJoin(
                 SpaceTableName,
                 `${SpaceTableName}.space_id`,
