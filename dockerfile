@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     unzip \
     git \
+    libcairo2-dev \
+    libpango1.0-dev \
+    librsvg2-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -249,6 +252,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     git \
     build-essential \
+    libcairo2-dev \
+    libpango1.0-dev \
+    librsvg2-dev \
     dumb-init \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
