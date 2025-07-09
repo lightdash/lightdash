@@ -11,7 +11,6 @@ import {
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
-    AnyType,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -901,10 +900,6 @@ export class AiAgentService {
                     vizTool: parsedVizConfig.vizTool,
                     maxLimit: this.lightdashConfig.query.maxLimit,
                 });
-            case AiResultType.ONE_LINE_RESULT:
-                throw new ForbiddenError(
-                    'One line result does not have a visualization',
-                );
             default:
                 return assertUnreachable(parsedVizConfig, 'Invalid viz type');
         }

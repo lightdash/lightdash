@@ -110,6 +110,10 @@ export const AiChartVisualization: FC<Props> = ({
         health?.query.maxLimit,
     ]);
 
+    if (!chartConfig) {
+        return null;
+    }
+
     const onActiveTabChange = (value: string) => {
         setActiveTab(activeTabsSchema.parse(value));
 

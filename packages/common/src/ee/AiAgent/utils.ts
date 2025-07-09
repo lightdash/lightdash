@@ -3,7 +3,6 @@ import {
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
-    toolOneLineArgsSchemaTransformed,
     toolTableVizArgsSchemaTransformed,
     toolTimeSeriesArgsSchemaTransformed,
     toolVerticalBarArgsSchemaTransformed,
@@ -20,6 +19,7 @@ export const parseVizConfig = (
 
     const toolVerticalBarArgsParsed =
         toolVerticalBarArgsSchemaTransformed.safeParse(vizConfigUnknown);
+
     if (toolVerticalBarArgsParsed.success) {
         const vizTool = toolVerticalBarArgsParsed.data;
         const metricQuery = metricQueryVerticalBarViz(
@@ -62,20 +62,6 @@ export const parseVizConfig = (
         return {
             type: AiResultType.TABLE_RESULT,
             vizTool,
-            metricQuery,
-        } as const;
-    }
-
-    const toolOneLineArgsParsed =
-        toolOneLineArgsSchemaTransformed.safeParse(vizConfigUnknown);
-    if (toolOneLineArgsParsed.success) {
-        const vizTool = toolOneLineArgsParsed.data;
-        const metricQuery = {
-            ...vizTool.metricQuery,
-            filters: vizTool.filters,
-        };
-        return {
-            type: AiResultType.ONE_LINE_RESULT,
             metricQuery,
         } as const;
     }
