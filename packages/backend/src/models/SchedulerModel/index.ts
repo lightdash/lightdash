@@ -233,10 +233,8 @@ export class SchedulerModel {
             `${SchedulerTableName}.*`,
         );
 
-        console.log('searchQuery', searchQuery);
         // Apply search query if present
         if (searchQuery) {
-            console.log('dentro');
             baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
                 `${SchedulerTableName}.name`,
             ]);
@@ -302,8 +300,6 @@ export class SchedulerModel {
                 },
             ]);
         }
-
-        console.log(query.toSQL());
 
         // Paginate the results
         const { pagination, data } = await KnexPaginate.paginate(

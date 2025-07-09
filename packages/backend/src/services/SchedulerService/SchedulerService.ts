@@ -241,7 +241,7 @@ export class SchedulerService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        console.log('searchQuery 0', searchQuery);
+
         return this.schedulerModel.getSchedulers({
             projectUuid,
             paginateArgs,
