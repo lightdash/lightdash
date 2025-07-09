@@ -1,3 +1,10 @@
+## [0.1796.5](https://github.com/lightdash/lightdash/compare/0.1796.4...0.1796.5) (2025-07-09)
+
+
+### Bug Fixes
+
+* ssh tunnel using wrong credentials ([#15789](https://github.com/lightdash/lightdash/issues/15789)) ([e1eb3df](https://github.com/lightdash/lightdash/commit/e1eb3df5811f70fcdbf9c3c08d1b0dc0e1efd7b2))
+
 ## [0.1796.4](https://github.com/lightdash/lightdash/compare/0.1796.3...0.1796.4) (2025-07-09)
 
 
