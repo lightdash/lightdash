@@ -98,8 +98,19 @@ const ToolCallDescription: FC<{
     toolCall: ToolCallSummary;
     compiledSql: ApiCompiledQueryResults | undefined;
 }> = ({ toolCall, compiledSql }) => {
-    const toolName = ToolNameSchema.parse(toolCall.toolName);
-    const toolArgs = AgentToolCallArgsSchema.parse(toolCall.toolArgs);
+    const toolNameParsed = ToolNameSchema.safeParse(toolCall.toolName);
+    const toolArgsParsed = AgentToolCallArgsSchema.safeParse(toolCall.toolArgs);
+
+    if (!toolNameParsed.success || !toolArgsParsed.success) {
+        console.error(
+            `Failed to parse tool call ${toolCall.toolName} ${toolCall.toolCallId}`,
+            toolNameParsed.error ?? toolArgsParsed.error,
+        );
+        return null;
+    }
+
+    const toolName = toolNameParsed.data;
+    const toolArgs = toolArgsParsed.data;
 
     switch (toolArgs.type) {
         case 'find_explores':
