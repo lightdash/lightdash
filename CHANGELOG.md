@@ -1,3 +1,10 @@
+## [0.1796.2](https://github.com/lightdash/lightdash/compare/0.1796.1...0.1796.2) (2025-07-09)
+
+
+### Bug Fixes
+
+* install dbt1.10 on dockerfile ([#15782](https://github.com/lightdash/lightdash/issues/15782)) ([3048c1c](https://github.com/lightdash/lightdash/commit/3048c1c20eeeb68be1eb10c7e32bc0652a676b7b))
+
 ## [0.1796.1](https://github.com/lightdash/lightdash/compare/0.1796.0...0.1796.1) (2025-07-09)
 
 
