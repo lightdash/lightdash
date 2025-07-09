@@ -172,14 +172,6 @@ export const AiChartVisualization: FC<Props> = ({
                                             queryExecutionHandle.data.query
                                                 .fields
                                         }
-                                        fieldsMap={
-                                            queryExecutionHandle.data.query
-                                                .fields
-                                        }
-                                        fieldsMap={
-                                            queryExecutionHandle.data.query
-                                                .fields
-                                        }
                                     />
                                 )}
 
@@ -190,6 +182,9 @@ export const AiChartVisualization: FC<Props> = ({
                                     filters={
                                         queryExecutionHandle.data.query
                                             .metricQuery.filters
+                                    }
+                                    fieldsMap={
+                                        queryExecutionHandle.data.query.fields
                                     }
                                 />
                             ) : null}
