@@ -1,3 +1,11 @@
+# [0.1794.0](https://github.com/lightdash/lightdash/compare/0.1793.2...0.1794.0) (2025-07-09)
+
+
+### Features
+
+* Better error handling when parsing tools ([#15769](https://github.com/lightdash/lightdash/issues/15769)) ([ac9c5d3](https://github.com/lightdash/lightdash/commit/ac9c5d3dc7efc61bee35cadcef36655d470ec71f))
+* Display how it's calculated for one line answers ([#15768](https://github.com/lightdash/lightdash/issues/15768)) ([8a85327](https://github.com/lightdash/lightdash/commit/8a853272da7b89dc9435c52d1f118524684d99bd)), closes [#15705](https://github.com/lightdash/lightdash/issues/15705)
+
 ## [0.1793.2](https://github.com/lightdash/lightdash/compare/0.1793.1...0.1793.2) (2025-07-08)
 
 
