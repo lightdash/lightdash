@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     unzip \
     git \
+    libcairo2-dev \
+    libpango1.0-dev \
+    librsvg2-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -249,6 +252,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     git \
     build-essential \
+    libcairo2-dev \
+    libpango1.0-dev \
+    librsvg2-dev \
     dumb-init \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -282,7 +288,7 @@ ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
 
 FROM prod AS pr-runner
-# 
+#
 COPY ./examples/full-jaffle-shop-demo/renderDeployHook.sh /usr/bin/renderDeployHook.sh
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
