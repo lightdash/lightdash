@@ -274,7 +274,7 @@ type QueryErrorEvent = BaseTrack & {
     properties: {
         queryId: string;
         projectId: string;
-        warehouseType: WarehouseTypes;
+        warehouseType: WarehouseTypes | undefined;
     };
 };
 

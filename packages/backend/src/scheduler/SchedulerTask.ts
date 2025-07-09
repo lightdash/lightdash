@@ -3123,195 +3123,187 @@ export default class SchedulerTask {
      * Runs the query against the warehouse and updates the query history when complete
      * This is the extracted version of AsyncQueryService.runAsyncWarehouseQuery
      */
+    // eslint-disable-next-line class-methods-use-this
     protected async runAsyncWarehouseQuery(
         jobId: string,
         scheduledTime: Date,
         payload: AsyncWarehouseQueryPayload,
     ) {
-        await this.logWrapper(
-            {
-                task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                jobId,
-                scheduledTime,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    queryHistoryUuid: payload.queryHistoryUuid,
-                },
-            },
-            async () => {
-                const {
-                    userUuid,
-                    projectUuid,
-                    queryTags,
-                    query,
-                    fieldsMap,
-                    queryHistoryUuid,
-                    cacheKey,
-                    warehouseCredentials,
-                    pivotConfiguration,
-                    originalColumns,
-                } = payload;
-
-                let stream:
-                    | {
-                          write: (rows: Record<string, unknown>[]) => void;
-                          close: () => Promise<void>;
-                      }
-                    | undefined;
-
-                let sshTunnel:
-                    | SshTunnel<CreateWarehouseCredentials>
-                    | undefined;
-
-                try {
-                    // Get warehouse client using the projectService
-                    const { warehouseClient, sshTunnel: warehouseSshTunnel } =
-                        await this.asyncQueryService._getWarehouseClient(
-                            projectUuid,
-                            warehouseCredentials,
-                        );
-
-                    sshTunnel = warehouseSshTunnel;
-
-                    const fileName =
-                        QueryHistoryModel.createUniqueResultsFileName(cacheKey);
-
-                    // Create upload stream for storing results
-                    // If S3 is not configured, we don't write to S3
-                    stream = this.asyncQueryService.storageClient.isEnabled
-                        ? this.asyncQueryService.storageClient.createUploadStream(
-                              S3ResultsFileStorageClient.sanitizeFileExtension(
-                                  fileName,
-                              ),
-                              {
-                                  contentType: 'application/jsonl',
-                              },
-                          )
-                        : undefined;
-
-                    const createdAt = new Date();
-                    const newExpiresAt =
-                        this.asyncQueryService.getCacheExpiresAt(createdAt);
-
-                    this.analytics.track({
-                        userId: userUuid,
-                        event: 'results_cache.create',
-                        properties: {
-                            projectId: projectUuid,
-                            cacheKey,
-                            totalRowCount: null,
-                            createdAt,
-                            expiresAt: newExpiresAt,
-                        },
-                    });
-                    const {
-                        warehouseResults: {
-                            durationMs,
-                            totalRows,
-                            queryMetadata,
-                            queryId,
-                        },
-                        pivotDetails,
-                        columns,
-                    } = await AsyncQueryService.runQueryAndTransformRows({
-                        warehouseClient,
-                        query,
-                        queryTags,
-                        write: stream?.write,
-                        pivotConfiguration,
-                    });
-
-                    this.analytics.track({
-                        userId: userUuid,
-                        event: 'query.ready',
-                        properties: {
-                            queryId: queryHistoryUuid,
-                            projectId: projectUuid,
-                            warehouseType: warehouseCredentials.type,
-                            warehouseExecutionTimeMs: durationMs,
-                            columnsCount:
-                                pivotDetails?.totalColumnCount ??
-                                Object.keys(fieldsMap).length,
-                            totalRowCount: pivotDetails?.totalRows ?? totalRows,
-                            isPivoted: pivotDetails !== null,
-                        },
-                    });
-
-                    if (stream) {
-                        // Wait for the file to be written before marking the query as ready
-                        await stream.close();
-
-                        this.analytics.track({
-                            userId: userUuid,
-                            event: 'results_cache.write',
-                            properties: {
-                                queryId: queryHistoryUuid,
-                                projectId: projectUuid,
-                                cacheKey,
-                                totalRowCount:
-                                    pivotDetails?.totalRows ?? totalRows,
-                                pivotTotalColumnCount:
-                                    pivotDetails?.totalColumnCount,
-                                isPivoted: pivotDetails !== null,
-                            },
-                        });
-                    }
-
-                    await this.asyncQueryService.queryHistoryModel.update(
-                        queryHistoryUuid,
-                        projectUuid,
-                        userUuid,
-                        {
-                            warehouse_query_id: queryId,
-                            warehouse_query_metadata: queryMetadata,
-                            status: QueryHistoryStatus.READY,
-                            error: null,
-                            warehouse_execution_time_ms: Math.round(durationMs),
-                            total_row_count:
-                                pivotDetails?.totalRows ?? totalRows,
-                            pivot_total_column_count:
-                                pivotDetails?.totalColumnCount,
-                            pivot_values_columns: pivotDetails
-                                ? Object.fromEntries(
-                                      pivotDetails.valuesColumns.entries(),
-                                  )
-                                : null,
-                            results_file_name: stream ? fileName : null,
-                            results_created_at: stream ? createdAt : null,
-                            results_updated_at: stream ? new Date() : null,
-                            results_expires_at: stream ? newExpiresAt : null,
-                            columns,
-                            original_columns: originalColumns,
-                        },
-                    );
-                } catch (e) {
-                    this.analytics.track({
-                        userId: userUuid,
-                        event: 'query.error',
-                        properties: {
-                            queryId: queryHistoryUuid,
-                            projectId: projectUuid,
-                            warehouseType: warehouseCredentials.type,
-                        },
-                    });
-                    await this.asyncQueryService.queryHistoryModel.update(
-                        queryHistoryUuid,
-                        projectUuid,
-                        userUuid,
-                        {
-                            status: QueryHistoryStatus.ERROR,
-                            error: getErrorMessage(e),
-                        },
-                    );
-                } finally {
-                    void sshTunnel?.disconnect();
-                    void stream?.close();
-                }
-
-                return {};
-            },
-        );
+        throw new Error('Not implemented');
+        // await this.logWrapper(
+        //     {
+        //         task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+        //         jobId,
+        //         scheduledTime,
+        //         details: {
+        //             createdByUserUuid: payload.userUuid,
+        //             projectUuid: payload.projectUuid,
+        //             organizationUuid: payload.organizationUuid,
+        //             queryHistoryUuid: payload.queryHistoryUuid,
+        //         },
+        //     },
+        //     async () => {
+        //         const {
+        //             userUuid,
+        //             projectUuid,
+        //             queryTags,
+        //             query,
+        //             fieldsMap,
+        //             queryHistoryUuid,
+        //             cacheKey,
+        //             warehouseCredentials,
+        //             pivotConfiguration,
+        //             originalColumns,
+        //         } = payload;
+        //         let stream:
+        //             | {
+        //                   write: (rows: Record<string, unknown>[]) => void;
+        //                   close: () => Promise<void>;
+        //               }
+        //             | undefined;
+        //         let sshTunnel:
+        //             | SshTunnel<CreateWarehouseCredentials>
+        //             | undefined;
+        //         try {
+        //             // Get warehouse client using the projectService
+        //             const { warehouseClient, sshTunnel: warehouseSshTunnel } =
+        //                 await this.asyncQueryService._getWarehouseClient(
+        //                     projectUuid,
+        //                     warehouseCredentials.credentials,
+        //                     warehouseCredentials.credentialOverrides,
+        //                 );
+        //             sshTunnel = warehouseSshTunnel;
+        //             const fileName =
+        //                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+        //             // Create upload stream for storing results
+        //             // If S3 is not configured, we don't write to S3
+        //             stream = this.asyncQueryService.storageClient.isEnabled
+        //                 ? this.asyncQueryService.storageClient.createUploadStream(
+        //                       S3ResultsFileStorageClient.sanitizeFileExtension(
+        //                           fileName,
+        //                       ),
+        //                       {
+        //                           contentType: 'application/jsonl',
+        //                       },
+        //                   )
+        //                 : undefined;
+        //             const createdAt = new Date();
+        //             const newExpiresAt =
+        //                 this.asyncQueryService.getCacheExpiresAt(createdAt);
+        //             this.analytics.track({
+        //                 userId: userUuid,
+        //                 event: 'results_cache.create',
+        //                 properties: {
+        //                     projectId: projectUuid,
+        //                     cacheKey,
+        //                     totalRowCount: null,
+        //                     createdAt,
+        //                     expiresAt: newExpiresAt,
+        //                 },
+        //             });
+        //             const {
+        //                 warehouseResults: {
+        //                     durationMs,
+        //                     totalRows,
+        //                     queryMetadata,
+        //                     queryId,
+        //                 },
+        //                 pivotDetails,
+        //                 columns,
+        //             } = await AsyncQueryService.runQueryAndTransformRows({
+        //                 warehouseClient,
+        //                 query,
+        //                 queryTags,
+        //                 write: stream?.write,
+        //                 pivotConfiguration,
+        //             });
+        //             this.analytics.track({
+        //                 userId: userUuid,
+        //                 event: 'query.ready',
+        //                 properties: {
+        //                     queryId: queryHistoryUuid,
+        //                     projectId: projectUuid,
+        //                     warehouseType:
+        //                         warehouseCredentials.credentials.type,
+        //                     warehouseExecutionTimeMs: durationMs,
+        //                     columnsCount:
+        //                         pivotDetails?.totalColumnCount ??
+        //                         Object.keys(fieldsMap).length,
+        //                     totalRowCount: pivotDetails?.totalRows ?? totalRows,
+        //                     isPivoted: pivotDetails !== null,
+        //                 },
+        //             });
+        //             if (stream) {
+        //                 // Wait for the file to be written before marking the query as ready
+        //                 await stream.close();
+        //                 this.analytics.track({
+        //                     userId: userUuid,
+        //                     event: 'results_cache.write',
+        //                     properties: {
+        //                         queryId: queryHistoryUuid,
+        //                         projectId: projectUuid,
+        //                         cacheKey,
+        //                         totalRowCount:
+        //                             pivotDetails?.totalRows ?? totalRows,
+        //                         pivotTotalColumnCount:
+        //                             pivotDetails?.totalColumnCount,
+        //                         isPivoted: pivotDetails !== null,
+        //                     },
+        //                 });
+        //             }
+        //             await this.asyncQueryService.queryHistoryModel.update(
+        //                 queryHistoryUuid,
+        //                 projectUuid,
+        //                 userUuid,
+        //                 {
+        //                     warehouse_query_id: queryId,
+        //                     warehouse_query_metadata: queryMetadata,
+        //                     status: QueryHistoryStatus.READY,
+        //                     error: null,
+        //                     warehouse_execution_time_ms: Math.round(durationMs),
+        //                     total_row_count:
+        //                         pivotDetails?.totalRows ?? totalRows,
+        //                     pivot_total_column_count:
+        //                         pivotDetails?.totalColumnCount,
+        //                     pivot_values_columns: pivotDetails
+        //                         ? Object.fromEntries(
+        //                               pivotDetails.valuesColumns.entries(),
+        //                           )
+        //                         : null,
+        //                     results_file_name: stream ? fileName : null,
+        //                     results_created_at: stream ? createdAt : null,
+        //                     results_updated_at: stream ? new Date() : null,
+        //                     results_expires_at: stream ? newExpiresAt : null,
+        //                     columns,
+        //                     original_columns: originalColumns,
+        //                 },
+        //             );
+        //         } catch (e) {
+        //             this.analytics.track({
+        //                 userId: userUuid,
+        //                 event: 'query.error',
+        //                 properties: {
+        //                     queryId: queryHistoryUuid,
+        //                     projectId: projectUuid,
+        //                     warehouseType:
+        //                         warehouseCredentials.credentials.type,
+        //                 },
+        //             });
+        //             await this.asyncQueryService.queryHistoryModel.update(
+        //                 queryHistoryUuid,
+        //                 projectUuid,
+        //                 userUuid,
+        //                 {
+        //                     status: QueryHistoryStatus.ERROR,
+        //                     error: getErrorMessage(e),
+        //                 },
+        //             );
+        //         } finally {
+        //             void sshTunnel?.disconnect();
+        //             void stream?.close();
+        //         }
+        //         return {};
+        //     },
+        // );
     }
 }
