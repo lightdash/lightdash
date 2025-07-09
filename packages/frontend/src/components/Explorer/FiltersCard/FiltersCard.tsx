@@ -15,6 +15,7 @@ import {
 import { Badge, Text, Tooltip } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -26,7 +27,11 @@ import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const FiltersCard: FC = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid: projectUuidFromEmbed } = useEmbed();
+    const { projectUuid: projectUuidParams } = useParams<{
+        projectUuid: string;
+    }>();
+    const projectUuid = projectUuidFromEmbed || projectUuidParams;
     const project = useProject(projectUuid);
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,

@@ -3,6 +3,7 @@ import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -20,6 +21,11 @@ import MantineIcon from '../../common/MantineIcon';
 import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {
+    const { projectUuid: projectUuidFromEmbed } = useEmbed();
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
+    const projectUuid = projectUuidFromParams || projectUuidFromEmbed;
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
@@ -55,8 +61,6 @@ const ResultsCard: FC = memo(() => {
     );
 
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
-
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const resultsIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.RESULTS),
