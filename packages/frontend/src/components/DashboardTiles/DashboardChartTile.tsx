@@ -384,6 +384,7 @@ interface DashboardChartTileMainProps
     canExportImages?: boolean;
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
+    onExplore?: (options: { chart: SavedChart }) => void;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -1341,6 +1342,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         resultsData,
         canExportCsv,
         canExportImages,
+        onExplore,
     } = props;
 
     const {
@@ -1358,6 +1360,15 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         [resultsData, fields],
     );
 
+    const handleExploreFromHere = useCallback(() => {
+        if (onExplore) {
+            onExplore({ chart });
+        }
+    }, [onExplore, chart]);
+
+    // FIXME: This is just a stub for CASL permissions in the next PR.
+    const isEmbeddedExploreEnabled = typeof onExplore === 'function';
+
     return (
         <TileBase
             title={title || chart.name || ''}
@@ -1368,8 +1379,17 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             extraMenuItems={
                 canExportCsv ||
                 (canExportImages &&
-                    !isTableChartConfig(chart.chartConfig.config)) ? (
+                    !isTableChartConfig(chart.chartConfig.config)) ||
+                isEmbeddedExploreEnabled ? (
                     <>
+                        {isEmbeddedExploreEnabled && (
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconTelescope} />}
+                                onClick={handleExploreFromHere}
+                            >
+                                Explore from here
+                            </Menu.Item>
+                        )}
                         {canExportCsv && (
                             <DashboardMinimalDownloadCsv
                                 explore={explore}
@@ -1413,6 +1433,7 @@ type DashboardChartTileProps = Omit<
     canExportImages?: boolean;
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
+    onExplore?: (options: { chart: SavedChart }) => void;
 };
 
 // Abstraction needed for enterprise version
@@ -1432,6 +1453,7 @@ export const GenericDashboardChartTile: FC<
     error,
     canExportCsv = false,
     canExportImages = false,
+    onExplore,
     ...rest
 }) => {
     const { projectUuid } = useParams<{
@@ -1525,6 +1547,7 @@ export const GenericDashboardChartTile: FC<
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
+                    onExplore={onExplore}
                 />
             ) : (
                 <DashboardChartTileMain
@@ -1533,6 +1556,7 @@ export const GenericDashboardChartTile: FC<
                     isEditMode={isEditMode}
                     resultsData={resultsData}
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
+                    onExplore={onExplore}
                 />
             )}
             <UnderlyingDataModal />

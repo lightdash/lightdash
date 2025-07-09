@@ -95,7 +95,8 @@ export class ExploreController extends BaseController {
     ): Promise<{ status: 'ok'; results: ApiExploreResults }> {
         this.setStatus(200);
         const results = await this.services.getProjectService().getExplore({
-            user: req.user!,
+            user: req.user,
+            account: req.account,
             projectUuid,
             exploreName: exploreId,
             organizationUuid: undefined,

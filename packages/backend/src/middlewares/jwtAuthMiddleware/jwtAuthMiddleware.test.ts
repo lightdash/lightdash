@@ -1,11 +1,11 @@
 import {
     EmbedJwt,
     ForbiddenError,
+    JWT_HEADER_NAME,
     Organization,
     ParameterError,
 } from '@lightdash/common';
 import express from 'express';
-import { JWT_HEADER_NAME } from '../../auth/lightdashJwt';
 import { jwtAuthMiddleware } from './jwtAuthMiddleware';
 
 // Mock the JWT utility

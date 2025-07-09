@@ -18,62 +18,66 @@ import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
 
-const Explorer: FC<{ hideHeader?: boolean }> = memo(
-    ({ hideHeader = false }) => {
-        const unsavedChartVersionTableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
-        );
-        const unsavedChartVersionMetricQuery = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.metricQuery,
-        );
-        const isEditMode = useExplorerContext(
-            (context) => context.state.isEditMode,
-        );
-        const { projectUuid } = useParams<{ projectUuid: string }>();
+const Explorer: FC<{
+    hideHeader?: boolean;
+    projectUuid?: string;
+}> = memo(({ hideHeader = false, projectUuid: propProjectUuid }) => {
+    const unsavedChartVersionTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const unsavedChartVersionMetricQuery = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
+    );
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const { projectUuid: urlProjectUuid } = useParams<{
+        projectUuid: string;
+    }>();
+    const projectUuid = propProjectUuid || urlProjectUuid;
 
-        const queryUuid = useExplorerContext(
-            (context) => context.query?.data?.queryUuid,
-        );
+    const queryUuid = useExplorerContext(
+        (context) => context.query?.data?.queryUuid,
+    );
 
-        const { data: projects } = useProjects({ refetchOnMount: false });
-        const isProjectPreview = !!projects?.find(
-            (project) =>
-                project.projectUuid === projectUuid &&
-                project.type === ProjectType.PREVIEW,
-        );
-        const { data: explore } = useExplore(unsavedChartVersionTableName);
+    const { data: projects } = useProjects({ refetchOnMount: false });
+    const isProjectPreview = !!projects?.find(
+        (project) =>
+            project.projectUuid === projectUuid &&
+            project.type === ProjectType.PREVIEW,
+    );
+    const { data: explore } = useExplore(unsavedChartVersionTableName);
 
-        return (
-            <MetricQueryDataProvider
-                metricQuery={unsavedChartVersionMetricQuery}
-                tableName={unsavedChartVersionTableName}
-                explore={explore}
-                queryUuid={queryUuid}
-            >
-                <Stack sx={{ flexGrow: 1 }}>
-                    {!hideHeader && isEditMode && <ExplorerHeader />}
+    return (
+        <MetricQueryDataProvider
+            metricQuery={unsavedChartVersionMetricQuery}
+            tableName={unsavedChartVersionTableName}
+            explore={explore}
+            queryUuid={queryUuid}
+        >
+            <Stack sx={{ flexGrow: 1 }}>
+                {!hideHeader && isEditMode && <ExplorerHeader />}
 
-                    <FiltersCard />
+                <FiltersCard />
 
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        isProjectPreview={isProjectPreview}
-                    />
+                <VisualizationCard
+                    projectUuid={projectUuid}
+                    isProjectPreview={isProjectPreview}
+                />
 
-                    <ResultsCard />
+                <ResultsCard />
 
-                    {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
-                </Stack>
+                {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
+            </Stack>
 
-                <UnderlyingDataModal />
-                <DrillDownModal />
-                <CustomMetricModal />
-                <CustomDimensionModal />
-                <FormatModal />
-                <WriteBackModal />
-            </MetricQueryDataProvider>
-        );
-    },
-);
+            <UnderlyingDataModal />
+            <DrillDownModal />
+            <CustomMetricModal />
+            <CustomDimensionModal />
+            <FormatModal />
+            <WriteBackModal />
+        </MetricQueryDataProvider>
+    );
+});
 
 export default Explorer;
