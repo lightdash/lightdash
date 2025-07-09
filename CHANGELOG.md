@@ -1,3 +1,10 @@
+# [0.1796.0](https://github.com/lightdash/lightdash/compare/0.1795.0...0.1796.0) (2025-07-09)
+
+
+### Features
+
+* add x and y axis labels to time series visualization ([#15746](https://github.com/lightdash/lightdash/issues/15746)) ([6b2a223](https://github.com/lightdash/lightdash/commit/6b2a22303c9decd2fd40577d939e89f23c3b375b)), closes [#15453](https://github.com/lightdash/lightdash/issues/15453)
+
 # [0.1795.0](https://github.com/lightdash/lightdash/compare/0.1794.0...0.1795.0) (2025-07-09)
 
 
