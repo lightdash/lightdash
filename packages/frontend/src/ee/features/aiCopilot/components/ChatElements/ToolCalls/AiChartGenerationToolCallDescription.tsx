@@ -1,4 +1,12 @@
-import { Badge, Button, Group, HoverCard, Stack, Text } from '@mantine-8/core';
+import {
+    Badge,
+    Button,
+    Group,
+    HoverCard,
+    rem,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconEye } from '@tabler/icons-react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -16,12 +24,15 @@ export const AiChartGenerationToolCallDescription = ({
     breakdownByDimension?: string | null;
     sql: string | undefined;
 }) => {
+    const fields = [...dimensions, ...metrics];
+
     return (
         <Stack gap="xs">
             <Group gap="xs">
                 <Text c="dimmed" size="xs">
                     Generated chart{' '}
                     <Badge
+                        mx={rem(2)}
                         color="gray"
                         variant="light"
                         size="xs"
@@ -33,39 +44,33 @@ export const AiChartGenerationToolCallDescription = ({
                     >
                         {title}
                     </Badge>{' '}
-                    with fields {}
-                    <Badge
-                        color="gray"
-                        variant="light"
-                        size="xs"
-                        radius="sm"
-                        style={{
-                            textTransform: 'none',
-                            fontWeight: 400,
-                        }}
-                    >
-                        {dimensions.join(', ')}
-                    </Badge>{' '}
-                    {metrics.map((metric) => (
-                        <Badge
-                            key={metric}
-                            color="gray"
-                            variant="light"
-                            size="xs"
-                            radius="sm"
-                            style={{
-                                textTransform: 'none',
-                                fontWeight: 400,
-                            }}
-                        >
-                            {metric}
-                        </Badge>
-                    ))}
+                    {fields.length > 0 && (
+                        <>
+                            with fields{' '}
+                            {fields.map((field) => (
+                                <Badge
+                                    key={field}
+                                    mx={rem(2)}
+                                    color="gray"
+                                    variant="light"
+                                    size="xs"
+                                    radius="sm"
+                                    style={{
+                                        textTransform: 'none',
+                                        fontWeight: 400,
+                                    }}
+                                >
+                                    {field}
+                                </Badge>
+                            ))}
+                        </>
+                    )}
                     {breakdownByDimension && (
                         <>
                             {' '}
                             and breakdown by{' '}
                             <Badge
+                                mx={rem(2)}
                                 color="gray"
                                 variant="light"
                                 size="xs"
