@@ -21,7 +21,7 @@ import * as Sentry from '@sentry/node';
 import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import playwright from 'playwright';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -349,13 +349,43 @@ export class UnfurlService extends BaseService {
     private async createImagePdf(
         id: string,
         buffer: Buffer,
+    ): Promise<{ source: string; fileName: string }>;
+    private async createImagePdf(
+        id: string,
+        buffers: Buffer[],
+        tabNames?: string[],
+    ): Promise<{ source: string; fileName: string }>;
+    private async createImagePdf(
+        id: string,
+        bufferOrBuffers: Buffer | Buffer[],
+        tabNames?: string[],
     ): Promise<{ source: string; fileName: string }> {
-        // Converts an image to PDF format,
-        // The PDF has the size of the image, not DIN A4
+        // Converts image(s) to PDF format
         const pdfDoc = await PDFDocument.create();
-        const pngImage = await pdfDoc.embedPng(buffer);
-        const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
-        page.drawImage(pngImage);
+        const buffers = Array.isArray(bufferOrBuffers)
+            ? bufferOrBuffers
+            : [bufferOrBuffers];
+
+        // Pre-embed font to avoid await in loop
+        const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+        for (let i = 0; i < buffers.length; i += 1) {
+            const buffer = buffers[i];
+            const pngImage = await pdfDoc.embedPng(buffer); // eslint-disable-line no-await-in-loop
+            const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
+            page.drawImage(pngImage);
+
+            // Add tab name as header if provided
+            if (tabNames && tabNames[i]) {
+                page.drawText(tabNames[i], {
+                    x: 20,
+                    y: pngImage.height - 30,
+                    size: 16,
+                    font,
+                });
+            }
+        }
+
         const pdfBytes = await pdfDoc.save();
 
         let source: string;
@@ -429,7 +459,79 @@ export class UnfurlService extends BaseService {
 
         if (buffer !== undefined) {
             if (withPdf) {
-                pdfFile = await this.createImagePdf(imageId, buffer);
+                // Check if we should create a multi-page PDF for dashboard tabs
+                if (lightdashPage === LightdashPage.DASHBOARD) {
+                    try {
+                        // Extract selectedTabs from URL if they exist
+                        const urlSelectedTabs =
+                            this.extractSelectedTabsFromUrl(url);
+
+                        this.logger.info(
+                            `PDF generation for dashboard: url=${url}, selectedTabs=${JSON.stringify(
+                                urlSelectedTabs,
+                            )}`,
+                        );
+
+                        if (urlSelectedTabs && urlSelectedTabs.length > 1) {
+                            // Use per-tab PDF export for multiple tabs
+                            const userCookie = await this.getUserCookie(
+                                authUserUuid,
+                            );
+                            const baseUrl = url.replace(
+                                /[?&]selectedTabs=[^&]*/,
+                                '',
+                            );
+
+                            // Extract dashboard UUID from URL path
+                            const dashboardUuid =
+                                this.extractDashboardUuidFromUrl(url);
+                            if (dashboardUuid) {
+                                const { buffers, tabNames } =
+                                    await this.saveScreenshotPerTab({
+                                        dashboardUuid,
+                                        selectedTabs: urlSelectedTabs,
+                                        cookie: userCookie,
+                                        baseUrl,
+                                        authUserUuid,
+                                        gridWidth,
+                                        context,
+                                        contextId,
+                                    });
+
+                                if (buffers.length > 0) {
+                                    pdfFile = await this.createImagePdf(
+                                        imageId,
+                                        buffers,
+                                        tabNames,
+                                    );
+                                } else {
+                                    // Fallback to single page if no tabs captured
+                                    pdfFile = await this.createImagePdf(
+                                        imageId,
+                                        buffer,
+                                    );
+                                }
+                            } else {
+                                pdfFile = await this.createImagePdf(
+                                    imageId,
+                                    buffer,
+                                );
+                            }
+                        } else {
+                            pdfFile = await this.createImagePdf(
+                                imageId,
+                                buffer,
+                            );
+                        }
+                    } catch (error) {
+                        this.logger.warn(
+                            `Failed to create per-tab PDF, falling back to single page: ${error}`,
+                        );
+                        pdfFile = await this.createImagePdf(imageId, buffer);
+                    }
+                } else {
+                    pdfFile = await this.createImagePdf(imageId, buffer);
+                }
             }
 
             if (this.s3Client.isEnabled()) {
@@ -463,6 +565,7 @@ export class UnfurlService extends BaseService {
         gridWidth: number | undefined,
         user: SessionUser,
         selectedTabs?: string[],
+        separateTabPages?: boolean,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
@@ -521,7 +624,7 @@ export class UnfurlService extends BaseService {
                 selectedTabs
                     ? ` and selected tabs: ${selectedTabs.join(', ')}`
                     : ''
-            }`,
+            }${separateTabPages ? ' (separate tab pages)' : ''}`,
         );
 
         const unfurlImage = await this.unfurlImage({
@@ -532,7 +635,11 @@ export class UnfurlService extends BaseService {
             gridWidth,
             context: ScreenshotContext.EXPORT_DASHBOARD,
             selectedTabs,
+            withPdf: true,
         });
+        if (unfurlImage.pdfFile) {
+            return unfurlImage.pdfFile.source;
+        }
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
@@ -1058,6 +1165,135 @@ export class UnfurlService extends BaseService {
                 }
             },
         );
+    }
+
+    private async saveScreenshotPerTab({
+        dashboardUuid,
+        selectedTabs,
+        cookie,
+        baseUrl,
+        authUserUuid,
+        gridWidth,
+        context,
+        contextId,
+        retries = 3,
+    }: {
+        dashboardUuid: string;
+        selectedTabs: string[];
+        cookie: string;
+        baseUrl: string;
+        authUserUuid: string;
+        gridWidth?: number;
+        context: ScreenshotContext;
+        contextId?: unknown;
+        retries?: number;
+    }): Promise<{ buffers: Buffer[]; tabNames: string[] }> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const buffers: Buffer[] = [];
+        const tabNames: string[] = [];
+
+        // Get tab details for names
+        const tabsMap = new Map(
+            dashboard.tabs.map((tab) => [tab.uuid, tab.name]),
+        );
+
+        const tabPromises = selectedTabs.map(async (tabUuid) => {
+            const tabName = tabsMap.get(tabUuid) || 'Untitled Tab';
+
+            // Create URL for specific tab
+            const tabUrl = `${baseUrl}&selectedTabs=${encodeURIComponent(
+                JSON.stringify([tabUuid]),
+            )}`;
+
+            // Get tiles for this tab
+            const tabTiles = dashboard.tiles.filter(
+                (tile) => tile.tabUuid === tabUuid,
+            );
+
+            // Skip empty tabs
+            if (tabTiles.length === 0) {
+                this.logger.info(`Skipping empty tab: ${tabName}`);
+                return null;
+            }
+
+            const chartTileUuids = tabTiles
+                .filter(isDashboardChartTileType)
+                .map((t) => t.properties.savedChartUuid);
+
+            const sqlChartTileUuids = tabTiles
+                .filter(isDashboardSqlChartTile)
+                .map((t) => t.properties.savedSqlUuid);
+
+            try {
+                const buffer = await this.saveScreenshot({
+                    imageId: `tab-${tabUuid}`,
+                    cookie,
+                    url: tabUrl,
+                    lightdashPage: LightdashPage.DASHBOARD,
+                    authUserUuid,
+                    gridWidth,
+                    chartTileUuids,
+                    sqlChartTileUuids,
+                    retries,
+                    context,
+                    contextId,
+                    selectedTabs: [tabUuid],
+                });
+
+                return buffer ? { buffer, tabName } : null;
+            } catch (error) {
+                this.logger.error(
+                    `Failed to capture screenshot for tab ${tabName}:`,
+                    error,
+                );
+                return null;
+            }
+        });
+
+        const results = await Promise.all(tabPromises);
+        results.forEach((result) => {
+            if (result) {
+                buffers.push(result.buffer);
+                tabNames.push(result.tabName);
+            }
+        });
+
+        return { buffers, tabNames };
+    }
+
+    private extractSelectedTabsFromUrl(url: string): string[] | undefined {
+        try {
+            const urlObj = new URL(url);
+            const selectedTabsParam = urlObj.searchParams.get('selectedTabs');
+            if (selectedTabsParam) {
+                return JSON.parse(selectedTabsParam) as string[];
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to extract selectedTabs from URL: ${error}`,
+            );
+        }
+        return undefined;
+    }
+
+    private extractDashboardUuidFromUrl(url: string): string | undefined {
+        try {
+            const urlObj = new URL(url);
+            const pathParts = urlObj.pathname.split('/');
+            // Look for pattern: /minimal/projects/{projectUuid}/dashboards/{dashboardUuid}
+            const dashboardIndex = pathParts.indexOf('dashboards');
+            if (
+                dashboardIndex !== -1 &&
+                dashboardIndex + 1 < pathParts.length
+            ) {
+                return pathParts[dashboardIndex + 1];
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to extract dashboard UUID from URL: ${error}`,
+            );
+        }
+        return undefined;
     }
 
     private async getSharedUrl(linkUrl: string): Promise<string> {

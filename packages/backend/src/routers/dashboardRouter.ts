@@ -176,6 +176,7 @@ dashboardRouter.post(
                     req.body.gridWidth,
                     req.user!,
                     req.body.selectedTabs,
+                    req.body.separateTabPages,
                 );
 
             res.json({
