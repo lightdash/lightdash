@@ -43,7 +43,7 @@ export const SlackIntegrationSteps: FC<{
                 description={
                     active === 2 ? (
                         <>
-                            Go to the connected channels and tag the Slack app{' '}
+                            Tag the Slack app{' '}
                             {data?.appName ? (
                                 <>
                                     <Code fw={500} c="blue" fz={10}>
