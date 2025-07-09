@@ -63,6 +63,7 @@ export const AiChartGenerationToolCallDescription = ({
                     ))}
                     {breakdownByDimension && (
                         <>
+                            {' '}
                             and breakdown by{' '}
                             <Badge
                                 color="gray"

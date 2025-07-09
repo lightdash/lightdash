@@ -2,6 +2,7 @@ import {
     AiResultType,
     parseVizConfig,
     type AiAgentMessageAssistant,
+    type ApiExecuteAsyncMetricQueryResults,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -40,9 +41,11 @@ import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
-const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
-    message,
-}) => {
+const AssistantBubbleContent: FC<{
+    message: AiAgentMessageAssistant;
+    projectUuid: string;
+    metricQuery?: ApiExecuteAsyncMetricQueryResults['metricQuery'];
+}> = ({ message, metricQuery, projectUuid }) => {
     const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
     const isStubbed = isOptimisticMessageStub(message.message);
     const isStreaming =
@@ -53,20 +56,23 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
             : isStubbed // avoid brief flash of `THINKING_STUB`
             ? ''
             : message.message ?? 'No response...';
-
     return (
         <>
-            {isStreaming && (
-                <AiChartToolCalls
-                    toolCalls={streamingState?.toolCalls}
-                    type="streaming"
-                    compiledSql={undefined}
-                />
-            )}
-
+            <AiChartToolCalls
+                toolCalls={streamingState?.toolCalls ?? message.toolCalls}
+                type={
+                    streamingState
+                        ? isStreaming
+                            ? 'streaming'
+                            : 'finished-streaming'
+                        : 'persisted'
+                }
+                metricQuery={metricQuery}
+                projectUuid={projectUuid}
+            />
             <MDEditor.Markdown
                 source={messageContent}
-                style={{ backgroundColor: 'transparent' }}
+                style={{ backgroundColor: 'transparent', padding: `0.5rem 0` }}
             />
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
         </>
@@ -154,7 +160,11 @@ export const AssistantBubble: FC<{
                 borderStartStartRadius: '0px',
             }}
         >
-            <AssistantBubbleContent message={message} />
+            <AssistantBubbleContent
+                message={message}
+                metricQuery={queryExecutionHandle.data?.query.metricQuery}
+                projectUuid={projectUuid}
+            />
 
             {isVisualizationAvailable && (
                 <Paper
