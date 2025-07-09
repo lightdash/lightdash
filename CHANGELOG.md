@@ -1,3 +1,10 @@
+## [0.1796.1](https://github.com/lightdash/lightdash/compare/0.1796.0...0.1796.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* remove duplicate fieldsMap props and move to correct component ([#15776](https://github.com/lightdash/lightdash/issues/15776)) ([b3bccfc](https://github.com/lightdash/lightdash/commit/b3bccfc18dbdf62b5e313d6278cce4e17134a10b))
+
 # [0.1796.0](https://github.com/lightdash/lightdash/compare/0.1795.0...0.1796.0) (2025-07-09)
 
 
