@@ -1,3 +1,10 @@
+## [0.1796.3](https://github.com/lightdash/lightdash/compare/0.1796.2...0.1796.3) (2025-07-09)
+
+
+### Bug Fixes
+
+* update progress message and reorder single row result handling ([#15784](https://github.com/lightdash/lightdash/issues/15784)) ([c752e9c](https://github.com/lightdash/lightdash/commit/c752e9cbd7200b44bc8bbcab19eb9878d0a938b1))
+
 ## [0.1796.2](https://github.com/lightdash/lightdash/compare/0.1796.1...0.1796.2) (2025-07-09)
 
 
