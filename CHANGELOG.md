@@ -1,3 +1,10 @@
+# [0.1800.0](https://github.com/lightdash/lightdash/compare/0.1799.0...0.1800.0) (2025-07-10)
+
+
+### Features
+
+* add groups:history to required Slack scopes for EE ([#15798](https://github.com/lightdash/lightdash/issues/15798)) ([0cf3b10](https://github.com/lightdash/lightdash/commit/0cf3b104643d5d861bb21943ba35472091b69efa))
+
 # [0.1799.0](https://github.com/lightdash/lightdash/compare/0.1798.0...0.1799.0) (2025-07-10)
 
 
