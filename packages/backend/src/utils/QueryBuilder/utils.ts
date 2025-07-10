@@ -928,65 +928,85 @@ export const findTablesWithMetricInflation = ({
     const joinWithoutRelationship = new Set<string>();
     const tablesWithoutPrimaryKey = new Set<string>();
 
-    joinedTables.forEach((joinedTable) => {
-        if (!tables[joinedTable]?.primaryKey) {
-            // Warn the user about missing primary key so we can detect possible metric inflation
-            tablesWithoutPrimaryKey.add(joinedTable);
-        }
-
-        if (joinedTable === baseTable) {
-            // skip base table
-            return;
-        }
+    // Check if any join has a many-to-many relationship
+    const hasManyToManyJoin = Array.from(joinedTables).some((joinedTable) => {
+        if (joinedTable === baseTable) return false;
 
         const join = possibleJoins.find(
             (possibleJoin) => possibleJoin.table === joinedTable,
         );
-        if (!join) {
-            throw new Error(`Join ${joinedTable} not found`);
-        }
-        if (!join.tablesReferences) {
-            // Skip, as we can't detect inflation without knowing table references in join SQL
-            return;
-        }
-        if (!join.relationship) {
-            // Warn the user about missing relationship so we can detect possible metric inflation
-            joinWithoutRelationship.add(joinedTable);
-        } else {
-            // Finds tables with inflation in this join
-            const tablesWithInflationFromJoin =
-                findTablesWithInflationFromJoin(join);
-            // Finds chained joins with one-to-one relationship
-            const chainedTablesWithInflation = findChainedOneToOneTableJoins({
-                tables: tablesWithInflationFromJoin,
-                possibleJoins,
-            });
-            const newTablesWithInflation = new Set([
-                ...tablesWithInflationFromJoin,
-                ...chainedTablesWithInflation,
-            ]);
-            if (
-                intersection(
-                    Array.from(tablesWithMetricInflation),
-                    Array.from(newTablesWithInflation),
-                ).length > 0
-            ) {
-                // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
-                joinedTables.forEach(
-                    tablesWithMetricInflation.add.bind(
-                        tablesWithMetricInflation,
-                    ),
-                );
-            } else {
-                // otherwise, add tables with inflation related to this join
-                newTablesWithInflation.forEach(
-                    tablesWithMetricInflation.add.bind(
-                        tablesWithMetricInflation,
-                    ),
-                );
-            }
-        }
+        return join?.relationship === JoinRelationship.MANY_TO_MANY;
     });
+
+    // If there's a many-to-many join, all tables (including base table) have inflation
+    if (hasManyToManyJoin) {
+        joinedTables.forEach(
+            tablesWithMetricInflation.add.bind(tablesWithMetricInflation),
+        );
+        // Also add the base table
+        tablesWithMetricInflation.add(baseTable);
+    } else {
+        joinedTables.forEach((joinedTable) => {
+            if (!tables[joinedTable]?.primaryKey) {
+                // Warn the user about missing primary key so we can detect possible metric inflation
+                tablesWithoutPrimaryKey.add(joinedTable);
+            }
+
+            if (joinedTable === baseTable) {
+                // skip base table
+                return;
+            }
+
+            const join = possibleJoins.find(
+                (possibleJoin) => possibleJoin.table === joinedTable,
+            );
+            if (!join) {
+                throw new Error(`Join ${joinedTable} not found`);
+            }
+            if (!join.tablesReferences) {
+                // Skip, as we can't detect inflation without knowing table references in join SQL
+                return;
+            }
+            if (!join.relationship) {
+                // Warn the user about missing relationship so we can detect possible metric inflation
+                joinWithoutRelationship.add(joinedTable);
+            } else {
+                // Finds tables with inflation in this join
+                const tablesWithInflationFromJoin =
+                    findTablesWithInflationFromJoin(join);
+                // Finds chained joins with one-to-one relationship
+                const chainedTablesWithInflation =
+                    findChainedOneToOneTableJoins({
+                        tables: tablesWithInflationFromJoin,
+                        possibleJoins,
+                    });
+                const newTablesWithInflation = new Set([
+                    ...tablesWithInflationFromJoin,
+                    ...chainedTablesWithInflation,
+                ]);
+                if (
+                    intersection(
+                        Array.from(tablesWithMetricInflation),
+                        Array.from(newTablesWithInflation),
+                    ).length > 0
+                ) {
+                    // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
+                    joinedTables.forEach(
+                        tablesWithMetricInflation.add.bind(
+                            tablesWithMetricInflation,
+                        ),
+                    );
+                } else {
+                    // otherwise, add tables with inflation related to this join
+                    newTablesWithInflation.forEach(
+                        tablesWithMetricInflation.add.bind(
+                            tablesWithMetricInflation,
+                        ),
+                    );
+                }
+            }
+        });
+    }
 
     return {
         tablesWithMetricInflation,
