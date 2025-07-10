@@ -180,6 +180,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     contentModel: models.getContentModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             instanceConfigurationService: ({ models, context, repository }) =>
                 new InstanceConfigurationService({
@@ -236,6 +237,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedSqlModel: models.getSavedSqlModel(),
                     storageClient: clients.getResultsFileStorageClient(),
                     csvService: repository.getCsvService(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({

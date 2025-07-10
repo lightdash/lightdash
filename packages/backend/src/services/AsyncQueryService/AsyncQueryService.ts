@@ -89,6 +89,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { isFeatureFlagEnabled } from '../../postHog';
@@ -134,6 +135,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     queryHistoryModel: QueryHistoryModel;
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
+    featureFlagModel: FeatureFlagModel;
     storageClient: S3ResultsFileStorageClient;
     csvService: CsvService;
 };
@@ -145,6 +147,8 @@ export class AsyncQueryService extends ProjectService {
 
     savedSqlModel: SavedSqlModel;
 
+    featureFlagModel: FeatureFlagModel;
+
     storageClient: S3ResultsFileStorageClient;
 
     csvService: CsvService;
@@ -153,6 +157,7 @@ export class AsyncQueryService extends ProjectService {
         queryHistoryModel,
         cacheService,
         savedSqlModel,
+        featureFlagModel,
         storageClient,
         csvService,
         ...projectServiceArgs
@@ -161,6 +166,7 @@ export class AsyncQueryService extends ProjectService {
         this.queryHistoryModel = queryHistoryModel;
         this.cacheService = cacheService;
         this.savedSqlModel = savedSqlModel;
+        this.featureFlagModel = featureFlagModel;
         this.storageClient = storageClient;
         this.csvService = csvService;
     }
@@ -1358,12 +1364,11 @@ export class AsyncQueryService extends ProjectService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
-        const useExperimentalMetricCtes = await isFeatureFlagEnabled(
-            FeatureFlags.ShowQueryWarnings,
-            user,
-            { throwOnTimeout: false },
-            false, // default value
-        );
+        const { enabled: useExperimentalMetricCtes } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ShowQueryWarnings,
+            });
 
         const fullQuery = await ProjectService._compileQuery(
             metricQuery,
