@@ -13,7 +13,7 @@ const LightdashDashboard = dynamic(
     },
 );
 
-const LighdashExplore = dynamic(
+const LightdashExplore = dynamic(
     () => import('@lightdash/sdk').then((Lightdash) => Lightdash.Explore),
     {
         ssr: false,
@@ -45,7 +45,7 @@ export default function YourCustomDashboard() {
                     </button>
                 )}
                 {chart ? (
-                    <LighdashExplore
+                    <LightdashExplore
                         instanceUrl={instanceUrl}
                         token={token}
                         exploreId={chart?.tableName}

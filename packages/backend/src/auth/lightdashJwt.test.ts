@@ -125,12 +125,12 @@ describe('JwtUtil', () => {
             }
         });
 
-        it('should throw ParameterError for invalid tokens', () => {
+        it('should throw ForbiddenError for invalid tokens', () => {
             const invalidToken = 'invalid.token.here';
 
             expect(() => {
                 decodeLightdashJwt(invalidToken, encodedSecret);
-            }).toThrow(ParameterError);
+            }).toThrow(ForbiddenError);
         });
 
         it('should handle tokens with dashboard slug content', () => {

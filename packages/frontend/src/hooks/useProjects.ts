@@ -10,29 +10,21 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
-import useEmbed from '../ee/providers/Embed/useEmbed';
 import { useOrganization } from './organization/useOrganization';
 import useToaster from './toaster/useToaster';
 
-const getProjectsQuery = async (options?: {
-    headers?: Record<string, string>;
-    projectUuid?: string;
-}) =>
+const getProjectsQuery = async () =>
     lightdashApi<OrganizationProject[]>({
-        url: options?.projectUuid
-            ? `/org/projects?projectUuid=${options.projectUuid}`
-            : `/org/projects`,
+        url: `/org/projects`,
         method: 'GET',
-        headers: options?.headers,
     });
 
 export const useProjects = (
     useQueryOptions?: UseQueryOptions<OrganizationProject[], ApiError>,
 ) => {
-    const { embedHeaders, projectUuid } = useEmbed();
     return useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
-        queryFn: () => getProjectsQuery({ headers: embedHeaders, projectUuid }),
+        queryFn: getProjectsQuery,
         ...useQueryOptions,
     });
 };

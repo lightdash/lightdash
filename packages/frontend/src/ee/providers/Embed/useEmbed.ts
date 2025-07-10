@@ -10,15 +10,18 @@ function useEmbed(): EmbedContext {
         projectUuid: string;
     }>();
 
-    if (context.projectUuid && projectUuidFromParams) {
+    if (
+        context.projectUuid &&
+        projectUuidFromParams &&
+        context.projectUuid !== projectUuidFromParams
+    ) {
         throw new Error(
-            'Cannot use ?projectUuid=... in the URL and embed context at the same time',
+            'Cannot have mismatching :projectUuid in the URL route path and embed context',
         );
     }
 
     if (context === undefined) {
         return {
-            embedHeaders: undefined,
             embedToken: undefined,
             filters: undefined,
             projectUuid: undefined,

@@ -13,7 +13,6 @@ import { useEmbedChartAndResults } from '../hooks';
 type Props = ComponentProps<typeof DashboardChartTile> & {
     projectUuid: string;
     dashboardSlug: string;
-    embedToken: string;
     locked: boolean;
     tileIndex: number;
 };
@@ -21,7 +20,6 @@ type Props = ComponentProps<typeof DashboardChartTile> & {
 const EmbedDashboardChartTile: FC<Props> = ({
     projectUuid,
     dashboardSlug,
-    embedToken,
     locked,
     canExportCsv,
     canExportImages,
@@ -35,7 +33,6 @@ const EmbedDashboardChartTile: FC<Props> = ({
 
     const { isLoading, data, error } = useEmbedChartAndResults(
         projectUuid,
-        embedToken,
         tile.uuid,
     );
 
