@@ -52,7 +52,11 @@ export class CommercialSlackClient extends SlackClient {
     }
 
     public getRequiredScopes() {
-        return [...super.getRequiredScopes(), 'channels:history'];
+        return [
+            ...super.getRequiredScopes(),
+            'channels:history',
+            'groups:history',
+        ];
     }
 
     protected addEventListeners(
