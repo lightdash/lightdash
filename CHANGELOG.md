@@ -1,3 +1,10 @@
+# [0.1801.0](https://github.com/lightdash/lightdash/compare/0.1800.1...0.1801.0) (2025-07-10)
+
+
+### Features
+
+* add config option to show query warnings ([#15806](https://github.com/lightdash/lightdash/issues/15806)) ([bf50b27](https://github.com/lightdash/lightdash/commit/bf50b27d757650e05430e48d5fdb0d6b8fca43d9))
+
 ## [0.1800.1](https://github.com/lightdash/lightdash/compare/0.1800.0...0.1800.1) (2025-07-10)
 
 
