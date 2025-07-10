@@ -706,11 +706,11 @@ This method can be memory intensive
             });
         }
 
-        const explore = await this.projectService.getExplore(
+        const explore = await this.projectService.getExplore({
             user,
-            chart.projectUuid,
-            exploreId,
-        );
+            projectUuid: chart.projectUuid,
+            exploreName: exploreId,
+        });
 
         const dashboardFiltersForTile =
             tileUuid && dashboardFilters
@@ -1035,11 +1035,11 @@ This method can be memory intensive
             tableConfig,
             chartConfig,
         } = chart;
-        const explore = await this.projectService.getExplore(
+        const explore = await this.projectService.getExplore({
             user,
             projectUuid,
-            tableName,
-        );
+            exploreName: tableName,
+        });
 
         const showTableNames = isTableChartConfig(chartConfig.config)
             ? chartConfig.config.showTableNames ?? false

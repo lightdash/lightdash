@@ -31,10 +31,10 @@ import {
     NotFoundError,
     parseVizConfig,
     QueryExecutionContext,
+    type SessionUser,
     SlackPrompt,
     UpdateSlackResponse,
     UpdateWebAppResponse,
-    type SessionUser,
 } from '@lightdash/common';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
@@ -140,11 +140,11 @@ export class AiAgentService {
         availableTags: string[] | null,
         exploreName: string,
     ) {
-        const explore = await this.projectService.getExplore(
+        const explore = await this.projectService.getExplore({
             user,
             projectUuid,
             exploreName,
-        );
+        });
 
         const filteredExplore = filterExploreByTags({
             explore,
@@ -1087,12 +1087,12 @@ export class AiAgentService {
         availableTags: string[] | null,
     ): Promise<AiAgentExploreSummary[]> {
         const exploreSummaries =
-            await this.projectService.getAllExploresSummary(
+            await this.projectService.getAllExploresSummary({
                 user,
                 projectUuid,
-                true,
-                false,
-            );
+                filtered: true,
+                includeErrors: false,
+            });
 
         const explores = await this.projectService.findExplores({
             user,
@@ -1242,11 +1242,11 @@ export class AiAgentService {
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const explore = await this.projectService.getExplore(
+            const explore = await this.projectService.getExplore({
                 user,
                 projectUuid,
                 exploreName,
-            );
+            });
 
             const filteredExplore = filterExploreByTags({
                 explore,

@@ -34,6 +34,7 @@ const createEmbedJwt = (overrides?: {
 const organization = {
     organizationUuid: 'organization-uuid-1',
     name: 'Organization 1',
+    createdAt: new Date(),
 };
 
 const defineAbilityForEmbedUser = (
@@ -173,6 +174,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'csv',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -215,6 +217,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -257,6 +260,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -303,6 +307,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'csv',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -312,6 +317,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -321,6 +327,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -345,6 +352,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'csv',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -354,6 +362,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
@@ -387,6 +396,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'csv',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(false);
@@ -396,6 +406,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'pdf',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(false);
@@ -405,6 +416,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             type: 'images',
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(false);
@@ -429,6 +441,7 @@ describe('Embedded dashboard abilities', () => {
                         subject('Dashboard', {
                             dateZoom: true,
                             organizationUuid: organization.organizationUuid,
+                            dashboardUuid,
                         }),
                     ),
                 ).toBe(true);
