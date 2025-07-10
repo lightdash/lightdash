@@ -23,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
@@ -50,28 +51,32 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
 const executeAsyncMetricQuery = async (
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
-    options: { signal?: AbortSignal } = {},
-): Promise<ApiExecuteAsyncMetricQueryResults> =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+    options: { signal?: AbortSignal; headers?: Record<string, string> } = {},
+): Promise<ApiExecuteAsyncMetricQueryResults> => {
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/metric-query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
         signal: options.signal,
+        headers: options.headers,
     });
+};
 
 const executeAsyncSavedChartQuery = async (
     projectUuid: string,
     data: ExecuteAsyncSavedChartRequestParams,
-    options: { signal?: AbortSignal } = {},
-): Promise<ApiExecuteAsyncMetricQueryResults> =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+    options: { signal?: AbortSignal; headers?: Record<string, string> } = {},
+): Promise<ApiExecuteAsyncMetricQueryResults> => {
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/chart`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
         signal: options.signal,
+        headers: options.headers,
     });
+};
 
 export const downloadQuery = async (
     projectUuid: string,
@@ -97,6 +102,7 @@ export const downloadQuery = async (
 const executeAsyncQuery = (
     data?: QueryResultsProps | null,
     signal?: AbortSignal,
+    options?: { headers?: Record<string, string> },
 ) => {
     if (data?.chartUuid && data?.chartVersionUuid) {
         return executeAsyncSavedChartQuery(
@@ -107,7 +113,7 @@ const executeAsyncQuery = (
                 versionUuid: data.chartVersionUuid,
                 limit: data.csvLimit,
             },
-            { signal },
+            { signal, headers: options?.headers },
         );
     } else if (data?.chartUuid) {
         return executeAsyncSavedChartQuery(
@@ -148,7 +154,7 @@ const executeAsyncQuery = (
                 },
                 invalidateCache: true, // Note: do not cache explore queries
             },
-            { signal },
+            { signal, headers: options?.headers },
         );
     }
     return Promise.reject(new ParameterError('Missing QueryResultsProps'));
@@ -175,6 +181,7 @@ export const executeQueryAndWaitForResults = async (
 };
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
+    const { embedHeaders } = useEmbed();
     const setErrorResponse = useQueryError();
 
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
@@ -182,7 +189,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
         queryKey: ['create-query', data],
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
-            return executeAsyncQuery(data, signal);
+            return executeAsyncQuery(data, signal, { headers: embedHeaders });
         },
     });
 
@@ -204,6 +211,7 @@ const getResultsPage = async (
     queryUuid: string,
     page: number = 1,
     pageSize: number | null = null,
+    options: { headers?: Record<string, string> } = {},
 ): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
@@ -220,7 +228,7 @@ const getResultsPage = async (
         }`,
         version: 'v2',
         method: 'GET',
-        body: undefined,
+        headers: options.headers,
     });
 };
 
@@ -251,6 +259,7 @@ export const useInfiniteQueryResults = (
     queryUuid?: string,
     chartName?: string,
 ): InfiniteQueryResults => {
+    const { embedHeaders } = useEmbed();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: chartName
@@ -273,6 +282,9 @@ export const useInfiniteQueryResults = (
         (ReadyQueryResultsPage & { clientFetchTimeMs: number })[]
     >([]);
     const [fetchAll, setFetchAll] = useState(false);
+
+    const prevQueryUuidRef = useRef<string | undefined>(null);
+    const prevProjectUuidRef = useRef<string | undefined>(null);
 
     const fetchMoreRows = useCallback(() => {
         const lastPage = fetchedPages[fetchedPages.length - 1];
@@ -334,6 +346,7 @@ export const useInfiniteQueryResults = (
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
                 fetchArgs.pageSize,
+                { headers: embedHeaders },
             );
 
             const { status } = results;
@@ -415,16 +428,26 @@ export const useInfiniteQueryResults = (
     }, [nextPage.data]);
 
     useEffect(() => {
-        // Reset fetched pages before updating the fetch args
-        setFetchedPages([]);
-        // Reset fetchAll before updating the fetch args
-        setFetchAll(false);
-        setFetchArgs({
-            queryUuid,
-            projectUuid,
-            page: 1,
-            pageSize: DEFAULT_RESULTS_PAGE_SIZE,
-        });
+        const hasQueryUuidChanged = queryUuid !== prevQueryUuidRef.current;
+        const hasProjectUuidChanged =
+            projectUuid !== prevProjectUuidRef.current;
+
+        if (hasQueryUuidChanged || hasProjectUuidChanged) {
+            // Reset fetched pages before updating the fetch args
+            setFetchedPages([]);
+            // Reset fetchAll before updating the fetch args
+            setFetchAll(false);
+            setFetchArgs({
+                queryUuid,
+                projectUuid,
+                page: 1,
+                pageSize: DEFAULT_RESULTS_PAGE_SIZE,
+            });
+
+            // Update refs
+            prevQueryUuidRef.current = queryUuid;
+            prevProjectUuidRef.current = projectUuid;
+        }
     }, [projectUuid, queryUuid]);
 
     useEffect(() => {

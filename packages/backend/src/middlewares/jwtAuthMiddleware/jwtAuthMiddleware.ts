@@ -1,8 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 // This rule is failing in CI but passes locally
-import { ForbiddenError, ParameterError } from '@lightdash/common';
+import {
+    ForbiddenError,
+    JWT_HEADER_NAME,
+    ParameterError,
+} from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
-import { decodeLightdashJwt, JWT_HEADER_NAME } from '../../auth/lightdashJwt';
+import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
 import Logger from '../../logging/logger';
 import { hydrateEmbeddedAccount } from './hydrateEmbeddedAccount';
