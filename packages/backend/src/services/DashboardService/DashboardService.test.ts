@@ -18,7 +18,10 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import { CsvService } from '../CsvService/CsvService';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -87,6 +90,9 @@ describe('DashboardService', () => {
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
         catalogModel: {} as CatalogModel,
+        userModel: {} as UserModel,
+        csvService: {} as CsvService,
+        asyncQueryService: {} as AsyncQueryService,
     });
     afterEach(() => {
         jest.clearAllMocks();

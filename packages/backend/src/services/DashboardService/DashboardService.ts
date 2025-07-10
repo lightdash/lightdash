@@ -1,28 +1,46 @@
 import { subject } from '@casl/ability';
+import { Query } from '@cubejs-client/core';
 import {
     AbilityAction,
+    ApiExecuteAsyncDashboardChartQueryResults,
+    ApiExecuteAsyncDashboardSqlChartQueryResults,
     BulkActionable,
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardDAO,
+    DashboardFilters,
     DashboardTab,
     DashboardTileTypes,
+    DateGranularity,
+    DownloadFileType,
     ExploreType,
+    ExportCsvDashboardPayload,
     ForbiddenError,
+    MissingConfigError,
     ParameterError,
     PossibleAbilities,
+    QueryExecutionContext,
+    SCHEDULER_TASKS,
+    SavedChart,
+    SavedChartDAO,
     SchedulerAndTargets,
+    SchedulerCsvOptions,
     SchedulerFormat,
     SessionUser,
+    SqlChart,
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
     generateSlug,
+    getCustomLabelsFromTableConfig,
+    getHiddenTableFields,
+    getPivotConfig,
     hasChartsInDashboard,
     isChartScheduler,
     isDashboardChartTileType,
     isDashboardScheduler,
+    isDashboardSqlChartTile,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
@@ -34,15 +52,21 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
+import archiver from 'archiver';
+import { log } from 'console';
 import cronstrue from 'cronstrue';
 import { type Knex } from 'knex';
-import { uniq } from 'lodash';
+import { result, uniq } from 'lodash';
+import moment from 'moment';
+import { nanoid } from 'nanoid';
 import { v4 as uuidv4 } from 'uuid';
 import {
     CreateDashboardOrVersionEvent,
+    DownloadCsv,
     LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
@@ -56,8 +80,12 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { sanitizeGenericFileName } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../BaseService';
+import { CsvService } from '../CsvService/CsvService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
@@ -73,6 +101,9 @@ type DashboardServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
+    userModel: UserModel;
+    csvService: CsvService;
+    asyncQueryService: AsyncQueryService;
 };
 
 export class DashboardService
@@ -101,6 +132,12 @@ export class DashboardService
 
     slackClient: SlackClient;
 
+    userModel: UserModel;
+
+    csvService: CsvService;
+
+    asyncQueryService: AsyncQueryService;
+
     constructor({
         analytics,
         dashboardModel,
@@ -113,6 +150,9 @@ export class DashboardService
         slackClient,
         projectModel,
         catalogModel,
+        userModel,
+        csvService,
+        asyncQueryService,
     }: DashboardServiceArguments) {
         super();
         this.analytics = analytics;
@@ -126,6 +166,9 @@ export class DashboardService
         this.catalogModel = catalogModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
+        this.userModel = userModel;
+        this.csvService = csvService;
+        this.asyncQueryService = asyncQueryService;
     }
 
     static getCreateEventProperties(
@@ -1192,5 +1235,214 @@ export class DashboardService
                 },
             });
         }
+    }
+
+    /**
+     * This method is used to schedule a CSV download for a dashboard.
+     * Method in scheduler: `runScheduledExportCsvDashboard`
+     */
+    async scheduleExportCsvDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+        dashboardFilters: DashboardFilters,
+        dateZoomGranularity?: DateGranularity,
+    ) {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const payload: ExportCsvDashboardPayload = {
+            dashboardUuid,
+            dashboardFilters,
+            dateZoomGranularity,
+            // TraceTaskBase
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid: dashboard.projectUuid,
+            userUuid: user.userUuid,
+            schedulerUuid: undefined,
+        };
+        const { jobId } = await this.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+            payload,
+        );
+
+        return { jobId };
+    }
+
+    /**
+     * This method is running on scheduler
+     * Method triggered by `scheduleExportCsvDashboard`
+     */
+    async runScheduledExportCsvDashboard({
+        dashboardUuid,
+        dashboardFilters,
+        dateZoomGranularity,
+        userUuid,
+        organizationUuid,
+    }: ExportCsvDashboardPayload) {
+        const options: SchedulerCsvOptions = {
+            formatted: true,
+            limit: 'table',
+        };
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+
+        const analyticProperties: DownloadCsv['properties'] = {
+            jobId: '', // not a job
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
+            projectId: dashboard.projectUuid,
+            fileType: SchedulerFormat.CSV,
+            values: options.formatted ? 'formatted' : 'raw',
+            limit: options.limit === 'table' ? 'results' : 'all',
+            context: 'dashboard csv zip',
+        };
+        this.analytics.track({
+            event: 'download_results.started',
+            userId: user.userUuid,
+            properties: {
+                ...analyticProperties,
+            },
+        });
+
+        type VisibleChart = {
+            tileUuid: string;
+            chartUuid: string;
+            chartType: 'explorer' | 'sql';
+        };
+
+        const visibleCharts: VisibleChart[] = dashboard.tiles.reduce<
+            VisibleChart[]
+        >((acc, tile) => {
+            // TODO: add tab filter
+            // if (selectedTabs && !selectedTabs.includes(tile.tabUuid || '')) {
+            //     return acc;
+            // }
+
+            if (
+                isDashboardChartTileType(tile) &&
+                tile.properties.savedChartUuid
+            ) {
+                acc.push({
+                    tileUuid: tile.uuid,
+                    chartUuid: tile.properties.savedChartUuid,
+                    chartType: 'explorer',
+                });
+            } else if (
+                isDashboardSqlChartTile(tile) &&
+                tile.properties.savedSqlUuid
+            ) {
+                acc.push({
+                    tileUuid: tile.uuid,
+                    chartUuid: tile.properties.savedSqlUuid,
+                    chartType: 'sql',
+                });
+            }
+
+            return acc;
+        }, []);
+
+        const downloadResults = await Promise.all(
+            visibleCharts.map(async (chartInfo) => {
+                let query:
+                    | ApiExecuteAsyncDashboardChartQueryResults
+                    | ApiExecuteAsyncDashboardSqlChartQueryResults
+                    | undefined;
+
+                if (chartInfo.chartType === 'explorer') {
+                    query =
+                        await this.asyncQueryService.executeAsyncDashboardChartQuery(
+                            {
+                                user,
+                                projectUuid: dashboard.projectUuid,
+                                chartUuid: chartInfo.chartUuid,
+                                invalidateCache: true,
+                                context: QueryExecutionContext.CSV,
+                                dashboardUuid,
+                                dashboardFilters,
+                                dashboardSorts: [],
+                                dateZoom: {
+                                    granularity: dateZoomGranularity,
+                                },
+                                limit: null, // TODO
+                            },
+                        );
+                } else if (chartInfo.chartType === 'sql') {
+                    query =
+                        await this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
+                            {
+                                user,
+                                projectUuid: dashboard.projectUuid,
+                                savedSqlUuid: chartInfo.chartUuid,
+                                invalidateCache: true,
+                                context: QueryExecutionContext.CSV,
+                                dashboardUuid,
+                                tileUuid: chartInfo.tileUuid,
+                                dashboardFilters,
+                                dashboardSorts: [],
+                                limit: undefined, // TODO
+                            },
+                        );
+                }
+
+                // TODO: doesnt work for sql charts
+                const chart = await this.savedChartModel.get(
+                    chartInfo.chartUuid,
+                );
+
+                if (!query || !chart) {
+                    throw new Error('Query not found');
+                }
+                const results =
+                    await this.asyncQueryService.downloadSyncQueryResults({
+                        user,
+                        projectUuid: dashboard.projectUuid,
+                        queryUuid: query.queryUuid,
+                        type: DownloadFileType.CSV,
+                        onlyRaw: false, // TODO
+                        customLabels: getCustomLabelsFromTableConfig(
+                            chart.chartConfig.config,
+                        ),
+                        hiddenFields: getHiddenTableFields(chart.chartConfig),
+                        pivotConfig: getPivotConfig(chart),
+                        columnOrder: chart.tableConfig.columnOrder,
+                    });
+
+                return {
+                    path: results.fileUrl,
+                    filename: chart.name,
+                    truncated: false,
+                };
+            }),
+        );
+
+        this.analytics.track({
+            event: 'download_results.completed',
+            userId: user.userUuid,
+            properties: {
+                ...analyticProperties,
+                numCharts: downloadResults.length,
+            },
+        });
+
+        return this.csvService.exportCsvDashboard({
+            csvFiles: downloadResults,
+            dashboardName: dashboard.name,
+            dashboardUuid,
+        });
     }
 }

@@ -417,6 +417,7 @@ export default class SchedulerTask {
                             userId: user.userUuid,
                             properties: baseAnalyticsProperties,
                         });
+                        // *
                         const query =
                             await this.asyncQueryService.executeAsyncSavedChartQuery(
                                 {
@@ -3038,7 +3039,7 @@ export default class SchedulerTask {
             },
             async () => {
                 const url =
-                    await this.csvService.runScheduledExportCsvDashboard(
+                    await this.dashboardService.runScheduledExportCsvDashboard(
                         payload,
                     );
                 return { url };

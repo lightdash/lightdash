@@ -293,6 +293,9 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
+                    userModel: this.models.getUserModel(),
+                    csvService: this.getCsvService(),
+                    asyncQueryService: this.getAsyncQueryService(),
                 }),
         );
     }

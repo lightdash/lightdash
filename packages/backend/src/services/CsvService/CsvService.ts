@@ -11,7 +11,6 @@ import {
     DownloadCsvPayload,
     DownloadFileType,
     DownloadMetricCsv,
-    ExportCsvDashboardPayload,
     ForbiddenError,
     formatItemValue,
     formatRows,
@@ -37,7 +36,6 @@ import {
     PivotConfig,
     pivotResultsAsCsv,
     QueryExecutionContext,
-    SCHEDULER_TASKS,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
@@ -48,6 +46,7 @@ import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
+import * as url from 'url';
 
 import isNil from 'lodash/isNil';
 import moment from 'moment';
@@ -737,7 +736,7 @@ This method can be memory intensive
             explore_name: exploreId,
             query_context: QueryExecutionContext.CSV,
         };
-
+        // *
         const { rows, fields } = await this.projectService.runMetricQuery({
             user,
             metricQuery: metricQueryWithDashboardFilters,
@@ -1325,149 +1324,6 @@ This method can be memory intensive
     }
 
     /**
-     * This method is used to schedule a CSV download for a dashboard.
-     * Method in scheduler: `runScheduledExportCsvDashboard`
-     */
-    async scheduleExportCsvDashboard(
-        user: SessionUser,
-        dashboardUuid: string,
-        dashboardFilters: DashboardFilters,
-        dateZoomGranularity?: DateGranularity,
-    ) {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ExportCsv', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const payload: ExportCsvDashboardPayload = {
-            dashboardUuid,
-            dashboardFilters,
-            dateZoomGranularity,
-            // TraceTaskBase
-            organizationUuid: dashboard.organizationUuid,
-            projectUuid: dashboard.projectUuid,
-            userUuid: user.userUuid,
-            schedulerUuid: undefined,
-        };
-        const { jobId } = await this.schedulerClient.scheduleTask(
-            SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
-            payload,
-        );
-
-        return { jobId };
-    }
-
-    /**
-     * This method is running on scheduler
-     * Method triggered by `scheduleExportCsvDashboard`
-     */
-    async runScheduledExportCsvDashboard({
-        dashboardUuid,
-        dashboardFilters,
-        dateZoomGranularity,
-        userUuid,
-        organizationUuid,
-    }: ExportCsvDashboardPayload) {
-        if (!this.s3Client.isEnabled()) {
-            throw new MissingConfigError('Cloud storage is not enabled');
-        }
-        const options: SchedulerCsvOptions = {
-            formatted: true,
-            limit: 'table',
-        };
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-
-        this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            userUuid,
-            organizationUuid,
-        );
-
-        const analyticProperties: DownloadCsv['properties'] = {
-            jobId: '', // not a job
-            userId: user.userUuid,
-            organizationId: user.organizationUuid,
-            projectId: dashboard.projectUuid,
-            fileType: SchedulerFormat.CSV,
-            values: options.formatted ? 'formatted' : 'raw',
-            limit: options.limit === 'table' ? 'results' : 'all',
-            context: 'dashboard csv zip',
-        };
-        this.analytics.track({
-            event: 'download_results.started',
-            userId: user.userUuid,
-            properties: {
-                ...analyticProperties,
-            },
-        });
-
-        const writeZipFile = async (files: AttachmentUrl[]) =>
-            new Promise<string>((resolve, reject) => {
-                const zipName = `/tmp/${nanoid()}.zip`;
-                const output = fs.createWriteStream(zipName);
-                const archive = archiver('zip', {
-                    zlib: { level: 9 }, // Sets the compression level.
-                });
-                output.on('close', () => {
-                    this.logger.info(
-                        `Generated .zip file of ${archive.pointer()} bytes`,
-                    );
-                    resolve(zipName);
-                });
-                archive.on('error', (err) => {
-                    reject(err);
-                });
-                files.forEach((file) => {
-                    archive.file(file.localPath, {
-                        name: `${file.filename}.csv`,
-                    });
-                });
-                archive.pipe(output);
-                void archive.finalize(); // This finalize doesn't wait for the files to be written
-            });
-
-        const csvFiles = await this.getCsvsForDashboard({
-            user,
-            dashboardUuid,
-            options,
-            overrideDashboardFilters: dashboardFilters,
-            dateZoomGranularity,
-        }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
-
-        this.logger.info(
-            `Writing ${csvFiles.length} CSV files to zip file for dashboard ${dashboardUuid}`,
-        );
-        const zipFile = await writeZipFile(csvFiles);
-
-        this.analytics.track({
-            event: 'download_results.completed',
-            userId: user.userUuid,
-            properties: {
-                ...analyticProperties,
-                numCharts: csvFiles.length,
-            },
-        });
-        const zipFileName = `${sanitizeGenericFileName(
-            dashboard.name,
-        )}-${moment().format('YYYY-MM-DD-HH-mm-ss-SSSS')}.zip`;
-        this.logger.info(
-            `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
-        );
-        return this.s3Client.uploadZip(
-            fs.createReadStream(zipFile),
-            zipFileName,
-        );
-    }
-
-    /**
      * Downloads pivot table CSV from async query results file
      * Handles loading data from JSONL storage file and generating pivot CSV
      */
@@ -1556,5 +1412,102 @@ This method can be memory intensive
             fileUrl: attachmentUrl.path,
             truncated: finalTruncated,
         };
+    }
+
+    /**
+     * Creates a zip file from CSV files and uploads to S3
+     * This method handles the file operations for dashboard CSV exports
+     * Streams files directly from S3 URLs to the zip file
+     */
+    async exportCsvDashboard({
+        csvFiles,
+        dashboardName,
+        dashboardUuid,
+    }: {
+        csvFiles: {
+            path: string;
+            filename: string;
+        }[];
+        dashboardName: string;
+        dashboardUuid: string;
+    }): Promise<string> {
+        if (!this.s3Client.isEnabled()) {
+            throw new MissingConfigError('Cloud storage is not enabled');
+        }
+
+        const writeZipFile = async (
+            files: {
+                path: string;
+                filename: string;
+            }[],
+        ) => {
+            const zipName = `/tmp/${nanoid()}.zip`;
+            const output = fs.createWriteStream(zipName);
+            const archive = archiver('zip', {
+                zlib: { level: 9 }, // Sets the compression level.
+            });
+
+            return new Promise<string>((resolve, reject) => {
+                output.on('close', () => {
+                    this.logger.info(
+                        `Generated .zip file of ${archive.pointer()} bytes`,
+                    );
+                    resolve(zipName);
+                });
+                archive.on('error', (err) => {
+                    reject(err);
+                });
+
+                const processFiles = async () => {
+                    const filePromises = files.map(async (file) => {
+                        if (file.path && file.path.startsWith('http')) {
+                            // Extract fileId from S3 URL and stream from S3
+                            const parsedUrl = url.parse(file.path);
+                            const pathParts = parsedUrl.pathname?.split('/');
+                            const fileId = pathParts?.[pathParts.length - 1]; // Get the last part as fileId
+
+                            if (fileId) {
+                                try {
+                                    const stream =
+                                        await this.s3Client.getS3FileStream(
+                                            fileId,
+                                        );
+                                    archive.append(stream, {
+                                        name: `${file.filename}.csv`,
+                                    });
+                                } catch (error) {
+                                    this.logger.warn(
+                                        `Failed to stream file ${fileId} from S3: ${error}`,
+                                    );
+                                    // Skip this file if we can't stream it
+                                }
+                            }
+                        }
+                    });
+
+                    await Promise.all(filePromises);
+                    archive.pipe(output);
+                    void archive.finalize();
+                };
+
+                void processFiles();
+            });
+        };
+
+        this.logger.info(
+            `Writing ${csvFiles.length} CSV files to zip file for dashboard ${dashboardUuid}`,
+        );
+        const zipFile = await writeZipFile(csvFiles);
+
+        const zipFileName = `${sanitizeGenericFileName(
+            dashboardName,
+        )}-${moment().format('YYYY-MM-DD-HH-mm-ss-SSSS')}.zip`;
+        this.logger.info(
+            `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
+        );
+        return this.s3Client.uploadZip(
+            fs.createReadStream(zipFile),
+            zipFileName,
+        );
     }
 }
