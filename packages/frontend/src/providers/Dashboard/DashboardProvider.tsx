@@ -126,7 +126,6 @@ const DashboardProvider: React.FC<
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
-
     const [invalidateCache, setInvalidateCache] = useState<boolean>(
         defaultInvalidateCache === true,
     );
