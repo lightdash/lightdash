@@ -76,6 +76,7 @@ const MultipleToastBody = ({
                             {toastData.apiError ? (
                                 <ApiErrorDisplay
                                     apiError={toastData.apiError}
+                                    onClose={() => onCloseError?.(toastData)}
                                 />
                             ) : (
                                 <>

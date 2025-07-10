@@ -24,7 +24,9 @@ const BigQueryFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
     );
 };
 
-const SnowflakeFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
+export const SnowflakeFormInput: FC<{ onClose: () => void }> = ({
+    onClose,
+}) => {
     const { mutate: openLoginPopup } = useSnowflakeLoginPopup({
         onLogin: async () => {
             onClose();
