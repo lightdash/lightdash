@@ -5,7 +5,6 @@ import {
     ForbiddenError,
     getErrorMessage,
     isDashboardUuidContent,
-    ParameterError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -88,11 +87,11 @@ export function decodeLightdashJwt(
             throw new ForbiddenError('Your embed token has expired.');
         }
         if (e instanceof JsonWebTokenError) {
-            throw new ParameterError(`Invalid embed token: ${e.message}`);
+            throw new ForbiddenError(`Invalid embed token: ${e.message}`);
         }
         if (e instanceof z.ZodError) {
             const zodErrors = e.issues.map((issue) => issue.message).join(', ');
-            throw new ParameterError(
+            throw new ForbiddenError(
                 `Token schema validation error: ${zodErrors}`,
             );
         }

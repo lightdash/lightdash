@@ -2,9 +2,8 @@ import { subject } from '@casl/ability';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
-import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -21,11 +20,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {
-    const { projectUuid: projectUuidFromEmbed } = useEmbed();
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuid = projectUuidFromParams || projectUuidFromEmbed;
+    const projectUuid = useProjectUuid();
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );

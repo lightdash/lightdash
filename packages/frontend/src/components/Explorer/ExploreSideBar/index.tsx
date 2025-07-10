@@ -15,8 +15,9 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useExplores } from '../../../hooks/useExplores';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -42,16 +43,9 @@ const LoadingSkeleton = () => (
     </Stack>
 );
 
-const BasePanel = ({
-    projectUuid: propProjectUuid,
-}: {
-    projectUuid?: string;
-}) => {
+const BasePanel = () => {
     const navigate = useNavigate();
-    const { projectUuid: urlProjectUuid } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuid = propProjectUuid || urlProjectUuid;
+    const projectUuid = useProjectUuid();
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
@@ -226,36 +220,27 @@ const BasePanel = ({
     );
 };
 
-const ExploreSideBar = memo(
-    ({ projectUuid: propProjectUuid }: { projectUuid?: string }) => {
-        const { projectUuid: urlProjectUuid } = useParams<{
-            projectUuid: string;
-        }>();
-        const projectUuid = propProjectUuid || urlProjectUuid;
-        const tableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
-        );
+const ExploreSideBar = memo(() => {
+    const projectUuid = useProjectUuid();
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
 
-        const clearExplore = useExplorerContext(
-            (context) => context.actions.clearExplore,
-        );
-        const navigate = useNavigate();
+    const clearExplore = useExplorerContext(
+        (context) => context.actions.clearExplore,
+    );
+    const navigate = useNavigate();
 
-        const handleBack = useCallback(() => {
-            clearExplore();
-            void navigate(`/projects/${projectUuid}/tables`);
-        }, [clearExplore, navigate, projectUuid]);
+    const handleBack = useCallback(() => {
+        clearExplore();
+        void navigate(`/projects/${projectUuid}/tables`);
+    }, [clearExplore, navigate, projectUuid]);
 
-        return (
-            <TrackSection name={SectionName.SIDEBAR}>
-                {!tableName ? (
-                    <BasePanel projectUuid={projectUuid} />
-                ) : (
-                    <ExplorePanel onBack={handleBack} />
-                )}
-            </TrackSection>
-        );
-    },
-);
+    return (
+        <TrackSection name={SectionName.SIDEBAR}>
+            {!tableName ? <BasePanel /> : <ExplorePanel onBack={handleBack} />}
+        </TrackSection>
+    );
+});
 
 export default ExploreSideBar;

@@ -81,9 +81,6 @@ const postEmbedDashboardsAvailableFilters = async (
     lightdashApi<DashboardAvailableFilters>({
         url: `/embed/${projectUuid}/dashboard/availableFilters`,
         method: 'POST',
-        headers: {
-            'Lightdash-Embed-Token': embedToken!,
-        },
         body: JSON.stringify(savedChartUuidsAndTileUuids),
     });
 
