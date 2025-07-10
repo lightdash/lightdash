@@ -1,6 +1,7 @@
 import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
+    ApiGetAccountResponse,
     ApiGetAuthenticatedUserResponse,
     ApiGetLoginOptionsResponse,
     ApiRegisterUserResponse,
@@ -442,6 +443,33 @@ export class UserController extends BaseController {
                     personalAccessTokenUuid,
                     body,
                 ),
+        };
+    }
+
+    /**
+     * Get account information
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/account')
+    @OperationId('GetAccount')
+    async getAccount(
+        @Request() req: express.Request,
+    ): Promise<ApiGetAccountResponse> {
+        if (!req.account) {
+            throw new Error('Account not found');
+        }
+
+        const { ability, ...userWithoutAbility } = req.account.user;
+        const accountWithoutAbility = {
+            ...req.account,
+            user: userWithoutAbility,
+        };
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: accountWithoutAbility,
         };
     }
 }

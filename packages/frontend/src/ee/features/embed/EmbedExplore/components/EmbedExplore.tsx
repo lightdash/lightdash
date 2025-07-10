@@ -2,11 +2,13 @@ import { ChartType, type SavedChart } from '@lightdash/common';
 import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import LoadingState from '../../../../../components/common/LoadingState';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../../../../../components/Explorer';
 import ExploreSideBar from '../../../../../components/Explorer/ExploreSideBar';
 import { useExplore } from '../../../../../hooks/useExplore';
+import { useAccount } from '../../../../../hooks/user/useAccount';
 import ExplorerProvider from '../../../../../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
@@ -32,6 +34,11 @@ const EmbedExplore: FC<Props> = ({
 }) => {
     const { projectUuid } = useEmbed();
     const { data, error: exploreError } = useExplore(exploreId);
+    const { isLoading: isLoadingAccount } = useAccount();
+
+    if (isLoadingAccount) {
+        return <LoadingState title="Loading..." />;
+    }
 
     if (!projectUuid) {
         return (
