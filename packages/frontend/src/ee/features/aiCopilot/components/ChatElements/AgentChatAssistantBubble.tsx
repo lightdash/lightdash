@@ -56,20 +56,24 @@ const AssistantBubbleContent: FC<{
             : isStubbed // avoid brief flash of `THINKING_STUB`
             ? ''
             : message.message ?? 'No response...';
+
     return (
         <>
-            <AiChartToolCalls
-                toolCalls={streamingState?.toolCalls ?? message.toolCalls}
-                type={
-                    streamingState
-                        ? isStreaming
-                            ? 'streaming'
-                            : 'finished-streaming'
-                        : 'persisted'
-                }
-                metricQuery={metricQuery}
-                projectUuid={projectUuid}
-            />
+            {isStreaming && (
+                <AiChartToolCalls
+                    toolCalls={streamingState?.toolCalls}
+                    type="streaming"
+                />
+            )}
+
+            {!isStreaming && message.toolCalls.length > 0 && (
+                <AiChartToolCalls
+                    toolCalls={message.toolCalls}
+                    type="persisted"
+                    metricQuery={metricQuery}
+                    projectUuid={projectUuid}
+                />
+            )}
             <MDEditor.Markdown
                 source={messageContent}
                 style={{ backgroundColor: 'transparent', padding: `0.5rem 0` }}

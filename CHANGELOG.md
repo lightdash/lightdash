@@ -1,3 +1,38 @@
+## [0.1800.1](https://github.com/lightdash/lightdash/compare/0.1800.0...0.1800.1) (2025-07-10)
+
+
+### Bug Fixes
+
+* tool calls mismatched on messages ([#15800](https://github.com/lightdash/lightdash/issues/15800)) ([bc972a6](https://github.com/lightdash/lightdash/commit/bc972a6be592fe02361a0e39d0028d5eacaa278f))
+
+# [0.1800.0](https://github.com/lightdash/lightdash/compare/0.1799.0...0.1800.0) (2025-07-10)
+
+
+### Features
+
+* add groups:history to required Slack scopes for EE ([#15798](https://github.com/lightdash/lightdash/issues/15798)) ([0cf3b10](https://github.com/lightdash/lightdash/commit/0cf3b104643d5d861bb21943ba35472091b69efa))
+
+# [0.1799.0](https://github.com/lightdash/lightdash/compare/0.1798.0...0.1799.0) (2025-07-10)
+
+
+### Features
+
+* add OAuth requirement option for Slack AI Agent ([#15723](https://github.com/lightdash/lightdash/issues/15723)) ([bffea7f](https://github.com/lightdash/lightdash/commit/bffea7f7a7f203fdac02a80d5e82ca9b8953f600)), closes [#15172](https://github.com/lightdash/lightdash/issues/15172)
+
+# [0.1798.0](https://github.com/lightdash/lightdash/compare/0.1797.0...0.1798.0) (2025-07-10)
+
+
+### Features
+
+* add AI thread access column to Slack installations ([#15733](https://github.com/lightdash/lightdash/issues/15733)) ([8b01650](https://github.com/lightdash/lightdash/commit/8b016500870a448873c0a60bfa9e2d0ecb86fbe3))
+
+# [0.1797.0](https://github.com/lightdash/lightdash/compare/0.1796.5...0.1797.0) (2025-07-10)
+
+
+### Features
+
+* dasdhboard tabs on embedding ([#15778](https://github.com/lightdash/lightdash/issues/15778)) ([0a12762](https://github.com/lightdash/lightdash/commit/0a12762098779f3b763b15cf2c4b17ab38486f71))
+
 ## [0.1796.5](https://github.com/lightdash/lightdash/compare/0.1796.4...0.1796.5) (2025-07-09)
 
 
