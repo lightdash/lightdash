@@ -97,7 +97,12 @@ export class HealthService extends BaseService {
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
             posthog: this.lightdashConfig.posthog,
-            query: this.lightdashConfig.query,
+            query: {
+                csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
+                maxLimit: this.lightdashConfig.query.maxLimit,
+                maxPageSize: this.lightdashConfig.query.maxPageSize,
+                defaultLimit: this.lightdashConfig.query.defaultLimit,
+            },
             pivotTable: this.lightdashConfig.pivotTable,
             hasSlack: this.hasSlackConfig(),
             hasGithub: process.env.GITHUB_PRIVATE_KEY !== undefined,

@@ -153,22 +153,14 @@ export class AsyncQueryService extends ProjectService {
 
     csvService: CsvService;
 
-    constructor({
-        queryHistoryModel,
-        cacheService,
-        savedSqlModel,
-        featureFlagModel,
-        storageClient,
-        csvService,
-        ...projectServiceArgs
-    }: AsyncQueryServiceArguments) {
-        super(projectServiceArgs);
-        this.queryHistoryModel = queryHistoryModel;
-        this.cacheService = cacheService;
-        this.savedSqlModel = savedSqlModel;
-        this.featureFlagModel = featureFlagModel;
-        this.storageClient = storageClient;
-        this.csvService = csvService;
+    constructor(args: AsyncQueryServiceArguments) {
+        super(args);
+        this.queryHistoryModel = args.queryHistoryModel;
+        this.cacheService = args.cacheService;
+        this.savedSqlModel = args.savedSqlModel;
+        this.featureFlagModel = args.featureFlagModel;
+        this.storageClient = args.storageClient;
+        this.csvService = args.csvService;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
