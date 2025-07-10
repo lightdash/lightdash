@@ -17,6 +17,7 @@ import {
 export interface AiAgentThreadStreamOptions {
     agentUuid: string;
     threadUuid: string;
+    messageUuid: string;
     onFinish?: () => void;
     onError?: (error: string) => void;
 }
@@ -42,6 +43,7 @@ export function useAiAgentThreadStreamMutation() {
         async ({
             agentUuid,
             threadUuid,
+            messageUuid,
             onFinish,
             onError,
         }: AiAgentThreadStreamOptions) => {
@@ -49,7 +51,7 @@ export function useAiAgentThreadStreamMutation() {
             setAbortController(threadUuid, abortController);
 
             try {
-                dispatch(startStreaming({ threadUuid }));
+                dispatch(startStreaming({ threadUuid, messageUuid }));
 
                 const response = await streamAgentThreadResponse(
                     agentUuid,

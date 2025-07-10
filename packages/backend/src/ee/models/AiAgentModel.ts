@@ -523,7 +523,10 @@ export class AiAgentModel {
             agentUuid: row.agent_uuid!,
             createdAt: row.created_at as unknown as string,
             createdFrom: row.created_from,
-            firstMessage: row.prompt,
+            firstMessage: {
+                uuid: row.ai_prompt_uuid,
+                message: row.prompt,
+            },
             user: {
                 uuid: row.user_uuid,
                 name: row.user_name,
@@ -949,7 +952,7 @@ export class AiAgentModel {
                         | 'created_from'
                         | 'agent_uuid'
                     > &
-                        Pick<DbAiPrompt, 'prompt'> &
+                        Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> &
                         Pick<DbUser, 'user_uuid'> & { user_name: string }
                 >
             >(
@@ -958,6 +961,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_at`,
                 `${AiThreadTableName}.created_from`,
                 `${AiPromptTableName}.prompt`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
