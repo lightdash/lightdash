@@ -10,21 +10,17 @@ import useDashboardFiltersForTile from '../../../../hooks/dashboard/useDashboard
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import { postEmbedChartAndResults, postEmbedDashboard } from './api';
 
-export const useEmbedDashboard = (
-    projectUuid: string | undefined,
-    embedToken: string | undefined,
-) => {
+export const useEmbedDashboard = (projectUuid: string | undefined) => {
     return useQuery<Dashboard & InteractivityOptions, ApiError>({
         queryKey: ['embed-dashboard'],
         queryFn: () => postEmbedDashboard(projectUuid!),
-        enabled: !!embedToken && !!projectUuid,
+        enabled: !!projectUuid,
         retry: false,
     });
 };
 
 export const useEmbedChartAndResults = (
     projectUuid: string,
-    embedToken: string | undefined,
     tileUuid: string,
 ) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -50,7 +46,7 @@ export const useEmbedChartAndResults = (
                 dateZoomGranularity,
                 dashboardSorts,
             ),
-        enabled: !!embedToken,
+        enabled: !!projectUuid,
         retry: false,
     });
 };

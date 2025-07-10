@@ -19,6 +19,62 @@ const themeOverride: MantineThemeOverride = {
     }),
 };
 
+const getInitialState = (exploreId: string, savedChart: SavedChart) => ({
+    parameters: {},
+    shouldFetchResults: true,
+    expandedSections: [
+        ExplorerSection.FILTERS,
+        ExplorerSection.VISUALIZATION,
+        ExplorerSection.RESULTS,
+    ],
+    unsavedChartVersion: {
+        tableName: exploreId,
+        metricQuery: savedChart?.metricQuery || {
+            exploreName: exploreId,
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            timezone: undefined,
+        },
+        chartConfig: savedChart?.chartConfig || {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: {
+                    xField: '',
+                    yField: [],
+                },
+                eChartsConfig: {
+                    series: [],
+                },
+            },
+        },
+        tableConfig: savedChart?.tableConfig || {
+            columnOrder: [],
+        },
+        pivotConfig: savedChart?.pivotConfig || {
+            columns: [],
+        },
+    },
+    modals: {
+        format: {
+            isOpen: false,
+        },
+        additionalMetric: {
+            isOpen: false,
+        },
+        customDimension: {
+            isOpen: false,
+        },
+        writeBack: {
+            isOpen: false,
+        },
+    },
+});
+
 type Props = {
     containerStyles?: React.CSSProperties;
     exploreId: string;
@@ -63,70 +119,17 @@ const EmbedExplore: FC<Props> = ({
                 isEditMode={true}
                 projectUuid={projectUuid}
                 savedChart={savedChart}
-                initialState={{
-                    shouldFetchResults: true,
-                    expandedSections: [
-                        ExplorerSection.FILTERS,
-                        ExplorerSection.VISUALIZATION,
-                        ExplorerSection.RESULTS,
-                    ],
-                    unsavedChartVersion: {
-                        tableName: exploreId,
-                        metricQuery: savedChart?.metricQuery || {
-                            exploreName: exploreId,
-                            dimensions: [],
-                            metrics: [],
-                            filters: {},
-                            sorts: [],
-                            limit: 500,
-                            tableCalculations: [],
-                            additionalMetrics: [],
-                            timezone: undefined,
-                        },
-                        chartConfig: savedChart?.chartConfig || {
-                            type: ChartType.CARTESIAN,
-                            config: {
-                                layout: {
-                                    xField: '',
-                                    yField: [],
-                                },
-                                eChartsConfig: {
-                                    series: [],
-                                },
-                            },
-                        },
-                        tableConfig: savedChart?.tableConfig || {
-                            columnOrder: [],
-                        },
-                        pivotConfig: savedChart?.pivotConfig || {
-                            columns: [],
-                        },
-                    },
-                    modals: {
-                        format: {
-                            isOpen: false,
-                        },
-                        additionalMetric: {
-                            isOpen: false,
-                        },
-                        customDimension: {
-                            isOpen: false,
-                        },
-                        writeBack: {
-                            isOpen: false,
-                        },
-                    },
-                }}
+                initialState={getInitialState(exploreId, savedChart)}
                 defaultLimit={500}
             >
                 <MantineProvider inherit theme={themeOverride}>
                     <Page
                         title={data ? data?.label : 'Tables'}
-                        sidebar={<ExploreSideBar projectUuid={projectUuid} />}
+                        sidebar={<ExploreSideBar />}
                         withFullHeight
                         withPaddedContent
                     >
-                        <Explorer projectUuid={projectUuid} />
+                        <Explorer />
                     </Page>
                 </MantineProvider>
             </ExplorerProvider>

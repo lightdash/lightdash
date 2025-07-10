@@ -24,7 +24,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
-import useEmbed from '../ee/providers/Embed/useEmbed';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
@@ -54,7 +53,7 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
 const executeAsyncMetricQuery = async (
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
-    options: { signal?: AbortSignal; headers?: Record<string, string> } = {},
+    options: { signal?: AbortSignal },
 ): Promise<ApiExecuteAsyncMetricQueryResults> => {
     return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/metric-query`,
@@ -62,14 +61,13 @@ const executeAsyncMetricQuery = async (
         method: 'POST',
         body: JSON.stringify(data),
         signal: options.signal,
-        headers: options.headers,
     });
 };
 
 const executeAsyncSavedChartQuery = async (
     projectUuid: string,
     data: ExecuteAsyncSavedChartRequestParams,
-    options: { signal?: AbortSignal; headers?: Record<string, string> } = {},
+    options: { signal?: AbortSignal },
 ): Promise<ApiExecuteAsyncMetricQueryResults> => {
     return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/chart`,
@@ -77,7 +75,6 @@ const executeAsyncSavedChartQuery = async (
         method: 'POST',
         body: JSON.stringify(data),
         signal: options.signal,
-        headers: options.headers,
     });
 };
 
@@ -105,7 +102,6 @@ export const downloadQuery = async (
 const executeAsyncQuery = (
     data?: QueryResultsProps | null,
     signal?: AbortSignal,
-    options?: { headers?: Record<string, string> },
 ) => {
     if (data?.chartUuid && data?.chartVersionUuid) {
         return executeAsyncSavedChartQuery(
@@ -118,7 +114,7 @@ const executeAsyncQuery = (
                 invalidateCache: data.invalidateCache,
                 parameters: data.parameters,
             },
-            { signal, headers: options?.headers },
+            { signal },
         );
     } else if (data?.chartUuid) {
         return executeAsyncSavedChartQuery(
@@ -162,7 +158,7 @@ const executeAsyncQuery = (
                 invalidateCache: true, // Note: do not cache explore queries
                 parameters: data.parameters,
             },
-            { signal, headers: options?.headers },
+            { signal },
         );
     }
     return Promise.reject(new ParameterError('Missing QueryResultsProps'));
@@ -189,7 +185,6 @@ export const executeQueryAndWaitForResults = async (
 };
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
-    const { embedHeaders } = useEmbed();
     const setErrorResponse = useQueryError();
 
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
@@ -197,7 +192,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
         queryKey: ['create-query', data],
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
-            return executeAsyncQuery(data, signal, { headers: embedHeaders });
+            return executeAsyncQuery(data, signal);
         },
     });
 
@@ -219,7 +214,6 @@ const getResultsPage = async (
     queryUuid: string,
     page: number = 1,
     pageSize: number | null = null,
-    options: { headers?: Record<string, string> } = {},
 ): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
@@ -236,7 +230,6 @@ const getResultsPage = async (
         }`,
         version: 'v2',
         method: 'GET',
-        headers: options.headers,
     });
 };
 
@@ -267,7 +260,6 @@ export const useInfiniteQueryResults = (
     queryUuid?: string,
     chartName?: string,
 ): InfiniteQueryResults => {
-    const { embedHeaders } = useEmbed();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: chartName
@@ -354,7 +346,6 @@ export const useInfiniteQueryResults = (
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
                 fetchArgs.pageSize,
-                { headers: embedHeaders },
             );
 
             const { status } = results;
