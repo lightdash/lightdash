@@ -6,10 +6,13 @@ import {
     SCHEDULER_TASKS,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseTypes,
+    type AsyncWarehouseQueryPayload,
     type CreateWarehouseCredentials,
     type ExecuteAsyncQueryRequestParams,
     type QueryHistory,
     type ResultColumns,
+    type RunAsyncWarehouseQueryArgs,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import { Readable } from 'stream';
@@ -73,7 +76,6 @@ jest.mock('../../postHog', () => ({
 }));
 
 // Import the mocked function
-
 const mockSshTunnel = {
     connect: jest.fn(() => warehouseClientMock.credentials),
     disconnect: jest.fn(),
@@ -121,7 +123,10 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: jest.fn(async () => ({})),
 };
 
-const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
+const getMockedAsyncQueryService = (
+    lightdashConfig: LightdashConfig,
+    overrides: Partial<AsyncQueryService> = {},
+) =>
     new AsyncQueryService({
         lightdashConfig,
         analytics: analyticsMock,
@@ -175,15 +180,23 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
                 });
                 return readable;
             }),
+            createUploadStream: jest.fn(() => ({
+                write: jest.fn(),
+                close: jest.fn(),
+            })),
         } as unknown as S3ResultsFileStorageClient,
         csvService: {} as CsvService,
         featureFlagModel: {} as FeatureFlagModel,
+        ...overrides,
     });
 
-describe.skip('AsyncQueryService', () => {
+const mockWarehouseCredentialsOverrides = {
+    snowflakeVirtualWarehouse: undefined,
+    databricksCompute: undefined,
+};
+
+describe('AsyncQueryService', () => {
     describe('executeAsyncQuery', () => {
-        const write = jest.fn();
-        const close = jest.fn();
         const serviceWithCache = getMockedAsyncQueryService({
             ...lightdashConfigMock,
             results: {
@@ -211,9 +224,6 @@ describe.skip('AsyncQueryService', () => {
                         expiresAt: undefined,
                     } satisfies MissCacheResult),
             );
-            serviceWithCache.storageClient.createUploadStream = jest
-                .fn()
-                .mockImplementation(() => ({ write, close }));
         });
 
         test('should return queryUuid when cache is hit', async () => {
@@ -384,7 +394,7 @@ describe.skip('AsyncQueryService', () => {
             expect(schedulerClientScheduleTaskSpy).toHaveBeenCalledWith(
                 SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                 expect.objectContaining({
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid!,
                     userUuid: user.userUuid,
                     projectUuid,
                     queryTags: {
@@ -394,10 +404,11 @@ describe.skip('AsyncQueryService', () => {
                     fieldsMap: {},
                     queryHistoryUuid: 'test-query-uuid',
                     cacheKey: expect.any(String),
-                    warehouseCredentials: warehouseClientMock.credentials,
+                    warehouseCredentialsOverrides:
+                        mockWarehouseCredentialsOverrides,
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
-                }),
+                } satisfies AsyncWarehouseQueryPayload),
                 expect.any(Number),
             );
         });
@@ -465,7 +476,7 @@ describe.skip('AsyncQueryService', () => {
             expect(schedulerClientScheduleTaskSpy).toHaveBeenCalledWith(
                 SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                 expect.objectContaining({
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid!,
                     userUuid: user.userUuid,
                     projectUuid,
                     queryTags: {
@@ -475,10 +486,11 @@ describe.skip('AsyncQueryService', () => {
                     fieldsMap: {},
                     queryHistoryUuid: 'test-query-uuid',
                     cacheKey: expect.any(String),
-                    warehouseCredentials: warehouseClientMock.credentials,
+                    warehouseCredentialsOverrides:
+                        mockWarehouseCredentialsOverrides,
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
-                }),
+                } satisfies AsyncWarehouseQueryPayload),
                 expect.any(Number),
             );
         });
@@ -817,8 +829,6 @@ describe.skip('AsyncQueryService', () => {
     });
 
     describe('executeAsyncQuery with originalColumns', () => {
-        const write = jest.fn();
-        const close = jest.fn();
         const serviceWithCache = getMockedAsyncQueryService({
             ...lightdashConfigMock,
             results: {
@@ -932,8 +942,6 @@ describe.skip('AsyncQueryService', () => {
                     invalidateCache: false,
                 };
                 const requestParameters = { query: metricQueryMock };
-                const warehouseCredentials = warehouseClientMock.credentials;
-
                 await service.executeAsyncQuery(args, requestParameters);
 
                 // Verify that the scheduler was NOT called when the feature flag is off
@@ -946,7 +954,7 @@ describe.skip('AsyncQueryService', () => {
                 (isFeatureFlagEnabled as jest.Mock).mockResolvedValue(true);
             });
 
-            it('executeAsyncQuery schedules task', async () => {
+            it('executeAsyncQuery scheduler task', async () => {
                 const service = getMockedAsyncQueryService(lightdashConfigMock);
                 const schedulerSpy = jest.spyOn(
                     service.schedulerClient,
@@ -980,7 +988,7 @@ describe.skip('AsyncQueryService', () => {
                 expect(schedulerSpy).toHaveBeenCalledWith(
                     SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                     expect.objectContaining({
-                        organizationUuid: user.organizationUuid,
+                        organizationUuid: user.organizationUuid!,
                         userUuid: user.userUuid,
                         projectUuid,
                         queryTags: {
@@ -990,11 +998,108 @@ describe.skip('AsyncQueryService', () => {
                         fieldsMap: {},
                         queryHistoryUuid: 'query-uuid',
                         cacheKey: expect.any(String),
-                        warehouseCredentials: warehouseClientMock.credentials,
+                        warehouseCredentialsOverrides:
+                            mockWarehouseCredentialsOverrides,
                         pivotConfiguration: undefined,
                         originalColumns: undefined,
-                    }),
+                    } satisfies AsyncWarehouseQueryPayload),
                     expect.any(Number),
+                );
+            });
+        });
+    });
+
+    describe('runAsyncWarehouseQuery', () => {
+        describe('when credentials have sshTunnel config', () => {
+            const originalCredentials: CreateWarehouseCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                user: 'testuser',
+                password: 'testpass',
+                port: 5432,
+                dbname: 'testdb',
+                schema: 'public',
+                sshTunnelHost: 'ssh.example.com',
+                sshTunnelPort: 22,
+                sshTunnelUser: 'sshuser',
+                sshTunnelPrivateKey: 'private-key-content',
+            };
+            const sshTunnelCredentials = {
+                type: 'postgres',
+                host: '127.0.0.1',
+                port: 12345,
+                user: 'testuser',
+                password: 'testpass',
+                dbname: 'testdb',
+                schema: 'public',
+            };
+
+            beforeEach(() => {
+                (mockSshTunnel.connect as jest.Mock).mockReturnValueOnce(
+                    Promise.resolve(sshTunnelCredentials),
+                );
+            });
+
+            it('should call _getWarehouseClient with credentials from getWarehouseCredentials', async () => {
+                // Create a simple service with minimal mocks
+                const mockProjectModel = {
+                    ...projectModel,
+                    getWarehouseCredentialsForProject: jest.fn(() =>
+                        Promise.resolve(originalCredentials),
+                    ),
+                    getWarehouseClientFromCredentials: jest.fn(() => ({
+                        ...warehouseClientMock,
+                        credentials: sshTunnelCredentials,
+                    })),
+                };
+
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        projectModel:
+                            mockProjectModel as unknown as ProjectModel,
+                    },
+                );
+
+                const getWarehouseClientSpy = jest.spyOn(
+                    service,
+                    '_getWarehouseClient',
+                );
+
+                const runQueryAndTransformRowsSpy = jest.spyOn(
+                    AsyncQueryService,
+                    'runQueryAndTransformRows',
+                );
+
+                const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    query: 'SELECT * FROM test',
+                    fieldsMap: {},
+                    queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                    warehouseCredentialsOverrides: undefined,
+                    queryHistoryUuid: 'test-query-uuid',
+                    cacheKey: 'test-cache-key',
+                    pivotConfiguration: undefined,
+                    originalColumns: undefined,
+                };
+
+                await service.runAsyncWarehouseQuery(runAsyncArgs);
+
+                // Verify that _getWarehouseClient was called with the raw credentials from getWarehouseCredentials
+                expect(getWarehouseClientSpy).toHaveBeenCalledWith(
+                    projectUuid,
+                    originalCredentials,
+                    undefined,
+                );
+
+                // Verify that runQueryAndTransformRows was called with the warehouse client containing processed ssh tunnel credentials
+                expect(runQueryAndTransformRowsSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        warehouseClient: expect.objectContaining({
+                            credentials: sshTunnelCredentials,
+                        }),
+                    }),
                 );
             });
         });
