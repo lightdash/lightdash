@@ -335,6 +335,7 @@ export const parseModelRequiredFilters = ({
         const [key, value] = Object.entries(filterRule)[0];
 
         if (acc.map((a) => a.target.fieldRef).includes(key)) {
+            // eslint-disable-next-line no-console
             console.warn(`Duplicate filter key "${key}" in default filters`);
             return acc;
         }
