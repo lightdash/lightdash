@@ -39,6 +39,7 @@ export async function isFeatureFlagEnabled(
     } = {},
     defaultValue: boolean = false,
 ): Promise<boolean> {
+    const startTime = Date.now();
     /** If we don't have a PostHog client instance, we return false for all checks */
     if (!postHogClient) {
         Logger.warn(
@@ -107,7 +108,12 @@ export async function isFeatureFlagEnabled(
         );
 
         clearTimeout(timeout);
-
+        const elapsedTime = Date.now() - startTime;
+        Logger.info(
+            `Feature flag "${flag}" check completed after ${elapsedTime}ms: ${
+                result ? 'enabled' : 'disabled'
+            } for user ${user.userUuid}`,
+        );
         return result;
     };
 
