@@ -183,10 +183,10 @@ const ToolCallDescription: FC<{
 
 type AiChartToolCallsProps = {
     toolCalls: ToolCallSummary[] | undefined;
-    compiledSql?: ApiCompiledQueryResults;
     type: ToolCallDisplayType;
+    compiledSql?: ApiCompiledQueryResults;
     metricQuery?: ApiExecuteAsyncMetricQueryResults['metricQuery'];
-    projectUuid: string;
+    projectUuid?: string;
 };
 
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
