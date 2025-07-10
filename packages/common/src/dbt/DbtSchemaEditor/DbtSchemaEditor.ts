@@ -21,7 +21,10 @@ import {
     type CustomSqlDimension,
 } from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
-import { type WarehouseClient } from '../../types/warehouse';
+import {
+    type WarehouseClient,
+    type WarehouseSqlBuilder,
+} from '../../types/warehouse';
 import {
     type YamlColumn,
     type YamlModel,
@@ -240,7 +243,7 @@ export default class DbtSchemaEditor {
 
     private addCustomBinDimension(
         customDimension: CustomBinDimension,
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
     ): DbtSchemaEditor {
         // Extract base dimension name from custom dimension id. Eg: `table_a_dim_a` -> `dim_a`
         const baseDimensionName = customDimension.dimensionId.replace(
@@ -270,7 +273,7 @@ export default class DbtSchemaEditor {
             convertCustomBinDimensionToDbt({
                 customDimension,
                 baseDimensionSql,
-                warehouseClient,
+                warehouseSqlBuilder,
             }),
         );
         return this;

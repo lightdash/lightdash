@@ -37,7 +37,6 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
-    getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
@@ -82,8 +81,9 @@ import {
     WarehouseClient,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { SshTunnel } from '@lightdash/warehouses';
+import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
@@ -1322,12 +1322,12 @@ export class AsyncQueryService extends ProjectService {
         metricQuery,
         dateZoom,
         explore,
-        warehouseClient,
+        warehouseSqlBuilder,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         'user' | 'metricQuery' | 'dateZoom'
     > & {
-        warehouseClient: WarehouseClient;
+        warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
     }) {
         if (!isUserWithOrg(user)) {
@@ -1355,7 +1355,7 @@ export class AsyncQueryService extends ProjectService {
         const fullQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
@@ -1713,13 +1713,13 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         );
 
-        const warehouseConnection = await this._getWarehouseClient(
+        const warehouseCredentials = await this.getWarehouseCredentials(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
+            user.userUuid,
+        );
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
         );
 
         const { sql, fields, warnings } =
@@ -1728,11 +1728,8 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 dateZoom,
                 explore,
-                warehouseClient: warehouseConnection.warehouseClient,
+                warehouseSqlBuilder,
             });
-
-        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
-        await warehouseConnection.sshTunnel.disconnect();
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1856,13 +1853,13 @@ export class AsyncQueryService extends ProjectService {
             savedChartOrganizationUuid,
         );
 
-        const warehouseConnection = await this._getWarehouseClient(
+        const warehouseCredentials = await this.getWarehouseCredentials(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
+            user.userUuid,
+        );
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
         );
 
         const { sql, fields, warnings } =
@@ -1870,11 +1867,8 @@ export class AsyncQueryService extends ProjectService {
                 user,
                 metricQuery: metricQueryWithLimit,
                 explore,
-                warehouseClient: warehouseConnection.warehouseClient,
+                warehouseSqlBuilder,
             });
-
-        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
-        await warehouseConnection.sshTunnel.disconnect();
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -2055,13 +2049,13 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        const warehouseConnection = await this._getWarehouseClient(
+        const warehouseCredentials = await this.getWarehouseCredentials(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
+            user.userUuid,
+        );
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
         );
 
         const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
@@ -2069,11 +2063,8 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             dateZoom,
-            warehouseClient: warehouseConnection.warehouseClient,
+            warehouseSqlBuilder,
         });
-
-        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
-        await warehouseConnection.sshTunnel.disconnect();
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -2226,13 +2217,13 @@ export class AsyncQueryService extends ProjectService {
             additionalMetrics: [],
         };
 
-        const warehouseConnection = await this._getWarehouseClient(
+        const warehouseCredentials = await this.getWarehouseCredentials(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
+            user.userUuid,
+        );
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
         );
 
         const { sql, fields, warnings } =
@@ -2241,11 +2232,8 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery: underlyingDataMetricQuery,
                 explore,
                 dateZoom,
-                warehouseClient: warehouseConnection.warehouseClient,
+                warehouseSqlBuilder,
             });
-
-        // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
-        await warehouseConnection.sshTunnel.disconnect();
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
@@ -2455,9 +2443,8 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? 500,
         };
 
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseConnection.warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar =
+            warehouseConnection.warehouseClient.getFieldQuoteChar();
 
         // Create a referenceMap from vizColumns
         const referenceMap: ReferenceMap = {};
