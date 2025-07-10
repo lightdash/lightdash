@@ -1,3 +1,10 @@
+# [0.1799.0](https://github.com/lightdash/lightdash/compare/0.1798.0...0.1799.0) (2025-07-10)
+
+
+### Features
+
+* add OAuth requirement option for Slack AI Agent ([#15723](https://github.com/lightdash/lightdash/issues/15723)) ([bffea7f](https://github.com/lightdash/lightdash/commit/bffea7f7a7f203fdac02a80d5e82ca9b8953f600)), closes [#15172](https://github.com/lightdash/lightdash/issues/15172)
+
 # [0.1798.0](https://github.com/lightdash/lightdash/compare/0.1797.0...0.1798.0) (2025-07-10)
 
 
