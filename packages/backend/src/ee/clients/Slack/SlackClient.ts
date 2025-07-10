@@ -3,6 +3,8 @@ import {
     AiDuplicateSlackPromptError,
     FollowUpTools,
     followUpToolsText,
+    NotFoundError,
+    OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import {
     AllMiddlewareArgs,
@@ -18,6 +20,8 @@ import {
     SlackClientArguments,
 } from '../../../clients/Slack/SlackClient';
 import Logger from '../../../logging/logger';
+import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
+import { UserModel } from '../../../models/UserModel';
 import { UnfurlService } from '../../../services/UnfurlService/UnfurlService';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
@@ -31,6 +35,8 @@ type CommercialSlackClientArguments = Omit<
     schedulerClient: CommercialSchedulerClient;
     aiAgentModel: AiAgentModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
+    openIdIdentityModel: OpenIdIdentityModel;
+    userModel: UserModel;
 };
 
 type ThreadMessageContext = Array<
@@ -44,11 +50,17 @@ export class CommercialSlackClient extends SlackClient {
 
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
 
+    private readonly openIdIdentityModel: OpenIdIdentityModel;
+
+    private readonly userModel: UserModel;
+
     constructor(args: CommercialSlackClientArguments) {
         super(args);
         this.slackAuthenticationModel = args.slackAuthenticationModel;
         this.schedulerClient = args.schedulerClient;
         this.aiAgentModel = args.aiAgentModel;
+        this.openIdIdentityModel = args.openIdIdentityModel;
+        this.userModel = args.userModel;
     }
 
     public getRequiredScopes() {
@@ -76,6 +88,7 @@ export class CommercialSlackClient extends SlackClient {
             CommercialSlackClient.handlePromptUpvote(app, aiAgentService);
             CommercialSlackClient.handlePromptDownvote(app, aiAgentService);
             CommercialSlackClient.handleClickExploreButton(app);
+            CommercialSlackClient.handleClickOAuthButton(app);
             this.handleExecuteFollowUpTool(app, aiAgentService);
         } else {
             Logger.info(
@@ -99,9 +112,33 @@ export class CommercialSlackClient extends SlackClient {
 
     // TODO: remove this once we have analytics tracking
     static handleClickExploreButton(app: App) {
-        app.action('actions.explore_button_click', async ({ ack, body }) => {
+        app.action('actions.explore_button_click', async ({ ack, respond }) => {
             await ack();
         });
+    }
+
+    static handleClickOAuthButton(app: App) {
+        app.action(
+            'actions.oauth_button_click',
+            async ({ ack, body, respond }) => {
+                await ack();
+
+                if (body.type === 'block_actions') {
+                    await respond({
+                        replace_original: true,
+                        blocks: [
+                            {
+                                type: 'section',
+                                text: {
+                                    type: 'mrkdwn',
+                                    text: '🔗 Redirected to Lightdash to complete authentication.',
+                                },
+                            },
+                        ],
+                    });
+                }
+            },
+        );
     }
 
     static handlePromptUpvote(app: App, aiAgentService: AiAgentService) {
@@ -295,6 +332,76 @@ export class CommercialSlackClient extends SlackClient {
         });
     }
 
+    private async handleAiAgentAuth(
+        slackSettings: { aiRequireOAuth?: boolean },
+        {
+            userId,
+            teamId,
+            threadTs,
+            channelId,
+        }: {
+            userId: string;
+            teamId: string;
+            threadTs: string | undefined;
+            channelId: string;
+        },
+        say: Function,
+        client: WebClient,
+    ): Promise<{ userUuid: string } | null> {
+        const aiRequireOAuth = slackSettings?.aiRequireOAuth;
+        if (!aiRequireOAuth) {
+            return {
+                userUuid: await this.slackAuthenticationModel.getUserUuid(
+                    teamId,
+                ),
+            };
+        }
+
+        const openIdIdentity =
+            await this.openIdIdentityModel.findIdentityByOpenId(
+                OpenIdIdentityIssuerType.SLACK,
+                userId,
+                teamId,
+            );
+        if (!openIdIdentity) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: userId,
+                // If threadTs is provided, send the message in the thread, otherwise send it to the channel, ephemeral message is easy to miss
+                ...(threadTs ? { thread_ts: threadTs } : {}),
+                text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
+                blocks: [
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
+                        },
+                    },
+                    {
+                        type: 'actions',
+                        elements: [
+                            {
+                                type: 'button',
+                                text: {
+                                    type: 'plain_text',
+                                    text: 'Connect your Slack account',
+                                },
+                                action_id: 'actions.oauth_button_click',
+                                url: `${this.lightdashConfig.siteUrl}/api/v1/auth/slack`,
+                                style: 'primary',
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            return null;
+        }
+
+        return { userUuid: openIdIdentity.userUuid };
+    }
+
     // WARNING: Needs - channels:history scope for all slack apps
     private async handleAppMention(
         {
@@ -311,14 +418,38 @@ export class CommercialSlackClient extends SlackClient {
         if (!teamId || !event.user) {
             return;
         }
-        const userUuid = await this.slackAuthenticationModel.getUserUuid(
-            teamId,
-        );
-
         const organizationUuid =
             await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
                 teamId,
             );
+        const slackSettings =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!slackSettings) {
+            throw new NotFoundError(
+                `Slack settings not found for organization ${organizationUuid}`,
+            );
+        }
+
+        const authResult = await this.handleAiAgentAuth(
+            slackSettings,
+            {
+                userId: event.user,
+                teamId,
+                threadTs: event.thread_ts,
+                channelId: event.channel,
+            },
+            say,
+            client,
+        );
+
+        if (!authResult) {
+            return;
+        }
+
+        const { userUuid } = authResult;
 
         let slackPromptUuid: string;
         let createdThread: boolean;
@@ -335,11 +466,6 @@ export class CommercialSlackClient extends SlackClient {
             name = agentConfig.name;
 
             if (event.thread_ts) {
-                const slackSettings =
-                    await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                        organizationUuid,
-                    );
-
                 const aiThreadAccessConsent =
                     slackSettings?.aiThreadAccessConsent;
 

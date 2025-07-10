@@ -47,6 +47,7 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
                 installation.scopes,
             ),
             aiThreadAccessConsent: installation.aiThreadAccessConsent,
+            aiRequireOAuth: installation.aiRequireOAuth,
         };
 
         return response;
