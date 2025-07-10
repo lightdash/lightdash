@@ -26,6 +26,7 @@ import type { ContentModel } from '../../models/ContentModel/ContentModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { DownloadFileModel } from '../../models/DownloadFileModel';
 import type { EmailModel } from '../../models/EmailModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -176,6 +177,7 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
             }),
         } as unknown as S3ResultsFileStorageClient,
         csvService: {} as CsvService,
+        featureFlagModel: {} as FeatureFlagModel,
     });
 
 describe.skip('AsyncQueryService', () => {

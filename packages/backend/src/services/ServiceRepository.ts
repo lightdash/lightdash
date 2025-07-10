@@ -469,6 +469,7 @@ export class ServiceRepository
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.models.getUserModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -509,6 +510,7 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
                     csvService: this.getCsvService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
