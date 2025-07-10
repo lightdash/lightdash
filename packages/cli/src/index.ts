@@ -579,6 +579,11 @@ program
         parseProjectArgument,
         undefined,
     )
+    .option(
+        '--skip-space-create',
+        'Skip space creation if it does not exist',
+        false,
+    )
     .action(uploadHandler);
 
 program
