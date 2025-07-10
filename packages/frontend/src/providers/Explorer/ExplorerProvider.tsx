@@ -797,6 +797,16 @@ export function reducer(
             }
             return state;
         }
+        case ActionType.OPEN_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = true;
+            });
+        }
+        case ActionType.CLOSE_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = false;
+            });
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -1467,6 +1477,13 @@ const ExplorerProvider: FC<
         }
     }, [queryClient, validQueryArgs, query.data, cancelQueryMutation]);
 
+    const openVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
+    }, []);
+    const closeVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
+    }, []);
+
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1506,6 +1523,8 @@ const ExplorerProvider: FC<
             updateMetricFormat,
             replaceFields,
             getDownloadQueryUuid,
+            openVisualizationConfig,
+            closeVisualizationConfig,
         }),
         [
             clearExplore,
@@ -1545,6 +1564,8 @@ const ExplorerProvider: FC<
             toggleWriteBackModal,
             replaceFields,
             getDownloadQueryUuid,
+            openVisualizationConfig,
+            closeVisualizationConfig,
         ],
     );
 
