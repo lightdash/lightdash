@@ -160,6 +160,7 @@ const MinimalDashboard: FC = () => {
         <DashboardProvider
             schedulerFilters={schedulerFilters}
             dateZoom={dateZoom}
+            defaultInvalidateCache={true}
         >
             {/* This is when viewing a dashboard with tabs in mobile mode - you can navigate between tabs. */}
             {canNavigateBetweenTabs && (

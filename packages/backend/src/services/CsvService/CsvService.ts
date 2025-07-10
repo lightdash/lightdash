@@ -663,15 +663,25 @@ This method can be memory intensive
         );
     }
 
-    async getCsvForChart(
-        user: SessionUser,
-        chartUuid: string,
-        options: SchedulerCsvOptions | undefined,
-        jobId?: string,
-        tileUuid?: string,
-        dashboardFilters?: DashboardFilters,
-        dateZoomGranularity?: DateGranularity,
-    ): Promise<AttachmentUrl> {
+    async getCsvForChart({
+        user,
+        chartUuid,
+        options,
+        jobId,
+        tileUuid,
+        dashboardFilters,
+        dateZoomGranularity,
+        invalidateCache,
+    }: {
+        user: SessionUser;
+        chartUuid: string;
+        options: SchedulerCsvOptions | undefined;
+        jobId?: string;
+        tileUuid?: string;
+        dashboardFilters?: DashboardFilters;
+        dateZoomGranularity?: DateGranularity;
+        invalidateCache?: boolean;
+    }): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const {
             metricQuery,
@@ -750,6 +760,7 @@ This method can be memory intensive
             },
             chartUuid,
             queryTags,
+            invalidateCache,
         });
         const numberRows = rows.length;
 
@@ -937,6 +948,7 @@ This method can be memory intensive
         selectedTabs,
         overrideDashboardFilters,
         dateZoomGranularity,
+        invalidateCache,
     }: {
         user: SessionUser;
         dashboardUuid: string;
@@ -946,6 +958,7 @@ This method can be memory intensive
         selectedTabs?: string[] | undefined;
         overrideDashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
+        invalidateCache?: boolean;
     }): Promise<AttachmentUrl[]> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -983,7 +996,7 @@ This method can be memory intensive
         );
         const csvForChartPromises = chartTileUuidsWithChartUuids.map(
             ({ tileUuid, chartUuid }) =>
-                this.getCsvForChart(
+                this.getCsvForChart({
                     user,
                     chartUuid,
                     options,
@@ -991,7 +1004,8 @@ This method can be memory intensive
                     tileUuid,
                     dashboardFilters,
                     dateZoomGranularity,
-                ),
+                    invalidateCache,
+                }),
         );
         this.logger.info(
             `Downloading ${sqlChartTileUuids.length} sql chart CSVs for dashboard ${dashboardUuid}`,

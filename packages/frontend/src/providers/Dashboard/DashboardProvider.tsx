@@ -49,6 +49,7 @@ const DashboardProvider: React.FC<
         projectUuid?: string;
         embedToken?: string;
         dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
+        defaultInvalidateCache?: boolean;
     }>
 > = ({
     schedulerFilters,
@@ -56,6 +57,7 @@ const DashboardProvider: React.FC<
     projectUuid,
     embedToken,
     dashboardCommentsCheck,
+    defaultInvalidateCache,
     children,
 }) => {
     const { search, pathname } = useLocation();
@@ -125,7 +127,9 @@ const DashboardProvider: React.FC<
         useState<boolean>(false);
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
 
-    const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
+    const [invalidateCache, setInvalidateCache] = useState<boolean>(
+        defaultInvalidateCache === true,
+    );
 
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
 
