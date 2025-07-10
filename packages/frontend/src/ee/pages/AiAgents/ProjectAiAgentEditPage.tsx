@@ -41,6 +41,10 @@ import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
+import {
+    InstructionsGuidelines,
+    InstructionsTemplates,
+} from '../../features/aiCopilot/components/InstructionsSupport';
 import { SlackIntegrationSteps } from '../../features/aiCopilot/components/SlackIntegrationSteps';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useDeleteAiAgentMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
@@ -481,31 +485,104 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 </Paper>
 
                                 <Paper p="xl">
-                                    <Group align="center" gap="xs">
-                                        <Paper p="xxs" withBorder radius="sm">
-                                            <MantineIcon
-                                                icon={IconBook2}
-                                                size="md"
-                                            />
-                                        </Paper>
-                                        <Title order={5} c="gray.9" fw={700}>
-                                            Knowledge & expertise
-                                        </Title>
-                                    </Group>
-                                    <Text size="sm" c="dimmed" mb="md">
-                                        Define your Agent's capabilities by
-                                        providing context across different
-                                        areas.
-                                    </Text>
+                                    <Stack gap="md">
+                                        <Group align="center" gap="xs">
+                                            <Paper
+                                                p="xxs"
+                                                withBorder
+                                                radius="sm"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconBook2}
+                                                    size="md"
+                                                />
+                                            </Paper>
+                                            <Title
+                                                order={5}
+                                                c="gray.9"
+                                                fw={700}
+                                            >
+                                                Knowledge & expertise
+                                            </Title>
+                                        </Group>
 
-                                    <Textarea
-                                        variant="subtle"
-                                        label="Instructions"
-                                        description="Instructions set the overall behavior and task for the agent. This defines how it should respond and what its purpose is."
-                                        placeholder="You are a helpful assistant that specializes in sales data analytics."
-                                        resize="vertical"
-                                        {...form.getInputProps('instruction')}
-                                    />
+                                        <Stack gap="xs">
+                                            <Textarea
+                                                variant="subtle"
+                                                label="Instructions"
+                                                description="Set the overall behavior and task for the agent. This defines how it should respond and what its purpose is."
+                                                placeholder="You are a marketing analytics expert. Focus on campaign performance, customer acquisition costs, and ROI metrics. Always use bar charts and tables to visualize data."
+                                                resize="vertical"
+                                                autosize
+                                                minRows={3}
+                                                maxRows={8}
+                                                {...form.getInputProps(
+                                                    'instruction',
+                                                )}
+                                            />
+                                            <Text size="xs" c="dimmed">
+                                                {form.values.instruction
+                                                    ?.length ?? 0}{' '}
+                                                characters
+                                            </Text>
+                                        </Stack>
+
+                                        <Stack gap="sm">
+                                            <Title
+                                                order={6}
+                                                c="gray.7"
+                                                size="sm"
+                                                fw={500}
+                                            >
+                                                Quick Templates
+                                            </Title>
+
+                                            <InstructionsTemplates
+                                                onSelect={(
+                                                    instruction: string,
+                                                ) => {
+                                                    form.setFieldValue(
+                                                        'instruction',
+                                                        form.values.instruction
+                                                            ? `${form.values.instruction}\n\n${instruction}`
+                                                            : instruction,
+                                                    );
+                                                }}
+                                            />
+                                        </Stack>
+
+                                        <Stack gap="sm">
+                                            <Box>
+                                                <Title
+                                                    order={6}
+                                                    c="gray.7"
+                                                    size="sm"
+                                                    fw={500}
+                                                >
+                                                    Guidelines
+                                                </Title>
+                                                <Text c="dimmed" size="xs">
+                                                    When writing instructions,
+                                                    consider the following
+                                                    guidelines to help the agent
+                                                    perform its tasks
+                                                    effectively.
+                                                </Text>
+                                            </Box>
+                                            <InstructionsGuidelines />
+                                            <Text c="dimmed" size="xs">
+                                                Visit our{' '}
+                                                <Anchor
+                                                    href="https://docs.lightdash.com/guides/ai-agents#writing-effective-instructions"
+                                                    target="_blank"
+                                                >
+                                                    docs
+                                                </Anchor>{' '}
+                                                to learn more about instructions
+                                                and how they work.
+                                            </Text>
+                                        </Stack>
+                                    </Stack>
                                 </Paper>
 
                                 <Paper p="xl">
