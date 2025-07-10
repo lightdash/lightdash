@@ -1,3 +1,10 @@
+# [0.1797.0](https://github.com/lightdash/lightdash/compare/0.1796.5...0.1797.0) (2025-07-10)
+
+
+### Features
+
+* dasdhboard tabs on embedding ([#15778](https://github.com/lightdash/lightdash/issues/15778)) ([0a12762](https://github.com/lightdash/lightdash/commit/0a12762098779f3b763b15cf2c4b17ab38486f71))
+
 ## [0.1796.5](https://github.com/lightdash/lightdash/compare/0.1796.4...0.1796.5) (2025-07-09)
 
 
