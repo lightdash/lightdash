@@ -126,7 +126,10 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     agentUuid: string;
     createdAt: string;
     createdFrom: string;
-    firstMessage: string;
+    firstMessage: {
+        uuid: string;
+        message: string;
+    };
     user: TUser;
 };
 
