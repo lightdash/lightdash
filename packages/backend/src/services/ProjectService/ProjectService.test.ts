@@ -18,6 +18,7 @@ import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -141,6 +142,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
+        featureFlagModel: {} as FeatureFlagModel,
     });
 
 describe('ProjectService', () => {

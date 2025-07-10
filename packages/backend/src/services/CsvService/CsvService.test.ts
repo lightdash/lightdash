@@ -1,4 +1,3 @@
-import { DimensionType, Field } from '@lightdash/common';
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -12,6 +11,7 @@ import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -66,6 +66,7 @@ describe('Csv service', () => {
             contentModel: {} as ContentModel,
             encryptionUtil: {} as EncryptionUtil,
             userModel: {} as UserModel,
+            featureFlagModel: {} as FeatureFlagModel,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

@@ -177,6 +177,7 @@ import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -245,6 +246,7 @@ export type ProjectServiceArguments = {
     contentModel: ContentModel;
     encryptionUtil: EncryptionUtil;
     userModel: UserModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class ProjectService extends BaseService {
@@ -300,6 +302,8 @@ export class ProjectService extends BaseService {
 
     userModel: UserModel;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -326,6 +330,7 @@ export class ProjectService extends BaseService {
         contentModel,
         encryptionUtil,
         userModel,
+        featureFlagModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -354,6 +359,7 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.encryptionUtil = encryptionUtil;
         this.userModel = userModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -1731,12 +1737,11 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes(user, organizationUuid);
 
-        const useExperimentalMetricCtes = await isFeatureFlagEnabled(
-            FeatureFlags.ShowQueryWarnings,
-            user,
-            { throwOnTimeout: false },
-            false, // default value
-        );
+        const { enabled: useExperimentalMetricCtes } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ShowQueryWarnings,
+            });
 
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
@@ -5076,12 +5081,11 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes(user, organizationUuid);
 
-        const useExperimentalMetricCtes = await isFeatureFlagEnabled(
-            FeatureFlags.ShowQueryWarnings,
-            user,
-            { throwOnTimeout: false },
-            false, // default value
-        );
+        const { enabled: useExperimentalMetricCtes } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ShowQueryWarnings,
+            });
 
         const { query } = await this._getCalculateTotalQuery(
             userAttributes,
