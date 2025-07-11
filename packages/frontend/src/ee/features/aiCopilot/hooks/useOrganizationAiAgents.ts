@@ -11,6 +11,7 @@ import type {
     ApiError,
     ApiSuccessEmpty,
 } from '@lightdash/common';
+import { nanoid } from '@reduxjs/toolkit';
 import {
     useMutation,
     useQuery,
@@ -26,7 +27,6 @@ import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
-import { getOptimisticMessageStub } from '../utils/thinkingMessageStub';
 import { PROJECT_AI_AGENTS_KEY, useProjectAiAgent } from './useProjectAiAgents';
 import { USER_AGENT_PREFERENCES } from './useUserAgentPreferences';
 
@@ -192,6 +192,7 @@ export const useAiAgentThread = (
 
 const createOptimisticMessages = (
     threadUuid: string,
+    promptUuid: string,
     prompt: string,
     user: UserWithAbility,
     agent: AiAgent,
@@ -199,7 +200,7 @@ const createOptimisticMessages = (
     return [
         {
             role: 'user' as const,
-            uuid: Math.random().toString(36),
+            uuid: promptUuid,
             threadUuid,
             message: prompt,
             createdAt: new Date().toISOString(),
@@ -210,9 +211,9 @@ const createOptimisticMessages = (
         },
         {
             role: 'assistant' as const,
-            uuid: Math.random().toString(36),
+            uuid: promptUuid,
             threadUuid,
-            message: getOptimisticMessageStub(),
+            message: '',
             createdAt: new Date().toISOString(),
             user: {
                 name: agent?.name ?? 'Unknown',
@@ -276,7 +277,8 @@ export const useCreateAgentThreadMutation = (
                         uuid: thread.uuid,
                         messages: createOptimisticMessages(
                             thread.uuid,
-                            thread.firstMessage,
+                            thread.firstMessage.uuid,
+                            thread.firstMessage.message,
                             user!.data!,
                             agent!,
                         ),
@@ -292,6 +294,7 @@ export const useCreateAgentThreadMutation = (
             void streamMessage({
                 agentUuid: thread.agentUuid,
                 threadUuid: thread.uuid,
+                messageUuid: thread.firstMessage.uuid,
                 onFinish: () =>
                     queryClient.invalidateQueries({
                         queryKey: [
@@ -344,13 +347,17 @@ export const useCreateAgentThreadMessageMutation = (
     return useMutation<
         ApiAiAgentThreadMessageCreateResponse['results'],
         ApiError,
-        ApiAiAgentThreadMessageCreateRequest
+        ApiAiAgentThreadMessageCreateRequest,
+        { messageUuid: string }
     >({
         mutationFn: (data) =>
             agentUuid && threadUuid
                 ? createAgentThreadMessage(agentUuid, threadUuid, data)
                 : Promise.reject(),
         onMutate: (data) => {
+            // Temporary uuid for optimistic messages
+            const messageUuid = nanoid();
+
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
                 (
@@ -368,6 +375,7 @@ export const useCreateAgentThreadMessageMutation = (
                             ...currentData.messages,
                             ...createOptimisticMessages(
                                 threadUuid,
+                                messageUuid,
                                 data.prompt,
                                 user!.data!,
                                 agent!,
@@ -376,11 +384,39 @@ export const useCreateAgentThreadMessageMutation = (
                     };
                 },
             );
+
+            return { messageUuid };
         },
-        onSuccess: async () => {
+        onSuccess: (data, _vars, context) => {
+            queryClient.setQueryData(
+                [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
+                (
+                    currentData:
+                        | ApiAiAgentThreadResponse['results']
+                        | undefined,
+                ) => {
+                    if (!currentData || !threadUuid) {
+                        return currentData;
+                    }
+
+                    return {
+                        ...currentData,
+                        messages: currentData.messages.map((message) =>
+                            message.uuid === context?.messageUuid
+                                ? {
+                                      ...message,
+                                      uuid: data.uuid,
+                                  }
+                                : message,
+                        ),
+                    };
+                },
+            );
+
             void streamMessage({
                 agentUuid: agentUuid!,
                 threadUuid: threadUuid!,
+                messageUuid: data.uuid,
                 onFinish: () =>
                     queryClient.invalidateQueries([
                         AI_AGENTS_KEY,

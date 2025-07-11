@@ -4695,7 +4695,14 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 user: { ref: 'AiAgentUser', required: true },
-                firstMessage: { dataType: 'string', required: true },
+                firstMessage: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        message: { dataType: 'string', required: true },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
                 createdFrom: { dataType: 'string', required: true },
                 createdAt: { dataType: 'string', required: true },
                 agentUuid: { dataType: 'string', required: true },
@@ -4730,7 +4737,14 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 user: { ref: 'AiAgentUser', required: true },
-                firstMessage: { dataType: 'string', required: true },
+                firstMessage: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        message: { dataType: 'string', required: true },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
                 createdFrom: { dataType: 'string', required: true },
                 createdAt: { dataType: 'string', required: true },
                 agentUuid: { dataType: 'string', required: true },
