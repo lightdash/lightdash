@@ -19,12 +19,18 @@ export const getFindExplores = ({ getExplores }: Dependencies) => {
             try {
                 const explores = await getExplores();
 
+                console.dir(
+                    { hints: explores.map((e) => [e.name, e.hint]) },
+                    { depth: null },
+                );
+
                 return `Here is the information about the explores/models you have access to:
 ${explores
     .map(
         (explore) => `Explore/Model id: ${explore.name}
 Name/Label: ${explore.label}
 Description: ${explore.description ?? 'No description'}
+${explore.hint ? `Hint: ${explore.hint}` : ''}
 ${
     explore.joinedTables.length > 0
         ? `Base Table: ${explore.baseTable}
