@@ -1255,4 +1255,76 @@ describe('findMetricInflationWarnings', () => {
         );
         expect(metricWarning).toBeDefined();
     });
+
+    it('should warn for all tables when there is a many-to-many relationship', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                products: { primaryKey: ['id'] },
+                user_products: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'user_products',
+                    sqlOn: 'users.id = user_products.user_id',
+                    compiledSqlOn: 'users.id = user_products.user_id',
+                    relationship: JoinRelationship.MANY_TO_MANY,
+                    tablesReferences: ['users', 'user_products'],
+                },
+                {
+                    table: 'products',
+                    sqlOn: 'user_products.product_id = products.id',
+                    compiledSqlOn: 'user_products.product_id = products.id',
+                    relationship: JoinRelationship.ONE_TO_ONE,
+                    tablesReferences: ['user_products', 'products'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['user_products', 'products']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: 'Total users',
+                },
+                {
+                    name: 'total_products',
+                    type: MetricType.SUM,
+                    table: 'products',
+                    label: 'Total products',
+                },
+                {
+                    name: 'total_user_products',
+                    type: MetricType.SUM,
+                    table: 'user_products',
+                    label: 'Total user products',
+                },
+            ],
+        });
+
+        // Should have warnings for all tables due to many-to-many relationship
+        expect(result).toHaveLength(3);
+
+        // Check that all tables have metric inflation warnings
+        const userWarning = result.find(
+            (warning) =>
+                warning.fields && warning.fields[0] === 'users_total_users',
+        );
+        expect(userWarning).toBeDefined();
+
+        const productWarning = result.find(
+            (warning) =>
+                warning.fields &&
+                warning.fields[0] === 'products_total_products',
+        );
+        expect(productWarning).toBeDefined();
+
+        const userProductWarning = result.find(
+            (warning) =>
+                warning.fields &&
+                warning.fields[0] === 'user_products_total_user_products',
+        );
+        expect(userProductWarning).toBeDefined();
+    });
 });
