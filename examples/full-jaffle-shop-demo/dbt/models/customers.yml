@@ -14,6 +14,9 @@ models:
           - join: plan
             sql_on: ${membership.plan_id} = ${plan.id}
             relationship: many-to-one
+        ai:
+          hint: |
+            This is a customers table.
     description: |
       # Customers
 
@@ -34,6 +37,9 @@ models:
                 description: Total number of customers
                 spotlight:
                   categories: ["core"]
+                ai:
+                  hint: |
+                    Unique customer count.
       - name: first_name
         description: |
           # First name
@@ -60,6 +66,12 @@ models:
                     }"
       - name: last_name
         description: Customer's last name. PII.
+        config:
+          meta:
+            dimension:
+              ai:
+                hint: |
+                  Last name of the customer. PII.
       - name: age
         description: Customer's age
         config:

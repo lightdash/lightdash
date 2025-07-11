@@ -81,6 +81,10 @@ type ExploreConfig = {
     joins?: DbtModelJoin[];
 };
 
+export type DbtModelAiConfig = {
+    hint?: string;
+};
+
 type DbtModelLightdashConfig = ExploreConfig & {
     metrics?: Record<string, DbtModelLightdashMetric>;
     order_fields_by?: OrderFieldsByStrategy;
@@ -103,6 +107,7 @@ type DbtModelLightdashConfig = ExploreConfig & {
         categories?: string[]; // yaml_reference
     };
     explores?: Record<string, ExploreConfig>;
+    ai?: DbtModelAiConfig;
 };
 
 export type DbtModelGroup = {
@@ -151,6 +156,7 @@ export type DbtColumnLightdashDimension = {
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
+    ai?: DbtModelAiConfig;
 } & DbtLightdashFieldTags;
 
 export type DbtColumnLightdashAdditionalDimension = Omit<
@@ -182,6 +188,7 @@ export type DbtColumnLightdashMetric = {
         >['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    ai?: DbtModelAiConfig;
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -526,6 +533,7 @@ export const convertModelMetric = ({
             spotlightVisibility,
             spotlightCategories,
         ),
+        ...(metric.ai ? { ai: metric.ai } : {}),
     };
 };
 
