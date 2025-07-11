@@ -1,3 +1,15 @@
+# [0.1802.0](https://github.com/lightdash/lightdash/compare/0.1801.0...0.1802.0) (2025-07-11)
+
+
+### Bug Fixes
+
+* invalidate cache for dashboard deliveries ([#15796](https://github.com/lightdash/lightdash/issues/15796)) ([e5a3b7d](https://github.com/lightdash/lightdash/commit/e5a3b7d838a055e3c7a29b640c861825a6dbd65d))
+
+
+### Features
+
+* add --skip-create-space to upload CLI ([#15801](https://github.com/lightdash/lightdash/issues/15801)) ([2b3cd71](https://github.com/lightdash/lightdash/commit/2b3cd71f4f28578177d95eb95773b533086a45e6))
+
 # [0.1801.0](https://github.com/lightdash/lightdash/compare/0.1800.1...0.1801.0) (2025-07-10)
 
 
