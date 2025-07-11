@@ -44,6 +44,7 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
         const mapFieldFn = (field: CompiledField) => ({
             fieldId: getItemId(field),
             ...pick(field, ['label', 'description', 'type']),
+            ...(field.ai?.hint ? { hint: field.ai.hint } : {}),
         });
 
         const mappedValues = mapValues(explore.tables, (t) => {
@@ -54,6 +55,7 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
                 ...pick(t, ['name', 'label', 'description']),
                 dimensions: dimensions.filter(filterFieldFn).map(mapFieldFn),
                 metrics: metrics.filter(filterFieldFn).map(mapFieldFn),
+                ...(t.ai?.hint ? { hint: t.ai.hint } : {}),
             };
         });
 
@@ -73,6 +75,8 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
                     // embeddingSearchQueries,
                     embeddingSearchQueries: [],
                 });
+
+                console.dir(tables, { depth: null });
 
                 return `Here are the available Fields (Metrics and Dimensions) for explore named "${exploreName}":
 

@@ -1115,6 +1115,7 @@ export class AiAgentService {
             .map((explore, index) => ({
                 ...explore,
                 description: exploreSummaries[index]?.description,
+                ai: exploreSummaries[index]?.ai,
             }));
 
         const minimalExploreInformation = exploresWithDescriptions.map((s) => ({
@@ -1122,6 +1123,7 @@ export class AiAgentService {
             joinedTables: Object.keys(s.tables).filter(
                 (table) => table !== s.baseTable,
             ),
+            ...(s.ai?.hint ? { hint: s.ai.hint } : {}),
         }));
 
         return minimalExploreInformation;
