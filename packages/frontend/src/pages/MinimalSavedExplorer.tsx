@@ -93,6 +93,7 @@ const MinimalSavedExplorer: FC = () => {
 
     return (
         <ExplorerProvider
+            minimal={true}
             viewModeQueryArgs={
                 savedQueryUuid
                     ? { chartUuid: savedQueryUuid, context }

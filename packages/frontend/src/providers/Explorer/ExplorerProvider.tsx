@@ -808,6 +808,7 @@ export function reducer(
 
 const ExplorerProvider: FC<
     React.PropsWithChildren<{
+        minimal?: boolean;
         isEditMode?: boolean;
         initialState?: ExplorerReduceState;
         savedChart?: SavedChart;
@@ -818,6 +819,7 @@ const ExplorerProvider: FC<
         dateZoomGranularity?: DateGranularity;
     }>
 > = ({
+    minimal = false,
     isEditMode = false,
     initialState,
     savedChart,
@@ -1306,6 +1308,7 @@ const ExplorerProvider: FC<
                     ? {
                           ...validQueryArgs,
                           csvLimit: limit,
+                          invalidateCache: minimal,
                       }
                     : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
@@ -1318,7 +1321,12 @@ const ExplorerProvider: FC<
             }
             return queryUuid;
         },
-        [queryResults.queryUuid, queryResults.totalResults, validQueryArgs],
+        [
+            queryResults.queryUuid,
+            queryResults.totalResults,
+            validQueryArgs,
+            minimal,
+        ],
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { remove: clearQueryResults } = query;
@@ -1344,6 +1352,7 @@ const ExplorerProvider: FC<
                 query: unsavedChartVersion.metricQuery,
                 ...(isEditMode ? {} : viewModeQueryArgs),
                 dateZoomGranularity,
+                invalidateCache: minimal,
             });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
@@ -1364,6 +1373,7 @@ const ExplorerProvider: FC<
         isEditMode,
         viewModeQueryArgs,
         dateZoomGranularity,
+        minimal,
     ]);
 
     useEffect(() => {
