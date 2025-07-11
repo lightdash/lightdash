@@ -1,3 +1,10 @@
+# [0.1804.0](https://github.com/lightdash/lightdash/compare/0.1803.3...0.1804.0) (2025-07-11)
+
+
+### Features
+
+* add Slack auth success page ([#15828](https://github.com/lightdash/lightdash/issues/15828)) ([a2cd875](https://github.com/lightdash/lightdash/commit/a2cd875068e3be367f78e42029ee9910b008e6f6)), closes [#15749](https://github.com/lightdash/lightdash/issues/15749)
+
 ## [0.1803.3](https://github.com/lightdash/lightdash/compare/0.1803.2...0.1803.3) (2025-07-11)
 
 
