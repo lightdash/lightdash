@@ -1,3 +1,10 @@
+## [0.1802.1](https://github.com/lightdash/lightdash/compare/0.1802.0...0.1802.1) (2025-07-11)
+
+
+### Bug Fixes
+
+* invalidate cache for minimal charts (export image) ([#15797](https://github.com/lightdash/lightdash/issues/15797)) ([6e3226c](https://github.com/lightdash/lightdash/commit/6e3226c38a118d280b93f1a81c128dde44c3d435))
+
 # [0.1802.0](https://github.com/lightdash/lightdash/compare/0.1801.0...0.1802.0) (2025-07-11)
 
 
