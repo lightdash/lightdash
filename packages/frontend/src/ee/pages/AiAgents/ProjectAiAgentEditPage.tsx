@@ -5,10 +5,10 @@ import {
     Anchor,
     Box,
     Button,
-    Card,
     Group,
     LoadingOverlay,
     MultiSelect,
+    Paper,
     Stack,
     Tabs,
     TagsInput,
@@ -20,9 +20,12 @@ import {
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
+    IconAdjustmentsAlt,
     IconArrowLeft,
+    IconBook2,
     IconCheck,
     IconInfoCircle,
+    IconPlug,
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
@@ -46,7 +49,6 @@ import {
     useProjectCreateAiAgentMutation,
     useProjectUpdateAiAgentMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-
 const formSchema: z.ZodType<
     Pick<
         BaseAiAgent,
@@ -211,7 +213,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
 
     if (!isCreateMode && actualAgentUuid && !agent && !isLoadingAgent) {
         return (
-            <Page withFullHeight>
+            <Page
+                withFullHeight
+                withCenteredRoot
+                withCenteredContent
+                withXLargePaddedContent
+                withLargeContent
+                withFixedContent
+            >
                 <Stack gap="md">
                     <Group gap="xs">
                         <Button
@@ -222,60 +231,91 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             Back to Agents
                         </Button>
                     </Group>
-                    <Card withBorder p="xl">
-                        <Text>Agent not found</Text>
-                    </Card>
+                    <Paper
+                        p="xl"
+                        shadow="subtle"
+                        component={Stack}
+                        gap="xxs"
+                        align="center"
+                        withBorder
+                        style={{ borderStyle: 'dashed' }}
+                    >
+                        <Title order={5}>Agent not found</Title>
+                        <Text size="sm" c="dimmed">
+                            The agent you are looking for does not exist.
+                        </Text>
+                    </Paper>
                 </Stack>
             </Page>
         );
     }
 
     return (
-        <Page withFullHeight withCenteredRoot withXLargePaddedContent>
-            <Stack gap="sm">
-                <Group gap="sm" align="center">
-                    <ActionIcon
+        <Page
+            withFullHeight
+            withCenteredRoot
+            withCenteredContent
+            withXLargePaddedContent
+            withLargeContent
+            withFixedContent
+        >
+            <Stack gap="xs">
+                <div>
+                    <Button
                         variant="subtle"
-                        color="gray"
+                        leftSection={<MantineIcon icon={IconArrowLeft} />}
                         onClick={handleBack}
                     >
-                        <MantineIcon icon={IconArrowLeft} />
-                    </ActionIcon>
-
-                    <Group gap="xs">
+                        Back
+                    </Button>
+                </div>
+                <Group justify="space-between" wrap="nowrap" align="center">
+                    <Group gap="sm" align="center" flex="1" wrap="nowrap">
                         <LightdashUserAvatar
                             name={isCreateMode ? '+' : form.values.name}
                             variant="filled"
-                            size="sm"
                             src={
                                 !isCreateMode ? form.values.imageUrl : undefined
                             }
+                            size={48}
                         />
-
-                        <Group gap="xs">
-                            <Title order={5}>
+                        <Stack gap={0}>
+                            <Title order={2} lineClamp={1} w="100%">
                                 {isCreateMode
                                     ? 'New Agent'
                                     : agent?.name || 'Agent'}
                             </Title>
-                            <Tooltip
-                                fz="xs"
-                                position="right"
-                                label={
-                                    <Text fz="xs" fw={500}>
-                                        Last modified:
-                                        <Text fz="xs" span>
-                                            {new Date(
-                                                agent?.updatedAt ?? new Date(),
-                                            ).toLocaleString()}
-                                        </Text>
-                                    </Text>
-                                }
-                                withArrow
+                            <Text size="sm" c="dimmed">
+                                Last modified:{' '}
+                                {new Date(
+                                    agent?.updatedAt ?? new Date(),
+                                ).toLocaleString()}
+                            </Text>
+                        </Stack>
+                    </Group>
+                    <Group justify="flex-end" gap="xs">
+                        {!isCreateMode && (
+                            <Button
+                                size="compact-sm"
+                                variant="outline"
+                                color="red"
+                                leftSection={<MantineIcon icon={IconTrash} />}
+                                onClick={handleDeleteClick}
                             >
-                                <MantineIcon icon={IconInfoCircle} />
-                            </Tooltip>
-                        </Group>
+                                Delete agent
+                            </Button>
+                        )}
+                        <Button
+                            size="compact-sm"
+                            onClick={() => handleSubmit()}
+                            loading={isCreating || isUpdating}
+                            leftSection={<MantineIcon icon={IconCheck} />}
+                            disabled={
+                                isCreateMode ? !form.isValid() : !form.isDirty()
+                            }
+                        >
+                            {isCreateMode ? 'Create agent' : 'Save changes'}
+                        </Button>
                     </Group>
                 </Group>
 
@@ -290,78 +330,59 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     </Tabs.List>
 
                     <Tabs.Panel value="setup" pt="lg">
-                        <form onSubmit={handleSubmit}>
-                            <Group gap="xxl" align="flex-start">
-                                <Stack gap="xs" align="center" maw={300}>
-                                    <LightdashUserAvatar
-                                        name={
-                                            isCreateMode
-                                                ? '+'
-                                                : form.values.name
-                                        }
-                                        variant="filled"
-                                        size={120}
-                                        src={
-                                            !isCreateMode
-                                                ? form.values.imageUrl
-                                                : undefined
-                                        }
-                                    />
-                                    <TextInput
-                                        style={{ flexGrow: 1 }}
-                                        miw={200}
-                                        labelProps={{
-                                            style: {
-                                                width: '100%',
-                                            },
-                                        }}
-                                        label={
-                                            <Group gap="xs">
-                                                <Text>Avatar image URL</Text>
-                                                <Tooltip
-                                                    label="Please provide an image url like https://example.com/avatar.jpg. If not provided, a default avatar will be used."
-                                                    withArrow
-                                                    withinPortal
-                                                    multiline
-                                                    maw="250px"
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconInfoCircle}
-                                                    />
-                                                </Tooltip>
-                                            </Group>
-                                        }
-                                        placeholder="https://example.com/avatar.jpg"
-                                        type="url"
-                                        {...form.getInputProps('imageUrl')}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            form.setFieldValue(
-                                                'imageUrl',
-                                                value ? value : null,
-                                            );
-                                        }}
-                                    />
-                                </Stack>
-
-                                <Stack gap="lg">
-                                    {/* Basic Agent Info */}
-                                    <Stack gap="sm">
+                        <form>
+                            <Stack gap="sm">
+                                <Paper p="xl">
+                                    <Group align="center" gap="xs" mb="md">
+                                        <Paper p="xxs" withBorder radius="sm">
+                                            <MantineIcon
+                                                icon={IconAdjustmentsAlt}
+                                                size="md"
+                                            />
+                                        </Paper>
+                                        <Title order={5} c="gray.9" fw={700}>
+                                            Basic information
+                                        </Title>
+                                    </Group>
+                                    <Stack>
+                                        <Group>
+                                            <TextInput
+                                                label="Agent Name"
+                                                placeholder="Enter a name for this agent"
+                                                {...form.getInputProps('name')}
+                                                style={{ flexGrow: 1 }}
+                                                variant="subtle"
+                                            />
+                                            <Tooltip label="Agents can only be created in the context the current project">
+                                                <TextInput
+                                                    label="Project"
+                                                    placeholder="Enter a project"
+                                                    value={project?.name}
+                                                    readOnly
+                                                    style={{ flexGrow: 1 }}
+                                                    variant="subtle"
+                                                />
+                                            </Tooltip>
+                                        </Group>
                                         <TextInput
-                                            label="Agent Name"
-                                            placeholder="Enter a name for this agent"
-                                            {...form.getInputProps('name')}
                                             style={{ flexGrow: 1 }}
+                                            miw={200}
+                                            variant="subtle"
+                                            label="Avatar image URL"
+                                            description="Please provide an image url like https://example.com/avatar.jpg. If not provided, a default avatar will be used."
+                                            placeholder="https://example.com/avatar.jpg"
+                                            type="url"
+                                            {...form.getInputProps('imageUrl')}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                form.setFieldValue(
+                                                    'imageUrl',
+                                                    value ? value : null,
+                                                );
+                                            }}
                                         />
-
-                                        <TextInput
-                                            label="Project"
-                                            placeholder="Enter a project"
-                                            value={project?.name}
-                                            readOnly
-                                        />
-
                                         <TagsInput
+                                            variant="subtle"
                                             label="Tags"
                                             placeholder="Select tags"
                                             {...form.getInputProps('tags')}
@@ -379,182 +400,165 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                             }}
                                         />
                                     </Stack>
+                                </Paper>
 
-                                    <Stack gap="sm">
-                                        <Textarea
-                                            label="Instructions"
-                                            description="Instructions set the overall behavior and task for the agent. This defines how it should respond and what its purpose is."
-                                            placeholder="You are a helpful assistant that specializes in sales data analytics."
-                                            resize="vertical"
-                                            {...form.getInputProps(
-                                                'instruction',
-                                            )}
-                                        />
-                                    </Stack>
-
-                                    {/* Integrations Section */}
-                                    <Stack gap="sm">
-                                        <Stack gap="md">
-                                            <Title order={6}>Slack</Title>
-
-                                            <LoadingOverlay
-                                                visible={
-                                                    isLoadingSlackInstallation
-                                                }
+                                <Paper p="xl">
+                                    <Group align="center" gap="xs">
+                                        <Paper p="xxs" withBorder radius="sm">
+                                            <MantineIcon
+                                                icon={IconBook2}
+                                                size="md"
                                             />
+                                        </Paper>
+                                        <Title order={5} c="gray.9" fw={700}>
+                                            Knowledge & expertise
+                                        </Title>
+                                    </Group>
+                                    <Text size="sm" c="dimmed" mb="md">
+                                        Define your Agent's capabilities by
+                                        providing context across different
+                                        areas.
+                                    </Text>
 
-                                            {!slackInstallation?.organizationUuid ? (
-                                                <Alert
-                                                    color="yellow"
-                                                    icon={
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconInfoCircle
-                                                            }
-                                                        />
-                                                    }
-                                                >
-                                                    <Text fw={500} mb="xs">
-                                                        Slack integration
-                                                        required
-                                                    </Text>
-                                                    <Text size="sm">
-                                                        To enable AI agent
-                                                        interactions through
-                                                        Slack, please connect
-                                                        your Slack workspace in
-                                                        the{' '}
-                                                        <Anchor
-                                                            href="/generalSettings/integrations"
-                                                            target="_blank"
-                                                            fz="sm"
-                                                        >
-                                                            Integrations
-                                                            settings
-                                                        </Anchor>
-                                                        . Once connected, you
-                                                        can select channels
-                                                        where this agent will be
-                                                        available.
-                                                    </Text>
-                                                </Alert>
-                                            ) : (
-                                                <Box>
-                                                    <SlackIntegrationSteps
-                                                        slackInstallation={
-                                                            !!slackInstallation?.organizationUuid
-                                                        }
-                                                        channelsConfigured={form.values.integrations.some(
-                                                            (i) =>
-                                                                i.type ===
-                                                                    'slack' &&
-                                                                i.channelId,
-                                                        )}
-                                                    />
+                                    <Textarea
+                                        variant="subtle"
+                                        label="Instructions"
+                                        description="Instructions set the overall behavior and task for the agent. This defines how it should respond and what its purpose is."
+                                        placeholder="You are a helpful assistant that specializes in sales data analytics."
+                                        resize="vertical"
+                                        {...form.getInputProps('instruction')}
+                                    />
+                                </Paper>
 
-                                                    <Stack gap="xs">
-                                                        <MultiSelect
-                                                            disabled={
-                                                                isRefreshing ||
-                                                                !slackInstallation?.organizationUuid
-                                                            }
-                                                            description={
-                                                                !slackInstallation?.organizationUuid
-                                                                    ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
-                                                                    : undefined
-                                                            }
-                                                            labelProps={{
-                                                                style: {
-                                                                    width: '100%',
-                                                                },
-                                                            }}
-                                                            label="Channels"
-                                                            placeholder="Pick a channel"
-                                                            data={
-                                                                slackChannelOptions
-                                                            }
-                                                            value={form.values.integrations.map(
-                                                                (i) =>
-                                                                    i.channelId,
-                                                            )}
-                                                            searchable
-                                                            rightSectionPointerEvents="all"
-                                                            rightSection={
-                                                                <Tooltip
-                                                                    withArrow
-                                                                    withinPortal
-                                                                    label="Refresh Slack Channels"
-                                                                >
-                                                                    <ActionIcon
-                                                                        variant="transparent"
-                                                                        onClick={
-                                                                            refreshChannels
-                                                                        }
-                                                                    >
-                                                                        <MantineIcon
-                                                                            icon={
-                                                                                IconRefresh
-                                                                            }
-                                                                        />
-                                                                    </ActionIcon>
-                                                                </Tooltip>
-                                                            }
-                                                            onChange={(
-                                                                value,
-                                                            ) => {
-                                                                form.setFieldValue(
-                                                                    'integrations',
-                                                                    value.map(
-                                                                        (v) =>
-                                                                            ({
-                                                                                type: 'slack',
-                                                                                channelId:
-                                                                                    v,
-                                                                            } as const),
-                                                                    ),
-                                                                );
-                                                            }}
-                                                        />
-                                                    </Stack>
-                                                </Box>
-                                            )}
-                                        </Stack>
-                                    </Stack>
+                                <Paper p="xl">
+                                    <Group align="center" gap="xs" mb="md">
+                                        <Paper p="xxs" withBorder radius="sm">
+                                            <MantineIcon
+                                                icon={IconPlug}
+                                                size="md"
+                                            />
+                                        </Paper>
+                                        <Title order={5} c="gray.9" fw={700}>
+                                            Integrations
+                                        </Title>
+                                    </Group>
+                                    <Stack gap="md">
+                                        <Title order={6}>Slack</Title>
 
-                                    <Group justify="flex-end">
-                                        {!isCreateMode && (
-                                            <Button
-                                                variant="outline"
-                                                color="red"
-                                                leftSection={
+                                        <LoadingOverlay
+                                            visible={isLoadingSlackInstallation}
+                                        />
+
+                                        {!slackInstallation?.organizationUuid ? (
+                                            <Alert
+                                                color="yellow"
+                                                icon={
                                                     <MantineIcon
-                                                        icon={IconTrash}
+                                                        icon={IconInfoCircle}
                                                     />
                                                 }
-                                                onClick={handleDeleteClick}
                                             >
-                                                Delete agent
-                                            </Button>
+                                                <Text fw={500} mb="xs">
+                                                    Slack integration required
+                                                </Text>
+                                                <Text size="sm">
+                                                    To enable AI agent
+                                                    interactions through Slack,
+                                                    please connect your Slack
+                                                    workspace in the{' '}
+                                                    <Anchor
+                                                        href="/generalSettings/integrations"
+                                                        target="_blank"
+                                                        fz="sm"
+                                                    >
+                                                        Integrations settings
+                                                    </Anchor>
+                                                    . Once connected, you can
+                                                    select channels where this
+                                                    agent will be available.
+                                                </Text>
+                                            </Alert>
+                                        ) : (
+                                            <Box>
+                                                <SlackIntegrationSteps
+                                                    slackInstallation={
+                                                        !!slackInstallation?.organizationUuid
+                                                    }
+                                                    channelsConfigured={form.values.integrations.some(
+                                                        (i) =>
+                                                            i.type ===
+                                                                'slack' &&
+                                                            i.channelId,
+                                                    )}
+                                                />
+
+                                                <Stack gap="xs" mt="md">
+                                                    <MultiSelect
+                                                        variant="subtle"
+                                                        disabled={
+                                                            isRefreshing ||
+                                                            !slackInstallation?.organizationUuid
+                                                        }
+                                                        description={
+                                                            !slackInstallation?.organizationUuid
+                                                                ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
+                                                                : undefined
+                                                        }
+                                                        labelProps={{
+                                                            style: {
+                                                                width: '100%',
+                                                            },
+                                                        }}
+                                                        label="Channels"
+                                                        placeholder="Pick a channel"
+                                                        data={
+                                                            slackChannelOptions
+                                                        }
+                                                        value={form.values.integrations.map(
+                                                            (i) => i.channelId,
+                                                        )}
+                                                        searchable
+                                                        rightSectionPointerEvents="all"
+                                                        rightSection={
+                                                            <Tooltip
+                                                                withArrow
+                                                                withinPortal
+                                                                label="Refresh Slack Channels"
+                                                            >
+                                                                <ActionIcon
+                                                                    variant="transparent"
+                                                                    onClick={
+                                                                        refreshChannels
+                                                                    }
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconRefresh
+                                                                        }
+                                                                    />
+                                                                </ActionIcon>
+                                                            </Tooltip>
+                                                        }
+                                                        onChange={(value) => {
+                                                            form.setFieldValue(
+                                                                'integrations',
+                                                                value.map(
+                                                                    (v) =>
+                                                                        ({
+                                                                            type: 'slack',
+                                                                            channelId:
+                                                                                v,
+                                                                        } as const),
+                                                                ),
+                                                            );
+                                                        }}
+                                                    />
+                                                </Stack>
+                                            </Box>
                                         )}
-                                        <Button
-                                            type="submit"
-                                            loading={isCreating || isUpdating}
-                                            leftSection={
-                                                <MantineIcon icon={IconCheck} />
-                                            }
-                                            disabled={
-                                                isCreateMode
-                                                    ? !form.isValid()
-                                                    : !form.isDirty()
-                                            }
-                                        >
-                                            {isCreateMode
-                                                ? 'Create agent'
-                                                : 'Save changes'}
-                                        </Button>
-                                    </Group>
-                                </Stack>
-                            </Group>
+                                    </Stack>
+                                </Paper>
+                            </Stack>
                         </form>
                     </Tabs.Panel>
                     <Tabs.Panel value="conversations" pt="lg">
