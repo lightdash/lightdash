@@ -45,7 +45,7 @@ export const slackPassportStrategy = !(
                   await req.services
                       .getUserService()
                       .linkOpenIdIdentityToUser(req.user, openIdUser);
-                  return done(null);
+                  return done(null, req.user);
               } catch (e: unknown) {
                   if (
                       e &&
@@ -57,7 +57,7 @@ export const slackPassportStrategy = !(
                       console.warn(
                           `Trying to link open id to user ${req.user.userUuid} but user is already linked`,
                       );
-                      return done(null); // Silent error if user is already linked to the identity
+                      return done(null, req.user); // Silent error if user is already linked to the identity
                   }
                   console.error(
                       `Unable to link open id to user ${req.user.userUuid}`,
