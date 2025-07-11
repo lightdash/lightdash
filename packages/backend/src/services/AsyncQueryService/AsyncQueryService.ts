@@ -66,6 +66,7 @@ import {
     QueryHistoryStatus,
     type ResultColumns,
     ResultRow,
+    type RunAsyncWarehouseQueryArgs,
     type RunQueryTags,
     S3Error,
     SCHEDULER_TASKS,
@@ -1143,40 +1144,18 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      * TODO: Remove once feature flag `WorkerQueryExecution` is completely removed as this is duplicated in SchedulerTask.runAsyncWarehouseQuery
      */
-    private async runAsyncWarehouseQuery({
-        user,
+    public async runAsyncWarehouseQuery({
+        userUuid,
         projectUuid,
         query,
         fieldsMap,
         queryTags,
-        warehouseCredentials,
+        warehouseCredentialsOverrides,
         queryHistoryUuid,
         cacheKey,
         pivotConfiguration,
         originalColumns,
-    }: {
-        user: SessionUser;
-        projectUuid: string;
-        queryTags: RunQueryTags;
-        query: string;
-        fieldsMap: ItemsMap;
-        queryHistoryUuid: string;
-        cacheKey: string;
-        warehouseCredentials: {
-            credentials: CreateWarehouseCredentials;
-            credentialOverrides: {
-                snowflakeVirtualWarehouse?: string;
-                databricksCompute?: string;
-            };
-        };
-        pivotConfiguration?: {
-            indexColumn: PivotIndexColum;
-            valuesColumns: ValuesColumn[];
-            groupByColumns: GroupByColumn[] | undefined;
-            sortBy: SortBy | undefined;
-        };
-        originalColumns?: ResultColumns;
-    }) {
+    }: RunAsyncWarehouseQueryArgs) {
         let stream:
             | {
                   write: (rows: Record<string, unknown>[]) => void;
@@ -1186,13 +1165,24 @@ export class AsyncQueryService extends ProjectService {
 
         let sshTunnel: SshTunnel<CreateWarehouseCredentials> | undefined;
 
+        let warehouseCredentialsType:
+            | CreateWarehouseCredentials['type']
+            | undefined;
+
         try {
+            const warehouseCredentials = await this.getWarehouseCredentials(
+                projectUuid,
+                userUuid,
+            );
+
+            warehouseCredentialsType = warehouseCredentials.type;
+
             // Get warehouse client using the projectService
             const { warehouseClient, sshTunnel: warehouseSshTunnel } =
                 await this._getWarehouseClient(
                     projectUuid,
-                    warehouseCredentials.credentials,
-                    warehouseCredentials.credentialOverrides,
+                    warehouseCredentials,
+                    warehouseCredentialsOverrides,
                 );
 
             sshTunnel = warehouseSshTunnel;
@@ -1216,7 +1206,7 @@ export class AsyncQueryService extends ProjectService {
             const createdAt = new Date();
             const newExpiresAt = this.getCacheExpiresAt(createdAt);
             this.analytics.track({
-                userId: user.userUuid,
+                userId: userUuid,
                 event: 'results_cache.create',
                 properties: {
                     projectId: projectUuid,
@@ -1244,7 +1234,7 @@ export class AsyncQueryService extends ProjectService {
             });
 
             this.analytics.track({
-                userId: user.userUuid,
+                userId: userUuid,
                 event: 'query.ready',
                 properties: {
                     queryId: queryHistoryUuid,
@@ -1264,7 +1254,7 @@ export class AsyncQueryService extends ProjectService {
                 await stream.close();
 
                 this.analytics.track({
-                    userId: user.userUuid,
+                    userId: userUuid,
                     event: 'results_cache.write',
                     properties: {
                         queryId: queryHistoryUuid,
@@ -1280,7 +1270,7 @@ export class AsyncQueryService extends ProjectService {
             await this.queryHistoryModel.update(
                 queryHistoryUuid,
                 projectUuid,
-                user.userUuid,
+                userUuid,
                 {
                     warehouse_query_id: queryId,
                     warehouse_query_metadata: queryMetadata,
@@ -1304,18 +1294,18 @@ export class AsyncQueryService extends ProjectService {
             );
         } catch (e) {
             this.analytics.track({
-                userId: user.userUuid,
+                userId: userUuid,
                 event: 'query.error',
                 properties: {
                     queryId: queryHistoryUuid,
                     projectId: projectUuid,
-                    warehouseType: warehouseCredentials.credentials.type,
+                    warehouseType: warehouseCredentialsType,
                 },
             });
             await this.queryHistoryModel.update(
                 queryHistoryUuid,
                 projectUuid,
-                user.userUuid,
+                userUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
                     error: getErrorMessage(e),
@@ -1460,31 +1450,31 @@ export class AsyncQueryService extends ProjectService {
                         throw new ForbiddenError();
                     }
 
-                    const originalCredentials =
+                    // Once we remove the feature flag we won't need to fetch the credentials here, they will only be fetched in the scheduler task
+                    const warehouseCredentials =
                         await this.getWarehouseCredentials(
                             projectUuid,
                             user.userUuid,
                         );
 
-                    const warehouseCredentials = {
-                        credentials: originalCredentials,
-                        credentialOverrides: {
+                    const warehouseCredentialsType = warehouseCredentials.type;
+                    const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
+                        {
                             snowflakeVirtualWarehouse: explore.warehouse,
                             databricksCompute: explore.databricksCompute,
-                        },
-                    };
+                        };
+
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',
-                        warehouseCredentials.credentials.type,
+                        warehouseCredentialsType,
                     );
 
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
                         pivotedQuery =
                             await ProjectService.applyPivotToSqlQuery({
-                                warehouseType:
-                                    warehouseCredentials.credentials.type,
+                                warehouseType: warehouseCredentialsType,
                                 sql: compiledQuery,
                                 indexColumn: pivotConfiguration.indexColumn,
                                 valuesColumns: pivotConfiguration.valuesColumns,
@@ -1548,8 +1538,7 @@ export class AsyncQueryService extends ProjectService {
                             projectId: projectUuid,
                             context,
                             queryId: queryHistoryUuid,
-                            warehouseType:
-                                warehouseCredentials.credentials.type,
+                            warehouseType: warehouseCredentialsType,
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery,
@@ -1615,34 +1604,34 @@ export class AsyncQueryService extends ProjectService {
                         this.logger.info(
                             `Queuing query ${queryHistoryUuid} for execution in a worker`,
                         );
-                        // await this.schedulerClient.scheduleTask(
-                        //     SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                        //     {
-                        //         organizationUuid,
-                        //         userUuid: user.userUuid,
-                        //         projectUuid,
-                        //         queryTags,
-                        //         query,
-                        //         fieldsMap,
-                        //         queryHistoryUuid,
-                        //         cacheKey,
-                        //         warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
-                        //         pivotConfiguration,
-                        //         originalColumns,
-                        //     },
-                        //     JobPriority.HIGH,
-                        // );
+                        await this.schedulerClient.scheduleTask(
+                            SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                            {
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                organizationUuid,
+                                queryTags,
+                                query,
+                                fieldsMap,
+                                queryHistoryUuid,
+                                cacheKey,
+                                pivotConfiguration,
+                                originalColumns,
+                                warehouseCredentialsOverrides,
+                            },
+                            JobPriority.HIGH,
+                        );
                     } else {
                         this.logger.info(
                             `Executing query ${queryHistoryUuid} in the main loop`,
                         );
                         void this.runAsyncWarehouseQuery({
-                            user,
+                            userUuid: user.userUuid,
                             projectUuid,
                             query,
                             fieldsMap,
                             queryTags,
-                            warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
+                            warehouseCredentialsOverrides,
                             queryHistoryUuid,
                             pivotConfiguration,
                             cacheKey,
