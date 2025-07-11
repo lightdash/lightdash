@@ -28,4 +28,5 @@ export type TableBase = {
     requiredAttributes?: Record<string, string | string[]>;
     groupDetails?: Record<string, GroupType>;
     defaultTimeDimension?: DefaultTimeDimension;
+    aiHint?: string;
 };

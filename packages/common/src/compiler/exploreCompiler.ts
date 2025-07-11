@@ -82,6 +82,7 @@ export type UncompiledExplore = {
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
+    aiHint?: string;
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
 };
@@ -120,6 +121,7 @@ export class ExploreCompiler {
         spotlightConfig,
         meta,
         databricksCompute,
+        aiHint,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -278,6 +280,7 @@ export class ExploreCompiler {
             ymlPath,
             sqlPath,
             databricksCompute,
+            ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource(
                 spotlightVisibility,
                 spotlightCategories,

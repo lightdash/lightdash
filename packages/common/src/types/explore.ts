@@ -73,6 +73,7 @@ export type Explore = {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    aiHint?: string;
 };
 
 export enum InlineErrorType {
