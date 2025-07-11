@@ -869,7 +869,7 @@ export class MetricQueryBuilder {
                         ...dimensionSelects,
                         ...table.primaryKey.map(
                             (pk) =>
-                                `  ${table.name}.${pk} AS ${fieldQuoteChar}pk_${pk}${fieldQuoteChar}`,
+                                `  ${fieldQuoteChar}${table.name}${fieldQuoteChar}.${pk} AS ${fieldQuoteChar}pk_${pk}${fieldQuoteChar}`,
                         ),
                     ].join(',\n'),
                     sqlFrom,
@@ -915,7 +915,7 @@ export class MetricQueryBuilder {
                     }${fieldQuoteChar} ON ${table.primaryKey
                         .map(
                             (pk) =>
-                                `${keysCteName}.${fieldQuoteChar}pk_${pk}${fieldQuoteChar} = ${table.name}.${fieldQuoteChar}${pk}${fieldQuoteChar}`,
+                                `${keysCteName}.${fieldQuoteChar}pk_${pk}${fieldQuoteChar} = ${fieldQuoteChar}${table.name}${fieldQuoteChar}.${pk}`,
                         )
                         .join(' AND ')}\n`,
                     dimensionAlias.length > 0

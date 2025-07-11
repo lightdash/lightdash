@@ -97,7 +97,8 @@
                                             "enum": [
                                                 "one-to-many",
                                                 "many-to-one",
-                                                "one-to-one"
+                                                "one-to-one",
+                                                "many-to-many"
                                             ]
                                         }
                                     },

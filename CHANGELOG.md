@@ -1,3 +1,36 @@
+## [0.1803.1](https://github.com/lightdash/lightdash/compare/0.1803.0...0.1803.1) (2025-07-11)
+
+
+### Bug Fixes
+
+* properly quote table names in SQL query builder ([#15819](https://github.com/lightdash/lightdash/issues/15819)) ([5873ba6](https://github.com/lightdash/lightdash/commit/5873ba6e299fa01cfd498c385157fbcaebb41e6f))
+
+# [0.1803.0](https://github.com/lightdash/lightdash/compare/0.1802.1...0.1803.0) (2025-07-11)
+
+
+### Features
+
+* add support for many-to-many join relationships ([#15818](https://github.com/lightdash/lightdash/issues/15818)) ([36d2d15](https://github.com/lightdash/lightdash/commit/36d2d15e98f0fd6e6616b9cb4f7b6b2bb56201d6))
+
+## [0.1802.1](https://github.com/lightdash/lightdash/compare/0.1802.0...0.1802.1) (2025-07-11)
+
+
+### Bug Fixes
+
+* invalidate cache for minimal charts (export image) ([#15797](https://github.com/lightdash/lightdash/issues/15797)) ([6e3226c](https://github.com/lightdash/lightdash/commit/6e3226c38a118d280b93f1a81c128dde44c3d435))
+
+# [0.1802.0](https://github.com/lightdash/lightdash/compare/0.1801.0...0.1802.0) (2025-07-11)
+
+
+### Bug Fixes
+
+* invalidate cache for dashboard deliveries ([#15796](https://github.com/lightdash/lightdash/issues/15796)) ([e5a3b7d](https://github.com/lightdash/lightdash/commit/e5a3b7d838a055e3c7a29b640c861825a6dbd65d))
+
+
+### Features
+
+* add --skip-create-space to upload CLI ([#15801](https://github.com/lightdash/lightdash/issues/15801)) ([2b3cd71](https://github.com/lightdash/lightdash/commit/2b3cd71f4f28578177d95eb95773b533086a45e6))
+
 # [0.1801.0](https://github.com/lightdash/lightdash/compare/0.1800.1...0.1801.0) (2025-07-10)
 
 

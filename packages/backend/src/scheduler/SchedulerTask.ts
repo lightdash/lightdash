@@ -707,12 +707,13 @@ export default class SchedulerTask {
 
                 try {
                     if (savedChartUuid) {
-                        csvUrl = await this.csvService.getCsvForChart(
+                        csvUrl = await this.csvService.getCsvForChart({
                             user,
-                            savedChartUuid,
-                            csvOptions,
+                            chartUuid: savedChartUuid,
+                            options: csvOptions,
                             jobId,
-                        );
+                            invalidateCache: true,
+                        });
                     } else if (dashboardUuid) {
                         this.analytics.track({
                             event: 'download_results.started',
@@ -732,6 +733,7 @@ export default class SchedulerTask {
                                 ? scheduler.filters
                                 : undefined,
                             selectedTabs,
+                            invalidateCache: true,
                         });
 
                         this.analytics.track({
