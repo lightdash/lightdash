@@ -289,6 +289,37 @@ When you want to start:
 docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local start
 ```
 
+#### Testing an SSH Tunnel Locally
+
+To test an SSH tunnel with Lightdash in your local development environment:
+
+1. **Go to Project Connection Advanced Settings**
+   - In the Lightdash UI, navigate to your project connection settings.
+   - Expand the advanced settings and set `Use SSH tunnel` to **true**.
+
+2. **Add the SSH Tunnel config**
+   - SSH Remote host: `ssh-server`
+   - SSH Remote port: `2222`
+   - SSH Username: `sshuser`
+
+3. **Generate a Key Pair**
+   - Use the UI to generate a new SSH key pair for the tunnel.
+
+4. **Copy the Public Key**
+   - Copy the generated public key from the UI.
+   - Open your `.env.development.local` file and set:
+     ```
+     DEV_SSH_PUBLIC_KEY="<paste your public key here>"
+     ```
+
+5. **Restart Docker Compose**
+   - Re-run the following command to apply the new SSH key:
+     ```sh
+     docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+     ```
+
+This will update the SSH server container with your new public key, allowing you to test SSH tunnel connections from your local Lightdash instance.
+
 #### Downloading files stored in local docker container MinIO
 
 When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible

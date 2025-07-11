@@ -102,6 +102,26 @@ services:
         ports:
             - '5432:5432'
 
+    ssh-server:
+        image: linuxserver/openssh-server:latest
+        restart: always
+        depends_on:
+            - db-dev
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=UTC
+            - PUBLIC_KEY=${DEV_SSH_PUBLIC_KEY:-}
+            - USER_NAME=sshuser
+            - SUDO_ACCESS=true
+            - PASSWORD_ACCESS=false
+            - LOG_STDOUT=true
+        ports:
+            - '2222:2222'
+        volumes:
+            - ./ssh-server-configs/sshd_config:/config/sshd/sshd_config
+
+
     headless-browser:
         image: ghcr.io/browserless/chromium:v2.24.3
         restart: always
