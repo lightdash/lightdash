@@ -14,6 +14,7 @@ import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
+import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
 import EmbedProvider from './providers/Embed/EmbedProvider';
 
 const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
@@ -130,10 +131,18 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
     },
 ];
 
+const COMMERCIAL_SLACK_AUTH_ROUTES: RouteObject[] = [
+    {
+        path: '/auth/slack/success',
+        element: <SlackAuthSuccess />,
+    },
+];
+
 export const CommercialWebAppRoutes = [
     ...COMMERCIAL_EMBED_ROUTES,
     ...COMMERCIAL_AI_ROUTES,
     ...COMMERCIAL_AI_AGENTS_ROUTES,
+    ...COMMERCIAL_SLACK_AUTH_ROUTES,
 ];
 
 export const CommercialMobileRoutes = [...COMMERCIAL_EMBED_ROUTES];
