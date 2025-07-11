@@ -1,3 +1,10 @@
+## [0.1803.2](https://github.com/lightdash/lightdash/compare/0.1803.1...0.1803.2) (2025-07-11)
+
+
+### Bug Fixes
+
+* scheduler task to run queries should run asyncQueryService function ([#15802](https://github.com/lightdash/lightdash/issues/15802)) ([71c9aff](https://github.com/lightdash/lightdash/commit/71c9aff8a0c928cb94f796c300f2ebac5de44717))
+
 ## [0.1803.1](https://github.com/lightdash/lightdash/compare/0.1803.0...0.1803.1) (2025-07-11)
 
 
