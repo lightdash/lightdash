@@ -1,3 +1,15 @@
+# [0.1805.0](https://github.com/lightdash/lightdash/compare/0.1804.0...0.1805.0) (2025-07-11)
+
+
+### Bug Fixes
+
+* improve custom visualization resizing with useResizeObserver ([#15821](https://github.com/lightdash/lightdash/issues/15821)) ([b40dde6](https://github.com/lightdash/lightdash/commit/b40dde62d4895ef7f355ed24d87a85aaa9ae8529))
+
+
+### Features
+
+* I want my visualization sidebar to be resizeable ([#15817](https://github.com/lightdash/lightdash/issues/15817)) ([6ffffec](https://github.com/lightdash/lightdash/commit/6ffffec6921534df9e6a3f33daf5c272f6d02be0)), closes [#15812](https://github.com/lightdash/lightdash/issues/15812)
+
 # [0.1804.0](https://github.com/lightdash/lightdash/compare/0.1803.3...0.1804.0) (2025-07-11)
 
 
