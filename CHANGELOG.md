@@ -1,3 +1,10 @@
+# [0.1803.0](https://github.com/lightdash/lightdash/compare/0.1802.1...0.1803.0) (2025-07-11)
+
+
+### Features
+
+* add support for many-to-many join relationships ([#15818](https://github.com/lightdash/lightdash/issues/15818)) ([36d2d15](https://github.com/lightdash/lightdash/commit/36d2d15e98f0fd6e6616b9cb4f7b6b2bb56201d6))
+
 ## [0.1802.1](https://github.com/lightdash/lightdash/compare/0.1802.0...0.1802.1) (2025-07-11)
 
 
