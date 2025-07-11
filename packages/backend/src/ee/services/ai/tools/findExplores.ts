@@ -24,6 +24,7 @@ ${explores
     .map(
         (explore) => `Explore/Model id: ${explore.name}
 Name/Label: ${explore.label}
+${explore.aiHint ? `Hint: ${explore.aiHint}` : ''}
 Description: ${explore.description ?? 'No description'}
 ${
     explore.joinedTables.length > 0
