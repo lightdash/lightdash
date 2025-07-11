@@ -1,3 +1,10 @@
+## [0.1803.1](https://github.com/lightdash/lightdash/compare/0.1803.0...0.1803.1) (2025-07-11)
+
+
+### Bug Fixes
+
+* properly quote table names in SQL query builder ([#15819](https://github.com/lightdash/lightdash/issues/15819)) ([5873ba6](https://github.com/lightdash/lightdash/commit/5873ba6e299fa01cfd498c385157fbcaebb41e6f))
+
 # [0.1803.0](https://github.com/lightdash/lightdash/compare/0.1802.1...0.1803.0) (2025-07-11)
 
 
