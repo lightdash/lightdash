@@ -232,6 +232,46 @@ export class GroupsModel {
         };
     }
 
+    async findUserInGroups(filters: {
+        userUuid: string;
+        organizationUuid: string;
+        groupUuids?: string[];
+    }): Promise<GroupMembership[]> {
+        const query = this.database(GroupMembershipTableName)
+            .innerJoin(
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .where(`${UserTableName}.user_uuid`, filters.userUuid);
+
+        if (filters.organizationUuid) {
+            void query
+                .innerJoin(
+                    OrganizationTableName,
+                    `${GroupMembershipTableName}.organization_id`,
+                    `${OrganizationTableName}.organization_id`,
+                )
+                .where(
+                    `${OrganizationTableName}.organization_uuid`,
+                    filters.organizationUuid,
+                );
+        }
+
+        if (filters.groupUuids && filters.groupUuids.length > 0) {
+            void query.whereIn(
+                `${GroupMembershipTableName}.group_uuid`,
+                filters.groupUuids,
+            );
+        }
+
+        const rows = await query;
+        return rows.map((row) => ({
+            groupUuid: row.group_uuid,
+            userUuid: row.user_uuid,
+        }));
+    }
+
     async createGroup({
         createdByUserUuid,
         createGroup,
