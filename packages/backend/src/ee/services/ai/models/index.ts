@@ -3,6 +3,7 @@ import { LightdashConfig } from '../../../../config/parseConfig';
 import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getOpenaiGptmodel } from './openai-gpt';
+import { getOpenRouterModel } from './openrouter';
 
 export const getModel = (config: LightdashConfig['ai']['copilot']) => {
     switch (config.defaultProvider) {
@@ -26,6 +27,15 @@ export const getModel = (config: LightdashConfig['ai']['copilot']) => {
                 throw new ParameterError('Anthropic configuration is required');
             }
             return getAnthropicModel(anthropicConfig);
+        }
+        case 'openrouter': {
+            const openrouterConfig = config.providers.openrouter;
+            if (!openrouterConfig) {
+                throw new ParameterError(
+                    'OpenRouter configuration is required',
+                );
+            }
+            return getOpenRouterModel(openrouterConfig);
         }
         default:
             return assertUnreachable(
