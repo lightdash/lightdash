@@ -183,7 +183,7 @@ apiV1Router.get(
     '/auth/slack/callback',
     passport.authenticate('slack', {
         failureRedirect: '/login',
-        successRedirect: '/',
+        successRedirect: '/auth/slack/success',
     }),
 );
 
