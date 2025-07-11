@@ -3,6 +3,7 @@ import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/u
 import { ExplorerSection, type ExplorerReduceState } from './types';
 
 export const defaultState: ExplorerReduceState = {
+    isVisualizationConfigOpen: false,
     shouldFetchResults: false,
     previouslyFetchedState: undefined,
     expandedSections: [ExplorerSection.RESULTS],
