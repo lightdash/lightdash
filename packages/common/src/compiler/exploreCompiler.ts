@@ -1,4 +1,8 @@
-import { type DbtRawModelNode, type SupportedDbtAdapter } from '../types/dbt';
+import {
+    type DbtModelAiConfig,
+    type DbtRawModelNode,
+    type SupportedDbtAdapter,
+} from '../types/dbt';
 import { CompileError } from '../types/errors';
 import {
     type CompiledExploreJoin,
@@ -82,6 +86,7 @@ export type UncompiledExplore = {
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
+    ai?: DbtModelAiConfig;
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
 };
@@ -120,6 +125,7 @@ export class ExploreCompiler {
         spotlightConfig,
         meta,
         databricksCompute,
+        ai,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -278,6 +284,7 @@ export class ExploreCompiler {
             ymlPath,
             sqlPath,
             databricksCompute,
+            ...(ai ? { ai } : {}),
             ...getSpotlightConfigurationForResource(
                 spotlightVisibility,
                 spotlightCategories,

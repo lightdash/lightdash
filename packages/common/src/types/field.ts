@@ -5,6 +5,7 @@ import type {
     LightdashProjectConfig,
 } from '..';
 import { type AnyType } from './any';
+import { type DbtModelAiConfig } from './dbt';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
 import { type TimeFrames } from './timeFrames';
@@ -442,6 +443,7 @@ export interface Dimension extends Field {
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
+    ai?: DbtModelAiConfig;
 }
 
 export interface CompiledDimension extends Dimension {
@@ -587,6 +589,7 @@ export interface Metric extends Field {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    ai?: DbtModelAiConfig;
 }
 
 export const isFilterableDimension = (

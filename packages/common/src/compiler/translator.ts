@@ -192,6 +192,7 @@ const convertDimension = (
                       : [meta.dimension.tags],
               }
             : {}),
+        ...(meta.dimension?.ai ? { ai: meta.dimension.ai } : {}),
     };
 };
 
@@ -607,6 +608,7 @@ export const convertTable = (
                   },
               }
             : {}),
+        ...(meta.ai ? { ai: meta.ai } : {}),
     };
 };
 
@@ -801,6 +803,7 @@ export const convertExplores = async (
                     ymlPath: model.patch_path?.split('://')?.[1],
                     sqlPath: model.path,
                     spotlightConfig: lightdashProjectConfig.spotlight,
+                    ...(meta.ai ? { ai: meta.ai } : {}),
                     meta: {
                         ...meta,
                         // Override description for additional explores

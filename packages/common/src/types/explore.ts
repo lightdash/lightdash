@@ -1,4 +1,5 @@
 import {
+    type DbtModelAiConfig,
     type DbtModelJoinType,
     type LineageGraph,
     type SupportedDbtAdapter,
@@ -73,6 +74,7 @@ export type Explore = {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    ai?: DbtModelAiConfig;
 };
 
 export enum InlineErrorType {
@@ -112,6 +114,7 @@ export type Table = TableBase & {
     metrics: { [fieldName: string]: Metric }; //
     lineageGraph: LineageGraph; // DAG structure representing the lineage of the table
     source?: Source;
+    ai?: DbtModelAiConfig;
 };
 
 export enum CustomViewType {
