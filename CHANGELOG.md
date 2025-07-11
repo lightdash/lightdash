@@ -1,3 +1,10 @@
+# [0.1807.0](https://github.com/lightdash/lightdash/compare/0.1806.0...0.1807.0) (2025-07-11)
+
+
+### Features
+
+* add OpenRouter as AI provider option ([#15813](https://github.com/lightdash/lightdash/issues/15813)) ([381d7e1](https://github.com/lightdash/lightdash/commit/381d7e1449bbd2abb9254b7794f8228206595b46))
+
 # [0.1806.0](https://github.com/lightdash/lightdash/compare/0.1805.0...0.1806.0) (2025-07-11)
 
 
