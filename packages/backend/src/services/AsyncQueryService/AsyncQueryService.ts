@@ -105,6 +105,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
+import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -138,7 +139,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     savedSqlModel: SavedSqlModel;
     featureFlagModel: FeatureFlagModel;
     storageClient: S3ResultsFileStorageClient;
-    csvService: CsvService;
+    pivotTableService: PivotTableService;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -152,7 +153,7 @@ export class AsyncQueryService extends ProjectService {
 
     storageClient: S3ResultsFileStorageClient;
 
-    csvService: CsvService;
+    pivotTableService: PivotTableService;
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
@@ -161,7 +162,7 @@ export class AsyncQueryService extends ProjectService {
         this.savedSqlModel = args.savedSqlModel;
         this.featureFlagModel = args.featureFlagModel;
         this.storageClient = args.storageClient;
-        this.csvService = args.csvService;
+        this.pivotTableService = args.pivotTableService;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -826,7 +827,7 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
                 if (pivotConfig && queryHistory.metricQuery) {
-                    return this.csvService.downloadAsyncPivotTableCsv({
+                    return this.pivotTableService.downloadAsyncPivotTableCsv({
                         resultsFileName,
                         fields,
                         metricQuery: queryHistory.metricQuery,
