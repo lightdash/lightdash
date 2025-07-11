@@ -1,6 +1,8 @@
 import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
@@ -40,6 +42,8 @@ import {
 } from '../../database/entities/scheduler';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
+import { getColumnMatchRegexQuery } from '../SearchModel/utils/search';
 
 type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
@@ -212,6 +216,89 @@ export class SchedulerModel {
             .where(`${SchedulerTableName}.enabled`, true)
             .where(`${UserTableName}.is_active`, true);
         return this.getSchedulersWithTargets(await schedulers);
+    }
+
+    async getSchedulers({
+        projectUuid,
+        paginateArgs,
+        searchQuery,
+        sort,
+    }: {
+        projectUuid?: string;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+    }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        let baseQuery = SchedulerModel.getBaseSchedulerQuery(this.database);
+
+        // Apply search query if present
+        if (searchQuery) {
+            baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
+                `${SchedulerTableName}.name`,
+            ]);
+        }
+        // Create a union of two queries: one for saved charts and one for dashboards
+        const schedulerCharts = baseQuery
+            .clone()
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNotNull(`${SavedChartsTableName}.space_id`);
+            })
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
+
+        const schedulerDashboards = baseQuery
+            .clone()
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
+
+        // Use union to combine both queries
+        let query = schedulerCharts.unionAll(schedulerDashboards);
+
+        // Apply sorting if present, default to name asc
+        if (sort && sort.column && sort.direction) {
+            query = query.orderBy(sort.column, sort.direction);
+        } else {
+            query = query.orderBy([
+                {
+                    column: `name`,
+                    order: 'asc',
+                },
+                {
+                    column: `created_at`,
+                    order: 'asc',
+                },
+            ]);
+        }
+
+        // Paginate the results
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: await this.getSchedulersWithTargets(data),
+        };
     }
 
     async getChartSchedulers(

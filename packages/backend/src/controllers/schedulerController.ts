@@ -5,7 +5,9 @@ import {
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
+    ApiSchedulersResponse,
     ApiTestSchedulerResponse,
+    KnexPaginateArgs,
     SchedulerJobStatus,
 } from '@lightdash/common';
 import {
@@ -17,6 +19,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -54,6 +57,61 @@ export class SchedulerController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .getSchedulerLogs(req.user!, projectUuid),
+        };
+    }
+
+    /**
+     * List all schedulers with pagination, search, and sorting
+     * @param req express request
+     * @param projectUuid
+     * @param pageSize number of items per page
+     * @param page page number
+     * @param searchQuery search query to filter schedulers by name
+     * @param sortBy column to sort by
+     * @param sortDirection sort direction (asc or desc)
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectUuid}/list')
+    @OperationId('ListSchedulers')
+    async getSchedulers(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() pageSize?: number,
+        @Query() page?: number,
+        @Query() searchQuery?: string,
+        @Query() sortBy?: 'name',
+        @Query() sortDirection?: 'asc' | 'desc',
+    ): Promise<ApiSchedulersResponse> {
+        this.setStatus(200);
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
+        let sort: { column: string; direction: 'asc' | 'desc' } | undefined;
+        if (sortBy && sortDirection) {
+            sort = {
+                column: sortBy,
+                direction: sortDirection,
+            };
+        }
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getSchedulers(
+                    req.user!,
+                    projectUuid,
+                    paginateArgs,
+                    searchQuery,
+                    sort,
+                ),
         };
     }
 
