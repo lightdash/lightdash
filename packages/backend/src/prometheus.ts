@@ -13,6 +13,9 @@ export default class PrometheusMetrics {
 
     private server: http.Server | null = null;
 
+    // Add query status metrics
+    public queryStatusCounter: prometheus.Counter<string> | null = null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
     }
@@ -49,6 +52,32 @@ export default class PrometheusMetrics {
             } catch (e) {
                 Logger.error('Error starting prometheus metrics', e);
             }
+        }
+    }
+
+    public initializeQueryMetrics() {
+        const { enabled, ...rest } = this.config;
+        if (enabled) {
+            this.queryStatusCounter = new prometheus.Counter({
+                name: 'query_status_total',
+                help: 'Total number of queries by status',
+                labelNames: ['status', 'warehouse_type', 'context'],
+                ...rest,
+            });
+        }
+    }
+
+    public incrementQueryStatus(
+        status: string,
+        warehouseType?: string,
+        context?: string,
+    ) {
+        if (this.queryStatusCounter) {
+            this.queryStatusCounter.inc({
+                status,
+                warehouse_type: warehouseType || 'unknown',
+                context: context || 'unknown',
+            });
         }
     }
 
