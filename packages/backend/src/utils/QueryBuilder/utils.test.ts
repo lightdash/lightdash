@@ -265,7 +265,7 @@ describe('with custom dimensions', () => {
     it('getCustomDimensionSql with empty custom dimension', () => {
         expect(
             getCustomBinDimensionSql({
-                warehouseClient: bigqueryClientMock,
+                warehouseSqlBuilder: bigqueryClientMock,
                 explore: EXPLORE,
                 customDimensions: undefined,
                 userAttributes: {},
@@ -278,7 +278,7 @@ describe('with custom dimensions', () => {
     it('getCustomSqlDimensionSql with custom sql dimension', () => {
         expect(
             getCustomSqlDimensionSql({
-                warehouseClient: bigqueryClientMock,
+                warehouseSqlBuilder: bigqueryClientMock,
                 customDimensions: [CUSTOM_SQL_DIMENSION],
             }),
         ).toStrictEqual({
@@ -290,7 +290,7 @@ describe('with custom dimensions', () => {
     it('getCustomDimensionSql with custom dimension', () => {
         expect(
             getCustomBinDimensionSql({
-                warehouseClient: bigqueryClientMock,
+                warehouseSqlBuilder: bigqueryClientMock,
 
                 explore: EXPLORE,
                 customDimensions:
@@ -329,7 +329,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
     it('getCustomDimensionSql with only 1 bin', () => {
         expect(
             getCustomBinDimensionSql({
-                warehouseClient: bigqueryClientMock,
+                warehouseSqlBuilder: bigqueryClientMock,
 
                 explore: EXPLORE,
                 customDimensions: [
@@ -368,7 +368,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
     it('getCustomDimensionSql with sorted custom dimension ', () => {
         expect(
             getCustomBinDimensionSql({
-                warehouseClient: bigqueryClientMock,
+                warehouseSqlBuilder: bigqueryClientMock,
                 explore: EXPLORE,
                 customDimensions:
                     METRIC_QUERY_WITH_CUSTOM_DIMENSION.compiledCustomDimensions?.filter(

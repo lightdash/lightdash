@@ -143,6 +143,7 @@ import {
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseCredentials,
+    type WarehouseSqlBuilder,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -1594,7 +1595,7 @@ export class ProjectService extends BaseService {
     static updateExploreWithDateZoom(
         explore: Explore,
         metricQuery: MetricQuery,
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
         dateZoom?: DateZoom,
     ): Explore {
         if (dateZoom?.granularity) {
@@ -1637,7 +1638,7 @@ export class ProjectService extends BaseService {
                         dimToOverride.name,
                         baseTimeDimension,
                         explore,
-                        warehouseClient,
+                        warehouseSqlBuilder,
                         dateZoom?.granularity,
                     );
 
@@ -1653,7 +1654,7 @@ export class ProjectService extends BaseService {
     static async _compileQuery(
         metricQuery: MetricQuery,
         explore: Explore,
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
         intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         timezone: string,
@@ -1663,20 +1664,20 @@ export class ProjectService extends BaseService {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
             metricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             dateZoom,
         );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
             metricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
         });
 
         const queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
             timezone,

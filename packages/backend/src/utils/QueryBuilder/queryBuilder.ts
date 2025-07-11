@@ -35,6 +35,7 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import {
@@ -64,7 +65,7 @@ export type CompiledQuery = {
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     userAttributes?: UserAttributeValueMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
@@ -85,7 +86,7 @@ export class MetricQueryBuilder {
         const {
             explore,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             userAttributes = {},
             intrinsicUserAttributes,
         } = this.args;
@@ -105,7 +106,7 @@ export class MetricQueryBuilder {
                       tableCompiledSqlWhere,
                       intrinsicUserAttributes,
                       userAttributes,
-                      warehouseClient,
+                      warehouseSqlBuilder,
                   ),
               ]
             : [];
@@ -140,18 +141,16 @@ export class MetricQueryBuilder {
         const {
             explore,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             userAttributes = {},
             intrinsicUserAttributes,
         } = this.args;
         const adapterType: SupportedDbtAdapter =
-            warehouseClient.getAdapterType();
+            warehouseSqlBuilder.getAdapterType();
         const { dimensions, sorts, compiledCustomDimensions, filters } =
             compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const startOfWeek = warehouseClient.getStartOfWeek();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
         const dimensionsObjects = dimensions
             .filter(
                 (id) =>
@@ -176,7 +175,7 @@ export class MetricQueryBuilder {
             dimensions.includes(cd.id),
         );
         const customBinDimensionSql = getCustomBinDimensionSql({
-            warehouseClient,
+            warehouseSqlBuilder,
             explore,
             customDimensions:
                 selectedCustomDimensions?.filter(isCustomBinDimension),
@@ -185,7 +184,7 @@ export class MetricQueryBuilder {
             sorts,
         });
         const customSqlDimensionSql = getCustomSqlDimensionSql({
-            warehouseClient,
+            warehouseSqlBuilder,
             customDimensions: selectedCustomDimensions?.filter(
                 isCompiledCustomSqlDimension,
             ),
@@ -271,16 +270,14 @@ export class MetricQueryBuilder {
         const {
             explore,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             userAttributes = {},
         } = this.args;
         const { metrics, filters, additionalMetrics } = compiledMetricQuery;
         const adapterType: SupportedDbtAdapter =
-            warehouseClient.getAdapterType();
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const startOfWeek = warehouseClient.getStartOfWeek();
+            warehouseSqlBuilder.getAdapterType();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
         // Validate custom metrics
         if (additionalMetrics) {
@@ -370,11 +367,9 @@ export class MetricQueryBuilder {
         selects: string[];
         filtersSQL: string | undefined;
     } {
-        const { compiledMetricQuery, warehouseClient } = this.args;
+        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { filters } = compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         // Selects
         const selects = compiledMetricQuery.compiledTableCalculations.map(
@@ -485,18 +480,16 @@ export class MetricQueryBuilder {
     }
 
     private getFilterRuleSQL(filter: FilterRule, fieldType?: FieldType) {
-        const { explore, compiledMetricQuery, warehouseClient, timezone } =
+        const { explore, compiledMetricQuery, warehouseSqlBuilder, timezone } =
             this.args;
         const adapterType: SupportedDbtAdapter =
-            warehouseClient.getAdapterType();
+            warehouseSqlBuilder.getAdapterType();
         const { compiledCustomDimensions } = compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const stringQuoteChar = warehouseClient.getStringQuoteChar();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const stringQuoteChar = warehouseSqlBuilder.getStringQuoteChar();
         const escapeStringQuoteChar =
-            warehouseClient.getEscapeStringQuoteChar();
-        const startOfWeek = warehouseClient.getStartOfWeek();
+            warehouseSqlBuilder.getEscapeStringQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
         if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
@@ -546,12 +539,10 @@ export class MetricQueryBuilder {
     }
 
     private getSortSQL() {
-        const { explore, compiledMetricQuery, warehouseClient } = this.args;
+        const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { sorts, compiledCustomDimensions } = compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const startOfWeek = warehouseClient.getStartOfWeek();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
         const compiledDimensions = getDimensions(explore);
         let requiresQueryInCTE = false;
         const fieldOrders = sorts.map((sort) => {
@@ -582,7 +573,7 @@ export class MetricQueryBuilder {
 
                 return sortMonthName(
                     sortedDimension,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
             }
@@ -597,7 +588,7 @@ export class MetricQueryBuilder {
                 return sortDayOfWeekName(
                     sortedDimension,
                     startOfWeek,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
             }
@@ -624,7 +615,7 @@ export class MetricQueryBuilder {
     private getBaseTableFromSQL() {
         const {
             explore,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
@@ -633,9 +624,7 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes,
         );
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         return `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
     }
 
@@ -651,13 +640,11 @@ export class MetricQueryBuilder {
     } {
         const {
             explore,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         const selectedTables = new Set<string>([
             ...tablesReferencedInDimensions,
@@ -707,7 +694,7 @@ export class MetricQueryBuilder {
                     join.compiledSqlOn,
                     intrinsicUserAttributes,
                     userAttributes,
-                    warehouseClient,
+                    warehouseSqlBuilder,
                 );
                 return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
@@ -758,14 +745,12 @@ export class MetricQueryBuilder {
         const {
             explore,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
         const { metrics } = compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         // Find tables that potentially have metric inflation and tables without relationship value
         const { tablesWithMetricInflation, joinWithoutRelationship } =

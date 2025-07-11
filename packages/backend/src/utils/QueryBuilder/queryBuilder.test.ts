@@ -84,7 +84,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -98,7 +98,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE_BIGQUERY,
                     compiledMetricQuery: METRIC_QUERY,
-                    warehouseClient: bigqueryClientMock,
+                    warehouseSqlBuilder: bigqueryClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -112,7 +112,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -126,7 +126,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -142,7 +142,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -156,7 +156,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE_JOIN_CHAIN,
                     compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -170,7 +170,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE_ALL_JOIN_TYPES_CHAIN,
                     compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -186,7 +186,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -202,7 +202,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -219,7 +219,7 @@ describe('Query builder', () => {
                     explore: EXPLORE,
                     compiledMetricQuery:
                         METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -238,7 +238,7 @@ describe('Query builder', () => {
                     explore: EXPLORE,
                     compiledMetricQuery:
                         METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -254,7 +254,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -268,7 +268,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -283,7 +283,7 @@ describe('Query builder', () => {
                     explore: EXPLORE,
                     compiledMetricQuery:
                         METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -302,7 +302,7 @@ describe('Query builder', () => {
                     explore: EXPLORE,
                     compiledMetricQuery:
                         METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -318,7 +318,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -334,7 +334,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -348,7 +348,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -365,7 +365,7 @@ describe('Query builder', () => {
                     explore: EXPLORE,
                     compiledMetricQuery:
                         METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -381,7 +381,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE_WITH_SQL_FILTER,
                     compiledMetricQuery: METRIC_QUERY,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
@@ -395,7 +395,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE_WITH_SQL_FILTER,
                     compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     userAttributes: {
                         country: ['EU'],
                     },
@@ -412,7 +412,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    warehouseClient: bigqueryClientMock,
+                    warehouseSqlBuilder: bigqueryClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
@@ -442,7 +442,7 @@ describe('Query builder', () => {
                             },
                         ],
                     },
-                    warehouseClient: bigqueryClientMock,
+                    warehouseSqlBuilder: bigqueryClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
@@ -477,7 +477,7 @@ describe('Query builder', () => {
                         ],
                     },
 
-                    warehouseClient: bigqueryClientMock,
+                    warehouseSqlBuilder: bigqueryClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
@@ -500,7 +500,7 @@ describe('Query builder', () => {
                         sorts: [{ fieldId: 'age_range', descending: true }],
                     },
 
-                    warehouseClient: bigqueryClientMock,
+                    warehouseSqlBuilder: bigqueryClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
@@ -531,7 +531,7 @@ describe('Query builder', () => {
                             },
                         ],
                     },
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
@@ -552,7 +552,7 @@ describe('Query builder', () => {
                     ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
                     dimensions: ['table1_dim1'], // without age_range
                 },
-                warehouseClient: bigqueryClientMock,
+                warehouseSqlBuilder: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
@@ -565,7 +565,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE_WITH_REQUIRED_FILTERS,
                     compiledMetricQuery: METRIC_QUERY,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -581,7 +581,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -613,7 +613,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: exploreWithMonthNameDimension,
                     compiledMetricQuery: METRIC_QUERY_WITH_MONTH_NAME_SORT,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -648,7 +648,7 @@ describe('Query builder', () => {
                     explore: exploreWithDayOfWeekNameDimension,
                     compiledMetricQuery:
                         METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -664,7 +664,7 @@ describe('Query builder', () => {
                 buildQuery({
                     explore: EXPLORE,
                     compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
-                    warehouseClient: warehouseClientMock,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -692,7 +692,7 @@ describe('Query builder', () => {
                 ],
                 metrics: ['table1_metric1', 'table2_metric3'],
             },
-            warehouseClient: warehouseClientMock,
+            warehouseSqlBuilder: warehouseClientMock,
             userAttributes: {},
             intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             timezone: QUERY_BUILDER_UTC_TIMEZONE,

@@ -34,6 +34,7 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { intersection, isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
@@ -231,13 +232,13 @@ export const replaceUserAttributesAsStrings = (
     sql: string,
     intrinsicUserAttributes: IntrinsicUserAttributes,
     userAtttributes: UserAttributeValueMap,
-    warehouseClient: WarehouseClient,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
 ) =>
     replaceUserAttributes(
         sql,
         intrinsicUserAttributes,
         userAtttributes,
-        warehouseClient.getStringQuoteChar(),
+        warehouseSqlBuilder.getStringQuoteChar(),
         '(',
     );
 
@@ -483,16 +484,16 @@ export const applyLimitToSqlQuery = ({
 };
 
 export const getCustomSqlDimensionSql = ({
-    warehouseClient,
+    warehouseSqlBuilder,
     customDimensions,
 }: {
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     customDimensions: CompiledCustomSqlDimension[] | undefined;
 }): { selects: string[]; tables: string[] } | undefined => {
     if (customDimensions === undefined || customDimensions.length === 0) {
         return undefined;
     }
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const selects = customDimensions.map<string>(
         (customDimension) =>
             `  (${customDimension.compiledSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`,
@@ -505,14 +506,14 @@ export const getCustomSqlDimensionSql = ({
 };
 
 export const getCustomBinDimensionSql = ({
-    warehouseClient,
+    warehouseSqlBuilder,
     explore,
     customDimensions,
     intrinsicUserAttributes,
     userAttributes = {},
     sorts = [],
 }: {
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     explore: Explore;
     customDimensions: CustomBinDimension[] | undefined;
     intrinsicUserAttributes: IntrinsicUserAttributes;
@@ -526,16 +527,17 @@ export const getCustomBinDimensionSql = ({
           selects: string[];
       }
     | undefined => {
-    const startOfWeek = warehouseClient.getStartOfWeek();
+    const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
     const getCteReference = (customDimension: CustomDimension) =>
         `${getItemId(customDimension)}_cte`;
 
-    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
+    const adapterType: SupportedDbtAdapter =
+        warehouseSqlBuilder.getAdapterType();
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
@@ -628,7 +630,7 @@ export const getCustomBinDimensionSql = ({
                     (sortField) =>
                         getItemId(customDimension) === sortField.fieldId,
                 );
-            const quoteChar = warehouseClient.getStringQuoteChar();
+            const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
             const dash = `${quoteChar} - ${quoteChar}`;
 
             switch (customDimension.binType) {
@@ -643,7 +645,7 @@ export const getCustomBinDimensionSql = ({
                     const widthSql = `${getFixedWidthBinSelectSql({
                         binWidth: customDimension.binWidth || 1,
                         baseDimensionSql: dimension.compiledSql,
-                        warehouseClient,
+                        warehouseSqlBuilder,
                     })} AS ${customDimensionName}`;
 
                     if (isSorted) {
@@ -665,7 +667,7 @@ export const getCustomBinDimensionSql = ({
                         // Edge case, bin number with only one bucket does not need a CASE statement
                         return [
                             ...acc,
-                            `${warehouseClient.concatString(
+                            `${warehouseSqlBuilder.concatString(
                                 `${cte}.min_id`,
                                 dash,
                                 `${cte}.max_id`,
@@ -688,13 +690,13 @@ export const getCustomBinDimensionSql = ({
                                 i,
                             )} AND ${dimension.compiledSql} < ${to(
                                 i,
-                            )} THEN ${warehouseClient.concatString(
+                            )} THEN ${warehouseSqlBuilder.concatString(
                                 from(i),
                                 dash,
                                 to(i),
                             )}`;
                         }
-                        return `ELSE ${warehouseClient.concatString(
+                        return `ELSE ${warehouseSqlBuilder.concatString(
                             from(i),
                             dash,
                             `${cte}.max_id`,
@@ -757,7 +759,7 @@ export const getCustomBinDimensionSql = ({
                     const customRangeSql = `${getCustomRangeSelectSql({
                         binRanges: customDimension.customRange || [],
                         baseDimensionSql: dimension.compiledSql,
-                        warehouseClient,
+                        warehouseSqlBuilder,
                     })} AS ${customDimensionName}`;
 
                     if (isSorted) {
