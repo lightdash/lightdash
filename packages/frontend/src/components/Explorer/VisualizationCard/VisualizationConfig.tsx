@@ -60,7 +60,7 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 </Tooltip>
             </Group>
 
-            <Divider my="sm" />
+            <Divider />
 
             <Group>
                 <Text fw={600}>Chart type</Text>
