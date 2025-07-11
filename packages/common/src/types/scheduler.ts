@@ -518,16 +518,19 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
     dateZoomGranularity?: DateGranularity;
 };
 
-export type AsyncWarehouseQueryPayload = TraceTaskBase & {
+// ! Type defined here because it's used in both AsyncQueryService and SchedulerTask
+export type RunAsyncWarehouseQueryArgs = {
     userUuid: string;
     projectUuid: string;
-    organizationUuid: string;
     queryTags: RunQueryTags;
     query: string;
     fieldsMap: ItemsMap;
     queryHistoryUuid: string;
     cacheKey: string;
-    exploreName: string;
+    warehouseCredentialsOverrides?: {
+        snowflakeVirtualWarehouse?: string;
+        databricksCompute?: string;
+    };
     pivotConfiguration?: {
         indexColumn: PivotIndexColum;
         valuesColumns: ValuesColumn[];
@@ -536,3 +539,6 @@ export type AsyncWarehouseQueryPayload = TraceTaskBase & {
     };
     originalColumns?: ResultColumns;
 };
+
+export type AsyncWarehouseQueryPayload = TraceTaskBase &
+    RunAsyncWarehouseQueryArgs;

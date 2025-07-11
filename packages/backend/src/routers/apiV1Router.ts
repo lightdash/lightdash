@@ -181,8 +181,10 @@ apiV1Router.get(
 // OAuth callback url
 apiV1Router.get(
     '/auth/slack/callback',
-    passport.authenticate('slack', { failureRedirect: '/login' }),
-    (req, res) => res.redirect('/'),
+    passport.authenticate('slack', {
+        failureRedirect: '/login',
+        successRedirect: '/auth/slack/success',
+    }),
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {

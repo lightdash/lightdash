@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1803.1",
+    "version": "0.1807.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -56,6 +56,7 @@
         "@octokit/core": "^5.1.1",
         "@octokit/request": "^8.4.1",
         "@octokit/rest": "^20.0.2",
+        "@openrouter/ai-sdk-provider": "^0.7.2",
         "@rudderstack/rudder-sdk-node": "^2.0.6",
         "@sentry/core": "^9.31.0",
         "@sentry/node": "^9.31.0",

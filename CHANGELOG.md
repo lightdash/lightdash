@@ -1,3 +1,50 @@
+# [0.1807.0](https://github.com/lightdash/lightdash/compare/0.1806.0...0.1807.0) (2025-07-11)
+
+
+### Features
+
+* add OpenRouter as AI provider option ([#15813](https://github.com/lightdash/lightdash/issues/15813)) ([381d7e1](https://github.com/lightdash/lightdash/commit/381d7e1449bbd2abb9254b7794f8228206595b46))
+
+# [0.1806.0](https://github.com/lightdash/lightdash/compare/0.1805.0...0.1806.0) (2025-07-11)
+
+
+### Features
+
+* Restructure Agent edit page ([#15815](https://github.com/lightdash/lightdash/issues/15815)) ([b1f8251](https://github.com/lightdash/lightdash/commit/b1f82510eefb8739824dd11959c258618b72921b))
+
+# [0.1805.0](https://github.com/lightdash/lightdash/compare/0.1804.0...0.1805.0) (2025-07-11)
+
+
+### Bug Fixes
+
+* improve custom visualization resizing with useResizeObserver ([#15821](https://github.com/lightdash/lightdash/issues/15821)) ([b40dde6](https://github.com/lightdash/lightdash/commit/b40dde62d4895ef7f355ed24d87a85aaa9ae8529))
+
+
+### Features
+
+* I want my visualization sidebar to be resizeable ([#15817](https://github.com/lightdash/lightdash/issues/15817)) ([6ffffec](https://github.com/lightdash/lightdash/commit/6ffffec6921534df9e6a3f33daf5c272f6d02be0)), closes [#15812](https://github.com/lightdash/lightdash/issues/15812)
+
+# [0.1804.0](https://github.com/lightdash/lightdash/compare/0.1803.3...0.1804.0) (2025-07-11)
+
+
+### Features
+
+* add Slack auth success page ([#15828](https://github.com/lightdash/lightdash/issues/15828)) ([a2cd875](https://github.com/lightdash/lightdash/commit/a2cd875068e3be367f78e42029ee9910b008e6f6)), closes [#15749](https://github.com/lightdash/lightdash/issues/15749)
+
+## [0.1803.3](https://github.com/lightdash/lightdash/compare/0.1803.2...0.1803.3) (2025-07-11)
+
+
+### Bug Fixes
+
+* passport Slack strategy always redirects to the failure route ([#15827](https://github.com/lightdash/lightdash/issues/15827)) ([4f8edec](https://github.com/lightdash/lightdash/commit/4f8edecca8a3d5024c76b15314c68c88ccae608c))
+
+## [0.1803.2](https://github.com/lightdash/lightdash/compare/0.1803.1...0.1803.2) (2025-07-11)
+
+
+### Bug Fixes
+
+* scheduler task to run queries should run asyncQueryService function ([#15802](https://github.com/lightdash/lightdash/issues/15802)) ([71c9aff](https://github.com/lightdash/lightdash/commit/71c9aff8a0c928cb94f796c300f2ebac5de44717))
+
 ## [0.1803.1](https://github.com/lightdash/lightdash/compare/0.1803.0...0.1803.1) (2025-07-11)
 
 

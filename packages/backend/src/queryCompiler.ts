@@ -13,6 +13,7 @@ import {
     MetricQuery,
     TableCalculation,
     WarehouseClient,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 
 const compileTableCalculation = (
@@ -49,12 +50,12 @@ type CompileAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
     explore: Pick<Explore, 'tables' | 'targetDatabase'>;
 
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
 };
 const compileAdditionalMetric = ({
     additionalMetric,
     explore,
-    warehouseClient,
+    warehouseSqlBuilder,
 }: CompileAdditionalMetricArgs): CompiledMetric => {
     const table = explore.tables[additionalMetric.table];
     if (table === undefined) {
@@ -63,7 +64,7 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    const exploreCompiler = new ExploreCompiler(warehouseClient);
+    const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
 
     const metric = convertAdditionalMetric({ additionalMetric, table });
     const compiledMetric = exploreCompiler.compileMetricSql(
@@ -81,14 +82,14 @@ type CompileMetricQueryArgs = {
     explore: Pick<Explore, 'targetDatabase' | 'tables'>;
     metricQuery: MetricQuery;
 
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
 };
 export const compileMetricQuery = ({
     explore,
     metricQuery,
-    warehouseClient,
+    warehouseSqlBuilder,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const compiledTableCalculations = metricQuery.tableCalculations.map(
         (tableCalculation) =>
             compileTableCalculation(
@@ -102,11 +103,11 @@ export const compileMetricQuery = ({
             compileAdditionalMetric({
                 additionalMetric,
                 explore,
-                warehouseClient,
+                warehouseSqlBuilder,
             }),
     );
 
-    const compiler = new ExploreCompiler(warehouseClient);
+    const compiler = new ExploreCompiler(warehouseSqlBuilder);
     const compiledCustomDimensions = (metricQuery.customDimensions || []).map(
         (customDimension) =>
             compiler.compileCustomDimension(customDimension, explore.tables),

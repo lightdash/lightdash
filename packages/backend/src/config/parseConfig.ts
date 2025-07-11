@@ -32,6 +32,7 @@ import {
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
     DEFAULT_OPENAI_MODEL_NAME,
+    DEFAULT_OPENROUTER_MODEL_NAME,
 } from './aiConfigSchema';
 
 enum TokenEnvironmentVariable {
@@ -963,6 +964,18 @@ export const parseConfig = (): LightdashConfig => {
                       modelName:
                           process.env.ANTHROPIC_MODEL_NAME ||
                           DEFAULT_ANTHROPIC_MODEL_NAME,
+                  }
+                : undefined,
+            openrouter: process.env.OPENROUTER_API_KEY
+                ? {
+                      apiKey: process.env.OPENROUTER_API_KEY,
+                      modelName:
+                          process.env.OPENROUTER_MODEL_NAME ||
+                          DEFAULT_OPENROUTER_MODEL_NAME,
+                      sortOrder: process.env.OPENROUTER_SORT_ORDER,
+                      allowedProviders: getArrayFromCommaSeparatedList(
+                          'OPENROUTER_ALLOWED_PROVIDERS',
+                      ),
                   }
                 : undefined,
         },

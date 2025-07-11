@@ -10,7 +10,10 @@ import {
     isCustomBinDimension,
 } from '../types/field';
 import { type CreateWarehouseCredentials } from '../types/projects';
-import { type WarehouseClient } from '../types/warehouse';
+import {
+    type WarehouseClient,
+    type WarehouseSqlBuilder,
+} from '../types/warehouse';
 import {
     getCustomRangeSelectSql,
     getFixedWidthBinSelectSql,
@@ -27,11 +30,11 @@ export const convertCustomSqlDimensionToDbt = (
 export const convertCustomBinDimensionToDbt = ({
     customDimension,
     baseDimensionSql,
-    warehouseClient,
+    warehouseSqlBuilder,
 }: {
     customDimension: CustomBinDimension;
     baseDimensionSql: string;
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
 }): DbtColumnLightdashAdditionalDimension => {
     switch (customDimension.binType) {
         case BinType.CUSTOM_RANGE:
@@ -41,7 +44,7 @@ export const convertCustomBinDimensionToDbt = ({
                 sql: getCustomRangeSelectSql({
                     binRanges: customDimension.customRange || [],
                     baseDimensionSql,
-                    warehouseClient,
+                    warehouseSqlBuilder,
                 }),
             };
         case BinType.FIXED_WIDTH:
@@ -51,7 +54,7 @@ export const convertCustomBinDimensionToDbt = ({
                 sql: getFixedWidthBinSelectSql({
                     binWidth: customDimension.binWidth || 1,
                     baseDimensionSql,
-                    warehouseClient,
+                    warehouseSqlBuilder,
                 }),
             };
         case BinType.FIXED_NUMBER:
@@ -128,7 +131,7 @@ export const previewConvertCustomDimensionToDbt = (
         const preview = convertCustomBinDimensionToDbt({
             customDimension: field,
             baseDimensionSql: '${reference_column}',
-            warehouseClient: warehouseClientMock,
+            warehouseSqlBuilder: warehouseClientMock,
         });
         return {
             ...preview,
