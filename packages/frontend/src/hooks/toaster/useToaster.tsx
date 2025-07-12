@@ -273,13 +273,14 @@ const useToaster = () => {
                     toastsData={currentErrors.current[key]}
                     onCloseError={(error) => onCloseError(error)}
                 />
-            ) : currentErrors.current[key][0].apiError ? (
+            ) : currentErrors.current[key]?.[0]?.apiError ? (
                 <ApiErrorDisplay
                     apiError={currentErrors.current[key][0].apiError}
+                    onClose={() => notifications.hide(key)}
                 />
             ) : (
-                currentErrors.current[key][0].subtitle ||
-                currentErrors.current[key][0].title
+                currentErrors.current[key]?.[0]?.subtitle ||
+                currentErrors.current[key]?.[0]?.title
             );
 
             showToastError({
