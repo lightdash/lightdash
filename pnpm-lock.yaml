@@ -387,8 +387,8 @@ importers:
         specifier: ^2.5.0
         version: 2.7.0
       playwright:
-        specifier: ^1.44.1
-        version: 1.44.1
+        specifier: ^1.53.0
+        version: 1.53.0
       posthog-node:
         specifier: ^4.2.0
         version: 4.2.0
@@ -11219,23 +11219,13 @@ packages:
   pkg-types@2.1.0:
     resolution: {integrity: sha512-wmJwA+8ihJixSoHKxZJRBQG1oY8Yr9pGLzRmSsNms0iNWyHHAlZCa7mmKiFR10YPZuz/2k169JiS/inOjBCZ2A==}
 
-  playwright-core@1.44.1:
-    resolution: {integrity: sha512-wh0JWtYTrhv1+OSsLPgFzGzt67Y7BE/ZS3jEqgGBlp2ppp1ZDj8c+9IARNW4dwf1poq5MgHreEM2KV/GuR4cFA==}
-    engines: {node: '>=16'}
-    hasBin: true
-
-  playwright-core@1.52.0:
-    resolution: {integrity: sha512-l2osTgLXSMeuLZOML9qYODUQoPPnUsKsb5/P6LJ2e6uPKXUdPK5WYhN4z03G+YNbWmGDY4YENauNu4ZKczreHg==}
+  playwright-core@1.53.0:
+    resolution: {integrity: sha512-mGLg8m0pm4+mmtB7M89Xw/GSqoNC+twivl8ITteqvAndachozYe2ZA7srU6uleV1vEdAHYqjq+SV8SNxRRFYBw==}
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.44.1:
-    resolution: {integrity: sha512-qr/0UJ5CFAtloI3avF95Y0L1xQo6r3LQArLIg/z/PoGJ6xa+EwzrwO5lpNr/09STxdHuUoP2mvuELJS+hLdtgg==}
-    engines: {node: '>=16'}
-    hasBin: true
-
-  playwright@1.52.0:
-    resolution: {integrity: sha512-JAwMNMBlxJ2oD1kce4KPtMkDeKGHQstdpFPcPH3maElAXon/QZeTvtsfXmTMRyO9TslfoYOXkSsvao2nE1ilTw==}
+  playwright@1.53.0:
+    resolution: {integrity: sha512-ghGNnIEYZC4E+YtclRn4/p6oYbdPiASELBIYkBXfaTVKreQUYbMUYQDwS12a8F0/HtIjr/CkGjtwABeFPGcS4Q==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -26938,19 +26928,11 @@ snapshots:
       exsolve: 1.0.4
       pathe: 2.0.3
 
-  playwright-core@1.44.1: {}
+  playwright-core@1.53.0: {}
 
-  playwright-core@1.52.0: {}
-
-  playwright@1.44.1:
+  playwright@1.53.0:
     dependencies:
-      playwright-core: 1.44.1
-    optionalDependencies:
-      fsevents: 2.3.2
-
-  playwright@1.52.0:
-    dependencies:
-      playwright-core: 1.52.0
+      playwright-core: 1.53.0
     optionalDependencies:
       fsevents: 2.3.2
 
@@ -27556,7 +27538,7 @@ snapshots:
       estree-walker: 3.0.3
       kleur: 4.1.5
       mri: 1.2.0
-      playwright: 1.52.0
+      playwright: 1.53.0
       preact: 10.26.6
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
