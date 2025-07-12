@@ -343,11 +343,13 @@ export class CommercialSlackClient extends SlackClient {
             teamId,
             threadTs,
             channelId,
+            messageId,
         }: {
             userId: string;
             teamId: string;
             threadTs: string | undefined;
             channelId: string;
+            messageId: string;
         },
         say: Function,
         client: WebClient,
@@ -392,7 +394,11 @@ export class CommercialSlackClient extends SlackClient {
                                     text: 'Connect your Slack account',
                                 },
                                 action_id: 'actions.oauth_button_click',
-                                url: `${this.lightdashConfig.siteUrl}/api/v1/auth/slack`,
+                                url: `${
+                                    this.lightdashConfig.siteUrl
+                                }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}${
+                                    threadTs ? `&thread_ts=${threadTs}` : ''
+                                }`,
                                 style: 'primary',
                             },
                         ],
@@ -444,6 +450,7 @@ export class CommercialSlackClient extends SlackClient {
                 teamId,
                 threadTs: event.thread_ts,
                 channelId: event.channel,
+                messageId: event.ts,
             },
             say,
             client,

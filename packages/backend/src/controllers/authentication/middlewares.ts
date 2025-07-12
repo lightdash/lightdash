@@ -105,6 +105,26 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     next();
 };
 
+export const storeSlackContext: RequestHandler = (req, res, next) => {
+    const { team, channel, message, thread_ts: threadTs } = req.query;
+    req.session.slack = {};
+
+    if (typeof team === 'string') {
+        req.session.slack.teamId = team;
+    }
+    if (typeof channel === 'string') {
+        req.session.slack.channelId = channel;
+    }
+    if (typeof message === 'string') {
+        req.session.slack.messageTs = message;
+    }
+    if (typeof threadTs === 'string') {
+        req.session.slack.threadTs = threadTs;
+    }
+
+    next();
+};
+
 export const getOidcRedirectURL =
     (isSuccess: boolean) =>
     (req: Request): string => {
