@@ -368,17 +368,21 @@ const EmbedDashboard: FC<{
                             </Tabs.Tab>
                         ))}
                     </Tabs.List>
-                    <EmbedDashboardGrid
-                        filteredTiles={filteredTiles}
-                        layouts={layouts}
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                        embedToken={embedToken}
-                        hasRequiredDashboardFiltersToSet={
-                            hasRequiredDashboardFiltersToSet
-                        }
-                        isTabEmpty={isTabEmpty}
-                    />
+                    <Group pos="relative">
+                        {' '}
+                        {/* required to respect the position inside the Embed SDK */}
+                        <EmbedDashboardGrid
+                            filteredTiles={filteredTiles}
+                            layouts={layouts}
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                            embedToken={embedToken}
+                            hasRequiredDashboardFiltersToSet={
+                                hasRequiredDashboardFiltersToSet
+                            }
+                            isTabEmpty={isTabEmpty}
+                        />
+                    </Group>
                 </Tabs>
             ) : (
                 <EmbedDashboardGrid
