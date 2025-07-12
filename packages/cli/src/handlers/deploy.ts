@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     Explore,
     ExploreError,
+    InlineErrorType,
     Project,
     ProjectType,
     friendlyName,
@@ -71,11 +72,35 @@ export const deploy = async (
         process.exit(1);
     }
 
-    const errors = explores.filter((e) => isExploreError(e)).length;
-    if (errors > 0) {
+    const exploreErrors = explores.filter((e) =>
+        isExploreError(e),
+    ) as ExploreError[];
+    const blockingErrors = exploreErrors.filter(
+        (e) =>
+            !e.errors.some(
+                (err) => err.type === InlineErrorType.NO_DIMENSIONS_FOUND,
+            ),
+    );
+    const noDimensionWarnings = exploreErrors.filter((e) =>
+        e.errors.every(
+            (err) => err.type === InlineErrorType.NO_DIMENSIONS_FOUND,
+        ),
+    );
+
+    if (noDimensionWarnings.length > 0) {
+        console.error(
+            styles.warning(
+                `\n${noDimensionWarnings.length} explores have no dimensions (this will be deployed as a warning)\n`,
+            ),
+        );
+    }
+
+    if (blockingErrors.length > 0) {
         if (options.ignoreErrors) {
             console.error(
-                styles.warning(`\nDeploying project with ${errors} errors\n`),
+                styles.warning(
+                    `\nDeploying project with ${blockingErrors.length} errors\n`,
+                ),
             );
         } else {
             console.error(
