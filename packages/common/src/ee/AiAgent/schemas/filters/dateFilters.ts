@@ -1,19 +1,26 @@
 import { z } from 'zod';
 import { FilterOperator, UnitOfTime } from '../../../../types/filter';
+import fieldIdSchema from '../fieldId';
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
     z.string().datetime(),
 ]);
 
+const typeSchema = z.union([z.literal('date'), z.literal('timestamp')]);
+
 const dateFilterSchema = z.union([
     z.object({
+        fieldId: fieldIdSchema,
+        type: typeSchema,
         operator: z.union([
             z.literal(FilterOperator.NULL),
             z.literal(FilterOperator.NOT_NULL),
         ]),
     }),
     z.object({
+        fieldId: fieldIdSchema,
+        type: typeSchema,
         operator: z.union([
             z.literal(FilterOperator.EQUALS),
             z.literal(FilterOperator.NOT_EQUALS),
@@ -21,6 +28,8 @@ const dateFilterSchema = z.union([
         values: z.array(dateOrDateTimeSchema),
     }),
     z.object({
+        fieldId: fieldIdSchema,
+        type: typeSchema,
         operator: z.union([
             z.literal(FilterOperator.IN_THE_PAST),
             z.literal(FilterOperator.NOT_IN_THE_PAST),
@@ -40,6 +49,8 @@ const dateFilterSchema = z.union([
         }),
     }),
     z.object({
+        fieldId: fieldIdSchema,
+        type: typeSchema,
         operator: z.union([
             z.literal(FilterOperator.IN_THE_CURRENT),
             z.literal(FilterOperator.NOT_IN_THE_CURRENT),
@@ -57,6 +68,8 @@ const dateFilterSchema = z.union([
         }),
     }),
     z.object({
+        fieldId: fieldIdSchema,
+        type: typeSchema,
         operator: z.union([
             z.literal(FilterOperator.LESS_THAN),
             z.literal(FilterOperator.LESS_THAN_OR_EQUAL),
@@ -66,6 +79,8 @@ const dateFilterSchema = z.union([
         values: z.array(dateOrDateTimeSchema).length(1),
     }),
     z.object({
+        fieldId: fieldIdSchema,
+        type: typeSchema,
         operator: z.literal(FilterOperator.IN_BETWEEN),
         values: z.array(dateOrDateTimeSchema).length(2),
     }),
