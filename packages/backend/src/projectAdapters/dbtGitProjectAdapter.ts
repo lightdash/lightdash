@@ -208,9 +208,12 @@ export class DbtGitProjectAdapter
 
     private async _refreshRepo() {
         try {
+            Logger.debug(`Attempting git pull for ${this.repository}`);
             await this._pull();
         } catch (e) {
-            Logger.debug(`Failed git pull ${e}`);
+            Logger.debug(
+                `Pull failed (expected for fresh clones), falling back to clone: ${e}`,
+            );
             await this._cleanLocal();
             await this._clone();
         }
