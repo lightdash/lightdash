@@ -63,7 +63,6 @@ type InstanceConfigurationServiceArguments = {
     organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     userModel: UserModel;
-
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     emailModel: EmailModel;
