@@ -10,6 +10,7 @@ import {
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { LightdashConfig } from '../config/parseConfig';
 import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -19,9 +20,12 @@ type GroupServiceArguments = {
     analytics: LightdashAnalytics;
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
+    lightdashConfig: LightdashConfig;
 };
 
 export class GroupsService extends BaseService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly groupsModel: GroupsModel;
@@ -30,15 +34,24 @@ export class GroupsService extends BaseService {
 
     constructor(args: GroupServiceArguments) {
         super();
+        this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
+    }
+
+    private isGroupServiceEnabled(): boolean {
+        return this.lightdashConfig?.groups.enabled ?? false;
     }
 
     async addGroupMember(
         actor: SessionUser,
         member: GroupMembership,
     ): Promise<GroupMembership | undefined> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
             actor.ability.cannot(
@@ -78,6 +91,10 @@ export class GroupsService extends BaseService {
         actor: SessionUser,
         member: GroupMembership,
     ): Promise<boolean> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
             actor.ability.cannot(
@@ -114,6 +131,10 @@ export class GroupsService extends BaseService {
     }
 
     async delete(actor: SessionUser, groupUuid: string): Promise<void> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
             actor.ability.cannot(
@@ -143,6 +164,10 @@ export class GroupsService extends BaseService {
         includeMembers?: number,
         offset?: number,
     ): Promise<Group | GroupWithMembers> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group =
             includeMembers === undefined
                 ? await this.groupsModel.getGroup(groupUuid)
@@ -170,6 +195,10 @@ export class GroupsService extends BaseService {
         groupUuid: string,
         update: UpdateGroupWithMembers,
     ): Promise<Group | GroupWithMembers> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
             actor.ability.cannot(
@@ -205,6 +234,10 @@ export class GroupsService extends BaseService {
         actor: SessionUser,
         groupUuid: string,
     ): Promise<GroupMember[]> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroupWithMembers(groupUuid);
         if (
             actor.ability.cannot(
@@ -223,6 +256,10 @@ export class GroupsService extends BaseService {
         actor: SessionUser,
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
@@ -272,6 +309,10 @@ export class GroupsService extends BaseService {
             projectUuid,
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
     ) {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
@@ -317,6 +358,10 @@ export class GroupsService extends BaseService {
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
         updateAttributes: UpdateDBProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
+        if (!this.isGroupServiceEnabled()) {
+            throw new ForbiddenError('Group service is not enabled');
+        }
+
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
