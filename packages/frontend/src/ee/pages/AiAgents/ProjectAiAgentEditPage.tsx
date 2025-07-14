@@ -37,6 +37,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import Page from '../../../components/common/Page/Page';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
@@ -52,7 +53,12 @@ import {
 const formSchema: z.ZodType<
     Pick<
         BaseAiAgent,
-        'name' | 'integrations' | 'tags' | 'instruction' | 'imageUrl'
+        | 'name'
+        | 'integrations'
+        | 'tags'
+        | 'instruction'
+        | 'imageUrl'
+        | 'groupAccess'
     >
 > = z.object({
     name: z.string().min(1),
@@ -65,6 +71,7 @@ const formSchema: z.ZodType<
     tags: z.array(z.string()).nullable(),
     instruction: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
+    groupAccess: z.array(z.string()),
 });
 
 type Props = {
@@ -106,6 +113,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const { data: agents, isSuccess: isSuccessAgents } =
         useProjectAiAgents(projectUuid);
 
+    const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups({
+        includeMembers: 5,
+    });
+
     const {
         data: slackChannels,
         refresh: refreshChannels,
@@ -134,6 +145,15 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         [slackChannels, agents],
     );
 
+    const groupOptions = useMemo(
+        () =>
+            groups?.map((group) => ({
+                value: group.uuid,
+                label: group.name,
+            })) ?? [],
+        [groups],
+    );
+
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
             name: '',
@@ -141,6 +161,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             tags: null,
             instruction: null,
             imageUrl: null,
+            groupAccess: [],
         },
         validate: zodResolver(formSchema),
     });
@@ -157,6 +178,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
                 instruction: agent.instruction,
                 imageUrl: agent.imageUrl,
+                groupAccess: agent.groupAccess ?? [],
             };
             form.setValues(values);
             form.resetDirty(values);
@@ -399,6 +421,62 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 );
                                             }}
                                         />
+
+                                        <Stack gap="xs">
+                                            <MultiSelect
+                                                label={
+                                                    <Group gap="xs">
+                                                        <Text fz="sm" fw={500}>
+                                                            Group Access
+                                                        </Text>
+                                                        <Tooltip
+                                                            label="Select groups that can access this agent. If no groups are selected, the agent will be visible to all users in the organization."
+                                                            withArrow
+                                                            withinPortal
+                                                            multiline
+                                                            maw="250px"
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconInfoCircle
+                                                                }
+                                                            />
+                                                        </Tooltip>
+                                                    </Group>
+                                                }
+                                                placeholder={
+                                                    isLoadingGroups
+                                                        ? 'Loading groups...'
+                                                        : groupOptions.length ===
+                                                          0
+                                                        ? 'No groups available'
+                                                        : 'Select groups or leave empty for all users'
+                                                }
+                                                data={groupOptions}
+                                                disabled={
+                                                    isLoadingGroups ||
+                                                    groupOptions.length === 0
+                                                }
+                                                clearable
+                                                {...form.getInputProps(
+                                                    'groupAccess',
+                                                )}
+                                                value={
+                                                    form.getInputProps(
+                                                        'groupAccess',
+                                                    ).value ?? []
+                                                }
+                                                onChange={(value) => {
+                                                    form.setFieldValue(
+                                                        'groupAccess',
+                                                        value.length > 0
+                                                            ? value
+                                                            : [],
+                                                    );
+                                                }}
+                                            />
+                                            {/*  Add message + link to orgfanization settings if no groups are available and if this is enabled */}
+                                        </Stack>
                                     </Stack>
                                 </Paper>
 
