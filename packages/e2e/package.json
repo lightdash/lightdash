@@ -6,6 +6,7 @@
     "license": "MIT",
     "scripts": {
         "cypress:open": "cypress open --e2e",
+        "cypress:open:native": "RUNTIME=native cypress open --e2e",
         "cypress:run": "cypress run",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
