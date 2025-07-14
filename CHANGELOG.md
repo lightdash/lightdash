@@ -1,3 +1,17 @@
+# [0.1810.0](https://github.com/lightdash/lightdash/compare/0.1809.1...0.1810.0) (2025-07-14)
+
+
+### Features
+
+* Instructions guidelines and templates ([#15816](https://github.com/lightdash/lightdash/issues/15816)) ([0442603](https://github.com/lightdash/lightdash/commit/04426030d37793aba05a305ef24db1016984d1b9)), closes [#15743](https://github.com/lightdash/lightdash/issues/15743)
+
+## [0.1809.1](https://github.com/lightdash/lightdash/compare/0.1809.0...0.1809.1) (2025-07-14)
+
+
+### Bug Fixes
+
+* tabs on embedding sdk ([#15831](https://github.com/lightdash/lightdash/issues/15831)) ([06e7a8e](https://github.com/lightdash/lightdash/commit/06e7a8edb509c1fbc26de2f32826c1dcd4b36410))
+
 # [0.1809.0](https://github.com/lightdash/lightdash/compare/0.1808.0...0.1809.0) (2025-07-14)
 
 
