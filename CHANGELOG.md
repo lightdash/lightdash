@@ -1,3 +1,10 @@
+# [0.1809.0](https://github.com/lightdash/lightdash/compare/0.1808.0...0.1809.0) (2025-07-14)
+
+
+### Features
+
+* add group access to ai agents ([#15706](https://github.com/lightdash/lightdash/issues/15706)) ([6cb7d0d](https://github.com/lightdash/lightdash/commit/6cb7d0da49feb70b16d340d0589891416fb48627)), closes [#15385](https://github.com/lightdash/lightdash/issues/15385)
+
 # [0.1808.0](https://github.com/lightdash/lightdash/compare/0.1807.1...0.1808.0) (2025-07-14)
 
 
