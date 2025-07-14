@@ -215,7 +215,12 @@ export type UpdateSchedulerEmailTarget = Pick<
 
 export type CreateSchedulerAndTargets = Omit<
     Scheduler,
-    'schedulerUuid' | 'createdAt' | 'updatedAt'
+    | 'schedulerUuid'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'createdByName'
+    | 'savedChartName'
+    | 'dashboardName'
 > & {
     targets: CreateSchedulerTarget[];
 };
