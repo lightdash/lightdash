@@ -32,17 +32,34 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
     isAddingProjectGroupAccess,
     onAddProjectGroupAccessClose,
 }) => {
-    const { data: userGroupsFeatureFlag } = useFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
     const { cx, classes } = useTableStyles();
 
     const { showToastSuccess } = useToaster();
 
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
+
+    if (userGroupsFeatureFlagQuery.isError) {
+        console.error(userGroupsFeatureFlagQuery.error);
+        throw new Error('Error fetching user groups feature flag');
+    }
+
+    const isGroupManagementEnabled =
+        userGroupsFeatureFlagQuery.isSuccess &&
+        userGroupsFeatureFlagQuery.data.enabled;
+
     const { data: groups } = useOrganizationGroups(
         { includeMembers: 5 },
-        { enabled: !!userGroupsFeatureFlag?.enabled },
+        { enabled: isGroupManagementEnabled },
     );
+
+    const {
+        data: projectGroupAccessList,
+        isInitialLoading: isLoadingProjectGroupAccessList,
+    } = useProjectGroupAccessList(projectUuid, {
+        enabled: isGroupManagementEnabled,
+    });
 
     const { mutateAsync: addProjectGroupAccess, isLoading: isSubmitting } =
         useAddProjectGroupAccessMutation();
@@ -54,13 +71,6 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
         showToastSuccess({ title: 'Group access added' });
         onAddProjectGroupAccessClose();
     };
-
-    const {
-        data: projectGroupAccessList,
-        isInitialLoading: isLoadingProjectGroupAccessList,
-    } = useProjectGroupAccessList(projectUuid, {
-        enabled: !!userGroupsFeatureFlag?.enabled,
-    });
 
     const availableGroups = useMemo(() => {
         if (!groups || !projectGroupAccessList) return [];

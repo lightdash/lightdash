@@ -40,7 +40,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 }) => {
     const { user } = useApp();
 
-    const { data: userGroupsFeatureFlag } = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
     const ability = useAbilityContext();
@@ -56,7 +56,11 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 
     const { data: groups } = useOrganizationGroups(
         { includeMembers: 5 },
-        { enabled: !!userGroupsFeatureFlag?.enabled },
+        {
+            enabled:
+                userGroupsFeatureFlagQuery.isSuccess &&
+                userGroupsFeatureFlagQuery.data.enabled,
+        },
     );
 
     const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =

@@ -159,7 +159,7 @@ const GroupsView: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
 
-    const { data: userGroupsFeatureFlag } = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 
@@ -178,13 +178,17 @@ const GroupsView: FC = () => {
 
     const [search, setSearch] = useState('');
 
+    const isGroupManagementEnabled =
+        userGroupsFeatureFlagQuery.isSuccess &&
+        userGroupsFeatureFlagQuery.data.enabled;
+
     const { data: groups, isInitialLoading: isLoadingGroups } =
         useOrganizationGroups(
             {
                 searchInput: search,
                 includeMembers: GROUP_MEMBERS_PER_PAGE, // TODO: pagination
             },
-            { enabled: !!userGroupsFeatureFlag?.enabled },
+            { enabled: isGroupManagementEnabled },
         );
 
     const handleDelete = useCallback(() => {
@@ -194,10 +198,12 @@ const GroupsView: FC = () => {
         }
     }, [groupToDelete, mutate]);
 
-    if (!userGroupsFeatureFlag) return null;
-
+    if (userGroupsFeatureFlagQuery.isError) {
+        console.error(userGroupsFeatureFlagQuery.error);
+        throw new Error('Error fetching user groups feature flag');
+    }
     if (isLoadingGroups) {
-        <LoadingState title="Loading groups" />;
+        return <LoadingState title="Loading groups" />;
     }
 
     return (

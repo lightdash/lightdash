@@ -347,7 +347,7 @@ const UserListItem: FC<{
 const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const { user } = useApp();
-    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
     const { classes } = useTableStyles();
@@ -384,9 +384,16 @@ const UsersView: FC = () => {
         return paginatedUsers?.pagination;
     }, [paginatedUsers]);
 
-    if (!user.data || !UserGroupsFeatureFlag) return null;
+    if (!user.data) return null;
 
-    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
+    if (userGroupsFeatureFlagQuery.isError) {
+        console.error(userGroupsFeatureFlagQuery.error);
+        throw new Error('Error fetching user groups feature flag');
+    }
+
+    const isGroupManagementEnabled =
+        userGroupsFeatureFlagQuery.isSuccess &&
+        userGroupsFeatureFlagQuery.data.enabled;
 
     return (
         <Stack spacing="xs">
