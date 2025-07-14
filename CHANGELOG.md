@@ -1,3 +1,10 @@
+# [0.1808.0](https://github.com/lightdash/lightdash/compare/0.1807.1...0.1808.0) (2025-07-14)
+
+
+### Features
+
+* add less than or equal and greater than or equal operators to number filters ([#15838](https://github.com/lightdash/lightdash/issues/15838)) ([c1afe33](https://github.com/lightdash/lightdash/commit/c1afe33f2a354103c54ae10b4338d189d1c6c6bc)), closes [#13349](https://github.com/lightdash/lightdash/issues/13349)
+
 ## [0.1807.1](https://github.com/lightdash/lightdash/compare/0.1807.0...0.1807.1) (2025-07-14)
 
 
