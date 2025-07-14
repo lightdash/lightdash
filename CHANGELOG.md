@@ -1,3 +1,10 @@
+## [0.1810.1](https://github.com/lightdash/lightdash/compare/0.1810.0...0.1810.1) (2025-07-14)
+
+
+### Bug Fixes
+
+* better UI when snowlfake SSO tokens expire ([#15804](https://github.com/lightdash/lightdash/issues/15804)) ([dda5a2b](https://github.com/lightdash/lightdash/commit/dda5a2b3994e8fcb865edd16cd419303828c908f))
+
 # [0.1810.0](https://github.com/lightdash/lightdash/compare/0.1809.1...0.1810.0) (2025-07-14)
 
 
