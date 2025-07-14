@@ -1,12 +1,14 @@
-import { type LanguageMap } from '@lightdash/common';
+import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
+import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
 import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
+import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
 import MantineProvider from '../src/providers/MantineProvider';
@@ -25,6 +27,7 @@ type Props = {
     };
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
+    onExplore?: (options: { chart: SavedChart }) => void;
 };
 
 const decodeJWT = (token: string) => {
@@ -81,7 +84,9 @@ const SdkProviders: FC<
                                     <TrackingProvider enabled={true}>
                                         <AbilityProvider>
                                             <ChartColorMappingContextProvider>
-                                                {children}
+                                                <ActiveJobProvider>
+                                                    {children}
+                                                </ActiveJobProvider>
                                             </ChartColorMappingContextProvider>
                                         </AbilityProvider>
                                     </TrackingProvider>
@@ -101,6 +106,7 @@ const Dashboard: FC<Props> = ({
     styles,
     filters,
     contentOverrides,
+    onExplore,
 }) => {
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
@@ -148,6 +154,7 @@ const Dashboard: FC<Props> = ({
                 projectUuid={projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
+                onExplore={onExplore}
             >
                 <EmbedDashboard
                     containerStyles={{
@@ -163,9 +170,83 @@ const Dashboard: FC<Props> = ({
     );
 };
 
-const Lightdash = { Dashboard };
+const Explore: FC<Props & { exploreId: string; savedChart: SavedChart }> = ({
+    token: tokenOrTokenPromise,
+    instanceUrl,
+    styles,
+    filters,
+    contentOverrides,
+    onExplore,
+    exploreId,
+    savedChart,
+}) => {
+    const [token, setToken] = useState<string | null>(null);
+    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+
+    const handleDecodeToken = (tokenToDecode: string) => {
+        const { payload } = decodeJWT(tokenToDecode);
+
+        if (
+            payload &&
+            'content' in payload &&
+            'projectUuid' in payload.content
+        ) {
+            setToken(tokenToDecode);
+            setProjectUuid(payload.content.projectUuid);
+        } else {
+            throw new Error('Error decoding token');
+        }
+    };
+
+    useEffect(() => {
+        persistInstanceUrl(instanceUrl);
+
+        if (typeof tokenOrTokenPromise === 'string') {
+            handleDecodeToken(tokenOrTokenPromise);
+        } else {
+            tokenOrTokenPromise
+                .then((tokenToDecode) => {
+                    handleDecodeToken(tokenToDecode);
+                })
+                .catch((error) => {
+                    console.error(error);
+                    throw new Error('Error retrieving token');
+                });
+        }
+    }, [instanceUrl, tokenOrTokenPromise]);
+
+    if (!token || !projectUuid) {
+        return null;
+    }
+
+    return (
+        <SdkProviders styles={styles}>
+            <EmbedProvider
+                embedToken={token}
+                projectUuid={projectUuid}
+                filters={filters}
+                contentOverrides={contentOverrides}
+                onExplore={onExplore}
+            >
+                <EmbedExplore
+                    exploreId={exploreId}
+                    savedChart={savedChart}
+                    containerStyles={{
+                        width: '100%',
+                        height: '100%',
+                        position: 'relative',
+                        overflow: 'auto',
+                        backgroundColor: styles?.backgroundColor,
+                    }}
+                />
+            </EmbedProvider>
+        </SdkProviders>
+    );
+};
+
+const Lightdash = { Dashboard, Explore };
 
 // ts-unused-exports:disable-next-line
-export { Dashboard };
+export { Dashboard, Explore };
 // ts-unused-exports:disable-next-line
 export default Lightdash;

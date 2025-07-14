@@ -50,28 +50,30 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
 const executeAsyncMetricQuery = async (
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
-    options: { signal?: AbortSignal } = {},
-): Promise<ApiExecuteAsyncMetricQueryResults> =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+    options: { signal?: AbortSignal },
+): Promise<ApiExecuteAsyncMetricQueryResults> => {
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/metric-query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
         signal: options.signal,
     });
+};
 
 const executeAsyncSavedChartQuery = async (
     projectUuid: string,
     data: ExecuteAsyncSavedChartRequestParams,
-    options: { signal?: AbortSignal } = {},
-): Promise<ApiExecuteAsyncMetricQueryResults> =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+    options: { signal?: AbortSignal },
+): Promise<ApiExecuteAsyncMetricQueryResults> => {
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
         url: `/projects/${projectUuid}/query/chart`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
         signal: options.signal,
     });
+};
 
 export const downloadQuery = async (
     projectUuid: string,
@@ -220,7 +222,6 @@ const getResultsPage = async (
         }`,
         version: 'v2',
         method: 'GET',
-        body: undefined,
     });
 };
 
@@ -273,6 +274,9 @@ export const useInfiniteQueryResults = (
         (ReadyQueryResultsPage & { clientFetchTimeMs: number })[]
     >([]);
     const [fetchAll, setFetchAll] = useState(false);
+
+    const prevQueryUuidRef = useRef<string | undefined>(null);
+    const prevProjectUuidRef = useRef<string | undefined>(null);
 
     const fetchMoreRows = useCallback(() => {
         const lastPage = fetchedPages[fetchedPages.length - 1];
@@ -415,16 +419,26 @@ export const useInfiniteQueryResults = (
     }, [nextPage.data]);
 
     useEffect(() => {
-        // Reset fetched pages before updating the fetch args
-        setFetchedPages([]);
-        // Reset fetchAll before updating the fetch args
-        setFetchAll(false);
-        setFetchArgs({
-            queryUuid,
-            projectUuid,
-            page: 1,
-            pageSize: DEFAULT_RESULTS_PAGE_SIZE,
-        });
+        const hasQueryUuidChanged = queryUuid !== prevQueryUuidRef.current;
+        const hasProjectUuidChanged =
+            projectUuid !== prevProjectUuidRef.current;
+
+        if (hasQueryUuidChanged || hasProjectUuidChanged) {
+            // Reset fetched pages before updating the fetch args
+            setFetchedPages([]);
+            // Reset fetchAll before updating the fetch args
+            setFetchAll(false);
+            setFetchArgs({
+                queryUuid,
+                projectUuid,
+                page: 1,
+                pageSize: DEFAULT_RESULTS_PAGE_SIZE,
+            });
+
+            // Update refs
+            prevQueryUuidRef.current = queryUuid;
+            prevProjectUuidRef.current = projectUuid;
+        }
     }, [projectUuid, queryUuid]);
 
     useEffect(() => {

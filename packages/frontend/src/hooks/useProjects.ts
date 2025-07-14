@@ -17,7 +17,6 @@ const getProjectsQuery = async () =>
     lightdashApi<OrganizationProject[]>({
         url: `/org/projects`,
         method: 'GET',
-        body: undefined,
     });
 
 export const useProjects = (
