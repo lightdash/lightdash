@@ -1,4 +1,8 @@
-import { isGroupWithMembers, type GroupWithMembers } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isGroupWithMembers,
+    type GroupWithMembers,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -22,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import {
     useGroupDeleteMutation,
     useOrganizationGroups,
@@ -154,6 +159,10 @@ const GroupsView: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
 
+    const { data: userGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
+
     const [showCreateAndEditModal, setShowCreateAndEditModal] = useState(false);
 
     const [groupToEdit, setGroupToEdit] = useState<
@@ -170,10 +179,13 @@ const GroupsView: FC = () => {
     const [search, setSearch] = useState('');
 
     const { data: groups, isInitialLoading: isLoadingGroups } =
-        useOrganizationGroups({
-            searchInput: search,
-            includeMembers: GROUP_MEMBERS_PER_PAGE, // TODO: pagination
-        });
+        useOrganizationGroups(
+            {
+                searchInput: search,
+                includeMembers: GROUP_MEMBERS_PER_PAGE, // TODO: pagination
+            },
+            { enabled: !!userGroupsFeatureFlag?.enabled },
+        );
 
     const handleDelete = useCallback(() => {
         if (groupToDelete) {
@@ -181,6 +193,8 @@ const GroupsView: FC = () => {
             setIsDeleteDialogOpen(false);
         }
     }, [groupToDelete, mutate]);
+
+    if (!userGroupsFeatureFlag) return null;
 
     if (isLoadingGroups) {
         <LoadingState title="Loading groups" />;

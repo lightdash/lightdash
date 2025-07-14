@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isGroupWithMembers,
     type CreateProjectGroupAccess,
     type GroupWithMembers,
@@ -9,6 +10,7 @@ import { useMemo, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
@@ -30,12 +32,17 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
     isAddingProjectGroupAccess,
     onAddProjectGroupAccessClose,
 }) => {
+    const { data: userGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
     const { cx, classes } = useTableStyles();
 
     const { showToastSuccess } = useToaster();
 
-    const { data: groups, isInitialLoading: isLoadingGroups } =
-        useOrganizationGroups({ includeMembers: 5 });
+    const { data: groups } = useOrganizationGroups(
+        { includeMembers: 5 },
+        { enabled: !!userGroupsFeatureFlag?.enabled },
+    );
 
     const { mutateAsync: addProjectGroupAccess, isLoading: isSubmitting } =
         useAddProjectGroupAccessMutation();
@@ -51,7 +58,9 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
     const {
         data: projectGroupAccessList,
         isInitialLoading: isLoadingProjectGroupAccessList,
-    } = useProjectGroupAccessList(projectUuid);
+    } = useProjectGroupAccessList(projectUuid, {
+        enabled: !!userGroupsFeatureFlag?.enabled,
+    });
 
     const availableGroups = useMemo(() => {
         if (!groups || !projectGroupAccessList) return [];
@@ -80,7 +89,7 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
             type={PageType.PAGE}
             category={CategoryName.SETTINGS}
         >
-            {isLoadingGroups || isLoadingProjectGroupAccessList ? (
+            {isLoadingProjectGroupAccessList ? (
                 <Box mt="4xl">
                     <SuboptimalState loading />
                 </Box>

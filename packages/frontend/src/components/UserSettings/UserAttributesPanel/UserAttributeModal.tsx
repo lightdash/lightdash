@@ -40,7 +40,7 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
-    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+    const { data: userGroupsFeatureFlag } = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 
@@ -135,15 +135,14 @@ const UserAttributeModal: FC<{
     };
 
     const { data: orgUsers } = useOrganizationUsers();
-    const { data: groups } = useOrganizationGroups({
-        queryOptions: {
-            enabled: !!UserGroupsFeatureFlag?.enabled,
-        },
-    });
+    const { data: groups } = useOrganizationGroups(
+        {},
+        { enabled: !!userGroupsFeatureFlag?.enabled },
+    );
 
-    if (!UserGroupsFeatureFlag) return null;
+    if (!userGroupsFeatureFlag) return null;
 
-    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
+    const isGroupManagementEnabled = userGroupsFeatureFlag?.enabled;
 
     return (
         <Modal

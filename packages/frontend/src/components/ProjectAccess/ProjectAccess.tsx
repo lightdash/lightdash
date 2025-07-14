@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ProjectMemberRole,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToOrganizationRole,
@@ -14,6 +15,7 @@ import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useProjectGroupAccessList } from '../../features/projectGroupAccess/hooks/useProjectGroupAccess';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
+import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
@@ -37,6 +39,10 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     onAddProjectAccessClose,
 }) => {
     const { user } = useApp();
+
+    const { data: userGroupsFeatureFlag } = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
     const ability = useAbilityContext();
 
     const { cx, classes } = useTableStyles();
@@ -48,7 +54,10 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         isInitialLoading: isOrganizationUsersLoading,
     } = useOrganizationUsers();
 
-    const { data: groups } = useOrganizationGroups({ includeMembers: 5 });
+    const { data: groups } = useOrganizationGroups(
+        { includeMembers: 5 },
+        { enabled: !!userGroupsFeatureFlag?.enabled },
+    );
 
     const { data: projectAccess, isInitialLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
