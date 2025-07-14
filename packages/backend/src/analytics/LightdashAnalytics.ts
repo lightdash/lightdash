@@ -1577,7 +1577,7 @@ export class LightdashAnalytics extends Analytics {
             payload.properties = {};
         }
 
-        if (account.user.type === 'known') {
+        if (account.user.type === 'registered') {
             payload.userId = account.user.id;
         } else {
             payload.anonymousId = 'embed';

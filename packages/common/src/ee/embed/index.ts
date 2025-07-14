@@ -5,7 +5,7 @@ import assertUnreachable from '../../utils/assertUnreachable';
 
 export type Embed = {
     projectUuid: string;
-    organization: Pick<Organization, 'organizationUuid' | 'name'>;
+    organization: Pick<Organization, 'organizationUuid' | 'name' | 'createdAt'>;
     encodedSecret: string;
     dashboardUuids: string[];
     allowAllDashboards: boolean;

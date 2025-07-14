@@ -24,6 +24,7 @@ export class EmbedModel {
                 'users.last_name',
                 'organizations.organization_uuid',
                 'organizations.organization_name',
+                'organizations.created_at',
             )
             .leftJoin('users', 'embedding.created_by', 'users.user_uuid')
             .leftJoin(
@@ -64,6 +65,7 @@ export class EmbedModel {
             organization: {
                 organizationUuid: embed.organization_uuid,
                 name: embed.organization_name,
+                createdAt: embed.created_at,
             },
             encodedSecret: embed.encoded_secret,
             dashboardUuids: validDashboardUuids,
