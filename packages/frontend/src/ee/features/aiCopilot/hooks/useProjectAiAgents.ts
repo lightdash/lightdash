@@ -41,7 +41,6 @@ export const useProjectAiAgents = (
     projectUuid?: string | null,
     options?: UseQueryOptions<ApiAiAgentSummaryResponse['results'], ApiError>,
 ) => {
-    const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
@@ -49,14 +48,10 @@ export const useProjectAiAgents = (
         queryFn: () => listProjectAgents(projectUuid!),
         ...options,
         onError: (error) => {
-            if (error.error?.statusCode !== 403) {
-                showToastApiError({
-                    title: 'Failed to fetch project AI agents',
-                    apiError: error.error,
-                });
-            } else {
-                void navigate(`/projects/${projectUuid}/home`);
-            }
+            showToastApiError({
+                title: 'Failed to fetch project AI agents',
+                apiError: error.error,
+            });
 
             if (options?.onError) {
                 options.onError(error);
@@ -70,30 +65,18 @@ export const useProjectAiAgent = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
-    const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid],
         queryFn: () => getProjectAgent(projectUuid!, agentUuid!),
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
-                void navigate(`/projects/${projectUuid}/home`);
-            } else {
-                showToastApiError({
-                    title: `Failed to fetch project AI agent details`,
-                    apiError: error.error,
-                });
-            }
+            showToastApiError({
+                title: `Failed to fetch project AI agent details`,
+                apiError: error.error,
+            });
         },
         enabled: !!projectUuid && !!agentUuid,
-        retry: (failureCount, error) => {
-            // Don't retry permission errors
-            if (error.error?.statusCode === 403) {
-                return false;
-            }
-            return failureCount < 3;
-        },
     });
 };
 
