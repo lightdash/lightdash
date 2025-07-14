@@ -12,7 +12,8 @@ export type AccountUser = {
     isActive: boolean;
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
     ability: MemberAbility;
-    type: 'lightdash' | 'external';
+    /* Is this a known user in our DB or an anonymous external user? */
+    type: 'known' | 'external';
 };
 
 export interface LightdashUser {
@@ -37,7 +38,7 @@ export interface LightdashUser {
 }
 
 export interface LightdashSessionUser extends AccountUser {
-    type: 'lightdash';
+    type: 'known';
     // The current effective primary key for users. It duplicates user.id.
     userUuid: string;
     // The old sequential primary key for users
