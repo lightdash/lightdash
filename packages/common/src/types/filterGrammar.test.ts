@@ -239,7 +239,7 @@ describe('Parse metric filters', () => {
 
         expect(
             removeIds(
-                parseFilters([{ order_id: '> 5' }, { order_id: '< 10' }]),
+                parseFilters([{ order_id: '> 5' }, { order_id: '<= 10' }]),
             ),
         ).toStrictEqual([
             {
@@ -252,7 +252,7 @@ describe('Parse metric filters', () => {
             },
             {
                 id: undefined,
-                operator: FilterOperator.LESS_THAN,
+                operator: FilterOperator.LESS_THAN_OR_EQUAL,
                 target: {
                     fieldRef: 'order_id',
                 },

@@ -26,6 +26,8 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                     return singleValue ? 'Enter value' : 'Enter value(s)';
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
+                case FilterOperator.LESS_THAN_OR_EQUAL:
+                case FilterOperator.GREATER_THAN_OR_EQUAL:
                     return 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
