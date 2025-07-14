@@ -358,10 +358,10 @@ export class AsyncQueryService extends ProjectService {
         await this.queryHistoryModel.update(
             queryUuid,
             projectUuid,
-            user.userUuid,
             {
                 status: QueryHistoryStatus.CANCELLED,
             },
+            user.userUuid,
         );
     }
 
@@ -536,10 +536,10 @@ export class AsyncQueryService extends ProjectService {
             await this.queryHistoryModel.update(
                 queryHistory.queryUuid,
                 projectUuid,
-                user.userUuid,
                 {
                     default_page_size: defaultedPageSize,
                 },
+                user.userUuid,
             );
         }
 
@@ -1270,7 +1270,6 @@ export class AsyncQueryService extends ProjectService {
             await this.queryHistoryModel.update(
                 queryHistoryUuid,
                 projectUuid,
-                userUuid,
                 {
                     warehouse_query_id: queryId,
                     warehouse_query_metadata: queryMetadata,
@@ -1291,6 +1290,7 @@ export class AsyncQueryService extends ProjectService {
                     columns,
                     original_columns: originalColumns,
                 },
+                userUuid,
             );
         } catch (e) {
             this.analytics.track({
@@ -1305,11 +1305,11 @@ export class AsyncQueryService extends ProjectService {
             await this.queryHistoryModel.update(
                 queryHistoryUuid,
                 projectUuid,
-                userUuid,
                 {
                     status: QueryHistoryStatus.ERROR,
                     error: getErrorMessage(e),
                 },
+                userUuid,
             );
         } finally {
             void sshTunnel?.disconnect();
@@ -1563,7 +1563,6 @@ export class AsyncQueryService extends ProjectService {
                         await this.queryHistoryModel.update(
                             queryHistoryUuid,
                             projectUuid,
-                            user.userUuid,
                             {
                                 status: QueryHistoryStatus.READY,
                                 error: null,
@@ -1580,6 +1579,7 @@ export class AsyncQueryService extends ProjectService {
                                     resultsCache.pivotTotalColumnCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
                             },
+                            user.userUuid,
                         );
 
                         return {
