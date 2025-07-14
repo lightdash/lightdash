@@ -534,6 +534,20 @@ export class AiAgentNotFoundError extends LightdashError {
     }
 }
 
+/* This specific error will be used in the frontend
+to show a "reauthenticate" button in the UI
+*/
+export class SnowflakeTokenError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'SnowflakeTokenError',
+            statusCode: 401,
+            data: {},
+        });
+    }
+}
+
 export class CustomSqlQueryForbiddenError extends LightdashError {
     constructor(
         message: string = 'User cannot run queries with custom SQL dimensions',
