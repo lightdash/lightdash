@@ -13,6 +13,7 @@ type ToolCall = {
 
 export interface StreamingState {
     threadUuid: string;
+    messageUuid: string;
     content: string;
     isStreaming: boolean;
     toolCalls: ToolCall[];
@@ -22,7 +23,7 @@ export interface StreamingState {
 type State = Record<string, StreamingState>;
 
 const initialState: State = {};
-const initialThread: Omit<StreamingState, 'threadUuid'> = {
+const initialThread: Omit<StreamingState, 'threadUuid' | 'messageUuid'> = {
     content: '',
     isStreaming: true,
     toolCalls: [],
@@ -34,12 +35,13 @@ const threadStreamSlice = createSlice({
     reducers: {
         startStreaming: (
             state,
-            action: PayloadAction<{ threadUuid: string }>,
+            action: PayloadAction<{ threadUuid: string; messageUuid: string }>,
         ) => {
-            const { threadUuid } = action.payload;
+            const { threadUuid, messageUuid } = action.payload;
 
             state[threadUuid] = {
                 threadUuid,
+                messageUuid,
                 ...initialThread,
             };
         },

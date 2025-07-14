@@ -5242,7 +5242,16 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "type": "string"
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["message", "uuid"],
+                        "type": "object"
                     },
                     "createdFrom": {
                         "type": "string"
@@ -5290,7 +5299,16 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "type": "string"
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["message", "uuid"],
+                        "type": "object"
                     },
                     "createdFrom": {
                         "type": "string"
@@ -17652,7 +17670,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1800.1",
+        "version": "0.1807.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -23409,6 +23427,9 @@
                                             },
                                             "chartConfig": {
                                                 "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "skipSpaceCreate": {
+                                                "type": "boolean"
                                             }
                                         },
                                         "required": [
@@ -23489,6 +23510,9 @@
                                             },
                                             "filters": {
                                                 "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "skipSpaceCreate": {
+                                                "type": "boolean"
                                             }
                                         },
                                         "required": ["tiles", "filters"],
