@@ -11,6 +11,7 @@ import type {
     ApiError,
     ApiSuccessEmpty,
 } from '@lightdash/common';
+import { nanoid } from '@reduxjs/toolkit';
 import {
     useMutation,
     useQuery,
@@ -26,7 +27,6 @@ import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
-import { getOptimisticMessageStub } from '../utils/thinkingMessageStub';
 import { PROJECT_AI_AGENTS_KEY, useProjectAiAgent } from './useProjectAiAgents';
 import { USER_AGENT_PREFERENCES } from './useUserAgentPreferences';
 
@@ -81,15 +81,21 @@ const getAgentThreadMessageVizQuery = async (args: {
 
 export const useAiAgent = (agentUuid: string | undefined) => {
     const { showToastApiError } = useToaster();
+    const { data: activeProjectUuid } = useActiveProject();
+    const navigate = useNavigate();
 
     return useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, agentUuid],
         queryFn: () => getAgent(agentUuid!),
         onError: (error) => {
-            showToastApiError({
-                title: `Failed to fetch AI agent details`,
-                apiError: error.error,
-            });
+            if (error.error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: `Failed to fetch AI agent details`,
+                    apiError: error.error,
+                });
+            }
         },
         enabled: !!agentUuid,
     });
@@ -151,6 +157,8 @@ export const useAiAgentThreads = (
     agentUuid: string | undefined,
     allUsers?: boolean,
 ) => {
+    const { data: activeProjectUuid } = useActiveProject();
+    const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentThreadSummaryListResponse['results'], ApiError>({
@@ -162,10 +170,16 @@ export const useAiAgentThreads = (
         ],
         queryFn: () => listAgentThreads(agentUuid!, allUsers),
         onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch AI agent threads',
-                apiError: error.error,
-            });
+            if (error.error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            }
+            // Don't show error toast for permission errors - let the UI handle it gracefully
+            if (error.error?.statusCode !== 403) {
+                showToastApiError({
+                    title: 'Failed to fetch AI agent threads',
+                    apiError: error.error,
+                });
+            }
         },
         enabled: !!agentUuid,
     });
@@ -176,15 +190,21 @@ export const useAiAgentThread = (
     threadUuid: string | null | undefined,
 ) => {
     const { showToastApiError } = useToaster();
+    const { data: activeProjectUuid } = useActiveProject();
+    const navigate = useNavigate();
 
     return useQuery<ApiAiAgentThreadResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
         queryFn: () => getAgentThread(agentUuid!, threadUuid!),
         onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch AI agent thread',
-                apiError: error.error,
-            });
+            if (error.error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: 'Failed to fetch AI agent thread',
+                    apiError: error.error,
+                });
+            }
         },
         enabled: !!agentUuid && !!threadUuid,
     });
@@ -192,6 +212,7 @@ export const useAiAgentThread = (
 
 const createOptimisticMessages = (
     threadUuid: string,
+    promptUuid: string,
     prompt: string,
     user: UserWithAbility,
     agent: AiAgent,
@@ -199,7 +220,7 @@ const createOptimisticMessages = (
     return [
         {
             role: 'user' as const,
-            uuid: Math.random().toString(36),
+            uuid: promptUuid,
             threadUuid,
             message: prompt,
             createdAt: new Date().toISOString(),
@@ -210,9 +231,9 @@ const createOptimisticMessages = (
         },
         {
             role: 'assistant' as const,
-            uuid: Math.random().toString(36),
+            uuid: promptUuid,
             threadUuid,
-            message: getOptimisticMessageStub(),
+            message: '',
             createdAt: new Date().toISOString(),
             user: {
                 name: agent?.name ?? 'Unknown',
@@ -276,7 +297,8 @@ export const useCreateAgentThreadMutation = (
                         uuid: thread.uuid,
                         messages: createOptimisticMessages(
                             thread.uuid,
-                            thread.firstMessage,
+                            thread.firstMessage.uuid,
+                            thread.firstMessage.message,
                             user!.data!,
                             agent!,
                         ),
@@ -292,6 +314,7 @@ export const useCreateAgentThreadMutation = (
             void streamMessage({
                 agentUuid: thread.agentUuid,
                 threadUuid: thread.uuid,
+                messageUuid: thread.firstMessage.uuid,
                 onFinish: () =>
                     queryClient.invalidateQueries({
                         queryKey: [
@@ -311,10 +334,14 @@ export const useCreateAgentThreadMutation = (
             );
         },
         onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to create AI agent',
-                apiError: error,
-            });
+            if (error?.statusCode === 403) {
+                void navigate(`/projects/${projectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: 'Failed to create AI agent',
+                    apiError: error,
+                });
+            }
         },
     });
 };
@@ -335,6 +362,7 @@ export const useCreateAgentThreadMessageMutation = (
     agentUuid: string | undefined,
     threadUuid: string | undefined,
 ) => {
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const { user } = useApp();
@@ -344,13 +372,17 @@ export const useCreateAgentThreadMessageMutation = (
     return useMutation<
         ApiAiAgentThreadMessageCreateResponse['results'],
         ApiError,
-        ApiAiAgentThreadMessageCreateRequest
+        ApiAiAgentThreadMessageCreateRequest,
+        { messageUuid: string }
     >({
         mutationFn: (data) =>
             agentUuid && threadUuid
                 ? createAgentThreadMessage(agentUuid, threadUuid, data)
                 : Promise.reject(),
         onMutate: (data) => {
+            // Temporary uuid for optimistic messages
+            const messageUuid = nanoid();
+
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
                 (
@@ -368,6 +400,7 @@ export const useCreateAgentThreadMessageMutation = (
                             ...currentData.messages,
                             ...createOptimisticMessages(
                                 threadUuid,
+                                messageUuid,
                                 data.prompt,
                                 user!.data!,
                                 agent!,
@@ -376,11 +409,39 @@ export const useCreateAgentThreadMessageMutation = (
                     };
                 },
             );
+
+            return { messageUuid };
         },
-        onSuccess: async () => {
+        onSuccess: (data, _vars, context) => {
+            queryClient.setQueryData(
+                [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
+                (
+                    currentData:
+                        | ApiAiAgentThreadResponse['results']
+                        | undefined,
+                ) => {
+                    if (!currentData || !threadUuid) {
+                        return currentData;
+                    }
+
+                    return {
+                        ...currentData,
+                        messages: currentData.messages.map((message) =>
+                            message.uuid === context?.messageUuid
+                                ? {
+                                      ...message,
+                                      uuid: data.uuid,
+                                  }
+                                : message,
+                        ),
+                    };
+                },
+            );
+
             void streamMessage({
                 agentUuid: agentUuid!,
                 threadUuid: threadUuid!,
+                messageUuid: data.uuid,
                 onFinish: () =>
                     queryClient.invalidateQueries([
                         AI_AGENTS_KEY,
@@ -391,10 +452,14 @@ export const useCreateAgentThreadMessageMutation = (
             });
         },
         onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to generate AI agent thread response',
-                apiError: error,
-            });
+            if (error?.statusCode === 403) {
+                void navigate(`/projects/${projectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: 'Failed to generate AI agent thread response',
+                    apiError: error,
+                });
+            }
         },
     });
 };
@@ -417,6 +482,8 @@ export const useAiAgentThreadMessageVizQuery = (
         ApiError
     >,
 ) => {
+    const navigate = useNavigate();
+    const { data: activeProjectUuid } = useActiveProject();
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
@@ -440,11 +507,14 @@ export const useAiAgentThreadMessageVizQuery = (
             });
         },
         onError: (error: ApiError) => {
-            showToastApiError({
-                title: 'Failed to fetch visualization',
-                apiError: error.error,
-            });
-
+            if (error.error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: 'Failed to fetch visualization',
+                    apiError: error.error,
+                });
+            }
             useQueryOptions?.onError?.(error);
         },
         enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
@@ -464,6 +534,8 @@ export const useUpdatePromptFeedbackMutation = (
 ) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
+    const navigate = useNavigate();
+    const { data: activeProjectUuid } = useActiveProject();
 
     return useMutation<
         ApiSuccessEmpty,
@@ -497,10 +569,14 @@ export const useUpdatePromptFeedbackMutation = (
             );
         },
         onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to submit feedback',
-                apiError: error,
-            });
+            if (error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: 'Failed to submit feedback',
+                    apiError: error,
+                });
+            }
         },
     });
 };
@@ -530,6 +606,9 @@ export const useSavePromptQuery = (
     messageUuid: string,
 ) => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { showToastApiError } = useToaster();
+    const { data: activeProjectUuid } = useActiveProject();
 
     return useMutation<
         ApiSuccessEmpty,
@@ -547,6 +626,16 @@ export const useSavePromptQuery = (
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
             });
+        },
+        onError: ({ error }) => {
+            if (error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: 'Failed to save prompt query',
+                    apiError: error,
+                });
+            }
         },
     });
 };

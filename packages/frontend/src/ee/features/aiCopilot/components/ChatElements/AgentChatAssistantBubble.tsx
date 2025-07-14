@@ -34,10 +34,9 @@ import {
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
 import {
-    useAiAgentThreadStreaming,
+    useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
-import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
@@ -47,14 +46,14 @@ const AssistantBubbleContent: FC<{
     metricQuery?: ApiExecuteAsyncMetricQueryResults['metricQuery'];
 }> = ({ message, metricQuery, projectUuid }) => {
     const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
-    const isStubbed = isOptimisticMessageStub(message.message);
-    const isStreaming =
-        useAiAgentThreadStreaming(message.threadUuid) && isStubbed;
+    const isStreaming = useAiAgentThreadMessageStreaming(
+        message.threadUuid,
+        message.uuid,
+    );
+
     const messageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : isStubbed // avoid brief flash of `THINKING_STUB`
-            ? ''
             : message.message ?? 'No response...';
 
     return (
@@ -150,9 +149,10 @@ export const AssistantBubble: FC<{
         });
     }, [hasRating, updateFeedbackMutation, message.uuid]);
 
-    const isLoading =
-        useAiAgentThreadStreaming(message.threadUuid) &&
-        isOptimisticMessageStub(message.message);
+    const isLoading = useAiAgentThreadMessageStreaming(
+        message.threadUuid,
+        message.uuid,
+    );
 
     return (
         <Stack
