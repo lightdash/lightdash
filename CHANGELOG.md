@@ -1,3 +1,17 @@
+## [0.1810.2](https://github.com/lightdash/lightdash/compare/0.1810.1...0.1810.2) (2025-07-14)
+
+
+### Bug Fixes
+
+* revert add group access to ai agents ([#15849](https://github.com/lightdash/lightdash/issues/15849)) ([f9e4c2a](https://github.com/lightdash/lightdash/commit/f9e4c2a7ae37c3860bbd076f95fef83244b9cc53)), closes [#15706](https://github.com/lightdash/lightdash/issues/15706)
+
+## [0.1810.1](https://github.com/lightdash/lightdash/compare/0.1810.0...0.1810.1) (2025-07-14)
+
+
+### Bug Fixes
+
+* better UI when snowlfake SSO tokens expire ([#15804](https://github.com/lightdash/lightdash/issues/15804)) ([dda5a2b](https://github.com/lightdash/lightdash/commit/dda5a2b3994e8fcb865edd16cd419303828c908f))
+
 # [0.1810.0](https://github.com/lightdash/lightdash/compare/0.1809.1...0.1810.0) (2025-07-14)
 
 

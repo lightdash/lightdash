@@ -276,6 +276,7 @@ const useToaster = () => {
             ) : currentErrors.current[key][0].apiError ? (
                 <ApiErrorDisplay
                     apiError={currentErrors.current[key][0].apiError}
+                    onClose={() => notifications.hide(key)}
                 />
             ) : (
                 currentErrors.current[key][0].subtitle ||

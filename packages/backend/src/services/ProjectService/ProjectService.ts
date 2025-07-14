@@ -122,6 +122,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
+    SnowflakeTokenError,
     SortByDirection,
     SortField,
     SpaceQuery,
@@ -596,21 +597,29 @@ export class ProjectService extends BaseService {
             args.type === WarehouseTypes.SNOWFLAKE &&
             args.authenticationType === 'sso'
         ) {
-            const token = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.SNOWFLAKE,
-            );
-            this.logger.debug(
-                `Refreshing snowflake token for user ${userUuid}`,
-            );
-            const accessToken = await UserService.generateSnowflakeAccessToken(
-                token,
-            );
-            return {
-                ...args,
-                authenticationType: 'sso',
-                token: accessToken,
-            };
+            try {
+                const token = await this.userModel.getRefreshToken(
+                    userUuid,
+                    OpenIdIdentityIssuerType.SNOWFLAKE,
+                );
+                this.logger.debug(
+                    `Refreshing snowflake token for user ${userUuid}`,
+                );
+                const accessToken =
+                    await UserService.generateSnowflakeAccessToken(token);
+                return {
+                    ...args,
+                    authenticationType: 'sso',
+                    token: accessToken,
+                };
+            } catch (e: unknown) {
+                this.logger.error(
+                    `Error refreshing snowflake token: ${JSON.stringify(e)}`,
+                );
+                throw new SnowflakeTokenError(
+                    `Error refreshing snowflake token`,
+                );
+            }
         }
         return args;
     }
