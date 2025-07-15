@@ -1,3 +1,10 @@
+# [0.1814.0](https://github.com/lightdash/lightdash/compare/0.1813.1...0.1814.0) (2025-07-15)
+
+
+### Features
+
+* add AI metadata support for DBT Schema ([#15830](https://github.com/lightdash/lightdash/issues/15830)) ([adf7eae](https://github.com/lightdash/lightdash/commit/adf7eae303d2f3d986186d1ac1753eb17b096291))
+
 ## [0.1813.1](https://github.com/lightdash/lightdash/compare/0.1813.0...0.1813.1) (2025-07-15)
 
 
