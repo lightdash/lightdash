@@ -1713,11 +1713,16 @@ export class ProjectService extends BaseService {
     async compileQuery(
         args: {
             user: SessionUser;
-            metricQuery: MetricQuery;
+            // ! TODO: we need to fix this type
+            body: MetricQuery & { parameters?: ParametersValuesMap };
             projectUuid: string;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
-        const { user, metricQuery, projectUuid } = args;
+        const {
+            user,
+            body: { parameters, ...metricQuery },
+            projectUuid,
+        } = args;
 
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1773,6 +1778,7 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.query.timezone || 'UTC',
             undefined,
             useExperimentalMetricCtes,
+            parameters,
         );
         await sshTunnel.disconnect();
         return compiledQuery;
