@@ -16,6 +16,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -67,6 +68,7 @@ describe('Csv service', () => {
             encryptionUtil: {} as EncryptionUtil,
             userModel: {} as UserModel,
             featureFlagModel: {} as FeatureFlagModel,
+            projectParametersModel: {} as ProjectParametersModel,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

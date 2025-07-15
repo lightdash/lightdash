@@ -35,6 +35,7 @@ import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -187,6 +188,7 @@ const getMockedAsyncQueryService = (
         } as unknown as S3ResultsFileStorageClient,
         csvService: {} as CsvService,
         featureFlagModel: {} as FeatureFlagModel,
+        projectParametersModel: {} as ProjectParametersModel,
         ...overrides,
     });
 

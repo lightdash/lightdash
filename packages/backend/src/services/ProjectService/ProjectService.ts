@@ -91,6 +91,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    LightdashProjectConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
@@ -185,6 +186,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -250,6 +252,7 @@ export type ProjectServiceArguments = {
     encryptionUtil: EncryptionUtil;
     userModel: UserModel;
     featureFlagModel: FeatureFlagModel;
+    projectParametersModel: ProjectParametersModel;
 };
 
 export class ProjectService extends BaseService {
@@ -307,6 +310,8 @@ export class ProjectService extends BaseService {
 
     featureFlagModel: FeatureFlagModel;
 
+    projectParametersModel: ProjectParametersModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -334,6 +339,7 @@ export class ProjectService extends BaseService {
         encryptionUtil,
         userModel,
         featureFlagModel,
+        projectParametersModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -363,6 +369,7 @@ export class ProjectService extends BaseService {
         this.encryptionUtil = encryptionUtil;
         this.userModel = userModel;
         this.featureFlagModel = featureFlagModel;
+        this.projectParametersModel = projectParametersModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -1177,6 +1184,11 @@ export class ProjectService extends BaseService {
                             color: category.color ?? 'gray',
                         })),
                     );
+                    await this.replaceProjectParameters({
+                        user,
+                        projectUuid: newProjectUuid,
+                        parameters: lightdashProjectConfig.parameters,
+                    });
                     await this.saveExploresToCacheAndIndexCatalog(
                         user.userUuid,
                         newProjectUuid,
@@ -1467,6 +1479,11 @@ export class ProjectService extends BaseService {
                                     color: category.color ?? 'gray',
                                 })),
                             );
+                            await this.replaceProjectParameters({
+                                user,
+                                projectUuid,
+                                parameters: lightdashProjectConfig.parameters,
+                            });
                             await this.saveExploresToCacheAndIndexCatalog(
                                 user.userUuid,
                                 projectUuid,
@@ -3739,6 +3756,11 @@ export class ProjectService extends BaseService {
                                 color: category.color ?? 'gray',
                             })),
                         );
+                        await this.replaceProjectParameters({
+                            user,
+                            projectUuid,
+                            parameters: lightdashProjectConfig.parameters,
+                        });
                         return this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
                             projectUuid,
@@ -5979,6 +6001,39 @@ export class ProjectService extends BaseService {
         }
 
         return this.tagsModel.list(projectUuid);
+    }
+
+    async replaceProjectParameters({
+        user,
+        projectUuid,
+        parameters,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        parameters: LightdashProjectConfig['parameters'];
+    }) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // todo: call new model
+        console.log('save parameters', parameters);
+        await this.projectParametersModel.replace(
+            projectUuid,
+            parameters ?? {},
+        );
     }
 
     async replaceYamlTags(

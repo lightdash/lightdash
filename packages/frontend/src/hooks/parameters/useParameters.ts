@@ -1,10 +1,13 @@
-import { type ApiError, type ApiGetParametersResults } from '@lightdash/common';
+import {
+    type ApiError,
+    type ApiGetProjectParametersResults,
+} from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 
 const getParameters = async (
     projectUuid: string,
-): Promise<ApiGetParametersResults> => {
+): Promise<ApiGetProjectParametersResults> => {
     const results: any = await lightdashApi({
         url: `/projects/${projectUuid}/parameters`,
         method: 'GET',
@@ -17,9 +20,9 @@ const getParameters = async (
 
 export const useParameters = (
     projectUuid: string | undefined,
-    useQueryOptions?: UseQueryOptions<ApiGetParametersResults, ApiError>,
+    useQueryOptions?: UseQueryOptions<ApiGetProjectParametersResults, ApiError>,
 ) =>
-    useQuery<ApiGetParametersResults, ApiError>({
+    useQuery<ApiGetProjectParametersResults, ApiError>({
         queryKey: ['parameters', projectUuid],
         queryFn: () => getParameters(projectUuid!),
         enabled: !!projectUuid,
