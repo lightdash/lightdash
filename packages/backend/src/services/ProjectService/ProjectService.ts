@@ -3819,6 +3819,7 @@ export class ProjectService extends BaseService {
                                       explore.baseTable &&
                                       explore.tables?.[explore.baseTable]
                                           ?.description,
+                                  aiHint: explore.aiHint,
                               },
                           ]
                         : acc;
@@ -3840,6 +3841,7 @@ export class ProjectService extends BaseService {
                             description:
                                 explore.tables[explore.baseTable].description,
                             type: explore.type ?? ExploreType.DEFAULT,
+                            aiHint: explore.aiHint,
                         },
                     ];
                 }
