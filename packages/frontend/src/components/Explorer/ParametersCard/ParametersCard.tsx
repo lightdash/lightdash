@@ -1,19 +1,17 @@
 import { Box } from '@mantine/core';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { useParams } from 'react-router';
 import {
     ParameterSelection,
     useParameters,
-    useParameterState,
 } from '../../../features/parameters';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
 const ParametersCard = memo(
-    ({
-        activeParameterReferences,
-    }: {
+    ({}: // activeParameterReferences,
+    {
         activeParameterReferences: string[];
     }) => {
         const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -25,8 +23,6 @@ const ParametersCard = memo(
             (context) => context.state.unsavedChartVersion.tableName,
         );
 
-        // const { data } = useExplore(tableName);
-
         const toggleExpandedSection = useExplorerContext(
             (context) => context.actions.toggleExpandedSection,
         );
@@ -37,16 +33,42 @@ const ParametersCard = memo(
             isError,
         } = useParameters(projectUuid);
 
-        const { parameterValues, handleParameterChange, clearAllParameters } =
-            useParameterState();
+        const parameterValues = useExplorerContext(
+            (context) => context.state.parameters,
+        );
+
+        const setParameter = useExplorerContext(
+            (context) => context.actions.setParameter,
+        );
+
+        const handleParameterChange = (
+            paramKey: string,
+            value: string | null,
+        ) => {
+            if (!value) {
+                return;
+            }
+            setParameter(paramKey, value);
+        };
 
         console.log('parameterDetails', {
-            activeParameterReferences,
+            parameters,
+            parameterValues,
         });
 
         const paramsIsOpen = expandedSections.includes(
             ExplorerSection.PARAMETERS,
         );
+
+        const transformedParameters = useMemo(() => {
+            if (!parameters) return undefined;
+            return Object.fromEntries(
+                Object.entries(parameters).map(([key, param]) => [
+                    key,
+                    { options: param.options || [] },
+                ]),
+            );
+        }, [parameters]);
 
         return (
             <CollapsableCard
@@ -60,14 +82,16 @@ const ParametersCard = memo(
             >
                 <Box m="md">
                     <ParameterSelection
-                        parameters={parameters}
+                        parameters={transformedParameters}
                         isLoading={isLoading}
                         isError={isError}
-                        parameterValues={parameterValues}
+                        parameterValues={parameterValues || {}}
                         onParameterChange={handleParameterChange}
                         size="sm"
                         showClearAll={true}
-                        onClearAll={clearAllParameters}
+                        onClearAll={() => {
+                            console.log('clear all');
+                        }}
                         cols={2}
                     />
                 </Box>

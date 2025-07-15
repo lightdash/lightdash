@@ -360,9 +360,12 @@ export function reducer(
                 draft.unsavedChartVersion.metricQuery.filters = action.payload;
             });
         }
-        case ActionType.SET_PARAMETERS: {
+        case ActionType.SET_PARAMETER: {
             return produce(state, (draft) => {
-                draft.parameters = action.payload;
+                draft.parameters = {
+                    ...draft.parameters,
+                    [action.payload.key]: action.payload.value,
+                };
             });
         }
         case ActionType.ADD_ADDITIONAL_METRIC: {
@@ -1019,18 +1022,12 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const setParameters = useCallback(
-        (parameters: Record<string, string>, shouldFetchResults: boolean) => {
-            dispatch({
-                type: ActionType.SET_PARAMETERS,
-                payload: parameters,
-                options: {
-                    shouldFetchResults,
-                },
-            });
-        },
-        [],
-    );
+    const setParameter = useCallback((key: string, value: string) => {
+        dispatch({
+            type: ActionType.SET_PARAMETER,
+            payload: { key, value },
+        });
+    }, []);
 
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
@@ -1381,6 +1378,7 @@ const ExplorerProvider: FC<
                 ...(isEditMode ? {} : viewModeQueryArgs),
                 dateZoomGranularity,
                 invalidateCache: minimal,
+                parameters: state.parameters,
             });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
@@ -1402,6 +1400,7 @@ const ExplorerProvider: FC<
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
+        state.parameters,
     ]);
 
     useEffect(() => {
@@ -1516,7 +1515,7 @@ const ExplorerProvider: FC<
             removeSortField,
             moveSortFields,
             setFilters,
-            setParameters,
+            setParameter,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1558,7 +1557,7 @@ const ExplorerProvider: FC<
             removeSortField,
             moveSortFields,
             setFilters,
-            setParameters,
+            setParameter,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
