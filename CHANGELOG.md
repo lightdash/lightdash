@@ -1,3 +1,10 @@
+# [0.1816.0](https://github.com/lightdash/lightdash/compare/0.1815.0...0.1816.0) (2025-07-15)
+
+
+### Features
+
+* unhide query controller endpoints in API documentation ([#15864](https://github.com/lightdash/lightdash/issues/15864)) ([118735d](https://github.com/lightdash/lightdash/commit/118735dbd12961a0f53dbfc046c90f74a09a6147))
+
 # [0.1815.0](https://github.com/lightdash/lightdash/compare/0.1814.0...0.1815.0) (2025-07-15)
 
 
