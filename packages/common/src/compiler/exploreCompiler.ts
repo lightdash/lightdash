@@ -32,6 +32,7 @@ import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
+import { getParametersReferences } from './parameters';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -327,12 +328,18 @@ export class ExploreCompiler {
             },
         );
 
+        // Extract parameter references from sqlWhere
+        const parameterReferences = compiledSqlWhere
+            ? getParametersReferences(compiledSqlWhere)
+            : [];
+
         return {
             ...table,
             uncompiledSqlWhere: table.sqlWhere,
             sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -366,13 +373,20 @@ export class ExploreCompiler {
             },
             {},
         );
+
+        const compiledSql = compiledMetric.sql;
+
+        // Extract parameter references from metric sql
+        const parameterReferences = getParametersReferences(compiledSql);
+
         return {
             ...metric,
-            compiledSql: compiledMetric.sql,
+            compiledSql,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
                 : {}),
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -497,13 +511,19 @@ export class ExploreCompiler {
             },
             {},
         );
+
+        const compiledSql = compiledDimension.sql;
+        // Extract parameter references from dimension sql
+        const parameterReferences = getParametersReferences(compiledSql);
+
         return {
             ...dimension,
-            compiledSql: compiledDimension.sql,
+            compiledSql,
             tablesReferences: Array.from(compiledDimension.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
                 : {}),
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -541,7 +561,10 @@ export class ExploreCompiler {
     compileCustomDimensionSql(
         dimension: CustomSqlDimension,
         tables: Record<string, Table>,
-    ): Pick<CompiledCustomSqlDimension, 'compiledSql' | 'tablesReferences'> {
+    ): Pick<
+        CompiledCustomSqlDimension,
+        'compiledSql' | 'tablesReferences' | 'parameterReferences'
+    > {
         const currentRef = dimension.id;
         let tablesReferences = new Set<string>([]);
         const compiledSql = dimension.sql.replace(
@@ -566,9 +589,14 @@ export class ExploreCompiler {
                 return compiledReference.sql;
             },
         );
+
+        // Extract parameter references from custom dimension sql
+        const parameterReferences = getParametersReferences(compiledSql);
+
         return {
             compiledSql,
             tablesReferences: Array.from(tablesReferences),
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -703,6 +731,10 @@ export class ExploreCompiler {
             },
             tables,
         );
+
+        // Extract parameter references from sqlOn
+        const parameterReferences = getParametersReferences(sql);
+
         return {
             table: join.alias || join.table,
             sqlOn: join.sqlOn,
@@ -712,6 +744,7 @@ export class ExploreCompiler {
             hidden: join.hidden,
             always: join.always,
             relationship: join.relationship,
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 }
