@@ -1,7 +1,11 @@
-import { Text } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { memo } from 'react';
 import { useParams } from 'react-router';
-import { useParameters } from '../../../hooks/parameters/useParameters';
+import {
+    ParameterSelection,
+    useParameters,
+    useParameterState,
+} from '../../../features/parameters';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -27,10 +31,16 @@ const ParametersCard = memo(
             (context) => context.actions.toggleExpandedSection,
         );
 
-        const { data: parameterDetails } = useParameters(projectUuid);
+        const {
+            data: parameters,
+            isLoading,
+            isError,
+        } = useParameters(projectUuid);
+
+        const { parameterValues, handleParameterChange, clearAllParameters } =
+            useParameterState();
 
         console.log('parameterDetails', {
-            parameterDetails,
             activeParameterReferences,
         });
 
@@ -48,7 +58,19 @@ const ParametersCard = memo(
                     toggleExpandedSection(ExplorerSection.PARAMETERS)
                 }
             >
-                <Text>Parameters card content goes here (dummy)</Text>
+                <Box m="md">
+                    <ParameterSelection
+                        parameters={parameters}
+                        isLoading={isLoading}
+                        isError={isError}
+                        parameterValues={parameterValues}
+                        onParameterChange={handleParameterChange}
+                        size="sm"
+                        showClearAll={true}
+                        onClearAll={clearAllParameters}
+                        cols={2}
+                    />
+                </Box>
             </CollapsableCard>
         );
     },
