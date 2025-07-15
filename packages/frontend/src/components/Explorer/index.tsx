@@ -1,4 +1,4 @@
-import { getItemMap, isField, isMetric } from '@lightdash/common';
+import { getItemMap } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -47,19 +47,27 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const parameterReferencesInActiveFields: string[] = useMemo(() => {
             if (!exploreItemsMap) return [];
-            const result: string[] = [];
+            const result = new Set<string>();
             for (const fieldId of activeFields) {
                 const item = exploreItemsMap[fieldId];
+                console.log('item', item);
                 if (
                     item &&
-                    (isField(item) || isMetric(item)) &&
+                    'parameterReferences' in item &&
                     Array.isArray(item.parameterReferences)
                 ) {
-                    result.push(...item.parameterReferences);
+                    item.parameterReferences.forEach((ref: string) =>
+                        result.add(ref),
+                    );
                 }
             }
-            return result;
+            return Array.from(result);
         }, [exploreItemsMap, activeFields]);
+
+        console.log(
+            'parameterReferencesInActiveFields',
+            parameterReferencesInActiveFields,
+        );
 
         return (
             <MetricQueryDataProvider
