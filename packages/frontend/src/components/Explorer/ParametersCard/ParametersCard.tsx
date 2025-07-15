@@ -1,48 +1,57 @@
 import { Text } from '@mantine/core';
 import { memo } from 'react';
-// import { useParams } from 'react-router';
-import { useExplore } from '../../../hooks/useExplore';
-// import { useProject } from '../../../hooks/useProject';
+import { useParams } from 'react-router';
+import { useParameters } from '../../../hooks/parameters/useParameters';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
-const ParametersCard = memo(() => {
-    // const { projectUuid } = useParams<{ projectUuid: string }>();
-    // const project = useProject(projectUuid);
-    const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
-    );
-    // const isEditMode = useExplorerContext(
-    //     (context) => context.state.isEditMode,
-    // );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+const ParametersCard = memo(
+    ({
+        activeParameterReferences,
+    }: {
+        activeParameterReferences: string[];
+    }) => {
+        const { projectUuid } = useParams<{ projectUuid: string }>();
+        const expandedSections = useExplorerContext(
+            (context) => context.state.expandedSections,
+        );
 
-    const { data } = useExplore(tableName);
+        const tableName = useExplorerContext(
+            (context) => context.state.unsavedChartVersion.tableName,
+        );
 
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
-    );
+        // const { data } = useExplore(tableName);
 
-    const exploreState = useExplorerContext((context) => context.state);
+        const toggleExpandedSection = useExplorerContext(
+            (context) => context.actions.toggleExpandedSection,
+        );
 
-    console.log('exploreState----------------', { exploreState, data });
+        const { data: parameterDetails } = useParameters(projectUuid);
 
-    const paramsIsOpen = expandedSections.includes(ExplorerSection.PARAMETERS);
+        console.log('parameterDetails', {
+            parameterDetails,
+            activeParameterReferences,
+        });
 
-    return (
-        <CollapsableCard
-            isOpen={paramsIsOpen}
-            title="Parameters"
-            disabled={!tableName}
-            toggleTooltip={!tableName ? 'No model selected' : ''}
-            onToggle={() => toggleExpandedSection(ExplorerSection.PARAMETERS)}
-        >
-            <Text>Parameters card content goes here (dummy)</Text>
-        </CollapsableCard>
-    );
-});
+        const paramsIsOpen = expandedSections.includes(
+            ExplorerSection.PARAMETERS,
+        );
+
+        return (
+            <CollapsableCard
+                isOpen={paramsIsOpen}
+                title="Parameters"
+                disabled={!tableName}
+                toggleTooltip={!tableName ? 'No model selected' : ''}
+                onToggle={() =>
+                    toggleExpandedSection(ExplorerSection.PARAMETERS)
+                }
+            >
+                <Text>Parameters card content goes here (dummy)</Text>
+            </CollapsableCard>
+        );
+    },
+);
 
 export default ParametersCard;
