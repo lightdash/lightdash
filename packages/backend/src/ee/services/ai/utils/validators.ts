@@ -10,6 +10,7 @@ import {
     SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
+import Logger from '../../../../logging/logger';
 import { serializeData } from './serializeData';
 
 /**
@@ -27,12 +28,18 @@ export function validateSelectedFieldsExistence(
     );
 
     if (nonExploreFields.length) {
-        throw new Error(`The following fields do not exist in the selected explore.
+        const errorMessage = `The following fields do not exist in the selected explore.
 
 Fields:
 \`\`\`json
 ${nonExploreFields.join('\n')}
-\`\`\``);
+\`\`\``;
+
+        Logger.error(
+            `[AiAgent][Validate Selected Fields Existence] ${errorMessage}`,
+        );
+
+        throw new Error(errorMessage);
     }
 }
 
@@ -49,10 +56,14 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
             SupportedDbtAdapter.BIGQUERY,
         );
     } catch (e) {
-        throw new Error(`
-Error: ${getErrorMessage(e)}
+        const errorMessage = `Error: ${getErrorMessage(e)}
+
 Filter Rule:
-${serializeData(filterRule, 'json')}`);
+${serializeData(filterRule, 'json')}`;
+
+        Logger.error(`[AiAgent][Validate Filter Rule] ${errorMessage}`);
+
+        throw new Error(errorMessage);
     }
 }
 
@@ -91,10 +102,13 @@ ${serializeData(rule, 'json')}`,
             .map((e) => `<filterRuleError>${e}</filterRuleError>`)
             .join('\n');
 
-        throw new Error(`The following filter rules are invalid:
+        const errorMessage = `The following filter rules are invalid:
 
 Errors:
+${filterRuleErrorStrings}`;
 
-${filterRuleErrorStrings}`);
+        Logger.error(`[AiAgent][Validate Filter Rules] ${errorMessage}`);
+
+        throw new Error(errorMessage);
     }
 }

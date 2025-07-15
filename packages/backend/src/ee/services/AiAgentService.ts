@@ -1462,6 +1462,8 @@ export class AiAgentService {
             maxLimit: this.lightdashConfig.query.maxLimit,
             organizationId: user.organizationUuid,
             userId: user.userUuid,
+            debugLoggingEnabled:
+                this.lightdashConfig.ai.copilot.debugLoggingEnabled,
         };
 
         const dependencies = {

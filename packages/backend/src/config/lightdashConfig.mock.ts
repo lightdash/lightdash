@@ -184,6 +184,7 @@ export const lightdashConfigMock: LightdashConfig = {
     ai: {
         copilot: {
             enabled: false,
+            debugLoggingEnabled: false,
             telemetryEnabled: false,
             requiresFeatureFlag: false,
             defaultProvider: 'openai',
