@@ -9,7 +9,7 @@ export const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameters)\.(\w+)\}/g;
  * @param sql - The SQL string to extract parameter references from
  * @returns An array of unique parameter names referenced in the SQL
  */
-export const getParametersReferences = (sql: string): string[] => {
+export const getParameterReferences = (sql: string): string[] => {
     const matches = sql.match(parameterRegex);
 
     if (!matches) {
