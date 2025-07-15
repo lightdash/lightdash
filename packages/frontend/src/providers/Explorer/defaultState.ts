@@ -43,4 +43,5 @@ export const defaultState: ExplorerReduceState = {
             isOpen: false,
         },
     },
+    parameters: {},
 };
