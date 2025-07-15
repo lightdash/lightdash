@@ -255,36 +255,16 @@ export class InstanceConfigurationService extends BaseService {
         }
     }
 
-    async updateInstanceConfiguration() {
-        const config = this.lightdashConfig.updateSetup;
-        if (!config) {
-            this.logger.debug(
-                `Update instance: No update setup config found, skipping`,
-            );
-            return;
-        }
+    /**
+     * Update API key for admin
+     * revoke other existing PATs for the admin.
+     */
+    private async updateApiKeyForAdmin(
+        config: LightdashConfig['updateSetup'],
+        adminEmail: string | undefined,
+    ) {
+        if (!config) return;
 
-        const orgUuids = await this.organizationModel.getOrgUuids();
-        if (orgUuids.length !== 1) {
-            throw new ParameterError(
-                `There must be exactly 1 organization to update instance configuration, remove all the LD_SETUP* env variables or keep only one organization to continue`,
-            );
-        }
-        const projectUuids = await this.projectModel.getProjectUuids();
-        if (projectUuids.length !== 1) {
-            throw new ParameterError(
-                `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to continue`,
-            );
-        }
-        const orgUuid = orgUuids[0];
-        const projectUuid = projectUuids[0];
-
-        const adminEmail = config.organization?.admin?.email;
-
-        /**
-         * Update API key for admin
-         * revoke other existing PATs for the admin.
-         */
         if (config.apiKey?.token && adminEmail) {
             this.logger.debug(
                 `Update instance: Updating API key for user ${adminEmail}`,
@@ -309,10 +289,17 @@ export class InstanceConfigurationService extends BaseService {
                 `Update instance: Updated API key for user ${adminEmail}`,
             );
         }
+    }
 
-        /*
-         * Update API key for service account
-         */
+    /*
+     * Update API key for service account
+     */
+    private async updateServiceAccountForAdmin(
+        config: LightdashConfig['updateSetup'],
+        orgUuid: string,
+    ) {
+        if (!config) return;
+
         if (config.serviceAccount && this.serviceAccountModel) {
             this.logger.debug(
                 `Update instance: Updating API key for service account`,
@@ -350,13 +337,20 @@ export class InstanceConfigurationService extends BaseService {
                 `Update instance: No service account token provided, skipping`,
             );
         }
+    }
 
-        /**
-         * Update one or many of the following properties on the configuration
-         * - Github dbt PAT
-         * - Databricks project httpPath
-         * - Databricks project dbtVersion
-         */
+    /**
+     * Update one or many of the following properties on the configuration
+     * - Github dbt PAT
+     * - Databricks project httpPath
+     * - Databricks project dbtVersion
+     */
+    private async updateProjectConfiguration(
+        config: LightdashConfig['updateSetup'],
+        projectUuid: string,
+    ) {
+        if (!config) return;
+
         if (
             config.dbt?.personal_access_token ||
             config.project?.httpPath ||
@@ -413,5 +407,38 @@ export class InstanceConfigurationService extends BaseService {
                 `Update instance: No configuration to update for project ${projectUuid}`,
             );
         }
+    }
+
+    async updateInstanceConfiguration() {
+        const config = this.lightdashConfig.updateSetup;
+        if (!config) {
+            this.logger.debug(
+                `Update instance: No update setup config found, skipping`,
+            );
+            return;
+        }
+
+        const orgUuids = await this.organizationModel.getOrgUuids();
+        if (orgUuids.length !== 1) {
+            throw new ParameterError(
+                `There must be exactly 1 organization to update instance configuration, remove all the LD_SETUP* env variables or keep only one organization to continue`,
+            );
+        }
+        const projectUuids = await this.projectModel.getProjectUuids();
+        if (projectUuids.length !== 1) {
+            throw new ParameterError(
+                `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to continue`,
+            );
+        }
+        const orgUuid = orgUuids[0];
+        const projectUuid = projectUuids[0];
+
+        const adminEmail = config.organization?.admin?.email;
+
+        await this.updateApiKeyForAdmin(config, adminEmail);
+
+        await this.updateServiceAccountForAdmin(config, orgUuid);
+
+        await this.updateProjectConfiguration(config, projectUuid);
     }
 }
