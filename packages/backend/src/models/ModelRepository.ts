@@ -24,6 +24,7 @@ import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
+import { ProjectParametersModel } from './ProjectParametersModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
@@ -89,6 +90,7 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
+    projectParametersModel: ProjectParametersModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
     embedModel: unknown;
@@ -541,6 +543,13 @@ export class ModelRepository
         return this.getModel(
             'queryHistoryModel',
             () => new QueryHistoryModel({ database: this.database }),
+        );
+    }
+
+    public getProjectParametersModel(): ProjectParametersModel {
+        return this.getModel(
+            'projectParametersModel',
+            () => new ProjectParametersModel({ database: this.database }),
         );
     }
 
