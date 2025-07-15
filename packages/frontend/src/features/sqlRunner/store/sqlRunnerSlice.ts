@@ -9,7 +9,7 @@ import {
     type VizTableColumnsConfig,
     type VizTableConfig,
 } from '@lightdash/common';
-import type { PayloadAction } from '@reduxjs/toolkit';
+import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
@@ -128,7 +128,7 @@ export interface SqlRunnerState {
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
     queryIsLoading: boolean;
-    queryError: ApiErrorDetail | undefined;
+    queryError: ApiErrorDetail | SerializedError | Error | undefined;
     editorHighlightError: MonacoHighlightChar | undefined;
 }
 
@@ -404,7 +404,10 @@ export const sqlRunnerSlice = createSlice({
             })
             .addCase(runSqlQuery.rejected, (state, action) => {
                 state.queryIsLoading = false;
-                state.queryError = action.payload ?? undefined;
+                state.queryError =
+                    action.payload ??
+                    action.error ??
+                    new Error('Unexpected query error');
 
                 state.editorHighlightError = action.payload?.data
                     ? {
