@@ -57,7 +57,7 @@ export enum ActionType {
     SET_TIME_ZONE,
     SET_FILTERS,
     SET_COLUMN_ORDER,
-    SET_PARAMETERS,
+    SET_PARAMETER,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
@@ -154,8 +154,8 @@ export type Action =
           payload: string[];
       }
     | {
-          type: ActionType.SET_PARAMETERS;
-          payload: Record<string, string>;
+          type: ActionType.SET_PARAMETER;
+          payload: { key: string; value: string };
       }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
@@ -312,10 +312,7 @@ export interface ExplorerContextType {
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
         ) => void;
-        setParameters: (
-            parameters: Record<string, string>,
-            shouldFetchResults: boolean,
-        ) => void;
+        setParameter: (key: string, value: string) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,
