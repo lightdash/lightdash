@@ -1,3 +1,10 @@
+## [0.1816.1](https://github.com/lightdash/lightdash/compare/0.1816.0...0.1816.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* improve SQL runner error handling ([#15866](https://github.com/lightdash/lightdash/issues/15866)) ([823f578](https://github.com/lightdash/lightdash/commit/823f578d4017207cf18d3ebfa59c957e82cb190c)), closes [#15865](https://github.com/lightdash/lightdash/issues/15865)
+
 # [0.1816.0](https://github.com/lightdash/lightdash/compare/0.1815.0...0.1816.0) (2025-07-15)
 
 
