@@ -1,13 +1,7 @@
-import {
-    getItemMap,
-    isField,
-    isMetric,
-    type CompiledTable,
-} from '@lightdash/common';
+import { getItemMap, isField, isMetric } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import { useParameters } from '../../hooks/parameters/useParameters';
 import { useExplore } from '../../hooks/useExplore';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
@@ -47,15 +41,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             (context) => context.state.activeFields,
         );
 
-        let allParameterReferences: string[] = [];
-        if (explore && explore.tables) {
-            allParameterReferences = Object.values(explore.tables).flatMap(
-                (table: CompiledTable) => table.parameterReferences || [],
-            );
-        }
-
-        const { data: parameterDetails } = useParameters(projectUuid);
-
         const exploreItemsMap = useMemo(() => {
             return explore ? getItemMap(explore) : undefined;
         }, [explore]);
@@ -76,12 +61,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             return result;
         }, [exploreItemsMap, activeFields]);
 
-        console.log('explore parameters', {
-            parameterReferencesInActiveFields,
-            parameterDetails,
-            allParameterReferences,
-        });
-
         return (
             <MetricQueryDataProvider
                 metricQuery={unsavedChartVersionMetricQuery}
@@ -95,7 +74,11 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     <FiltersCard />
 
                     {(parameterReferencesInActiveFields.length > 0 || true) && ( // TODO: remove this
-                        <ParametersCard />
+                        <ParametersCard
+                            activeParameterReferences={
+                                parameterReferencesInActiveFields
+                            }
+                        />
                     )}
 
                     <VisualizationCard projectUuid={projectUuid} />
