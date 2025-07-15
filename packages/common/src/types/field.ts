@@ -445,14 +445,17 @@ export interface Dimension extends Field {
     aiHint?: string;
 }
 
-export interface CompiledDimension extends Dimension {
+type CompiledProperties = {
     compiledSql: string; // sql string with resolved template variables
     tablesReferences: Array<string> | undefined;
     tablesRequiredAttributes?: Record<
         string,
         Record<string, string | string[]>
     >;
-}
+    parametersReferences?: string[];
+};
+export type CompiledDimension = Dimension & CompiledProperties;
+export type CompiledMetric = Metric & CompiledProperties;
 
 export type CompiledField = CompiledDimension | CompiledMetric;
 
@@ -460,15 +463,6 @@ export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
-
-export interface CompiledMetric extends Metric {
-    compiledSql: string;
-    tablesReferences: Array<string> | undefined;
-    tablesRequiredAttributes?: Record<
-        string,
-        Record<string, string | string[]>
-    >;
-}
 
 export interface FilterableDimension extends Dimension {
     type:

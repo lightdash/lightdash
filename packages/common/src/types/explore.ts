@@ -46,6 +46,7 @@ export type CompiledTable = TableBase & {
     lineageGraph: LineageGraph;
     source?: Source | undefined;
     uncompiledSqlWhere?: string;
+    parametersReferences?: string[];
 };
 
 export enum ExploreType {
