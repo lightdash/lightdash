@@ -149,12 +149,14 @@ const getWrapChars = (wrapChar: string): [string, string] => {
     }
 };
 
-const replaceAttributes = (
+export const replaceLightdashValues = (
     regex: RegExp,
     sql: string,
-    userAttributes: Record<string, string | string[]>,
+    valuesMap: Record<string, string | string[]>,
     quoteChar: string | '',
     wrapChar: string | '',
+    // ! This is only for error messages so we can reuse the same function for user attributes and parameters, not super important for now
+    replacementName: 'user attribute' | 'parameter' = 'user attribute',
 ): string => {
     const sqlAttributes = sql.match(regex);
     const [leftWrap, rightWrap] = getWrapChars(wrapChar);
@@ -166,16 +168,16 @@ const replaceAttributes = (
     const replacedUserAttributesSql = sqlAttributes.reduce<string>(
         (acc, sqlAttribute) => {
             const attribute = sqlAttribute.replace(regex, '$1');
-            const attributeValues = userAttributes[attribute];
+            const attributeValues = valuesMap[attribute];
 
             if (attributeValues === undefined) {
                 throw new ForbiddenError(
-                    `Missing user attribute "${attribute}": "${sql}"`,
+                    `Missing ${replacementName} "${attribute}": "${sql}"`,
                 );
             }
             if (attributeValues.length === 0) {
                 throw new ForbiddenError(
-                    `Invalid or missing user attribute "${attribute}": "${sql}"`,
+                    `Invalid or missing ${replacementName} "${attribute}": "${sql}"`,
                 );
             }
 
@@ -210,7 +212,7 @@ export const replaceUserAttributes = (
         /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
 
     // Replace user attributes in the SQL filter
-    const replacedSqlFilter = replaceAttributes(
+    const replacedSqlFilter = replaceLightdashValues(
         userAttributeRegex,
         sql,
         userAttributes,
@@ -219,7 +221,7 @@ export const replaceUserAttributes = (
     );
 
     // Replace intrinsic user attributes in the SQL filter
-    return replaceAttributes(
+    return replaceLightdashValues(
         intrinsicUserAttributeRegex,
         replacedSqlFilter,
         intrinsicUserAttributes,
