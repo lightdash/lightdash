@@ -40,4 +40,15 @@ describe('replaceParameters', () => {
             'Missing parameter "status": "SELECT * FROM users WHERE status = ${lightdash.parameters.status}"',
         );
     });
+
+    it('should throw error when quote character is missing', () => {
+        const sql =
+            'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
+        const parameters = { status: ['active', 'pending'] };
+        const wrapChar = '(';
+
+        expect(() => replaceParameters(sql, parameters, '', wrapChar)).toThrow(
+            'Quote character is required',
+        );
+    });
 });
