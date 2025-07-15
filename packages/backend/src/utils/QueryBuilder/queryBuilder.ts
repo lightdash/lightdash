@@ -1130,7 +1130,11 @@ export class MetricQueryBuilder {
         ]);
 
         return {
-            query: replaceParameters(query, this.args.parameters ?? {}),
+            query: replaceParameters(
+                query,
+                this.args.parameters ?? {},
+                this.args.warehouseSqlBuilder.getStringQuoteChar(),
+            ),
             fields,
             warnings,
         };
@@ -1270,6 +1274,10 @@ export class QueryBuilder {
             .filter((l) => l !== undefined)
             .join('\n');
 
-        return replaceParameters(sql, this.parameters ?? {});
+        return replaceParameters(
+            sql,
+            this.parameters ?? {},
+            this.config.stringQuoteChar,
+        );
     }
 }
