@@ -4,8 +4,8 @@ import { replaceLightdashValues } from './utils';
 export const replaceParameters = (
     sql: string,
     parameters: ParametersValuesMap,
-    quoteChar: string,
-    wrapChar: string,
+    quoteChar: string = '', // ! Default to raw sql
+    wrapChar: string = '', // ! Default to raw sql
 ) => {
     const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameters)\.(\w+)\}/g;
     return replaceLightdashValues(
