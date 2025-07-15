@@ -259,13 +259,13 @@ export class InstanceConfigurationService extends BaseService {
         const orgUuids = await this.organizationModel.getOrgUuids();
         if (orgUuids.length !== 1) {
             throw new ParameterError(
-                `There must be exactly 1 organization to update instance configuration, remove all the LD_SETUP* env variables or keep only one organization to fix this error `,
+                `There must be exactly 1 organization to update instance configuration, remove all the LD_SETUP* env variables or keep only one organization to continue`,
             );
         }
         const projectUuids = await this.projectModel.getProjectUuids();
         if (projectUuids.length !== 1) {
             throw new ParameterError(
-                `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to fix this error`,
+                `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to continue`,
             );
         }
         const orgUuid = orgUuids[0];
@@ -273,7 +273,9 @@ export class InstanceConfigurationService extends BaseService {
 
         const config = this.lightdashConfig.updateSetup;
         if (!config) {
-            this.logger.debug(`No update setup config found, skipping`);
+            this.logger.debug(
+                `Update instance: No update setup config found, skipping`,
+            );
             return;
         }
         const adminEmail = config.organization?.admin?.email;
@@ -303,7 +305,7 @@ export class InstanceConfigurationService extends BaseService {
                 token: config.apiKey.token,
             });
             this.logger.info(
-                `Update instance:Updated API key for user ${adminEmail}`,
+                `Update instance: Updated API key for user ${adminEmail}`,
             );
         }
 
@@ -312,8 +314,24 @@ export class InstanceConfigurationService extends BaseService {
          */
         if (config.serviceAccount && this.serviceAccountModel) {
             this.logger.debug(
-                `Update instance:Updating API key for service account`,
+                `Update instance: Updating API key for service account`,
             );
+            const existingServiceAccounts =
+                await this.serviceAccountModel.getAllForOrganization(orgUuid, [
+                    ServiceAccountScope.ORG_ADMIN,
+                ]);
+            this.logger.debug(
+                `Update instance: Deleting ${existingServiceAccounts.length} existing service accounts`,
+            );
+
+            // We will delete all existing service accounts with the org admin scope
+            // before creating a new one.
+            await Promise.all(
+                existingServiceAccounts.map((sa) =>
+                    this.serviceAccountModel?.delete(sa.uuid),
+                ),
+            );
+
             await this.serviceAccountModel.save(
                 undefined, // user
                 {
@@ -324,9 +342,10 @@ export class InstanceConfigurationService extends BaseService {
                 },
                 config.serviceAccount.token,
             );
+
             this.logger.info(`Update instance: Updated service account`);
         } else {
-            this.logger.info(
+            this.logger.debug(
                 `Update instance: No service account token provided, skipping`,
             );
         }
@@ -343,7 +362,7 @@ export class InstanceConfigurationService extends BaseService {
             config.project?.dbtVersion
         ) {
             this.logger.debug(
-                `Update instance: Updating dbt for project ${projectUuid}`,
+                `Update instance: Updating configuration for project ${projectUuid}`,
             );
 
             const project = await this.projectModel.getWithSensitiveFields(
@@ -386,7 +405,11 @@ export class InstanceConfigurationService extends BaseService {
             await this.projectModel.update(projectUuid, updatedProject);
 
             this.logger.info(
-                `Update instance: Updated dbt personal access token for project ${projectUuid}`,
+                `Update instance: Updated configuration for project ${projectUuid}`,
+            );
+        } else {
+            this.logger.debug(
+                `Update instance: No configuration to update for project ${projectUuid}`,
             );
         }
     }
