@@ -27794,7 +27794,7 @@
                     {
                         "in": "query",
                         "name": "names",
-                        "required": true,
+                        "required": false,
                         "schema": {
                             "type": "array",
                             "items": {

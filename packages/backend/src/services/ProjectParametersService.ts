@@ -25,7 +25,7 @@ export class ProjectParametersService extends BaseService {
         this.projectParametersModel = args.projectParametersModel;
     }
 
-    async findProjectParameters(projectUuid: string, names: string[]) {
+    async findProjectParameters(projectUuid: string, names?: string[]) {
         return this.projectParametersModel.find(projectUuid, names);
     }
 }
