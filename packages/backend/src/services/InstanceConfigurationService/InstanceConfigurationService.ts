@@ -256,6 +256,14 @@ export class InstanceConfigurationService extends BaseService {
     }
 
     async updateInstanceConfiguration() {
+        const config = this.lightdashConfig.updateSetup;
+        if (!config) {
+            this.logger.debug(
+                `Update instance: No update setup config found, skipping`,
+            );
+            return;
+        }
+
         const orgUuids = await this.organizationModel.getOrgUuids();
         if (orgUuids.length !== 1) {
             throw new ParameterError(
@@ -271,13 +279,6 @@ export class InstanceConfigurationService extends BaseService {
         const orgUuid = orgUuids[0];
         const projectUuid = projectUuids[0];
 
-        const config = this.lightdashConfig.updateSetup;
-        if (!config) {
-            this.logger.debug(
-                `Update instance: No update setup config found, skipping`,
-            );
-            return;
-        }
         const adminEmail = config.organization?.admin?.email;
 
         /**
