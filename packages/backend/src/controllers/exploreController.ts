@@ -7,6 +7,7 @@ import {
     ApiSuccessEmpty,
     MetricQuery,
     PivotConfig,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import {
     Body,
@@ -111,14 +112,15 @@ export class ExploreController extends BaseController {
         @Path() exploreId: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: MetricQuery,
+        // ! TODO: we need to fix this type
+        @Body() body: MetricQuery & { parameters?: ParametersValuesMap },
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
 
         const results = (
             await this.services.getProjectService().compileQuery({
                 user: req.user!,
-                metricQuery: body,
+                body,
                 projectUuid,
                 exploreName: exploreId,
             })
