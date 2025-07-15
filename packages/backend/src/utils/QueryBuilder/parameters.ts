@@ -6,7 +6,7 @@ export const replaceParameters = (
     quoteChar: string,
     wrapChar: string,
 ) => {
-    const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameter)\.(\w+)\}/g;
+    const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameters)\.(\w+)\}/g;
     return replaceLightdashValues(
         parameterRegex,
         sql,

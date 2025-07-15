@@ -3,7 +3,7 @@ import { replaceParameters } from './parameters';
 describe('replaceParameters', () => {
     it('should replace lightdash parameter placeholders with values', () => {
         const sql =
-            'SELECT * FROM users WHERE status = ${lightdash.parameter.status}';
+            'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
         const parameters = { status: ['active', 'pending'] };
         const quoteChar = "'";
         const wrapChar = '(';
@@ -15,9 +15,9 @@ describe('replaceParameters', () => {
         );
     });
 
-    it('should handle short alias format (ld.parameter)', () => {
+    it('should handle short alias format (ld.parameters)', () => {
         const sql =
-            'SELECT * FROM orders WHERE region = ${ld.parameter.region}';
+            'SELECT * FROM orders WHERE region = ${ld.parameters.region}';
         const parameters = { region: ['US', 'EU'] };
         const quoteChar = '"';
         const wrapChar = '';
@@ -29,7 +29,7 @@ describe('replaceParameters', () => {
 
     it('should throw error when parameter is missing', () => {
         const sql =
-            'SELECT * FROM users WHERE status = ${lightdash.parameter.status}';
+            'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
         const parameters = {};
         const quoteChar = "'";
         const wrapChar = '(';
@@ -37,7 +37,7 @@ describe('replaceParameters', () => {
         expect(() =>
             replaceParameters(sql, parameters, quoteChar, wrapChar),
         ).toThrow(
-            'Missing parameter "status": "SELECT * FROM users WHERE status = ${lightdash.parameter.status}"',
+            'Missing parameter "status": "SELECT * FROM users WHERE status = ${lightdash.parameters.status}"',
         );
     });
 });
