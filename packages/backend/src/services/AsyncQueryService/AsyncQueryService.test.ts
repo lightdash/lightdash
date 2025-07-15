@@ -297,7 +297,6 @@ describe('AsyncQueryService', () => {
             ).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
-                user.userUuid,
                 {
                     status: QueryHistoryStatus.READY,
                     error: null,
@@ -312,6 +311,7 @@ describe('AsyncQueryService', () => {
                     pivot_total_column_count: null,
                     pivot_values_columns: null,
                 },
+                user.userUuid,
             );
 
             // Verify that the warehouse client executeAsyncQuery method was not called
@@ -519,6 +519,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.ERROR,
@@ -573,6 +574,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.PENDING,
@@ -629,6 +631,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.CANCELLED,
@@ -682,6 +685,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.READY,
@@ -771,6 +775,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.READY,
