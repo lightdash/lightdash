@@ -175,9 +175,14 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                                     overflow: 'hidden',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    paddingTop: COLLAPSIBLE_CARD_GAP_SIZE,
                                 }}
                             >
+                                <div
+                                    style={{
+                                        height: COLLAPSIBLE_CARD_GAP_SIZE,
+                                        minHeight: COLLAPSIBLE_CARD_GAP_SIZE,
+                                    }}
+                                />
                                 {children}
                             </div>
                         </div>
