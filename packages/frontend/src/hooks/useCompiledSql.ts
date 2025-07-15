@@ -14,10 +14,12 @@ const getCompiledQuery = async (
     projectUuid: string,
     tableId: string,
     query: MetricQuery,
+    queryParameters?: Record<string, string>,
 ) => {
     const timezoneFixQuery = {
         ...query,
         filters: convertDateFilters(query.filters),
+        parameters: queryParameters,
     };
 
     return lightdashApi<ApiCompiledQueryResults>({
@@ -48,6 +50,10 @@ export const useCompiledSql = (
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
 
+    const queryParameters = useExplorerContext(
+        (context) => context.state.parameters,
+    );
+
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
         exploreName: tableId,
@@ -72,7 +78,12 @@ export const useCompiledSql = (
         enabled: tableId !== undefined,
         queryKey,
         queryFn: () =>
-            getCompiledQuery(projectUuid!, tableId || '', metricQuery),
+            getCompiledQuery(
+                projectUuid!,
+                tableId || '',
+                metricQuery,
+                queryParameters,
+            ),
         onError: (result) => setErrorResponse(result),
         ...queryOptions,
     });

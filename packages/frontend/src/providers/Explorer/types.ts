@@ -57,6 +57,7 @@ export enum ActionType {
     SET_TIME_ZONE,
     SET_FILTERS,
     SET_COLUMN_ORDER,
+    SET_PARAMETERS,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
@@ -151,6 +152,10 @@ export type Action =
     | {
           type: ActionType.SET_COLUMN_ORDER;
           payload: string[];
+      }
+    | {
+          type: ActionType.SET_PARAMETERS;
+          payload: Record<string, string>;
       }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
@@ -271,6 +276,7 @@ export interface ExplorerReduceState {
             items?: CustomDimension[] | AdditionalMetric[];
         };
     };
+    parameters: Record<string, string>;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -305,6 +311,10 @@ export interface ExplorerContextType {
         setFilters: (
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
+        ) => void;
+        setParameters: (
+            parameters: Record<string, string>,
+            shouldFetchResults: boolean,
         ) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (

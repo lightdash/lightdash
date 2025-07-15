@@ -50,7 +50,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             const result = new Set<string>();
             for (const fieldId of activeFields) {
                 const item = exploreItemsMap[fieldId];
-                console.log('item', item);
                 if (
                     item &&
                     'parameterReferences' in item &&
@@ -63,11 +62,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             }
             return Array.from(result);
         }, [exploreItemsMap, activeFields]);
-
-        console.log(
-            'parameterReferencesInActiveFields',
-            parameterReferencesInActiveFields,
-        );
 
         return (
             <MetricQueryDataProvider
