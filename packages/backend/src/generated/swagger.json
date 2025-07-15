@@ -2474,14 +2474,8 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ParametersValuesMap": {
-                "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-            },
             "MetricQuery": {
                 "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -12387,22 +12381,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -16230,8 +16224,14 @@
                 ],
                 "type": "string"
             },
-            "CommonPaginatedQueryRequestParams": {
+            "ParametersValuesMap": {
+                "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+            },
+            "CommonExecuteQueryRequestParams": {
                 "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
                     "invalidateCache": {
                         "type": "boolean"
                     },
@@ -16337,7 +16337,7 @@
             "ExecuteAsyncMetricQueryRequestParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {
@@ -16356,7 +16356,7 @@
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {
@@ -16420,7 +16420,7 @@
             "ExecuteAsyncDashboardChartRequestParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {
@@ -16461,7 +16461,7 @@
             "ExecuteAsyncUnderlyingDataRequestParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {
@@ -16518,7 +16518,7 @@
             "ExecuteAsyncSqlQueryRequestParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {
@@ -16562,7 +16562,7 @@
             "ExecuteAsyncSqlChartByUuidRequestParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {
@@ -16582,7 +16582,7 @@
             "ExecuteAsyncSqlChartBySlugRequestParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {
@@ -16642,7 +16642,7 @@
             "ExecuteAsyncDashboardSqlChartCommonParams": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
                     },
                     {
                         "properties": {

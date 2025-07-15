@@ -56,6 +56,7 @@ import {
     MetricQuery,
     NotFoundError,
     type Organization,
+    type ParametersValuesMap,
     PivotConfig,
     PivotIndexColum,
     type PivotValuesColumn,
@@ -1323,9 +1324,10 @@ export class AsyncQueryService extends ProjectService {
         dateZoom,
         explore,
         warehouseSqlBuilder,
+        parameters,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
-        'user' | 'metricQuery' | 'dateZoom'
+        'user' | 'metricQuery' | 'dateZoom' | 'parameters'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -1361,6 +1363,8 @@ export class AsyncQueryService extends ProjectService {
             this.lightdashConfig.query.timezone || 'UTC',
             dateZoom,
             useExperimentalMetricCtes,
+            // ! TODO: Should validate the parameters to make sure they are valid from the options
+            parameters,
         );
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
@@ -1666,6 +1670,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         metricQuery,
         invalidateCache,
+        parameters,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1729,6 +1734,7 @@ export class AsyncQueryService extends ProjectService {
                 dateZoom,
                 explore,
                 warehouseSqlBuilder,
+                parameters,
             });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -1765,6 +1771,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         invalidateCache,
         limit,
+        parameters,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
@@ -1868,6 +1875,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery: metricQueryWithLimit,
                 explore,
                 warehouseSqlBuilder,
+                parameters,
             });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -1906,6 +1914,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         invalidateCache,
         limit,
+        parameters,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2064,6 +2073,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             dateZoom,
             warehouseSqlBuilder,
+            parameters,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2102,6 +2112,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         dateZoom,
         limit,
+        parameters,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2233,6 +2244,7 @@ export class AsyncQueryService extends ProjectService {
                 explore,
                 dateZoom,
                 warehouseSqlBuilder,
+                parameters,
             });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
@@ -2270,6 +2282,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         pivotConfiguration,
         limit,
+        parameters,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2305,6 +2318,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             sql,
             limit,
+            parameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2346,6 +2360,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardSorts,
         limit,
         tileUuid,
+        parameters,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -2357,6 +2372,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardSorts?: ExecuteAsyncDashboardSqlChartArgs['dashboardSorts'];
         limit?: number;
         tileUuid?: string;
+        parameters?: ParametersValuesMap;
     }) {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
@@ -2501,6 +2517,7 @@ export class AsyncQueryService extends ProjectService {
                           and: appliedDashboardFilters.dimensions,
                       }
                     : undefined,
+                parameters,
             },
             {
                 fieldQuoteChar,
@@ -2567,6 +2584,7 @@ export class AsyncQueryService extends ProjectService {
             sql: sqlChart.sql,
             config: sqlChart.config,
             limit: limit ?? sqlChart.limit,
+            parameters: args.parameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2651,6 +2669,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             dashboardSorts,
             limit: limit ?? savedChart.limit,
+            parameters: args.parameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
