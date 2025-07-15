@@ -103,6 +103,7 @@ type DbtModelLightdashConfig = ExploreConfig & {
         categories?: string[]; // yaml_reference
     };
     explores?: Record<string, ExploreConfig>;
+    ai_hint?: string;
 };
 
 export type DbtModelGroup = {
@@ -151,6 +152,7 @@ export type DbtColumnLightdashDimension = {
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
+    ai_hint?: string;
 } & DbtLightdashFieldTags;
 
 export type DbtColumnLightdashAdditionalDimension = Omit<
@@ -182,6 +184,7 @@ export type DbtColumnLightdashMetric = {
         >['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    ai_hint?: string;
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -526,6 +529,7 @@ export const convertModelMetric = ({
             spotlightVisibility,
             spotlightCategories,
         ),
+        ...(metric.ai_hint ? { aiHint: metric.ai_hint } : {}),
     };
 };
 

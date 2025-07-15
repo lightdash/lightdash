@@ -442,6 +442,7 @@ export interface Dimension extends Field {
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
+    aiHint?: string;
 }
 
 export interface CompiledDimension extends Dimension {
@@ -587,6 +588,7 @@ export interface Metric extends Field {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    aiHint?: string;
 }
 
 export const isFilterableDimension = (
