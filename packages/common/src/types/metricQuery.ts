@@ -20,6 +20,7 @@ import {
     type TableCalculation,
 } from './field';
 import { type Filters, type MetricFilterRule } from './filter';
+import type { ParametersValuesMap } from './parameters';
 
 export interface AdditionalMetric {
     label?: string;
@@ -73,6 +74,7 @@ export type MetricQuery = {
     metadata?: {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name' | 'table'>;
     };
+    parameters?: ParametersValuesMap;
 };
 export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
     compiledTableCalculations: CompiledTableCalculation[];
