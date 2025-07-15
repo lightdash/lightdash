@@ -12,13 +12,13 @@ export class ProjectParametersModel {
         this.database = database;
     }
 
-    async find(projectUuid: string, names: string[]) {
+    async find(projectUuid: string, names?: string[]) {
         const query = this.database(ProjectParametersTableName).where(
             'project_uuid',
             projectUuid,
         );
 
-        if (names.length > 0) {
+        if (names) {
             void query.whereIn('name', names);
         }
 

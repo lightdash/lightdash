@@ -31,7 +31,7 @@ export class ParametersController extends BaseController {
     async getParameters(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Query() names: string[],
+        @Query() names?: string[],
     ): Promise<ApiSuccess<ApiGetProjectParametersResults>> {
         const parameters = await this.services
             .getProjectParametersService()

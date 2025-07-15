@@ -33768,7 +33768,6 @@ export function RegisterRoutes(app: Router) {
         names: {
             in: 'query',
             name: 'names',
-            required: true,
             dataType: 'array',
             array: { dataType: 'string' },
         },
