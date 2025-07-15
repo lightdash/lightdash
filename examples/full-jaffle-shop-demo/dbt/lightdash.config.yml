@@ -17,9 +17,9 @@ parameters:
   join_on:
     label: 'Join param'
     options: [ "1", "2", "3" ]
-  metric:
+  metric_param:
     label: 'Metric param'
     options: [ "1", "2", "3" ]
-  dim:
+  dim_param:
     label: 'Dim param'
     options: [ "1", "2", "3" ]
