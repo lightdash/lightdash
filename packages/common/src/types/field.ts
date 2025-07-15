@@ -378,6 +378,7 @@ export interface Field {
     urls?: FieldUrl[];
     index?: number;
     tags?: string[];
+    parameterReferences?: string[];
 }
 
 export const isField = (field: AnyType): field is Field =>
@@ -453,7 +454,6 @@ type CompiledProperties = {
         string,
         Record<string, string | string[]>
     >;
-    parameterReferences?: string[];
 };
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;
