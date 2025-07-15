@@ -1,3 +1,10 @@
+# [0.1813.0](https://github.com/lightdash/lightdash/compare/0.1812.0...0.1813.0) (2025-07-15)
+
+
+### Features
+
+* add SSH access instructions for preview environments ([#15857](https://github.com/lightdash/lightdash/issues/15857)) ([984d974](https://github.com/lightdash/lightdash/commit/984d974bf7559095303cf0bf5f0d09d2a088ffcc))
+
 # [0.1812.0](https://github.com/lightdash/lightdash/compare/0.1811.0...0.1812.0) (2025-07-15)
 
 
