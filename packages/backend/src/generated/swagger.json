@@ -17514,7 +17514,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1814.0",
+        "version": "0.1810.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -27160,45 +27160,6 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
-            }
-        },
-        "/api/v2/projects/{projectUuid}/parameters": {
-            "get": {
-                "operationId": "getParameters",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_ApiGetParametersResults_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["v2", "Parameters"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v2/feature-flag/{featureFlagId}": {
