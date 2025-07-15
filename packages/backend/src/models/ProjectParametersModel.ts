@@ -1,4 +1,4 @@
-import { LightdashProjectParameter, NotFoundError } from '@lightdash/common';
+import { NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     ProjectParametersTableName,
@@ -10,22 +10,19 @@ import {
 export class ProjectParametersModel {
     private database: Knex;
 
-    constructor(database: Knex) {
+    constructor({ database }: { database: Knex }) {
         this.database = database;
     }
 
-    async find(
-        projectUuid: string,
-        filters: Partial<Pick<DbProjectParameter, 'name'>>,
-    ) {
+    async find(projectUuid: string, names: string[]) {
         const query = this.database(ProjectParametersTableName);
 
         if (projectUuid) {
             void query.where('project_uuid', projectUuid);
         }
 
-        if (filters.name) {
-            void query.where('name', filters.name);
+        if (names.length > 0) {
+            void query.whereIn('name', names);
         }
 
         return query.select('*');

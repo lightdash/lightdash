@@ -1,6 +1,6 @@
-export type ApiGetParametersResults = Record<
+import type { LightdashProjectParameter } from '../lightdashProjectConfig';
+
+export type ApiGetProjectParametersResults = Record<
     string,
-    {
-        options: string[];
-    }
+    LightdashProjectParameter
 >;
