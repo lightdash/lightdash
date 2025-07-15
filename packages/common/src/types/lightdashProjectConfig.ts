@@ -10,7 +10,7 @@ type SpotlightConfig = {
     };
 };
 
-type LightdashParameter = {
+export type LightdashProjectParameter = {
     label: string;
     description?: string;
     options?: string[];
@@ -18,7 +18,7 @@ type LightdashParameter = {
 
 export type LightdashProjectConfig = {
     spotlight: SpotlightConfig;
-    parameters?: Record<string, LightdashParameter>; // keys must be ^[a-zA-Z0-9_-]+$
+    parameters?: Record<string, LightdashProjectParameter>; // keys must be ^[a-zA-Z0-9_-]+$
 };
 
 export const DEFAULT_SPOTLIGHT_CONFIG: SpotlightConfig = {
