@@ -20,7 +20,7 @@ models:
         metrics:
           completion_percentage:
             type: number
-            sql: ${total_completed_order_amount}/${total_order_amount} OR ${ld.parameters.metric_param} = '1'
+            sql: ${total_completed_order_amount}/${total_order_amount} + ${ld.parameters.metric_param}::INTEGER
             format: percent
             ai_hint: |
               Completion percentage of orders.
@@ -36,7 +36,7 @@ models:
         config:
           meta:
             dimension:
-              sql: IF ${ld.parameters.dim_param} = '1' THEN order_id + 1 ELSE order_id END IF
+              sql: CASE WHEN ${ld.parameters.dim_param} = '1' THEN order_id + 1 ELSE order_id END
             metrics:
               unique_order_count:
                 type: count_distinct
