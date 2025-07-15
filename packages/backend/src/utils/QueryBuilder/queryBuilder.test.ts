@@ -2,6 +2,7 @@ import {
     BinType,
     CustomDimensionType,
     ForbiddenError,
+    JoinRelationship,
     TimeFrames,
 } from '@lightdash/common';
 import {
@@ -709,5 +710,70 @@ describe('Query builder', () => {
             'could be inflated due to join relationships',
         );
         expect(result.warnings[0].tables).toContain('table2');
+    });
+
+    describe('Parameters', () => {
+        test('Should build query with parameters in dimensions', () => {
+            const exploreWithParameterDimension = {
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table1: {
+                        ...EXPLORE.tables.table1,
+                        dimensions: {
+                            ...EXPLORE.tables.table1.dimensions,
+                            dim1: {
+                                ...EXPLORE.tables.table1.dimensions.dim1,
+                                compiledSql:
+                                    'CASE WHEN ${lightdash.parameters.status} = \'active\' THEN "table1".dim1 ELSE NULL END',
+                            },
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore: exploreWithParameterDimension,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                parameters: { status: 'active' },
+            });
+
+            expect(result.query).toContain(
+                'CASE WHEN active = \'active\' THEN "table1".dim1 ELSE NULL END',
+            );
+        });
+
+        test('Should build query with parameters in sql_on statements', () => {
+            const exploreWithParameterJoin = {
+                ...EXPLORE,
+                joinedTables: [
+                    {
+                        table: 'table2',
+                        sqlOn: "${table1.shared} = ${table2.shared} AND ${lightdash.parameters.status} = 'active'",
+                        compiledSqlOn:
+                            '("table1".shared) = ("table2".shared) AND ${lightdash.parameters.status} = \'active\'',
+                        type: undefined,
+                        tablesReferences: ['table1', 'table2'],
+                        relationship: JoinRelationship.MANY_TO_ONE,
+                    },
+                ],
+            };
+
+            const result = buildQuery({
+                explore: exploreWithParameterJoin,
+                compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                parameters: { status: 'active' },
+            });
+
+            expect(result.query).toContain(
+                '("table1".shared) = ("table2".shared) AND active = \'active\'',
+            );
+        });
     });
 });

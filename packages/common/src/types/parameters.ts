@@ -1,1 +1,1 @@
-export type ParametersValuesMap = Record<string, string[]>;
+export type ParametersValuesMap = Record<string, string | string[]>;

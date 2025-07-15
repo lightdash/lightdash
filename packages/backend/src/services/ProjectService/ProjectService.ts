@@ -1698,6 +1698,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone,
+            parameters: metricQuery.parameters,
         });
 
         return wrapSentryTransactionSync(

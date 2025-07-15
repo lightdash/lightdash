@@ -12,7 +12,6 @@ import {
     FilterRule,
     getCustomMetricDimensionId,
     getDimensions,
-    getFieldQuoteChar,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
@@ -33,7 +32,6 @@ import {
     SupportedDbtAdapter,
     TimeFrames,
     UserAttributeValueMap,
-    WarehouseClient,
     WeekDay,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
@@ -69,7 +67,7 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     userAttributes?: UserAttributeValueMap;
-    parameters: ParametersValuesMap;
+    parameters?: ParametersValuesMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
 };
@@ -235,12 +233,17 @@ export class MetricQueryBuilder {
             });
 
         // Selects
-        const selects = dimensionsObjects.map(
-            (dimension) =>
-                `  ${dimension.compiledSql} AS ${fieldQuoteChar}${getItemId(
-                    dimension,
-                )}${fieldQuoteChar}`,
-        );
+        const selects = dimensionsObjects.map((dimension) => {
+            const dimensionSqlWithParameters = replaceParameters(
+                dimension.compiledSql,
+                this.args.parameters,
+            );
+
+            return `  ${dimensionSqlWithParameters} AS ${fieldQuoteChar}${getItemId(
+                dimension,
+            )}${fieldQuoteChar}`;
+        });
+
         if (customBinDimensionSql?.selects) {
             selects.push(...customBinDimensionSql.selects);
         }
