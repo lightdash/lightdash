@@ -378,6 +378,11 @@ export class ProjectModel {
         return parseInt(results.count, 10) > 0;
     }
 
+    async getProjectUuids(): Promise<string[]> {
+        const projects = await this.database('projects').select('project_uuid');
+        return projects.map((project) => project.project_uuid);
+    }
+
     async hasProjects(organizationUuid: string): Promise<boolean> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)

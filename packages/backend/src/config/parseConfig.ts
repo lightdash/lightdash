@@ -301,24 +301,22 @@ const parseApiExpiration = (envVariable: string): Date | null => {
     return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
 };
 
+const parseEnum = <T>(
+    value: string | undefined,
+    enumObj?: AnyType,
+): T | undefined => {
+    if (!value) return undefined;
+
+    const enumValues = enumObj ? Object.values(enumObj) : [];
+    if (enumValues.length > 0 && !enumValues.includes(value)) {
+        throw new ParameterError(
+            `Invalid value "${value}". Must be one of ${enumValues.join(', ')}`,
+        );
+    }
+    return value as T;
+};
+
 const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
-    const parseEnum = <T>(
-        value: string | undefined,
-        enumObj?: AnyType,
-    ): T | undefined => {
-        if (!value) return undefined;
-
-        const enumValues = enumObj ? Object.values(enumObj) : [];
-        if (enumValues.length > 0 && !enumValues.includes(value)) {
-            throw new ParameterError(
-                `Invalid value "${value}". Must be one of ${enumValues.join(
-                    ', ',
-                )}`,
-            );
-        }
-        return value as T;
-    };
-
     const parseCompute = (): CreateDatabricksCredentials['compute'] => {
         // This is a stringified array of objects, in JSON format
         // If format is not correct, it will throw an error
@@ -426,26 +424,35 @@ const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
     }
 
     return {
-        organization: process.env.LD_SETUP_ADMIN_EMAIL
+        organization: {
+            admin: {
+                email: process.env.LD_SETUP_ADMIN_EMAIL,
+            },
+        },
+        apiKey: {
+            token: process.env.LD_SETUP_ADMIN_API_KEY,
+            expirationTime: parseApiExpiration('LD_SETUP_API_KEY_EXPIRATION'),
+        },
+        project: {
+            httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH,
+            dbtVersion: parseEnum<SupportedDbtVersions>(
+                process.env.LD_SETUP_DBT_VERSION,
+                SupportedDbtVersions,
+            ),
+        },
+        serviceAccount: isApiValidToken(
+            TokenEnvironmentVariable.SERVICE_ACCOUNT,
+        )
             ? {
-                  admin: {
-                      email: process.env.LD_SETUP_ADMIN_EMAIL,
-                  },
-              }
-            : undefined,
-        apiKey: process.env.LD_SETUP_ADMIN_API_KEY
-            ? {
-                  token: process.env.LD_SETUP_ADMIN_API_KEY,
+                  token: process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN!,
                   expirationTime: parseApiExpiration(
-                      'LD_SETUP_API_KEY_EXPIRATION',
+                      'LD_SETUP_SERVICE_ACCOUNT_EXPIRATION',
                   ),
               }
             : undefined,
-        dbt: process.env.LD_SETUP_GITHUB_PAT
-            ? {
-                  personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
-              }
-            : undefined,
+        dbt: {
+            personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
+        },
     };
 };
 
@@ -747,18 +754,26 @@ export type LightdashConfig = {
         };
         dbt: DbtGithubProjectConfig;
     };
-    updateSetup: {
-        organization?: {
+    updateSetup?: {
+        organization: {
             admin: {
-                email: string;
+                email?: string;
             };
         };
-        apiKey?: {
-            token: string;
+        apiKey: {
+            token?: string;
             expirationTime: Date | null;
         };
-        dbt?: {
-            personal_access_token: string;
+        dbt: {
+            personal_access_token?: string;
+        };
+        project: {
+            httpPath?: CreateDatabricksCredentials['httpPath'];
+            dbtVersion?: DbtVersionOption;
+        };
+        serviceAccount?: {
+            token: string;
+            expirationTime: Date | null;
         };
     };
 };
