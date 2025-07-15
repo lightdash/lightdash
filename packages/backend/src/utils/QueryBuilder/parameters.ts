@@ -7,8 +7,12 @@ export const replaceParameters = (
     parameters: ParametersValuesMap,
     quoteChar: string,
     wrapChar: string = '', // ! Default to non-wrapped sql
-) =>
-    replaceLightdashValues(
+) => {
+    if (!quoteChar) {
+        throw new Error('Quote character is required');
+    }
+
+    return replaceLightdashValues(
         parameterRegex,
         sql,
         parameters,
@@ -16,3 +20,4 @@ export const replaceParameters = (
         wrapChar,
         'parameter',
     );
+};
