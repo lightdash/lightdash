@@ -35,9 +35,11 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
+    type ParametersValuesMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { replaceParameters } from './parameters';
 import {
     assertValidDimensionRequiredAttribute,
     findMetricInflationWarnings,
@@ -67,6 +69,7 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     userAttributes?: UserAttributeValueMap;
+    parameters: ParametersValuesMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
 };
@@ -696,7 +699,13 @@ export class MetricQueryBuilder {
                     userAttributes,
                     warehouseSqlBuilder,
                 );
-                return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
+
+                const parsedSqlOnWithParameters = replaceParameters(
+                    parsedSqlOn,
+                    this.args.parameters,
+                );
+
+                return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOnWithParameters}`;
             })
             .join('\n');
 
