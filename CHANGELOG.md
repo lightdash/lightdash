@@ -1,3 +1,10 @@
+# [0.1811.0](https://github.com/lightdash/lightdash/compare/0.1810.2...0.1811.0) (2025-07-15)
+
+
+### Features
+
+* run build and tests on stacked prs ([#15855](https://github.com/lightdash/lightdash/issues/15855)) ([ff9270f](https://github.com/lightdash/lightdash/commit/ff9270f68f7f6a6f49afceaa918c48a36ecf6512))
+
 ## [0.1810.2](https://github.com/lightdash/lightdash/compare/0.1810.1...0.1810.2) (2025-07-14)
 
 
