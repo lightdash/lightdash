@@ -1,3 +1,10 @@
+# [0.1817.0](https://github.com/lightdash/lightdash/compare/0.1816.1...0.1817.0) (2025-07-15)
+
+
+### Features
+
+* migration for query_history.created_by_account in oss ([#15863](https://github.com/lightdash/lightdash/issues/15863)) ([c25b3a2](https://github.com/lightdash/lightdash/commit/c25b3a2968386626921d863548890cf9729069a8))
+
 ## [0.1816.1](https://github.com/lightdash/lightdash/compare/0.1816.0...0.1816.1) (2025-07-15)
 
 
