@@ -1931,6 +1931,9 @@
                     },
                     "isIntervalBase": {
                         "type": "boolean"
+                    },
+                    "aiHint": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -2471,8 +2474,14 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ParametersValuesMap": {
+                "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+            },
             "MetricQuery": {
                 "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -3794,6 +3803,9 @@
             },
             "TableBase": {
                 "properties": {
+                    "aiHint": {
+                        "type": "string"
+                    },
                     "defaultTimeDimension": {
                         "$ref": "#/components/schemas/DefaultTimeDimension"
                     },
@@ -3852,15 +3864,7 @@
                 "required": ["sqlTable", "schema", "database", "label", "name"],
                 "type": "object"
             },
-            "Record_string.Record_string.string-or-string-Array__": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "CompiledDimension": {
+            "Dimension": {
                 "properties": {
                     "fieldType": {
                         "$ref": "#/components/schemas/FieldType.DIMENSION"
@@ -3957,17 +3961,8 @@
                     "isIntervalBase": {
                         "type": "boolean"
                     },
-                    "compiledSql": {
+                    "aiHint": {
                         "type": "string"
-                    },
-                    "tablesReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "tablesRequiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
                     }
                 },
                 "required": [
@@ -3978,11 +3973,52 @@
                     "table",
                     "tableLabel",
                     "sql",
-                    "hidden",
-                    "compiledSql"
+                    "hidden"
                 ],
                 "type": "object",
                 "additionalProperties": true
+            },
+            "Record_string.Record_string.string-or-string-Array__": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "CompiledProperties": {
+                "properties": {
+                    "parametersReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "tablesRequiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
+                    },
+                    "tablesReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "compiledSql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["compiledSql"],
+                "type": "object"
+            },
+            "CompiledDimension": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Dimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CompiledProperties"
+                    }
+                ]
             },
             "Record_string.CompiledDimension_": {
                 "properties": {},
@@ -3996,7 +4032,7 @@
                 "enum": ["metric"],
                 "type": "string"
             },
-            "CompiledMetric": {
+            "Metric": {
                 "properties": {
                     "fieldType": {
                         "$ref": "#/components/schemas/FieldType.METRIC"
@@ -4115,17 +4151,8 @@
                         "required": ["visibility"],
                         "type": "object"
                     },
-                    "compiledSql": {
+                    "aiHint": {
                         "type": "string"
-                    },
-                    "tablesReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "tablesRequiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
                     }
                 },
                 "required": [
@@ -4136,11 +4163,20 @@
                     "table",
                     "tableLabel",
                     "sql",
-                    "hidden",
-                    "compiledSql"
+                    "hidden"
                 ],
                 "type": "object",
                 "additionalProperties": true
+            },
+            "CompiledMetric": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Metric"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CompiledProperties"
+                    }
+                ]
             },
             "Record_string.CompiledMetric_": {
                 "properties": {},
@@ -4184,6 +4220,12 @@
                     },
                     {
                         "properties": {
+                            "parametersReferences": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "uncompiledSqlWhere": {
                                 "type": "string"
                             },
@@ -4222,6 +4264,9 @@
             },
             "Explore": {
                 "properties": {
+                    "aiHint": {
+                        "type": "string"
+                    },
                     "spotlight": {
                         "properties": {
                             "categories": {
@@ -4517,139 +4562,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    }
-                },
-                "required": [
-                    "fieldType",
-                    "type",
-                    "name",
-                    "label",
-                    "table",
-                    "tableLabel",
-                    "sql",
-                    "hidden"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "Metric": {
-                "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/FieldType.METRIC"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/MetricType"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "table": {
-                        "type": "string"
-                    },
-                    "tableLabel": {
-                        "type": "string"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/Source"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "format": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Format"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
-                    },
-                    "groupLabel": {
-                        "type": "string",
-                        "deprecated": true
-                    },
-                    "groups": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "urls": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldUrl"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "showUnderlyingValues": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/MetricFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "percentile": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat"
-                    },
-                    "dimensionReference": {
-                        "type": "string"
-                    },
-                    "requiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "defaultTimeDimension": {
-                        "$ref": "#/components/schemas/DefaultTimeDimension"
-                    },
-                    "spotlight": {
-                        "properties": {
-                            "categories": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "visibility": {
-                                "type": "string",
-                                "enum": ["show", "hide"]
-                            }
-                        },
-                        "required": ["visibility"],
-                        "type": "object"
                     }
                 },
                 "required": [
@@ -14564,117 +14476,6 @@
                     }
                 ]
             },
-            "Dimension": {
-                "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/FieldType.DIMENSION"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DimensionType"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "table": {
-                        "type": "string"
-                    },
-                    "tableLabel": {
-                        "type": "string"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/Source"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "format": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Format"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
-                    },
-                    "groupLabel": {
-                        "type": "string",
-                        "deprecated": true
-                    },
-                    "groups": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "urls": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldUrl"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "group": {
-                        "type": "string",
-                        "deprecated": true
-                    },
-                    "requiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames"
-                    },
-                    "timeIntervalBaseDimensionName": {
-                        "type": "string"
-                    },
-                    "isAdditionalDimension": {
-                        "type": "boolean"
-                    },
-                    "colors": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
-                    "isIntervalBase": {
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "fieldType",
-                    "type",
-                    "name",
-                    "label",
-                    "table",
-                    "tableLabel",
-                    "sql",
-                    "hidden"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
             "MetricExploreDataPoint": {
                 "properties": {
                     "compareMetric": {
@@ -15332,6 +15133,9 @@
                         "type": "string"
                     },
                     "sqlPath": {
+                        "type": "string"
+                    },
+                    "aiHint": {
                         "type": "string"
                     }
                 },
@@ -17704,7 +17508,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1813.1",
+        "version": "0.1814.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
