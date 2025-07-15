@@ -44,6 +44,33 @@
                     }
                 }
             }
+        },
+        "parameters": {
+            "type": ["object", "null"],
+            "description": "Define parameters that can be used in SQL queries",
+            "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "description": "The label of the parameter as it will be displayed in the UI",
+                            "type": "string"
+                        },
+                        "description": {
+                            "description": "A description of the parameter",
+                            "type": "string"
+                        },
+                        "options": {
+                            "description": "A list of possible values for the parameter",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": ["label"]
+                }
+            }
         }
     }
 }
