@@ -120,12 +120,33 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
     });
 
     describe('validation scenarios', () => {
+        test('Do not throw error if there is no update setup config', async () => {
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: jest
+                        .fn()
+                        .mockResolvedValue(['org-1', 'org-2']),
+                },
+            });
+
+            await expect(
+                service.updateInstanceConfiguration(),
+            ).resolves.not.toThrow();
+        });
+
         test('should throw ParameterError when there are multiple organizations', async () => {
             service = createMockService({
                 organizationModel: {
                     getOrgUuids: jest
                         .fn()
                         .mockResolvedValue(['org-1', 'org-2']),
+                },
+                updateSetup: {
+                    organization: {
+                        admin: {
+                            email: mockAdminEmail,
+                        },
+                    },
                 },
             });
 
@@ -146,6 +167,13 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getProjectUuids: jest
                         .fn()
                         .mockResolvedValue(['project-1', 'project-2']),
+                },
+                updateSetup: {
+                    organization: {
+                        admin: {
+                            email: mockAdminEmail,
+                        },
+                    },
                 },
             });
 
