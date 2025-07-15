@@ -6,7 +6,6 @@ import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisu
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { LoadingChart } from '../SimpleChart';
-import { COLLAPSIBLE_CARD_GAP_SIZE } from '../common/CollapsableCard/constants';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 const VegaLite = lazy(() =>
@@ -87,14 +86,12 @@ const CustomVisualization: FC<Props> = (props) => {
                 <VegaLite
                     style={{
                         width: rect.width,
-                        // NOTE: We need to subtract the gap size because the bounding rect
-                        // does not take into account the padding/margin of the parent element
-                        height: rect.height - COLLAPSIBLE_CARD_GAP_SIZE,
+                        height: rect.height,
                     }}
                     config={{
                         autosize: {
                             resize: true,
-                            type: 'fit-x',
+                            type: 'fit',
                         },
                     }}
                     // TODO: We are ignoring some typescript errors here because the type
