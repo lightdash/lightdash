@@ -53,7 +53,6 @@ export type ApiGetAsyncQueryResultsResponse = {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Query')
 export class QueryController extends BaseController {
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}')
@@ -87,7 +86,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/cancel')
@@ -111,7 +109,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/metric-query')
@@ -157,7 +154,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart')
@@ -191,7 +187,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-chart')
@@ -228,7 +223,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/underlying-data')
@@ -265,7 +259,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql')
@@ -298,7 +291,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql-chart')
@@ -332,7 +324,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-sql-chart')
@@ -373,7 +364,7 @@ export class QueryController extends BaseController {
     /**
      * Stream results from S3
      */
-    @Hidden()
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}/results')
@@ -406,7 +397,6 @@ export class QueryController extends BaseController {
         }
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/download')
