@@ -233,16 +233,12 @@ export class MetricQueryBuilder {
             });
 
         // Selects
-        const selects = dimensionsObjects.map((dimension) => {
-            const dimensionSqlWithParameters = replaceParameters(
-                dimension.compiledSql,
-                this.args.parameters,
-            );
-
-            return `  ${dimensionSqlWithParameters} AS ${fieldQuoteChar}${getItemId(
-                dimension,
-            )}${fieldQuoteChar}`;
-        });
+        const selects = dimensionsObjects.map(
+            (dimension) =>
+                `  ${dimension.compiledSql} AS ${fieldQuoteChar}${getItemId(
+                    dimension,
+                )}${fieldQuoteChar}`,
+        );
 
         if (customBinDimensionSql?.selects) {
             selects.push(...customBinDimensionSql.selects);
@@ -703,12 +699,7 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder,
                 );
 
-                const parsedSqlOnWithParameters = replaceParameters(
-                    parsedSqlOn,
-                    this.args.parameters,
-                );
-
-                return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOnWithParameters}`;
+                return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
             .join('\n');
 
@@ -1131,13 +1122,15 @@ export class MetricQueryBuilder {
             }
         }
 
+        const query = MetricQueryBuilder.assembleSqlParts([
+            MetricQueryBuilder.buildCtesSQL(ctes),
+            ...finalSelectParts,
+            sqlOrderBy,
+            sqlLimit,
+        ]);
+
         return {
-            query: MetricQueryBuilder.assembleSqlParts([
-                MetricQueryBuilder.buildCtesSQL(ctes),
-                ...finalSelectParts,
-                sqlOrderBy,
-                sqlLimit,
-            ]),
+            query: replaceParameters(query, this.args.parameters ?? {}),
             fields,
             warnings,
         };
@@ -1159,12 +1152,15 @@ export class QueryBuilder {
 
     private readonly filters: FilterGroup | undefined;
 
+    private readonly parameters?: ParametersValuesMap;
+
     constructor(
         args: {
             referenceMap: ReferenceMap;
             select: string[];
             from: From;
             filters?: FilterGroup;
+            parameters?: ParametersValuesMap;
         },
         private config: {
             fieldQuoteChar: string;
@@ -1179,6 +1175,7 @@ export class QueryBuilder {
         this.from = args.from;
         this.filters = args.filters;
         this.referenceMap = args.referenceMap;
+        this.parameters = args.parameters;
     }
 
     private quotedName(value: string) {
@@ -1269,8 +1266,10 @@ export class QueryBuilder {
 
     toSql(): string {
         // Combine all parts of the query
-        return [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
+        const sql = [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
             .filter((l) => l !== undefined)
             .join('\n');
+
+        return replaceParameters(sql, this.parameters ?? {});
     }
 }
