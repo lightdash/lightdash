@@ -102,6 +102,7 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
+    type ParametersValuesMap,
     PivotChartData,
     PivotValuesColumn,
     Project,
@@ -1677,6 +1678,7 @@ export class ProjectService extends BaseService {
         timezone: string,
         dateZoom?: DateZoom,
         useExperimentalMetricCtes?: boolean,
+        parameters?: ParametersValuesMap,
     ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
@@ -1698,7 +1700,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone,
-            parameters: metricQuery.parameters,
+            parameters,
         });
 
         return wrapSentryTransactionSync(
