@@ -35,6 +35,8 @@ models:
         description: This is a unique identifier for an order
         config:
           meta:
+            dimension:
+              sql: IF ${ld.parameters.dim} = '1' THEN order_id + 1 ELSE order_id END IF
             metrics:
               unique_order_count:
                 type: count_distinct
