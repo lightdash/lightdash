@@ -1,13 +1,14 @@
 import {
     ApiErrorPayload,
     ApiSuccess,
-    type ApiGetParametersResults,
+    type ApiGetProjectParametersResults,
 } from '@lightdash/common';
 import {
     Get,
     Middlewares,
     OperationId,
     Path,
+    Query,
     Request,
     Response,
     Route,
@@ -26,19 +27,28 @@ export class ParametersController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
-    @OperationId('getParameters')
+    @OperationId('getProjectParameters')
     async getParameters(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiGetParametersResults>> {
-        const parameters: ApiGetParametersResults = {
-            my_parameter: {
-                options: ['value1', 'value2'],
-            },
-        };
+        @Query() names: string[],
+    ): Promise<ApiSuccess<ApiGetProjectParametersResults>> {
+        const parameters = await this.services
+            .getProjectParametersService()
+            .findProjectParameters(projectUuid, names);
+
+        const results: ApiGetProjectParametersResults =
+            parameters.reduce<ApiGetProjectParametersResults>(
+                (acc, parameter) => {
+                    acc[parameter.name] = parameter.config;
+                    return acc;
+                },
+                {},
+            );
+
         return {
             status: 'ok',
-            results: parameters,
+            results,
         };
     }
 }
