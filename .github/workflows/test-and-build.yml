@@ -4,7 +4,8 @@ on:
     push:
         branches: [main]
     pull_request:
-        branches: [main]
+        types: [opened, synchronize, reopened]
+    workflow_dispatch:
 
 jobs:
     build:
@@ -39,5 +40,14 @@ jobs:
             - name: Build warehouses
               run: pnpm warehouses-build
 
+            - name: Build frontend
+              run: pnpm frontend-build
+
+            - name: Build Backend
+              run: pnpm backend-build
+
+            - name: Check types for all packages
+              run: pnpm typecheck
+
             - name: Run unit tests
-              run: pnpm backend-build && pnpm test
+              run: pnpm test

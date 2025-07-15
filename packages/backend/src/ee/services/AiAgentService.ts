@@ -1115,14 +1115,17 @@ export class AiAgentService {
             .map((explore, index) => ({
                 ...explore,
                 description: exploreSummaries[index]?.description,
+                aiHint: exploreSummaries[index]?.aiHint,
             }));
 
-        const minimalExploreInformation = exploresWithDescriptions.map((s) => ({
-            ...pick(s, ['name', 'label', 'description', 'baseTable']),
-            joinedTables: Object.keys(s.tables).filter(
-                (table) => table !== s.baseTable,
-            ),
-        }));
+        const minimalExploreInformation: AiAgentExploreSummary[] =
+            exploresWithDescriptions.map((s) => ({
+                ...pick(s, ['name', 'label', 'description', 'baseTable']),
+                joinedTables: Object.keys(s.tables).filter(
+                    (table) => table !== s.baseTable,
+                ),
+                ...(s.aiHint ? { aiHint: s.aiHint } : {}),
+            }));
 
         return minimalExploreInformation;
     }

@@ -1,3 +1,73 @@
+## [0.1817.1](https://github.com/lightdash/lightdash/compare/0.1817.0...0.1817.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* improve custom visualization sizing and layout ([#15868](https://github.com/lightdash/lightdash/issues/15868)) ([15652eb](https://github.com/lightdash/lightdash/commit/15652eb339436a986a872f768e3b0b141af26f77))
+
+# [0.1817.0](https://github.com/lightdash/lightdash/compare/0.1816.1...0.1817.0) (2025-07-15)
+
+
+### Features
+
+* migration for query_history.created_by_account in oss ([#15863](https://github.com/lightdash/lightdash/issues/15863)) ([c25b3a2](https://github.com/lightdash/lightdash/commit/c25b3a2968386626921d863548890cf9729069a8))
+
+## [0.1816.1](https://github.com/lightdash/lightdash/compare/0.1816.0...0.1816.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* improve SQL runner error handling ([#15866](https://github.com/lightdash/lightdash/issues/15866)) ([823f578](https://github.com/lightdash/lightdash/commit/823f578d4017207cf18d3ebfa59c957e82cb190c)), closes [#15865](https://github.com/lightdash/lightdash/issues/15865)
+
+# [0.1816.0](https://github.com/lightdash/lightdash/compare/0.1815.0...0.1816.0) (2025-07-15)
+
+
+### Features
+
+* unhide query controller endpoints in API documentation ([#15864](https://github.com/lightdash/lightdash/issues/15864)) ([118735d](https://github.com/lightdash/lightdash/commit/118735dbd12961a0f53dbfc046c90f74a09a6147))
+
+# [0.1815.0](https://github.com/lightdash/lightdash/compare/0.1814.0...0.1815.0) (2025-07-15)
+
+
+### Features
+
+* use AI hint fields from dbt schema in Agent prompts/tools ([#15832](https://github.com/lightdash/lightdash/issues/15832)) ([0acd3b9](https://github.com/lightdash/lightdash/commit/0acd3b9cfc9739b7546ea7b4c58a1d9417f13309)), closes [#15335](https://github.com/lightdash/lightdash/issues/15335)
+
+# [0.1814.0](https://github.com/lightdash/lightdash/compare/0.1813.1...0.1814.0) (2025-07-15)
+
+
+### Features
+
+* add AI metadata support for DBT Schema ([#15830](https://github.com/lightdash/lightdash/issues/15830)) ([adf7eae](https://github.com/lightdash/lightdash/commit/adf7eae303d2f3d986186d1ac1753eb17b096291))
+
+## [0.1813.1](https://github.com/lightdash/lightdash/compare/0.1813.0...0.1813.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* add --full-refresh flag to dbt run command in CLI tests ([#15856](https://github.com/lightdash/lightdash/issues/15856)) ([9d570f9](https://github.com/lightdash/lightdash/commit/9d570f9136efcda89d3e6da9bccd6896d1215002)), closes [/github.com/lightdash/lightdash/blob/207bbd4999473f8ca693fa5e43c72e2d7d102fb7/examples/full-jaffle-shop-demo/renderDeployHook.sh#L7](https://github.com//github.com/lightdash/lightdash/blob/207bbd4999473f8ca693fa5e43c72e2d7d102fb7/examples/full-jaffle-shop-demo/renderDeployHook.sh/issues/L7)
+
+# [0.1813.0](https://github.com/lightdash/lightdash/compare/0.1812.0...0.1813.0) (2025-07-15)
+
+
+### Features
+
+* add SSH access instructions for preview environments ([#15857](https://github.com/lightdash/lightdash/issues/15857)) ([984d974](https://github.com/lightdash/lightdash/commit/984d974bf7559095303cf0bf5f0d09d2a088ffcc))
+
+# [0.1812.0](https://github.com/lightdash/lightdash/compare/0.1811.0...0.1812.0) (2025-07-15)
+
+
+### Features
+
+* add create_by_account to query_history ([#15843](https://github.com/lightdash/lightdash/issues/15843)) ([f59df90](https://github.com/lightdash/lightdash/commit/f59df9065174372eeec8c47d78294f1346c06447))
+
+# [0.1811.0](https://github.com/lightdash/lightdash/compare/0.1810.2...0.1811.0) (2025-07-15)
+
+
+### Features
+
+* run build and tests on stacked prs ([#15855](https://github.com/lightdash/lightdash/issues/15855)) ([ff9270f](https://github.com/lightdash/lightdash/commit/ff9270f68f7f6a6f49afceaa918c48a36ecf6512))
+
 ## [0.1810.2](https://github.com/lightdash/lightdash/compare/0.1810.1...0.1810.2) (2025-07-14)
 
 

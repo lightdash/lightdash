@@ -73,6 +73,7 @@ export type Explore = {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    aiHint?: string;
 };
 
 export enum InlineErrorType {
@@ -94,7 +95,13 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
-type SummaryExploreFields = 'name' | 'label' | 'tags' | 'groupLabel' | 'type';
+type SummaryExploreFields =
+    | 'name'
+    | 'label'
+    | 'tags'
+    | 'groupLabel'
+    | 'type'
+    | 'aiHint';
 type SummaryExploreErrorFields = SummaryExploreFields | 'errors';
 type SummaryExtraFields = {
     description?: string;

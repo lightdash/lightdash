@@ -30,6 +30,7 @@ export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
     createdByUserUuid: string | null;
+    createdByAccount: string | null;
     organizationUuid: string;
     projectUuid: string | null;
     warehouseQueryId: string | null;
