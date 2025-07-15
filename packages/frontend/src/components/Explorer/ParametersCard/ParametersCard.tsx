@@ -1,14 +1,14 @@
-import { Badge, Text, Tooltip } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { memo } from 'react';
-import { useParams } from 'react-router';
+// import { useParams } from 'react-router';
 import { useExplore } from '../../../hooks/useExplore';
-import { useProject } from '../../../hooks/useProject';
+// import { useProject } from '../../../hooks/useProject';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
 const ParametersCard = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    // const { projectUuid } = useParams<{ projectUuid: string }>();
     // const project = useProject(projectUuid);
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,
@@ -22,14 +22,13 @@ const ParametersCard = memo(() => {
 
     const { data } = useExplore(tableName);
 
-    console.log('table ----------------', data);
-
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
 
     const exploreState = useExplorerContext((context) => context.state);
-    console.log('exploreState----------------', exploreState);
+
+    console.log('exploreState----------------', { exploreState, data });
 
     const paramsIsOpen = expandedSections.includes(ExplorerSection.PARAMETERS);
 
