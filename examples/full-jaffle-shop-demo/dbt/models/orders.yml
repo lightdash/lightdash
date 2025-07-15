@@ -12,14 +12,15 @@ models:
         spotlight:
           categories:
             - sales
+        sql_filter: ${ld.parameters.table_where} = '1'
         joins:
           - join: customers
-            sql_on: ${customers.customer_id} = ${orders.customer_id}
+            sql_on: ${customers.customer_id} = ${orders.customer_id} OR ${ld.parameters.join_on} = '1'
             relationship: many-to-one
         metrics:
           completion_percentage:
             type: number
-            sql: ${total_completed_order_amount}/${total_order_amount}
+            sql: ${total_completed_order_amount}/${total_order_amount} OR ${ld.parameters.metric} = '1'
             format: percent
             ai_hint: |
               Completion percentage of orders.
