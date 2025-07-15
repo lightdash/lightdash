@@ -32,7 +32,7 @@ import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
-import { getParametersReferences } from './parameters';
+import { getParameterReferences } from './parameters';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -330,7 +330,7 @@ export class ExploreCompiler {
 
         // Extract parameter references from sqlWhere
         const parameterReferences = compiledSqlWhere
-            ? getParametersReferences(compiledSqlWhere)
+            ? getParameterReferences(compiledSqlWhere)
             : [];
 
         return {
@@ -377,7 +377,7 @@ export class ExploreCompiler {
         const compiledSql = compiledMetric.sql;
 
         // Extract parameter references from metric sql
-        const parameterReferences = getParametersReferences(compiledSql);
+        const parameterReferences = getParameterReferences(compiledSql);
 
         return {
             ...metric,
@@ -514,7 +514,7 @@ export class ExploreCompiler {
 
         const compiledSql = compiledDimension.sql;
         // Extract parameter references from dimension sql
-        const parameterReferences = getParametersReferences(compiledSql);
+        const parameterReferences = getParameterReferences(compiledSql);
 
         return {
             ...dimension,
@@ -591,7 +591,7 @@ export class ExploreCompiler {
         );
 
         // Extract parameter references from custom dimension sql
-        const parameterReferences = getParametersReferences(compiledSql);
+        const parameterReferences = getParameterReferences(compiledSql);
 
         return {
             compiledSql,
@@ -733,7 +733,7 @@ export class ExploreCompiler {
         );
 
         // Extract parameter references from sqlOn
-        const parameterReferences = getParametersReferences(sql);
+        const parameterReferences = getParameterReferences(sql);
 
         return {
             table: join.alias || join.table,
