@@ -261,6 +261,7 @@ export const isCustomSqlDimension = (
 export type CompiledCustomSqlDimension = CustomSqlDimension & {
     compiledSql: string;
     tablesReferences: Array<string>;
+    parameterReferences?: string[];
 };
 
 export type CompiledCustomDimension =
