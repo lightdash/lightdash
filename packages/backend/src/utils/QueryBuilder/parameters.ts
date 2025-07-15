@@ -1,8 +1,9 @@
+import type { ParametersValuesMap } from '@lightdash/common';
 import { replaceLightdashValues } from './utils';
 
 export const replaceParameters = (
     sql: string,
-    parameters: Record<string, string[]>,
+    parameters: ParametersValuesMap,
     quoteChar: string,
     wrapChar: string,
 ) => {
