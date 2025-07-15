@@ -1,3 +1,10 @@
+# [0.1812.0](https://github.com/lightdash/lightdash/compare/0.1811.0...0.1812.0) (2025-07-15)
+
+
+### Features
+
+* add create_by_account to query_history ([#15843](https://github.com/lightdash/lightdash/issues/15843)) ([f59df90](https://github.com/lightdash/lightdash/commit/f59df9065174372eeec8c47d78294f1346c06447))
+
 # [0.1811.0](https://github.com/lightdash/lightdash/compare/0.1810.2...0.1811.0) (2025-07-15)
 
 
