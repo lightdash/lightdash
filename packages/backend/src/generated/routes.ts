@@ -3656,7 +3656,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                parametersReferences: {
+                parameterReferences: {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
@@ -3837,7 +3837,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        parametersReferences: {
+                        parameterReferences: {
                             dataType: 'array',
                             array: { dataType: 'string' },
                         },
