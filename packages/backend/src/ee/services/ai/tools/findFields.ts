@@ -44,6 +44,7 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
         const mapFieldFn = (field: CompiledField) => ({
             fieldId: getItemId(field),
             ...pick(field, ['label', 'description', 'type']),
+            ...(field.aiHint ? { aiHint: field.aiHint } : {}),
         });
 
         const mappedValues = mapValues(explore.tables, (t) => {
@@ -54,6 +55,7 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
                 ...pick(t, ['name', 'label', 'description']),
                 dimensions: dimensions.filter(filterFieldFn).map(mapFieldFn),
                 metrics: metrics.filter(filterFieldFn).map(mapFieldFn),
+                ...(t.aiHint ? { aiHint: t.aiHint } : {}),
             };
         });
 
