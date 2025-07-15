@@ -259,11 +259,10 @@ export class InstanceConfigurationService extends BaseService {
      * Update API key for admin
      * revoke other existing PATs for the admin.
      */
-    private async updateApiKeyForAdmin(
-        config: LightdashConfig['updateSetup'],
-        adminEmail: string | undefined,
-    ) {
+    private async updateApiKeyForAdmin(config: LightdashConfig['updateSetup']) {
         if (!config) return;
+
+        const adminEmail = config.organization?.admin?.email;
 
         if (config.apiKey?.token && adminEmail) {
             this.logger.debug(
@@ -433,9 +432,7 @@ export class InstanceConfigurationService extends BaseService {
         const orgUuid = orgUuids[0];
         const projectUuid = projectUuids[0];
 
-        const adminEmail = config.organization?.admin?.email;
-
-        await this.updateApiKeyForAdmin(config, adminEmail);
+        await this.updateApiKeyForAdmin(config);
 
         await this.updateServiceAccountForAdmin(config, orgUuid);
 
