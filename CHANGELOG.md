@@ -1,3 +1,10 @@
+# [0.1815.0](https://github.com/lightdash/lightdash/compare/0.1814.0...0.1815.0) (2025-07-15)
+
+
+### Features
+
+* use AI hint fields from dbt schema in Agent prompts/tools ([#15832](https://github.com/lightdash/lightdash/issues/15832)) ([0acd3b9](https://github.com/lightdash/lightdash/commit/0acd3b9cfc9739b7546ea7b4c58a1d9417f13309)), closes [#15335](https://github.com/lightdash/lightdash/issues/15335)
+
 # [0.1814.0](https://github.com/lightdash/lightdash/compare/0.1813.1...0.1814.0) (2025-07-15)
 
 
