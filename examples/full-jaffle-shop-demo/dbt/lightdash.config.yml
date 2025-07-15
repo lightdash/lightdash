@@ -10,3 +10,16 @@ spotlight:
     sales:
       label: "Sales"
       color: green
+parameters:
+  table_where:
+    label: 'Table filter param'
+    options: [ "1", "2", "3" ]
+  join_on:
+    label: 'Join param'
+    options: [ "1", "2", "3" ]
+  metric:
+    label: 'Metric param'
+    options: [ "1", "2", "3" ]
+  dim:
+    label: 'Dim param'
+    options: [ "1", "2", "3" ]
