@@ -1,3 +1,10 @@
+## [0.1813.1](https://github.com/lightdash/lightdash/compare/0.1813.0...0.1813.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* add --full-refresh flag to dbt run command in CLI tests ([#15856](https://github.com/lightdash/lightdash/issues/15856)) ([9d570f9](https://github.com/lightdash/lightdash/commit/9d570f9136efcda89d3e6da9bccd6896d1215002)), closes [/github.com/lightdash/lightdash/blob/207bbd4999473f8ca693fa5e43c72e2d7d102fb7/examples/full-jaffle-shop-demo/renderDeployHook.sh#L7](https://github.com//github.com/lightdash/lightdash/blob/207bbd4999473f8ca693fa5e43c72e2d7d102fb7/examples/full-jaffle-shop-demo/renderDeployHook.sh/issues/L7)
+
 # [0.1813.0](https://github.com/lightdash/lightdash/compare/0.1812.0...0.1813.0) (2025-07-15)
 
 
