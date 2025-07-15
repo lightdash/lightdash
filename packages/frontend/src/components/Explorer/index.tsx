@@ -7,8 +7,8 @@ import {
 import { Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import { useParameters } from '../../hooks/parameters/useParameters';
 import { useExplore } from '../../hooks/useExplore';
-import { useParameterDetails } from '../../hooks/useParameterDetails';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -54,9 +54,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             );
         }
 
-        const { data: parameterDetails } = useParameterDetails({
-            parameterReferences: allParameterReferences,
-        });
+        const { data: parameterDetails } = useParameters(projectUuid);
 
         const exploreItemsMap = useMemo(() => {
             return explore ? getItemMap(explore) : undefined;
@@ -81,6 +79,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         console.log('explore parameters', {
             parameterReferencesInActiveFields,
             parameterDetails,
+            allParameterReferences,
         });
 
         return (
