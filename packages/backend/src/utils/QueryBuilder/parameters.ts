@@ -1,4 +1,5 @@
 import type { ParametersValuesMap } from '@lightdash/common';
+import { parameterRegex } from '@lightdash/common/src/compiler/parameters';
 import { replaceLightdashValues } from './utils';
 
 export const replaceParameters = (
@@ -6,9 +7,8 @@ export const replaceParameters = (
     parameters?: ParametersValuesMap,
     quoteChar: string = '', // ! Default to raw sql
     wrapChar: string = '', // ! Default to raw sql
-) => {
-    const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameters)\.(\w+)\}/g;
-    return replaceLightdashValues(
+) =>
+    replaceLightdashValues(
         parameterRegex,
         sql,
         parameters ?? {},
@@ -16,4 +16,3 @@ export const replaceParameters = (
         wrapChar,
         'parameter',
     );
-};
