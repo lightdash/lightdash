@@ -452,7 +452,7 @@ type CompiledProperties = {
         string,
         Record<string, string | string[]>
     >;
-    parametersReferences?: string[];
+    parameterReferences?: string[];
 };
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;

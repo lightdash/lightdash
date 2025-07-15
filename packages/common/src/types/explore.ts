@@ -38,6 +38,7 @@ export type CompiledExploreJoin = Pick<
 > & {
     compiledSqlOn: string; // SQL on clause with template variables resolved
     tablesReferences?: string[]; // Tables referenced in SQL. Optional, to keep it backwards compatible.
+    parameterReferences?: string[];
 };
 
 export type CompiledTable = TableBase & {
@@ -46,7 +47,7 @@ export type CompiledTable = TableBase & {
     lineageGraph: LineageGraph;
     source?: Source | undefined;
     uncompiledSqlWhere?: string;
-    parametersReferences?: string[];
+    parameterReferences?: string[];
 };
 
 export enum ExploreType {
