@@ -360,6 +360,11 @@ export function reducer(
                 draft.unsavedChartVersion.metricQuery.filters = action.payload;
             });
         }
+        case ActionType.SET_PARAMETERS: {
+            return produce(state, (draft) => {
+                draft.parameters = action.payload;
+            });
+        }
         case ActionType.ADD_ADDITIONAL_METRIC: {
             return produce(state, (draft) => {
                 const isMetricAlreadyInList = (
@@ -1014,6 +1019,19 @@ const ExplorerProvider: FC<
         [],
     );
 
+    const setParameters = useCallback(
+        (parameters: Record<string, string>, shouldFetchResults: boolean) => {
+            dispatch({
+                type: ActionType.SET_PARAMETERS,
+                payload: parameters,
+                options: {
+                    shouldFetchResults,
+                },
+            });
+        },
+        [],
+    );
+
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
             type: ActionType.SET_PIVOT_FIELDS,
@@ -1498,6 +1516,7 @@ const ExplorerProvider: FC<
             removeSortField,
             moveSortFields,
             setFilters,
+            setParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1539,6 +1558,7 @@ const ExplorerProvider: FC<
             removeSortField,
             moveSortFields,
             setFilters,
+            setParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
