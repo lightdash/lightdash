@@ -36,7 +36,7 @@ models:
         config:
           meta:
             dimension:
-              sql: CASE WHEN ${ld.parameters.dim_param} = '1' THEN order_id + 1 ELSE order_id END
+              sql: CASE WHEN ${ld.parameters.dim_param} = '1' THEN order_id ELSE order_id END
             metrics:
               unique_order_count:
                 type: count_distinct
