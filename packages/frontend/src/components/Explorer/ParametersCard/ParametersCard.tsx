@@ -10,7 +10,7 @@ import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
 const ParametersCard = memo(
-    ({ parameterReferences }: { parameterReferences: string[] }) => {
+    ({ parameterReferences }: { parameterReferences?: string[] }) => {
         const { projectUuid } = useParams<{ projectUuid: string }>();
         const expandedSections = useExplorerContext(
             (context) => context.state.expandedSections,

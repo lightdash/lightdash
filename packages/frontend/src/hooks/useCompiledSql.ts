@@ -73,6 +73,7 @@ export const useCompiledSql = (
         metricQuery,
         projectUuid,
         timezone,
+        queryParameters,
     ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         enabled: tableId !== undefined,
@@ -85,6 +86,7 @@ export const useCompiledSql = (
                 queryParameters,
             ),
         onError: (result) => setErrorResponse(result),
+        keepPreviousData: true,
         ...queryOptions,
     });
 };
