@@ -1,8 +1,9 @@
 import { type LightdashProjectParameter } from '@lightdash/common';
-import { Box, Group, Select, SimpleGrid, Text, Tooltip } from '@mantine/core';
+import { Box, Group, SimpleGrid, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { ParameterInput } from './ParameterInput';
 
 type ParameterSelectionProps = {
     parameters?: Record<string, LightdashProjectParameter>;
@@ -64,7 +65,12 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                 breakpoints={[{ maxWidth: 'sm', cols: 1 }]}
             >
                 {parameterKeys.map((paramKey) => {
-                    const options = parameters?.[paramKey]?.options || [];
+                    const parameter = parameters?.[paramKey];
+                    if (!parameter) {
+                        return (
+                            <Text key={paramKey}>Error loading parameter</Text>
+                        );
+                    }
                     return (
                         <Box key={paramKey}>
                             <Group
@@ -93,20 +99,12 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                     </Tooltip>
                                 )}
                             </Group>
-                            <Select
-                                placeholder="Choose value..."
-                                value={
-                                    Array.isArray(parameterValues[paramKey])
-                                        ? parameterValues[paramKey][0] || null
-                                        : parameterValues[paramKey] || null
-                                }
-                                onChange={(value) =>
-                                    onParameterChange(paramKey, value)
-                                }
-                                data={options}
+                            <ParameterInput
+                                paramKey={paramKey}
+                                parameter={parameter}
+                                onParameterChange={onParameterChange}
+                                value={parameterValues[paramKey]}
                                 size={size}
-                                searchable
-                                clearable
                             />
                         </Box>
                     );
