@@ -2,10 +2,13 @@ import { useState } from 'react';
 
 export const useParameterState = () => {
     const [parameterValues, setParameterValues] = useState<
-        Record<string, string | null>
+        Record<string, string | string[] | null>
     >({});
 
-    const handleParameterChange = (paramKey: string, value: string | null) => {
+    const handleParameterChange = (
+        paramKey: string,
+        value: string | string[] | null,
+    ) => {
         setParameterValues((prev) => ({
             ...prev,
             [paramKey]: value,

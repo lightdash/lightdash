@@ -86,6 +86,7 @@ export const Parameters: FC<Props> = ({ isEditMode }) => {
                         showClearAll={selectedParametersCount > 0}
                         onClearAll={clearAllParameters}
                         cols={1}
+                        projectUuid={projectUuid}
                     />
                 </Box>
             </Menu.Dropdown>

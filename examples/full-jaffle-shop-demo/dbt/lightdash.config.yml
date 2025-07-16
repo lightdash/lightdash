@@ -12,11 +12,8 @@ spotlight:
       color: green
 parameters:
   table_where:
-    label: 'Status'
-    description: 'Filter by status'
-    options_from_dimension:
-      model: orders
-      dimension: status
+    label: 'Table where'
+    options: [ "1", "2", "3" ]
   join_on:
     label: 'Join param'
     default: "1"
@@ -27,5 +24,8 @@ parameters:
     default: [ "1", "2" ]
     options: [ "1", "2", "3" ]
   dim_param:
-    label: 'Dim param'
-    options: [ "1", "2", "3" ]
+    label: 'Status'
+    description: 'Filter by status'
+    options_from_dimension:
+      model: orders
+      dimension: status

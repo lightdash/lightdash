@@ -1,4 +1,7 @@
-import { type LightdashProjectParameter } from '@lightdash/common';
+import {
+    type LightdashProjectParameter,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 import { Box, Group, SimpleGrid, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -9,12 +12,16 @@ type ParameterSelectionProps = {
     parameters?: Record<string, LightdashProjectParameter>;
     isLoading?: boolean;
     isError?: boolean;
-    parameterValues: Record<string, string | string[] | null>;
-    onParameterChange: (paramKey: string, value: string | null) => void;
+    parameterValues: ParametersValuesMap;
+    onParameterChange: (
+        paramKey: string,
+        value: string | string[] | null,
+    ) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     showClearAll?: boolean;
     onClearAll?: () => void;
     cols?: number;
+    projectUuid?: string;
 };
 
 export const ParameterSelection: FC<ParameterSelectionProps> = ({
@@ -27,6 +34,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     showClearAll = false,
     onClearAll,
     cols = 1,
+    projectUuid,
 }) => {
     const parameterKeys = parameters ? Object.keys(parameters) : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
@@ -105,6 +113,8 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                 onParameterChange={onParameterChange}
                                 value={parameterValues[paramKey]}
                                 size={size}
+                                projectUuid={projectUuid}
+                                parameterValues={parameterValues}
                             />
                         </Box>
                     );
