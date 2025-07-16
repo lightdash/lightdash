@@ -257,7 +257,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 
                 // Assumes parent-child relationship is determined by the order of groupFieldIds
                 for (let i = 0; i < groupFieldIds.length; i++) {
-                    const dimensionValue = row[groupFieldIds[i]]?.value?.raw;
+                    const dimensionValue =
+                        row[groupFieldIds[i]]?.value?.formatted;
 
                     const dimensionValueStr = String(dimensionValue);
                     if (!parent.children[dimensionValueStr]) {

@@ -18,7 +18,7 @@ export const Display: React.FC = () => {
         <Stack>
             <Config>
                 <Group>
-                    <Config.Heading>Minimum Pixels Visible</Config.Heading>
+                    <Config.Heading>Minimum section size</Config.Heading>
 
                     <Tooltip
                         withinPortal={true}
@@ -42,7 +42,7 @@ export const Display: React.FC = () => {
                         formatter={(value) => (value ? `${value}px\u00B2` : '')}
                         parser={(value) => value.replace(/px\u00B2\s?$/, '')}
                     />
-                    <Config.Heading>Max Leaf Depth</Config.Heading>
+                    <Config.Heading>Max leaf depth</Config.Heading>
                     <Tooltip
                         withinPortal={true}
                         maw={350}

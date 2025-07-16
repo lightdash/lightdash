@@ -42,7 +42,6 @@ import {
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
-import { max } from 'lodash';
 import {
     ConditionalFormattingRuleSavedEvent,
     CreateSavedChartVersionEvent,

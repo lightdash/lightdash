@@ -104,7 +104,7 @@ export const Layout: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Group spacing="xs">
-                        <Config.Heading>Dimension Hierarchy</Config.Heading>
+                        <Config.Heading>Dimension hierarchy</Config.Heading>
                         <Tooltip
                             withinPortal={true}
                             maw={350}
@@ -147,7 +147,7 @@ export const Layout: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Group spacing="xs">
-                        <Config.Heading>Size Metric</Config.Heading>
+                        <Config.Heading>Size metric</Config.Heading>
                         <Tooltip
                             withinPortal={true}
                             maw={350}
@@ -188,7 +188,7 @@ export const Layout: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Group spacing="xs">
-                        <Config.Heading>Color Metric</Config.Heading>
+                        <Config.Heading>Color metric</Config.Heading>
                         <Tooltip
                             withinPortal={true}
                             maw={350}
@@ -228,7 +228,7 @@ export const Layout: React.FC = () => {
                                 hasGrouping
                             />
                             <Group spacing="xs">
-                                <Config.Label>Min Color</Config.Label>
+                                <Config.Label>Min color</Config.Label>
                                 <ColorSelector
                                     color={startColor}
                                     swatches={ECHARTS_DEFAULT_COLORS}
@@ -245,7 +245,7 @@ export const Layout: React.FC = () => {
                                 />
                             </Group>
                             <Group spacing="xs">
-                                <Config.Label>Max Color</Config.Label>
+                                <Config.Label>Max color</Config.Label>
                                 <ColorSelector
                                     color={endColor}
                                     swatches={ECHARTS_DEFAULT_COLORS}
