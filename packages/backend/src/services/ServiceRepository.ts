@@ -362,6 +362,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
