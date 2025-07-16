@@ -66,6 +66,37 @@
                             "items": {
                                 "type": "string"
                             }
+                        },
+                        "default": {
+                            "description": "The default value(s) for the parameter",
+                            "oneOf": [
+                                { "type": "string" },
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            ]
+                        },
+                        "multiple": {
+                            "description": "Whether the parameter input will be a multi select",
+                            "type": "boolean"
+                        },
+                        "options_from_dimension": {
+                            "description": "Get parameter options from a dimension in a model",
+                            "type": "object",
+                            "properties": {
+                                "model": {
+                                    "description": "The model containing the dimension",
+                                    "type": "string"
+                                },
+                                "dimension": {
+                                    "description": "The dimension to get options from",
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["model", "dimension"]
                         }
                     },
                     "required": ["label"]
