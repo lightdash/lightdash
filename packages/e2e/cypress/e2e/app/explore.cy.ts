@@ -10,6 +10,7 @@ describe('Explore', () => {
         cy.findByTestId('page-spinner').should('not.exist');
 
         cy.findByText('Orders').click();
+        cy.findByText('Dimensions').should('exist');
         cy.findByText('Customers').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
