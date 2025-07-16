@@ -23,6 +23,7 @@ export type AiAgentArgs = {
     maxLimit: number;
     organizationId: string;
     userId: string;
+    debugLoggingEnabled: boolean;
 };
 
 export type AiAgentDependencies = {
