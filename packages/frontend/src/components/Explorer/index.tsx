@@ -1,4 +1,4 @@
-import { getItemMap } from '@lightdash/common';
+import { getParameterReferencesFromMetricQuery } from '@lightdash/common/src/utils/parameters';
 import { Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -37,31 +37,14 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { data: explore } = useExplore(unsavedChartVersionTableName);
 
-        const activeFields = useExplorerContext(
-            (context) => context.state.activeFields,
+        const parameterReferencesInActiveFields: string[] = useMemo(
+            () =>
+                getParameterReferencesFromMetricQuery(
+                    explore,
+                    unsavedChartVersionMetricQuery,
+                ),
+            [explore, unsavedChartVersionMetricQuery],
         );
-
-        const exploreItemsMap = useMemo(() => {
-            return explore ? getItemMap(explore) : undefined;
-        }, [explore]);
-
-        const parameterReferencesInActiveFields: string[] = useMemo(() => {
-            if (!exploreItemsMap) return [];
-            const result = new Set<string>();
-            for (const fieldId of activeFields) {
-                const item = exploreItemsMap[fieldId];
-                if (
-                    item &&
-                    'parameterReferences' in item &&
-                    Array.isArray(item.parameterReferences)
-                ) {
-                    item.parameterReferences.forEach((ref: string) =>
-                        result.add(ref),
-                    );
-                }
-            }
-            return Array.from(result);
-        }, [exploreItemsMap, activeFields]);
 
         return (
             <MetricQueryDataProvider
