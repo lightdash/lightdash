@@ -10,11 +10,15 @@ type ParameterSelectionProps = {
     isLoading?: boolean;
     isError?: boolean;
     parameterValues: Record<string, string | string[] | null>;
-    onParameterChange: (paramKey: string, value: string | null) => void;
+    onParameterChange: (
+        paramKey: string,
+        value: string | string[] | null,
+    ) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     showClearAll?: boolean;
     onClearAll?: () => void;
     cols?: number;
+    loadingMessage?: string;
 };
 
 export const ParameterSelection: FC<ParameterSelectionProps> = ({
@@ -27,6 +31,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     showClearAll = false,
     onClearAll,
     cols = 1,
+    loadingMessage = 'Loading parameters...',
 }) => {
     const parameterKeys = parameters ? Object.keys(parameters) : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
@@ -36,7 +41,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     if (isLoading) {
         return (
             <Text size={size} c="dimmed">
-                Loading parameters...
+                {loadingMessage}
             </Text>
         );
     }
