@@ -14309,7 +14309,18 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCompiledQueryResults: {
         dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                parameterReferences: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                query: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ParametersValuesMap: {
@@ -16100,6 +16111,21 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                options_from_dimension: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dimension: { dataType: 'string', required: true },
+                        model: { dataType: 'string', required: true },
+                    },
+                },
+                multiple: { dataType: 'boolean' },
+                default: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'array', array: { dataType: 'string' } },
+                    ],
+                },
                 options: { dataType: 'array', array: { dataType: 'string' } },
                 description: { dataType: 'string' },
                 label: { dataType: 'string', required: true },

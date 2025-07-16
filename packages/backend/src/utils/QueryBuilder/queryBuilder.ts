@@ -64,6 +64,7 @@ export type CompiledQuery = {
     query: string;
     fields: ItemsMap;
     warnings: QueryWarning[];
+    parameterReferences: Set<string>;
 };
 
 export type BuildQueryProps = {
@@ -503,10 +504,12 @@ export class MetricQueryBuilder {
             ...filter,
             values: filter.values?.map((value) => {
                 if (typeof value === 'string') {
-                    return replaceParametersAsRaw(
+                    const { replacedSql } = replaceParametersAsRaw(
                         value,
                         this.args.parameters ?? {},
                     );
+
+                    return replacedSql;
                 }
                 return value;
             }),
@@ -1154,14 +1157,18 @@ export class MetricQueryBuilder {
             sqlLimit,
         ]);
 
-        return {
-            query: replaceParametersAsString(
+        const { replacedSql, references: parameterReferences } =
+            replaceParametersAsString(
                 query,
                 this.args.parameters ?? {},
                 this.args.warehouseSqlBuilder,
-            ),
+            );
+
+        return {
+            query: replacedSql,
             fields,
             warnings,
+            parameterReferences,
         };
     }
 }
@@ -1299,10 +1306,12 @@ export class QueryBuilder {
             .filter((l) => l !== undefined)
             .join('\n');
 
-        return replaceParameters(
+        const { replacedSql } = replaceParameters(
             sql,
             this.parameters ?? {},
             this.config.stringQuoteChar,
         );
+
+        return replacedSql;
     }
 }

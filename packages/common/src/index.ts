@@ -665,7 +665,10 @@ export type UpdateProjectMember = {
 export type UpdateMetadata = {
     upstreamProjectUuid?: string | null; // null means we unset this value
 };
-export type ApiCompiledQueryResults = string;
+export type ApiCompiledQueryResults = {
+    query: string;
+    parameterReferences: string[];
+};
 
 export type ApiExploresResults = SummaryExplore[];
 

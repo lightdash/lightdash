@@ -43,7 +43,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             disabled={!unsavedChartVersionTableName}
             headerElement={
                 hovered && data && isSuccess && !sqlIsOpen ? (
-                    <CopyButton value={data || ''} timeout={2000}>
+                    <CopyButton value={data.query} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
                                 variant="xs"
