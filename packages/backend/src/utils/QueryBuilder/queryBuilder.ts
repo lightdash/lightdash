@@ -65,6 +65,7 @@ export type CompiledQuery = {
     fields: ItemsMap;
     warnings: QueryWarning[];
     parameterReferences: Set<string>;
+    missingParameterReferences: Set<string>;
 };
 
 export type BuildQueryProps = {
@@ -1157,18 +1158,30 @@ export class MetricQueryBuilder {
             sqlLimit,
         ]);
 
-        const { replacedSql, references: parameterReferences } =
-            replaceParametersAsString(
-                query,
-                this.args.parameters ?? {},
-                this.args.warehouseSqlBuilder,
-            );
+        const {
+            replacedSql,
+            references: parameterReferences,
+            missingReferences: missingParameterReferences,
+        } = replaceParametersAsString(
+            query,
+            this.args.parameters ?? {},
+            this.args.warehouseSqlBuilder,
+        );
+
+        if (missingParameterReferences.size > 0) {
+            warnings.push({
+                message: `Missing parameters: ${Array.from(
+                    missingParameterReferences,
+                ).join(', ')}`,
+            });
+        }
 
         return {
             query: replacedSql,
             fields,
             warnings,
             parameterReferences,
+            missingParameterReferences,
         };
     }
 }
@@ -1306,15 +1319,17 @@ export class QueryBuilder {
             .filter((l) => l !== undefined)
             .join('\n');
 
-        const { replacedSql, references } = replaceParameters(
-            sql,
-            this.parameters ?? {},
-            this.config.stringQuoteChar,
-        );
+        const { replacedSql, references, missingReferences } =
+            replaceParameters(
+                sql,
+                this.parameters ?? {},
+                this.config.stringQuoteChar,
+            );
 
         return {
             sql: replacedSql,
             parameterReferences: references,
+            missingParameterReferences: missingReferences,
         };
     }
 
