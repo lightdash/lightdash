@@ -2323,7 +2323,7 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
-
+        console.log('sqlWithParams', sql, parameters);
         const {
             warehouseConnection,
             queryTags,
@@ -2341,6 +2341,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
             parameters,
         });
+        console.log('sqlWithParams', sqlWithParams, parameters);
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
         await warehouseConnection.sshTunnel.disconnect();
