@@ -134,7 +134,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             ).resolves.not.toThrow();
         });
 
-        test('should throw ParameterError when there are multiple organizations', async () => {
+        test('should throw ParameterError when there are multiple organizations and I am updating service account', async () => {
             service = createMockService({
                 organizationModel: {
                     getOrgUuids: jest
@@ -142,10 +142,9 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         .mockResolvedValue(['org-1', 'org-2']),
                 },
                 updateSetup: {
-                    organization: {
-                        admin: {
-                            email: mockAdminEmail,
-                        },
+                    serviceAccount: {
+                        token: 'new-service-account-token',
+                        expirationTime: new Date('2025-12-31'),
                     },
                 },
             });
@@ -158,7 +157,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             );
         });
 
-        test('should throw ParameterError when there are multiple projects', async () => {
+        test('should throw ParameterError when there are multiple projects and I am updating project configuration', async () => {
             service = createMockService({
                 organizationModel: {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
@@ -169,10 +168,8 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         .mockResolvedValue(['project-1', 'project-2']),
                 },
                 updateSetup: {
-                    organization: {
-                        admin: {
-                            email: mockAdminEmail,
-                        },
+                    project: {
+                        dbtVersion: SupportedDbtVersions.V1_5,
                     },
                 },
             });
