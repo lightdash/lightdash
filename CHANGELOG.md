@@ -1,3 +1,10 @@
+# [0.1822.0](https://github.com/lightdash/lightdash/compare/0.1821.1...0.1822.0) (2025-07-16)
+
+
+### Features
+
+* setup Cypress for JWT async-queries ([#15851](https://github.com/lightdash/lightdash/issues/15851)) ([8e0e311](https://github.com/lightdash/lightdash/commit/8e0e311047072d6dc0100829403efcbeb6738912))
+
 ## [0.1821.1](https://github.com/lightdash/lightdash/compare/0.1821.0...0.1821.1) (2025-07-16)
 
 
