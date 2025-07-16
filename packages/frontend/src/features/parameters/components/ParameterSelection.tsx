@@ -8,7 +8,7 @@ type ParameterSelectionProps = {
     parameters?: Record<string, LightdashProjectParameter>;
     isLoading?: boolean;
     isError?: boolean;
-    parameterValues: Record<string, string | null>;
+    parameterValues: Record<string, string | string[] | null>;
     onParameterChange: (paramKey: string, value: string | null) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     showClearAll?: boolean;
@@ -95,7 +95,11 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                             </Group>
                             <Select
                                 placeholder="Choose value..."
-                                value={parameterValues[paramKey] || null}
+                                value={
+                                    Array.isArray(parameterValues[paramKey])
+                                        ? parameterValues[paramKey][0] || null
+                                        : parameterValues[paramKey] || null
+                                }
                                 onChange={(value) =>
                                     onParameterChange(paramKey, value)
                                 }

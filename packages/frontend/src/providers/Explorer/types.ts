@@ -155,7 +155,7 @@ export type Action =
       }
     | {
           type: ActionType.SET_PARAMETER;
-          payload: { key: string; value: string };
+          payload: { key: string; value: string | string[] };
       }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
@@ -276,7 +276,7 @@ export interface ExplorerReduceState {
             items?: CustomDimension[] | AdditionalMetric[];
         };
     };
-    parameters: Record<string, string>;
+    parameters: Record<string, string | string[]>;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -312,7 +312,7 @@ export interface ExplorerContextType {
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
         ) => void;
-        setParameter: (key: string, value: string) => void;
+        setParameter: (key: string, value: string | string[]) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,
