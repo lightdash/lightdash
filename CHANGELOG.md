@@ -1,3 +1,15 @@
+# [0.1820.0](https://github.com/lightdash/lightdash/compare/0.1819.0...0.1820.0) (2025-07-16)
+
+
+### Bug Fixes
+
+* prevent color picker from getting cut off in small window height ([#15837](https://github.com/lightdash/lightdash/issues/15837)) ([f0dcaf8](https://github.com/lightdash/lightdash/commit/f0dcaf813ce11b86ba7dd0c29ad55cbcf329f2c9))
+
+
+### Features
+
+* add group service enablement check with config integration ([#15842](https://github.com/lightdash/lightdash/issues/15842)) ([61f8746](https://github.com/lightdash/lightdash/commit/61f874637f2ddd08cf8366fb948d218569613209))
+
 # [0.1819.0](https://github.com/lightdash/lightdash/compare/0.1818.0...0.1819.0) (2025-07-16)
 
 
