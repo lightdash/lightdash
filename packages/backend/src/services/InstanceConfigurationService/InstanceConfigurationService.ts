@@ -295,11 +295,12 @@ export class InstanceConfigurationService extends BaseService {
      */
     private async updateServiceAccountForAdmin(
         config: LightdashConfig['updateSetup'],
-        orgUuid: string,
     ) {
         if (!config) return;
 
         if (config.serviceAccount && this.serviceAccountModel) {
+            // This will throw an error if there is not exactly 1 org
+            const orgUuid = await this.getSingleOrg();
             this.logger.debug(
                 `Update instance: Updating API key for service account`,
             );
@@ -330,7 +331,9 @@ export class InstanceConfigurationService extends BaseService {
                 config.serviceAccount.token,
             );
 
-            this.logger.info(`Update instance: Updated service account`);
+            this.logger.info(
+                `Update instance: Updated service account for org ${orgUuid}`,
+            );
         } else {
             this.logger.debug(
                 `Update instance: No service account token provided, skipping`,
@@ -346,7 +349,6 @@ export class InstanceConfigurationService extends BaseService {
      */
     private async updateProjectConfiguration(
         config: LightdashConfig['updateSetup'],
-        projectUuid: string,
     ) {
         if (!config) return;
 
@@ -355,6 +357,8 @@ export class InstanceConfigurationService extends BaseService {
             config.project?.httpPath ||
             config.project?.dbtVersion
         ) {
+            // This will throw an error if there is not exactly 1 project
+            const projectUuid = await this.getSingleProject();
             this.logger.debug(
                 `Update instance: Updating configuration for project ${projectUuid}`,
             );
@@ -402,10 +406,28 @@ export class InstanceConfigurationService extends BaseService {
                 `Update instance: Updated configuration for project ${projectUuid}`,
             );
         } else {
-            this.logger.debug(
-                `Update instance: No configuration to update for project ${projectUuid}`,
+            this.logger.debug(`Update instance: No configuration to update`);
+        }
+    }
+
+    private async getSingleOrg() {
+        const orgUuids = await this.organizationModel.getOrgUuids();
+        if (orgUuids.length !== 1) {
+            throw new ParameterError(
+                `There must be exactly 1 organization to update instance configuration, remove all the LD_SETUP* env variables or keep only one organization to continue`,
             );
         }
+        return orgUuids[0];
+    }
+
+    private async getSingleProject() {
+        const projectUuids = await this.projectModel.getProjectUuids();
+        if (projectUuids.length !== 1) {
+            throw new ParameterError(
+                `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to continue`,
+            );
+        }
+        return projectUuids[0];
     }
 
     async updateInstanceConfiguration() {
@@ -417,25 +439,10 @@ export class InstanceConfigurationService extends BaseService {
             return;
         }
 
-        const orgUuids = await this.organizationModel.getOrgUuids();
-        if (orgUuids.length !== 1) {
-            throw new ParameterError(
-                `There must be exactly 1 organization to update instance configuration, remove all the LD_SETUP* env variables or keep only one organization to continue`,
-            );
-        }
-        const projectUuids = await this.projectModel.getProjectUuids();
-        if (projectUuids.length !== 1) {
-            throw new ParameterError(
-                `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to continue`,
-            );
-        }
-        const orgUuid = orgUuids[0];
-        const projectUuid = projectUuids[0];
-
         await this.updateApiKeyForAdmin(config);
 
-        await this.updateServiceAccountForAdmin(config, orgUuid);
+        await this.updateServiceAccountForAdmin(config);
 
-        await this.updateProjectConfiguration(config, projectUuid);
+        await this.updateProjectConfiguration(config);
     }
 }
