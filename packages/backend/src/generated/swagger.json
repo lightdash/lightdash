@@ -5595,6 +5595,12 @@
             },
             "ApiExecuteAsyncQueryResultsCommon": {
                 "properties": {
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "cacheMetadata": {
                         "$ref": "#/components/schemas/CacheMetadata"
                     },
@@ -5602,7 +5608,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["cacheMetadata", "queryUuid"],
+                "required": [
+                    "parameterReferences",
+                    "cacheMetadata",
+                    "queryUuid"
+                ],
                 "type": "object"
             },
             "QueryWarning": {
