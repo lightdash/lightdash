@@ -1,8 +1,9 @@
+import { type LightdashProjectParameter } from '@lightdash/common';
 import { Box, Select, SimpleGrid, Text } from '@mantine/core';
 import { type FC } from 'react';
 
 type ParameterSelectionProps = {
-    parameters?: Record<string, { options: string[] }>;
+    parameters?: Record<string, LightdashProjectParameter>;
     isLoading?: boolean;
     isError?: boolean;
     parameterValues: Record<string, string | null>;
@@ -65,7 +66,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                     return (
                         <Box key={paramKey}>
                             <Text size={size} fw={500} mb="xxs">
-                                {paramKey}
+                                {parameters?.[paramKey]?.label || paramKey}
                             </Text>
                             <Select
                                 placeholder="Choose value..."
