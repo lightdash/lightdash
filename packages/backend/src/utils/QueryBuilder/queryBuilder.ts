@@ -37,7 +37,11 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { replaceParameters } from './parameters';
+import {
+    replaceParameters,
+    replaceParametersAsRaw,
+    replaceParametersAsString,
+} from './parameters';
 import {
     assertValidDimensionRequiredAttribute,
     findMetricInflationWarnings,
@@ -493,12 +497,29 @@ export class MetricQueryBuilder {
             warehouseSqlBuilder.getEscapeStringQuoteChar();
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
+        // Replace parameter reference values with their actual values as raw sql
+        // This is safe as raw because they will get quoted internally by the filter compiler
+        const filterRuleWithParamReplacedValues: FilterRule = {
+            ...filter,
+            values: filter.values?.map((value) => {
+                if (typeof value === 'string') {
+                    return replaceParametersAsRaw(
+                        value,
+                        this.args.parameters ?? {},
+                    );
+                }
+                return value;
+            }),
+        };
+
         if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
-                (tc) => getItemId(tc) === filter.target.fieldId,
+                (tc) =>
+                    getItemId(tc) ===
+                    filterRuleWithParamReplacedValues.target.fieldId,
             );
             return renderTableCalculationFilterRuleSql(
-                filter,
+                filterRuleWithParamReplacedValues,
                 field,
                 fieldQuoteChar,
                 stringQuoteChar,
@@ -516,20 +537,24 @@ export class MetricQueryBuilder {
                       ...compiledCustomDimensions.filter(
                           isCompiledCustomSqlDimension,
                       ),
-                  ].find((d) => getItemId(d) === filter.target.fieldId)
+                  ].find(
+                      (d) =>
+                          getItemId(d) ===
+                          filterRuleWithParamReplacedValues.target.fieldId,
+                  )
                 : getMetricFromId(
-                      filter.target.fieldId,
+                      filterRuleWithParamReplacedValues.target.fieldId,
                       explore,
                       compiledMetricQuery,
                   );
         if (!field) {
             throw new FieldReferenceError(
-                `Filter has a reference to an unknown ${fieldType}: ${filter.target.fieldId}`,
+                `Filter has a reference to an unknown ${fieldType}: ${filterRuleWithParamReplacedValues.target.fieldId}`,
             );
         }
 
         return renderFilterRuleSqlFromField(
-            filter,
+            filterRuleWithParamReplacedValues,
             field,
             fieldQuoteChar,
             stringQuoteChar,
@@ -1130,10 +1155,10 @@ export class MetricQueryBuilder {
         ]);
 
         return {
-            query: replaceParameters(
+            query: replaceParametersAsString(
                 query,
                 this.args.parameters ?? {},
-                this.args.warehouseSqlBuilder.getStringQuoteChar(),
+                this.args.warehouseSqlBuilder,
             ),
             fields,
             warnings,
