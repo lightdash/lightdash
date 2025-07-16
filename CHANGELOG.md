@@ -1,3 +1,11 @@
+# [0.1819.0](https://github.com/lightdash/lightdash/compare/0.1818.0...0.1819.0) (2025-07-16)
+
+
+### Features
+
+* add debug logging for AI Copilot agent ([#15870](https://github.com/lightdash/lightdash/issues/15870)) ([ae2905d](https://github.com/lightdash/lightdash/commit/ae2905db348e536ffff35ff64e2bcf766b195132))
+* add trackAccount to LightdashAnalytics ([#15852](https://github.com/lightdash/lightdash/issues/15852)) ([fa94195](https://github.com/lightdash/lightdash/commit/fa9419522014dd9e6599ab937f8285f0e83f97fa))
+
 # [0.1818.0](https://github.com/lightdash/lightdash/compare/0.1817.1...0.1818.0) (2025-07-16)
 
 
