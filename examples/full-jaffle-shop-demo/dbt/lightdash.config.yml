@@ -19,7 +19,7 @@ parameters:
       dimension: status
   join_on:
     label: 'Join param'
-    default: "1",
+    default: "1"
     options: [ "1", "2", "3" ]
   metric_param:
     label: 'Metric param'
