@@ -14,7 +14,7 @@ const getCompiledQuery = async (
     projectUuid: string,
     tableId: string,
     query: MetricQuery,
-    queryParameters?: Record<string, string>,
+    queryParameters?: Record<string, string | string[]>,
 ) => {
     const timezoneFixQuery = {
         ...query,
