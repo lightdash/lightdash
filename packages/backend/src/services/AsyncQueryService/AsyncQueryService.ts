@@ -1395,6 +1395,7 @@ export class AsyncQueryService extends ProjectService {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
             warnings: fullQuery.warnings,
+            parameterReferences: Array.from(fullQuery.parameterReferences),
         };
     }
 
@@ -1727,7 +1728,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings } =
+        const { sql, fields, warnings, parameterReferences } =
             await this.prepareMetricQueryAsyncQueryArgs({
                 user,
                 metricQuery,
@@ -1760,6 +1761,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             fields,
             warnings,
+            parameterReferences,
         };
     }
 
@@ -1869,7 +1871,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings } =
+        const { sql, fields, warnings, parameterReferences } =
             await this.prepareMetricQueryAsyncQueryArgs({
                 user,
                 metricQuery: metricQueryWithLimit,
@@ -1900,6 +1902,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             fields,
             warnings,
+            parameterReferences,
         };
     }
 
@@ -2067,14 +2070,15 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
-            metricQuery: metricQueryWithLimit,
-            explore,
-            dateZoom,
-            warehouseSqlBuilder,
-            parameters,
-        });
+        const { sql, fields, parameterReferences } =
+            await this.prepareMetricQueryAsyncQueryArgs({
+                user,
+                metricQuery: metricQueryWithLimit,
+                explore,
+                dateZoom,
+                warehouseSqlBuilder,
+                parameters,
+            });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -2099,6 +2103,7 @@ export class AsyncQueryService extends ProjectService {
             appliedDashboardFilters,
             metricQuery: metricQueryWithLimit,
             fields,
+            parameterReferences,
         };
     }
 
@@ -2237,7 +2242,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings } =
+        const { sql, fields, warnings, parameterReferences } =
             await this.prepareMetricQueryAsyncQueryArgs({
                 user,
                 metricQuery: underlyingDataMetricQuery,
@@ -2271,6 +2276,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: underlyingDataMetricQuery,
             fields,
             warnings,
+            parameterReferences,
         };
     }
 
@@ -2311,6 +2317,7 @@ export class AsyncQueryService extends ProjectService {
             virtualView,
             sql: sqlWithParams,
             originalColumns,
+            parameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2346,6 +2353,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
+            parameterReferences,
         };
     }
 
@@ -2531,13 +2539,18 @@ export class AsyncQueryService extends ProjectService {
                     warehouseConnection.warehouseClient.getAdapterType(),
             },
         );
+
+        const { parameterReferences, sql: replacedSql } =
+            queryBuilder.getSqlAndReferences();
+
         return {
             metricQuery,
             pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
-            sql: queryBuilder.toSql(),
+            sql: replacedSql,
+            parameterReferences: Array.from(parameterReferences),
             appliedDashboardFilters,
             originalColumns,
         };
@@ -2576,6 +2589,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             sql,
             originalColumns,
+            parameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2612,6 +2626,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
+            parameterReferences,
         };
     }
 
@@ -2658,6 +2673,7 @@ export class AsyncQueryService extends ProjectService {
             sql,
             appliedDashboardFilters,
             originalColumns,
+            parameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2702,6 +2718,7 @@ export class AsyncQueryService extends ProjectService {
                 dimensions: [],
                 tableCalculations: [],
             },
+            parameterReferences,
         };
     }
 }

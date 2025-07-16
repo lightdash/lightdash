@@ -5048,6 +5048,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parameterReferences: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 cacheMetadata: { ref: 'CacheMetadata', required: true },
                 queryUuid: { dataType: 'string', required: true },
             },
