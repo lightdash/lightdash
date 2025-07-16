@@ -1,3 +1,10 @@
+# [0.1821.0](https://github.com/lightdash/lightdash/compare/0.1820.0...0.1821.0) (2025-07-16)
+
+
+### Features
+
+* deep-link to Slack message during AI Agent Slack OAuth flow ([#15839](https://github.com/lightdash/lightdash/issues/15839)) ([99c782f](https://github.com/lightdash/lightdash/commit/99c782f19fd9be6db4fe1d2ba8b3bf674b58436e))
+
 # [0.1820.0](https://github.com/lightdash/lightdash/compare/0.1819.0...0.1820.0) (2025-07-16)
 
 
