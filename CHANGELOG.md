@@ -1,3 +1,10 @@
+## [0.1821.1](https://github.com/lightdash/lightdash/compare/0.1821.0...0.1821.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* add timeout to fullPage boundingBox in UnfurlService ([#15859](https://github.com/lightdash/lightdash/issues/15859)) ([fff29fe](https://github.com/lightdash/lightdash/commit/fff29fece7565d1f7b6bbb4a077aa2a875cb0d14))
+
 # [0.1821.0](https://github.com/lightdash/lightdash/compare/0.1820.0...0.1821.0) (2025-07-16)
 
 
