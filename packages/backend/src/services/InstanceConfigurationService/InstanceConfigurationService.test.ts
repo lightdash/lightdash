@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { getUpdateSetupConfig } from '../../config/parseConfig';
 import { InstanceConfigurationService } from './InstanceConfigurationService';
 
 // Mock data
@@ -120,13 +121,19 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
     });
 
     describe('validation scenarios', () => {
-        test('Do not throw error if there is no update setup config', async () => {
+        test('Do not throw error with default update setup config', async () => {
             service = createMockService({
                 organizationModel: {
                     getOrgUuids: jest
                         .fn()
                         .mockResolvedValue(['org-1', 'org-2']),
                 },
+                projectModel: {
+                    getProjectUuids: jest
+                        .fn()
+                        .mockResolvedValue(['project-1', 'project-2']),
+                },
+                updateSetup: getUpdateSetupConfig(),
             });
 
             await expect(

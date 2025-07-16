@@ -413,7 +413,7 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
  * This method is some kind of subset of the initial setup config
  * and it is used to update some of the values on server restart
  */
-const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
+export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
     if (
         process.env.LD_SETUP_ADMIN_API_KEY &&
         !process.env.LD_SETUP_ADMIN_EMAIL
