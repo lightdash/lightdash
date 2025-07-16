@@ -75,7 +75,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <FiltersCard />
 
-                    {(parameterReferencesInActiveFields.length > 0 || true) && ( // TODO: remove this
+                    {parameterReferencesInActiveFields.length > 0 && (
                         <ParametersCard
                             activeParameterReferences={
                                 parameterReferencesInActiveFields
