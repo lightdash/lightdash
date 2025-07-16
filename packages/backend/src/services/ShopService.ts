@@ -1,5 +1,6 @@
 import { AlreadyExistsError, NotFoundError, OrganizationMemberRole, ParameterError, SessionUser } from '@lightdash/common';
 import { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import { DbShop, ShopTableName } from '../database/entities/shopifyShop';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 
@@ -12,6 +13,38 @@ export class ShopService {
 
     constructor({ database }: ShopServiceArgs) {
         this.database = database;
+    }
+
+    async createOrUpdate(data: Partial<DbShop>): Promise<{shop: DbShop, isNew: boolean}> {
+        const existing = await this.getByUrl(data.shop_url!);
+
+        if (existing) {
+            const [updated] = await this.database<DbShop>(ShopTableName)
+                .where('shop_url', data.shop_url)
+                .update({
+                    ...data,
+                    is_first_login: false,
+                    updated_at: this.database.fn.now(),
+                })
+                .returning('*');
+            return {shop: updated, isNew: false};
+        } else {
+            const [created] = await this.database<DbShop>(ShopTableName)
+                .insert({
+                    ...data,
+                    shop_uuid: uuidv4(),
+                    is_first_login: true,
+                    updated_at: this.database.fn.now(),
+                })
+                .returning('*');
+            return {shop: created, isNew: true};
+        }
+    }
+
+    async getByUrl(shopUrl: string): Promise<DbShop | undefined> {
+        return this.database<DbShop>(ShopTableName)
+            .where('shop_url', shopUrl)
+            .first();
     }
 
     async create(data: any): Promise<DbShop> {
