@@ -537,6 +537,7 @@ export type ApiQueryResults = {
 type ApiExecuteAsyncQueryResultsCommon = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    parameterReferences: string[];
 };
 
 export type ApiExecuteAsyncMetricQueryResults =

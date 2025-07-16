@@ -1300,18 +1300,25 @@ export class QueryBuilder {
         return undefined;
     }
 
-    toSql(): string {
+    getSqlAndReferences() {
         // Combine all parts of the query
         const sql = [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
             .filter((l) => l !== undefined)
             .join('\n');
 
-        const { replacedSql } = replaceParameters(
+        const { replacedSql, references } = replaceParameters(
             sql,
             this.parameters ?? {},
             this.config.stringQuoteChar,
         );
 
-        return replacedSql;
+        return {
+            sql: replacedSql,
+            parameterReferences: references,
+        };
+    }
+
+    toSql(): string {
+        return this.getSqlAndReferences().sql;
     }
 }
