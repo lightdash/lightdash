@@ -18,7 +18,10 @@ export const replaceParameters = (
         parameters,
         quoteChar,
         wrapChar,
-        'parameter',
+        {
+            replacementName: 'parameter',
+            throwOnMissing: false,
+        },
     );
 
 export const replaceParametersAsString = (

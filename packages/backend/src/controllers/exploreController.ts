@@ -117,18 +117,21 @@ export class ExploreController extends BaseController {
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
 
-        const results = (
-            await this.services.getProjectService().compileQuery({
+        const { parameterReferences, query } = await this.services
+            .getProjectService()
+            .compileQuery({
                 user: req.user!,
                 body,
                 projectUuid,
                 exploreName: exploreId,
-            })
-        ).query;
+            });
 
         return {
             status: 'ok',
-            results,
+            results: {
+                query,
+                parameterReferences,
+            },
         };
     }
 

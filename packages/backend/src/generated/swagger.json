@@ -15183,7 +15183,19 @@
                 "$ref": "#/components/schemas/Omit_Explore.unfilteredTables_"
             },
             "ApiCompiledQueryResults": {
-                "type": "string"
+                "properties": {
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "query": {
+                        "type": "string"
+                    }
+                },
+                "required": ["parameterReferences", "query"],
+                "type": "object"
             },
             "ParametersValuesMap": {
                 "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
@@ -16851,6 +16863,34 @@
             },
             "LightdashProjectParameter": {
                 "properties": {
+                    "options_from_dimension": {
+                        "properties": {
+                            "dimension": {
+                                "type": "string"
+                            },
+                            "model": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dimension", "model"],
+                        "type": "object"
+                    },
+                    "multiple": {
+                        "type": "boolean"
+                    },
+                    "default": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
                     "options": {
                         "items": {
                             "type": "string"

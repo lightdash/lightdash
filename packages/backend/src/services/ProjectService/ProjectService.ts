@@ -1790,7 +1790,12 @@ export class ProjectService extends BaseService {
             parameters,
         );
         await sshTunnel.disconnect();
-        return compiledQuery;
+
+        return {
+            ...compiledQuery,
+            // Convert to array so TSOA can serialize it when using in controllers
+            parameterReferences: Array.from(compiledQuery.parameterReferences),
+        };
     }
 
     private metricQueryWithLimit(
