@@ -1,6 +1,8 @@
 import { type LightdashProjectParameter } from '@lightdash/common';
-import { Box, Select, SimpleGrid, Text } from '@mantine/core';
+import { Box, Group, Select, SimpleGrid, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 
 type ParameterSelectionProps = {
     parameters?: Record<string, LightdashProjectParameter>;
@@ -65,9 +67,32 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                     const options = parameters?.[paramKey]?.options || [];
                     return (
                         <Box key={paramKey}>
-                            <Text size={size} fw={500} mb="xxs">
-                                {parameters?.[paramKey]?.label || paramKey}
-                            </Text>
+                            <Group
+                                align="center"
+                                position="left"
+                                spacing="xs"
+                                mb="xxs"
+                            >
+                                <Text size={size} fw={500}>
+                                    {parameters?.[paramKey]?.label || paramKey}
+                                </Text>
+                                {parameters?.[paramKey]?.description && (
+                                    <Tooltip
+                                        withinPortal
+                                        position="top"
+                                        maw={350}
+                                        label={
+                                            parameters?.[paramKey]?.description
+                                        }
+                                    >
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="gray.6"
+                                            size={size}
+                                        />
+                                    </Tooltip>
+                                )}
+                            </Group>
                             <Select
                                 placeholder="Choose value..."
                                 value={parameterValues[paramKey] || null}
