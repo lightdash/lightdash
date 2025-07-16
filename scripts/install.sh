@@ -156,7 +156,7 @@ track_error() {
 }
 
 track_support() {
-  echo -e "\n📨 🙏 Sorry that you had an issue with the installation. Please head to our Slack community and post your issue in #help 🙋 \n https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A \n Someone from Lightdash will help you out (usually the same day)"
+  echo -e "\n📨 🙏 Sorry that you had an issue with the installation. Please head to our Slack community and post your issue in #help 🙋 \n https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w \n Someone from Lightdash will help you out (usually the same day)"
 }
 
 # This function checks if the relevant ports required by Lightdash are available or not
@@ -329,7 +329,7 @@ bye() {  # Prints a friendly good bye message and exits the script.
         echo "🔴 The containers didn't seem to start correctly. Please run the following command to check containers that may have errored out:"
         echo ""
         echo -e "docker compose -f docker-compose.yml ps -a"
-        echo "Please reach us on Lightdash for support https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A"
+        echo "Please reach us on Lightdash for support https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w"
         echo "++++++++++++++++++++++++++++++++++++++++"
         track_error $Interrupted
         track_support
@@ -431,7 +431,7 @@ if [[ $status_code -ne 200 ]]; then
     echo "🔴 The containers didn't seem to start correctly. Please run the following command to check containers that may have errored out:"
     echo ""
     echo -e "docker compose -f docker-compose.yml ps -a"
-    echo "Please reach us on Lightdash for support https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A"
+    echo "Please reach us on Lightdash for support https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w"
     echo "++++++++++++++++++++++++++++++++++++++++"
 
     track_error "$ContainersNotStarted"
@@ -455,7 +455,7 @@ else
     echo "+++++++++++++++++++++++++++++++++++++++++++++++++"
     echo ""
     echo "👉 Need help Getting Started?"
-    echo -e "Join us on Slack https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A"
+    echo -e "Join us on Slack https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w"
     echo ""
 
 fi
