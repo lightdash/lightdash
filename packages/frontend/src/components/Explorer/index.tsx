@@ -1,7 +1,7 @@
-import { getParameterReferencesFromMetricQuery } from '@lightdash/common/src/utils/parameters';
 import { Stack } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import { memo, type FC } from 'react';
 import { useParams } from 'react-router';
+import { useCompiledSql } from '../../hooks/useCompiledSql';
 import { useExplore } from '../../hooks/useExplore';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
@@ -37,14 +37,9 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { data: explore } = useExplore(unsavedChartVersionTableName);
 
-        const parameterReferencesInActiveFields: string[] = useMemo(
-            () =>
-                getParameterReferencesFromMetricQuery(
-                    explore,
-                    unsavedChartVersionMetricQuery,
-                ),
-            [explore, unsavedChartVersionMetricQuery],
-        );
+        const { data: { parameterReferences } = {} } = useCompiledSql({
+            enabled: !!unsavedChartVersionTableName,
+        });
 
         return (
             <MetricQueryDataProvider
@@ -56,15 +51,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 <Stack sx={{ flexGrow: 1 }}>
                     {!hideHeader && isEditMode && <ExplorerHeader />}
 
-                    <FiltersCard />
-
-                    {parameterReferencesInActiveFields.length > 0 && (
+                    {parameterReferences && parameterReferences.length > 0 && (
                         <ParametersCard
-                            activeParameterReferences={
-                                parameterReferencesInActiveFields
-                            }
+                            parameterReferences={parameterReferences}
                         />
                     )}
+
+                    <FiltersCard />
 
                     <VisualizationCard projectUuid={projectUuid} />
 
