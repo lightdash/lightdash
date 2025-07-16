@@ -288,9 +288,6 @@ export class SavedChartService
                           dimensionCount:
                               savedChart.chartConfig.config?.groupFieldIds
                                   ?.length || 0,
-                          autoAggregateMetrics:
-                              savedChart.chartConfig.config
-                                  ?.autoAggregateMetrics,
                           startColor: savedChart.chartConfig.config?.startColor,
                           endColor: savedChart.chartConfig.config?.endColor,
                           useDynamicColors:

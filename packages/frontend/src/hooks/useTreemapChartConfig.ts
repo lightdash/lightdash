@@ -24,8 +24,6 @@ type TreemapChartConfig = {
     sizeMetricId: string | null;
     selectedSizeMetric: Metric | TableCalculation | undefined;
     sizeMetricChange: (sizeMetricId: string | null) => void;
-    autoAggregateMetrics: boolean;
-    toggleAutoAggregateMetrics: () => void;
 
     colorMetricId: string | null;
     selectedColorMetric: Metric | TableCalculation | undefined;
@@ -111,9 +109,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     const [sizeMetricId, setSizeMetricId] = useState(
         treemapConfig?.sizeMetricId ?? null,
     );
-    const [autoAggregateMetrics, setAutoAggregateMetrics] = useState(
-        treemapConfig?.autoAggregateMetrics ?? true,
-    );
     const [colorMetricId, setColorMetricId] = useState(
         treemapConfig?.colorMetricId ?? null,
     );
@@ -140,10 +135,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
             }
             return !prev;
         });
-    }, []);
-
-    const toggleAutoAggregateMetrics = useCallback(() => {
-        setAutoAggregateMetrics((prev) => !prev);
     }, []);
 
     const allNumericMetricIds = useMemo(
@@ -222,7 +213,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     const { data: groupedSubtotals } = useCalculateSubtotals({
         metricQuery: resultsData?.metricQuery,
         explore: resultsData?.metricQuery?.exploreName,
-        showSubtotals: autoAggregateMetrics,
+        showSubtotals: true,
         columnOrder: groupFieldIds,
         pivotDimensions: undefined,
     });
@@ -268,29 +259,18 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
                 for (let i = 0; i < groupFieldIds.length; i++) {
                     const dimensionValue = row[groupFieldIds[i]]?.value?.raw;
 
-                    if (
-                        dimensionValue === null ||
-                        dimensionValue === undefined
-                    ) {
-                        parent.value = [
+                    const dimensionValueStr = String(dimensionValue);
+                    if (!parent.children[dimensionValueStr]) {
+                        parent.children[dimensionValueStr] =
+                            getEmptyTreemapNode(dimensionValueStr);
+                    }
+                    if (i === groupFieldIds.length - 1) {
+                        parent.children[dimensionValueStr].value = [
                             rowSizeMetricValue,
                             rowColorMetricValue,
                         ];
-                        break;
-                    } else {
-                        const dimensionValueStr = String(dimensionValue);
-                        if (!parent.children[dimensionValueStr]) {
-                            parent.children[dimensionValueStr] =
-                                getEmptyTreemapNode(dimensionValueStr);
-                        }
-                        if (i === groupFieldIds.length - 1) {
-                            parent.children[dimensionValueStr].value = [
-                                rowSizeMetricValue,
-                                rowColorMetricValue,
-                            ];
-                        }
-                        parent = parent.children[dimensionValueStr];
                     }
+                    parent = parent.children[dimensionValueStr];
                 }
                 return acc;
             },
@@ -312,7 +292,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         };
 
         // Iterate on the grouped subtotals, adjusting the parent values in the treemap with the subtotal aggregated values
-        if (groupedSubtotals && autoAggregateMetrics) {
+        if (groupedSubtotals) {
+            console.log('groupedSubtotals', groupedSubtotals);
             Object.entries(groupedSubtotals).forEach(
                 ([key, levelSubtotals]) => {
                     const subtotalDimensionNames = key.split(':');
@@ -347,7 +328,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         groupFieldIds,
         selectedSizeMetric,
         sizeMetricId,
-        autoAggregateMetrics,
         colorMetricId,
         groupedSubtotals,
     ]);
@@ -358,7 +338,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
             leafDepth,
             groupFieldIds,
             sizeMetricId: sizeMetricId ?? undefined,
-            autoAggregateMetrics,
             useDynamicColors,
             colorMetricId: colorMetricId ?? undefined,
             startColor,
@@ -371,7 +350,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         leafDepth,
         groupFieldIds,
         sizeMetricId,
-        autoAggregateMetrics,
         useDynamicColors,
         colorMetricId,
         startColor,
@@ -389,8 +367,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         selectedSizeMetric,
         sizeMetricId,
         sizeMetricChange: setSizeMetricId,
-        autoAggregateMetrics: autoAggregateMetrics,
-        toggleAutoAggregateMetrics: toggleAutoAggregateMetrics,
 
         selectedColorMetric,
         colorMetricId,

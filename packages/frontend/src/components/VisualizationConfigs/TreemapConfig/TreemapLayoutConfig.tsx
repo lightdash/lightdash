@@ -40,8 +40,6 @@ export const Layout: React.FC = () => {
 
         selectedSizeMetric,
         sizeMetricChange,
-        autoAggregateMetrics,
-        toggleAutoAggregateMetrics,
 
         useDynamicColors,
         toggleDynamicColors,
@@ -182,27 +180,6 @@ export const Layout: React.FC = () => {
                                 else sizeMetricChange(null);
                             }}
                             hasGrouping
-                        />
-                    </Group>
-                    <Group spacing="xs">
-                        <Config.Label>Auto-aggregate group values</Config.Label>
-                        <Tooltip
-                            withinPortal={true}
-                            maw={350}
-                            variant="xs"
-                            multiline
-                            label="When enabled, calculate the parent values by aggregating the metric values of its children. When disabled, parent values should be defined in the data by a row with null for the child dimension value."
-                        >
-                            <MantineIcon
-                                icon={IconHelpCircle}
-                                size="md"
-                                display="inline"
-                                color="gray"
-                            />
-                        </Tooltip>
-                        <Switch
-                            checked={autoAggregateMetrics}
-                            onChange={toggleAutoAggregateMetrics}
                         />
                     </Group>
                 </Config.Section>

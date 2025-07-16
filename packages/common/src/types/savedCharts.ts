@@ -109,7 +109,6 @@ export type TreemapChart = {
     leafDepth?: number;
     groupFieldIds?: string[];
     sizeMetricId?: string;
-    autoAggregateMetrics?: boolean;
     colorMetricId?: string;
     startColor?: string;
     endColor?: string;
