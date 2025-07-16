@@ -18,6 +18,7 @@ export type DbQueryHistory = {
     query_uuid: string;
     created_at: Date;
     created_by_user_uuid: string | null;
+    created_by_account: string | null;
     project_uuid: string | null;
     organization_uuid: string;
     context: QueryExecutionContext;

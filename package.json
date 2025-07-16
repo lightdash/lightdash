@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.1766.0",
+    "version": "0.1822.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -82,6 +82,7 @@
         "sdk-typecheck": "pnpm -F frontend typecheck-sdk",
         "sdk-build": "pnpm common-build && pnpm frontend-build-sdk",
         "e2e-open": "pnpm -F e2e cypress:open",
+        "e2e-open-native": "pnpm -F e2e cypress:open:native",
         "e2e-run": "pnpm -F e2e cypress:run",
         "e2e-lint": "pnpm -F e2e lint",
         "e2e-format": "pnpm -F e2e format",

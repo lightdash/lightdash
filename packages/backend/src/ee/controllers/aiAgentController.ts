@@ -10,7 +10,6 @@ import {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiConversationMessages,
-    ApiAiConversationResponse,
     ApiAiConversations,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
@@ -309,9 +308,38 @@ export class AiAgentController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.getAiAgentService().updateHumanScoreForMessage(
+            req.user!,
             messageUuid,
             body.humanScore,
         );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/savedQuery',
+    )
+    @OperationId('updateAgentThreadMessageSavedQuery')
+    async updateAgentThreadMessageSavedQuery(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+        @Body() body: { savedQueryUuid: string | null },
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateMessageSavedQuery(req.user!, {
+            savedQueryUuid: body.savedQueryUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        });
+
         return {
             status: 'ok',
             results: undefined,
@@ -352,26 +380,6 @@ export class AiAgentController extends BaseController {
                 req.user!,
                 projectUuid,
                 aiThreadUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/projects/{projectUuid}/conversations')
-    @OperationId('createAiAgentConversation')
-    async createAiAgentConversation(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body() body: { question: string },
-    ): Promise<ApiAiConversationResponse> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().createWebAppConversation(
-                req.user!,
-                projectUuid,
-                body.question,
             ),
         };
     }
@@ -424,6 +432,25 @@ export class AiAgentUserPreferencesController extends BaseController {
             req.user!,
             projectUuid,
             body,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete()
+    @OperationId('deleteUserAgentPreferences')
+    async deleteUserAgentPreferences(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.getAiAgentService().deleteUserAgentPreferences(
+            req.user!,
+            projectUuid,
         );
         return {
             status: 'ok',

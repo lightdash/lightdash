@@ -1,0 +1,26 @@
+version: 2
+models:
+  - name: fanouts_countries
+    meta:
+      required_attributes:
+        is_admin_saas_demo: 'true'
+      primary_key: iso_code
+    columns:
+      - name: iso_code
+        description: "The iso code of the country."
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_country_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique Country Count"
+              description: "✅ CORRECT: Count distinct countries"
+            inflated_country_count:
+              type: count
+              label: "🚨 INFLATED Country Count"
+      - name: country_name
+        description: "The name of the country"
+        meta:
+          dimension:
+            type: string

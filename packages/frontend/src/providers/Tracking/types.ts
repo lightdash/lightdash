@@ -409,6 +409,45 @@ type SpaceBreadcrumbClickedEvent = {
     };
 };
 
+type AiAgentChartHowItsCalculatedClickedEvent = {
+    name: EventName.AI_AGENT_CHART_HOW_ITS_CALCULATED_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        messageId: string;
+        chartType: string;
+    };
+};
+
+type AiAgentChartCreatedEvent = {
+    name: EventName.AI_AGENT_CHART_CREATED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        messageId: string;
+        tableName: string;
+    };
+};
+
+type AiAgentChartExploredEvent = {
+    name: EventName.AI_AGENT_CHART_EXPLORED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        messageId: string;
+        tableName: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -443,7 +482,10 @@ export type EventData =
     | WriteBackEvent
     | DashboardChartLoadedEvent
     | CustomMetricReplacementEvent
-    | SpaceBreadcrumbClickedEvent;
+    | SpaceBreadcrumbClickedEvent
+    | AiAgentChartHowItsCalculatedClickedEvent
+    | AiAgentChartCreatedEvent
+    | AiAgentChartExploredEvent;
 
 export type IdentifyData = {
     id: string;

@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Flex, Group, Loader, Text } from '@mantine/core';
+import { Button, Flex, Group, Loader, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
@@ -95,7 +95,7 @@ const registerCustomCompletionProvider = (
     });
 };
 
-const CustomVisConfigTabs: React.FC = memo(() => {
+export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
 
     const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
@@ -220,20 +220,23 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                             </Flex>
                         </Config.Heading>
 
-                        <SelectTemplate
-                            itemsMap={itemsMap}
-                            isCustomConfig={isCustomConfig}
-                            isEditorEmpty={isEditorEmpty}
-                            setEditorConfig={setEditorConfig}
-                        />
-                        {isAiEnabled && (
-                            <GenerateVizWithAi
+                        <Button.Group>
+                            <SelectTemplate
                                 itemsMap={itemsMap}
-                                sampleResults={series.slice(0, 3)}
+                                isCustomConfig={isCustomConfig}
+                                isEditorEmpty={isEditorEmpty}
                                 setEditorConfig={setEditorConfig}
-                                editorConfig={editorConfig}
                             />
-                        )}
+
+                            {isAiEnabled && (
+                                <GenerateVizWithAi
+                                    itemsMap={itemsMap}
+                                    sampleResults={series.slice(0, 3)}
+                                    setEditorConfig={setEditorConfig}
+                                    editorConfig={editorConfig}
+                                />
+                            )}
+                        </Button.Group>
                     </Config.Group>
                 </Config.Section>
             </Config>
@@ -299,5 +302,3 @@ const CustomVisConfigTabs: React.FC = memo(() => {
         </>
     );
 });
-
-export default CustomVisConfigTabs;

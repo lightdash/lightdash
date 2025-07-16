@@ -1,6 +1,6 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
-import { Type } from '@aws-sdk/client-s3';
 import {
+    Account,
     AnyType,
     CacheMetadata,
     CartesianSeriesType,
@@ -20,11 +20,9 @@ import {
     QueryHistoryStatus,
     RequestMethod,
     SchedulerFormat,
-    SqlRunnerQuery,
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
-    getErrorMessage,
     getRequestMethod,
 } from '@lightdash/common';
 import Analytics, {
@@ -33,7 +31,6 @@ import Analytics, {
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
-import Logger from '../logging/logger';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -274,7 +271,7 @@ type QueryErrorEvent = BaseTrack & {
     properties: {
         queryId: string;
         projectId: string;
-        warehouseType: WarehouseTypes;
+        warehouseType: WarehouseTypes | undefined;
     };
 };
 
@@ -550,7 +547,7 @@ export type ProjectEvent = BaseTrack & {
         projectName: string;
         projectId: string;
         projectType: DbtProjectType;
-        warehouseConnectionType: WarehouseTypes;
+        warehouseConnectionType?: WarehouseTypes;
         organizationId: string;
         dbtConnectionType: DbtProjectType;
         isPreview: boolean;
@@ -1249,6 +1246,80 @@ export type DeprecatedRouteCalled = BaseTrack & {
     };
 };
 
+export type AiAgentCreatedEvent = BaseTrack & {
+    event: 'ai_agent.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        tagsCount: number;
+        integrationsCount: number;
+    };
+};
+
+export type AiAgentDeletedEvent = BaseTrack & {
+    event: 'ai_agent.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+    };
+};
+
+export type AiAgentUpdatedEvent = BaseTrack & {
+    event: 'ai_agent.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        aiAgentId: string;
+        agentName: string | undefined;
+        tagsCount: number;
+        integrationsCount: number;
+    };
+};
+
+export type AiAgentPromptCreatedEvent = BaseTrack & {
+    event: 'ai_agent_prompt.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string | undefined;
+        context: 'slack' | 'web_app';
+    };
+};
+
+export type AiAgentPromptFeedbackEvent = BaseTrack & {
+    event: 'ai_agent_prompt.feedback';
+    userId: string | undefined;
+    properties: {
+        organizationId: string | undefined;
+        humanScore: number;
+        messageId: string;
+        context: 'slack' | 'web_app';
+    };
+};
+
+export type AiAgentResponseStreamed = BaseTrack & {
+    event: 'ai_agent.response_streamed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        usageTokensCount: number;
+        stepsCount: number;
+        model: string;
+    };
+};
+
 export type RenameResourceEvent = BaseTrack & {
     event:
         | 'rename_chart.executed'
@@ -1373,7 +1444,12 @@ type TypedEvent =
     | CategoriesAppliedEvent
     | CustomFieldsReplaced
     | SubtotalQueryEvent
-    | DeprecatedRouteCalled;
+    | DeprecatedRouteCalled
+    | AiAgentCreatedEvent
+    | AiAgentDeletedEvent
+    | AiAgentUpdatedEvent
+    | AiAgentPromptCreatedEvent
+    | AiAgentPromptFeedbackEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {
@@ -1484,5 +1560,34 @@ export class LightdashAnalytics extends Analytics {
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
+    }
+
+    /**
+     * Track events from an account. This lets us centralize common properties that are found in req.account.
+     */
+    trackAccount<T extends BaseTrack>(
+        account: Account,
+        basePayload: TypedEvent | UntypedEvent<T>,
+    ) {
+        const payload = {
+            ...basePayload,
+        };
+
+        if (!payload.properties) {
+            payload.properties = {};
+        }
+
+        if (account.user.type === 'known') {
+            payload.userId = account.user.id;
+        } else {
+            payload.anonymousId = 'embed';
+            payload.properties.externalId = account.user.id;
+        }
+
+        // TODO: Could these be top-level fields rather than properties?
+        payload.properties.organizationId =
+            account.organization.organizationUuid;
+
+        this.track(payload);
     }
 }

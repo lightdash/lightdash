@@ -22,6 +22,9 @@ models:
     materialized: table
     staging:
       materialized: view
+    fanouts_examples:
+      +meta:
+        group_label: fanouts
 seeds:
   jaffle_shop:
     raw_customers:

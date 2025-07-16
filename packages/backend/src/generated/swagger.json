@@ -634,6 +634,22 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "Pick_Organization.name-or-organizationUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the organization"
+                    },
+                    "organizationUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the organization",
+                        "format": "uuid"
+                    }
+                },
+                "required": ["name", "organizationUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -655,6 +671,9 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.name-or-organizationUuid_"
+                    },
                     "dashboardUuids": {
                         "items": {
                             "type": "string"
@@ -673,6 +692,7 @@
                 },
                 "required": [
                     "projectUuid",
+                    "organization",
                     "dashboardUuids",
                     "allowAllDashboards",
                     "createdAt",
@@ -716,7 +736,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "CreateEmbed": {
+            "CreateEmbedRequestBody": {
                 "properties": {
                     "dashboardUuids": {
                         "items": {
@@ -790,7 +810,8 @@
                                 "items": {
                                     "type": "string"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "nullable": true
                             },
                             "enabled": {
                                 "anyOf": [
@@ -855,6 +876,14 @@
             },
             "CreateEmbedJwt": {
                 "properties": {
+                    "exp": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "iat": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "expiresIn": {
                         "type": "string"
                     },
@@ -1532,15 +1561,16 @@
                                                 "items": {
                                                     "type": "string"
                                                 },
-                                                "type": "array"
+                                                "type": "array",
+                                                "nullable": true
                                             },
                                             "enabled": {
                                                 "anyOf": [
                                                     {
-                                                        "type": "boolean"
+                                                        "$ref": "#/components/schemas/FilterInteractivityValues"
                                                     },
                                                     {
-                                                        "$ref": "#/components/schemas/FilterInteractivityValues"
+                                                        "type": "boolean"
                                                     }
                                                 ]
                                             }
@@ -3683,7 +3713,12 @@
                 "enum": ["inner", "full", "left", "right"]
             },
             "JoinRelationship": {
-                "enum": ["one-to-many", "many-to-one", "one-to-one"],
+                "enum": [
+                    "one-to-many",
+                    "many-to-one",
+                    "one-to-one",
+                    "many-to-many"
+                ],
                 "type": "string"
             },
             "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always-or-relationship_": {
@@ -4960,10 +4995,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "integrations": {
@@ -5007,8 +5042,8 @@
                     "name",
                     "projectUuid",
                     "createdAt",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "integrations",
                     "tags",
                     "updatedAt",
@@ -5050,10 +5085,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "integrations": {
@@ -5097,8 +5132,8 @@
                     "name",
                     "projectUuid",
                     "createdAt",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "integrations",
                     "tags",
                     "updatedAt",
@@ -5272,7 +5307,16 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "type": "string"
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["message", "uuid"],
+                        "type": "object"
                     },
                     "createdFrom": {
                         "type": "string"
@@ -5320,7 +5364,16 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "type": "string"
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["message", "uuid"],
+                        "type": "object"
                     },
                     "createdFrom": {
                         "type": "string"
@@ -5413,6 +5466,10 @@
             },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "savedQueryUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "toolCalls": {
                         "items": {
                             "$ref": "#/components/schemas/AiAgentToolCall"
@@ -5459,6 +5516,7 @@
                     }
                 },
                 "required": [
+                    "savedQueryUuid",
                     "toolCalls",
                     "humanScore",
                     "metricQuery",
@@ -5566,12 +5624,16 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "AiChartType": {
-                "description": "Supported AI visualization chart types",
-                "enum": ["time_series_chart", "vertical_bar_chart", "csv"],
+            "AiResultType": {
+                "enum": [
+                    "time_series_chart",
+                    "vertical_bar_chart",
+                    "one_line_result",
+                    "table"
+                ],
                 "type": "string"
             },
-            "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_": {
+            "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_": {
                 "properties": {
                     "metrics": {
                         "items": {
@@ -5597,9 +5659,6 @@
                     },
                     "exploreName": {
                         "type": "string"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/Filters"
                     }
                 },
                 "required": [
@@ -5607,14 +5666,13 @@
                     "dimensions",
                     "sorts",
                     "limit",
-                    "exploreName",
-                    "filters"
+                    "exploreName"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiMetricQuery": {
-                "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_"
+                "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_"
             },
             "Record_string.AnyType_": {
                 "properties": {},
@@ -5650,7 +5708,7 @@
                         "$ref": "#/components/schemas/AiMetricQuery"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/AiChartType"
+                        "$ref": "#/components/schemas/AiResultType"
                     }
                 },
                 "required": ["results", "metricQuery", "type"],
@@ -5751,7 +5809,7 @@
                         "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/AiChartType"
+                        "$ref": "#/components/schemas/AiResultType"
                     }
                 },
                 "required": ["metadata", "query", "type"],
@@ -5927,112 +5985,6 @@
                             "$ref": "#/components/schemas/AiConversationMessage"
                         },
                         "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiPrompt": {
-                "properties": {
-                    "metricQuery": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "humanScore": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "vizConfigOutput": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "filtersOutput": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "response": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "prompt": {
-                        "type": "string"
-                    },
-                    "createdByUserUuid": {
-                        "type": "string"
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string"
-                    },
-                    "agentUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "metricQuery",
-                    "humanScore",
-                    "vizConfigOutput",
-                    "filtersOutput",
-                    "response",
-                    "createdAt",
-                    "prompt",
-                    "createdByUserUuid",
-                    "threadUuid",
-                    "promptUuid",
-                    "agentUuid",
-                    "projectUuid",
-                    "organizationUuid"
-                ],
-                "type": "object"
-            },
-            "AiWebAppPrompt": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/AiPrompt"
-                    },
-                    {
-                        "properties": {
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["userUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiAiConversationResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "prompt": {
-                                "$ref": "#/components/schemas/AiWebAppPrompt"
-                            }
-                        },
-                        "required": ["prompt"],
-                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -6331,9 +6283,6 @@
                     "userUuid": {
                         "type": "string"
                     },
-                    "email": {
-                        "type": "string"
-                    },
                     "firstName": {
                         "type": "string"
                     },
@@ -6350,6 +6299,13 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "userId": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
                     "isTrackingAnonymized": {
                         "type": "boolean"
                     },
@@ -6359,8 +6315,11 @@
                     "isSetupComplete": {
                         "type": "boolean"
                     },
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    "email": {
+                        "type": "string"
+                    },
+                    "isActive": {
+                        "type": "boolean"
                     },
                     "createdAt": {
                         "type": "string",
@@ -6370,25 +6329,21 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "isActive": {
-                        "type": "boolean",
-                        "description": "Whether the user can login"
-                    },
                     "isPending": {
-                        "type": "boolean",
-                        "description": "Whether the user doesn't have an authentication method (password or openId)"
+                        "type": "boolean"
                     }
                 },
                 "required": [
                     "userUuid",
                     "firstName",
                     "lastName",
+                    "userId",
                     "isTrackingAnonymized",
                     "isMarketingOptedIn",
                     "isSetupComplete",
+                    "isActive",
                     "createdAt",
-                    "updatedAt",
-                    "isActive"
+                    "updatedAt"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -6793,7 +6748,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "BigqueryAuthenticationType": {
-                "enum": ["sso", "private_key"],
+                "enum": ["sso", "private_key", "adc"],
                 "type": "string"
             },
             "Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_": {
@@ -6863,7 +6818,8 @@
                     "oneLogin",
                     "azuread",
                     "oidc",
-                    "snowflake"
+                    "snowflake",
+                    "slack"
                 ],
                 "type": "string"
             },
@@ -8429,10 +8385,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "spaceUuid": {
@@ -8460,8 +8416,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "spaceUuid",
                     "pinnedListUuid",
                     "slug",
@@ -8606,10 +8562,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -8651,8 +8607,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -8707,10 +8663,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -8753,8 +8709,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -8969,7 +8925,7 @@
                 "required": ["name", "id"],
                 "type": "object"
             },
-            "ApiSlackChannelsResponse": {
+            "ApiSuccess_SlackChannel-Array-or-undefined_": {
                 "properties": {
                     "results": {
                         "items": {
@@ -8986,17 +8942,11 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ApiSlackChannelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SlackChannel-Array-or-undefined_"
+            },
             "ApiSlackCustomSettingsResponse": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
             "SlackChannelProjectMapping": {
                 "properties": {
@@ -9019,6 +8969,9 @@
             },
             "SlackAppCustomSettings": {
                 "properties": {
+                    "aiRequireOAuth": {
+                        "type": "boolean"
+                    },
                     "aiThreadAccessConsent": {
                         "type": "boolean"
                     },
@@ -9039,6 +8992,78 @@
                 },
                 "required": ["appProfilePhotoUrl", "notificationChannel"],
                 "type": "object"
+            },
+            "SlackSettings": {
+                "properties": {
+                    "aiRequireOAuth": {
+                        "type": "boolean"
+                    },
+                    "hasRequiredScopes": {
+                        "type": "boolean"
+                    },
+                    "aiThreadAccessConsent": {
+                        "type": "boolean"
+                    },
+                    "slackChannelProjectMappings": {
+                        "items": {
+                            "$ref": "#/components/schemas/SlackChannelProjectMapping"
+                        },
+                        "type": "array"
+                    },
+                    "appProfilePhotoUrl": {
+                        "type": "string"
+                    },
+                    "notificationChannel": {
+                        "type": "string"
+                    },
+                    "scopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "appName": {
+                        "type": "string"
+                    },
+                    "slackTeamName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasRequiredScopes",
+                    "scopes",
+                    "createdAt",
+                    "slackTeamName",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_SlackSettings-or-undefined_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SlackSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiSlackGetInstallationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SlackSettings-or-undefined_"
             },
             "ShareUrl": {
                 "properties": {
@@ -9500,7 +9525,8 @@
                     "indexCatalog",
                     "generateDailyJobs",
                     "exportCsvDashboard",
-                    "renameResources"
+                    "renameResources",
+                    "runAsyncWarehouseQuery"
                 ]
             },
             "SchedulerJobStatus": {
@@ -9999,10 +10025,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -10081,8 +10107,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -10139,18 +10165,15 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
                     },
                     "spaceUuid": {
                         "type": "string"
@@ -10199,6 +10222,9 @@
                         },
                         "type": "array"
                     },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -10212,10 +10238,9 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
-                    "filters",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -10225,6 +10250,7 @@
                     "firstViewedAt",
                     "dashboardVersionId",
                     "tiles",
+                    "filters",
                     "tabs"
                 ],
                 "type": "object",
@@ -11211,7 +11237,15 @@
                 ]
             },
             "SupportedDbtVersions": {
-                "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8", "v1.9"],
+                "enum": [
+                    "v1.4",
+                    "v1.5",
+                    "v1.6",
+                    "v1.7",
+                    "v1.8",
+                    "v1.9",
+                    "v1.10"
+                ],
                 "type": "string"
             },
             "DbtVersionOptionLatest": {
@@ -11333,10 +11367,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -11365,8 +11399,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -11937,6 +11971,18 @@
             "UpdateMultipleDashboards": {
                 "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name-or-description-or-spaceUuid_"
             },
+            "ApiCreatePreviewResults": {
+                "properties": {
+                    "compileJobUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["compileJobUuid", "projectUuid"],
+                "type": "object"
+            },
             "UpdateSchedulerSettings": {
                 "properties": {
                     "schedulerTimezone": {
@@ -12141,22 +12187,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -12261,7 +12307,7 @@
                 "$ref": "#/components/schemas/Pick_DashboardTile.Exclude_keyofDashboardTile.properties-or-uuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_": {
+            "Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_": {
                 "properties": {
                     "title": {
                         "type": "string"
@@ -12271,6 +12317,10 @@
                     },
                     "chartSlug": {
                         "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "type": "object",
@@ -12286,7 +12336,7 @@
                             "properties": {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug_"
+                                        "$ref": "#/components/schemas/Pick_DashboardChartTileProperties-at-properties.title-or-hideTitle-or-chartSlug-or-chartName_"
                                     },
                                     {
                                         "properties": {
@@ -12491,22 +12541,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -12931,10 +12981,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -12960,8 +13010,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -13208,8 +13258,6 @@
                     }
                 },
                 "required": [
-                    "requireUserCredentials",
-                    "warehouseType",
                     "upstreamProjectUuid",
                     "createdByUserUuid",
                     "type",
@@ -13893,7 +13941,11 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Project.Exclude_keyofProject.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid__": {
+            "CreateProjectTableConfiguration": {
+                "enum": ["prod", "all"],
+                "type": "string"
+            },
+            "Pick_CreateProject.Exclude_keyofCreateProject.warehouseConnection__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -13907,22 +13959,28 @@
                     "dbtConnection": {
                         "$ref": "#/components/schemas/DbtProjectConfig"
                     },
-                    "warehouseConnection": {
-                        "$ref": "#/components/schemas/WarehouseCredentials"
-                    },
                     "upstreamProjectUuid": {
                         "type": "string"
                     },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
+                    },
+                    "copyWarehouseConnectionFromUpstreamProject": {
+                        "type": "boolean"
+                    },
+                    "tableConfiguration": {
+                        "$ref": "#/components/schemas/CreateProjectTableConfiguration"
+                    },
+                    "copyContent": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["name", "type", "dbtConnection", "dbtVersion"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_Project.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid_": {
-                "$ref": "#/components/schemas/Pick_Project.Exclude_keyofProject.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid__",
+            "Omit_CreateProject.warehouseConnection_": {
+                "$ref": "#/components/schemas/Pick_CreateProject.Exclude_keyofCreateProject.warehouseConnection__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "SshTunnelConfiguration": {
@@ -14391,31 +14449,17 @@
                     }
                 ]
             },
-            "CreateProjectTableConfiguration": {
-                "enum": ["prod", "all"],
-                "type": "string"
-            },
-            "CreateProject": {
+            "CreateProjectOptionalCredentials": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_Project.projectUuid-or-organizationUuid-or-schedulerTimezone-or-createdByUserUuid_"
+                        "$ref": "#/components/schemas/Omit_CreateProject.warehouseConnection_"
                     },
                     {
                         "properties": {
-                            "copyContent": {
-                                "type": "boolean"
-                            },
-                            "tableConfiguration": {
-                                "$ref": "#/components/schemas/CreateProjectTableConfiguration"
-                            },
-                            "copyWarehouseConnectionFromUpstreamProject": {
-                                "type": "boolean"
-                            },
                             "warehouseConnection": {
                                 "$ref": "#/components/schemas/CreateWarehouseCredentials"
                             }
                         },
-                        "required": ["warehouseConnection"],
                         "type": "object"
                     }
                 ]
@@ -16444,7 +16488,6 @@
                     "ai",
                     "api",
                     "cli",
-                    "semanticViewer",
                     "metricsExplorer"
                 ],
                 "type": "string"
@@ -16684,6 +16727,10 @@
                     },
                     {
                         "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"
                             },
@@ -17689,7 +17736,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1765.0",
+        "version": "0.1813.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -20482,6 +20529,149 @@
                 }
             }
         },
+        "/api/v1/slack/is-authenticated": {
+            "get": {
+                "operationId": "IsSlackOpenIdLinked",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Check if the user has an OpenID identity for Slack",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/slack": {
+            "get": {
+                "operationId": "getSlackInstallation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSlackGetInstallationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            },
+            "delete": {
+                "operationId": "deleteSlackInstall",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/slack/image/{nanoId}": {
+            "get": {
+                "operationId": "getSlackImage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/slack/install": {
+            "get": {
+                "operationId": "installSlack",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/share/{nanoId}": {
             "get": {
                 "operationId": "getShareUrl",
@@ -22737,7 +22927,7 @@
                                 "schema": {
                                     "properties": {
                                         "results": {
-                                            "type": "string"
+                                            "$ref": "#/components/schemas/ApiCreatePreviewResults"
                                         },
                                         "status": {
                                             "type": "string",
@@ -23303,6 +23493,9 @@
                                             },
                                             "chartConfig": {
                                                 "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "skipSpaceCreate": {
+                                                "type": "boolean"
                                             }
                                         },
                                         "required": [
@@ -23383,6 +23576,9 @@
                                             },
                                             "filters": {
                                                 "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "skipSpaceCreate": {
+                                                "type": "boolean"
                                             }
                                         },
                                         "required": ["tiles", "filters"],
@@ -23820,7 +24016,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateProject"
+                                "$ref": "#/components/schemas/CreateProjectOptionalCredentials"
                             }
                         }
                     }
@@ -27174,6 +27370,566 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/{queryUuid}": {
+            "get": {
+                "operationId": "getAsyncQueryResults",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetAsyncQueryResultsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/{queryUuid}/cancel": {
+            "post": {
+                "operationId": "cancelAsyncQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/metric-query": {
+            "post": {
+                "operationId": "executeAsyncMetricQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncMetricQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/chart": {
+            "post": {
+                "operationId": "executeAsyncSavedChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/dashboard-chart": {
+            "post": {
+                "operationId": "executeAsyncDashboardChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncDashboardChartQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/underlying-data": {
+            "post": {
+                "operationId": "executeAsyncUnderlyingDataQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/sql": {
+            "post": {
+                "operationId": "executeAsyncSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSqlQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/sql-chart": {
+            "post": {
+                "operationId": "executeAsyncSqlChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSqlQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncSqlChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/dashboard-sql-chart": {
+            "post": {
+                "operationId": "executeAsyncDashboardSqlChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncDashboardSqlChartQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/{queryUuid}/results": {
+            "get": {
+                "operationId": "getResultsStream",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Stream results from S3",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/{queryUuid}/download": {
+            "post": {
+                "operationId": "downloadResults",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv-or-ApiDownloadAsyncQueryResultsAsXlsx_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/feature-flag/{featureFlagId}": {

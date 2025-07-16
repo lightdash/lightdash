@@ -3,10 +3,7 @@ import { type QueryExecutionContext } from './analytics';
 import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
-import {
-    type CreateWarehouseCredentials,
-    type WarehouseTypes,
-} from './projects';
+import { type CreateWarehouseCredentials } from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
 
 export type RunQueryTags = {
@@ -70,17 +67,33 @@ export type WarehouseExecuteAsyncQuery = {
     durationMs: number;
 };
 
+export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs & {
+    sql: string;
+    queryId: string | null;
+    queryMetadata: WarehouseQueryMetadata | null;
+};
+
+export type WarehouseGetAsyncQueryResults<
+    TFormattedRow extends Record<string, unknown>,
+> = {
+    queryId: string | null;
+    fields: Record<string, { type: DimensionType }>;
+    pageCount: number;
+    totalRows: number;
+    rows: TFormattedRow[];
+};
+
 export interface WarehouseSqlBuilder {
-    type: WarehouseTypes;
     getStartOfWeek: () => WeekDay | null | undefined;
     getAdapterType: () => SupportedDbtAdapter;
     getStringQuoteChar: () => string;
     getEscapeStringQuoteChar: () => string;
+    getFieldQuoteChar: () => string;
     getMetricSql: (sql: string, metric: Metric) => string;
     concatString: (...args: string[]) => string;
 }
 
-export interface WarehouseClient extends Omit<WarehouseSqlBuilder, 'type'> {
+export interface WarehouseClient extends WarehouseSqlBuilder {
     credentials: CreateWarehouseCredentials;
     getCatalog: (
         config: {
@@ -89,6 +102,11 @@ export interface WarehouseClient extends Omit<WarehouseSqlBuilder, 'type'> {
             table: string;
         }[],
     ) => Promise<WarehouseCatalog>;
+
+    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        args: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     streamQuery(
         query: string,
@@ -102,7 +120,7 @@ export interface WarehouseClient extends Omit<WarehouseSqlBuilder, 'type'> {
 
     executeAsyncQuery(
         args: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback: (
+        resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
         ) => void,

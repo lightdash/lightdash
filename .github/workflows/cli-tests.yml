@@ -51,7 +51,7 @@ jobs:
             fail-fast: false
             matrix:
                 # Make sure we support the first and 2 latest versions
-                dbt: ['1.4', '1.8', '1.9']
+                dbt: ['1.4', '1.9', '1.10']
         name: dbt ${{ matrix.dbt }}
         steps:
             - name: Checkout
@@ -63,7 +63,13 @@ jobs:
             - uses: actions/setup-python@v4
               with:
                   python-version: '3.9.x'
-            - run: pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=${{ matrix.dbt }}.0
+            # dbt-postgres 1.10 is not available yet, so we need to install 1.9
+            - run: |
+                if [ "${{ matrix.dbt }}" = "1.10" ]; then
+                  pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=1.9.0 
+                else
+                  pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=${{ matrix.dbt }}.0
+                fi
 
             ## DBT seed
             - name: Seed DBT
@@ -80,7 +86,7 @@ jobs:
 
             ## DBT run
             - name: Run DBT
-              run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+              run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
               env:
                   PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
                   PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'

@@ -2,7 +2,8 @@ import { type AiAgentMessage, type AiAgentThread } from '@lightdash/common';
 import { Box, Divider, Flex, getDefaultZIndex, Stack } from '@mantine-8/core';
 import { Fragment, useRef, type FC, type PropsWithChildren } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { AssistantBubble, UserBubble } from './AgentChatBubbles';
+import { AssistantBubble } from './AgentChatAssistantBubble';
+import { UserBubble } from './AgentChatUserBubble';
 import ThreadScrollToBottom from './ScrollToBottom';
 import { ChatElementsUtils } from './utils';
 
@@ -49,7 +50,6 @@ export const AgentChatDisplay: FC<PropsWithChildren<AgentChatDisplayProps>> = ({
 
     return (
         <Flex
-            key={thread.uuid}
             ref={viewport}
             direction="column"
             h={height}

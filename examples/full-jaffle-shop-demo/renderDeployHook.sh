@@ -2,8 +2,9 @@
 set -e
 
 # Idempotent dbt commands
-dbt seed --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
-dbt run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles
+dbt1.7 deps --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles
+dbt1.7 seed --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
+dbt1.7 run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
 
 # Rollback all migrations and seed
 pnpm -F backend rollback-all-production

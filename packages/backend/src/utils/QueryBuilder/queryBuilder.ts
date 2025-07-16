@@ -1,5 +1,6 @@
 import {
     CompiledDimension,
+    CompiledMetric,
     CompiledMetricQuery,
     CompiledTable,
     createFilterRuleFromModelRequiredFilterRule,
@@ -34,11 +35,13 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import {
     assertValidDimensionRequiredAttribute,
     findMetricInflationWarnings,
+    findTablesWithMetricInflation,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getDimensionFromFilterTargetId,
@@ -46,6 +49,7 @@ import {
     getJoinedTables,
     getJoinType,
     getMetricFromId,
+    isInflationProofMetric,
     replaceUserAttributesAsStrings,
     replaceUserAttributesRaw,
     sortDayOfWeekName,
@@ -61,7 +65,7 @@ export type CompiledQuery = {
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     userAttributes?: UserAttributeValueMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
@@ -82,7 +86,7 @@ export class MetricQueryBuilder {
         const {
             explore,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             userAttributes = {},
             intrinsicUserAttributes,
         } = this.args;
@@ -102,7 +106,7 @@ export class MetricQueryBuilder {
                       tableCompiledSqlWhere,
                       intrinsicUserAttributes,
                       userAttributes,
-                      warehouseClient,
+                      warehouseSqlBuilder,
                   ),
               ]
             : [];
@@ -137,18 +141,16 @@ export class MetricQueryBuilder {
         const {
             explore,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             userAttributes = {},
             intrinsicUserAttributes,
         } = this.args;
         const adapterType: SupportedDbtAdapter =
-            warehouseClient.getAdapterType();
+            warehouseSqlBuilder.getAdapterType();
         const { dimensions, sorts, compiledCustomDimensions, filters } =
             compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const startOfWeek = warehouseClient.getStartOfWeek();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
         const dimensionsObjects = dimensions
             .filter(
                 (id) =>
@@ -173,7 +175,7 @@ export class MetricQueryBuilder {
             dimensions.includes(cd.id),
         );
         const customBinDimensionSql = getCustomBinDimensionSql({
-            warehouseClient,
+            warehouseSqlBuilder,
             explore,
             customDimensions:
                 selectedCustomDimensions?.filter(isCustomBinDimension),
@@ -182,7 +184,7 @@ export class MetricQueryBuilder {
             sorts,
         });
         const customSqlDimensionSql = getCustomSqlDimensionSql({
-            warehouseClient,
+            warehouseSqlBuilder,
             customDimensions: selectedCustomDimensions?.filter(
                 isCompiledCustomSqlDimension,
             ),
@@ -268,16 +270,14 @@ export class MetricQueryBuilder {
         const {
             explore,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             userAttributes = {},
         } = this.args;
         const { metrics, filters, additionalMetrics } = compiledMetricQuery;
         const adapterType: SupportedDbtAdapter =
-            warehouseClient.getAdapterType();
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const startOfWeek = warehouseClient.getStartOfWeek();
+            warehouseSqlBuilder.getAdapterType();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
         // Validate custom metrics
         if (additionalMetrics) {
@@ -367,11 +367,9 @@ export class MetricQueryBuilder {
         selects: string[];
         filtersSQL: string | undefined;
     } {
-        const { compiledMetricQuery, warehouseClient } = this.args;
+        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { filters } = compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         // Selects
         const selects = compiledMetricQuery.compiledTableCalculations.map(
@@ -482,18 +480,16 @@ export class MetricQueryBuilder {
     }
 
     private getFilterRuleSQL(filter: FilterRule, fieldType?: FieldType) {
-        const { explore, compiledMetricQuery, warehouseClient, timezone } =
+        const { explore, compiledMetricQuery, warehouseSqlBuilder, timezone } =
             this.args;
         const adapterType: SupportedDbtAdapter =
-            warehouseClient.getAdapterType();
+            warehouseSqlBuilder.getAdapterType();
         const { compiledCustomDimensions } = compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const stringQuoteChar = warehouseClient.getStringQuoteChar();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const stringQuoteChar = warehouseSqlBuilder.getStringQuoteChar();
         const escapeStringQuoteChar =
-            warehouseClient.getEscapeStringQuoteChar();
-        const startOfWeek = warehouseClient.getStartOfWeek();
+            warehouseSqlBuilder.getEscapeStringQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
         if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
@@ -543,12 +539,10 @@ export class MetricQueryBuilder {
     }
 
     private getSortSQL() {
-        const { explore, compiledMetricQuery, warehouseClient } = this.args;
+        const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { sorts, compiledCustomDimensions } = compiledMetricQuery;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
-        const startOfWeek = warehouseClient.getStartOfWeek();
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
         const compiledDimensions = getDimensions(explore);
         let requiresQueryInCTE = false;
         const fieldOrders = sorts.map((sort) => {
@@ -579,7 +573,7 @@ export class MetricQueryBuilder {
 
                 return sortMonthName(
                     sortedDimension,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
             }
@@ -594,7 +588,7 @@ export class MetricQueryBuilder {
                 return sortDayOfWeekName(
                     sortedDimension,
                     startOfWeek,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
             }
@@ -621,7 +615,7 @@ export class MetricQueryBuilder {
     private getBaseTableFromSQL() {
         const {
             explore,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
@@ -630,9 +624,7 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes,
         );
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         return `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
     }
 
@@ -648,13 +640,11 @@ export class MetricQueryBuilder {
     } {
         const {
             explore,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const fieldQuoteChar = getFieldQuoteChar(
-            warehouseClient.credentials.type,
-        );
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         const selectedTables = new Set<string>([
             ...tablesReferencedInDimensions,
@@ -704,7 +694,7 @@ export class MetricQueryBuilder {
                     join.compiledSqlOn,
                     intrinsicUserAttributes,
                     userAttributes,
-                    warehouseClient,
+                    warehouseSqlBuilder,
                 );
                 return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
@@ -737,6 +727,304 @@ export class MetricQueryBuilder {
         return warnings;
     }
 
+    private getExperimentalMetricsCteSQL({
+        joinedTables,
+        dimensionSelects,
+        dimensionFilters,
+        dimensionGroupBy,
+        sqlFrom,
+        joins,
+    }: {
+        joinedTables: Set<string>;
+        dimensionSelects: string[];
+        dimensionFilters: string | undefined;
+        dimensionGroupBy: string | undefined;
+        sqlFrom: string;
+        joins: string[];
+    }) {
+        const {
+            explore,
+            compiledMetricQuery,
+            warehouseSqlBuilder,
+            intrinsicUserAttributes,
+            userAttributes = {},
+        } = this.args;
+        const { metrics } = compiledMetricQuery;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Find tables that potentially have metric inflation and tables without relationship value
+        const { tablesWithMetricInflation, joinWithoutRelationship } =
+            findTablesWithMetricInflation({
+                tables: explore.tables,
+                possibleJoins: explore.joinedTables,
+                baseTable: explore.baseTable,
+                joinedTables,
+            });
+
+        const metricsObjects = metrics.map((field) =>
+            getMetricFromId(field, explore, compiledMetricQuery),
+        );
+
+        // Warn user about metrics with fanouts which we don't have a solution for yet.
+        const warnings: QueryWarning[] = [];
+        const ctes: string[] = [];
+        const metricCtes: Array<{ name: string; metrics: string[] }> = [];
+        let finalSelectParts: Array<string | undefined> | undefined;
+
+        // We can't handle deduplication for joins without relationship type
+        joinWithoutRelationship.forEach((tableName) => {
+            warnings.push({
+                message: `Join **"${tableName}"** is missing a join relationship type. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                tables: [tableName],
+            });
+            const metricsFromTable = metricsObjects.filter(
+                (metric) => metric.table === tableName,
+            );
+            metricsFromTable.forEach((metric) => {
+                warnings.push({
+                    message: `Metric **"${metric.label}"** could be inflated due to missing join relationship type. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                    fields: [getItemId(metric)],
+                    tables: [metric.table],
+                });
+            });
+        });
+
+        // TODO: Extract column alias from original select. Dimensions private method should expose this info.
+        const dimensionAlias = dimensionSelects.map((select) => {
+            const selectParts = select.split(' AS ');
+            return selectParts.length === 2 ? selectParts[1] : undefined;
+        });
+
+        tablesWithMetricInflation.forEach((tableName) => {
+            const table = explore.tables[tableName];
+            const metricsFromTable = metricsObjects.filter(
+                (metric) => metric.table === tableName,
+            );
+            const metricsInCte: CompiledMetric[] = [];
+
+            if (table?.primaryKey === undefined) {
+                // We can't handle deduplication if table doesn't have primary key
+                warnings.push({
+                    message: `Table **"${tableName}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                    tables: [tableName],
+                });
+                metricsFromTable.forEach((metric) => {
+                    warnings.push({
+                        message: `Metric **"${metric.label}"** could be inflated due to table missing primary key definition. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                        fields: [getItemId(metric)],
+                        tables: [metric.table],
+                    });
+                });
+                return;
+            }
+
+            metricsFromTable.forEach((metric) => {
+                // Inflation proof metrics don't need CTE
+                if (isInflationProofMetric(metric.type)) {
+                    return;
+                }
+                // Metrics that depend on other tables are not supported atm. See https://github.com/lightdash/lightdash/issues/15423
+                if (
+                    metric.tablesReferences &&
+                    metric.tablesReferences.length > 1
+                ) {
+                    warnings.push({
+                        message: `Metric **"${metric.label}"** that references a joined table might have inflation. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
+                        fields: [getItemId(metric)],
+                        tables: [metric.table],
+                    });
+                    return;
+                }
+                // Otherwise, we can calculate metric without fanout
+                metricsInCte.push(metric);
+            });
+
+            if (metricsInCte.length > 0) {
+                /**
+                 * CTE to deduplicate rows
+                 * - We always need to include all dimensions using the original SQL
+                 * - We always need to include the primary keys to deduplicate!
+                 * - Include all joins
+                 * - Apply dimensions filters
+                 */
+                const keysCteName = `cte_keys_${tableName}`;
+                const keysCteParts = [
+                    `SELECT DISTINCT`,
+                    [
+                        ...dimensionSelects,
+                        ...table.primaryKey.map(
+                            (pk) =>
+                                `  ${fieldQuoteChar}${table.name}${fieldQuoteChar}.${pk} AS ${fieldQuoteChar}pk_${pk}${fieldQuoteChar}`,
+                        ),
+                    ].join(',\n'),
+                    sqlFrom,
+                    ...joins,
+                    dimensionFilters,
+                ];
+                ctes.push(
+                    `${keysCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        keysCteParts,
+                    )}\n)`,
+                );
+
+                /**
+                 * CTE to calculate metrics
+                 * - Include dimensions via alias
+                 * - Only join keys table and metrics table
+                 * - No filters needed
+                 */
+                const joinTable = replaceUserAttributesRaw(
+                    table.sqlTable,
+                    intrinsicUserAttributes,
+                    userAttributes,
+                );
+                const metricsCteName = `cte_metrics_${table.name}`;
+                const metricsCteParts = [
+                    `SELECT`,
+                    [
+                        ...dimensionAlias.map(
+                            (alias) => `  ${keysCteName}.${alias}`,
+                        ),
+                        ...metricsInCte.map(
+                            (metric) =>
+                                `  ${
+                                    metric.compiledSql
+                                } AS ${fieldQuoteChar}${getItemId(
+                                    metric,
+                                )}${fieldQuoteChar}`,
+                        ),
+                    ].join(',\n'),
+                    `FROM ${keysCteName}`,
+                    `LEFT JOIN ${joinTable} AS ${fieldQuoteChar}${
+                        table.name
+                    }${fieldQuoteChar} ON ${table.primaryKey
+                        .map(
+                            (pk) =>
+                                `${keysCteName}.${fieldQuoteChar}pk_${pk}${fieldQuoteChar} = ${fieldQuoteChar}${table.name}${fieldQuoteChar}.${pk}`,
+                        )
+                        .join(' AND ')}\n`,
+                    dimensionAlias.length > 0
+                        ? `GROUP BY ${dimensionAlias
+                              .map((val, i) => i + 1)
+                              .join(',')}`
+                        : undefined,
+                ];
+                ctes.push(
+                    `${metricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        metricsCteParts,
+                    )}\n)`,
+                );
+                metricCtes.push({
+                    name: metricsCteName,
+                    metrics: metricsInCte.map((metric) => getItemId(metric)),
+                });
+            }
+        });
+
+        if (ctes.length > 0) {
+            const metricsNotInCtes = metricsObjects.filter(
+                (metric) =>
+                    !metricCtes.some((metricCte) =>
+                        metricCte.metrics.includes(getItemId(metric)),
+                    ),
+            );
+            /**
+             * CTE with all dimensions and metrics that aren't affected by fanouts
+             * - We always need to include all dimensions
+             * - Include metrics unaffected by inflation or not supported yet
+             * - Include all joins
+             * - Apply dimensions filters
+             */
+            const unaffectedMetricsCteName = `cte_unaffected`;
+            const unaffectedMetricsCteParts = [
+                'SELECT',
+                [
+                    ...dimensionSelects,
+                    ...metricsNotInCtes.map(
+                        (metric) =>
+                            `  ${
+                                metric.compiledSql
+                            } AS ${fieldQuoteChar}${getItemId(
+                                metric,
+                            )}${fieldQuoteChar}`,
+                    ),
+                ].join(',\n'),
+                sqlFrom,
+                ...joins,
+                dimensionFilters,
+                dimensionGroupBy,
+            ];
+            const hasUnaffectedCte: boolean =
+                metricsNotInCtes.length > 0 ||
+                dimensionSelects.length > 0 ||
+                !!dimensionFilters;
+
+            /**
+             * Query to join all CTEs
+             * - select all from unaffected_fields
+             * - select specific metrics from metric CTEs
+             * - Join metric tables:
+             *   - when there are no dimensions, use CROSS JOIN
+             *   - when there are dimensions, use INNER JOIN on all dimensions (+ or null)
+             */
+            if (hasUnaffectedCte) {
+                ctes.push(
+                    `${unaffectedMetricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        unaffectedMetricsCteParts,
+                    )}\n)`,
+                );
+                finalSelectParts = [
+                    `SELECT`,
+                    [
+                        `  ${unaffectedMetricsCteName}.*`,
+                        ...metricCtes.map((metricCte) => {
+                            const metricSelects = metricCte.metrics.map(
+                                (metricName) =>
+                                    `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
+                            );
+                            return metricSelects.join(',\n');
+                        }),
+                    ].join(',\n'),
+                    `FROM ${unaffectedMetricsCteName}`,
+                    ...metricCtes.map((metricCte) => {
+                        if (dimensionSelects.length === 0) {
+                            return `CROSS JOIN ${metricCte.name}`;
+                        }
+                        return `INNER JOIN ${metricCte.name} ON ${dimensionAlias
+                            .map(
+                                (alias) =>
+                                    `( ${unaffectedMetricsCteName}.${alias} = ${metricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${metricCte.name}.${alias} IS NULL ) )`,
+                            )
+                            .join(' AND ')}`;
+                    }),
+                ];
+            } else {
+                // If there is no unaffected CTE, cross join metric CTEs
+                finalSelectParts = [
+                    `SELECT`,
+                    [
+                        ...metricCtes.map((metricCte) => {
+                            const metricSelects = metricCte.metrics.map(
+                                (metricName) =>
+                                    `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
+                            );
+                            return metricSelects.join(',\n');
+                        }),
+                    ].join(',\n'),
+                    `FROM ${metricCtes[0].name}`,
+                    ...metricCtes
+                        .slice(1, metricCtes.length)
+                        .map((metricCte) => `CROSS JOIN ${metricCte.name}`),
+                ];
+            }
+        }
+        return {
+            ctes,
+            finalSelectParts,
+            warnings,
+        };
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -746,7 +1034,9 @@ export class MetricQueryBuilder {
      *
      * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
      */
-    public compileQuery(): CompiledQuery {
+    public compileQuery(
+        useExperimentalMetricCtes: boolean = false,
+    ): CompiledQuery {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const dimensionsSQL = this.getDimensionsSQL();
@@ -756,8 +1046,6 @@ export class MetricQueryBuilder {
             tablesReferencedInDimensions: dimensionsSQL.tables,
             tablesReferencedInMetrics: metricsSQL.tables,
         });
-        const warnings = this.getWarnings({ joinedTables: joins.tables });
-
         const sqlSelect = `SELECT\n${[
             ...dimensionsSQL.selects,
             ...metricsSQL.selects,
@@ -774,6 +1062,28 @@ export class MetricQueryBuilder {
             dimensionsSQL.filtersSQL,
             dimensionsSQL.groupBySQL,
         ];
+
+        let warnings: QueryWarning[];
+        if (useExperimentalMetricCtes) {
+            const experimentalMetricsCteSQL = this.getExperimentalMetricsCteSQL(
+                {
+                    joinedTables: joins.tables,
+                    dimensionSelects: dimensionsSQL.selects,
+                    dimensionFilters: dimensionsSQL.filtersSQL,
+                    dimensionGroupBy: dimensionsSQL.groupBySQL,
+                    sqlFrom,
+                    joins: [joins.joinSQL, ...dimensionsSQL.joins],
+                },
+            );
+            if (experimentalMetricsCteSQL.finalSelectParts) {
+                finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
+                ctes.push(...experimentalMetricsCteSQL.ctes);
+            }
+            warnings = experimentalMetricsCteSQL.warnings;
+        } else {
+            warnings = this.getWarnings({ joinedTables: joins.tables });
+        }
+
         if (
             tableCalculationSQL.selects.length > 0 ||
             metricsSQL.filtersSQL ||

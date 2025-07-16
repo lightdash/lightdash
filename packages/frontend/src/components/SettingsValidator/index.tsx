@@ -397,8 +397,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     ) : !!data?.length ? (
                         <>
                             <ValidatorTable
-                                // Hard limit to 100 rows, otherwise it breaks the UI
-                                data={data.slice(0, 100)} // TODO add pagination
+                                data={data}
                                 projectUuid={projectUuid}
                                 onSelectValidationError={(validationError) => {
                                     if (
@@ -410,12 +409,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                     }
                                 }}
                             />
-                            {data.length > 100 && (
-                                <Text p="md" c="gray.7">
-                                    Showing only 100 of {data.length} validation
-                                    errors.
-                                </Text>
-                            )}
                         </>
                     ) : (
                         <Group position="center" spacing="xs" p="md">

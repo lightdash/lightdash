@@ -1,6 +1,6 @@
+/* eslint-disable */
 import {
     CreateEmbedJwt,
-    EmbedJwt,
     EmbedJwtSchema,
     ForbiddenError,
     getErrorMessage,
@@ -8,7 +8,12 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import jwt from 'jsonwebtoken';
+import {
+    JsonWebTokenError,
+    sign,
+    TokenExpiredError,
+    verify,
+} from 'jsonwebtoken';
 import { z } from 'zod';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -30,7 +35,7 @@ export function encodeLightdashJwt(
             ? encodedSecret
             : Buffer.from(encodedSecret),
     );
-    return jwt.sign(jwtData, secret, { expiresIn });
+    return sign(jwtData, secret, { expiresIn });
 }
 
 /**
@@ -39,7 +44,7 @@ export function encodeLightdashJwt(
 export function decodeLightdashJwt(
     token: string,
     encodedSecret: string | Buffer,
-): EmbedJwt {
+): CreateEmbedJwt {
     try {
         const encryptionUtil = new EncryptionUtil({ lightdashConfig });
         const secret = encryptionUtil.decrypt(
@@ -47,7 +52,7 @@ export function decodeLightdashJwt(
                 ? encodedSecret
                 : Buffer.from(encodedSecret),
         );
-        const decodedToken = jwt.verify(token, secret) as EmbedJwt;
+        const decodedToken = verify(token, secret) as CreateEmbedJwt;
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
@@ -61,14 +66,14 @@ export function decodeLightdashJwt(
                     errorIdentifier = decodedToken.content.dashboardSlug;
                 }
             }
-            // FIXME: This needs to be cleaned up. Need to verify current behavior
+            // FIXME: This is legacy behavior where we simply log Zod schema validation errors.
             if (e instanceof z.ZodError) {
                 const zodErrors = e.issues
                     .map((issue) => issue.message)
                     .join(', ');
 
                 Logger.error(
-                    `Invalid embed token ${errorIdentifier}: ${zodErrors}`,
+                    `Token schema validation error: ${errorIdentifier}: ${zodErrors}`,
                 );
             } else {
                 Logger.error(
@@ -78,25 +83,20 @@ export function decodeLightdashJwt(
                 );
             }
             Sentry.captureException(e);
-            if (e instanceof z.ZodError) {
-                const zodErrors = e.issues
-                    .map((issue) => issue.message)
-                    .join(', ');
-                throw new ParameterError(`Invalid embed token: ${zodErrors}`);
-            }
-            throw e;
         }
         return decodedToken;
     } catch (e) {
-        if (e instanceof jwt.TokenExpiredError) {
+        if (e instanceof TokenExpiredError) {
             throw new ForbiddenError('Your embed token has expired.');
         }
-        if (e instanceof jwt.JsonWebTokenError) {
+        if (e instanceof JsonWebTokenError) {
             throw new ParameterError(`Invalid embed token: ${e.message}`);
         }
         if (e instanceof z.ZodError) {
             const zodErrors = e.issues.map((issue) => issue.message).join(', ');
-            throw new ParameterError(`Invalid embed token: ${zodErrors}`);
+            throw new ParameterError(
+                `Token schema validation error: ${zodErrors}`,
+            );
         }
         throw e;
     }

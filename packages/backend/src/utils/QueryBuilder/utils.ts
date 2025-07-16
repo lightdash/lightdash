@@ -34,6 +34,7 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { intersection, isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
@@ -231,13 +232,13 @@ export const replaceUserAttributesAsStrings = (
     sql: string,
     intrinsicUserAttributes: IntrinsicUserAttributes,
     userAtttributes: UserAttributeValueMap,
-    warehouseClient: WarehouseClient,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
 ) =>
     replaceUserAttributes(
         sql,
         intrinsicUserAttributes,
         userAtttributes,
-        warehouseClient.getStringQuoteChar(),
+        warehouseSqlBuilder.getStringQuoteChar(),
         '(',
     );
 
@@ -483,16 +484,16 @@ export const applyLimitToSqlQuery = ({
 };
 
 export const getCustomSqlDimensionSql = ({
-    warehouseClient,
+    warehouseSqlBuilder,
     customDimensions,
 }: {
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     customDimensions: CompiledCustomSqlDimension[] | undefined;
 }): { selects: string[]; tables: string[] } | undefined => {
     if (customDimensions === undefined || customDimensions.length === 0) {
         return undefined;
     }
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const selects = customDimensions.map<string>(
         (customDimension) =>
             `  (${customDimension.compiledSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`,
@@ -505,14 +506,14 @@ export const getCustomSqlDimensionSql = ({
 };
 
 export const getCustomBinDimensionSql = ({
-    warehouseClient,
+    warehouseSqlBuilder,
     explore,
     customDimensions,
     intrinsicUserAttributes,
     userAttributes = {},
     sorts = [],
 }: {
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     explore: Explore;
     customDimensions: CustomBinDimension[] | undefined;
     intrinsicUserAttributes: IntrinsicUserAttributes;
@@ -526,16 +527,17 @@ export const getCustomBinDimensionSql = ({
           selects: string[];
       }
     | undefined => {
-    const startOfWeek = warehouseClient.getStartOfWeek();
+    const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
     const getCteReference = (customDimension: CustomDimension) =>
         `${getItemId(customDimension)}_cte`;
 
-    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
+    const adapterType: SupportedDbtAdapter =
+        warehouseSqlBuilder.getAdapterType();
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
@@ -628,7 +630,7 @@ export const getCustomBinDimensionSql = ({
                     (sortField) =>
                         getItemId(customDimension) === sortField.fieldId,
                 );
-            const quoteChar = warehouseClient.getStringQuoteChar();
+            const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
             const dash = `${quoteChar} - ${quoteChar}`;
 
             switch (customDimension.binType) {
@@ -643,7 +645,7 @@ export const getCustomBinDimensionSql = ({
                     const widthSql = `${getFixedWidthBinSelectSql({
                         binWidth: customDimension.binWidth || 1,
                         baseDimensionSql: dimension.compiledSql,
-                        warehouseClient,
+                        warehouseSqlBuilder,
                     })} AS ${customDimensionName}`;
 
                     if (isSorted) {
@@ -665,7 +667,7 @@ export const getCustomBinDimensionSql = ({
                         // Edge case, bin number with only one bucket does not need a CASE statement
                         return [
                             ...acc,
-                            `${warehouseClient.concatString(
+                            `${warehouseSqlBuilder.concatString(
                                 `${cte}.min_id`,
                                 dash,
                                 `${cte}.max_id`,
@@ -688,13 +690,13 @@ export const getCustomBinDimensionSql = ({
                                 i,
                             )} AND ${dimension.compiledSql} < ${to(
                                 i,
-                            )} THEN ${warehouseClient.concatString(
+                            )} THEN ${warehouseSqlBuilder.concatString(
                                 from(i),
                                 dash,
                                 to(i),
                             )}`;
                         }
-                        return `ELSE ${warehouseClient.concatString(
+                        return `ELSE ${warehouseSqlBuilder.concatString(
                             from(i),
                             dash,
                             `${cte}.max_id`,
@@ -757,7 +759,7 @@ export const getCustomBinDimensionSql = ({
                     const customRangeSql = `${getCustomRangeSelectSql({
                         binRanges: customDimension.customRange || [],
                         baseDimensionSql: dimension.compiledSql,
-                        warehouseClient,
+                        warehouseSqlBuilder,
                     })} AS ${customDimensionName}`;
 
                     if (isSorted) {
@@ -841,7 +843,7 @@ export const getJoinedTables = (
 /**
  * Determines if a metric type is "inflation-proof" (not affected by join inflation)
  */
-const isInflationProofMetric = (metricType: MetricType): boolean =>
+export const isInflationProofMetric = (metricType: MetricType): boolean =>
     [MetricType.COUNT_DISTINCT, MetricType.MIN, MetricType.MAX].includes(
         metricType,
     );
@@ -911,7 +913,7 @@ const findChainedOneToOneTableJoins = ({
     return result;
 };
 
-const findTablesWithMetricInflation = ({
+export const findTablesWithMetricInflation = ({
     baseTable,
     joinedTables,
     possibleJoins,
@@ -928,65 +930,85 @@ const findTablesWithMetricInflation = ({
     const joinWithoutRelationship = new Set<string>();
     const tablesWithoutPrimaryKey = new Set<string>();
 
-    joinedTables.forEach((joinedTable) => {
-        if (!tables[joinedTable]?.primaryKey) {
-            // Warn the user about missing primary key so we can detect possible metric inflation
-            tablesWithoutPrimaryKey.add(joinedTable);
-        }
-
-        if (joinedTable === baseTable) {
-            // skip base table
-            return;
-        }
+    // Check if any join has a many-to-many relationship
+    const hasManyToManyJoin = Array.from(joinedTables).some((joinedTable) => {
+        if (joinedTable === baseTable) return false;
 
         const join = possibleJoins.find(
             (possibleJoin) => possibleJoin.table === joinedTable,
         );
-        if (!join) {
-            throw new Error(`Join ${joinedTable} not found`);
-        }
-        if (!join.tablesReferences) {
-            // Skip, as we can't detect inflation without knowing table references in join SQL
-            return;
-        }
-        if (!join.relationship) {
-            // Warn the user about missing relationship so we can detect possible metric inflation
-            joinWithoutRelationship.add(joinedTable);
-        } else {
-            // Finds tables with inflation in this join
-            const tablesWithInflationFromJoin =
-                findTablesWithInflationFromJoin(join);
-            // Finds chained joins with one-to-one relationship
-            const chainedTablesWithInflation = findChainedOneToOneTableJoins({
-                tables: tablesWithInflationFromJoin,
-                possibleJoins,
-            });
-            const newTablesWithInflation = new Set([
-                ...tablesWithInflationFromJoin,
-                ...chainedTablesWithInflation,
-            ]);
-            if (
-                intersection(
-                    Array.from(tablesWithMetricInflation),
-                    Array.from(newTablesWithInflation),
-                ).length > 0
-            ) {
-                // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
-                joinedTables.forEach(
-                    tablesWithMetricInflation.add.bind(
-                        tablesWithMetricInflation,
-                    ),
-                );
-            } else {
-                // otherwise, add tables with inflation related to this join
-                newTablesWithInflation.forEach(
-                    tablesWithMetricInflation.add.bind(
-                        tablesWithMetricInflation,
-                    ),
-                );
-            }
-        }
+        return join?.relationship === JoinRelationship.MANY_TO_MANY;
     });
+
+    // If there's a many-to-many join, all tables (including base table) have inflation
+    if (hasManyToManyJoin) {
+        joinedTables.forEach(
+            tablesWithMetricInflation.add.bind(tablesWithMetricInflation),
+        );
+        // Also add the base table
+        tablesWithMetricInflation.add(baseTable);
+    } else {
+        joinedTables.forEach((joinedTable) => {
+            if (!tables[joinedTable]?.primaryKey) {
+                // Warn the user about missing primary key so we can detect possible metric inflation
+                tablesWithoutPrimaryKey.add(joinedTable);
+            }
+
+            if (joinedTable === baseTable) {
+                // skip base table
+                return;
+            }
+
+            const join = possibleJoins.find(
+                (possibleJoin) => possibleJoin.table === joinedTable,
+            );
+            if (!join) {
+                throw new Error(`Join ${joinedTable} not found`);
+            }
+            if (!join.tablesReferences) {
+                // Skip, as we can't detect inflation without knowing table references in join SQL
+                return;
+            }
+            if (!join.relationship) {
+                // Warn the user about missing relationship so we can detect possible metric inflation
+                joinWithoutRelationship.add(joinedTable);
+            } else {
+                // Finds tables with inflation in this join
+                const tablesWithInflationFromJoin =
+                    findTablesWithInflationFromJoin(join);
+                // Finds chained joins with one-to-one relationship
+                const chainedTablesWithInflation =
+                    findChainedOneToOneTableJoins({
+                        tables: tablesWithInflationFromJoin,
+                        possibleJoins,
+                    });
+                const newTablesWithInflation = new Set([
+                    ...tablesWithInflationFromJoin,
+                    ...chainedTablesWithInflation,
+                ]);
+                if (
+                    intersection(
+                        Array.from(tablesWithMetricInflation),
+                        Array.from(newTablesWithInflation),
+                    ).length > 0
+                ) {
+                    // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
+                    joinedTables.forEach(
+                        tablesWithMetricInflation.add.bind(
+                            tablesWithMetricInflation,
+                        ),
+                    );
+                } else {
+                    // otherwise, add tables with inflation related to this join
+                    newTablesWithInflation.forEach(
+                        tablesWithMetricInflation.add.bind(
+                            tablesWithMetricInflation,
+                        ),
+                    );
+                }
+            }
+        });
+    }
 
     return {
         tablesWithMetricInflation,

@@ -17,6 +17,8 @@ export const COLLAPSABLE_CARD_ACTION_ICON_PROPS: Pick<
     size: 'md',
 };
 
+export const COLLAPSIBLE_CARD_GAP_SIZE = 8;
+
 export const COLLAPSABLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {
     shadow: 'md',
     position: 'bottom',

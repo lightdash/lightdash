@@ -36,6 +36,15 @@ export const warehouseClientMock: WarehouseClient = {
             },
         },
     }),
+    getAsyncQueryResults: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: 0,
+        durationMs: 0,
+        fields: {},
+        pageCount: 0,
+        rows: [],
+    }),
     streamQuery(query, streamCallback) {
         streamCallback({
             fields: {},
@@ -73,6 +82,7 @@ export const warehouseClientMock: WarehouseClient = {
                 return sql;
         }
     },
+    getFieldQuoteChar: () => '"',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -104,6 +114,7 @@ export const bigqueryClientMock: WarehouseClient = {
     credentials: {
         type: WarehouseTypes.BIGQUERY,
     } as CreateWarehouseCredentials,
+    getFieldQuoteChar: () => '`',
     getCatalog: async () => ({
         default: {
             public: {
@@ -112,6 +123,15 @@ export const bigqueryClientMock: WarehouseClient = {
                 },
             },
         },
+    }),
+    getAsyncQueryResults: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: 0,
+        durationMs: 0,
+        fields: {},
+        pageCount: 0,
+        rows: [],
     }),
     streamQuery(query, streamCallback) {
         streamCallback({

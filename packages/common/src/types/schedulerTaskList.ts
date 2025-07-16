@@ -1,8 +1,10 @@
+import { includes } from 'lodash';
 import { type SlackPromptJobPayload } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
 import {
+    type AsyncWarehouseQueryPayload,
     type CompileProjectPayload,
     type DownloadCsvPayload,
     type EmailNotificationPayload,
@@ -44,8 +46,12 @@ export const SCHEDULER_TASKS = {
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     RENAME_RESOURCES: 'renameResources',
+    RUN_ASYNC_WAREHOUSE_QUERY: 'runAsyncWarehouseQuery',
     ...EE_SCHEDULER_TASKS,
 } as const;
+
+export const ALL_TASK_NAMES: SchedulerTaskName[] =
+    Object.values(SCHEDULER_TASKS);
 
 // Map each task to its payload type
 export interface TaskPayloadMap {
@@ -68,6 +74,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
+    [SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY]: AsyncWarehouseQueryPayload;
 }
 
 export interface EETaskPayloadMap {
@@ -76,3 +83,6 @@ export interface EETaskPayloadMap {
 
 export type SchedulerTaskName =
     typeof SCHEDULER_TASKS[keyof typeof SCHEDULER_TASKS];
+
+export const isSchedulerTaskName = (task: string): task is SchedulerTaskName =>
+    includes(ALL_TASK_NAMES, task); // Had to use includes to avoid type error from Object.values().includes(string) related to union types https://github.com/microsoft/TypeScript/issues/46186

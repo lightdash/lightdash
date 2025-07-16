@@ -16,7 +16,6 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
-    isFindFieldsToolArgs,
     isToolName,
     SlackPrompt,
     ToolName,
@@ -524,7 +523,10 @@ export class AiAgentModel {
             agentUuid: row.agent_uuid!,
             createdAt: row.created_at as unknown as string,
             createdFrom: row.created_from,
-            firstMessage: row.prompt,
+            firstMessage: {
+                uuid: row.ai_prompt_uuid,
+                message: row.prompt,
+            },
             user: {
                 uuid: row.user_uuid,
                 name: row.user_name,
@@ -595,6 +597,7 @@ export class AiAgentModel {
                     | 'viz_config_output'
                     | 'metric_query'
                     | 'human_score'
+                    | 'saved_query_uuid'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -612,6 +615,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
                 `${AiPromptTableName}.human_score`,
+                `${AiPromptTableName}.saved_query_uuid`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -688,6 +692,7 @@ export class AiAgentModel {
                             toolName: tc.tool_name,
                             toolArgs: tc.tool_args,
                         })),
+                    savedQueryUuid: row.saved_query_uuid,
                 });
             }
 
@@ -746,6 +751,7 @@ export class AiAgentModel {
                     | 'viz_config_output'
                     | 'metric_query'
                     | 'human_score'
+                    | 'saved_query_uuid'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -763,6 +769,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
                 `${AiPromptTableName}.human_score`,
+                `${AiPromptTableName}.saved_query_uuid`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -852,6 +859,7 @@ export class AiAgentModel {
                             toolName: tc.tool_name,
                             toolArgs: tc.tool_args,
                         })),
+                    savedQueryUuid: row.saved_query_uuid,
                 } satisfies AiAgentMessageAssistant;
             default:
                 return assertUnreachable(role, `Unknown role ${role}`);
@@ -944,7 +952,7 @@ export class AiAgentModel {
                         | 'created_from'
                         | 'agent_uuid'
                     > &
-                        Pick<DbAiPrompt, 'prompt'> &
+                        Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> &
                         Pick<DbUser, 'user_uuid'> & { user_name: string }
                 >
             >(
@@ -953,6 +961,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_at`,
                 `${AiThreadTableName}.created_from`,
                 `${AiPromptTableName}.prompt`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
@@ -1113,14 +1122,10 @@ export class AiAgentModel {
             .update({
                 responded_at: this.database.fn.now(),
                 ...(data.response ? { response: data.response } : {}),
-                ...(data.filtersOutput
-                    ? { filters_output: data.filtersOutput }
-                    : {}),
                 ...(data.vizConfigOutput
                     ? { viz_config_output: data.vizConfigOutput }
                     : {}),
                 ...(data.humanScore ? { human_score: data.humanScore } : {}),
-                ...(data.metricQuery ? { metric_query: data.metricQuery } : {}),
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
@@ -1138,6 +1143,19 @@ export class AiAgentModel {
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
+            });
+    }
+
+    async updateMessageSavedQuery(data: {
+        messageUuid: string;
+        savedQueryUuid: string | null;
+    }): Promise<void> {
+        await this.database(AiPromptTableName)
+            .update({
+                saved_query_uuid: data.savedQueryUuid,
+            })
+            .where({
+                ai_prompt_uuid: data.messageUuid,
             });
     }
 
@@ -1331,6 +1349,18 @@ export class AiAgentModel {
             });
     }
 
+    async deleteUserAgentPreferences({
+        userUuid,
+        projectUuid,
+    }: {
+        userUuid: string;
+        projectUuid: string;
+    }): Promise<void> {
+        await this.database(AiAgentUserPreferencesTableName)
+            .where({ user_uuid: userUuid, project_uuid: projectUuid })
+            .delete();
+    }
+
     async createToolCall(data: {
         promptUuid: string;
         toolCallId: string;
@@ -1381,5 +1411,57 @@ export class AiAgentModel {
 
             return toolResults.map((tr) => tr.ai_agent_tool_result_uuid);
         });
+    }
+
+    async getToolResultsForPrompt(
+        promptUuid: string,
+    ): Promise<DbAiAgentToolResult[]> {
+        return this.database(AiAgentToolResultTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .orderBy('created_at', 'asc');
+    }
+
+    async getToolCallsAndResultsForPrompt(promptUuid: string) {
+        const toolCallsAndResults = await this.database(
+            AiAgentToolCallTableName,
+        )
+            .select<
+                Array<
+                    Pick<
+                        DbAiAgentToolCall,
+                        | 'ai_agent_tool_call_uuid'
+                        | 'tool_call_id'
+                        | 'tool_name'
+                        | 'tool_args'
+                        | 'created_at'
+                    > &
+                        Pick<
+                            DbAiAgentToolResult,
+                            'ai_agent_tool_result_uuid' | 'result'
+                        >
+                >
+            >(
+                `${AiAgentToolCallTableName}.ai_agent_tool_call_uuid`,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_name`,
+                `${AiAgentToolCallTableName}.tool_args`,
+                `${AiAgentToolCallTableName}.created_at`,
+                `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
+                `${AiAgentToolResultTableName}.result`,
+            )
+            // we only want to return tool_calls that have a matching tool_result
+            .innerJoin(
+                AiAgentToolResultTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolResultTableName}.tool_call_id`,
+            )
+            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            .andWhere(
+                `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                promptUuid,
+            )
+            .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
+
+        return toolCallsAndResults;
     }
 }

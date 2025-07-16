@@ -36,6 +36,7 @@ export type QueryResultsProps = {
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity;
     context?: string;
+    invalidateCache?: boolean;
 };
 
 /**
@@ -106,6 +107,7 @@ const executeAsyncQuery = (
                 chartUuid: data.chartUuid,
                 versionUuid: data.chartVersionUuid,
                 limit: data.csvLimit,
+                invalidateCache: data.invalidateCache,
             },
             { signal },
         );
@@ -116,6 +118,7 @@ const executeAsyncQuery = (
                 context: QueryExecutionContext.CHART,
                 chartUuid: data.chartUuid,
                 limit: data.csvLimit,
+                invalidateCache: data.invalidateCache,
             },
             { signal },
         );

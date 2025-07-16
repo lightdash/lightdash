@@ -61,8 +61,11 @@ export type DbtModelNode = DbtRawModelNode & {
     };
 };
 export type DbtModelColumn = ColumnInfo & {
-    meta: DbtColumnMetadata;
+    meta?: DbtColumnMetadata;
     data_type?: DimensionType;
+    config?: {
+        meta?: DbtColumnMetadata;
+    };
 };
 
 type DbtLightdashFieldTags = {
@@ -71,9 +74,14 @@ type DbtLightdashFieldTags = {
 
 export type DbtModelMetadata = DbtModelLightdashConfig & {};
 
-type DbtModelLightdashConfig = {
+type ExploreConfig = {
     label?: string;
+    description?: string;
+    group_label?: string;
     joins?: DbtModelJoin[];
+};
+
+type DbtModelLightdashConfig = ExploreConfig & {
     metrics?: Record<string, DbtModelLightdashMetric>;
     order_fields_by?: OrderFieldsByStrategy;
     group_label?: string;
@@ -94,6 +102,8 @@ type DbtModelLightdashConfig = {
         >['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    explores?: Record<string, ExploreConfig>;
+    ai_hint?: string;
 };
 
 export type DbtModelGroup = {
@@ -142,6 +152,7 @@ export type DbtColumnLightdashDimension = {
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
+    ai_hint?: string;
 } & DbtLightdashFieldTags;
 
 export type DbtColumnLightdashAdditionalDimension = Omit<
@@ -173,6 +184,7 @@ export type DbtColumnLightdashMetric = {
         >['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    ai_hint?: string;
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -517,6 +529,7 @@ export const convertModelMetric = ({
             spotlightVisibility,
             spotlightCategories,
         ),
+        ...(metric.ai_hint ? { aiHint: metric.ai_hint } : {}),
     };
 };
 

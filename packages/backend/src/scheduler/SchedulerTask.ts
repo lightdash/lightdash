@@ -1,10 +1,12 @@
 import {
     AnyType,
+    type AsyncWarehouseQueryPayload,
     CompileProjectPayload,
     CreateProject,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
+    type CreateWarehouseCredentials,
     DownloadCsvPayload,
     DownloadFileType,
     EmailNotificationPayload,
@@ -21,6 +23,7 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadFileError,
     RenameResourcesPayload,
     ReplaceCustomFields,
@@ -40,7 +43,6 @@ import {
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
-    SqlChart,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     ThresholdOperator,
@@ -84,6 +86,7 @@ import {
     pivotResultsAsCsv,
     setUuidParam,
 } from '@lightdash/common';
+import type { SshTunnel } from '@lightdash/warehouses';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -96,6 +99,7 @@ import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from '../clients/MicrosoftTeams/MicrosoftTeamsClient';
+import { S3ResultsFileStorageClient } from '../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
 import {
     getChartAndDashboardBlocks,
@@ -106,6 +110,7 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import { QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
 import { isFeatureFlagEnabled } from '../postHog';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -186,7 +191,7 @@ export default class SchedulerTask {
 
     private readonly renameService: RenameService;
 
-    private readonly asyncQueryService: AsyncQueryService;
+    protected readonly asyncQueryService: AsyncQueryService;
 
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -702,12 +707,13 @@ export default class SchedulerTask {
 
                 try {
                     if (savedChartUuid) {
-                        csvUrl = await this.csvService.getCsvForChart(
+                        csvUrl = await this.csvService.getCsvForChart({
                             user,
-                            savedChartUuid,
-                            csvOptions,
+                            chartUuid: savedChartUuid,
+                            options: csvOptions,
                             jobId,
-                        );
+                            invalidateCache: true,
+                        });
                     } else if (dashboardUuid) {
                         this.analytics.track({
                             event: 'download_results.started',
@@ -727,6 +733,7 @@ export default class SchedulerTask {
                                 ? scheduler.filters
                                 : undefined,
                             selectedTabs,
+                            invalidateCache: true,
                         });
 
                         this.analytics.track({
@@ -3110,6 +3117,33 @@ export default class SchedulerTask {
                         payload,
                     );
                 return { results };
+            },
+        );
+    }
+
+    /**
+     * Runs the query against the warehouse and updates the query history when complete
+     */
+    protected async runAsyncWarehouseQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: AsyncWarehouseQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    queryHistoryUuid: payload.queryHistoryUuid,
+                },
+            },
+            async () => {
+                await this.asyncQueryService.runAsyncWarehouseQuery(payload);
+                return {};
             },
         );
     }

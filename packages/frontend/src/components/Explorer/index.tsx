@@ -1,9 +1,7 @@
-import { ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { memo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useExplore } from '../../hooks/useExplore';
-import { useProjects } from '../../hooks/useProjects';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -35,12 +33,6 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             (context) => context.query?.data?.queryUuid,
         );
 
-        const { data: projects } = useProjects({ refetchOnMount: false });
-        const isProjectPreview = !!projects?.find(
-            (project) =>
-                project.projectUuid === projectUuid &&
-                project.type === ProjectType.PREVIEW,
-        );
         const { data: explore } = useExplore(unsavedChartVersionTableName);
 
         return (
@@ -55,10 +47,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <FiltersCard />
 
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        isProjectPreview={isProjectPreview}
-                    />
+                    <VisualizationCard projectUuid={projectUuid} />
 
                     <ResultsCard />
 

@@ -17,6 +17,7 @@ export enum JoinRelationship {
     ONE_TO_MANY = 'one-to-many',
     MANY_TO_ONE = 'many-to-one',
     ONE_TO_ONE = 'one-to-one',
+    MANY_TO_MANY = 'many-to-many',
 }
 
 export type ExploreJoin = {
@@ -72,6 +73,7 @@ export type Explore = {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    aiHint?: string;
 };
 
 export enum InlineErrorType {
@@ -93,7 +95,13 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
-type SummaryExploreFields = 'name' | 'label' | 'tags' | 'groupLabel' | 'type';
+type SummaryExploreFields =
+    | 'name'
+    | 'label'
+    | 'tags'
+    | 'groupLabel'
+    | 'type'
+    | 'aiHint';
 type SummaryExploreErrorFields = SummaryExploreFields | 'errors';
 type SummaryExtraFields = {
     description?: string;

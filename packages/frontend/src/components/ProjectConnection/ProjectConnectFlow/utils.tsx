@@ -61,11 +61,11 @@ export const WarehouseTypeLabels: WarehouseLabel[] = [
     },
 ];
 
-export const getWarehouseLabel = (key: SelectedWarehouse) => {
+export const getWarehouseLabel = (key?: SelectedWarehouse) => {
     return WarehouseTypeLabels.find((w) => w.key === key)?.label ?? null;
 };
 
-export const getWarehouseIcon = (key: SelectedWarehouse, size = 'md') => {
+export const getWarehouseIcon = (key?: SelectedWarehouse, size = 'md') => {
     const item = WarehouseTypeLabels.find((w) => w.key === key);
     if (!item) return null;
 

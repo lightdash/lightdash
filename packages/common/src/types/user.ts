@@ -2,30 +2,62 @@ import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
+import { type Organization } from './organization';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
+
+export type AccountUser = {
+    id: string;
+    email: string | undefined;
+    /* Whether the user can login */
+    isActive: boolean;
+    abilityRules: AbilityBuilder<MemberAbility>['rules'];
+    ability: MemberAbility;
+    /* Is this a known user in our DB or an anonymous external user? */
+    type: 'known' | 'external';
+};
 
 export interface LightdashUser {
     userUuid: string;
-    email: string | undefined;
     firstName: string;
     lastName: string;
     organizationUuid?: string;
     organizationName?: string;
     organizationCreatedAt?: Date;
+    userId: number;
+    role?: OrganizationMemberRole;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
-    role?: OrganizationMemberRole;
+    email: string | undefined;
+    /* Whether the user can login */
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
-    /**
-     * Whether the user can login
-     */
-    isActive: boolean;
-    /**
-     * Whether the user doesn't have an authentication method (password or openId)
-     */
+    /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
+}
+
+export interface LightdashSessionUser extends AccountUser {
+    type: 'known';
+    // The current effective primary key for users. It duplicates user.id.
+    userUuid: string;
+    // The old sequential primary key for users
+    userId: number;
+    firstName: string;
+    lastName: string;
+    organization: Pick<Organization, 'organizationUuid' | 'name'>;
+    role?: OrganizationMemberRole;
+    isTrackingAnonymized: boolean;
+    isMarketingOptedIn: boolean;
+    isSetupComplete: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    /* Whether the user doesn't have an authentication method (password or openId) */
+    isPending?: boolean;
+}
+
+export interface ExternalUser extends AccountUser {
+    type: 'external';
 }
 
 export type LightdashUserWithOrg = Required<LightdashUser>;
@@ -43,7 +75,6 @@ export interface LightdashUserWithAbilityRules extends LightdashUser {
 }
 
 export interface SessionUser extends LightdashUserWithAbilityRules {
-    userId: number;
     ability: MemberAbility;
 }
 
@@ -52,12 +83,6 @@ export interface UpdatedByUser {
     firstName: string;
     lastName: string;
 }
-export const isSessionUser = (user: AnyType): user is SessionUser =>
-    typeof user === 'object' &&
-    user !== null &&
-    user.userUuid &&
-    user.userId &&
-    user.openId === undefined;
 
 export interface OpenIdUser {
     openId: {
@@ -68,6 +93,7 @@ export interface OpenIdUser {
         firstName: string | undefined;
         lastName: string | undefined;
         groups?: string[] | undefined;
+        teamId?: string | undefined;
     };
 }
 

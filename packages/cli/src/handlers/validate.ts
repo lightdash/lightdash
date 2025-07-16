@@ -4,6 +4,7 @@ import {
     ApiValidateResponse,
     Explore,
     ExploreError,
+    formatDate,
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
@@ -48,6 +49,13 @@ export function delay(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
     });
+}
+
+function styleTotalErrors(total: number) {
+    if (total > 0) {
+        return styles.error(`${styles.bold(total)} errors`);
+    }
+    return styles.success(`${styles.bold(total)} errors`);
 }
 
 const REFETCH_JOB_INTERVAL = 3000;
@@ -155,18 +163,14 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
             !hasValidationTargets ||
             validationTargetsSet.has(ValidationTarget.TABLES)
         ) {
-            console.error(
-                `- Tables: ${styles.bold(tableErrors.length)} errors`,
-            );
+            console.error(`- Tables: ${styleTotalErrors(tableErrors.length)}`);
         }
 
         if (
             !hasValidationTargets ||
             validationTargetsSet.has(ValidationTarget.CHARTS)
         ) {
-            console.error(
-                `- Charts: ${styles.bold(chartErrors.length)} errors`,
-            );
+            console.error(`- Charts: ${styleTotalErrors(chartErrors.length)}`);
         }
 
         if (
@@ -174,7 +178,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
             validationTargetsSet.has(ValidationTarget.DASHBOARDS)
         ) {
             console.error(
-                `- Dashboards: ${styles.bold(dashboardErrors.length)} errors`,
+                `- Dashboards: ${styleTotalErrors(dashboardErrors.length)}`,
             );
         }
 
@@ -183,9 +187,24 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         const validationOutput = validation.map((v) => ({
             name: styles.error(v.name),
             error: styles.warning(v.error),
+            'last updated by':
+                isChartValidationError(v) || isDashboardValidationError(v)
+                    ? styles.secondary(v.lastUpdatedBy)
+                    : '',
+            'last updated at':
+                isChartValidationError(v) || isDashboardValidationError(v)
+                    ? styles.secondary(formatDate(v.lastUpdatedAt))
+                    : '',
         }));
 
-        const columns = columnify(validationOutput);
+        const columns = columnify(validationOutput, {
+            columns: ['name', 'last updated by', 'last updated at', 'error'],
+            config: {
+                'last updated at': {
+                    align: 'center',
+                },
+            },
+        });
         console.error(columns);
 
         console.error(

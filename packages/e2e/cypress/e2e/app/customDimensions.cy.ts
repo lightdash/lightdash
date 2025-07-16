@@ -29,9 +29,9 @@ describe('Custom dimensions', () => {
 
         // Check valid results
         cy.contains('0 - 6');
-        cy.contains('$267.40');
+        cy.contains('$231.95');
         cy.contains('6 - 12');
-        cy.contains('$276.98');
+        cy.contains('$226.99');
 
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart

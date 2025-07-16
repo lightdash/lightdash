@@ -5,6 +5,7 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
+import { merge } from 'lodash';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { decodeLightdashJwt, encodeLightdashJwt } from './lightdashJwt';
@@ -19,6 +20,10 @@ jest.mock('../logging/logger', () => ({
 }));
 
 describe('JwtUtil', () => {
+    let encryptionUtil: EncryptionUtil;
+    let encodedSecret: Buffer;
+    let mockErrorLogger: jest.Mock;
+
     const mockJwtData: CreateEmbedJwt = {
         content: {
             type: 'dashboard',
@@ -37,8 +42,14 @@ describe('JwtUtil', () => {
         },
     };
 
-    let encryptionUtil: EncryptionUtil;
-    let encodedSecret: Buffer;
+    const createTokenData = (
+        contentOverrides: Partial<CreateEmbedJwt['content']>,
+    ) =>
+        encodeLightdashJwt(
+            merge({}, mockJwtData, { content: contentOverrides }),
+            encodedSecret,
+            '1h',
+        );
 
     beforeEach(() => {
         encryptionUtil = new EncryptionUtil({
@@ -46,6 +57,12 @@ describe('JwtUtil', () => {
         });
         const secret = 'test-secret';
         encodedSecret = encryptionUtil.encrypt(secret);
+
+        // Get the mocked logger and reset it
+        // eslint-disable-next-line
+        const logger = require('../logging/logger');
+        mockErrorLogger = logger.error as jest.Mock;
+        jest.clearAllMocks();
     });
 
     describe('encodeJwt', () => {
@@ -177,34 +194,26 @@ describe('JwtUtil', () => {
         });
     });
 
-    describe('error handling', () => {
-        it('should handle invalid JWT structure gracefully', () => {
-            const secret = encryptionUtil.decrypt(encodedSecret);
-            const invalidPayload = { invalid: 'payload' };
-            const invalidToken = jwt.sign(invalidPayload, secret, {
-                expiresIn: '1h',
-            });
+    it('allows null for allowedFilters', () => {
+        const token = createTokenData({
+            dashboardFiltersInteractivity: {
+                allowedFilters: null,
+                enabled: false,
+            },
+        });
+        const decoded = decodeLightdashJwt(token, encodedSecret);
+        expect(decoded).toBeTruthy();
+        expect(mockErrorLogger).not.toHaveBeenCalled();
+    });
 
-            expect(() => {
-                decodeLightdashJwt(invalidToken, encodedSecret);
-            }).toThrow(ParameterError);
+    it('handles invalid payload schema structure gracefully without throwing', () => {
+        const secret = encryptionUtil.decrypt(encodedSecret);
+        const invalidPayload = { invalid: 'payload' };
+        const invalidToken = jwt.sign(invalidPayload, secret, {
+            expiresIn: '1h',
         });
 
-        it('should handle tokens with missing required fields', () => {
-            const secret = encryptionUtil.decrypt(encodedSecret);
-            const incompletePayload = {
-                content: {
-                    type: 'dashboard',
-                    // Missing dashboardUuid or dashboardSlug
-                },
-            };
-            const incompleteToken = jwt.sign(incompletePayload, secret, {
-                expiresIn: '1h',
-            });
-
-            expect(() => {
-                decodeLightdashJwt(incompleteToken, encodedSecret);
-            }).toThrow(ParameterError);
-        });
+        decodeLightdashJwt(invalidToken, encodedSecret);
+        expect(mockErrorLogger).toHaveBeenCalledTimes(1);
     });
 });

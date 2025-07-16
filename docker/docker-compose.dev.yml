@@ -47,6 +47,8 @@ services:
             - INTERNAL_LIGHTDASH_HOST=${INTERNAL_LIGHTDASH_HOST}
             - USE_SECURE_BROWSER=${USE_SECURE_BROWSER}
             - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
+            - SCHEDULER_INCLUDE_TASKS=${SCHEDULER_INCLUDE_TASKS}
+            - SCHEDULER_EXCLUDE_TASKS=${SCHEDULER_EXCLUDE_TASKS}
             - GROUPS_ENABLED=${GROUPS_ENABLED}
             - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
             - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -66,6 +68,7 @@ services:
             - GITHUB_APP_NAME=${GITHUB_APP_NAME}
             - GITHUB_REDIRECT_DOMAIN=${GITHUB_REDIRECT_DOMAIN}
             - GOOGLE_DRIVE_API_KEY=${GOOGLE_DRIVE_API_KEY}
+            - AUTH_ENABLE_GCLOUD_ADC=${AUTH_ENABLE_GCLOUD_ADC}
             - AUTH_GOOGLE_OAUTH2_CLIENT_ID=${AUTH_GOOGLE_OAUTH2_CLIENT_ID}
             - AUTH_GOOGLE_OAUTH2_CLIENT_SECRET=${AUTH_GOOGLE_OAUTH2_CLIENT_SECRET}
             - S3_ENDPOINT=${S3_ENDPOINT}
@@ -83,6 +86,7 @@ services:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
             - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+            # - ${HOME}/.config/gcloud:/root/.config/gcloud # Uncomment this line if you want to use your credential as gcloud ADC in dev container
         ports:
             - '8080:8080'
             - '9090:9090'
@@ -97,6 +101,26 @@ services:
             POSTGRES_PASSWORD: password
         ports:
             - '5432:5432'
+
+    ssh-server:
+        image: linuxserver/openssh-server:latest
+        restart: always
+        depends_on:
+            - db-dev
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=UTC
+            - PUBLIC_KEY=${DEV_SSH_PUBLIC_KEY:-}
+            - USER_NAME=sshuser
+            - SUDO_ACCESS=true
+            - PASSWORD_ACCESS=false
+            - LOG_STDOUT=true
+        ports:
+            - '2222:2222'
+        volumes:
+            - ./ssh-server-configs/sshd_config:/config/sshd/sshd_config
+
 
     headless-browser:
         image: ghcr.io/browserless/chromium:v2.24.3

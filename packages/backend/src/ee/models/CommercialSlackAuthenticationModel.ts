@@ -1,6 +1,7 @@
 import {
     AiSlackMappingNotFoundError,
     SlackAppCustomSettings,
+    SlackSettings,
 } from '@lightdash/common';
 import { SlackAuthTokensTableName } from '../../database/entities/slackAuthentication';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
@@ -25,13 +26,31 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
         return row.organization_uuid;
     }
 
-    async getInstallationFromOrganizationUuid(organizationUuid: string) {
-        const slackSettings = await super.getInstallationFromOrganizationUuid(
-            organizationUuid,
-            true,
-        );
+    async getInstallationFromOrganizationUuid(
+        organizationUuid: string,
+    ): Promise<Omit<SlackSettings, 'hasRequiredScopes'> | undefined> {
+        const [row] = await this.database(SlackAuthTokensTableName)
+            .leftJoin(
+                'organizations',
+                'slack_auth_tokens.organization_id',
+                'organizations.organization_id',
+            )
+            .select('*')
+            .where('organization_uuid', organizationUuid);
 
-        if (slackSettings === undefined) return undefined;
+        if (row === undefined) return undefined;
+
+        const slackSettings = {
+            createdAt: row.created_at,
+            slackTeamName: row.installation?.team?.name || 'Slack',
+            organizationUuid: row.organization_uuid,
+            token: row.installation?.bot?.token,
+            scopes: row.installation?.bot?.scopes || [],
+            notificationChannel: row.notification_channel ?? undefined,
+            appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
+            aiThreadAccessConsent: row.ai_thread_access_consent ?? false,
+            aiRequireOAuth: row.ai_require_oauth,
+        };
 
         const slackChannelProjectMappingRows = await this.database(
             SlackChannelProjectMappingsTableName,
@@ -40,10 +59,10 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             .where('organization_uuid', organizationUuid);
 
         const slackChannelProjectMappings = slackChannelProjectMappingRows.map(
-            (row) => ({
-                projectUuid: row.project_uuid,
-                slackChannelId: row.slack_channel_id,
-                availableTags: row.available_tags,
+            (mapping) => ({
+                projectUuid: mapping.project_uuid,
+                slackChannelId: mapping.slack_channel_id,
+                availableTags: mapping.available_tags,
             }),
         );
 
@@ -85,6 +104,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             appProfilePhotoUrl,
             slackChannelProjectMappings,
             aiThreadAccessConsent,
+            aiRequireOAuth,
         }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
@@ -95,6 +115,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                     notification_channel: notificationChannel,
                     app_profile_photo_url: appProfilePhotoUrl,
                     ai_thread_access_consent: aiThreadAccessConsent ?? false,
+                    ai_require_oauth: aiRequireOAuth ?? false,
                 })
                 .where('organization_id', organizationId);
 

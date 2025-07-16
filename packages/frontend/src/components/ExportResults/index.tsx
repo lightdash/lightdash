@@ -24,7 +24,11 @@ import { downloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
-import { type ExportCsvRenderProps } from '../ExportCSV';
+
+type ExportCsvRenderProps = {
+    onExport: () => Promise<unknown>;
+    isExporting: boolean;
+};
 
 enum Limit {
     TABLE = 'table',

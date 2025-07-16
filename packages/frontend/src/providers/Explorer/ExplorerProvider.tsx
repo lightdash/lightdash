@@ -797,6 +797,16 @@ export function reducer(
             }
             return state;
         }
+        case ActionType.OPEN_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = true;
+            });
+        }
+        case ActionType.CLOSE_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = false;
+            });
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -808,6 +818,7 @@ export function reducer(
 
 const ExplorerProvider: FC<
     React.PropsWithChildren<{
+        minimal?: boolean;
         isEditMode?: boolean;
         initialState?: ExplorerReduceState;
         savedChart?: SavedChart;
@@ -818,6 +829,7 @@ const ExplorerProvider: FC<
         dateZoomGranularity?: DateGranularity;
     }>
 > = ({
+    minimal = false,
     isEditMode = false,
     initialState,
     savedChart,
@@ -1306,6 +1318,7 @@ const ExplorerProvider: FC<
                     ? {
                           ...validQueryArgs,
                           csvLimit: limit,
+                          invalidateCache: minimal,
                       }
                     : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
@@ -1318,7 +1331,12 @@ const ExplorerProvider: FC<
             }
             return queryUuid;
         },
-        [queryResults.queryUuid, queryResults.totalResults, validQueryArgs],
+        [
+            queryResults.queryUuid,
+            queryResults.totalResults,
+            validQueryArgs,
+            minimal,
+        ],
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { remove: clearQueryResults } = query;
@@ -1344,6 +1362,7 @@ const ExplorerProvider: FC<
                 query: unsavedChartVersion.metricQuery,
                 ...(isEditMode ? {} : viewModeQueryArgs),
                 dateZoomGranularity,
+                invalidateCache: minimal,
             });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
@@ -1364,6 +1383,7 @@ const ExplorerProvider: FC<
         isEditMode,
         viewModeQueryArgs,
         dateZoomGranularity,
+        minimal,
     ]);
 
     useEffect(() => {
@@ -1457,6 +1477,13 @@ const ExplorerProvider: FC<
         }
     }, [queryClient, validQueryArgs, query.data, cancelQueryMutation]);
 
+    const openVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
+    }, []);
+    const closeVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
+    }, []);
+
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1496,6 +1523,8 @@ const ExplorerProvider: FC<
             updateMetricFormat,
             replaceFields,
             getDownloadQueryUuid,
+            openVisualizationConfig,
+            closeVisualizationConfig,
         }),
         [
             clearExplore,
@@ -1535,6 +1564,8 @@ const ExplorerProvider: FC<
             toggleWriteBackModal,
             replaceFields,
             getDownloadQueryUuid,
+            openVisualizationConfig,
+            closeVisualizationConfig,
         ],
     );
 

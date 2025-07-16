@@ -16,9 +16,15 @@ export const useAiAgentThreadStreaming = (threadUuid: string) => {
     });
 };
 
-export const useAiAgentThreadStreamToolCalls = (threadUuid: string) => {
+export const useAiAgentThreadMessageStreaming = (
+    threadUuid: string,
+    messageUuid: string,
+) => {
     return useSelector((state: AiAgentThreadStreamState) => {
         const threadStream = state.threads[threadUuid];
-        return threadStream?.toolCalls ?? [];
+        return (
+            threadStream?.isStreaming &&
+            threadStream?.messageUuid === messageUuid
+        );
     });
 };

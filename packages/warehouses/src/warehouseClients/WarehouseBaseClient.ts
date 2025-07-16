@@ -3,6 +3,7 @@ import {
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
+    NotImplementedError,
     PartitionColumn,
     SupportedDbtAdapter,
     WarehouseCatalog,
@@ -11,6 +12,8 @@ import {
     WeekDay,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
+    type WarehouseGetAsyncQueryResults,
+    type WarehouseGetAsyncQueryResultsArgs,
 } from '@lightdash/common';
 import { type WarehouseClient } from '../types';
 
@@ -39,9 +42,22 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.getEscapeStringQuoteChar();
     }
 
+    getFieldQuoteChar(): string {
+        return this.sqlBuilder.getFieldQuoteChar();
+    }
+
     abstract getCatalog(
         config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog>;
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        _args: WarehouseGetAsyncQueryResultsArgs,
+        _rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        throw new NotImplementedError(
+            `Paginated query results are not supported for warehouse type: ${this.getAdapterType()}`,
+        );
+    }
 
     abstract streamQuery(
         query: string,

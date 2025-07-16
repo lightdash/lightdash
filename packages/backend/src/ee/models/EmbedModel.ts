@@ -13,9 +13,30 @@ export class EmbedModel {
 
     async get(projectUuid: string): Promise<Embed> {
         const [embed] = await this.database('embedding')
-            .select()
+            .select(
+                'embedding.project_uuid',
+                'embedding.encoded_secret',
+                'embedding.dashboard_uuids',
+                'embedding.allow_all_dashboards',
+                'embedding.created_at',
+                'users.user_uuid',
+                'users.first_name',
+                'users.last_name',
+                'organizations.organization_uuid',
+                'organizations.organization_name',
+            )
             .leftJoin('users', 'embedding.created_by', 'users.user_uuid')
-            .where('project_uuid', projectUuid);
+            .leftJoin(
+                'projects',
+                'projects.project_uuid',
+                'embedding.project_uuid',
+            )
+            .leftJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('embedding.project_uuid', projectUuid);
 
         if (!embed) {
             throw new NotFoundError(
@@ -40,6 +61,10 @@ export class EmbedModel {
 
         return {
             projectUuid: embed.project_uuid,
+            organization: {
+                organizationUuid: embed.organization_uuid,
+                name: embed.organization_name,
+            },
             encodedSecret: embed.encoded_secret,
             dashboardUuids: validDashboardUuids,
             allowAllDashboards: embed.allow_all_dashboards,

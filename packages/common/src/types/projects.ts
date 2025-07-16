@@ -37,6 +37,7 @@ export type SshTunnelConfiguration = {
 export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
+    ADC = 'adc', // Application Default Credentials
 }
 export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;
@@ -244,6 +245,7 @@ export enum SupportedDbtVersions {
     V1_7 = 'v1.7',
     V1_8 = 'v1.8',
     V1_9 = 'v1.9',
+    V1_10 = 'v1.10',
 }
 
 // Make it an enum to avoid TSOA errors

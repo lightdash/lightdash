@@ -29,8 +29,7 @@ Useful resources for answering your questions:
 - [Issues](https://github.com/lightdash/lightdash/issues)
 
 If you cannot find an answer to your question then please join
-our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA)
-and head for the `#help` channel.
+our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and head for the `#help` channel.
 
 ## How to report a bug
 
@@ -68,8 +67,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 Before contributing to Lightdash you must complete the following steps:
 
 - Join
-  our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA)
-  and introduce yourself in the `#community-contributors` channel
+  our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and introduce yourself in the `#community-contributors` channel
 - Choose an existing labelled `open-contribution`
 - Ask a member of the team to assign you to the issue
 
@@ -289,6 +287,37 @@ When you want to start:
 docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local start
 ```
 
+#### Testing an SSH Tunnel Locally
+
+To test an SSH tunnel with Lightdash in your local development environment:
+
+1. **Go to Project Connection Advanced Settings**
+   - In the Lightdash UI, navigate to your project connection settings.
+   - Expand the advanced settings and set `Use SSH tunnel` to **true**.
+
+2. **Add the SSH Tunnel config**
+   - SSH Remote host: `ssh-server`
+   - SSH Remote port: `2222`
+   - SSH Username: `sshuser`
+
+3. **Generate a Key Pair**
+   - Use the UI to generate a new SSH key pair for the tunnel.
+
+4. **Copy the Public Key**
+   - Copy the generated public key from the UI.
+   - Open your `.env.development.local` file and set:
+     ```
+     DEV_SSH_PUBLIC_KEY="<paste your public key here>"
+     ```
+
+5. **Restart Docker Compose**
+   - Re-run the following command to apply the new SSH key:
+     ```sh
+     docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+     ```
+
+This will update the SSH server container with your new public key, allowing you to test SSH tunnel connections from your local Lightdash instance.
+
 #### Downloading files stored in local docker container MinIO
 
 When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible
@@ -322,7 +351,6 @@ eg. on MacOS you can follow this instructions:
 # 2 Install nvm (https://github.com/nvm-sh/nvm#troubleshooting-on-macos) and other required dependencies
 brew update
 brew install nvm
-brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman python-setuptools
 
 # 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
 

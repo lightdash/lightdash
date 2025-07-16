@@ -62,20 +62,24 @@ declare global {
 
             registerNewUser(): Chainable<Element>;
 
-            invite(email, role): Chainable<string>;
+            invite(email: string, role: string): Chainable<string>;
 
-            registerWithCode(inviteCode): Chainable<Element>;
+            registerWithCode(inviteCode: string): Chainable<Element>;
 
             verifyEmail(): Chainable<Element>;
 
-            addProjectPermission(email, role, projectUuid): Chainable<Element>;
-
-            loginWithPermissions(
-                orgRole,
-                projectPermissions,
+            addProjectPermission(
+                email: string,
+                role: string,
+                projectUuid: string,
             ): Chainable<Element>;
 
-            loginWithEmail: (email) => Chainable<Element>;
+            loginWithPermissions(
+                orgRole: string,
+                projectPermissions: ProjectPermission[],
+            ): Chainable<Element>;
+
+            loginWithEmail: (email: string) => Chainable<Element>;
 
             getApiToken(): Chainable<string>;
 
@@ -445,8 +449,9 @@ Cypress.Commands.add(
                     target: '',
                     environment: [],
                     type: 'dbt',
+                    project_dir: Cypress.env('DBT_PROJECT_DIR'),
                 },
-                dbtVersion: 'v1.4',
+                dbtVersion: 'v1.7',
                 warehouseConnection: warehouseConfig || {
                     host: Cypress.env('PGHOST') || 'localhost',
                     user: 'postgres',

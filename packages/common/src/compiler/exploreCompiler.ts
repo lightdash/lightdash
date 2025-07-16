@@ -25,9 +25,8 @@ import {
     dateGranularityToTimeFrameMap,
     type DateGranularity,
 } from '../types/timeFrames';
-import { type WarehouseClient } from '../types/warehouse';
+import { type WarehouseSqlBuilder } from '../types/warehouse';
 import { timeFrameConfigs } from '../utils/timeFrames';
-import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
     getCategoriesFromResource,
@@ -83,6 +82,7 @@ export type UncompiledExplore = {
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
+    aiHint?: string;
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
 };
@@ -98,10 +98,11 @@ const getReferencedTable = (
         (table) => table.name === refTable || table.originalName === refTable,
     );
 };
-export class ExploreCompiler {
-    private readonly warehouseClient: WarehouseClient;
 
-    constructor(warehouseClient: WarehouseClient) {
+export class ExploreCompiler {
+    private readonly warehouseClient: WarehouseSqlBuilder;
+
+    constructor(warehouseClient: WarehouseSqlBuilder) {
         this.warehouseClient = warehouseClient;
     }
 
@@ -120,6 +121,7 @@ export class ExploreCompiler {
         spotlightConfig,
         meta,
         databricksCompute,
+        aiHint,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -278,6 +280,7 @@ export class ExploreCompiler {
             ymlPath,
             sqlPath,
             databricksCompute,
+            ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource(
                 spotlightVisibility,
                 spotlightCategories,
@@ -458,7 +461,7 @@ export class ExploreCompiler {
                 return renderFilterRuleSqlFromField(
                     filter,
                     compiledDimension,
-                    getFieldQuoteChar(this.warehouseClient.credentials.type),
+                    this.warehouseClient.getFieldQuoteChar(),
                     this.warehouseClient.getStringQuoteChar(),
                     this.warehouseClient.getEscapeStringQuoteChar(),
                     this.warehouseClient.getStartOfWeek(),
@@ -595,9 +598,7 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = getFieldQuoteChar(
-                this.warehouseClient.credentials.type,
-            );
+            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
@@ -637,9 +638,7 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = getFieldQuoteChar(
-                this.warehouseClient.credentials.type,
-            );
+            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
@@ -721,11 +720,11 @@ export const createDimensionWithGranularity = (
     dimensionName: string,
     baseTimeDimension: CompiledDimension,
     explore: Explore,
-    warehouseClient: WarehouseClient,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
     granularity: DateGranularity,
 ) => {
     const newTimeInterval = dateGranularityToTimeFrameMap[granularity];
-    const exploreCompiler = new ExploreCompiler(warehouseClient);
+    const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
     return exploreCompiler.compileDimension(
         {
             ...baseTimeDimension,
@@ -740,13 +739,13 @@ export const createDimensionWithGranularity = (
                 .getLabel()
                 .toLowerCase()}`,
             sql: timeFrameConfigs[newTimeInterval].getSql(
-                warehouseClient.getAdapterType(),
+                warehouseSqlBuilder.getAdapterType(),
                 newTimeInterval,
                 baseTimeDimension.sql,
                 timeFrameConfigs[newTimeInterval].getDimensionType(
                     baseTimeDimension.type,
                 ),
-                warehouseClient.getStartOfWeek(),
+                warehouseSqlBuilder.getStartOfWeek(),
             ),
         },
         explore.tables,

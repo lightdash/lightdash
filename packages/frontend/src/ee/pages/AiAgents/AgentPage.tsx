@@ -61,7 +61,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         })}
         label={
             <Text truncate="end" size="sm" c="gray.7">
-                {thread.firstMessage}
+                {thread.firstMessage.message}
             </Text>
         }
         active={isActive}
@@ -167,6 +167,7 @@ const AgentPage = () => {
                                 >
                                     Threads
                                 </Title>
+
                                 <Button
                                     size="compact-xs"
                                     variant="dark"
@@ -178,6 +179,11 @@ const AgentPage = () => {
                                     }
                                     component={Link}
                                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
+                                    style={{
+                                        visibility: threadUuid
+                                            ? 'visible'
+                                            : 'hidden',
+                                    }}
                                 >
                                     New thread
                                 </Button>

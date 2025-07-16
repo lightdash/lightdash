@@ -78,6 +78,8 @@ export enum ActionType {
     TOGGLE_FORMAT_MODAL,
     UPDATE_METRIC_FORMAT,
     REPLACE_FIELDS,
+    OPEN_VISUALIZATION_CONFIG,
+    CLOSE_VISUALIZATION_CONFIG,
 }
 
 export type ConfigCacheMap = {
@@ -230,6 +232,12 @@ export type Action =
           payload: {
               fieldsToReplace: ReplaceCustomFields[string];
           };
+      }
+    | {
+          type: ActionType.OPEN_VISUALIZATION_CONFIG;
+      }
+    | {
+          type: ActionType.CLOSE_VISUALIZATION_CONFIG;
       };
 
 export interface ExplorerReduceState {
@@ -239,6 +247,7 @@ export interface ExplorerReduceState {
         // Temporary state that tracks changes to `table calculations` - keeps track of new name and previous name to ensure these get updated correctly when making changes to the layout & config of a chart
         tableCalculations?: TableCalculationMetadata[];
     };
+    isVisualizationConfigOpen?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
     modals: {
@@ -348,5 +357,7 @@ export interface ExplorerContextType {
         }) => void;
         replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
         getDownloadQueryUuid: (limit: number | null) => Promise<string>;
+        openVisualizationConfig: () => void;
+        closeVisualizationConfig: () => void;
     };
 }

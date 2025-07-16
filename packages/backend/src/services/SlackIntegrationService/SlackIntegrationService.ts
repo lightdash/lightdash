@@ -2,6 +2,8 @@ import {
     ForbiddenError,
     NotFoundError,
     SessionUser,
+    SlackAppCustomSettings,
+    SlackChannel,
     SlackSettings,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -33,6 +35,43 @@ export class SlackIntegrationService<
         this.slackClient = args.slackClient;
     }
 
+    async getSlackInstallOptions(user: SessionUser) {
+        const organizationUuid = user?.organizationUuid;
+        if (!organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const slackOptions = this.slackClient.getSlackOptions();
+
+        const metadata = {
+            organizationUuid: user.organizationUuid,
+            userId: user.userId,
+        };
+
+        this.analytics.track({
+            event: 'share_slack.install',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+            },
+        });
+
+        return { slackOptions, metadata };
+    }
+
+    async trackInstallError(user: SessionUser, error: unknown) {
+        this.analytics.track({
+            event: 'share_slack.install_error',
+            userId: user.userUuid,
+            anonymousId: !user.userUuid
+                ? LightdashAnalytics.anonymousId
+                : undefined,
+            properties: {
+                error: `${error}`,
+            },
+        });
+    }
+
     async getInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) {
@@ -56,6 +95,9 @@ export class SlackIntegrationService<
             scopes: installation.scopes,
             notificationChannel: installation.notificationChannel,
             appProfilePhotoUrl: installation.appProfilePhotoUrl,
+            hasRequiredScopes: this.slackClient.hasRequiredScopes(
+                installation.scopes,
+            ),
         };
         return response;
     }
@@ -79,5 +121,39 @@ export class SlackIntegrationService<
                 organizationId: organizationUuid,
             },
         });
+    }
+
+    async getChannels(
+        user: SessionUser,
+        options: {
+            search?: string;
+            excludeArchived?: boolean;
+            excludeDms?: boolean;
+            excludeGroups?: boolean;
+            forceRefresh?: boolean;
+        },
+    ): Promise<SlackChannel[] | undefined> {
+        const organizationUuid = user?.organizationUuid;
+        if (!organizationUuid) throw new ForbiddenError();
+
+        return this.slackClient.getChannels(
+            organizationUuid,
+            options.search,
+            options,
+        );
+    }
+
+    async updateAppCustomSettings(
+        user: SessionUser,
+        body: SlackAppCustomSettings,
+    ) {
+        const organizationUuid = user?.organizationUuid;
+        if (!organizationUuid) throw new ForbiddenError();
+
+        return this.slackClient.updateAppCustomSettings(
+            `${user.firstName} ${user.lastName}`,
+            organizationUuid,
+            body,
+        );
     }
 }
