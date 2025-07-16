@@ -58,6 +58,7 @@ export enum ActionType {
     SET_FILTERS,
     SET_COLUMN_ORDER,
     SET_PARAMETER,
+    CLEAR_ALL_PARAMETERS,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
@@ -155,8 +156,9 @@ export type Action =
       }
     | {
           type: ActionType.SET_PARAMETER;
-          payload: { key: string; value: string | string[] };
+          payload: { key: string; value: string | string[] | null };
       }
+    | { type: ActionType.CLEAR_ALL_PARAMETERS }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
           payload: AdditionalMetric;
@@ -312,7 +314,8 @@ export interface ExplorerContextType {
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
         ) => void;
-        setParameter: (key: string, value: string | string[]) => void;
+        setParameter: (key: string, value: string | string[] | null) => void;
+        clearAllParameters: () => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,

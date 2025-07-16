@@ -41,13 +41,14 @@ const ParametersCard = memo(
             (context) => context.actions.setParameter,
         );
 
+        const clearAllParameters = useExplorerContext(
+            (context) => context.actions.clearAllParameters,
+        );
+
         const handleParameterChange = (
             paramKey: string,
             value: string | null,
         ) => {
-            if (!value) {
-                return;
-            }
             setParameter(paramKey, value);
         };
 
@@ -93,9 +94,7 @@ const ParametersCard = memo(
                         onParameterChange={handleParameterChange}
                         size="sm"
                         showClearAll={true}
-                        onClearAll={() => {
-                            console.log('clear all');
-                        }}
+                        onClearAll={clearAllParameters}
                         cols={2}
                     />
                 </Box>
