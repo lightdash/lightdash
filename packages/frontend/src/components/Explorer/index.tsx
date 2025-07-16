@@ -37,7 +37,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const { data: explore } = useExplore(unsavedChartVersionTableName);
 
-        const { data: { parameterReferences } = {} } = useCompiledSql({
+        const {
+            data: { parameterReferences } = {},
+            isFetching: isCompiledSqlFetching,
+        } = useCompiledSql({
             enabled: !!unsavedChartVersionTableName,
         });
 
@@ -51,7 +54,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 <Stack sx={{ flexGrow: 1 }}>
                     {!hideHeader && isEditMode && <ExplorerHeader />}
 
-                    {parameterReferences && parameterReferences.length > 0 && (
+                    {((parameterReferences && parameterReferences.length > 0) ||
+                        isCompiledSqlFetching) && (
                         <ParametersCard
                             parameterReferences={parameterReferences}
                         />

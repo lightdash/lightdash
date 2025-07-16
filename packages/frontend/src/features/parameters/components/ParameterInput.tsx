@@ -378,13 +378,6 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     projectUuid,
     parameterValues,
 }) => {
-    console.log(
-        'here',
-        paramKey,
-        parameter.options_from_dimension && projectUuid,
-        parameter.options_from_dimension,
-        projectUuid,
-    );
     if (parameter.options_from_dimension && projectUuid) {
         // Create a FilterableItem from parameter.options_from_dimension
         const field: FilterableItem = {
@@ -403,7 +396,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             <ParameterStringAutoComplete
                 projectUuid={projectUuid}
                 field={field}
-                autoFocus={true}
+                autoFocus={false}
                 placeholder="Choose value..."
                 suggestions={[]}
                 values={value ? (Array.isArray(value) ? value : [value]) : []}
