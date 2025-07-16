@@ -10,10 +10,7 @@ import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
 const ParametersCard = memo(
-    ({}: // activeParameterReferences,
-    {
-        activeParameterReferences: string[];
-    }) => {
+    ({ parameterReferences }: { parameterReferences: string[] }) => {
         const { projectUuid } = useParams<{ projectUuid: string }>();
         const expandedSections = useExplorerContext(
             (context) => context.state.expandedSections,
@@ -31,7 +28,7 @@ const ParametersCard = memo(
             data: parameters,
             isLoading,
             isError,
-        } = useParameters(projectUuid);
+        } = useParameters(projectUuid, parameterReferences);
 
         const parameterValues = useExplorerContext(
             (context) => context.state.parameters,
@@ -65,11 +62,6 @@ const ParametersCard = memo(
                 });
             }
         }, [parameterValues, parameters, setParameter]);
-
-        console.log('parameterDetails', {
-            parameters,
-            parameterValues,
-        });
 
         const paramsIsOpen = expandedSections.includes(
             ExplorerSection.PARAMETERS,
