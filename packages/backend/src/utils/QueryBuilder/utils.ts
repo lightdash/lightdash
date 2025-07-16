@@ -167,15 +167,18 @@ export const replaceLightdashValues = (
 ): {
     replacedSql: string;
     references: Set<string>;
+    missingReferences: Set<string>;
 } => {
     const sqlAttributes = sql.match(regex);
     const [leftWrap, rightWrap] = getWrapChars(wrapChar);
     const references = new Set<string>();
+    const missingReferences = new Set<string>();
 
     if (sqlAttributes === null || sqlAttributes.length === 0) {
         return {
             replacedSql: sql,
             references,
+            missingReferences,
         };
     }
 
@@ -186,6 +189,7 @@ export const replaceLightdashValues = (
             references.add(attribute);
 
             if (attributeValues === undefined) {
+                missingReferences.add(attribute);
                 if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
                     `Missing ${replacementName} "${attribute}": "${sql}"`,
@@ -193,6 +197,7 @@ export const replaceLightdashValues = (
             }
 
             if (attributeValues.length === 0) {
+                missingReferences.add(attribute);
                 if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
                     `Invalid or missing ${replacementName} "${attribute}": "${sql}"`,
@@ -217,6 +222,7 @@ export const replaceLightdashValues = (
         // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
         replacedSql: `${leftWrap}${replacedUserAttributesSql}${rightWrap}`,
         references,
+        missingReferences,
     };
 };
 

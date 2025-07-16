@@ -11,6 +11,7 @@ import {
     type ApiGetAsyncQueryResults,
     assertUnreachable,
     CompiledDimension,
+    CompileError,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
@@ -56,6 +57,7 @@ import {
     MetricQuery,
     NotFoundError,
     type Organization,
+    ParameterError,
     type ParametersValuesMap,
     PivotConfig,
     PivotIndexColum,
@@ -1391,6 +1393,18 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
+        if (fullQuery.missingParameterReferences.size > 0) {
+            const missingParametersArray = Array.from(
+                fullQuery.missingParameterReferences,
+            );
+            throw new CompileError(
+                `Missing parameters: ${missingParametersArray.join(', ')}`,
+                {
+                    missingParameterReferences: missingParametersArray,
+                },
+            );
+        }
+
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
@@ -2540,8 +2554,23 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const { parameterReferences, sql: replacedSql } =
-            queryBuilder.getSqlAndReferences();
+        const {
+            sql: replacedSql,
+            parameterReferences,
+            missingParameterReferences,
+        } = queryBuilder.getSqlAndReferences();
+
+        if (missingParameterReferences.size > 0) {
+            const missingParametersArray = Array.from(
+                missingParameterReferences,
+            );
+            throw new CompileError(
+                `Missing parameters: ${missingParametersArray.join(', ')}`,
+                {
+                    missingParameterReferences: missingParametersArray,
+                },
+            );
+        }
 
         return {
             metricQuery,
