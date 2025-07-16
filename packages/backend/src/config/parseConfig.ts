@@ -291,35 +291,32 @@ export const parseOrganizationMemberRoleArray = (
         return role;
     });
 };
+const parseApiExpiration = (envVariable: string): Date | null => {
+    const apiExpiration = process.env[envVariable];
+    const apiExpirationDays = apiExpiration ? parseInt(apiExpiration, 10) : 30; // Convert to number, this might throw an error
+    if (apiExpirationDays === 0) return null; // If 0, we return null, which means, no expiration
+    if (Number.isNaN(apiExpirationDays)) {
+        throw new ParameterError(`${envVariable} must be a valid number`);
+    }
+    return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
+};
+
+const parseEnum = <T>(
+    value: string | undefined,
+    enumObj?: AnyType,
+): T | undefined => {
+    if (!value) return undefined;
+
+    const enumValues = enumObj ? Object.values(enumObj) : [];
+    if (enumValues.length > 0 && !enumValues.includes(value)) {
+        throw new ParameterError(
+            `Invalid value "${value}". Must be one of ${enumValues.join(', ')}`,
+        );
+    }
+    return value as T;
+};
+
 const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
-    const parseEnum = <T>(
-        value: string | undefined,
-        enumObj?: AnyType,
-    ): T | undefined => {
-        if (!value) return undefined;
-
-        const enumValues = enumObj ? Object.values(enumObj) : [];
-        if (enumValues.length > 0 && !enumValues.includes(value)) {
-            throw new ParameterError(
-                `Invalid value "${value}". Must be one of ${enumValues.join(
-                    ', ',
-                )}`,
-            );
-        }
-        return value as T;
-    };
-
-    const parseApiExpiration = (envVariable: string): Date | null => {
-        const apiExpiration = process.env[envVariable];
-        const apiExpirationDays = apiExpiration
-            ? parseInt(apiExpiration, 10)
-            : 30; // Convert to number, this might throw an error
-        if (apiExpirationDays === 0) return null; // If 0, we return null, which means, no expiration
-        if (Number.isNaN(apiExpirationDays)) {
-            throw new ParameterError(`${envVariable} must be a valid number`);
-        }
-        return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
-    };
     const parseCompute = (): CreateDatabricksCredentials['compute'] => {
         // This is a stringified array of objects, in JSON format
         // If format is not correct, it will throw an error
@@ -410,6 +407,53 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
         console.error('Error parsing initial setup config', e);
         return undefined;
     }
+};
+
+/**
+ * This method is some kind of subset of the initial setup config
+ * and it is used to update some of the values on server restart
+ */
+export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
+    if (
+        process.env.LD_SETUP_ADMIN_API_KEY &&
+        !process.env.LD_SETUP_ADMIN_EMAIL
+    ) {
+        throw new ParameterError(
+            `LD_SETUP_ADMIN_API_KEY is present, but there is no LD_SETUP_ADMIN_EMAIL to create a PAT for`,
+        );
+    }
+
+    return {
+        organization: {
+            admin: {
+                email: process.env.LD_SETUP_ADMIN_EMAIL,
+            },
+        },
+        apiKey: {
+            token: process.env.LD_SETUP_ADMIN_API_KEY,
+            expirationTime: parseApiExpiration('LD_SETUP_API_KEY_EXPIRATION'),
+        },
+        project: {
+            httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH,
+            dbtVersion: parseEnum<SupportedDbtVersions>(
+                process.env.LD_SETUP_DBT_VERSION,
+                SupportedDbtVersions,
+            ),
+        },
+        serviceAccount: isApiValidToken(
+            TokenEnvironmentVariable.SERVICE_ACCOUNT,
+        )
+            ? {
+                  token: process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN!,
+                  expirationTime: parseApiExpiration(
+                      'LD_SETUP_SERVICE_ACCOUNT_EXPIRATION',
+                  ),
+              }
+            : undefined,
+        dbt: {
+            personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
+        },
+    };
 };
 
 export const parseBaseS3Config = (): LightdashConfig['s3'] => {
@@ -709,6 +753,28 @@ export type LightdashConfig = {
             dbtVersion: DbtVersionOption;
         };
         dbt: DbtGithubProjectConfig;
+    };
+    updateSetup?: {
+        organization: {
+            admin: {
+                email?: string;
+            };
+        };
+        apiKey: {
+            token?: string;
+            expirationTime: Date | null;
+        };
+        dbt: {
+            personal_access_token?: string;
+        };
+        project: {
+            httpPath?: CreateDatabricksCredentials['httpPath'];
+            dbtVersion?: DbtVersionOption;
+        };
+        serviceAccount?: {
+            token: string;
+            expirationTime: Date | null;
+        };
     };
 };
 
@@ -1396,5 +1462,6 @@ export const parseConfig = (): LightdashConfig => {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
         initialSetup: getInitialSetupConfig(),
+        updateSetup: getUpdateSetupConfig(),
     };
 };

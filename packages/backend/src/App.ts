@@ -286,6 +286,7 @@ export default class App {
             const instanceConfigurationService =
                 this.serviceRepository.getInstanceConfigurationService<InstanceConfigurationService>();
             await instanceConfigurationService.initializeInstance();
+            await instanceConfigurationService.updateInstanceConfiguration();
         } catch (e) {
             if (e instanceof MissingConfigError) {
                 Logger.debug(

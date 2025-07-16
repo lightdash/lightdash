@@ -148,6 +148,12 @@ export class PersonalAccessTokenModel {
         };
     }
 
+    async deleteAllTokensForUser(userId: number): Promise<void> {
+        await this.database(PersonalAccessTokenTableName)
+            .delete()
+            .where('created_by_user_id', userId);
+    }
+
     async delete(personalAccessTokenUuid: string): Promise<void> {
         await this.database(PersonalAccessTokenTableName)
             .delete()
