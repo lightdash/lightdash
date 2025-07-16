@@ -1,63 +1,42 @@
-name: Test
+name: AI Agent Tests
 
 on:
-    push:
-        branches: [main]
-    pull_request:
-        types: [opened, synchronize, reopened]
-    workflow_dispatch:
+    workflow_run:
+        workflows: ["Build"]
+        types: [completed]
 
 jobs:
-    build:
+    ai-test:
         runs-on: ubuntu-latest
+        if: github.event.workflow_run.conclusion == 'success'
 
         steps:
             - uses: actions/checkout@v4
-            # Install packages
+            
             - uses: pnpm/action-setup@v4
             - uses: actions/setup-node@v4
               with:
                   node-version: '20'
                   cache: 'pnpm'
                   cache-dependency-path: 'pnpm-lock.yaml'
-            - name: Install packages
-              run: pnpm install --frozen-lockfile --prefer-offline
-            - name: Run dangerjs
-              if: github.event_name == 'pull_request'
-              run: pnpm danger-ci-lint
-              env:
-                  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-            - name: Lint all packages
-              run: pnpm lint
-            - name: Check formatting all packages
-              run: pnpm format
-            - name: Check for unused exports
-              run: pnpm -F frontend unused-exports
 
-            - name: Build common
-              run: pnpm common-build
+            - name: Restore build artifacts
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      packages/*/dist
+                      packages/*/build
+                      node_modules
+                  key: build-artifacts-${{ github.event.workflow_run.head_sha }}
+                  fail-on-cache-miss: true
 
-            - name: Build warehouses
-              run: pnpm warehouses-build
-
-            - name: Build frontend
-              run: pnpm frontend-build
-
-            - name: Build Backend
-              run: pnpm backend-build
-
-            - name: Check types for all packages
-              run: pnpm typecheck
-
-            - name: Run unit tests
-              run: pnpm test
-
-            # AI Agent Tests to run only after file changes
             - name: Check for AI files changes
               uses: dorny/paths-filter@v3
               id: ai_changes
               with:
                   token: ${{ github.token }}
+                  base: ${{ github.event.workflow_run.head_sha }}~1
+                  head: ${{ github.event.workflow_run.head_sha }}
                   filters: |
                     ai:
                       - 'packages/backend/src/ee/services/ai/**/*'
@@ -65,12 +44,12 @@ jobs:
 
             - uses: 8BitJonny/gh-get-current-pr@3.0.0
               id: PR
-              if: github.event_name == 'pull_request'
+              if: github.event.workflow_run.event == 'pull_request'
 
-            - name: Check for AI test override if the PR description contains "test-ai"
+            - name: Check for AI test override
               id: ai_override
               run: |
-                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                  if [ "${{ github.event.workflow_run.event }}" = "pull_request" ]; then
                       echo "AI override: ${{contains(steps.PR.outputs.pr_body, 'test-ai')}}"
                       echo "should_run=${{contains(steps.PR.outputs.pr_body, 'test-ai')}}" >> "$GITHUB_OUTPUT"
                   else

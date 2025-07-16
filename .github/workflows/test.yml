@@ -1,0 +1,34 @@
+name: Unit Test
+
+on:
+    workflow_run:
+        workflows: ["Build"]
+        types: [completed]
+
+jobs:
+    unit-test:
+        runs-on: ubuntu-latest
+        if: github.event.workflow_run.conclusion == 'success'
+
+        steps:
+            - uses: actions/checkout@v4
+            
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'pnpm'
+                  cache-dependency-path: 'pnpm-lock.yaml'
+
+            - name: Restore build artifacts
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      packages/*/dist
+                      packages/*/build
+                      node_modules
+                  key: build-artifacts-${{ github.event.workflow_run.head_sha }}
+                  fail-on-cache-miss: true
+
+            - name: Run unit tests
+              run: pnpm test
