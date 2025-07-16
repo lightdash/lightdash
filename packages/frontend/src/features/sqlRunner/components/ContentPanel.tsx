@@ -55,6 +55,7 @@ import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
+import { Parameters } from '../../parameters';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -145,6 +146,9 @@ export const ContentPanel: FC = () => {
                     sql: sqlToUse,
                     limit,
                     projectUuid,
+                    parameterValues: {
+                        table_where: '1',
+                    },
                 }),
             );
         },
@@ -451,6 +455,7 @@ export const ContentPanel: FC = () => {
                             </Indicator>
                         </Group>
                         <Group spacing="xs">
+                            <Parameters isEditMode={false} />
                             {activeEditorTab === EditorTabs.SQL && (
                                 <SqlQueryHistory />
                             )}
