@@ -15,7 +15,7 @@ export class ShopService {
         this.database = database;
     }
 
-    async createOrUpdate(data: Partial<DbShop>): Promise<{shop: DbShop, isNew: boolean}> {
+    async createOrUpdate(data: Partial<DbShop>): Promise<{shop_: DbShop, isNew: boolean}> {
         const existing = await this.getByUrl(data.shop_url!);
 
         if (existing) {
@@ -27,7 +27,7 @@ export class ShopService {
                     updated_at: this.database.fn.now(),
                 })
                 .returning('*');
-            return {shop: updated, isNew: false};
+            return {shop_: updated, isNew: false};
         } else {
             const [created] = await this.database<DbShop>(ShopTableName)
                 .insert({
@@ -37,7 +37,7 @@ export class ShopService {
                     updated_at: this.database.fn.now(),
                 })
                 .returning('*');
-            return {shop: created, isNew: true};
+            return {shop_: created, isNew: true};
         }
     }
 
@@ -107,7 +107,7 @@ export class ShopService {
 
         const user_id = await this.getUserIdByUuid(user.userUuid);
 
-        await this.database.transaction(async (trx) => {
+        await this.database.transaction(async (trx: any) => {
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: orgId,
                 user_id,
