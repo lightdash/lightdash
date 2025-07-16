@@ -155,27 +155,45 @@ export const replaceLightdashValues = (
     valuesMap: Record<string, string | string[]>,
     quoteChar: string | '',
     wrapChar: string | '',
-    // ! This is only for error messages so we can reuse the same function for user attributes and parameters, not super important for now
-    replacementName: 'user attribute' | 'parameter' = 'user attribute',
-): string => {
+    {
+        // Default to true since that's the current behavior for user attributes
+        throwOnMissing = true,
+        // ! This is only for error messages so we can reuse the same function for user attributes and parameters
+        replacementName = 'user attribute',
+    }: {
+        throwOnMissing?: boolean;
+        replacementName?: 'user attribute' | 'parameter';
+    } = {},
+): {
+    replacedSql: string;
+    references: Set<string>;
+} => {
     const sqlAttributes = sql.match(regex);
     const [leftWrap, rightWrap] = getWrapChars(wrapChar);
+    const references = new Set<string>();
 
     if (sqlAttributes === null || sqlAttributes.length === 0) {
-        return sql;
+        return {
+            replacedSql: sql,
+            references,
+        };
     }
 
     const replacedUserAttributesSql = sqlAttributes.reduce<string>(
         (acc, sqlAttribute) => {
             const attribute = sqlAttribute.replace(regex, '$1');
             const attributeValues = valuesMap[attribute];
+            references.add(attribute);
 
             if (attributeValues === undefined) {
+                if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
                     `Missing ${replacementName} "${attribute}": "${sql}"`,
                 );
             }
+
             if (attributeValues.length === 0) {
+                if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
                     `Invalid or missing ${replacementName} "${attribute}": "${sql}"`,
                 );
@@ -195,8 +213,11 @@ export const replaceLightdashValues = (
         sql,
     );
 
-    // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
-    return `${leftWrap}${replacedUserAttributesSql}${rightWrap}`;
+    return {
+        // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
+        replacedSql: `${leftWrap}${replacedUserAttributesSql}${rightWrap}`,
+        references,
+    };
 };
 
 export const replaceUserAttributes = (
@@ -212,7 +233,7 @@ export const replaceUserAttributes = (
         /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
 
     // Replace user attributes in the SQL filter
-    const replacedSqlFilter = replaceLightdashValues(
+    const { replacedSql: replacedSqlFilter } = replaceLightdashValues(
         userAttributeRegex,
         sql,
         userAttributes,
@@ -221,13 +242,15 @@ export const replaceUserAttributes = (
     );
 
     // Replace intrinsic user attributes in the SQL filter
-    return replaceLightdashValues(
+    const { replacedSql } = replaceLightdashValues(
         intrinsicUserAttributeRegex,
         replacedSqlFilter,
         intrinsicUserAttributes,
         quoteChar,
         wrapChar,
     );
+
+    return replacedSql;
 };
 
 export const replaceUserAttributesAsStrings = (
