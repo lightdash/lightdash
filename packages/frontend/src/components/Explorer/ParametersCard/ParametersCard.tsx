@@ -1,5 +1,5 @@
 import { Box } from '@mantine/core';
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { useParams } from 'react-router';
 import {
     ParameterSelection,
@@ -50,6 +50,20 @@ const ParametersCard = memo(
             }
             setParameter(paramKey, value);
         };
+
+        // Apply defaults
+        useEffect(() => {
+            if (parameters) {
+                Object.entries(parameters).forEach(([key, param]) => {
+                    if (
+                        param.default &&
+                        (!parameterValues || !parameterValues[key])
+                    ) {
+                        setParameter(key, param.default);
+                    }
+                });
+            }
+        }, [parameterValues, parameters, setParameter]);
 
         console.log('parameterDetails', {
             parameters,
