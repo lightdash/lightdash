@@ -29,8 +29,7 @@ Useful resources for answering your questions:
 - [Issues](https://github.com/lightdash/lightdash/issues)
 
 If you cannot find an answer to your question then please join
-our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA)
-and head for the `#help` channel.
+our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and head for the `#help` channel.
 
 ## How to report a bug
 
@@ -68,8 +67,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 Before contributing to Lightdash you must complete the following steps:
 
 - Join
-  our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA)
-  and introduce yourself in the `#community-contributors` channel
+  our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and introduce yourself in the `#community-contributors` channel
 - Choose an existing labelled `open-contribution`
 - Ask a member of the team to assign you to the issue
 
