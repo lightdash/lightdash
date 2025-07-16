@@ -3295,6 +3295,7 @@ export class ProjectService extends BaseService {
         limit: number,
         filters: AndFilterGroup | undefined,
         forceRefresh: boolean = false,
+        parameters?: ParametersValuesMap,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3337,7 +3338,11 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            undefined,
+            undefined,
+            parameters,
         );
+
         // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
         const queryHashKey = metricQuery.timezone
             ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`

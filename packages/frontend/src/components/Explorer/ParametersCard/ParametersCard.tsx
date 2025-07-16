@@ -47,7 +47,7 @@ const ParametersCard = memo(
 
         const handleParameterChange = (
             paramKey: string,
-            value: string | null,
+            value: string | string[] | null,
         ) => {
             setParameter(paramKey, value);
         };
@@ -96,6 +96,7 @@ const ParametersCard = memo(
                         showClearAll={true}
                         onClearAll={clearAllParameters}
                         cols={2}
+                        projectUuid={projectUuid}
                     />
                 </Box>
             </CollapsableCard>
