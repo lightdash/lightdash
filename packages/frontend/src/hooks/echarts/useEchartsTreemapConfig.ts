@@ -81,7 +81,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
             name: 'All',
             type: EchartsTreemapType,
             visibleMin,
-            leafDepth,
+            leafDepth: leafDepth ? leafDepth : undefined,
             visualDimension: 1,
             visualMin,
             visualMax,

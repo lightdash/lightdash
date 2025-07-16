@@ -257,21 +257,25 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 
                 // Assumes parent-child relationship is determined by the order of groupFieldIds
                 for (let i = 0; i < groupFieldIds.length; i++) {
-                    const dimensionValue =
-                        row[groupFieldIds[i]]?.value?.formatted;
+                    const dimensionValueRaw = String(
+                        row[groupFieldIds[i]]?.value?.raw,
+                    );
 
-                    const dimensionValueStr = String(dimensionValue);
-                    if (!parent.children[dimensionValueStr]) {
-                        parent.children[dimensionValueStr] =
-                            getEmptyTreemapNode(dimensionValueStr);
+                    const dimensionValueFormatted = String(
+                        row[groupFieldIds[i]]?.value?.formatted,
+                    );
+
+                    if (!parent.children[dimensionValueRaw]) {
+                        parent.children[dimensionValueRaw] =
+                            getEmptyTreemapNode(dimensionValueFormatted);
                     }
                     if (i === groupFieldIds.length - 1) {
-                        parent.children[dimensionValueStr].value = [
+                        parent.children[dimensionValueRaw].value = [
                             rowSizeMetricValue,
                             rowColorMetricValue,
                         ];
                     }
-                    parent = parent.children[dimensionValueStr];
+                    parent = parent.children[dimensionValueRaw];
                 }
                 return acc;
             },
@@ -294,7 +298,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 
         // Iterate on the grouped subtotals, adjusting the parent values in the treemap with the subtotal aggregated values
         if (groupedSubtotals) {
-            console.log('groupedSubtotals', groupedSubtotals);
             Object.entries(groupedSubtotals).forEach(
                 ([key, levelSubtotals]) => {
                     const subtotalDimensionNames = key.split(':');

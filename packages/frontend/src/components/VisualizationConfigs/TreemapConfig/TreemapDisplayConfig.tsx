@@ -17,52 +17,60 @@ export const Display: React.FC = () => {
     return (
         <Stack>
             <Config>
-                <Group>
-                    <Config.Heading>Minimum section size</Config.Heading>
-
-                    <Tooltip
-                        withinPortal={true}
-                        maw={350}
-                        variant="xs"
-                        multiline
-                        label="Any sections smaller than this will not be displayed. You can zoom in to see smaller sections."
-                    >
-                        <MantineIcon
-                            icon={IconHelpCircle}
-                            size="md"
-                            display="inline"
-                            color="gray"
+                <Stack spacing="xs">
+                    <Group spacing="xs">
+                        <Config.Heading>Minimum section size</Config.Heading>
+                        <Tooltip
+                            withinPortal={true}
+                            maw={350}
+                            variant="xs"
+                            multiline
+                            label="Any sections smaller than this will not be displayed. You can zoom in to see smaller sections."
+                        >
+                            <MantineIcon
+                                icon={IconHelpCircle}
+                                size="md"
+                                display="inline"
+                                color="gray"
+                            />
+                        </Tooltip>
+                        <NumberInput
+                            value={visibleMin}
+                            onChange={setVisibleMin}
+                            min={0}
+                            step={500}
+                            formatter={(value) =>
+                                value ? `${value}px\u00B2` : ''
+                            }
+                            parser={(value) =>
+                                value.replace(/px\u00B2\s?$/, '')
+                            }
                         />
-                    </Tooltip>
-                    <NumberInput
-                        value={visibleMin}
-                        onChange={setVisibleMin}
-                        min={0}
-                        step={500}
-                        formatter={(value) => (value ? `${value}px\u00B2` : '')}
-                        parser={(value) => value.replace(/px\u00B2\s?$/, '')}
-                    />
-                    <Config.Heading>Max leaf depth</Config.Heading>
-                    <Tooltip
-                        withinPortal={true}
-                        maw={350}
-                        variant="xs"
-                        multiline
-                        label="The maximum depth of the treemap. If set, deeper levels can be viewed by clicking on nodes."
-                    >
-                        <MantineIcon
-                            icon={IconHelpCircle}
-                            size="md"
-                            display="inline"
-                            color="gray"
+                    </Group>
+                    <Group spacing="xs">
+                        <Config.Heading>Max leaf depth</Config.Heading>
+                        <Tooltip
+                            withinPortal={true}
+                            maw={350}
+                            variant="xs"
+                            multiline
+                            label="The maximum depth of the treemap. If set, deeper levels can be viewed by clicking on nodes."
+                        >
+                            <MantineIcon
+                                icon={IconHelpCircle}
+                                size="md"
+                                display="inline"
+                                color="gray"
+                            />
+                        </Tooltip>
+                        <NumberInput
+                            value={leafDepth}
+                            onChange={setLeafDepth}
+                            min={1}
+                            placeholder="No limit"
                         />
-                    </Tooltip>
-                    <NumberInput
-                        value={leafDepth}
-                        onChange={setLeafDepth}
-                        min={1}
-                    />
-                </Group>
+                    </Group>
+                </Stack>
             </Config>
         </Stack>
     );
