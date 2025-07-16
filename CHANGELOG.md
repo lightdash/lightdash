@@ -1,3 +1,10 @@
+# [0.1818.0](https://github.com/lightdash/lightdash/compare/0.1817.1...0.1818.0) (2025-07-16)
+
+
+### Features
+
+* add updateSetup config for API key and dbt token updates ([#15710](https://github.com/lightdash/lightdash/issues/15710)) ([df54efb](https://github.com/lightdash/lightdash/commit/df54efb8c5e8eed2ded71348b94492203384c6df))
+
 ## [0.1817.1](https://github.com/lightdash/lightdash/compare/0.1817.0...0.1817.1) (2025-07-15)
 
 
