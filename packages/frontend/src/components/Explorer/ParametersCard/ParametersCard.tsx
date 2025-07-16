@@ -1,5 +1,5 @@
 import { Box } from '@mantine/core';
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { useParams } from 'react-router';
 import {
     ParameterSelection,
@@ -60,16 +60,6 @@ const ParametersCard = memo(
             ExplorerSection.PARAMETERS,
         );
 
-        const transformedParameters = useMemo(() => {
-            if (!parameters) return undefined;
-            return Object.fromEntries(
-                Object.entries(parameters).map(([key, param]) => [
-                    key,
-                    { options: param.options || [] },
-                ]),
-            );
-        }, [parameters]);
-
         return (
             <CollapsableCard
                 isOpen={paramsIsOpen}
@@ -82,7 +72,7 @@ const ParametersCard = memo(
             >
                 <Box m="md">
                     <ParameterSelection
-                        parameters={transformedParameters}
+                        parameters={parameters}
                         isLoading={isLoading}
                         isError={isError}
                         parameterValues={parameterValues || {}}
