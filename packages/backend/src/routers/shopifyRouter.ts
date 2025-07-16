@@ -58,7 +58,7 @@ export const shopifyAuthCallback = async (req: Request, res: Response) => {
 
         const shopService = req.services.getShopService();
 
-        await shopService.create({
+        const { shop_, isNew } = await shopService.createOrUpdate({
             shop_uuid: uuidv4(),
             shop_url: normalizedShop,
             access_token: data.access_token,
@@ -73,7 +73,11 @@ export const shopifyAuthCallback = async (req: Request, res: Response) => {
             domains: null,
         });
 
-        return res.redirect(`/register?shop=${encodeURIComponent(normalizedShop)}`);
+        const redirectUrl = isNew
+            ? `/register?shop=${encodeURIComponent(normalizedShop)}`
+            : `/login?shop=${encodeURIComponent(normalizedShop)}`;
+
+        return res.redirect(redirectUrl);
     } catch (e: any) {
         console.error('Shopify callback error:', e);
         return res.status(500).send(`Server error: ${e.message}`);
