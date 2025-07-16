@@ -1680,6 +1680,15 @@
         "bug",
         "code"
       ]
+    },
+    {
+      "login": "shanzeim",
+      "name": "shanzeim",
+      "avatar_url": "https://avatars.githubusercontent.com/u/211318613?v=4",
+      "profile": "https://github.com/shanzeim",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
