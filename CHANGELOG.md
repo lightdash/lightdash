@@ -1,3 +1,51 @@
+# [0.1822.0](https://github.com/lightdash/lightdash/compare/0.1821.1...0.1822.0) (2025-07-16)
+
+
+### Features
+
+* setup Cypress for JWT async-queries ([#15851](https://github.com/lightdash/lightdash/issues/15851)) ([8e0e311](https://github.com/lightdash/lightdash/commit/8e0e311047072d6dc0100829403efcbeb6738912))
+
+## [0.1821.1](https://github.com/lightdash/lightdash/compare/0.1821.0...0.1821.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* add timeout to fullPage boundingBox in UnfurlService ([#15859](https://github.com/lightdash/lightdash/issues/15859)) ([fff29fe](https://github.com/lightdash/lightdash/commit/fff29fece7565d1f7b6bbb4a077aa2a875cb0d14))
+
+# [0.1821.0](https://github.com/lightdash/lightdash/compare/0.1820.0...0.1821.0) (2025-07-16)
+
+
+### Features
+
+* deep-link to Slack message during AI Agent Slack OAuth flow ([#15839](https://github.com/lightdash/lightdash/issues/15839)) ([99c782f](https://github.com/lightdash/lightdash/commit/99c782f19fd9be6db4fe1d2ba8b3bf674b58436e))
+
+# [0.1820.0](https://github.com/lightdash/lightdash/compare/0.1819.0...0.1820.0) (2025-07-16)
+
+
+### Bug Fixes
+
+* prevent color picker from getting cut off in small window height ([#15837](https://github.com/lightdash/lightdash/issues/15837)) ([f0dcaf8](https://github.com/lightdash/lightdash/commit/f0dcaf813ce11b86ba7dd0c29ad55cbcf329f2c9))
+
+
+### Features
+
+* add group service enablement check with config integration ([#15842](https://github.com/lightdash/lightdash/issues/15842)) ([61f8746](https://github.com/lightdash/lightdash/commit/61f874637f2ddd08cf8366fb948d218569613209))
+
+# [0.1819.0](https://github.com/lightdash/lightdash/compare/0.1818.0...0.1819.0) (2025-07-16)
+
+
+### Features
+
+* add debug logging for AI Copilot agent ([#15870](https://github.com/lightdash/lightdash/issues/15870)) ([ae2905d](https://github.com/lightdash/lightdash/commit/ae2905db348e536ffff35ff64e2bcf766b195132))
+* add trackAccount to LightdashAnalytics ([#15852](https://github.com/lightdash/lightdash/issues/15852)) ([fa94195](https://github.com/lightdash/lightdash/commit/fa9419522014dd9e6599ab937f8285f0e83f97fa))
+
+# [0.1818.0](https://github.com/lightdash/lightdash/compare/0.1817.1...0.1818.0) (2025-07-16)
+
+
+### Features
+
+* add updateSetup config for API key and dbt token updates ([#15710](https://github.com/lightdash/lightdash/issues/15710)) ([df54efb](https://github.com/lightdash/lightdash/commit/df54efb8c5e8eed2ded71348b94492203384c6df))
+
 ## [0.1817.1](https://github.com/lightdash/lightdash/compare/0.1817.0...0.1817.1) (2025-07-15)
 
 

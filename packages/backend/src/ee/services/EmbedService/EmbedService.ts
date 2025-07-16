@@ -354,14 +354,11 @@ export class EmbedService extends BaseService {
             canDateZoom,
         } = decodedToken.content;
 
-        this.analytics.track<EmbedDashboardViewed>({
-            anonymousId: 'embed',
+        this.analytics.trackAccount<EmbedDashboardViewed>(account, {
             event: 'embed_dashboard.viewed',
             properties: {
-                organizationId: dashboard.organizationUuid,
                 projectId: dashboard.projectUuid,
                 dashboardId: dashboard.uuid,
-                externalId,
                 context: isPreview ? 'preview' : 'production',
                 tilesCount: dashboard.tiles.length,
                 chartTilesCount: dashboard.tiles.filter(
@@ -806,15 +803,12 @@ export class EmbedService extends BaseService {
         };
 
         const externalId = account.user.id;
-        this.analytics.track<EmbedQueryViewed>({
-            anonymousId: 'embed',
+        this.analytics.trackAccount<EmbedQueryViewed>(account, {
             event: 'embed_query.executed',
             properties: {
-                organizationId: organizationUuid,
                 projectId: projectUuid,
                 dashboardId: dashboardUuid,
                 chartId: chart.uuid,
-                externalId,
             },
         });
 

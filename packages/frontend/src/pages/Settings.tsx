@@ -81,9 +81,11 @@ const Settings: FC = () => {
         },
         user: { data: user, isInitialLoading: isUserLoading, error: userError },
     } = useApp();
-    const { data: UserGroupFeatureFlag } = useFeatureFlag(
+
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
+
     const { track } = useTracking();
     const {
         data: organization,
@@ -108,7 +110,15 @@ const Settings: FC = () => {
         health?.auth.azuread.enabled ||
         health?.auth.oidc.enabled;
 
-    const isGroupManagementEnabled = UserGroupFeatureFlag?.enabled;
+    if (userGroupsFeatureFlagQuery.isError) {
+        console.error(userGroupsFeatureFlagQuery.error);
+        throw new Error('Error fetching user groups feature flag');
+    }
+
+    const isGroupManagementEnabled =
+        userGroupsFeatureFlagQuery.isSuccess &&
+        userGroupsFeatureFlagQuery.data.enabled;
+
     // This allows us to enable service accounts in the UI for on-premise installations
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
