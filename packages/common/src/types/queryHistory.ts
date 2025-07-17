@@ -17,7 +17,15 @@ export interface BigQueryWarehouseQueryMetadata
     jobLocation: string;
 }
 
-export type WarehouseQueryMetadata = BigQueryWarehouseQueryMetadata;
+export interface PostgresWarehouseQueryMetadata
+    extends IWarehouseQueryMetadata {
+    type: WarehouseTypes.POSTGRES;
+    cursorName: string;
+}
+
+export type WarehouseQueryMetadata = 
+    | BigQueryWarehouseQueryMetadata
+    | PostgresWarehouseQueryMetadata;
 
 export enum QueryHistoryStatus {
     PENDING = 'pending',

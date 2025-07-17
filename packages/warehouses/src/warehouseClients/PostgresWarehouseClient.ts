@@ -12,6 +12,11 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    WarehouseExecuteAsyncQuery,
+    WarehouseExecuteAsyncQueryArgs,
+    WarehouseGetAsyncQueryResults,
+    WarehouseGetAsyncQueryResultsArgs,
+    WarehouseQueryMetadata,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -20,6 +25,7 @@ import { PoolConfig, QueryResult, types } from 'pg';
 import { Writable } from 'stream';
 import * as tls from 'tls';
 import { rootCertificates } from 'tls';
+import { v4 as uuidv4 } from 'uuid';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
@@ -168,14 +174,37 @@ export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+// Constants for cursor management
+const CURSOR_TTL_MS = 3600000; // 1 hour
+const CURSOR_CLEANUP_INTERVAL_MS = 300000; // 5 minutes
+const MAX_CONCURRENT_CURSORS = 100;
+
+interface CursorConnection {
+    pool: pg.Pool;
+    client: pg.PoolClient;
+    cursorName: string;
+    totalRows: number;
+    fields: Record<string, { type: DimensionType }>;
+    createdAt: number;
+}
+
 export class PostgresClient<
     T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
     config: pg.PoolConfig;
 
+    private cursorConnections: Map<string, CursorConnection> = new Map();
+
+    private cleanupInterval?: NodeJS.Timeout;
+
     constructor(credentials: T, config: pg.PoolConfig) {
         super(credentials, new PostgresSqlBuilder(credentials.startOfWeek));
         this.config = config;
+        
+        // Start cleanup interval unless in test environment
+        if (process.env.NODE_ENV !== 'test') {
+            this.startCursorCleanupInterval();
+        }
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -555,6 +584,225 @@ export class PostgresClient<
         return new WarehouseQueryError(error.message, {
             lineNumber,
             charNumber,
+        });
+    }
+
+    // Cursor management methods
+    private startCursorCleanupInterval() {
+        this.cleanupInterval = setInterval(() => {
+            const now = Date.now();
+            Array.from(this.cursorConnections.entries()).forEach(([queryId, connection]) => {
+                if (now - connection.createdAt > CURSOR_TTL_MS) {
+                    void this.cleanupCursor(queryId);
+                }
+            });
+        }, CURSOR_CLEANUP_INTERVAL_MS);
+    }
+
+    private async cleanupCursor(queryId: string) {
+        const connection = this.cursorConnections.get(queryId);
+        if (connection) {
+            const { client, pool, cursorName } = connection;
+            
+            try {
+                // Close cursor and end transaction
+                await client.query(`CLOSE ${cursorName}`);
+                await client.query('COMMIT');
+                client.release();
+            } catch (err) {
+                console.error('Error cleaning up cursor:', err);
+                // Still try to release the client
+                try {
+                    client.release();
+                } catch (releaseErr) {
+                    console.error('Error releasing client:', releaseErr);
+                }
+            }
+            
+            try {
+                await pool.end();
+            } catch (err) {
+                console.error('Error ending pool:', err);
+            }
+            
+            this.cursorConnections.delete(queryId);
+        }
+    }
+
+    // Override executeAsyncQuery to support cursor-based pagination
+    async executeAsyncQuery(
+        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback?: (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => void,
+    ): Promise<WarehouseExecuteAsyncQuery> {
+        // Check if we've reached the maximum number of concurrent cursors
+        if (this.cursorConnections.size >= MAX_CONCURRENT_CURSORS) {
+            // Clean up oldest cursors
+            const sortedConnections = Array.from(this.cursorConnections.entries())
+                .sort((a, b) => a[1].createdAt - b[1].createdAt);
+            
+            const cleanupPromises = sortedConnections
+                .slice(0, Math.min(10, sortedConnections.length))
+                .map(([queryId]) => this.cleanupCursor(queryId));
+            await Promise.all(cleanupPromises);
+        }
+
+        const queryId = uuidv4();
+        const cursorName = `cursor_${queryId.replace(/-/g, '_')}`;
+        
+        // Create dedicated connection pool for this query
+        const pool = new pg.Pool({
+            ...this.config,
+            connectionTimeoutMillis: 5000,
+            query_timeout: this.credentials.timeoutSeconds
+                ? this.credentials.timeoutSeconds * 1000
+                : 1000 * 60 * 5, // default to 5 minutes
+        });
+        
+        const startTime = performance.now();
+        
+        try {
+            // Get a client from the pool
+            const client = await pool.connect();
+            
+            // Set timezone if provided
+            if (timezone) {
+                await client.query(`SET timezone TO '${timezone}';`);
+            }
+            
+            // Begin transaction and declare cursor
+            await client.query('BEGIN');
+            await client.query(
+                `DECLARE ${cursorName} CURSOR FOR ${this.getSQLWithMetadata(sql, tags)}`,
+                values,
+            );
+            
+            // Get total row count using a separate query
+            // This is necessary because cursors don't provide total count
+            const countQuery = `SELECT COUNT(*) as count FROM (${sql}) AS count_query`;
+            const countResult = await client.query(countQuery, values);
+            const totalRows = parseInt(countResult.rows[0].count, 10);
+            
+            // Fetch first row to get field metadata
+            const firstResult = await client.query(`FETCH 1 FROM ${cursorName}`);
+            const fields = PostgresClient.convertQueryResultFields(firstResult.fields);
+            
+            // Store cursor connection
+            this.cursorConnections.set(queryId, {
+                pool,
+                client,
+                cursorName,
+                totalRows,
+                fields,
+                createdAt: Date.now(),
+            });
+            
+            // If streaming callback is provided, stream all results
+            if (resultsStreamCallback) {
+                // Reset cursor to beginning
+                await client.query(`MOVE ABSOLUTE 0 IN ${cursorName}`);
+                
+                const batchSize = 1000;
+                
+                // Use recursive function to avoid await-in-loop
+                const fetchBatch = async (): Promise<void> => {
+                    const result = await client.query(
+                        `FETCH FORWARD ${batchSize} FROM ${cursorName}`
+                    );
+                    
+                    if (result.rows.length > 0) {
+                        resultsStreamCallback(result.rows, fields);
+                        
+                        if (result.rows.length === batchSize) {
+                            await fetchBatch();
+                        }
+                    }
+                };
+                
+                await fetchBatch();
+            }
+            
+            return {
+                queryId,
+                queryMetadata: {
+                    type: WarehouseTypes.POSTGRES,
+                    cursorName,
+                },
+                totalRows,
+                durationMs: performance.now() - startTime,
+            };
+        } catch (error) {
+            // Clean up on error - pool might not be stored yet
+            if (this.cursorConnections.has(queryId)) {
+                await this.cleanupCursor(queryId);
+            } else if (pool) {
+                // If error occurred before storing connection, clean up pool directly
+                try {
+                    await pool.end();
+                } catch (poolError) {
+                    console.error('Error ending pool on failure:', poolError);
+                }
+            }
+            throw this.parseError(error as pg.DatabaseError, sql);
+        }
+    }
+
+    // Implement getAsyncQueryResults for paginated results
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        { queryId, page, pageSize }: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        if (!queryId) {
+            throw new WarehouseQueryError('Query ID is required for pagination');
+        }
+
+        const cursorInfo = this.cursorConnections.get(queryId);
+        if (!cursorInfo) {
+            throw new WarehouseQueryError('Query ID not found or expired');
+        }
+        
+        const { client, cursorName, totalRows, fields } = cursorInfo;
+        const offset = (page - 1) * pageSize;
+        
+        try {
+            // Move cursor to the correct position
+            await client.query(`MOVE ABSOLUTE ${offset} IN ${cursorName}`);
+            
+            // Fetch the page of results
+            const result = await client.query(
+                `FETCH FORWARD ${pageSize} FROM ${cursorName}`
+            );
+            
+            const formattedRows = result.rows.map(row => 
+                rowFormatter ? rowFormatter(row) : row as TFormattedRow
+            );
+            
+            // Update last accessed time
+            cursorInfo.createdAt = Date.now();
+            
+            return {
+                fields,
+                rows: formattedRows,
+                queryId,
+                pageCount: Math.ceil(totalRows / pageSize),
+                totalRows,
+            };
+        } catch (error) {
+            throw this.parseError(error as pg.DatabaseError);
+        }
+    }
+
+    // Clean up on destruction
+    destroy() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+        }
+        
+        // Clean up all cursors
+        Array.from(this.cursorConnections.keys()).forEach(queryId => {
+            void this.cleanupCursor(queryId);
         });
     }
 }
