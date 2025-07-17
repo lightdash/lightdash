@@ -1,3 +1,10 @@
+## [0.1822.1](https://github.com/lightdash/lightdash/compare/0.1822.0...0.1822.1) (2025-07-17)
+
+
+### Bug Fixes
+
+* only add tool messages when toolCallsAndResults exist ([#15885](https://github.com/lightdash/lightdash/issues/15885)) ([9bc9430](https://github.com/lightdash/lightdash/commit/9bc9430619680f5e786738cc08eb4ffb228f9997))
+
 # [0.1822.0](https://github.com/lightdash/lightdash/compare/0.1821.1...0.1822.0) (2025-07-16)
 
 
