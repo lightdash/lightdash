@@ -1,3 +1,10 @@
+## [0.1822.2](https://github.com/lightdash/lightdash/compare/0.1822.1...0.1822.2) (2025-07-17)
+
+
+### Bug Fixes
+
+* return 'NaT' for invalid timestamp formats ([#15881](https://github.com/lightdash/lightdash/issues/15881)) ([ef20aed](https://github.com/lightdash/lightdash/commit/ef20aeda9fcd38720ceee1459ba42a549292dbe1)), closes [#15880](https://github.com/lightdash/lightdash/issues/15880)
+
 ## [0.1822.1](https://github.com/lightdash/lightdash/compare/0.1822.0...0.1822.1) (2025-07-17)
 
 
