@@ -3,9 +3,6 @@ const common = {
     testEnvironment: 'node',
     automock: false,
     setupFiles: ['./setupJest.ts'],
-    moduleNameMapper: {
-        '^@/(.*)$': '<rootDir>/src/$1',
-    },
     maxWorkers: '50%',
     transform: {
         '^.+\\.ts$': [

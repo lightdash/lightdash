@@ -61,7 +61,7 @@ jobs:
                   filters: |
                     ai:
                       - 'packages/backend/src/ee/services/ai/**/*'
-                      - 'packages/common/**/*'
+                      - 'packages/common/src/ee/AiAgent/**/*'
 
             - uses: 8BitJonny/gh-get-current-pr@3.0.0
               id: PR
@@ -82,5 +82,5 @@ jobs:
               run: pnpm --filter backend test:ai
               env:
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-                  OPENAI_MODEL_NAME: 'gpt-4o'
+                  OPENAI_MODEL_NAME: 'gpt-4.1'
                   AI_COPILOT_ENABLED: 'true'

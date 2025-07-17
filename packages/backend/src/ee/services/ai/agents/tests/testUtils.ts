@@ -5,26 +5,76 @@ import {
     Explore,
     FieldType,
     MetricType,
+    capitalize,
 } from '@lightdash/common';
+import { CoreAssistantMessage, CoreMessage, CoreToolMessage } from 'ai';
+import {
+    DbAiAgentToolCall,
+    DbAiAgentToolResult,
+} from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
+import {
+    StoreToolCallFn,
+    StoreToolResultsFn,
+} from '../../types/aiAgentDependencies';
 import { AiAgentExploreSummary } from '../../types/aiAgentExploreSummary';
-
-export type ConversationHistory = Array<{
-    role: 'user' | 'assistant';
-    content: string;
-}>;
 
 export const createMessage = (
     content: string,
-    role: 'user' | 'assistant' = 'user',
+    role: Exclude<CoreMessage['role'], 'tool'> = 'user',
 ) => ({
     role,
     content,
 });
 
-const capitalize = (str: string): string =>
-    str.charAt(0).toUpperCase() + str.slice(1);
+export const createToolMessages = (
+    data: Array<{
+        toolCallId: string;
+        toolName: string;
+        toolArgs: object;
+        result: unknown;
+    }>,
+) => [
+    {
+        role: 'assistant' as const,
+        content: data.map((tc) => ({
+            type: 'tool-call' as const,
+            toolCallId: tc.toolCallId,
+            toolName: tc.toolName,
+            args: tc.toolArgs,
+        })),
+    } satisfies CoreAssistantMessage,
+    {
+        role: 'tool' as const,
+        content: data.map((tc) => ({
+            type: 'tool-result' as const,
+            toolCallId: tc.toolCallId,
+            toolName: tc.toolName,
+            result: tc.result,
+        })),
+    } satisfies CoreToolMessage,
+];
+
+export const createToolMessage = ({
+    toolCallId,
+    toolName,
+    result,
+}: {
+    toolCallId: string;
+    toolName: string;
+    result: unknown;
+}) => ({
+    role: 'tool' as const,
+    content: [
+        {
+            type: 'tool-result' as const,
+            toolCallId,
+            toolName,
+            result,
+        },
+    ],
+});
 
 const createDimension = (
     name: string,
@@ -304,99 +354,183 @@ export const createMockExplore = (exploreName: string): Explore => {
     } as unknown as Explore;
 };
 
-export const createArgs = ({
-    agentSettings,
-    messageHistory,
-    ...options
-}: Partial<Omit<AiAgentArgs, 'agentSettings'>> & {
-    agentSettings?: Partial<AiAgentArgs['agentSettings']>;
-} = {}) => {
-    const { OPENAI_API_KEY, OPENAI_MODEL_NAME = 'gpt-4o' } = process.env;
+export const createArgs =
+    ({ apiKey, modelName }: { apiKey: string; modelName: string }) =>
+    ({
+        agentSettings,
+        messageHistory,
+        ...options
+    }: Partial<Omit<AiAgentArgs, 'agentSettings'>> & {
+        agentSettings?: Partial<AiAgentArgs['agentSettings']>;
+    } = {}) => {
+        const model = getOpenaiGptmodel({
+            apiKey,
+            modelName,
+        });
 
-    if (!OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY is required for tests');
+        return {
+            debugLoggingEnabled: false,
+            model,
+            agentSettings: {
+                uuid: 'agent-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                integrations: [],
+                tags: null,
+                name: 'Test Agent',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                instruction: null,
+                imageUrl: null,
+                ...agentSettings,
+            },
+            messageHistory: messageHistory ?? [],
+            promptUuid: 'prompt-uuid',
+            threadUuid: 'thread-uuid',
+            maxLimit: 5_000,
+            organizationId: 'org-uuid',
+            userId: 'user-uuid',
+            ...options,
+        } satisfies AiAgentArgs;
+    };
+
+const getExplores = jest
+    .fn()
+    .mockImplementation(async () => mockExploresSummary);
+
+const getExplore = jest.fn().mockImplementation(async ({ exploreName }) => {
+    const explore = mockExploresSummary.find((e) => e.name === exploreName);
+    if (!explore) {
+        throw new Error(`Explore '${exploreName}' not found`);
     }
+    const data = createMockExplore(exploreName);
+    return data;
+});
 
-    const model = getOpenaiGptmodel({
-        apiKey: OPENAI_API_KEY,
-        modelName: OPENAI_MODEL_NAME,
-    });
+const searchFields = jest.fn().mockImplementation(async ({ exploreName }) => {
+    const explore = mockExploresSummary.find((e) => e.name === exploreName);
+    if (!explore) {
+        throw new Error(`Explore '${exploreName}' not found`);
+    }
+    const data = getFieldNamesFromConfig(exploreName);
+    return data;
+});
+
+const runMiniMetricQuery = jest.fn().mockImplementation(async (query) => ({
+    rows: [
+        {
+            customers_customer_id: 'cust_001',
+            customers_customer_name: 'John Doe',
+            customers_customer_email: 'john.doe@example.com',
+            customers_total_revenue: 1500,
+            customers_order_count: 3,
+        },
+        {
+            customers_customer_id: 'cust_002',
+            customers_customer_name: 'Jane Smith',
+            customers_customer_email: 'jane.smith@example.com',
+            customers_total_revenue: 2300,
+            customers_order_count: 5,
+        },
+    ],
+    fields: {
+        customers_customer_id: {
+            name: 'customer_id',
+            label: 'Customer ID',
+            description: 'Unique identifier for customers',
+            type: 'string',
+            fieldType: 'dimension',
+        },
+        customers_customer_name: {
+            name: 'customer_name',
+            label: 'Customer Name',
+            description: 'Full name of the customer',
+            type: 'string',
+            fieldType: 'dimension',
+        },
+        customers_customer_email: {
+            name: 'customer_email',
+            label: 'Customer Email',
+            description: 'Email address of the customer',
+            type: 'string',
+            fieldType: 'dimension',
+        },
+        customers_total_revenue: {
+            name: 'total_revenue',
+            label: 'Total Revenue',
+            description: 'Total revenue generated by customer',
+            type: 'number',
+            fieldType: 'metric',
+        },
+        customers_order_count: {
+            name: 'order_count',
+            label: 'Order Count',
+            description: 'Number of orders placed by customer',
+            type: 'number',
+            fieldType: 'metric',
+        },
+    },
+    cacheMetadata: {},
+}));
+
+export const createMockDepsFactory = () => {
+    const toolCalls = new Map<string, Parameters<StoreToolCallFn>[0]>();
+    const toolResults = new Map<string, Parameters<StoreToolResultsFn>[0][0]>();
+
+    const storeToolCall: StoreToolCallFn = async (data) => {
+        toolCalls.set(data.toolCallId, data);
+    };
+
+    const storeToolResults: StoreToolResultsFn = async (data) => {
+        data.forEach((x) => {
+            toolResults.set(x.toolCallId, x);
+        });
+    };
 
     return {
-        debugLoggingEnabled: false,
-        model,
-        agentSettings: {
-            uuid: 'agent-uuid',
-            projectUuid: 'project-uuid',
-            organizationUuid: 'org-uuid',
-            integrations: [],
-            tags: null,
-            name: 'Test Agent',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            instruction: null,
-            imageUrl: null,
-            ...agentSettings,
+        dependencies: {
+            getExplores,
+            getExplore,
+            searchFields,
+            runMiniMetricQuery,
+
+            getPrompt: jest.fn().mockImplementation(async () => ({
+                promptUuid: 'prompt-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                userUuid: 'user-uuid',
+                content: `prompt-content`,
+                response: undefined,
+            })),
+
+            storeToolCall: jest.fn().mockImplementation(storeToolCall),
+            storeToolResults: jest.fn().mockImplementation(storeToolResults),
+
+            // TODO: Update these when needed
+            sendFile: jest.fn().mockResolvedValue(undefined),
+            updateProgress: jest.fn().mockResolvedValue(undefined),
+            updatePrompt: jest.fn().mockResolvedValue(undefined),
+            trackEvent: jest.fn(),
+        } satisfies AiAgentDependencies,
+        internal: {
+            toolCalls,
+            toolResults,
+            getToolCallsAndResults: () => {
+                const data = Array.from(toolCalls.values()).map((call) => ({
+                    ...call,
+                    result: toolResults.get(call.toolCallId)!.result!,
+                }));
+                return data;
+            },
+            cleanAllToolCallsAndResults: () => {
+                toolCalls.clear();
+                toolResults.clear();
+            },
         },
-        messageHistory: messageHistory || [],
-        promptUuid: 'prompt-uuid',
-        threadUuid: 'thread-uuid',
-        maxLimit: 5_000,
-        organizationId: 'org-uuid',
-        userId: 'user-uuid',
-        ...options,
-    } satisfies AiAgentArgs;
+    };
 };
-
-export const createMockDeps = (
-    promptContent: string,
-    overrides: Partial<AiAgentDependencies> = {},
-): AiAgentDependencies => ({
-    getExplores: jest.fn().mockImplementation(async () => mockExploresSummary),
-    getExplore: jest.fn().mockImplementation(async ({ exploreName }) => {
-        const explore = mockExploresSummary.find((e) => e.name === exploreName);
-        if (!explore) {
-            throw new Error(`Explore '${exploreName}' not found`);
-        }
-        return createMockExplore(exploreName);
-    }),
-    searchFields: jest
-        .fn()
-        .mockImplementation(async ({ exploreName }) =>
-            getFieldNamesFromConfig(exploreName),
-        ),
-
-    runMiniMetricQuery: jest.fn().mockImplementation(async (query) => ({
-        rows: [
-            { customer_name: 'John Doe', total_revenue: 1500 },
-            { customer_name: 'Jane Smith', total_revenue: 2300 },
-        ],
-        cacheMetadata: {},
-        fields: {
-            customer_name: { name: 'customer_name', type: 'string' },
-            total_revenue: { name: 'total_revenue', type: 'number' },
-        },
-    })),
-
-    getPrompt: jest.fn().mockImplementation(async () => ({
-        promptUuid: 'prompt-uuid',
-        projectUuid: 'project-uuid',
-        organizationUuid: 'org-uuid',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        userUuid: 'user-uuid',
-        content: promptContent,
-        response: undefined,
-    })),
-
-    sendFile: jest.fn().mockResolvedValue(undefined),
-    storeToolCall: jest.fn().mockResolvedValue(undefined),
-    storeToolResults: jest.fn().mockResolvedValue(undefined),
-    updateProgress: jest.fn().mockResolvedValue(undefined),
-    updatePrompt: jest.fn().mockResolvedValue(undefined),
-    trackEvent: jest.fn(),
-    ...overrides,
-});
 
 type Tool = keyof AiAgentDependencies;
 
@@ -406,6 +540,20 @@ export const promptTestUtils = {
         tools.forEach((tool) => {
             expect(deps[tool]).toHaveBeenCalled();
         });
+    },
+
+    expectCorrectToolCalls: (
+        data: {
+            result: string;
+            promptUuid: string;
+            toolCallId: string;
+            toolName: string;
+            toolArgs: object;
+        }[],
+        expected: string[],
+    ) => {
+        const calls = data.map((d) => d.toolName);
+        expect(calls).toEqual(expected);
     },
 
     expectResponseWithContent: (
