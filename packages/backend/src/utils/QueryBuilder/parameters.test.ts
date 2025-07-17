@@ -10,7 +10,7 @@ describe('replaceParameters', () => {
 
         const result = replaceParameters(sql, parameters, quoteChar, wrapChar);
 
-        expect(result).toBe(
+        expect(result.replacedSql).toBe(
             "(SELECT * FROM users WHERE status = 'active', 'pending')",
         );
     });
@@ -24,31 +24,36 @@ describe('replaceParameters', () => {
 
         const result = replaceParameters(sql, parameters, quoteChar, wrapChar);
 
-        expect(result).toBe('SELECT * FROM orders WHERE region = "US", "EU"');
+        expect(result.replacedSql).toBe(
+            'SELECT * FROM orders WHERE region = "US", "EU"',
+        );
     });
 
-    it('should throw error when parameter is missing', () => {
+    it('should add missing parameter to missingReferences', () => {
         const sql =
             'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
         const parameters = {};
         const quoteChar = "'";
         const wrapChar = '(';
 
-        expect(() =>
-            replaceParameters(sql, parameters, quoteChar, wrapChar),
-        ).toThrow(
-            'Missing parameter "status": "SELECT * FROM users WHERE status = ${lightdash.parameters.status}"',
+        const result = replaceParameters(sql, parameters, quoteChar, wrapChar);
+
+        expect(result.missingReferences.has('status')).toBe(true);
+        expect(result.replacedSql).toBe(
+            '(SELECT * FROM users WHERE status = ${lightdash.parameters.status})',
         );
     });
 
-    it('should throw error when quote character is missing', () => {
+    it('should handle empty quote character', () => {
         const sql =
             'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
         const parameters = { status: ['active', 'pending'] };
         const wrapChar = '(';
 
-        expect(() => replaceParameters(sql, parameters, '', wrapChar)).toThrow(
-            'Quote character is required',
+        const result = replaceParameters(sql, parameters, '', wrapChar);
+
+        expect(result.replacedSql).toBe(
+            '(SELECT * FROM users WHERE status = active, pending)',
         );
     });
 });
