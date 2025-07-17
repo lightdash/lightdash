@@ -14,6 +14,7 @@ import { useBlocker, useNavigate, useParams } from 'react-router';
 import DashboardFilter from '../components/DashboardFilter';
 import DashboardTabs from '../components/DashboardTabs';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -23,7 +24,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
-import { Parameters } from '../features/parameters';
+import { Parameters, useDashboardParameterState } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -89,6 +90,14 @@ const Dashboard: FC = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const dashboardParameterReferences = useDashboardContext(
+        (c) => c.dashboardParameterReferences,
+    );
+    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+
+    // Parameter state management for the Parameters component
+    const { parameterValues, handleParameterChange, clearAllParameters } =
+        useDashboardParameterState();
 
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -663,7 +672,16 @@ const Dashboard: FC = () => {
                     {/* DateZoom section will adjust width dynamically */}
                     {hasDashboardTiles && (
                         <Group spacing="xs" style={{ marginLeft: 'auto' }}>
-                            <Parameters isEditMode={isEditMode} />
+                            <Parameters
+                                isEditMode={isEditMode}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onClearAll={clearAllParameters}
+                                parameterReferences={
+                                    dashboardParameterReferences
+                                }
+                                areAllChartsLoaded={areAllChartsLoaded}
+                            />
                             <DateZoom isEditMode={isEditMode} />
                         </Group>
                     )}

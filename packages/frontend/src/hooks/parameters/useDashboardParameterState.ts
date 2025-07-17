@@ -1,6 +1,6 @@
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 
-export const useParameterState = () => {
+export const useDashboardParameterState = () => {
     const parameterValues = useDashboardContext((c) => c.parameters);
     const setParameter = useDashboardContext((c) => c.setParameter);
 

@@ -7,29 +7,49 @@ import {
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import { ParameterSelection, useParameters, useParameterState } from '../index';
+import { ParameterSelection, useParameters } from '../index';
 
 type Props = {
     isEditMode: boolean;
+    parameterValues: Record<string, string | string[] | null>;
+    onParameterChange: (key: string, value: string | string[] | null) => void;
+    onClearAll: () => void;
+    parameterReferences?: Set<string>;
+    areAllChartsLoaded?: boolean;
 };
 
-export const Parameters: FC<Props> = ({ isEditMode }) => {
+/**
+ * @example
+ * // Dashboard usage (with filtering)
+ * <Parameters
+ *   isEditMode={false}
+ *   parameterValues={parameterValues}
+ *   onParameterChange={handleParameterChange}
+ *   onClearAll={clearAllParameters}
+ *   parameterReferences={dashboardParameterReferences}
+ *   areAllChartsLoaded={areAllChartsLoaded}
+ * />
+ *
+ * @example
+ * // Standalone usage (shows all parameters)
+ * <Parameters
+ *   isEditMode={false}
+ *   parameterValues={parameterValues}
+ *   onParameterChange={handleParameterChange}
+ *   onClearAll={clearAllParameters}
+ * />
+ */
+export const Parameters: FC<Props> = ({
+    isEditMode,
+    parameterValues,
+    onParameterChange,
+    onClearAll,
+    parameterReferences,
+    areAllChartsLoaded = true,
+}) => {
     const theme = useMantineTheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
-
-    const {
-        parameterValues,
-        handleParameterChange,
-        clearAllParameters,
-        selectedParametersCount,
-    } = useParameterState();
-
-    const dashboardParameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
-    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
 
     const {
         data: allParameters,
@@ -37,26 +57,37 @@ export const Parameters: FC<Props> = ({ isEditMode }) => {
         isError,
     } = useParameters(projectUuid);
 
+    // Calculate selected parameters count
+    const selectedParametersCount = Object.values(parameterValues).filter(
+        (value) =>
+            value !== null &&
+            value !== '' &&
+            (!Array.isArray(value) || value.length > 0),
+    ).length;
+
     // Filter parameters to only show those referenced by dashboard charts
     const parameters = useMemo(() => {
         if (!allParameters) return {};
+
+        // If no parameter references provided (standalone mode), show all parameters
+        if (!parameterReferences) return allParameters;
 
         // If charts are still loading, show empty parameters for now
         if (!areAllChartsLoaded) return {};
 
         // If no parameters are referenced by charts, return empty
-        if (dashboardParameterReferences.size === 0) return {};
+        if (parameterReferences.size === 0) return {};
 
         return Object.entries(allParameters).reduce(
             (filtered, [key, param]) => {
-                if (dashboardParameterReferences.has(key)) {
+                if (parameterReferences.has(key)) {
                     filtered[key] = param;
                 }
                 return filtered;
             },
             {} as typeof allParameters,
         );
-    }, [allParameters, dashboardParameterReferences, areAllChartsLoaded]);
+    }, [allParameters, parameterReferences, areAllChartsLoaded]);
 
     // Apply defaults
     useEffect(() => {
@@ -69,11 +100,11 @@ export const Parameters: FC<Props> = ({ isEditMode }) => {
                     const defaultValue = Array.isArray(param.default)
                         ? param.default[0]
                         : param.default;
-                    handleParameterChange(key, defaultValue || null);
+                    onParameterChange(key, defaultValue || null);
                 }
             });
         }
-    }, [parameterValues, parameters, handleParameterChange]);
+    }, [parameterValues, parameters, onParameterChange]);
 
     if (isEditMode) {
         return null;
@@ -132,10 +163,10 @@ export const Parameters: FC<Props> = ({ isEditMode }) => {
                         isLoading={isLoading || !areAllChartsLoaded}
                         isError={isError}
                         parameterValues={parameterValues}
-                        onParameterChange={handleParameterChange}
+                        onParameterChange={onParameterChange}
                         size="xs"
                         showClearAll={selectedParametersCount > 0}
-                        onClearAll={clearAllParameters}
+                        onClearAll={onClearAll}
                     />
                 </Box>
             </Menu.Dropdown>
