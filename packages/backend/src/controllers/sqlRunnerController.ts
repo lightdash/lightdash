@@ -433,7 +433,7 @@ export class SqlRunnerController extends BaseController {
 
         const virtualViewName = await this.services
             .getProjectService()
-            .createVirtualView(req.user!, projectUuid, {
+            .createVirtualView(req.account!, projectUuid, {
                 name,
                 sql,
                 columns,
@@ -458,7 +458,7 @@ export class SqlRunnerController extends BaseController {
         this.setStatus(200);
         const { name: virtualViewName } = await this.services
             .getProjectService()
-            .updateVirtualView(req.user!, projectUuid, name, body);
+            .updateVirtualView(req.account!, projectUuid, name, body);
 
         return {
             status: 'ok',

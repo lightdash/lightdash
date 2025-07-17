@@ -25,6 +25,15 @@ const addBaseAbilities: EmbeddedAbilityBuilder = ({
         dashboardUuid,
         organizationUuid: organization.organizationUuid,
     });
+    can('view', 'Explore', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embedUser.content.projectUuid,
+    });
+    can('view', 'Project', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embedUser.content.projectUuid,
+    });
+
     return { embedUser, dashboardUuid, organization, builder };
 };
 

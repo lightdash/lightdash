@@ -80,7 +80,7 @@ declare global {
                 projectPermissions: ProjectPermission[],
             ): Chainable<Element>;
 
-            loginWithEmail: (email: string) => Chainable<Element>;
+            loginWithEmail(email: string): Chainable<Element>;
 
             getApiToken(): Chainable<string>;
 

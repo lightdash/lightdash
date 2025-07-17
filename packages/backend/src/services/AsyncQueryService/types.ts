@@ -1,25 +1,23 @@
 import {
+    Account,
     DownloadFileType,
     GroupByColumn,
-    ItemsMap,
     MetricQuery,
     PivotConfig,
     SortBy,
     ValuesColumn,
     type CacheMetadata,
     type DashboardFilters,
-    type DateGranularity,
     type DateZoom,
     type Filters,
     type PivotIndexColum,
     type QueryExecutionContext,
     type ResultsPaginationArgs,
-    type SessionUser,
     type SortField,
 } from '@lightdash/common';
 
 export type CommonAsyncQueryArgs = {
-    user: SessionUser;
+    account: Account;
     projectUuid: string;
     invalidateCache?: boolean;
     context: QueryExecutionContext;
