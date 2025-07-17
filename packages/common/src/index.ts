@@ -133,6 +133,7 @@ import type {
     EmbedUrl,
 } from './ee';
 import { type AnyType } from './types/any';
+import { type ApiGetProjectParametersResults } from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
@@ -924,6 +925,7 @@ type ApiResults =
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
+    | ApiGetProjectParametersResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results'];
 

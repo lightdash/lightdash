@@ -280,6 +280,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     sql: 'SELECT * FROM test',
                     fields: {},
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -359,6 +360,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     sql: 'SELECT * FROM test',
                     fields: {},
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -443,6 +445,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: true,
                     sql: 'SELECT * FROM test',
                     fields: {},
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -901,6 +904,7 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     originalColumns: mockOriginalColumns,
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -947,6 +951,7 @@ describe('AsyncQueryService', () => {
                     originalColumns: undefined,
                     dateZoom: undefined,
                     invalidateCache: false,
+                    missingParameterReferences: [],
                 };
                 const requestParameters = { query: metricQueryMock };
                 await service.executeAsyncQuery(args, requestParameters);
@@ -986,6 +991,7 @@ describe('AsyncQueryService', () => {
                     originalColumns: undefined,
                     dateZoom: undefined,
                     invalidateCache: false,
+                    missingParameterReferences: [],
                 };
                 const requestParameters = { query: metricQueryMock };
                 const warehouseCredentials = warehouseClientMock.credentials;

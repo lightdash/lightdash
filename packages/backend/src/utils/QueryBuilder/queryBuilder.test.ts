@@ -742,7 +742,7 @@ describe('Query builder', () => {
             });
 
             expect(result.query).toContain(
-                'CASE WHEN active = \'active\' THEN "table1".dim1 ELSE NULL END',
+                "CASE WHEN 'active' = 'active' THEN \"table1\".dim1 ELSE NULL END",
             );
         });
 
@@ -772,7 +772,7 @@ describe('Query builder', () => {
             });
 
             expect(result.query).toContain(
-                '("table1".shared) = ("table2".shared) AND active = \'active\'',
+                '("table1".shared) = ("table2".shared) AND \'active\' = \'active\'',
             );
         });
     });
