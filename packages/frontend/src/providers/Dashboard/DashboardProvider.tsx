@@ -155,11 +155,19 @@ const DashboardProvider: React.FC<
     >({});
 
     const setParameter = useCallback(
-        (key: string, value: string | string[]) => {
-            setParameters((prev) => ({
-                ...prev,
-                [key]: value,
-            }));
+        (key: string, value: string | string[] | null) => {
+            if (value === null) {
+                setParameters((prev) => {
+                    const newParams = { ...prev };
+                    delete newParams[key];
+                    return newParams;
+                });
+            } else {
+                setParameters((prev) => ({
+                    ...prev,
+                    [key]: value,
+                }));
+            }
         },
         [],
     );
