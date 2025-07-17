@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    getParameterReferences,
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     MAX_SAFE_INTEGER,
@@ -139,6 +140,10 @@ export const ContentPanel: FC = () => {
         [],
     );
 
+    const parameterReferences = useMemo(() => {
+        return new Set(getParameterReferences(sql));
+    }, [sql]);
+
     const clearAllParameters = useCallback(() => {
         setParameterValues({});
     }, []);
@@ -165,13 +170,11 @@ export const ContentPanel: FC = () => {
                     sql: sqlToUse,
                     limit,
                     projectUuid,
-                    parameterValues: {
-                        table_where: '1',
-                    },
+                    parameterValues,
                 }),
             );
         },
-        [dispatch, projectUuid, limit],
+        [dispatch, projectUuid, limit, parameterValues],
     );
 
     useEffect(() => {
@@ -476,6 +479,7 @@ export const ContentPanel: FC = () => {
                         <Group spacing="xs">
                             <Parameters
                                 isEditMode={false}
+                                parameterReferences={parameterReferences}
                                 parameterValues={parameterValues}
                                 onParameterChange={handleParameterChange}
                                 onClearAll={clearAllParameters}
