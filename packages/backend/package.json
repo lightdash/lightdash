@@ -50,6 +50,7 @@
         "@langchain/openai": "^0.4.2",
         "@lightdash/common": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
+        "@node-oauth/oauth2-server": "^5.2.0",
         "@octokit/app": "^14.0.2",
         "@octokit/auth-app": "^6.0.3",
         "@octokit/auth-token": "^4.0.0",
