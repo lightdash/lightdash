@@ -93,4 +93,9 @@ export type DashboardContextType = {
     requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
+    parameters: Record<string, string | string[]>;
+    setParameter: (key: string, value: string | string[]) => void;
+    dashboardParameterReferences: Set<string>;
+    addParameterReferences: (tileUuid: string, references: string[]) => void;
+    areAllChartsLoaded: boolean;
 };

@@ -22,6 +22,7 @@ type ParameterSelectionProps = {
     onClearAll?: () => void;
     cols?: number;
     projectUuid?: string;
+    loadingMessage?: string;
 };
 
 export const ParameterSelection: FC<ParameterSelectionProps> = ({

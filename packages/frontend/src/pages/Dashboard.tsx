@@ -23,7 +23,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
-import { Parameters } from '../features/parameters';
+import { Parameters, useDashboardParameterState } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -89,6 +89,14 @@ const Dashboard: FC = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const dashboardParameterReferences = useDashboardContext(
+        (c) => c.dashboardParameterReferences,
+    );
+    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+
+    // Parameter state management for the Parameters component
+    const { parameterValues, handleParameterChange, clearAllParameters } =
+        useDashboardParameterState();
 
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -663,7 +671,16 @@ const Dashboard: FC = () => {
                     {/* DateZoom section will adjust width dynamically */}
                     {hasDashboardTiles && (
                         <Group spacing="xs" style={{ marginLeft: 'auto' }}>
-                            <Parameters isEditMode={isEditMode} />
+                            <Parameters
+                                isEditMode={isEditMode}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onClearAll={clearAllParameters}
+                                parameterReferences={
+                                    dashboardParameterReferences
+                                }
+                                areAllChartsLoaded={areAllChartsLoaded}
+                            />
                             <DateZoom isEditMode={isEditMode} />
                         </Group>
                     )}
