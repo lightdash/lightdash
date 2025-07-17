@@ -114,6 +114,7 @@ export const fromSession = (
     const organization: AccountOrganization = {
         organizationUuid,
         name: organizationName,
+        createdAt: organizationCreatedAt,
     };
 
     return createAccount({

@@ -100,7 +100,7 @@ export class RunViewChartQueryController extends BaseController {
         const results: ApiQueryResults = await this.services
             .getProjectService()
             .runUnderlyingDataQuery(
-                req.user!,
+                req.account!,
                 metricQuery,
                 projectUuid,
                 exploreId,
@@ -170,7 +170,7 @@ export class RunViewChartQueryController extends BaseController {
         const results: ApiQueryResults = await this.services
             .getProjectService()
             .runExploreQuery(
-                req.user!,
+                req.account!,
                 metricQuery,
                 projectUuid,
                 exploreId,

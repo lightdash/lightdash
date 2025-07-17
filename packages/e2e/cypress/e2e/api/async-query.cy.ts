@@ -306,5 +306,11 @@ describe('Async Query API', () => {
                 });
             });
         });
+
+        it('should execute async query and get all results paged using JWT authentication', () => {
+            cy.getJwtToken(projectUuid).then((jwt) => {
+                runAsyncQueryTest(SEED_PROJECT.project_uuid, jwt);
+            });
+        });
     });
 });

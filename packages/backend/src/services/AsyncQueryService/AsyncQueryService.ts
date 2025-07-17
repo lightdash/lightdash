@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     addDashboardFiltersToMetricQuery,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
@@ -9,6 +10,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     type ApiGetAsyncQueryResults,
+    assertIsAccountWithOrg,
     assertUnreachable,
     CompiledDimension,
     CompileError,
@@ -38,7 +40,6 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
-    getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
     GroupByColumn,
@@ -49,7 +50,6 @@ import {
     isDateItem,
     isField,
     isMetric,
-    isUserWithOrg,
     isVizTableConfig,
     ItemsMap,
     JobPriority,
@@ -73,7 +73,6 @@ import {
     S3Error,
     SCHEDULER_TASKS,
     SchedulerFormat,
-    SessionUser,
     sleep,
     SortBy,
     type SpaceShare,
@@ -176,7 +175,7 @@ export class AsyncQueryService extends ProjectService {
 
     // ! Duplicate of SavedSqlService.hasAccess
     private async hasAccess(
-        user: SessionUser,
+        account: Account,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
         {
             spaceUuid,
@@ -186,11 +185,11 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<{ hasAccess: boolean; userAccess: SpaceShare | undefined }> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+            account.user.id,
             spaceUuid,
         );
 
-        const hasPermission = user.ability.can(
+        const hasPermission = account.user.ability.can(
             action,
             subject('SavedChart', {
                 organizationUuid,
@@ -208,7 +207,7 @@ export class AsyncQueryService extends ProjectService {
 
     // ! Duplicate of SavedSqlService.hasSavedChartAccess
     private async hasSavedChartAccess(
-        user: SessionUser,
+        account: Account,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
         savedChart: {
             project: Pick<Project, 'projectUuid'>;
@@ -216,7 +215,7 @@ export class AsyncQueryService extends ProjectService {
             space: Pick<SpaceSummary, 'uuid'>;
         },
     ) {
-        return this.hasAccess(user, action, {
+        return this.hasAccess(account, action, {
             spaceUuid: savedChart.space.uuid,
             projectUuid: savedChart.project.projectUuid,
             organizationUuid: savedChart.organization.organizationUuid,
@@ -302,7 +301,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async getResultsPageFromWarehouse(
-        user: SessionUser,
+        account: Account,
         queryHistory: QueryHistory,
         page: number,
         pageSize: number,
@@ -314,10 +313,11 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseConnection = await this._getWarehouseClient(
             queryHistory.projectUuid,
-            await this.getWarehouseCredentials(
-                queryHistory.projectUuid,
-                user.userUuid,
-            ),
+            await this.getWarehouseCredentials({
+                projectUuid: queryHistory.projectUuid,
+                userId: account.user.id,
+                isSessionUser: account.isSessionUser(),
+            }),
         );
 
         return warehouseConnection.warehouseClient.getAsyncQueryResults(
@@ -333,11 +333,11 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async cancelAsyncQuery({
-        user,
+        account,
         projectUuid,
         queryUuid,
     }: {
-        user: SessionUser;
+        account: Account;
         projectUuid: string;
         queryUuid: string;
     }): Promise<void> {
@@ -345,7 +345,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
         );
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -356,22 +356,16 @@ export class AsyncQueryService extends ProjectService {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
-            user.userUuid,
+            account,
         );
 
-        if (user.userUuid !== queryHistory.createdByUserUuid) {
-            throw new ForbiddenError(
-                'User is not allowed to cancel this query',
-            );
-        }
-
         await this.queryHistoryModel.update(
-            queryUuid,
+            queryHistory.queryUuid,
             projectUuid,
             {
                 status: QueryHistoryStatus.CANCELLED,
             },
-            user.userUuid,
+            account,
         );
 
         // Track cancelled query in Prometheus
@@ -383,15 +377,14 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async getAsyncQueryResults({
-        user,
+        account,
         projectUuid,
         queryUuid,
         page = 1,
         pageSize,
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -399,22 +392,16 @@ export class AsyncQueryService extends ProjectService {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
-            user.userUuid,
+            account,
         );
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (user.userUuid !== queryHistory.createdByUserUuid) {
-            throw new ForbiddenError(
-                'User is not allowed to fetch results for this query',
-            );
         }
 
         const {
@@ -489,7 +476,7 @@ export class AsyncQueryService extends ProjectService {
                           formatter,
                       )
                     : this.getResultsPageFromWarehouse(
-                          user,
+                          account,
                           queryHistory,
                           page,
                           defaultedPageSize,
@@ -509,8 +496,7 @@ export class AsyncQueryService extends ProjectService {
             pageCount,
         );
 
-        this.analytics.track({
-            userId: user.userUuid,
+        this.analytics.trackAccount(account, {
             event: 'results_cache.read',
             properties: {
                 queryId: queryHistory.queryUuid,
@@ -523,8 +509,7 @@ export class AsyncQueryService extends ProjectService {
             },
         });
 
-        this.analytics.track({
-            userId: user.userUuid,
+        this.analytics.trackAccount(account, {
             event: 'query_page.fetched',
             properties: {
                 queryId: queryHistory.queryUuid,
@@ -556,7 +541,7 @@ export class AsyncQueryService extends ProjectService {
                 {
                     default_page_size: defaultedPageSize,
                 },
-                user.userUuid,
+                account,
             );
         }
 
@@ -609,17 +594,16 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async getResultsStream({
-        user,
+        account,
         projectUuid,
         queryUuid,
     }: {
-        user: SessionUser;
+        account: Account;
         projectUuid: string;
         queryUuid: string;
     }): Promise<Readable> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -627,22 +611,16 @@ export class AsyncQueryService extends ProjectService {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
-            user.userUuid,
+            account,
         );
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (user.userUuid !== queryHistory.createdByUserUuid) {
-            throw new ForbiddenError(
-                'User is not allowed to download results for this query',
-            );
         }
 
         const { status, resultsFileName } = queryHistory;
@@ -668,7 +646,7 @@ export class AsyncQueryService extends ProjectService {
 
     // Note: This method should only be used in scheduler worker. It may cause API timeouts.
     async downloadSyncQueryResults(args: DownloadAsyncQueryResultsArgs) {
-        const { queryUuid, projectUuid, user } = args;
+        const { queryUuid, projectUuid, account } = args;
         // Recursive function that waits for query results to be ready
         const pollForAsyncChartResults = async (
             backoffMs: number = 500,
@@ -676,7 +654,7 @@ export class AsyncQueryService extends ProjectService {
             const queryHistory = await this.queryHistoryModel.get(
                 queryUuid,
                 projectUuid,
-                user.userUuid,
+                account,
             );
             const { status } = queryHistory;
 
@@ -707,9 +685,9 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async download(args: DownloadAsyncQueryResultsArgs) {
-        const { user, projectUuid, onlyRaw, type } = args;
+        const { account, projectUuid, onlyRaw, type } = args;
         const baseAnalyticsProperties: DownloadCsv['properties'] = {
-            organizationId: user.organizationUuid,
+            organizationId: account.organization.organizationUuid,
             projectId: projectUuid,
             fileType:
                 type === DownloadFileType.XLSX
@@ -718,23 +696,23 @@ export class AsyncQueryService extends ProjectService {
             values: onlyRaw ? 'raw' : 'formatted',
             storage: this.s3Client.isEnabled() ? 's3' : 'local',
         };
-        this.analytics.track({
+        this.analytics.trackAccount(account, {
             event: 'download_results.started',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: baseAnalyticsProperties,
         });
         try {
             const downloadResult = await this.downloadAsyncQueryResults(args);
-            this.analytics.track({
+            this.analytics.trackAccount(account, {
                 event: 'download_results.completed',
-                userId: user.userUuid,
+                userId: account.user.id,
                 properties: baseAnalyticsProperties,
             });
             return downloadResult;
         } catch (error) {
-            this.analytics.track({
+            this.analytics.trackAccount(account, {
                 event: 'download_results.error',
-                userId: user.userUuid,
+                userId: account.user.id,
                 properties: {
                     ...baseAnalyticsProperties,
                     error: getErrorMessage(error),
@@ -745,7 +723,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async downloadAsyncQueryResults({
-        user,
+        account,
         projectUuid,
         queryUuid,
         type,
@@ -761,9 +739,7 @@ export class AsyncQueryService extends ProjectService {
         | ApiDownloadAsyncQueryResultsAsCsv
         | ApiDownloadAsyncQueryResultsAsXlsx
     > {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -771,22 +747,16 @@ export class AsyncQueryService extends ProjectService {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
-            user.userUuid,
+            account,
         );
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (user.userUuid !== queryHistory.createdByUserUuid) {
-            throw new ForbiddenError(
-                'User is not allowed to download results for this query',
-            );
         }
 
         const { status, resultsFileName, fields, columns } = queryHistory;
@@ -1162,7 +1132,9 @@ export class AsyncQueryService extends ProjectService {
      * TODO: Remove once feature flag `WorkerQueryExecution` is completely removed as this is duplicated in SchedulerTask.runAsyncWarehouseQuery
      */
     public async runAsyncWarehouseQuery({
-        userUuid,
+        userId,
+        isRegisteredUser,
+        isSessionUser,
         projectUuid,
         query,
         fieldsMap,
@@ -1186,11 +1158,22 @@ export class AsyncQueryService extends ProjectService {
             | CreateWarehouseCredentials['type']
             | undefined;
 
+        const analyticsIdentity = isRegisteredUser
+            ? { userId }
+            : { anonymousId: 'embed' };
+        const queryHistoryAccount = {
+            isRegisteredUser: () => isRegisteredUser,
+            user: {
+                id: userId,
+            },
+        };
+
         try {
-            const warehouseCredentials = await this.getWarehouseCredentials(
+            const warehouseCredentials = await this.getWarehouseCredentials({
                 projectUuid,
-                userUuid,
-            );
+                userId,
+                isSessionUser,
+            });
 
             warehouseCredentialsType = warehouseCredentials.type;
 
@@ -1223,7 +1206,7 @@ export class AsyncQueryService extends ProjectService {
             const createdAt = new Date();
             const newExpiresAt = this.getCacheExpiresAt(createdAt);
             this.analytics.track({
-                userId: userUuid,
+                ...analyticsIdentity,
                 event: 'results_cache.create',
                 properties: {
                     projectId: projectUuid,
@@ -1231,6 +1214,7 @@ export class AsyncQueryService extends ProjectService {
                     totalRowCount: null,
                     createdAt,
                     expiresAt: newExpiresAt,
+                    ...(isRegisteredUser ? undefined : { externalId: userId }),
                 },
             });
             const {
@@ -1251,7 +1235,7 @@ export class AsyncQueryService extends ProjectService {
             });
 
             this.analytics.track({
-                userId: userUuid,
+                ...analyticsIdentity,
                 event: 'query.ready',
                 properties: {
                     queryId: queryHistoryUuid,
@@ -1263,6 +1247,7 @@ export class AsyncQueryService extends ProjectService {
                         Object.keys(fieldsMap).length,
                     totalRowCount: pivotDetails?.totalRows ?? totalRows,
                     isPivoted: pivotDetails !== null,
+                    ...(isRegisteredUser ? undefined : { externalId: userId }),
                 },
             });
 
@@ -1271,7 +1256,7 @@ export class AsyncQueryService extends ProjectService {
                 await stream.close();
 
                 this.analytics.track({
-                    userId: userUuid,
+                    ...analyticsIdentity,
                     event: 'results_cache.write',
                     properties: {
                         queryId: queryHistoryUuid,
@@ -1280,6 +1265,9 @@ export class AsyncQueryService extends ProjectService {
                         totalRowCount: pivotDetails?.totalRows ?? totalRows,
                         pivotTotalColumnCount: pivotDetails?.totalColumnCount,
                         isPivoted: pivotDetails !== null,
+                        ...(isRegisteredUser
+                            ? undefined
+                            : { externalId: userId }),
                     },
                 });
             }
@@ -1307,7 +1295,7 @@ export class AsyncQueryService extends ProjectService {
                     columns,
                     original_columns: originalColumns,
                 },
-                userUuid,
+                queryHistoryAccount,
             );
 
             // Track successful query in Prometheus
@@ -1318,12 +1306,13 @@ export class AsyncQueryService extends ProjectService {
             );
         } catch (e) {
             this.analytics.track({
-                userId: userUuid,
+                ...analyticsIdentity,
                 event: 'query.error',
                 properties: {
                     queryId: queryHistoryUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseCredentialsType,
+                    ...(isRegisteredUser ? undefined : { externalId: userId }),
                 },
             });
             await this.queryHistoryModel.update(
@@ -1333,7 +1322,7 @@ export class AsyncQueryService extends ProjectService {
                     status: QueryHistoryStatus.ERROR,
                     error: getErrorMessage(e),
                 },
-                userUuid,
+                queryHistoryAccount,
             );
 
             // Track error query in Prometheus
@@ -1349,7 +1338,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async prepareMetricQueryAsyncQueryArgs({
-        user,
+        account,
         metricQuery,
         dateZoom,
         explore,
@@ -1362,25 +1351,18 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
     }) {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid: user.organizationUuid,
-                userUuid: user.userUuid,
-            });
+        assertIsAccountWithOrg(account);
 
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes({ account });
 
         const { enabled: useExperimentalMetricCtes } =
             await this.featureFlagModel.get({
-                user,
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                    organizationName: account.organization.name,
+                },
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
@@ -1455,7 +1437,7 @@ export class AsyncQueryService extends ProjectService {
             {},
             async (span) => {
                 const {
-                    user,
+                    account,
                     projectUuid,
                     context,
                     dateZoom,
@@ -1469,17 +1451,13 @@ export class AsyncQueryService extends ProjectService {
                 } = args;
 
                 try {
-                    if (!isUserWithOrg(user)) {
-                        throw new ForbiddenError(
-                            'User is not part of an organization',
-                        );
-                    }
+                    assertIsAccountWithOrg(account);
 
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
 
                     if (
-                        user.ability.cannot(
+                        account.user.ability.cannot(
                             'view',
                             subject('Project', {
                                 organizationUuid,
@@ -1492,10 +1470,11 @@ export class AsyncQueryService extends ProjectService {
 
                     // Once we remove the feature flag we won't need to fetch the credentials here, they will only be fetched in the scheduler task
                     const warehouseCredentials =
-                        await this.getWarehouseCredentials(
+                        await this.getWarehouseCredentials({
                             projectUuid,
-                            user.userUuid,
-                        );
+                            userId: account.user.id,
+                            isSessionUser: account.isSessionUser(),
+                        });
 
                     const warehouseCredentialsType = warehouseCredentials.type;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
@@ -1529,12 +1508,12 @@ export class AsyncQueryService extends ProjectService {
 
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
-                            user.organizationUuid,
+                            account.organization.organizationUuid,
                         );
 
                     if (!onboardingRecord.ranQueryAt) {
                         await this.onboardingModel.update(
-                            user.organizationUuid,
+                            account.organization.organizationUuid,
                             {
                                 ranQueryAt: new Date(),
                             },
@@ -1557,10 +1536,9 @@ export class AsyncQueryService extends ProjectService {
                     );
 
                     const { queryUuid: queryHistoryUuid } =
-                        await this.queryHistoryModel.create({
+                        await this.queryHistoryModel.create(account, {
                             projectUuid,
                             organizationUuid,
-                            createdByUserUuid: user.userUuid,
                             context,
                             fields: fieldsMap,
                             compiledSql: query,
@@ -1570,8 +1548,7 @@ export class AsyncQueryService extends ProjectService {
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
 
-                    this.analytics.track({
-                        userId: user.userUuid,
+                    this.analytics.trackAccount(account, {
                         event: 'query.executed',
                         properties: {
                             organizationId: organizationUuid,
@@ -1619,7 +1596,7 @@ export class AsyncQueryService extends ProjectService {
                                     resultsCache.pivotTotalColumnCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
                             },
-                            user.userUuid,
+                            account,
                         );
 
                         // Track successful query in Prometheus
@@ -1642,7 +1619,12 @@ export class AsyncQueryService extends ProjectService {
                     const isWorkerQueryExecutionEnabled =
                         await isFeatureFlagEnabled(
                             FeatureFlags.WorkerQueryExecution,
-                            user,
+                            {
+                                userUuid: account.user.id,
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                organizationName: account.organization.name,
+                            },
                             { throwOnTimeout: false },
                             false, // default value
                         );
@@ -1674,7 +1656,10 @@ export class AsyncQueryService extends ProjectService {
                         await this.schedulerClient.scheduleTask(
                             SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                             {
-                                userUuid: user.userUuid,
+                                userUuid: account.user.id,
+                                userId: account.user.id,
+                                isSessionUser: account.isSessionUser(),
+                                isRegisteredUser: account.isRegisteredUser(),
                                 projectUuid,
                                 organizationUuid,
                                 queryTags,
@@ -1693,7 +1678,9 @@ export class AsyncQueryService extends ProjectService {
                             `Executing query ${queryHistoryUuid} in the main loop`,
                         );
                         void this.runAsyncWarehouseQuery({
-                            userUuid: user.userUuid,
+                            userId: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                            isSessionUser: account.isSessionUser(),
                             projectUuid,
                             query,
                             fieldsMap,
@@ -1727,7 +1714,7 @@ export class AsyncQueryService extends ProjectService {
 
     // execute
     async executeAsyncMetricQuery({
-        user,
+        account,
         projectUuid,
         dateZoom,
         context,
@@ -1735,16 +1722,15 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         parameters,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
 
         if (
-            user.ability.cannot(
-                'manage',
+            account.user.ability.cannot(
+                'view',
                 subject('Explore', { organizationUuid, projectUuid }),
             )
         ) {
@@ -1753,7 +1739,7 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'manage',
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
@@ -1769,22 +1755,23 @@ export class AsyncQueryService extends ProjectService {
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: user.userUuid,
+            user_uuid: account.user.id,
             explore_name: metricQuery.exploreName,
             query_context: context,
         };
 
         const explore = await this.getExplore(
-            user,
+            account,
             projectUuid,
             metricQuery.exploreName,
             organizationUuid,
         );
 
-        const warehouseCredentials = await this.getWarehouseCredentials(
+        const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
-            user.userUuid,
-        );
+            userId: account.user.id,
+            isSessionUser: account.isSessionUser(),
+        });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -1797,7 +1784,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
         } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
+            account,
             metricQuery,
             dateZoom,
             explore,
@@ -1807,7 +1794,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
-                user,
+                account,
                 metricQuery,
                 projectUuid,
                 explore,
@@ -1834,7 +1821,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncSavedChartQuery({
-        user,
+        account,
         projectUuid,
         chartUuid,
         versionUuid,
@@ -1844,9 +1831,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User does not belong to an organization');
-        }
+        assertIsAccountWithOrg(account);
 
         const {
             uuid: savedChartUuid,
@@ -1867,12 +1852,12 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+            account.user.id,
             space.uuid,
         );
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('SavedChart', {
                     organizationUuid: savedChartOrganizationUuid,
@@ -1881,7 +1866,7 @@ export class AsyncQueryService extends ProjectService {
                     access,
                 }),
             ) ||
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid: savedChartOrganizationUuid,
@@ -1894,7 +1879,7 @@ export class AsyncQueryService extends ProjectService {
 
         await this.analyticsModel.addChartViewEvent(
             savedChartUuid,
-            user.userUuid,
+            account.user.id,
         );
 
         const requestParameters: ExecuteAsyncSavedChartRequestParams = {
@@ -1917,23 +1902,24 @@ export class AsyncQueryService extends ProjectService {
         const queryTags: RunQueryTags = {
             organization_uuid: savedChartOrganizationUuid,
             project_uuid: projectUuid,
-            user_uuid: user.userUuid,
+            user_uuid: account.user.id,
             chart_uuid: chartUuid,
             explore_name: savedChartTableName,
             query_context: context,
         };
 
         const explore = await this.getExplore(
-            user,
+            account,
             projectUuid,
             savedChartTableName,
             savedChartOrganizationUuid,
         );
 
-        const warehouseCredentials = await this.getWarehouseCredentials(
+        const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
-            user.userUuid,
-        );
+            userId: account.user.id,
+            isSessionUser: account.isSessionUser(),
+        });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -1946,7 +1932,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
         } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
+            account,
             metricQuery: metricQueryWithLimit,
             explore,
             warehouseSqlBuilder,
@@ -1955,7 +1941,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
-                user,
+                account,
                 projectUuid,
                 explore,
                 context,
@@ -1981,7 +1967,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncDashboardChartQuery({
-        user,
+        account,
         projectUuid,
         chartUuid,
         dashboardUuid,
@@ -1993,9 +1979,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
 
         const savedChart = await this.savedChartModel.get(chartUuid);
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
@@ -2008,7 +1992,7 @@ export class AsyncQueryService extends ProjectService {
         const [space, explore] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
             this.getExplore(
-                user,
+                account,
                 projectUuid,
                 savedChart.tableName,
                 organizationUuid,
@@ -2016,12 +2000,12 @@ export class AsyncQueryService extends ProjectService {
         ]);
 
         const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+            account.user.id,
             space.uuid,
         );
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('SavedChart', {
                     organizationUuid,
@@ -2030,7 +2014,7 @@ export class AsyncQueryService extends ProjectService {
                     access,
                 }),
             ) ||
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
@@ -2043,7 +2027,7 @@ export class AsyncQueryService extends ProjectService {
 
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
-            user.userUuid,
+            account.user.id,
         );
 
         const tables = Object.keys(explore.tables);
@@ -2128,17 +2112,18 @@ export class AsyncQueryService extends ProjectService {
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: user.userUuid,
+            user_uuid: account.user.id,
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
             explore_name: explore.name,
             query_context: context,
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials(
+        const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
-            user.userUuid,
-        );
+            userId: account.user.id,
+            isSessionUser: account.isSessionUser(),
+        });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -2146,7 +2131,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { sql, fields, parameterReferences, missingParameterReferences } =
             await this.prepareMetricQueryAsyncQueryArgs({
-                user,
+                account,
                 metricQuery: metricQueryWithLimit,
                 explore,
                 dateZoom,
@@ -2156,7 +2141,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
-                user,
+                account,
                 projectUuid,
                 explore,
                 metricQuery: metricQueryWithLimit,
@@ -2183,7 +2168,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncUnderlyingDataQuery({
-        user,
+        account,
         projectUuid,
         underlyingDataSourceQueryUuid,
         filters,
@@ -2194,15 +2179,14 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('UnderlyingData', { organizationUuid, projectUuid }),
             )
@@ -2214,13 +2198,13 @@ export class AsyncQueryService extends ProjectService {
             await this.queryHistoryModel.get(
                 underlyingDataSourceQueryUuid,
                 projectUuid,
-                user.userUuid,
+                account,
             );
 
         const { exploreName } = metricQuery;
 
         const explore = await this.getExplore(
-            user,
+            account,
             projectUuid,
             exploreName,
             organizationUuid,
@@ -2288,7 +2272,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: user.userUuid,
+            user_uuid: account.user.id,
             explore_name: exploreName,
             query_context: context,
         };
@@ -2308,10 +2292,11 @@ export class AsyncQueryService extends ProjectService {
             additionalMetrics: [],
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials(
+        const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
-            user.userUuid,
-        );
+            userId: account.user.id,
+            isSessionUser: account.isSessionUser(),
+        });
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -2324,7 +2309,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
         } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
+            account,
             metricQuery: underlyingDataMetricQuery,
             explore,
             dateZoom,
@@ -2335,7 +2320,7 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
                 {
-                    user,
+                    account,
                     metricQuery: underlyingDataMetricQuery,
                     projectUuid,
                     explore,
@@ -2362,7 +2347,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncSqlQuery({
-        user,
+        account,
         projectUuid,
         sql,
         context,
@@ -2371,16 +2356,12 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User does not belong to an organization');
-        }
-
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'manage',
                 subject('SqlRunner', {
                     organizationUuid,
@@ -2400,7 +2381,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
-            user,
+            account,
             context,
             projectUuid,
             organizationUuid,
@@ -2414,7 +2395,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
-                user,
+                account,
                 projectUuid,
                 explore: virtualView,
                 queryTags,
@@ -2440,7 +2421,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async prepareSqlChartAsyncQueryArgs({
-        user,
+        account,
         projectUuid,
         organizationUuid,
         sql,
@@ -2452,7 +2433,7 @@ export class AsyncQueryService extends ProjectService {
         tileUuid,
         parameters,
     }: {
-        user: SessionUser;
+        account: Account;
         projectUuid: string;
         organizationUuid: string;
         sql: string;
@@ -2466,13 +2447,17 @@ export class AsyncQueryService extends ProjectService {
     }) {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+            await this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isSessionUser: account.authentication.type === 'session',
+            }),
         );
 
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: user.userUuid,
+            user_uuid: account.user.id,
             query_context: context,
         };
 
@@ -2659,10 +2644,10 @@ export class AsyncQueryService extends ProjectService {
             throw new Error('Either chartUuid or slug must be provided');
         }
 
-        const { user, projectUuid, context, invalidateCache, limit } = args;
+        const { account, projectUuid, context, invalidateCache, limit } = args;
 
         const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-            user,
+            account,
             'view',
             sqlChart,
         );
@@ -2682,7 +2667,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
-            user,
+            account,
             context,
             projectUuid: sqlChart.project.projectUuid,
             organizationUuid: sqlChart.organization.organizationUuid,
@@ -2697,7 +2682,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
-                user,
+                account,
                 projectUuid,
                 explore: virtualView,
                 queryTags,
@@ -2736,7 +2721,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const {
-            user,
+            account,
             projectUuid,
             tileUuid,
             context,
@@ -2747,7 +2732,7 @@ export class AsyncQueryService extends ProjectService {
         } = args;
 
         const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-            user,
+            account,
             'view',
             savedChart,
         );
@@ -2768,7 +2753,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
-            user,
+            account,
             context,
             projectUuid: savedChart.project.projectUuid,
             organizationUuid: savedChart.organization.organizationUuid,
@@ -2786,7 +2771,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
-                user,
+                account,
                 projectUuid,
                 explore: virtualView,
                 queryTags,
