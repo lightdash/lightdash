@@ -1173,31 +1173,33 @@ export class AiAgentService {
                         message.ai_prompt_uuid,
                     );
 
-                messages.push({
-                    role: 'assistant',
-                    content: toolCallsAndResults.map(
-                        (toolCallAndResult) =>
-                            ({
-                                type: 'tool-call',
-                                toolCallId: toolCallAndResult.tool_call_id,
-                                toolName: toolCallAndResult.tool_name,
-                                args: toolCallAndResult.tool_args,
-                            } satisfies ToolCallPart),
-                    ),
-                } satisfies CoreAssistantMessage);
+                if (toolCallsAndResults.length > 0) {
+                    messages.push({
+                        role: 'assistant',
+                        content: toolCallsAndResults.map(
+                            (toolCallAndResult) =>
+                                ({
+                                    type: 'tool-call',
+                                    toolCallId: toolCallAndResult.tool_call_id,
+                                    toolName: toolCallAndResult.tool_name,
+                                    args: toolCallAndResult.tool_args,
+                                } satisfies ToolCallPart),
+                        ),
+                    } satisfies CoreAssistantMessage);
 
-                messages.push({
-                    role: 'tool',
-                    content: toolCallsAndResults.map(
-                        (toolCallAndResult) =>
-                            ({
-                                type: 'tool-result',
-                                toolCallId: toolCallAndResult.tool_call_id,
-                                toolName: toolCallAndResult.tool_name,
-                                result: toolCallAndResult.result,
-                            } satisfies ToolResultPart),
-                    ),
-                } satisfies CoreToolMessage);
+                    messages.push({
+                        role: 'tool',
+                        content: toolCallsAndResults.map(
+                            (toolCallAndResult) =>
+                                ({
+                                    type: 'tool-result',
+                                    toolCallId: toolCallAndResult.tool_call_id,
+                                    toolName: toolCallAndResult.tool_name,
+                                    result: toolCallAndResult.result,
+                                } satisfies ToolResultPart),
+                        ),
+                    } satisfies CoreToolMessage);
+                }
 
                 if (message.response) {
                     messages.push({

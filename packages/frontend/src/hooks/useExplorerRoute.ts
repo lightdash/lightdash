@@ -152,7 +152,6 @@ export const useExplorerRoute = () => {
         tableId: string | undefined;
     }>();
 
-    const dateZoom = useDateZoomGranularitySearch();
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
@@ -180,13 +179,7 @@ export const useExplorerRoute = () => {
                 { replace: true },
             );
         }
-    }, [
-        metricQuery,
-        navigate,
-        pathParams.projectUuid,
-        unsavedChartVersion,
-        dateZoom,
-    ]);
+    }, [metricQuery, navigate, pathParams.projectUuid, unsavedChartVersion]);
 
     useEffect(() => {
         if (!pathParams.tableId) {

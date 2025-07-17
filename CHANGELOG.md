@@ -1,3 +1,31 @@
+## [0.1822.4](https://github.com/lightdash/lightdash/compare/0.1822.3...0.1822.4) (2025-07-17)
+
+
+### Bug Fixes
+
+* fetch token from user warehouse ([#15807](https://github.com/lightdash/lightdash/issues/15807)) ([fc73cda](https://github.com/lightdash/lightdash/commit/fc73cda83523a1edeaedcf582674f7e51cbd0957))
+
+## [0.1822.3](https://github.com/lightdash/lightdash/compare/0.1822.2...0.1822.3) (2025-07-17)
+
+
+### Bug Fixes
+
+* prevent losing unsaved Explore state during network or back-end outages ([#15879](https://github.com/lightdash/lightdash/issues/15879)) ([44fb693](https://github.com/lightdash/lightdash/commit/44fb693173f30a1b6c79f6be7b46cf90ce00b4ce)), closes [#12447](https://github.com/lightdash/lightdash/issues/12447)
+
+## [0.1822.2](https://github.com/lightdash/lightdash/compare/0.1822.1...0.1822.2) (2025-07-17)
+
+
+### Bug Fixes
+
+* return 'NaT' for invalid timestamp formats ([#15881](https://github.com/lightdash/lightdash/issues/15881)) ([ef20aed](https://github.com/lightdash/lightdash/commit/ef20aeda9fcd38720ceee1459ba42a549292dbe1)), closes [#15880](https://github.com/lightdash/lightdash/issues/15880)
+
+## [0.1822.1](https://github.com/lightdash/lightdash/compare/0.1822.0...0.1822.1) (2025-07-17)
+
+
+### Bug Fixes
+
+* only add tool messages when toolCallsAndResults exist ([#15885](https://github.com/lightdash/lightdash/issues/15885)) ([9bc9430](https://github.com/lightdash/lightdash/commit/9bc9430619680f5e786738cc08eb4ffb228f9997))
+
 # [0.1822.0](https://github.com/lightdash/lightdash/compare/0.1821.1...0.1822.0) (2025-07-16)
 
 
