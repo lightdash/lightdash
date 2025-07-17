@@ -131,6 +131,11 @@ export function formatDate(
     convertToUTC: boolean = false,
 ): string {
     const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+
+    if (!momentDate.isValid()) {
+        return 'NaT';
+    }
+
     return momentDate.format(getDateFormat(timeInterval));
 }
 
@@ -140,6 +145,11 @@ export function formatTimestamp(
     convertToUTC: boolean = false,
 ): string {
     const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+
+    if (!momentDate.isValid()) {
+        return 'NaT';
+    }
+
     return momentDate.format(getTimeFormat(timeInterval));
 }
 
