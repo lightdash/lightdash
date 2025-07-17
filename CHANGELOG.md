@@ -1,3 +1,10 @@
+## [0.1822.4](https://github.com/lightdash/lightdash/compare/0.1822.3...0.1822.4) (2025-07-17)
+
+
+### Bug Fixes
+
+* fetch token from user warehouse ([#15807](https://github.com/lightdash/lightdash/issues/15807)) ([fc73cda](https://github.com/lightdash/lightdash/commit/fc73cda83523a1edeaedcf582674f7e51cbd0957))
+
 ## [0.1822.3](https://github.com/lightdash/lightdash/compare/0.1822.2...0.1822.3) (2025-07-17)
 
 
