@@ -124,6 +124,25 @@ export const ContentPanel: FC = () => {
         height: inputSectionHeight,
     } = useElementSize();
 
+    // Parameter state management for SQL Runner context
+    const [parameterValues, setParameterValues] = useState<
+        Record<string, string | string[] | null>
+    >({});
+
+    const handleParameterChange = useCallback(
+        (key: string, value: string | string[] | null) => {
+            setParameterValues((prev) => ({
+                ...prev,
+                [key]: value,
+            }));
+        },
+        [],
+    );
+
+    const clearAllParameters = useCallback(() => {
+        setParameterValues({});
+    }, []);
+
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),
     );
@@ -455,7 +474,12 @@ export const ContentPanel: FC = () => {
                             </Indicator>
                         </Group>
                         <Group spacing="xs">
-                            <Parameters isEditMode={false} />
+                            <Parameters
+                                isEditMode={false}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onClearAll={clearAllParameters}
+                            />
                             {activeEditorTab === EditorTabs.SQL && (
                                 <SqlQueryHistory />
                             )}
