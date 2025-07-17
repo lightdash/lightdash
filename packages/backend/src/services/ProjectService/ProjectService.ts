@@ -598,10 +598,18 @@ export class ProjectService extends BaseService {
             args.authenticationType === 'sso'
         ) {
             try {
-                const token = await this.userModel.getRefreshToken(
-                    userUuid,
-                    OpenIdIdentityIssuerType.SNOWFLAKE,
-                );
+                let { token } = args;
+
+                // We pass the refresh token for snowflake on args
+                // This is used on user warehouse credentials.
+                // If this is provided, use this instead of getting the refresh token from the openid table
+                if (token === undefined) {
+                    token = await this.userModel.getRefreshToken(
+                        userUuid,
+                        OpenIdIdentityIssuerType.SNOWFLAKE,
+                    );
+                }
+
                 this.logger.debug(
                     `Refreshing snowflake token for user ${userUuid}`,
                 );
