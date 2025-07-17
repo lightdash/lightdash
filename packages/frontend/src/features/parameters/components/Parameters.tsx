@@ -4,7 +4,7 @@ import {
     IconChevronUp,
     IconSettings,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterSelection, useParameters } from '../index';
@@ -52,18 +52,13 @@ export const Parameters: FC<Props> = ({
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
     const {
-        data: allParameters,
+        data: parameters,
         isLoading,
         isError,
-    } = useParameters(projectUuid, undefined);
+    } = useParameters(projectUuid, Array.from(parameterReferences));
 
     // Calculate selected parameters count
-    const selectedParametersCount = Object.values(parameterValues).filter(
-        (value) =>
-            value !== null &&
-            value !== '' &&
-            (!Array.isArray(value) || value.length > 0),
-    ).length;
+    const selectedParametersCount = Object.values(parameters ?? {}).length;
 
     // Filter out null values to match ParametersValuesMap type
     const filteredParameterValues = Object.entries(parameterValues).reduce(
@@ -75,30 +70,6 @@ export const Parameters: FC<Props> = ({
         },
         {} as Record<string, string | string[]>,
     );
-
-    // Filter parameters to only show those referenced by dashboard charts
-    const parameters = useMemo(() => {
-        if (!allParameters) return {};
-
-        // If no parameter references provided (standalone mode), show all parameters
-        if (!parameterReferences) return allParameters;
-
-        // If charts are still loading, show empty parameters for now
-        if (!areAllChartsLoaded) return {};
-
-        // If no parameters are referenced by charts, return empty
-        if (parameterReferences.size === 0) return {};
-
-        return Object.entries(allParameters).reduce(
-            (filtered, [key, param]) => {
-                if (parameterReferences.has(key)) {
-                    filtered[key] = param;
-                }
-                return filtered;
-            },
-            {} as typeof allParameters,
-        );
-    }, [allParameters, parameterReferences, areAllChartsLoaded]);
 
     // Apply defaults
     useEffect(() => {
