@@ -55,7 +55,7 @@ export const Parameters: FC<Props> = ({
         data: parameters,
         isLoading,
         isError,
-    } = useParameters(projectUuid, Array.from(parameterReferences));
+    } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     // Calculate selected parameters count
     const selectedParametersCount = Object.values(parameters ?? {}).length;
