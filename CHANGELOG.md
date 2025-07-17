@@ -1,3 +1,10 @@
+## [0.1822.3](https://github.com/lightdash/lightdash/compare/0.1822.2...0.1822.3) (2025-07-17)
+
+
+### Bug Fixes
+
+* prevent losing unsaved Explore state during network or back-end outages ([#15879](https://github.com/lightdash/lightdash/issues/15879)) ([44fb693](https://github.com/lightdash/lightdash/commit/44fb693173f30a1b6c79f6be7b46cf90ce00b4ce)), closes [#12447](https://github.com/lightdash/lightdash/issues/12447)
+
 ## [0.1822.2](https://github.com/lightdash/lightdash/compare/0.1822.1...0.1822.2) (2025-07-17)
 
 
