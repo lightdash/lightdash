@@ -2,7 +2,15 @@ import {
     type LightdashProjectParameter,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { Box, Group, SimpleGrid, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    SimpleGrid,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -81,7 +89,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     }
 
     return (
-        <>
+        <Stack>
             <SimpleGrid
                 cols={cols}
                 spacing="sm"
@@ -137,17 +145,20 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
             </SimpleGrid>
 
             {showClearAll && selectedParametersCount > 0 && onClearAll && (
-                <Box mt="md">
-                    <Text
-                        size={size}
-                        c="blue"
-                        style={{ cursor: 'pointer' }}
+                <Tooltip label="Clear all parameter values" position="bottom">
+                    <Button
+                        selfAlign="flex-end"
+                        variant="subtle"
+                        compact
+                        size="xs"
+                        color="gray"
                         onClick={onClearAll}
+                        style={{ alignSelf: 'flex-end' }}
                     >
-                        Clear All
-                    </Text>
-                </Box>
+                        Clear all
+                    </Button>
+                </Tooltip>
             )}
-        </>
+        </Stack>
     );
 };
