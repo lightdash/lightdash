@@ -1394,23 +1394,14 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
-        if (fullQuery.missingParameterReferences.size > 0) {
-            const missingParametersArray = Array.from(
-                fullQuery.missingParameterReferences,
-            );
-            throw new CompileError(
-                `Missing parameters: ${missingParametersArray.join(', ')}`,
-                {
-                    missingParameterReferences: missingParametersArray,
-                },
-            );
-        }
-
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
             warnings: fullQuery.warnings,
             parameterReferences: Array.from(fullQuery.parameterReferences),
+            missingParameterReferences: Array.from(
+                fullQuery.missingParameterReferences,
+            ),
         };
     }
 
@@ -1422,6 +1413,7 @@ export class AsyncQueryService extends ProjectService {
             fields: ItemsMap;
             sql: string; // SQL generated from metric query or provided by user
             originalColumns?: ResultColumns;
+            missingParameterReferences: string[];
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
         pivotConfiguration?: {
@@ -1446,6 +1438,7 @@ export class AsyncQueryService extends ProjectService {
                     metricQuery,
                     fields: fieldsMap,
                     originalColumns,
+                    missingParameterReferences,
                 } = args;
 
                 try {
@@ -1620,6 +1613,26 @@ export class AsyncQueryService extends ProjectService {
                             false, // default value
                         );
 
+                    if (missingParameterReferences.length > 0) {
+                        await this.queryHistoryModel.update(
+                            queryHistoryUuid,
+                            projectUuid,
+                            {
+                                status: QueryHistoryStatus.ERROR,
+                                error: `Missing parameters: ${missingParameterReferences.join(
+                                    ', ',
+                                )}`,
+                            },
+                        );
+
+                        return {
+                            queryUuid: queryHistoryUuid,
+                            cacheMetadata: {
+                                cacheHit: false,
+                            },
+                        } satisfies ExecuteAsyncQueryReturn;
+                    }
+
                     if (isWorkerQueryExecutionEnabled) {
                         this.logger.info(
                             `Queuing query ${queryHistoryUuid} for execution in a worker`,
@@ -1743,15 +1756,20 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings, parameterReferences } =
-            await this.prepareMetricQueryAsyncQueryArgs({
-                user,
-                metricQuery,
-                dateZoom,
-                explore,
-                warehouseSqlBuilder,
-                parameters,
-            });
+        const {
+            sql,
+            fields,
+            warnings,
+            parameterReferences,
+            missingParameterReferences,
+        } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery,
+            dateZoom,
+            explore,
+            warehouseSqlBuilder,
+            parameters,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1766,6 +1784,7 @@ export class AsyncQueryService extends ProjectService {
                 fields,
                 sql,
                 originalColumns: undefined,
+                missingParameterReferences,
             },
             requestParameters,
         );
@@ -1886,14 +1905,19 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings, parameterReferences } =
-            await this.prepareMetricQueryAsyncQueryArgs({
-                user,
-                metricQuery: metricQueryWithLimit,
-                explore,
-                warehouseSqlBuilder,
-                parameters,
-            });
+        const {
+            sql,
+            fields,
+            warnings,
+            parameterReferences,
+            missingParameterReferences,
+        } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery: metricQueryWithLimit,
+            explore,
+            warehouseSqlBuilder,
+            parameters,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1907,6 +1931,7 @@ export class AsyncQueryService extends ProjectService {
                 fields,
                 sql,
                 originalColumns: undefined,
+                missingParameterReferences,
             },
             requestParameters,
         );
@@ -2085,7 +2110,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, parameterReferences } =
+        const { sql, fields, parameterReferences, missingParameterReferences } =
             await this.prepareMetricQueryAsyncQueryArgs({
                 user,
                 metricQuery: metricQueryWithLimit,
@@ -2108,6 +2133,7 @@ export class AsyncQueryService extends ProjectService {
                 fields,
                 sql,
                 originalColumns: undefined,
+                missingParameterReferences,
             },
             requestParameters,
         );
@@ -2257,15 +2283,20 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings, parameterReferences } =
-            await this.prepareMetricQueryAsyncQueryArgs({
-                user,
-                metricQuery: underlyingDataMetricQuery,
-                explore,
-                dateZoom,
-                warehouseSqlBuilder,
-                parameters,
-            });
+        const {
+            sql,
+            fields,
+            warnings,
+            parameterReferences,
+            missingParameterReferences,
+        } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery: underlyingDataMetricQuery,
+            explore,
+            dateZoom,
+            warehouseSqlBuilder,
+            parameters,
+        });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
@@ -2281,6 +2312,7 @@ export class AsyncQueryService extends ProjectService {
                     fields,
                     sql,
                     originalColumns: undefined,
+                    missingParameterReferences,
                 },
                 requestParameters,
             );
@@ -2333,6 +2365,7 @@ export class AsyncQueryService extends ProjectService {
             sql: sqlWithParams,
             originalColumns,
             parameterReferences,
+            missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2358,6 +2391,7 @@ export class AsyncQueryService extends ProjectService {
                 fields: getItemMap(virtualView),
                 sql: sqlWithParams,
                 originalColumns,
+                missingParameterReferences,
             },
             {
                 query: metricQuery,
@@ -2570,18 +2604,6 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
         } = queryBuilder.getSqlAndReferences();
 
-        if (missingParameterReferences.size > 0) {
-            const missingParametersArray = Array.from(
-                missingParameterReferences,
-            );
-            throw new CompileError(
-                `Missing parameters: ${missingParametersArray.join(', ')}`,
-                {
-                    missingParameterReferences: missingParametersArray,
-                },
-            );
-        }
-
         return {
             metricQuery,
             pivotConfiguration,
@@ -2590,6 +2612,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnection,
             sql: replacedSql,
             parameterReferences: Array.from(parameterReferences),
+            missingParameterReferences: Array.from(missingParameterReferences),
             appliedDashboardFilters,
             originalColumns,
         };
@@ -2629,6 +2652,7 @@ export class AsyncQueryService extends ProjectService {
             sql,
             originalColumns,
             parameterReferences,
+            missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2654,6 +2678,7 @@ export class AsyncQueryService extends ProjectService {
                 fields: getItemMap(virtualView),
                 sql,
                 originalColumns,
+                missingParameterReferences,
             },
             {
                 query: metricQuery,
@@ -2713,6 +2738,7 @@ export class AsyncQueryService extends ProjectService {
             appliedDashboardFilters,
             originalColumns,
             parameterReferences,
+            missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2741,6 +2767,7 @@ export class AsyncQueryService extends ProjectService {
                 fields: getItemMap(virtualView),
                 sql,
                 originalColumns,
+                missingParameterReferences,
             },
             {
                 query: metricQuery,
