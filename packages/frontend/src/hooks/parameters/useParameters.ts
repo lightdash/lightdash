@@ -9,7 +9,10 @@ const getParameters = async (
     projectUuid: string,
     parameterReferences: string[] | undefined,
 ): Promise<ApiGetProjectParametersResults> => {
-    const results: any = await lightdashApi({
+    if (parameterReferences && parameterReferences.length === 0) {
+        return {};
+    }
+    return lightdashApi<ApiGetProjectParametersResults>({
         url: parameterReferences
             ? `/projects/${projectUuid}/parameters?${parameterReferences
                   .map((n) => `names=${encodeURIComponent(n)}`)
@@ -19,8 +22,6 @@ const getParameters = async (
         body: undefined,
         version: 'v2',
     });
-
-    return results || {};
 };
 
 export const useParameters = (
