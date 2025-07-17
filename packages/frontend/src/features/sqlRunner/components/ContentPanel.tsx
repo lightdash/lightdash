@@ -4,7 +4,6 @@ import {
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     MAX_SAFE_INTEGER,
-    type ParametersValuesMap,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
@@ -62,11 +61,13 @@ import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
+    clearParameterValues,
     EditorTabs,
     selectActiveChartType,
     selectActiveEditorTab,
     selectFetchResultsOnLoad,
     selectLimit,
+    selectParameterValues,
     selectProjectUuid,
     selectQueryUuid,
     selectResultsTableConfig,
@@ -77,6 +78,7 @@ import {
     setActiveEditorTab,
     setEditorHighlightError,
     setSqlLimit,
+    updateParameterValue,
 } from '../store/sqlRunnerSlice';
 import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
@@ -127,26 +129,13 @@ export const ContentPanel: FC = () => {
     } = useElementSize();
 
     // Parameter state management for SQL Runner context
-    const [parameterValues, setParameterValues] = useState<ParametersValuesMap>(
-        {},
-    );
+    const parameterValues = useAppSelector(selectParameterValues);
 
     const handleParameterChange = useCallback(
         (key: string, value: string | string[] | null) => {
-            if (value) {
-                setParameterValues((prev) => ({
-                    ...prev,
-                    [key]: value,
-                }));
-            } else {
-                setParameterValues((prev) => {
-                    const newValues = { ...prev };
-                    delete newValues[key];
-                    return newValues;
-                });
-            }
+            dispatch(updateParameterValue({ key, value }));
         },
-        [],
+        [dispatch],
     );
 
     const parameterReferences = useMemo(() => {
@@ -154,8 +143,8 @@ export const ContentPanel: FC = () => {
     }, [sql]);
 
     const clearAllParameters = useCallback(() => {
-        setParameterValues({});
-    }, []);
+        dispatch(clearParameterValues());
+    }, [dispatch]);
 
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),

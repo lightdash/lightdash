@@ -78,6 +78,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
     sql,
     fields,
     context,
+    parameters,
 }: {
     projectUuid: string;
     limit?: number;
@@ -85,6 +86,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
     sortBy?: VizSortBy[];
     fields: SqlRunnerField[];
     context?: QueryExecutionContext;
+    parameters: ParametersValuesMap;
 }): RunPivotQuery => {
     return async (query: SqlRunnerQuery) => {
         const index = query.pivot?.index[0];
@@ -114,6 +116,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
                 groupByColumns,
                 sortBy,
             },
+            parameters,
         });
 
         const columns: VizColumn[] = Object.keys(pivotResults.columns).map(

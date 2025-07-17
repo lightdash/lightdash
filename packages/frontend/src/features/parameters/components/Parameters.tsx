@@ -140,7 +140,7 @@ export const Parameters: FC<Props> = ({
             </Menu.Target>
             <Menu.Dropdown>
                 <Menu.Label fz={10}>Parameters</Menu.Label>
-                <Box p="sm">
+                <Box p="sm" miw={200}>
                     <ParameterSelection
                         parameters={parameters}
                         isLoading={isLoading || !areAllChartsLoaded}

@@ -1,8 +1,4 @@
-import {
-    getParameterReferences,
-    isVizTableConfig,
-    type ParametersValuesMap,
-} from '@lightdash/common';
+import { getParameterReferences, isVizTableConfig } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -29,10 +25,16 @@ import ResultsDownloadButton from '../features/sqlRunner/components/Download/Res
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
 import { store } from '../features/sqlRunner/store';
-import { useAppDispatch } from '../features/sqlRunner/store/hooks';
 import {
+    useAppDispatch,
+    useAppSelector,
+} from '../features/sqlRunner/store/hooks';
+import {
+    clearParameterValues,
+    selectParameterValues,
     setProjectUuid,
     setSavedChartData,
+    updateParameterValue,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 enum TabOption {
@@ -49,9 +51,7 @@ const ViewSqlChart = () => {
     const [echartsInstance, setEchartsInstance] = useState<EChartsInstance>();
 
     // Parameter state management for SQL Runner context
-    const [parameterValues, setParameterValues] = useState<ParametersValuesMap>(
-        {},
-    );
+    const parameterValues = useAppSelector(selectParameterValues);
 
     const {
         chartQuery: {
@@ -74,20 +74,9 @@ const ViewSqlChart = () => {
 
     const handleParameterChange = useCallback(
         (key: string, value: string | string[] | null) => {
-            if (value) {
-                setParameterValues((prev) => ({
-                    ...prev,
-                    [key]: value,
-                }));
-            } else {
-                setParameterValues((prev) => {
-                    const newValues = { ...prev };
-                    delete newValues[key];
-                    return newValues;
-                });
-            }
+            dispatch(updateParameterValue({ key, value }));
         },
-        [],
+        [dispatch],
     );
 
     const parameterReferences = useMemo(() => {
@@ -95,8 +84,8 @@ const ViewSqlChart = () => {
     }, [chartData]);
 
     const clearAllParameters = useCallback(() => {
-        setParameterValues({});
-    }, []);
+        dispatch(clearParameterValues());
+    }, [dispatch]);
 
     // TODO: remove state sync - this is because the <Header /> component depends on the Redux state
     useEffect(() => {
