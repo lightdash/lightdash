@@ -66,7 +66,35 @@ final as (
         customer_orders.number_of_orders,
         customer_payments.total_amount as customer_lifetime_value,
         customer_orders.first_order::date - customers.created::date AS days_between_created_and_first_order,
-        EXTRACT(day FROM customer_orders.most_recent_order::timestamp - customer_orders_latest.latest_order::timestamp) AS days_since_last_order
+        EXTRACT(day FROM customer_orders.most_recent_order::timestamp - customer_orders_latest.latest_order::timestamp) AS days_since_last_order,
+        
+        -- Funnel stage calculation (highest stage reached with proper funnel logic)
+        case 
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and (customer_orders.number_of_orders > 1 or customer_payments.total_amount > 20) and customer_payments.total_amount > 0 and customer_payments.total_amount > 25 then 5
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and (customer_orders.number_of_orders > 1 or customer_payments.total_amount > 20) and customer_payments.total_amount > 0 then 4
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and (customer_orders.number_of_orders > 1 or customer_payments.total_amount > 20) then 3
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 then 2
+            when customers.customer_id is not null then 1
+            else 0
+        end as cj_stage,
+        
+        case 
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and customer_orders.number_of_orders > 1 and customer_payments.total_amount > 0 and customer_payments.total_amount > 25 then 5
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and customer_orders.number_of_orders > 1 and customer_payments.total_amount > 0 then 4
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and customer_orders.number_of_orders > 1 then 3
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 then 2
+            when customers.customer_id is not null then 1
+            else 0
+        end as ec_stage,
+        
+        case 
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and customer_orders.number_of_orders > 1 and customer_payments.total_amount > 30 then 5
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 and customer_orders.number_of_orders > 1 then 4
+            when customers.customer_id is not null and customer_orders.number_of_orders > 0 then 3
+            when customers.customer_id is not null then 2
+            when customers.customer_id is not null then 1
+            else 0
+        end as mk_stage
 
     from customers
 

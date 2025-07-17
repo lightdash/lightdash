@@ -11,21 +11,31 @@ spotlight:
       label: "Sales"
       color: green
 parameters:
-  table_where:
-    label: 'Table where'
-    options: [ "1", "2", "3" ]
-  join_on:
-    label: 'Join param'
-    default: "1"
-    options: [ "1", "2", "3" ]
-  metric_param:
-    label: 'Metric param'
-    multiple: true
-    default: [ "1", "2" ]
-    options: [ "1", "2", "3" ]
-  dim_param:
-    label: 'Status'
-    description: 'Filter by status'
-    options_from_dimension:
-      model: orders
-      dimension: status
+  min_order_amount:
+    label: "Minimum Order Amount ($)"
+    description: "Filter orders by minimum amount"
+    default: "0"
+    options:
+      - "0"
+      - "10"
+      - "25"
+      - "50"
+      - "100"
+  funnel_type:
+    label: "Funnel Type"
+    description: "Choose which funnel analysis to display"
+    default: "customer_journey"
+    options:
+      - "customer_journey"
+      - "ecommerce"
+      - "marketing"
+  company_quarter:
+    label: "Company Quarter"
+    description: "Filter orders by company fiscal quarter (Q1: Mar-May, Q2: Jun-Aug, Q3: Sep-Nov, Q4: Dec-Feb)"
+    default: "all"
+    options:
+      - "all"
+      - "LDQ1"
+      - "LDQ2"
+      - "LDQ3"
+      - "LDQ4"

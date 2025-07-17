@@ -12,15 +12,15 @@ models:
         spotlight:
           categories:
             - sales
-        sql_filter: ${ld.parameters.table_where} = '1'
+        sql_filter: amount >= ${ld.parameters.min_order_amount}::NUMERIC AND ${company_quarter} = ${ld.parameters.company_quarter}
         joins:
           - join: customers
-            sql_on: ${customers.customer_id} = ${orders.customer_id} OR ${ld.parameters.join_on} = '1'
+            sql_on: ${customers.customer_id} = ${orders.customer_id}
             relationship: many-to-one
         metrics:
           completion_percentage:
             type: number
-            sql: ${total_completed_order_amount}/${total_order_amount} + ${ld.parameters.metric_param}::INTEGER
+            sql: ${total_completed_order_amount}/${total_order_amount}
             format: percent
             ai_hint: |
               Completion percentage of orders.
@@ -36,7 +36,7 @@ models:
         config:
           meta:
             dimension:
-              sql: CASE WHEN ${ld.parameters.dim_param} = '1' THEN order_id ELSE order_id END
+              sql: order_id
             metrics:
               unique_order_count:
                 type: count_distinct
@@ -53,6 +53,11 @@ models:
                   - status:
                       - completed
                       - shipped
+              minimum_amount_order_count:
+                label: Minimum Amount Order Count
+                description: Count of orders meeting minimum amount criteria
+                type: count_distinct
+                sql: CASE WHEN amount >= ${ld.parameters.min_order_amount}::NUMERIC THEN order_id ELSE NULL END
 
       - name: is_completed
         description: Boolean indicating if status is completed
@@ -93,6 +98,21 @@ models:
                 type: min
               date_of_most_recent_order:
                 type: max
+      - name: company_quarter
+        description: Company Quarter
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: |
+                CASE 
+                  WHEN ${ld.parameters.company_quarter} = 'all' THEN 'all'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ1' AND EXTRACT(MONTH FROM order_date) IN (3, 4, 5) THEN 'LDQ1'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ2' AND EXTRACT(MONTH FROM order_date) IN (6, 7, 8) THEN 'LDQ2'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ3' AND EXTRACT(MONTH FROM order_date) IN (9, 10, 11) THEN 'LDQ3'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ4' AND EXTRACT(MONTH FROM order_date) IN (12, 1, 2) THEN 'LDQ4'
+                  ELSE 'Filtered Out'
+                END
       - name: status
         description: '{{ doc("orders_status") }}'
         config:
@@ -153,10 +173,6 @@ models:
         description: Amount of the order (AUD) paid for by credit card
         tests:
           - not_null
-        config:
-          meta:
-            dimension:
-              hidden: true
       - name: coupon_amount
         description: Amount of the order (AUD) paid for by coupon
         tests:

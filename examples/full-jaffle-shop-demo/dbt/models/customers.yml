@@ -36,6 +36,11 @@ models:
                 spotlight:
                   categories: ["core"]
                 ai_hint: Unique customer count.
+              funnel_stage_count:
+                label: Funnel Stage Count
+                description: Count of customers who reached each funnel stage (use with funnel_stage_name grouping)
+                type: count_distinct
+                sql: customer_id
       - name: first_name
         description: |
           # First name
@@ -66,7 +71,7 @@ models:
           meta:
             dimension:
               ai_hint: |
-                  Last name of the customer. PII.
+                Last name of the customer. PII.
       - name: age
         description: Customer's age
         config:
@@ -124,6 +129,60 @@ models:
               hidden: true
       - name: customer_lifetime_value
         description: ""
+        config:
+          meta:
+            dimension:
+      - name: funnel_stage_name
+        description: Dynamic funnel stage name based on parameter
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: |
+                CASE 
+                  WHEN ${ld.parameters.funnel_type} = 'customer_journey' THEN
+                    CASE 
+                      WHEN ${cj_stage} = 5 THEN 'Purchase'
+                      WHEN ${cj_stage} = 4 THEN 'Intent'
+                      WHEN ${cj_stage} = 3 THEN 'Consideration'
+                      WHEN ${cj_stage} = 2 THEN 'Interest'
+                      WHEN ${cj_stage} = 1 THEN 'Awareness'
+                      ELSE 'No Engagement'
+                    END
+                  WHEN ${ld.parameters.funnel_type} = 'ecommerce' THEN
+                    CASE 
+                      WHEN ${ec_stage} = 5 THEN 'Purchase'
+                      WHEN ${ec_stage} = 4 THEN 'Checkout'
+                      WHEN ${ec_stage} = 3 THEN 'Add to Cart'
+                      WHEN ${ec_stage} = 2 THEN 'Click'
+                      WHEN ${ec_stage} = 1 THEN 'Impression'
+                      ELSE 'No Engagement'
+                    END
+                  WHEN ${ld.parameters.funnel_type} = 'marketing' THEN
+                    CASE 
+                      WHEN ${mk_stage} = 5 THEN 'Customer'
+                      WHEN ${mk_stage} = 4 THEN 'Qualified Lead'
+                      WHEN ${mk_stage} = 3 THEN 'Lead'
+                      WHEN ${mk_stage} = 2 THEN 'Click'
+                      WHEN ${mk_stage} = 1 THEN 'Impression'
+                      ELSE 'No Engagement'
+                    END
+                  ELSE 'Unknown Funnel Type'
+                END
+      - name: cj_stage
+        description: Customer Journey funnel stage (1-5, highest stage reached)
+        config:
+          meta:
+            dimension:
+              hidden: true
+      - name: ec_stage
+        description: E-commerce funnel stage (1-5, highest stage reached)
+        config:
+          meta:
+            dimension:
+              hidden: true
+      - name: mk_stage
+        description: Marketing funnel stage (1-5, highest stage reached)
         config:
           meta:
             dimension:
