@@ -82,5 +82,5 @@ jobs:
               run: pnpm --filter backend test:ai
               env:
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-                  OPENAI_MODEL_NAME: 'gpt-4o'
+                  OPENAI_MODEL_NAME: 'gpt-4.1'
                   AI_COPILOT_ENABLED: 'true'
