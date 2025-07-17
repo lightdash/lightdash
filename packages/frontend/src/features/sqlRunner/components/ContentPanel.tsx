@@ -4,6 +4,7 @@ import {
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     MAX_SAFE_INTEGER,
+    type ParametersValuesMap,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
@@ -126,12 +127,12 @@ export const ContentPanel: FC = () => {
     } = useElementSize();
 
     // Parameter state management for SQL Runner context
-    const [parameterValues, setParameterValues] = useState<
-        Record<string, string | string[] | null>
-    >({});
+    const [parameterValues, setParameterValues] = useState<ParametersValuesMap>(
+        {},
+    );
 
     const handleParameterChange = useCallback(
-        (key: string, value: string | string[] | null) => {
+        (key: string, value: ParametersValuesMap[string]) => {
             setParameterValues((prev) => ({
                 ...prev,
                 [key]: value,
