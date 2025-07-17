@@ -2510,7 +2510,7 @@ export class AsyncQueryService extends ProjectService {
                     warehouseConnection.warehouseClient.getAdapterType(),
             },
         );
-        console.log('queryBuilder.toSql()', limit, queryBuilder.toSql());
+
         return {
             metricQuery,
             pivotConfiguration,
