@@ -20,17 +20,17 @@ export const useDashboardParameterState = () => {
         value: string | string[] | null,
     ) => {
         if (value === null || (Array.isArray(value) && value.length === 0)) {
-            // Remove parameter when cleared by setting empty string
-            setParameter(paramKey, '');
+            // Remove parameter when cleared
+            setParameter(paramKey, null);
         } else {
             setParameter(paramKey, value);
         }
     };
 
     const clearAllParameters = () => {
-        // Clear all parameters by setting empty values
+        // Clear all parameters by setting null values
         Object.keys(dashboardParameters).forEach((key) => {
-            setParameter(key, '');
+            setParameter(key, null);
         });
     };
 

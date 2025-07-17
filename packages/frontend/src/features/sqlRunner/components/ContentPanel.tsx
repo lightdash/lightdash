@@ -132,11 +132,19 @@ export const ContentPanel: FC = () => {
     );
 
     const handleParameterChange = useCallback(
-        (key: string, value: ParametersValuesMap[string]) => {
-            setParameterValues((prev) => ({
-                ...prev,
-                [key]: value,
-            }));
+        (key: string, value: string | string[] | null) => {
+            if (value) {
+                setParameterValues((prev) => ({
+                    ...prev,
+                    [key]: value,
+                }));
+            } else {
+                setParameterValues((prev) => {
+                    const newValues = { ...prev };
+                    delete newValues[key];
+                    return newValues;
+                });
+            }
         },
         [],
     );

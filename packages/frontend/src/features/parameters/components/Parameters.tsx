@@ -1,3 +1,4 @@
+import { type ParametersValuesMap } from '@lightdash/common';
 import { Box, Button, Menu, Text, useMantineTheme } from '@mantine/core';
 import {
     IconChevronDown,
@@ -11,7 +12,7 @@ import { ParameterSelection, useParameters } from '../index';
 
 type Props = {
     isEditMode: boolean;
-    parameterValues: Record<string, string | string[] | null>;
+    parameterValues: ParametersValuesMap;
     onParameterChange: (key: string, value: string | string[] | null) => void;
     onClearAll: () => void;
     parameterReferences?: Set<string>;
@@ -82,7 +83,7 @@ export const Parameters: FC<Props> = ({
                     const defaultValue = Array.isArray(param.default)
                         ? param.default[0]
                         : param.default;
-                    onParameterChange(key, defaultValue || null);
+                    onParameterChange(key, defaultValue);
                 }
             });
         }
