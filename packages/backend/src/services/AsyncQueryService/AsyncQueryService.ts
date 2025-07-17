@@ -99,6 +99,7 @@ import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { replaceParametersAsString } from '../../utils/QueryBuilder/parameters';
 import {
     QueryBuilder,
     ReferenceMap,
@@ -2411,8 +2412,16 @@ export class AsyncQueryService extends ProjectService {
 
         // Get one row to get the column definitions
         const columns: { name: string; type: DimensionType }[] = [];
+
+        // Replace parameters in SQL before running column discovery query
+        const { replacedSql: columnDiscoverySql } = replaceParametersAsString(
+            sql,
+            parameters ?? {},
+            warehouseConnection.warehouseClient,
+        );
+
         await warehouseConnection.warehouseClient.streamQuery(
-            applyLimitToSqlQuery({ sqlQuery: sql, limit: 1 }),
+            applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
             (row) => {
                 if (row.fields) {
                     Object.keys(row.fields).forEach((key) => {
