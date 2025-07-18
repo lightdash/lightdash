@@ -386,6 +386,25 @@ export const renameChartConfigType = (
                     fieldId: replaceOptionalId(chartConfig.config?.fieldId),
                 },
             };
+        case ChartType.TREEMAP:
+            return {
+                ...chartConfig,
+                config: {
+                    ...chartConfig.config,
+                    groupFieldIds: chartConfig.config?.groupFieldIds
+                        ? chartConfig.config.groupFieldIds.map((fieldId) =>
+                              replaceId(fieldId),
+                          )
+                        : undefined,
+
+                    sizeMetricId: replaceOptionalId(
+                        chartConfig.config?.sizeMetricId,
+                    ),
+                    colorMetricId: replaceOptionalId(
+                        chartConfig.config?.colorMetricId,
+                    ),
+                },
+            };
         case ChartType.CUSTOM:
             return {
                 ...chartConfig,
