@@ -15,7 +15,7 @@ export class ShopService {
         this.database = database;
     }
 
-    async createOrUpdate(data: Partial<DbShop>): Promise<{shop_: DbShop, isNew: boolean}> {
+    async createOrUpdate(data: Partial<DbShop>): Promise<{ shop_: DbShop, isNew: boolean }> {
         const existing = await this.getByUrl(data.shop_url!);
 
         if (existing) {
@@ -27,7 +27,9 @@ export class ShopService {
                     updated_at: this.database.fn.now(),
                 })
                 .returning('*');
-            return {shop_: updated, isNew: false};
+
+            await this._createScriptTag(data.shop_url!, existing.access_token!);
+            return { shop_: updated, isNew: false };
         } else {
             const [created] = await this.database<DbShop>(ShopTableName)
                 .insert({
@@ -37,7 +39,8 @@ export class ShopService {
                     updated_at: this.database.fn.now(),
                 })
                 .returning('*');
-            return {shop_: created, isNew: true};
+            await this._createScriptTag(data.shop_url!, created.access_token!);
+            return { shop_: created, isNew: true };
         }
     }
 
@@ -187,4 +190,57 @@ export class ShopService {
                 updated_at: trx.fn.now(),
             });
     }
+
+    private async _createScriptTag(shop: string, accessToken: string): Promise<void> {
+        const apiVersion = '2023-10'; // use your target Shopify Admin API version
+
+        const baseUrl = `https://${shop}/admin/api/${apiVersion}/script_tags.json`;
+
+        // Check existing ScriptTags
+        const getRes = await fetch(baseUrl, {
+            method: 'GET',
+            headers: {
+                'X-Shopify-Access-Token': accessToken,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!getRes.ok) {
+            throw new Error(`Failed to list script tags: ${getRes.status} ${await getRes.text()}`);
+        }
+
+        const { script_tags } = await getRes.json();
+
+        const alreadyExists = script_tags.some((tag: any) =>
+            tag.src.includes('https://storage.googleapis.com/storefront89752334/posthog-snippet.js'),
+        );
+
+        if (alreadyExists) {
+            console.log(`ℹ️ ScriptTag already exists for ${shop}`);
+            return;
+        }
+
+        // Create new ScriptTag
+        const postRes = await fetch(baseUrl, {
+            method: 'POST',
+            headers: {
+                'X-Shopify-Access-Token': accessToken,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                script_tag: {
+                    event: 'onload',
+                    src: 'https://storage.googleapis.com/storefront89752334/posthog-snippet.js',
+                },
+            }),
+        });
+
+        if (!postRes.ok) {
+            throw new Error(`Failed to create script tag: ${postRes.status} ${await postRes.text()}`);
+        }
+
+        console.log(`✅ ScriptTag installed for ${shop}`);
+    }
+
+
 }
