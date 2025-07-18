@@ -35,6 +35,7 @@ export type Organization = {
      * The project a user sees when they first log in to the organization
      */
     defaultProjectUuid?: string;
+    createdAt?: Date;
 };
 
 export type CreateOrganization = Pick<Organization, 'name'>;
