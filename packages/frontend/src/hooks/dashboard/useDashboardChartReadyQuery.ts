@@ -181,11 +181,15 @@ export const useDashboardChartReadyQuery = (
                 tileUuid,
                 queryResult.data.executeQueryResponse.parameterReferences,
             );
+        } else if (queryResult.error) {
+            // On error, there are no references, but we count the tile as loaded
+            addParameterReferences(tileUuid, []);
         }
     }, [
         queryResult.data?.executeQueryResponse?.parameterReferences,
         addParameterReferences,
         tileUuid,
+        queryResult.error,
     ]);
 
     return { ...queryResult, error: error || queryResult.error };
