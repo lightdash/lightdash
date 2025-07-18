@@ -32,6 +32,7 @@ const data = {
         canExportImages: {{canExportImagesEnabled}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
+        canExplore: {{canExplore}},
     },
     user: {
         externalId: {{externalId}},
@@ -63,6 +64,7 @@ data = {
         "canExportImages": {{canExportImagesEnabledPython}},
         "canExportPagePdf": {{canExportPagePdfPython}},
         "canDateZoom": {{canDateZoomPython}},
+        "canExplore": {{canExplorePython}},
     },
     "user": {
         "externalId": {{externalIdPython}},
@@ -104,6 +106,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            CanExplore bool \`json:"canExplore"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         jwt.StandardClaims
@@ -127,6 +130,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            CanExplore bool \`json:"canExplore"\`
         }{
             Type:          "dashboard",
             ProjectUuid:   projectUuid,
@@ -142,6 +146,7 @@ func main() {
             CanExportImages: {{canExportImagesEnabled}},
             CanExportPagePdf: {{canExportPagePdf}},
             CanDateZoom: {{canDateZoom}},
+            CanExplore: {{canExplore}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -235,6 +240,11 @@ const getCodeSnippet = (
                   )}"`
                 : 'nil',
         )
+        .replace('{{canExplore}}', data.content.canExplore ? 'true' : 'false')
+        .replace(
+            '{{canExplorePython}}',
+            data.content.canExplore ? 'True' : 'False',
+        )
         .replace('{{canDateZoom}}', data.content.canDateZoom ? 'true' : 'false')
         .replace(
             '{{canExportPagePdf}}',
@@ -247,6 +257,10 @@ const getCodeSnippet = (
         .replace(
             '{{canExportCsvEnabledPython}}',
             data.content.canExportCsv ? 'True' : 'False',
+        )
+        .replace(
+            '{{canExplorePython}}',
+            data.content.canExplore ? 'true' : 'false',
         )
         .replace(
             '{{canDateZoomPython}}',

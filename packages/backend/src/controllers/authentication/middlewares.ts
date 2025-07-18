@@ -21,8 +21,8 @@ import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
-    if (req.user?.userUuid) {
-        if (req.user.isActive) {
+    if (req.account?.isAuthenticated() || req.user?.userUuid) {
+        if (req.account?.user?.isActive || req.user?.isActive) {
             next();
         } else {
             // Destroy session if user is deactivated and return error
@@ -53,13 +53,13 @@ We first check service accounts (bearer header),
 then we check Personal access tokens (ApiKey header), which can throw an error if the token is invalid
 */
 export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.account?.isAuthenticated() || req.isAuthenticated()) {
         next();
         return;
     }
 
     const authenticateWithPat = () => {
-        if (req.isAuthenticated()) {
+        if (req.account?.isAuthenticated() || req.isAuthenticated()) {
             next();
             return;
         }
