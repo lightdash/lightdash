@@ -72,7 +72,7 @@ const createMockService = (overrides: AnyType = {}) => {
     };
 
     const projectModel = {
-        getProjectUuids: jest.fn(),
+        getDefaultProjectUuids: jest.fn(),
         getWithSensitiveFields: jest.fn(),
         update: jest.fn(),
         ...overrides.projectModel,
@@ -129,7 +129,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         .mockResolvedValue(['org-1', 'org-2']),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue(['project-1', 'project-2']),
                 },
@@ -170,7 +170,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue(['project-1', 'project-2']),
                 },
@@ -197,7 +197,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                 },
@@ -249,7 +249,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                 },
@@ -292,7 +292,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                 },
@@ -346,7 +346,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                     getWithSensitiveFields: jest
@@ -389,7 +389,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                     getWithSensitiveFields: jest
@@ -443,7 +443,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                     getWithSensitiveFields: jest
@@ -476,7 +476,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                     getWithSensitiveFields: jest
@@ -504,7 +504,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                 },
@@ -528,7 +528,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
                 },
                 projectModel: {
-                    getProjectUuids: jest
+                    getDefaultProjectUuids: jest
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
                     getWithSensitiveFields: jest
