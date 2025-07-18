@@ -378,8 +378,10 @@ export class ProjectModel {
         return parseInt(results.count, 10) > 0;
     }
 
-    async getProjectUuids(): Promise<string[]> {
-        const projects = await this.database('projects').select('project_uuid');
+    async getNonPreviewProjectUuids(): Promise<string[]> {
+        const projects = await this.database('projects')
+            .where('project_type', ProjectType.DEFAULT)
+            .select('project_uuid');
         return projects.map((project) => project.project_uuid);
     }
 
