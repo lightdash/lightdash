@@ -2398,11 +2398,6 @@ export class AsyncQueryService extends ProjectService {
             return acc;
         }, {} as ResultColumns);
 
-        const sqlWithLimit = applyLimitToSqlQuery({
-            sqlQuery: sql,
-            limit,
-        });
-
         // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
         // ! We keep them here for backwards compatibility until we remove them as a required argument
         const vizColumns = columns.map((col) => ({
@@ -2412,7 +2407,7 @@ export class AsyncQueryService extends ProjectService {
 
         const virtualView = createVirtualViewObject(
             SQL_QUERY_MOCK_EXPLORER_NAME,
-            sqlWithLimit,
+            sql,
             vizColumns,
             warehouseConnection.warehouseClient,
         );
@@ -2494,13 +2489,14 @@ export class AsyncQueryService extends ProjectService {
             {
                 referenceMap,
                 select: selectColumns,
-                from: { name: 'sql_query', sql: sqlWithLimit },
+                from: { name: 'sql_query', sql },
                 filters: appliedDashboardFilters
                     ? {
                           id: uuidv4(),
                           and: appliedDashboardFilters.dimensions,
                       }
                     : undefined,
+                limit,
             },
             {
                 fieldQuoteChar,
@@ -2514,6 +2510,7 @@ export class AsyncQueryService extends ProjectService {
                     warehouseConnection.warehouseClient.getAdapterType(),
             },
         );
+
         return {
             metricQuery,
             pivotConfiguration,

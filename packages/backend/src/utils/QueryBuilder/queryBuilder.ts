@@ -1147,12 +1147,15 @@ export class QueryBuilder {
 
     private readonly filters: FilterGroup | undefined;
 
+    private readonly limit: number | undefined;
+
     constructor(
         args: {
             referenceMap: ReferenceMap;
             select: string[];
             from: From;
             filters?: FilterGroup;
+            limit: number | undefined;
         },
         private config: {
             fieldQuoteChar: string;
@@ -1167,6 +1170,7 @@ export class QueryBuilder {
         this.from = args.from;
         this.filters = args.filters;
         this.referenceMap = args.referenceMap;
+        this.limit = args.limit;
     }
 
     private quotedName(value: string) {
@@ -1255,9 +1259,21 @@ export class QueryBuilder {
         return undefined;
     }
 
+    private limitToSql() {
+        if (this.limit) {
+            return `LIMIT ${this.limit}`;
+        }
+        return undefined;
+    }
+
     toSql(): string {
         // Combine all parts of the query
-        return [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
+        return [
+            this.selectsToSql(),
+            this.fromToSql(),
+            this.filtersToSql(),
+            this.limitToSql(),
+        ]
             .filter((l) => l !== undefined)
             .join('\n');
     }
