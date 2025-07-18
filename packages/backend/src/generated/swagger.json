@@ -45,22 +45,6 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
-            "OAuthErrorResponse": {
-                "properties": {
-                    "error": {
-                        "type": "string"
-                    },
-                    "error_description": {
-                        "type": "string"
-                    },
-                    "error_uri": {
-                        "type": "string"
-                    }
-                },
-                "required": ["error"],
-                "type": "object",
-                "additionalProperties": true
-            },
             "ApiSuccessEmpty": {
                 "properties": {
                     "results": {},
@@ -12509,22 +12493,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -24762,207 +24746,6 @@
                 ]
             }
         },
-        "/api/v1/oauth/authorize": {
-            "get": {
-                "operationId": "OAuthAuthorize",
-                "responses": {
-                    "204": {
-                        "description": "No content"
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OAuthErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "OAuth2 Authorization endpoint\nInitiates the authorization code flow with PKCE support",
-                "tags": ["OAuth"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "Must be 'code'",
-                        "in": "query",
-                        "name": "response_type",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "The redirect URI",
-                        "in": "query",
-                        "name": "redirect_uri",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "scopes",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "Optional state parameter",
-                        "in": "query",
-                        "name": "state",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "PKCE code challenge",
-                        "in": "query",
-                        "name": "code_challenge",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "PKCE code challenge method (S256 or plain)",
-                        "in": "query",
-                        "name": "code_challenge_method",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "enum": ["S256", "plain"]
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/oauth/token": {
-            "post": {
-                "operationId": "OAuthToken",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OAuthTokenResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OAuthErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "OAuth2 Token endpoint\nExchanges authorization code for access token with PKCE validation",
-                "tags": ["OAuth"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "Token request parameters",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OAuthTokenRequest",
-                                "description": "Token request parameters"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/oauth/introspect": {
-            "post": {
-                "operationId": "OAuthIntrospect",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OAuthIntrospectResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OAuthErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "OAuth2 Token Introspection endpoint\nReturns information about a token",
-                "tags": ["OAuth"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "Introspection request parameters",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OAuthIntrospectRequest",
-                                "description": "Introspection request parameters"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/oauth/revoke": {
-            "post": {
-                "operationId": "OAuthRevoke",
-                "responses": {
-                    "204": {
-                        "description": "No content"
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OAuthErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "OAuth2 Token Revocation endpoint\nRevokes an access or refresh token",
-                "tags": ["OAuth"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "Revocation request parameters",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OAuthRevokeRequest",
-                                "description": "Revocation request parameters"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/oauth/.well-known/oauth-authorization-server": {
             "get": {
                 "operationId": "OAuthDiscovery",
@@ -25039,22 +24822,173 @@
                                 }
                             }
                         }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/OAuthErrorResponse"
-                                }
-                            }
-                        }
                     }
                 },
                 "description": "OAuth2 Discovery endpoint\nReturns OAuth2 server metadata with PKCE support",
                 "tags": ["OAuth"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/oauth/authorize": {
+            "get": {
+                "operationId": "OAuthAuthorize",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "OAuth2 Authorization endpoint\nInitiates the authorization code flow with PKCE support",
+                "tags": ["OAuth"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Must be 'code'",
+                        "in": "query",
+                        "name": "response_type",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The redirect URI",
+                        "in": "query",
+                        "name": "redirect_uri",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "scopes",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Optional state parameter",
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "PKCE code challenge",
+                        "in": "query",
+                        "name": "code_challenge",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "PKCE code challenge method (S256 or plain)",
+                        "in": "query",
+                        "name": "code_challenge_method",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["S256", "plain"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/oauth/token": {
+            "post": {
+                "operationId": "OAuthToken",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OAuthTokenResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "OAuth2 Token endpoint\nExchanges authorization code for access token with PKCE validation",
+                "tags": ["OAuth"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "Token request parameters",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OAuthTokenRequest",
+                                "description": "Token request parameters"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oauth/introspect": {
+            "post": {
+                "operationId": "OAuthIntrospect",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OAuthIntrospectResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "OAuth2 Token Introspection endpoint\nReturns information about a token",
+                "tags": ["OAuth"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "Introspection request parameters",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OAuthIntrospectRequest",
+                                "description": "Introspection request parameters"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/oauth/revoke": {
+            "post": {
+                "operationId": "OAuthRevoke",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "OAuth2 Token Revocation endpoint\nRevokes an access or refresh token",
+                "tags": ["OAuth"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "Revocation request parameters",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OAuthRevokeRequest",
+                                "description": "Revocation request parameters"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/notifications": {
@@ -28644,10 +28578,6 @@
             "externalDocs": {
                 "url": "https://docs.lightdash.com/references/roles"
             }
-        },
-        {
-            "name": "OAuth",
-            "description": "OAuth2 endpoints for client authentication and authorization. Supports authorization code flow with PKCE for secure CLI authentication."
         }
     ]
 }

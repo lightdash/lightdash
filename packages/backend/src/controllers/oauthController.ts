@@ -1,4 +1,5 @@
 import {
+    AnyType,
     OauthAuthenticationError,
     OAuthIntrospectRequest,
     OAuthIntrospectResponse,
@@ -13,7 +14,6 @@ import {
     Post,
     Query,
     Request,
-    Response,
     Route,
     Tags,
 } from '@tsoa/runtime';
@@ -30,9 +30,41 @@ interface OAuthErrorResponse {
 }
 
 @Route('/api/v1/oauth')
-@Response<OAuthErrorResponse>('default', 'Error')
 @Tags('OAuth')
 export class OAuthController extends BaseController {
+    /**
+     * OAuth2 Discovery endpoint
+     * Returns OAuth2 server metadata with PKCE support
+     * @param req express request
+     */
+    @Get('/.well-known/oauth-authorization-server')
+    @OperationId('OAuthDiscovery')
+    async discovery(@Request() req: express.Request) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        this.setStatus(200);
+        return {
+            issuer: baseUrl,
+            authorization_endpoint: `${baseUrl}/api/v1/oauth/authorize`,
+            token_endpoint: `${baseUrl}/api/v1/oauth/token`,
+            introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
+            revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
+            response_types_supported: ['code'],
+            grant_types_supported: [
+                'authorization_code',
+                'refresh_token',
+                'client_credentials',
+            ],
+            token_endpoint_auth_methods_supported: [
+                'client_secret_basic',
+                'client_secret_post',
+            ],
+            scopes_supported: ['read', 'write'],
+            code_challenge_methods_supported: ['S256', 'plain'],
+            pkce_required: false, // PKCE is optional but recommended
+        };
+    }
+
     /**
      * OAuth2 Authorization endpoint
      * Initiates the authorization code flow with PKCE support
@@ -65,7 +97,7 @@ export class OAuthController extends BaseController {
         }
 
         // Get OAuth service
-        const oauthService = this.services.getOauthService();
+        const oauthService = req.services.getOauthService();
 
         // Validate PKCE parameters if provided
         await oauthService.validateCodeChallenge(
@@ -123,8 +155,8 @@ export class OAuthController extends BaseController {
         @Request() req: express.Request,
         @Body() body: OAuthTokenRequest,
     ): Promise<OAuthTokenResponse> {
-        // Get OAuth service
-        const oauthService = this.services.getOauthService();
+        this.setStatus(200);
+        const oauthService = req.services.getOauthService();
 
         switch (body.grant_type) {
             case 'authorization_code':
@@ -168,7 +200,7 @@ export class OAuthController extends BaseController {
         }
 
         // Get OAuth service
-        const oauthService = this.services.getOauthService();
+        const oauthService = req.services.getOauthService();
         const { token } = body;
 
         // Get token from database
@@ -186,7 +218,7 @@ export class OAuthController extends BaseController {
             return { active: false };
         }
 
-        const user = await this.services.getUserService().findSessionUser({
+        const user = await req.services.getUserService().findSessionUser({
             id: accessToken.userUuid,
             organization: accessToken.organizationUuid,
         });
@@ -228,7 +260,7 @@ export class OAuthController extends BaseController {
         }
 
         // Get OAuth service
-        const oauthService = this.services.getOauthService();
+        const oauthService = req.services.getOauthService();
         const { token } = body;
 
         // Try to revoke as access token first
@@ -248,38 +280,5 @@ export class OAuthController extends BaseController {
 
         // OAuth2 revocation endpoint should return 200 with empty body on success
         this.setStatus(200);
-    }
-
-    /**
-     * OAuth2 Discovery endpoint
-     * Returns OAuth2 server metadata with PKCE support
-     * @param req express request
-     */
-    @Get('/.well-known/oauth-authorization-server')
-    @OperationId('OAuthDiscovery')
-    async discovery(@Request() req: express.Request) {
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-
-        this.setStatus(200);
-        return {
-            issuer: baseUrl,
-            authorization_endpoint: `${baseUrl}/api/v1/oauth/authorize`,
-            token_endpoint: `${baseUrl}/api/v1/oauth/token`,
-            introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
-            revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
-            response_types_supported: ['code'],
-            grant_types_supported: [
-                'authorization_code',
-                'refresh_token',
-                'client_credentials',
-            ],
-            token_endpoint_auth_methods_supported: [
-                'client_secret_basic',
-                'client_secret_post',
-            ],
-            scopes_supported: ['read', 'write'],
-            code_challenge_methods_supported: ['S256', 'plain'],
-            pkce_required: false, // PKCE is optional but recommended
-        };
     }
 }
