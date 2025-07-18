@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { DbShop, ShopTableName } from '../database/entities/shopifyShop';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 
+
+const SITE_URL = process.env.SITE_URL; // e.g. 'https://shopify-gdpr-webhooks-969022814225.us-central1.run.app'
 type ShopServiceArgs = {
     database: Knex;
 };
@@ -27,7 +29,7 @@ export class ShopService {
                     updated_at: this.database.fn.now(),
                 })
                 .returning('*');
-
+            await this._registerOrdersWebhook(data.shop_url!, existing.access_token!);
             await this._createScriptTag(data.shop_url!, existing.access_token!);
             return { shop_: updated, isNew: false };
         } else {
@@ -39,6 +41,7 @@ export class ShopService {
                     updated_at: this.database.fn.now(),
                 })
                 .returning('*');
+            await this._registerOrdersWebhook(data.shop_url!, created.access_token!);
             await this._createScriptTag(data.shop_url!, created.access_token!);
             return { shop_: created, isNew: true };
         }
@@ -241,6 +244,64 @@ export class ShopService {
 
         console.log(`✅ ScriptTag installed for ${shop}`);
     }
+
+    private async _registerOrdersWebhook(shop: string, accessToken: string): Promise<void> {
+        const apiVersion = '2023-10';
+        const baseUrl = `https://${shop}/admin/api/${apiVersion}/webhooks.json`;
+
+        if (!SITE_URL) {
+            throw new Error('SITE_URL environment variable is not set');
+        }
+
+        const callbackUrl = `${SITE_URL}/webhooks/orders/created`;
+
+        // Fetch existing webhooks
+        const getRes = await fetch(baseUrl, {
+            method: 'GET',
+            headers: {
+                'X-Shopify-Access-Token': accessToken,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!getRes.ok) {
+            throw new Error(`Failed to list webhooks: ${getRes.status} ${await getRes.text()}`);
+        }
+
+        const { webhooks } = await getRes.json();
+
+        const alreadyExists = webhooks.some(
+            (hook: any) => hook.address === callbackUrl && hook.topic === 'orders/create'
+        );
+
+        if (alreadyExists) {
+            console.log(`ℹ️ Webhook already exists for ${shop}`);
+            return;
+        }
+
+        // Register new webhook
+        const postRes = await fetch(baseUrl, {
+            method: 'POST',
+            headers: {
+                'X-Shopify-Access-Token': accessToken,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                webhook: {
+                    topic: 'orders/create',
+                    address: callbackUrl,
+                    format: 'json',
+                },
+            }),
+        });
+
+        if (!postRes.ok) {
+            throw new Error(`Failed to register webhook: ${postRes.status} ${await postRes.text()}`);
+        }
+
+        console.log(`✅ Webhook registered for ${shop} to ${callbackUrl}`);
+    }
+
 
 
 }
