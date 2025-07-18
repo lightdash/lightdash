@@ -43,7 +43,43 @@ jobs:
                   echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
                   exit 1
 
-    cli-tests:
+    # CLI tests without dbt
+    # This is used to test the CLI commands and content as code
+    # We don't need to install dbt dependencies for this.
+    cli-tests: 
+        timeout-minutes: 30
+        runs-on: ubuntu-latest
+        needs: prepare-preview
+        name: CLI tests without dbt
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Setup Node, PNPM, and Cypress
+              uses: ./.github/workflows/_setup_node_pnpm_cypress
+
+            # Build packages
+            - name: Build packages/common module
+              run: pnpm common-build
+            - name: Build packages/warehouses module
+              run: pnpm warehouses-build
+            - name: Build and install packages/cli module
+              run: cd packages/cli && pnpm build && npm install -g
+            - name: Test lightdash version
+              run: |
+                  lightdash_version=$(lightdash --version)
+                  package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
+                  if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+
+            # Run Cypress
+            - name: Run Cypress
+              uses: cypress-io/github-action@v6
+              with:
+                  install: false
+                  working-directory: packages/e2e
+                  spec: cypress/cli/*
+                  config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
+
+    cli-dbt-tests:
         timeout-minutes: 30
         runs-on: ubuntu-latest
         needs: prepare-preview
@@ -116,7 +152,7 @@ jobs:
               with:
                   install: false
                   working-directory: packages/e2e
-                  spec: cypress/cli/**/*
+                  spec: cypress/cli/dbt/*
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
               env:
                   CYPRESS_PGHOST: ${{secrets.PGHOST}}
