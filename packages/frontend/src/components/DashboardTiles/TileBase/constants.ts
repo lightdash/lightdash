@@ -1,2 +1,0 @@
-export const TILE_HEADER_HEIGHT = 24;
-export const TILE_HEADER_MARGIN_BOTTOM = 12;
