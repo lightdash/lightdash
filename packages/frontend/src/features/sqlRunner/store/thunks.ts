@@ -2,7 +2,12 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
 import type * as rtk from '@reduxjs/toolkit';
 
-import { ChartKind, isApiError, type ApiErrorDetail } from '@lightdash/common';
+import {
+    ChartKind,
+    isApiError,
+    type ApiErrorDetail,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { type RootState } from '.';
 import {
@@ -24,13 +29,26 @@ import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
  */
 export const runSqlQuery = createAsyncThunk<
     ResultsAndColumns,
-    { sql: string; limit: number; projectUuid: string },
+    {
+        sql: string;
+        limit: number;
+        projectUuid: string;
+        parameterValues: ParametersValuesMap;
+    },
     { rejectValue: ApiErrorDetail }
 >(
     'sqlRunner/runSqlQuery',
-    async ({ sql, limit, projectUuid }, { rejectWithValue }) => {
+    async (
+        { sql, limit, projectUuid, parameterValues },
+        { rejectWithValue },
+    ) => {
         try {
-            return await executeSqlQuery(projectUuid, sql, limit);
+            return await executeSqlQuery(
+                projectUuid,
+                sql,
+                limit,
+                parameterValues,
+            );
         } catch (error) {
             if (isApiError(error)) {
                 return rejectWithValue(error.error);

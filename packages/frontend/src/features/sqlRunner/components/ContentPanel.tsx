@@ -1,8 +1,10 @@
 import {
     ChartKind,
+    getParameterReferences,
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     MAX_SAFE_INTEGER,
+    type ParametersValuesMap,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
@@ -55,6 +57,7 @@ import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
+import { Parameters } from '../../parameters';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -123,6 +126,37 @@ export const ContentPanel: FC = () => {
         height: inputSectionHeight,
     } = useElementSize();
 
+    // Parameter state management for SQL Runner context
+    const [parameterValues, setParameterValues] = useState<ParametersValuesMap>(
+        {},
+    );
+
+    const handleParameterChange = useCallback(
+        (key: string, value: string | string[] | null) => {
+            if (value) {
+                setParameterValues((prev) => ({
+                    ...prev,
+                    [key]: value,
+                }));
+            } else {
+                setParameterValues((prev) => {
+                    const newValues = { ...prev };
+                    delete newValues[key];
+                    return newValues;
+                });
+            }
+        },
+        [],
+    );
+
+    const parameterReferences = useMemo(() => {
+        return new Set(getParameterReferences(sql));
+    }, [sql]);
+
+    const clearAllParameters = useCallback(() => {
+        setParameterValues({});
+    }, []);
+
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),
     );
@@ -145,10 +179,11 @@ export const ContentPanel: FC = () => {
                     sql: sqlToUse,
                     limit,
                     projectUuid,
+                    parameterValues,
                 }),
             );
         },
-        [dispatch, projectUuid, limit],
+        [dispatch, projectUuid, limit, parameterValues],
     );
 
     useEffect(() => {
@@ -451,6 +486,13 @@ export const ContentPanel: FC = () => {
                             </Indicator>
                         </Group>
                         <Group spacing="xs">
+                            <Parameters
+                                isEditMode={false}
+                                parameterReferences={parameterReferences}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onClearAll={clearAllParameters}
+                            />
                             {activeEditorTab === EditorTabs.SQL && (
                                 <SqlQueryHistory />
                             )}

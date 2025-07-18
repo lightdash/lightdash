@@ -6,7 +6,7 @@ export const defaultState: ExplorerReduceState = {
     isVisualizationConfigOpen: false,
     shouldFetchResults: false,
     previouslyFetchedState: undefined,
-    expandedSections: [ExplorerSection.RESULTS],
+    expandedSections: [ExplorerSection.RESULTS, ExplorerSection.PARAMETERS],
     unsavedChartVersion: {
         tableName: '',
         metricQuery: {
@@ -43,4 +43,5 @@ export const defaultState: ExplorerReduceState = {
             isOpen: false,
         },
     },
+    parameters: {},
 };

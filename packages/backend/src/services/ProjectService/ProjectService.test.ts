@@ -23,6 +23,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -143,6 +144,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
         featureFlagModel: {} as FeatureFlagModel,
+        projectParametersModel: {} as ProjectParametersModel,
     });
 
 describe('ProjectService', () => {

@@ -115,7 +115,7 @@ export class SupportService extends BaseService {
 
         const query = await this.projectService.compileQuery({
             user,
-            metricQuery: savedChart.metricQuery,
+            body: savedChart.metricQuery,
             projectUuid,
             exploreName: savedChart.tableName,
         });

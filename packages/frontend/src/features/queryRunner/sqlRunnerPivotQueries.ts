@@ -1,6 +1,7 @@
 import {
     VIZ_DEFAULT_AGGREGATION,
     type DashboardFilters,
+    type ParametersValuesMap,
     type PivotChartData,
     type QueryExecutionContext,
     type ResultColumns,
@@ -138,11 +139,13 @@ export const getSqlChartPivotChartData = async ({
     savedSqlUuid,
     limit,
     context,
+    parameters,
 }: {
     projectUuid: string;
     savedSqlUuid: string;
     limit?: number;
     context?: QueryExecutionContext;
+    parameters?: ParametersValuesMap;
 }): Promise<
     PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
 > => {
@@ -150,6 +153,7 @@ export const getSqlChartPivotChartData = async ({
         savedSqlUuid,
         context,
         limit,
+        parameters,
     });
 
     const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
@@ -173,6 +177,7 @@ export const getDashboardSqlChartPivotChartData = async ({
     dashboardFilters,
     dashboardSorts,
     context,
+    parameters,
 }: {
     projectUuid: string;
     dashboardUuid: string;
@@ -182,6 +187,7 @@ export const getDashboardSqlChartPivotChartData = async ({
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
     context?: QueryExecutionContext;
+    parameters?: ParametersValuesMap;
 }): Promise<
     PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
 > => {
@@ -193,6 +199,7 @@ export const getDashboardSqlChartPivotChartData = async ({
         dashboardFilters,
         dashboardSorts,
         limit,
+        parameters,
     });
 
     const columns: VizColumn[] = Object.keys(pivotResults.columns).map(

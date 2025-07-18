@@ -170,6 +170,10 @@ import {
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
+    ProjectParametersTable,
+    ProjectParametersTableName,
+} from '../database/entities/projectParameters';
+import {
     QueryHistoryTable,
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
@@ -361,5 +365,6 @@ declare module 'knex/types/tables' {
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [QueryHistoryTableName]: QueryHistoryTable;
+        [ProjectParametersTableName]: ProjectParametersTable;
     }
 }

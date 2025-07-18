@@ -4,6 +4,7 @@ import {
     type ApiError,
     type DashboardFilters,
     type IResultsRunner,
+    type ParametersValuesMap,
     type QueryExecutionContext,
     type RawResultRow,
     type ResultColumns,
@@ -26,6 +27,7 @@ type SavedSqlChartArgs = {
     slug?: string;
     projectUuid?: string;
     context?: string;
+    parameters?: ParametersValuesMap;
 };
 
 type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
@@ -33,6 +35,7 @@ type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    parameters?: ParametersValuesMap;
 };
 
 type UseSavedSqlChartResultsArguments =
@@ -60,7 +63,7 @@ export const useSavedSqlChartResults = (
     // Needed for organization colors
     const { data: organization } = useOrganization();
 
-    const { savedSqlUuid, slug, projectUuid, context } = args;
+    const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
@@ -96,11 +99,13 @@ export const useSavedSqlChartResults = (
                           dashboardSorts: args.dashboardSorts,
                           savedSqlUuid,
                           context: args.context as QueryExecutionContext,
+                          parameters,
                       })
                     : await getSqlChartPivotChartData({
                           projectUuid: projectUuid!,
                           savedSqlUuid: chart.savedSqlUuid,
                           context: context as QueryExecutionContext,
+                          parameters,
                       });
 
             const vizConfig = isVizTableConfig(chart.config)

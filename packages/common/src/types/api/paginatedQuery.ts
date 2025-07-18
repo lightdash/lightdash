@@ -1,5 +1,6 @@
 import {
     type GroupByColumn,
+    type ParametersValuesMap,
     type PivotIndexColum,
     type SortBy,
     type ValuesColumn,
@@ -12,9 +13,10 @@ import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type { DateGranularity } from '../timeFrames';
 
-type CommonPaginatedQueryRequestParams = {
+type CommonExecuteQueryRequestParams = {
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
+    parameters?: ParametersValuesMap;
 };
 
 export type DateZoom = {
@@ -23,20 +25,20 @@ export type DateZoom = {
 };
 
 export type ExecuteAsyncMetricQueryRequestParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
         dateZoom?: DateZoom;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         chartUuid: string;
         versionUuid?: string;
         limit?: number | null | undefined;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         chartUuid: string;
         dashboardUuid: string;
         dashboardFilters: DashboardFilters;
@@ -46,7 +48,7 @@ export type ExecuteAsyncDashboardChartRequestParams =
     };
 
 export type ExecuteAsyncSqlQueryRequestParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         sql: string;
         limit?: number;
         pivotConfiguration?: {
@@ -58,7 +60,7 @@ export type ExecuteAsyncSqlQueryRequestParams =
     };
 
 export type ExecuteAsyncUnderlyingDataRequestParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         underlyingDataSourceQueryUuid: string;
         underlyingDataItemId?: string;
         filters: Filters;
@@ -67,13 +69,13 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
     };
 
 export type ExecuteAsyncSqlChartByUuidRequestParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         savedSqlUuid: string;
         limit?: number;
     };
 
 export type ExecuteAsyncSqlChartBySlugRequestParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         slug: string;
         limit?: number;
     };
@@ -88,7 +90,7 @@ export const isExecuteAsyncSqlChartByUuidParams = (
     'savedSqlUuid' in params;
 
 type ExecuteAsyncDashboardSqlChartCommonParams =
-    CommonPaginatedQueryRequestParams & {
+    CommonExecuteQueryRequestParams & {
         dashboardUuid: string;
         tileUuid: string;
         dashboardFilters: DashboardFilters;

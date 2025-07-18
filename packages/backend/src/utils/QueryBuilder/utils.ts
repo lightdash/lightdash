@@ -149,33 +149,58 @@ const getWrapChars = (wrapChar: string): [string, string] => {
     }
 };
 
-const replaceAttributes = (
+export const replaceLightdashValues = (
     regex: RegExp,
     sql: string,
-    userAttributes: Record<string, string | string[]>,
+    valuesMap: Record<string, string | string[]>,
     quoteChar: string | '',
     wrapChar: string | '',
-): string => {
+    {
+        // Default to true since that's the current behavior for user attributes
+        throwOnMissing = true,
+        // ! This is only for error messages so we can reuse the same function for user attributes and parameters
+        replacementName = 'user attribute',
+    }: {
+        throwOnMissing?: boolean;
+        replacementName?: 'user attribute' | 'parameter';
+    } = {},
+): {
+    replacedSql: string;
+    references: Set<string>;
+    missingReferences: Set<string>;
+} => {
     const sqlAttributes = sql.match(regex);
     const [leftWrap, rightWrap] = getWrapChars(wrapChar);
+    const references = new Set<string>();
+    const missingReferences = new Set<string>();
 
     if (sqlAttributes === null || sqlAttributes.length === 0) {
-        return sql;
+        return {
+            replacedSql: sql,
+            references,
+            missingReferences,
+        };
     }
 
     const replacedUserAttributesSql = sqlAttributes.reduce<string>(
         (acc, sqlAttribute) => {
             const attribute = sqlAttribute.replace(regex, '$1');
-            const attributeValues = userAttributes[attribute];
+            const attributeValues = valuesMap[attribute];
+            references.add(attribute);
 
             if (attributeValues === undefined) {
+                missingReferences.add(attribute);
+                if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
-                    `Missing user attribute "${attribute}": "${sql}"`,
+                    `Missing ${replacementName} "${attribute}": "${sql}"`,
                 );
             }
+
             if (attributeValues.length === 0) {
+                missingReferences.add(attribute);
+                if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
-                    `Invalid or missing user attribute "${attribute}": "${sql}"`,
+                    `Invalid or missing ${replacementName} "${attribute}": "${sql}"`,
                 );
             }
 
@@ -193,8 +218,12 @@ const replaceAttributes = (
         sql,
     );
 
-    // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
-    return `${leftWrap}${replacedUserAttributesSql}${rightWrap}`;
+    return {
+        // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
+        replacedSql: `${leftWrap}${replacedUserAttributesSql}${rightWrap}`,
+        references,
+        missingReferences,
+    };
 };
 
 export const replaceUserAttributes = (
@@ -210,7 +239,7 @@ export const replaceUserAttributes = (
         /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
 
     // Replace user attributes in the SQL filter
-    const replacedSqlFilter = replaceAttributes(
+    const { replacedSql: replacedSqlFilter } = replaceLightdashValues(
         userAttributeRegex,
         sql,
         userAttributes,
@@ -219,13 +248,15 @@ export const replaceUserAttributes = (
     );
 
     // Replace intrinsic user attributes in the SQL filter
-    return replaceAttributes(
+    const { replacedSql } = replaceLightdashValues(
         intrinsicUserAttributeRegex,
         replacedSqlFilter,
         intrinsicUserAttributes,
         quoteChar,
         wrapChar,
     );
+
+    return replacedSql;
 };
 
 export const replaceUserAttributesAsStrings = (
