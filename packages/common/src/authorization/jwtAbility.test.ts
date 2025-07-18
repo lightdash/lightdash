@@ -18,6 +18,7 @@ const createEmbedJwt = (overrides?: {
         canExportImages: false,
         canExportPagePdf: false,
         canDateZoom: false,
+        canExplore: false,
     };
 
     const { content: contentOverrides, ...otherOverrides } = overrides || {};
@@ -467,6 +468,112 @@ describe('Embedded dashboard abilities', () => {
                     ),
                 ).toBe(false);
             });
+        });
+    });
+
+    describe('Explore abilities', () => {
+        it('should allow viewing Explore domains when canExplore is true', () => {
+            const embedUser = createEmbedJwt({
+                content: { canExplore: true },
+            });
+            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        it('should not allow viewing Explore domains when canExplore is false', () => {
+            const embedUser = createEmbedJwt({
+                content: { canExplore: false },
+            });
+            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('should not allow viewing Explore domains when canExplore is undefined', () => {
+            const embedUser = createEmbedJwt({
+                content: { canExplore: undefined },
+            });
+            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('should not allow viewing Explore domains for different projects', () => {
+            const embedUser = createEmbedJwt({
+                content: { canExplore: true },
+            });
+            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid: 'different-project-uuid',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid: 'different-project-uuid',
+                    }),
+                ),
+            ).toBe(false);
         });
     });
 });
