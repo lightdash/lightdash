@@ -102,10 +102,6 @@ export class OAuthService extends BaseService {
         });
     }
 
-    public getOAuthServer(): OAuth2Server {
-        return this.oauthServer;
-    }
-
     public validateCodeChallenge(
         codeChallenge?: string,
         codeChallengeMethod?: string,
@@ -555,8 +551,21 @@ export class OAuthService extends BaseService {
         const response = new OAuthResponse(res);
 
         try {
-            const token = await this.oauthServer.authorize(request, response);
-            res.status(200).json(token);
+            await this.oauthServer.authorize(request, response, {
+                authenticateHandler: {
+                    handle: () => ({
+                        userUuid: req.user!.userUuid,
+                        organizationUuid: req.user!.organizationUuid,
+                    }),
+                },
+            });
+
+            // Set the response
+            res.set(response.headers);
+            res.status(response.status || 200);
+            if (response.body) {
+                res.json(response.body);
+            }
         } catch (error) {
             const errorMessage =
                 error instanceof Error ? error.message : 'Unknown error';
@@ -572,8 +581,14 @@ export class OAuthService extends BaseService {
         const response = new OAuthResponse(res);
 
         try {
-            const token = await this.oauthServer.token(request, response);
-            res.status(200).json(token);
+            await this.oauthServer.token(request, response);
+
+            // Set the response
+            res.set(response.headers);
+            res.status(response.status || 200);
+            if (response.body) {
+                res.json(response.body);
+            }
         } catch (error) {
             const errorMessage =
                 error instanceof Error ? error.message : 'Unknown error';
