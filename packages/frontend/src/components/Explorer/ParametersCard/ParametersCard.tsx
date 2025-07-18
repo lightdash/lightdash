@@ -28,6 +28,7 @@ const ParametersCard = memo(
             data: parameters,
             isLoading,
             isError,
+            isFetched,
         } = useParameters(projectUuid, parameterReferences);
 
         const parameterValues = useExplorerContext(
@@ -55,7 +56,7 @@ const ParametersCard = memo(
 
         return (
             <CollapsableCard
-                isOpen={paramsIsOpen}
+                isOpen={paramsIsOpen && isFetched}
                 title="Parameters"
                 disabled={!tableName}
                 toggleTooltip={!tableName ? 'No model selected' : ''}

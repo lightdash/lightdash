@@ -33,5 +33,6 @@ export const useParameters = (
         queryKey: ['parameters', projectUuid, parameterReferences],
         queryFn: () => getParameters(projectUuid!, parameterReferences),
         enabled: !!projectUuid,
+        keepPreviousData: true,
         ...useQueryOptions,
     });
