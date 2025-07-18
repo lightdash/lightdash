@@ -95,7 +95,7 @@ export class ExploreController extends BaseController {
         this.setStatus(200);
         const results = await this.services
             .getProjectService()
-            .getExplore(req.user!, projectUuid, exploreId, undefined, false);
+            .getExplore(req.account!, projectUuid, exploreId, undefined, false);
 
         return {
             status: 'ok',
@@ -117,7 +117,7 @@ export class ExploreController extends BaseController {
 
         const results = (
             await this.services.getProjectService().compileQuery({
-                user: req.user!,
+                account: req.account!,
                 metricQuery: body,
                 projectUuid,
                 exploreName: exploreId,

@@ -47,6 +47,7 @@ describe('Explore', () => {
         cy.findByTestId('page-spinner').should('not.exist');
 
         cy.findByText('Orders').click();
+        cy.findByText('Dimensions');
         cy.findByText('Customers').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
@@ -217,6 +218,7 @@ describe('Explore', () => {
             cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
             cy.findByText('Orders').click();
+            cy.findByText('Dimensions');
             cy.findByText('Customers').click();
             cy.findByText('First name').click();
             cy.findByText('Unique order count').click();

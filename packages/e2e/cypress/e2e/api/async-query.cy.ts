@@ -302,8 +302,14 @@ describe('Async Query API', () => {
                     body: runQueryBody,
                     failOnStatusCode: false,
                 }).then((executeResp) => {
-                    expect(executeResp.status).to.eq(401);
+                    expect(executeResp.status).to.eq(403);
                 });
+            });
+        });
+
+        it('should execute async query and get all results paged using JWT authentication', () => {
+            cy.getJwtToken(projectUuid).then((jwt) => {
+                runAsyncQueryTest(SEED_PROJECT.project_uuid, jwt);
             });
         });
     });

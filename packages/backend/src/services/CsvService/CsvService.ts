@@ -65,6 +65,7 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
+import * as Account from '../../auth/account';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
@@ -716,8 +717,9 @@ This method can be memory intensive
             });
         }
 
+        const account = Account.fromSession(user);
         const explore = await this.projectService.getExplore(
-            user,
+            account,
             chart.projectUuid,
             exploreId,
         );
@@ -749,7 +751,7 @@ This method can be memory intensive
         };
 
         const { rows, fields } = await this.projectService.runMetricQuery({
-            user,
+            account,
             metricQuery: metricQueryWithDashboardFilters,
             projectUuid: chart.projectUuid,
             exploreName: exploreId,
@@ -1049,8 +1051,10 @@ This method can be memory intensive
             tableConfig,
             chartConfig,
         } = chart;
+
+        const account = Account.fromSession(user);
         const explore = await this.projectService.getExplore(
-            user,
+            account,
             projectUuid,
             tableName,
         );
@@ -1238,8 +1242,9 @@ This method can be memory intensive
                 explore_name: exploreId,
             };
 
+            const account = Account.fromSession(user);
             const { rows, fields } = await this.projectService.runMetricQuery({
-                user,
+                account,
                 metricQuery,
                 projectUuid,
                 exploreName: exploreId,

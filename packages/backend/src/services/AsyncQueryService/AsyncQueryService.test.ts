@@ -62,6 +62,7 @@ import {
     projectSummary,
     projectWithSensitiveFields,
     resultsWith1Row,
+    sessionAccount,
     spacesWithSavedCharts,
     tablesConfiguration,
     user,
@@ -266,7 +267,7 @@ describe('AsyncQueryService', () => {
 
             const result = await serviceWithCache.executeAsyncQuery(
                 {
-                    user,
+                    account: sessionAccount,
                     projectUuid,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
@@ -311,7 +312,7 @@ describe('AsyncQueryService', () => {
                     pivot_total_column_count: null,
                     pivot_values_columns: null,
                 },
-                user.userUuid,
+                sessionAccount,
             );
 
             // Verify that the warehouse client executeAsyncQuery method was not called
@@ -345,7 +346,7 @@ describe('AsyncQueryService', () => {
 
             const result = await serviceWithCache.executeAsyncQuery(
                 {
-                    user,
+                    account: sessionAccount,
                     projectUuid,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
@@ -394,8 +395,12 @@ describe('AsyncQueryService', () => {
             expect(schedulerClientScheduleTaskSpy).toHaveBeenCalledWith(
                 SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                 expect.objectContaining({
-                    organizationUuid: user.organizationUuid!,
-                    userUuid: user.userUuid,
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid!,
+                    userUuid: sessionAccount.user.id,
+                    userId: sessionAccount.user.id,
+                    isSessionUser: true,
+                    isRegisteredUser: true,
                     projectUuid,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
@@ -429,7 +434,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache.executeAsyncQuery(
                 {
-                    user,
+                    account: sessionAccount,
                     projectUuid,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
@@ -476,8 +481,12 @@ describe('AsyncQueryService', () => {
             expect(schedulerClientScheduleTaskSpy).toHaveBeenCalledWith(
                 SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                 expect.objectContaining({
-                    organizationUuid: user.organizationUuid!,
-                    userUuid: user.userUuid,
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid!,
+                    userUuid: sessionAccount.user.id,
+                    userId: sessionAccount.user.id,
+                    isSessionUser: true,
+                    isRegisteredUser: true,
                     projectUuid,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
@@ -517,8 +526,9 @@ describe('AsyncQueryService', () => {
             // Mock the queryHistoryModel.get to return a query with ERROR status
             const mockQueryHistory: QueryHistory = {
                 createdAt: new Date(),
-                organizationUuid: user.organizationUuid!,
-                createdByUserUuid: user.userUuid,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
                 createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
@@ -554,7 +564,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(validExplore);
 
             const result = await serviceWithCache.getAsyncQueryResults({
-                user,
+                account: sessionAccount,
                 projectUuid,
                 queryUuid: 'test-query-uuid',
                 page: 1,
@@ -572,8 +582,9 @@ describe('AsyncQueryService', () => {
             // Mock the queryHistoryModel.get to return a query with PENDING status
             const mockQueryHistory: QueryHistory = {
                 createdAt: new Date(),
-                organizationUuid: user.organizationUuid!,
-                createdByUserUuid: user.userUuid,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
                 createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
@@ -612,7 +623,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(validExplore);
 
             const result = await serviceWithCache.getAsyncQueryResults({
-                user,
+                account: sessionAccount,
                 projectUuid,
                 queryUuid: 'test-query-uuid',
                 page: 1,
@@ -629,8 +640,9 @@ describe('AsyncQueryService', () => {
             // Mock the queryHistoryModel.get to return a query with CANCELLED status
             const mockQueryHistory: QueryHistory = {
                 createdAt: new Date(),
-                organizationUuid: user.organizationUuid!,
-                createdByUserUuid: user.userUuid,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
                 createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
@@ -666,7 +678,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(validExplore);
 
             const result = await serviceWithCache.getAsyncQueryResults({
-                user,
+                account: sessionAccount,
                 projectUuid,
                 queryUuid: 'test-query-uuid',
                 page: 1,
@@ -683,8 +695,9 @@ describe('AsyncQueryService', () => {
             // Mock the queryHistoryModel.get to return a READY query with null resultsFileName
             const mockQueryHistory: QueryHistory = {
                 createdAt: new Date(),
-                organizationUuid: user.organizationUuid!,
-                createdByUserUuid: user.userUuid,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
                 createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
@@ -722,7 +735,7 @@ describe('AsyncQueryService', () => {
 
             await expect(
                 serviceWithCache.getAsyncQueryResults({
-                    user,
+                    account: sessionAccount,
                     projectUuid,
                     queryUuid: 'test-query-uuid',
                     page: 1,
@@ -773,8 +786,9 @@ describe('AsyncQueryService', () => {
 
             const mockQueryHistory: QueryHistory = {
                 createdAt: new Date(),
-                organizationUuid: user.organizationUuid!,
-                createdByUserUuid: user.userUuid,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
                 createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
@@ -812,7 +826,7 @@ describe('AsyncQueryService', () => {
                 });
 
             const result = await serviceWithCache.getAsyncQueryResults({
-                user,
+                account: sessionAccount,
                 projectUuid,
                 queryUuid: 'test-query-uuid',
                 page: 1,
@@ -886,7 +900,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache.executeAsyncQuery(
                 {
-                    user,
+                    account: sessionAccount,
                     projectUuid,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.SQL_RUNNER,
@@ -934,7 +948,7 @@ describe('AsyncQueryService', () => {
                 });
 
                 const args = {
-                    user,
+                    account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
                     metricQuery: metricQueryMock,
@@ -973,7 +987,7 @@ describe('AsyncQueryService', () => {
                 });
 
                 const args = {
-                    user,
+                    account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.EXPLORE,
                     metricQuery: metricQueryMock,
@@ -993,8 +1007,12 @@ describe('AsyncQueryService', () => {
                 expect(schedulerSpy).toHaveBeenCalledWith(
                     SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
                     expect.objectContaining({
-                        organizationUuid: user.organizationUuid!,
-                        userUuid: user.userUuid,
+                        organizationUuid:
+                            sessionAccount.organization.organizationUuid!,
+                        userUuid: sessionAccount.user.id,
+                        userId: sessionAccount.user.id,
+                        isSessionUser: true,
+                        isRegisteredUser: true,
                         projectUuid,
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
@@ -1077,7 +1095,9 @@ describe('AsyncQueryService', () => {
                 );
 
                 const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
-                    userUuid: user.userUuid,
+                    userId: sessionAccount.user.id,
+                    isSessionUser: true,
+                    isRegisteredUser: true,
                     projectUuid,
                     query: 'SELECT * FROM test',
                     fieldsMap: {},

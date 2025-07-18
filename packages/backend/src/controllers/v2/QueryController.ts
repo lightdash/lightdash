@@ -27,7 +27,6 @@ import {
 import {
     Body,
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -73,7 +72,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .getAsyncQueryResults({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 queryUuid,
                 page,
@@ -98,7 +97,7 @@ export class QueryController extends BaseController {
         this.setStatus(200);
 
         await this.services.getAsyncQueryService().cancelAsyncQuery({
-            user: req.user!,
+            account: req.account!,
             projectUuid,
             queryUuid,
         });
@@ -139,7 +138,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncMetricQuery({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
                 metricQuery,
@@ -170,7 +169,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncSavedChartQuery({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
                 chartUuid: body.chartUuid,
@@ -202,7 +201,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncDashboardChartQuery({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
                 chartUuid: body.chartUuid,
@@ -237,7 +236,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncUnderlyingDataQuery({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
                 underlyingDataSourceQueryUuid:
@@ -271,7 +270,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncSqlQuery({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 sql: body.sql,
@@ -302,7 +301,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncSqlChartQuery({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
@@ -334,7 +333,7 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncDashboardSqlChartQuery({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 dashboardUuid: body.dashboardUuid,
@@ -373,7 +372,7 @@ export class QueryController extends BaseController {
         const readStream = await this.services
             .getAsyncQueryService()
             .getResultsStream({
-                user: req.user!,
+                account: req.account!,
                 projectUuid,
                 queryUuid,
             });
@@ -409,7 +408,7 @@ export class QueryController extends BaseController {
         this.setStatus(200);
 
         const results = await this.services.getAsyncQueryService().download({
-            user: req.user!,
+            account: req.account!,
             projectUuid,
             queryUuid,
             type: body.type,
