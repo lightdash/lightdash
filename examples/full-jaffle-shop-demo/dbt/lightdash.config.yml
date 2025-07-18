@@ -13,6 +13,7 @@ spotlight:
 parameters:
   table_where:
     label: 'Table where'
+    default: "1"
     options: [ "1", "2", "3" ]
   join_on:
     label: 'Join param'
@@ -26,6 +27,7 @@ parameters:
   dim_param:
     label: 'Status'
     description: 'Filter by status'
+    default: "1"
     options_from_dimension:
       model: orders
       dimension: status
