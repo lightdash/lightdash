@@ -136,6 +136,9 @@ export default class SchedulerApp {
             }),
             models: this.models,
         });
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -146,10 +149,8 @@ export default class SchedulerApp {
             clients: this.clients,
             models: this.models,
             utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.utils = utils;
@@ -165,6 +166,7 @@ export default class SchedulerApp {
         }
 
         this.prometheusMetrics.start();
+        this.prometheusMetrics.initializeQueryMetrics();
         this.prometheusMetrics.monitorDatabase(this.database);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
