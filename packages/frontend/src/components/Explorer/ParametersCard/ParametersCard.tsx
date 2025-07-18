@@ -29,7 +29,9 @@ const ParametersCard = memo(
             isLoading,
             isError,
             isFetched,
-        } = useParameters(projectUuid, parameterReferences);
+        } = useParameters(projectUuid, parameterReferences, {
+            enabled: !!parameterReferences?.length,
+        });
 
         const parameterValues = useExplorerContext(
             (context) => context.state.parameters,
