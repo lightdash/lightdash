@@ -3,6 +3,7 @@
 import {
     ApiError,
     AuthorizationError,
+    AuthTokenPrefix,
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
@@ -47,6 +48,14 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     }
 };
 
+export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        next();
+        return;
+    }
+
+    void req.services.getOauthService().authenticateWithOauthToken(req, next);
+};
 /*
 This middleware is used to enable Api tokens and service accounts
 We first check service accounts (bearer header),

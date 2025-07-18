@@ -152,6 +152,9 @@ importers:
       '@lightdash/warehouses':
         specifier: workspace:*
         version: link:../warehouses
+      '@node-oauth/oauth2-server':
+        specifier: ^5.2.0
+        version: 5.2.0
       '@octokit/app':
         specifier: ^14.0.2
         version: 14.0.2
@@ -3240,6 +3243,13 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@node-oauth/formats@1.0.0':
+    resolution: {integrity: sha512-DwSbLtdC8zC5B5gTJkFzJj5s9vr9SGzOgQvV9nH7tUVuMSScg0EswAczhjIapOmH3Y8AyP7C4Jv7b8+QJObWZA==}
+
+  '@node-oauth/oauth2-server@5.2.0':
+    resolution: {integrity: sha512-tbw0aHPk1Pu/HmQlll4unYd+VHwoagbAmUBLys5g6hDh9khcKzTmE77Z0myMG5a66w3Yk3xBwCRPX9a7M+HTqA==}
+    engines: {node: '>=16.0.0'}
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -6033,7 +6043,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -6336,6 +6345,10 @@ packages:
   base64url@3.0.1:
     resolution: {integrity: sha512-ir1UPr3dkwexU7FdV8qBBbNDRUhMmIekYMFZfi+C/sLNnRESKPl23nB9b2pltqfOQNnGzsDdId90AEtG5tCx4A==}
     engines: {node: '>=6.0.0'}
+
+  basic-auth@2.0.1:
+    resolution: {integrity: sha512-NF+epuEdnUYVlGuhaxbbq+dvJttwLnGY+YixlXlME5KpQ5W3CnXA5cVTneY3SPbPDRkcjMbifrwmFYcClgOZeg==}
+    engines: {node: '>= 0.8'}
 
   basic-ftp@5.0.4:
     resolution: {integrity: sha512-8PzkB0arJFV4jJWSGOYR+OEic6aeKMu/osRhBULN6RY0ykby6LKhbmuQ5ublvaas5BOwboah5D87nrHyuh8PPA==}
@@ -16694,7 +16707,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -16955,6 +16968,14 @@ snapshots:
 
   '@next/swc-win32-x64-msvc@15.3.0':
     optional: true
+
+  '@node-oauth/formats@1.0.0': {}
+
+  '@node-oauth/oauth2-server@5.2.0':
+    dependencies:
+      '@node-oauth/formats': 1.0.0
+      basic-auth: 2.0.1
+      type-is: 1.6.18
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -19954,7 +19975,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -19971,7 +19992,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -20879,6 +20900,10 @@ snapshots:
   base64-js@1.5.1: {}
 
   base64url@3.0.1: {}
+
+  basic-auth@2.0.1:
+    dependencies:
+      safe-buffer: 5.1.2
 
   basic-ftp@5.0.4: {}
 
@@ -21864,7 +21889,7 @@ snapshots:
       chalk: 2.4.2
       commander: 2.20.3
       core-js: 3.38.0
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       fast-json-patch: 3.1.1
       get-stdin: 6.0.0
       http-proxy-agent: 5.0.0
@@ -26283,7 +26308,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -28397,7 +28422,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 

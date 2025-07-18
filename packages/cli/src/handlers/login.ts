@@ -11,14 +11,24 @@ import { configFilePath, setContext, setDefaultUser } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
+import { loginWithOauth } from './oauthLogin';
 import { setFirstProject, setProjectCommand } from './setProject';
 import { buildRequestHeaders } from './utils';
 
 type LoginOptions = {
     /** Associated with a Personal Access Token or Service Account Token */
     token?: string;
+    /** Use OAuth2 flow instead of password/token */
+    oauth?: boolean;
     interactive?: boolean;
     verbose: boolean;
+};
+
+// Helper function to determine login method
+const getLoginMethod = (options: LoginOptions): string => {
+    if (options.oauth) return 'oauth';
+    if (options.token) return 'token';
+    return 'password';
 };
 
 const loginWithToken = async (url: string, token: string) => {
@@ -123,11 +133,13 @@ export const login = async (url: string, options: LoginOptions) => {
 
     GlobalState.debug(`> Login URL: ${url}`);
 
+    const loginMethod = getLoginMethod(options);
+
     await LightdashAnalytics.track({
         event: 'login.started',
         properties: {
             url,
-            method: options.token ? 'token' : 'password',
+            method: loginMethod,
         },
     });
 
@@ -141,9 +153,17 @@ export const login = async (url: string, options: LoginOptions) => {
             )} ?\n`,
         );
     }
-    const { userUuid, token, organizationUuid } = options.token
-        ? await loginWithToken(url, options.token)
-        : await loginWithPassword(url);
+
+    let loginResult;
+    if (options.oauth) {
+        loginResult = await loginWithOauth(url);
+    } else if (options.token) {
+        loginResult = await loginWithToken(url, options.token);
+    } else {
+        loginResult = await loginWithPassword(url);
+    }
+
+    const { userUuid, token, organizationUuid } = loginResult;
 
     GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);
 
@@ -153,7 +173,7 @@ export const login = async (url: string, options: LoginOptions) => {
             userId: userUuid,
             organizationId: organizationUuid,
             url,
-            method: options.token ? 'token' : 'password',
+            method: loginMethod,
         },
     });
     await setContext({
