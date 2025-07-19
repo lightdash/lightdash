@@ -1,5 +1,4 @@
 // eslint-disable-next-line max-classes-per-file
-import { type AnyType } from './any';
 import { type DbtLog } from './job';
 
 type LightdashErrorData = {
@@ -8,7 +7,7 @@ type LightdashErrorData = {
      * Can be used to provide users with additional context/guidance about the error.
      */
     documentationUrl?: string;
-    [key: string]: AnyType;
+    [key: string]: string | unknown;
 };
 
 type LightdashErrorParams = {
@@ -34,7 +33,7 @@ export class LightdashError extends Error {
 export class ForbiddenError extends LightdashError {
     constructor(
         message = "You don't have access to this resource or action",
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -48,7 +47,7 @@ export class ForbiddenError extends LightdashError {
 export class DeactivatedAccountError extends LightdashError {
     constructor(
         message = 'Your account has been deactivated. Please contact your organization administrator.',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -62,7 +61,7 @@ export class DeactivatedAccountError extends LightdashError {
 export class AuthorizationError extends LightdashError {
     constructor(
         message = "You don't have authorization to perform this action",
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -98,7 +97,7 @@ export class ExpiredError extends LightdashError {
 export class ParameterError extends LightdashError {
     constructor(
         message: string = 'Incorrect parameters',
-        data: Record<string, AnyType> = {},
+        data: Record<string, unknown> = {},
     ) {
         super({
             message,
@@ -110,7 +109,7 @@ export class ParameterError extends LightdashError {
 }
 
 export class NonCompiledModelError extends LightdashError {
-    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+    constructor(message: string, data: { [key: string]: unknown } = {}) {
         super({
             message,
             name: 'NonCompiledModelError',
@@ -121,7 +120,7 @@ export class NonCompiledModelError extends LightdashError {
 }
 
 export class MissingCatalogEntryError extends LightdashError {
-    constructor(message: string, data: { [key: string]: AnyType }) {
+    constructor(message: string, data: { [key: string]: unknown }) {
         super({
             message,
             name: 'MissingCatalogEntryError',
@@ -145,7 +144,7 @@ export class MissingWarehouseCredentialsError extends LightdashError {
 export class UnexpectedServerError extends LightdashError {
     constructor(
         message = 'Something went wrong.',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -158,7 +157,7 @@ export class UnexpectedServerError extends LightdashError {
 export class UnexpectedIndexError extends LightdashError {
     constructor(
         message = 'Invalid index in array.',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -171,7 +170,7 @@ export class UnexpectedIndexError extends LightdashError {
 export class UnexpectedGitError extends LightdashError {
     constructor(
         message = 'Unexpected error in Git adapter',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -185,7 +184,7 @@ export class UnexpectedGitError extends LightdashError {
 export class UnexpectedDatabaseError extends LightdashError {
     constructor(
         message = 'Unexpected error in Lightdash database.',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -199,7 +198,7 @@ export class UnexpectedDatabaseError extends LightdashError {
 export class ParseError extends LightdashError {
     constructor(
         message = 'Error parsing dbt project and lightdash metadata',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -213,7 +212,7 @@ export class ParseError extends LightdashError {
 export class CompileError extends LightdashError {
     constructor(
         message = 'Error compiling sql from Lightdash configuration',
-        data: Record<string, AnyType> = {},
+        data: Record<string, unknown> = {},
     ) {
         super({
             message,
@@ -227,7 +226,7 @@ export class CompileError extends LightdashError {
 export class FieldReferenceError extends LightdashError {
     constructor(
         message = 'Failed to reference field in dbt project',
-        data: Record<string, AnyType> = {},
+        data: Record<string, unknown> = {},
     ) {
         super({
             message,
@@ -286,7 +285,7 @@ export class WarehouseConnectionError extends LightdashError {
 }
 
 export class WarehouseQueryError extends LightdashError {
-    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+    constructor(message: string, data: { [key: string]: unknown } = {}) {
         super({
             message,
             name: 'WarehouseQueryError',
@@ -297,7 +296,7 @@ export class WarehouseQueryError extends LightdashError {
 }
 
 export class SmptError extends LightdashError {
-    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+    constructor(message: string, data: { [key: string]: unknown } = {}) {
         super({
             message,
             name: 'SmptError',
@@ -375,7 +374,7 @@ export class SlackInstallationNotFoundError extends LightdashError {
 export class SlackError extends LightdashError {
     constructor(
         message: string = 'Slack API error occurred',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -389,7 +388,7 @@ export class SlackError extends LightdashError {
 export class MsTeamsError extends LightdashError {
     constructor(
         message: string = 'Microsoft Teams API error occurred',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -403,7 +402,7 @@ export class MsTeamsError extends LightdashError {
 export class UnexpectedGoogleSheetsError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google sheets client',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -417,7 +416,7 @@ export class UnexpectedGoogleSheetsError extends LightdashError {
 export class GoogleSheetsTransientError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google Sheets API',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -443,7 +442,7 @@ export const getErrorMessage = (e: unknown) =>
 export class ScreenshotError extends LightdashError {
     constructor(
         message = 'Error capturing screenshot',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
@@ -466,7 +465,7 @@ export class SshTunnelError extends LightdashError {
 }
 
 export class ReadFileError extends LightdashError {
-    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+    constructor(message: string, data: { [key: string]: unknown } = {}) {
         super({
             message,
             name: 'ReadFileError',
@@ -479,7 +478,7 @@ export class ReadFileError extends LightdashError {
 export class S3Error extends LightdashError {
     constructor(
         message = 'Error occurred while interacting with S3',
-        data: { [key: string]: AnyType } = {},
+        data: { [key: string]: unknown } = {},
     ) {
         super({
             message,
