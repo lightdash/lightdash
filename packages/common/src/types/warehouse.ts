@@ -28,13 +28,13 @@ export type WarehouseCatalog = {
     };
 };
 
-export type WarehouseTablesCatalog = {
+export type WarehouseTablesCatalog = Partial<{
     [database: string]: {
         [schema: string]: {
             [table: string]: { partitionColumn?: PartitionColumn };
         };
     };
-};
+}>;
 
 export type WarehouseTables = {
     database: string;
