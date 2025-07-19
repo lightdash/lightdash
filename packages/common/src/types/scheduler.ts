@@ -106,11 +106,14 @@ export type SchedulerBase = {
     createdAt: Date;
     updatedAt: Date;
     createdBy: string;
+    createdByName: string | null;
     format: SchedulerFormat;
     cron: string;
     timezone?: string;
     savedChartUuid: string | null;
+    savedChartName: string | null;
     dashboardUuid: string | null;
+    dashboardName: string | null;
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
@@ -212,7 +215,12 @@ export type UpdateSchedulerEmailTarget = Pick<
 
 export type CreateSchedulerAndTargets = Omit<
     Scheduler,
-    'schedulerUuid' | 'createdAt' | 'updatedAt'
+    | 'schedulerUuid'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'createdByName'
+    | 'savedChartName'
+    | 'dashboardName'
 > & {
     targets: CreateSchedulerTarget[];
 };
