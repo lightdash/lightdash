@@ -43,15 +43,13 @@ export class OAuthModel {
     async getClient(): Promise<OAuthClient | null> {
         return {
             clientUuid: uuidv4(),
+            id: DEFAULT_OAUTH_CLIENT_ID,
             clientId: DEFAULT_OAUTH_CLIENT_ID,
-            clientSecret: '',
             clientName: 'Lightdash CLI',
+            clientSecret: '',
             redirectUris: ['http://localhost:*'],
             grants: ['authorization_code', 'refresh_token'],
             scopes: ['read', 'write'],
-            createdAt: new Date(),
-            createdByUserUuid: null,
-            expiresAt: null,
         };
     }
 

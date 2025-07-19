@@ -1,17 +1,18 @@
 /* eslint-disable class-methods-use-this */
 import {
+    AnyType,
+    AuthorizationCode,
     AuthTokenPrefix,
     ForbiddenError,
     NotFoundError,
-    NotImplementedError,
     OauthAuthenticationError,
+    OAuthClient,
+    OAuthToken,
     OAuthTokenRequest,
     OAuthTokenResponse,
+    RefreshToken,
 } from '@lightdash/common';
-import OAuth2Server, {
-    Request as OAuthRequest,
-    Response as OAuthResponse,
-} from '@node-oauth/oauth2-server';
+import OAuth2Server from '@node-oauth/oauth2-server';
 import crypto from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -19,41 +20,8 @@ import { DEFAULT_OAUTH_CLIENT_ID, OAuthModel } from '../../models/OAuthModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 
-interface OAuthClient {
-    id: string;
-    clientId: string;
-    clientSecret: string;
-    redirectUris: string[];
-    grants: string[];
-    scopes?: string[];
-}
-
-interface OAuthToken {
-    accessToken: string;
-    accessTokenExpiresAt: Date;
-    refreshToken?: string;
-    refreshTokenExpiresAt?: Date;
-    scopes?: string[];
-    client: OAuthClient;
-    user: { userUuid: string; organizationUuid: string };
-}
-
-interface AuthorizationCode {
-    authorizationCode: string;
-    expiresAt: Date;
-    redirectUri: string;
-    scopes?: string[];
-    client: OAuthClient;
-    user: { userUuid: string; organizationUuid: string };
-}
-
-interface RefreshToken {
-    refreshToken: string;
-    expiresAt: Date;
-    scopes?: string[];
-    client: OAuthClient;
-    user: { userUuid: string; organizationUuid: string };
-}
+const EXPIRE_ACCESS_TOKENS_HOURS = 1;
+const EXPIRE_REFRESH_TOKEN_DAYS = 30;
 
 export class OAuthService extends BaseService {
     private oauthServer!: OAuth2Server;
@@ -83,6 +51,7 @@ export class OAuthService extends BaseService {
     private initializeOAuthServer(): void {
         this.oauthServer = new OAuth2Server({
             model: {
+                getAuthorizationCode: this.getAuthorizationCode.bind(this),
                 getClient: this.getClient.bind(this),
                 saveToken: this.saveToken.bind(this),
                 getAccessToken: this.getAccessToken.bind(this),
@@ -91,7 +60,6 @@ export class OAuthService extends BaseService {
                 revokeToken: this.revokeToken.bind(this),
                 saveAuthorizationCode:
                     this.saveAuthorizationCodeServer.bind(this),
-                getAuthorizationCode: this.getAuthorizationCode.bind(this),
                 revokeAuthorizationCode:
                     this.revokeAuthorizationCode.bind(this),
             },
@@ -173,20 +141,38 @@ export class OAuthService extends BaseService {
     private async getClient(
         clientId: string,
         clientSecret: string,
+        redirectUri?: string,
     ): Promise<OAuthClient | false> {
         const client = await this.oauthModel.getClient();
         if (!client) {
             return false;
         }
 
-        return {
-            id: client.clientUuid,
-            clientId: client.clientId,
-            clientSecret: client.clientSecret || '',
-            redirectUris: client.redirectUris,
-            grants: client.grants,
-            scopes: client.scopes || undefined,
-        };
+        // Validate client ID
+        if (client.clientId !== clientId) {
+            return false;
+        }
+
+        // Validate redirect URI if provided
+        if (redirectUri && client.redirectUris) {
+            const isValidRedirectUri = client.redirectUris.some(
+                (allowedUri) => {
+                    // Handle wildcard patterns like 'http://localhost:*'
+                    if (allowedUri.includes('*')) {
+                        const pattern = allowedUri.replace('*', '.*');
+                        const regex = new RegExp(pattern);
+                        return regex.test(redirectUri);
+                    }
+                    return allowedUri === redirectUri;
+                },
+            );
+
+            if (!isValidRedirectUri) {
+                return false;
+            }
+        }
+
+        return client;
     }
 
     private async saveToken(
@@ -227,7 +213,7 @@ export class OAuthService extends BaseService {
         }
     }
 
-    private async getAccessToken(
+    public async getAccessToken(
         accessToken: string,
     ): Promise<OAuthToken | false> {
         const token = await this.oauthModel.getAccessToken(accessToken);
@@ -244,16 +230,10 @@ export class OAuthService extends BaseService {
 
         return {
             accessToken: token.accessToken,
+            accessTokenCreatedAt: token.createdAt,
             accessTokenExpiresAt: token.expiresAt,
             scopes: token.scopes || undefined,
-            client: {
-                id: client.clientUuid,
-                clientId: client.clientId,
-                clientSecret: client.clientSecret || '',
-                redirectUris: client.redirectUris,
-                grants: client.grants,
-                scopes: client.scopes || undefined,
-            },
+            client,
             user: {
                 userUuid: token.userUuid,
                 organizationUuid: token.organizationUuid,
@@ -299,14 +279,7 @@ export class OAuthService extends BaseService {
             refreshToken: token.refreshToken,
             expiresAt: token.expiresAt,
             scopes: token.scopes || undefined,
-            client: {
-                id: client.clientUuid,
-                clientId: client.clientId,
-                clientSecret: client.clientSecret || '',
-                redirectUris: client.redirectUris,
-                grants: client.grants,
-                scopes: client.scopes || undefined,
-            },
+            client,
             user: {
                 userUuid: token.userUuid,
                 organizationUuid: token.organizationUuid,
@@ -335,21 +308,53 @@ export class OAuthService extends BaseService {
         client: OAuthClient,
         user: { userUuid: string; organizationUuid: string },
     ): Promise<AuthorizationCode> {
+        // Extract PKCE information from the code object if available
+        const extendedCode = code as AuthorizationCode & {
+            codeChallenge?: string;
+            codeChallengeMethod?: 'S256' | 'plain';
+        };
+        const pkceInfo = extendedCode.codeChallenge
+            ? {
+                  code_challenge: extendedCode.codeChallenge,
+                  code_challenge_method:
+                      extendedCode.codeChallengeMethod || null,
+              }
+            : {
+                  code_challenge: null,
+                  code_challenge_method: null,
+              };
+
+        // Also check if PKCE info is in the request context
+        const { request } = code as AnyType;
+        let finalPkceInfo = pkceInfo;
+        if (request?.body?.code_challenge) {
+            finalPkceInfo = {
+                code_challenge: request.body.code_challenge,
+                code_challenge_method:
+                    request.body.code_challenge_method || null,
+            };
+        }
+
+        // Get user context from the request if not provided
+        let userContext = user;
+        if (request?.user && (!user.userUuid || !user.organizationUuid)) {
+            userContext = request.user;
+        }
+
         const savedCode = await this.oauthModel.saveAuthorizationCode({
             authorization_code: code.authorizationCode,
             expires_at: code.expiresAt,
             redirect_uri: code.redirectUri,
             scopes: code.scopes || ['read', 'write'],
-            user_uuid: user.userUuid,
-            organization_uuid: user.organizationUuid,
-            code_challenge: null, // Will be set if PKCE is used
-            code_challenge_method: null,
+            user_uuid: userContext.userUuid,
+            organization_uuid: userContext.organizationUuid,
+            ...finalPkceInfo,
         });
 
         return {
             ...code,
             client,
-            user,
+            user: userContext,
         };
     }
 
@@ -368,24 +373,31 @@ export class OAuthService extends BaseService {
             return false;
         }
 
-        return {
+        // Create the authorization code object with PKCE information
+        const authCode: AuthorizationCode & {
+            codeChallenge?: string;
+            codeChallengeMethod?: 'S256' | 'plain';
+        } = {
             authorizationCode: code.authorizationCode,
             expiresAt: code.expiresAt,
             redirectUri: code.redirectUri,
             scopes: code.scopes || ['read', 'write'],
-            client: {
-                id: client.clientUuid,
-                clientId: client.clientId,
-                clientSecret: client.clientSecret || '',
-                redirectUris: client.redirectUris,
-                grants: client.grants,
-                scopes: client.scopes || ['read', 'write'],
-            },
+            client,
             user: {
                 userUuid: code.userUuid,
                 organizationUuid: code.organizationUuid,
             },
         };
+
+        // Add PKCE information if available
+        if (code.codeChallenge) {
+            authCode.codeChallenge = code.codeChallenge;
+        }
+        if (code.codeChallengeMethod) {
+            authCode.codeChallengeMethod = code.codeChallengeMethod;
+        }
+
+        return authCode;
     }
 
     private async revokeAuthorizationCode(
@@ -419,7 +431,7 @@ export class OAuthService extends BaseService {
     }
 
     // Helper methods for the controller
-    public async refreshTokenForController(
+    public async refreshToken(
         tokenRequest: OAuthTokenRequest,
     ): Promise<OAuthTokenResponse> {
         if (!tokenRequest.refresh_token) {
@@ -431,16 +443,14 @@ export class OAuthService extends BaseService {
         const { refresh_token: refreshToken } = tokenRequest;
 
         // Get refresh token from database
-        const refreshTokenData = await this.getRefreshTokenForController(
-            refreshToken,
-        );
+        const refreshTokenData = await this.getRefreshToken(refreshToken);
         if (!refreshTokenData) {
             throw new OauthAuthenticationError('Invalid refresh token');
         }
 
         // Check if refresh token has expired
         if (refreshTokenData.expiresAt < new Date()) {
-            await this.revokeRefreshTokenForController(refreshToken || '');
+            await this.revokeRefreshToken(refreshToken || '');
             throw new OauthAuthenticationError('Refresh token has expired');
         }
 
@@ -449,12 +459,14 @@ export class OAuthService extends BaseService {
         const accessTokenExpiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour
 
         // Save new access token to database
-        await this.saveAccessTokenForController({
-            accessToken,
-            expiresAt: accessTokenExpiresAt,
-            scopes: refreshTokenData.scopes,
-            userUuid: refreshTokenData.userUuid,
-            organizationUuid: refreshTokenData.organizationUuid,
+
+        await this.oauthModel.saveAccessToken({
+            access_token: accessToken,
+            expires_at: accessTokenExpiresAt,
+            scopes: refreshTokenData.scopes || ['read', 'write'],
+            user_uuid: refreshTokenData.user.userUuid,
+            organization_uuid: refreshTokenData.user.organizationUuid,
+            authorization_code_uuid: null,
         });
 
         return {
@@ -466,7 +478,7 @@ export class OAuthService extends BaseService {
         };
     }
 
-    public async getAuthorizationCodeForController(
+    public async authorizeCode(
         tokenRequest: OAuthTokenRequest,
     ): Promise<OAuthTokenResponse> {
         if (!tokenRequest.code) {
@@ -485,7 +497,9 @@ export class OAuthService extends BaseService {
 
         // Check if code has expired
         if (codeData.expiresAt < new Date()) {
-            await this.revokeAuthorizationCodeForController(code || '');
+            await this.oauthModel.revokeAuthorizationCode(
+                codeData.authorizationCodeUuid,
+            );
             throw new OauthAuthenticationError(
                 'Authorization code has expired',
             );
@@ -511,31 +525,37 @@ export class OAuthService extends BaseService {
         }
 
         // Remove the used authorization code
-        await this.revokeAuthorizationCodeForController(code);
+        await this.oauthModel.revokeAuthorizationCode(
+            codeData.authorizationCodeUuid,
+        );
 
         // Generate access and refresh tokens
         const accessToken = this.generateAccessToken();
         const refreshToken = this.generateRefreshToken();
-        const accessTokenExpiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour
+        const accessTokenExpiresAt = new Date(
+            Date.now() + EXPIRE_ACCESS_TOKENS_HOURS * 3600 * 1000,
+        ); // 1 hour
         const refreshTokenExpiresAt = new Date(
-            Date.now() + 30 * 24 * 3600 * 1000,
-        ); // 30 days
+            Date.now() + EXPIRE_REFRESH_TOKEN_DAYS * 24 * 3600 * 1000,
+        );
 
         // Save tokens to database
-        await this.saveAccessTokenForController({
-            accessToken,
-            expiresAt: accessTokenExpiresAt,
-            scopes: codeData.scopes,
-            userUuid: codeData.userUuid,
-            organizationUuid: codeData.organizationUuid,
+        const accessTokenData = await this.oauthModel.saveAccessToken({
+            access_token: accessToken,
+            expires_at: accessTokenExpiresAt,
+            scopes: codeData.scopes || ['read', 'write'],
+            user_uuid: codeData.userUuid,
+            organization_uuid: codeData.organizationUuid,
+            authorization_code_uuid: null,
         });
 
-        await this.saveRefreshTokenForController({
-            refreshToken,
-            expiresAt: refreshTokenExpiresAt,
-            scopes: codeData.scopes,
-            userUuid: codeData.userUuid,
-            organizationUuid: codeData.organizationUuid,
+        await this.oauthModel.saveRefreshToken({
+            refresh_token: refreshToken,
+            expires_at: refreshTokenExpiresAt,
+            scopes: codeData.scopes || ['read', 'write'],
+            user_uuid: codeData.userUuid,
+            organization_uuid: codeData.organizationUuid,
+            access_token_uuid: accessTokenData.accessTokenUuid,
         });
 
         return {
@@ -547,98 +567,7 @@ export class OAuthService extends BaseService {
         };
     }
 
-    public async handleAuthorizationRequest(
-        req: Request,
-        res: Response,
-    ): Promise<void> {
-        const request = new OAuthRequest(req);
-        const response = new OAuthResponse(res);
-
-        try {
-            const token = await this.oauthServer.authorize(request, response);
-            res.status(200).json(token);
-        } catch (error) {
-            const errorMessage =
-                error instanceof Error ? error.message : 'Unknown error';
-            res.status(400).json({ error: errorMessage });
-        }
-    }
-
-    public async handleTokenRequest(
-        req: Request,
-        res: Response,
-    ): Promise<void> {
-        const request = new OAuthRequest(req);
-        const response = new OAuthResponse(res);
-
-        try {
-            const token = await this.oauthServer.token(request, response);
-            res.status(200).json(token);
-        } catch (error) {
-            const errorMessage =
-                error instanceof Error ? error.message : 'Unknown error';
-            res.status(400).json({ error: errorMessage });
-        }
-    }
-
-    public async handleRevokeRequest(
-        req: Request,
-        res: Response,
-    ): Promise<void> {
-        const request = new OAuthRequest(req);
-        const response = new OAuthResponse(res);
-
-        try {
-            // Note: OAuth2Server doesn't have a built-in revoke method
-            // We'll implement this manually
-            const token = request.body.token || request.query?.token;
-            if (token) {
-                const refreshToken = await this.oauthModel.getRefreshToken(
-                    token,
-                );
-                if (refreshToken) {
-                    await this.oauthModel.revokeRefreshToken(
-                        refreshToken.refreshTokenUuid,
-                    );
-                }
-            }
-            res.status(200).json({ message: 'Token revoked successfully' });
-        } catch (error) {
-            const errorMessage =
-                error instanceof Error ? error.message : 'Unknown error';
-            res.status(400).json({ error: errorMessage });
-        }
-    }
-
-    public async handleIntrospectRequest(
-        req: Request,
-        res: Response,
-    ): Promise<void> {
-        try {
-            const { token } = req.body;
-            if (!token) {
-                res.status(400).json({ error: 'Token is required' });
-                return;
-            }
-
-            const accessToken = await this.oauthModel.getAccessToken(token);
-            if (accessToken) {
-                res.status(200).json({
-                    active: true,
-                    scopes: accessToken.scopes.join(' '),
-                    user_id: accessToken.userUuid,
-                    exp: Math.floor(accessToken.expiresAt.getTime() / 1000),
-                });
-            } else {
-                res.status(200).json({ active: false });
-            }
-        } catch (error) {
-            const errorMessage =
-                error instanceof Error ? error.message : 'Unknown error';
-            res.status(400).json({ error: errorMessage });
-        }
-    }
-
+    // Used in middelware to authenticate with oauth token
     public async authenticateWithOauthToken(
         req: Request,
         next: NextFunction,
@@ -708,148 +637,64 @@ export class OAuthService extends BaseService {
         });
     }
 
-    public async revokeAuthorizationCodeForController(
-        authorizationCode: string,
-    ): Promise<void> {
-        const code = await this.oauthModel.getAuthorizationCode(
-            authorizationCode,
-        );
-        if (code) {
-            await this.oauthModel.revokeAuthorizationCode(
-                code.authorizationCodeUuid,
-            );
-        }
-    }
-
-    public async saveAccessTokenForController(data: {
-        accessToken: string;
-        expiresAt: Date;
-        scopes?: string[];
-        userUuid: string;
-        organizationUuid: string;
-    }): Promise<void> {
-        const client = await this.oauthModel.getClient();
-        if (!client) {
-            throw new Error('Invalid client');
-        }
-
-        await this.oauthModel.saveAccessToken({
-            access_token: data.accessToken,
-            expires_at: data.expiresAt,
-            scopes: data.scopes || ['read', 'write'],
-            user_uuid: data.userUuid,
-            organization_uuid: data.organizationUuid,
-            authorization_code_uuid: null,
-        });
-    }
-
-    public async saveRefreshTokenForController(data: {
-        refreshToken: string;
-        expiresAt: Date;
-        scopes?: string[];
-        userUuid: string;
-        organizationUuid: string;
-    }): Promise<void> {
-        const client = await this.oauthModel.getClient();
-        if (!client) {
-            throw new Error('Invalid client');
-        }
-
-        // Get the access token to link to
-        const accessToken = await this.oauthModel.getAccessTokenByUserAndClient(
-            data.userUuid,
-        );
-        if (!accessToken) {
-            throw new Error('No access token found for user');
-        }
-
-        await this.oauthModel.saveRefreshToken({
-            refresh_token: data.refreshToken,
-            expires_at: data.expiresAt,
-            scopes: data.scopes || ['read', 'write'],
-            user_uuid: data.userUuid,
-            organization_uuid: data.organizationUuid,
-            access_token_uuid: accessToken.accessTokenUuid,
-        });
-    }
-
-    public async getAccessTokenForController(accessToken: string): Promise<{
-        accessToken: string;
-        expiresAt: Date;
-        scopes?: string[];
-        userUuid: string;
-        organizationUuid: string;
-        createdAt: Date;
-    } | null> {
-        const token = await this.oauthModel.getAccessToken(accessToken);
-        if (!token) {
-            return null;
-        }
-
-        const client = await this.oauthModel.getClient();
-        if (!client) {
-            return null;
-        }
-
-        // Update last used timestamp
-        await this.oauthModel.updateAccessTokenLastUsed(token.accessTokenUuid);
-
-        return {
-            accessToken: token.accessToken,
-            expiresAt: token.expiresAt,
-            scopes: token.scopes || undefined,
-            userUuid: token.userUuid,
-            organizationUuid: token.organizationUuid,
-            createdAt: token.createdAt,
-        };
-    }
-
-    public async getRefreshTokenForController(refreshToken: string): Promise<{
-        refreshToken: string;
-        expiresAt: Date;
-        scopes?: string[];
-        userUuid: string;
-        organizationUuid: string;
-    } | null> {
-        const token = await this.oauthModel.getRefreshToken(refreshToken);
-        if (!token) {
-            return null;
-        }
-
-        const client = await this.oauthModel.getClient();
-        if (!client) {
-            return null;
-        }
-
-        // Update last used timestamp
-        await this.oauthModel.updateRefreshTokenLastUsed(
-            token.refreshTokenUuid,
-        );
-
-        return {
-            refreshToken: token.refreshToken,
-            expiresAt: token.expiresAt,
-            scopes: token.scopes || undefined,
-            userUuid: token.userUuid,
-            organizationUuid: token.organizationUuid,
-        };
-    }
-
-    public async revokeAccessTokenForController(
-        accessToken: string,
-    ): Promise<void> {
+    public async revokeAccessToken(accessToken: string): Promise<void> {
         const token = await this.oauthModel.getAccessToken(accessToken);
         if (token) {
             await this.oauthModel.revokeAccessToken(token.accessTokenUuid);
         }
     }
 
-    public async revokeRefreshTokenForController(
-        refreshToken: string,
-    ): Promise<void> {
+    public async revokeRefreshToken(refreshToken: string): Promise<void> {
         const token = await this.oauthModel.getRefreshToken(refreshToken);
         if (token) {
             await this.oauthModel.revokeRefreshToken(token.refreshTokenUuid);
+        }
+    }
+
+    public async introspectToken(
+        token: string,
+        tokenTypeHint?: string,
+    ): Promise<{
+        active: boolean;
+        scope?: string;
+        token_type?: string;
+        exp?: number;
+    }> {
+        try {
+            if (
+                tokenTypeHint === 'refresh_token' ||
+                token?.startsWith('refresh_')
+            ) {
+                const refreshToken = await this.getRefreshToken(token);
+                if (refreshToken && refreshToken.expiresAt > new Date()) {
+                    return {
+                        active: true,
+                        scope: refreshToken.scopes?.join(' '),
+                        token_type: 'refresh_token',
+                        exp: Math.floor(
+                            refreshToken.expiresAt.getTime() / 1000,
+                        ),
+                    };
+                }
+            } else {
+                const accessToken = await this.getAccessToken(token);
+                if (
+                    accessToken &&
+                    accessToken.accessTokenExpiresAt > new Date()
+                ) {
+                    return {
+                        active: true,
+                        scope: accessToken.scopes?.join(' '),
+                        token_type: 'access_token',
+                        exp: Math.floor(
+                            accessToken.accessTokenExpiresAt.getTime() / 1000,
+                        ),
+                    };
+                }
+            }
+            return { active: false };
+        } catch (error) {
+            return { active: false };
         }
     }
 
@@ -870,18 +715,5 @@ export class OAuthService extends BaseService {
             return codeVerifier === codeChallenge;
         }
         return false;
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    public async createClient(data: {
-        clientSecret: string;
-        clientName: string;
-        redirectUris: string[];
-        grants: string[];
-        scopes: string[];
-        userUuid: string;
-        organizationUuid: string;
-    }): Promise<void> {
-        throw new NotImplementedError('Not implemented');
     }
 }
