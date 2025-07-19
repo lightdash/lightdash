@@ -1,14 +1,40 @@
 export interface OAuthClient {
     clientUuid: string;
+    id: string;
     clientId: string;
-    clientSecret: string | undefined;
     clientName: string;
+    clientSecret: string;
     redirectUris: string[];
     grants: string[];
-    scopes: string[] | null;
-    createdAt: Date;
-    createdByUserUuid: string | null;
-    expiresAt: Date | null;
+    scopes?: string[];
+}
+
+export interface OAuthToken {
+    accessToken: string;
+    accessTokenExpiresAt: Date;
+    accessTokenCreatedAt: Date;
+    refreshToken?: string;
+    refreshTokenExpiresAt?: Date;
+    scopes?: string[];
+    client: OAuthClient;
+    user: { userUuid: string; organizationUuid: string };
+}
+
+export interface AuthorizationCode {
+    authorizationCode: string;
+    expiresAt: Date;
+    redirectUri: string;
+    scopes?: string[];
+    client: OAuthClient;
+    user: { userUuid: string; organizationUuid: string };
+}
+
+export interface RefreshToken {
+    refreshToken: string;
+    expiresAt: Date;
+    scopes?: string[];
+    client: OAuthClient;
+    user: { userUuid: string; organizationUuid: string };
 }
 
 export interface OAuthAuthorizationCode {
