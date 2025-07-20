@@ -1,3 +1,10 @@
+## [0.1822.5](https://github.com/lightdash/lightdash/compare/0.1822.4...0.1822.5) (2025-07-18)
+
+
+### Bug Fixes
+
+* embed dashboard whitelist e2e test ([#15896](https://github.com/lightdash/lightdash/issues/15896)) ([833bbbd](https://github.com/lightdash/lightdash/commit/833bbbd88423bd8651512acb8279960a2f93c390))
+
 ## [0.1822.4](https://github.com/lightdash/lightdash/compare/0.1822.3...0.1822.4) (2025-07-17)
 
 
