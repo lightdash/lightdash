@@ -12,15 +12,14 @@ models:
         spotlight:
           categories:
             - sales
-        sql_filter: ${ld.parameters.table_where} = '1'
         joins:
           - join: customers
-            sql_on: ${customers.customer_id} = ${orders.customer_id} OR ${ld.parameters.join_on} = '1'
+            sql_on: ${customers.customer_id} = ${orders.customer_id}
             relationship: many-to-one
         metrics:
           completion_percentage:
             type: number
-            sql: ${total_completed_order_amount}/${total_order_amount} + ${ld.parameters.metric_param}::INTEGER
+            sql: ${total_completed_order_amount}/${total_order_amount}
             format: percent
             ai_hint: |
               Completion percentage of orders.
@@ -35,8 +34,6 @@ models:
         description: This is a unique identifier for an order
         config:
           meta:
-            dimension:
-              sql: CASE WHEN ${ld.parameters.dim_param} = '1' THEN orders.order_id ELSE orders.order_id END
             metrics:
               unique_order_count:
                 type: count_distinct

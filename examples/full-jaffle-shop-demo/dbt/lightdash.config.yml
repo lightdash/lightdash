@@ -10,24 +10,3 @@ spotlight:
     sales:
       label: "Sales"
       color: green
-parameters:
-  table_where:
-    label: 'Table where'
-    default: "1"
-    options: [ "1", "2", "3" ]
-  join_on:
-    label: 'Join param'
-    default: "1"
-    options: [ "1", "2", "3" ]
-  metric_param:
-    label: 'Metric param'
-    multiple: true
-    default: [ "1", "2" ]
-    options: [ "1", "2", "3" ]
-  dim_param:
-    label: 'Status'
-    description: 'Filter by status'
-    default: "1"
-    options_from_dimension:
-      model: orders
-      dimension: status
