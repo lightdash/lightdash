@@ -248,6 +248,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                             isOpen: false,
                         },
                     },
+                    parameters: {},
                 };
             } catch (e: any) {
                 const errorMessage = e.message ? ` Error: "${e.message}"` : '';

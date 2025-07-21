@@ -127,6 +127,7 @@ const MinimalSavedExplorer: FC = () => {
                                   isOpen: false,
                               },
                           },
+                          parameters: {},
                       }
                     : undefined
             }

@@ -133,6 +133,7 @@ import type {
     EmbedUrl,
 } from './ee';
 import { type AnyType } from './types/any';
+import { type ApiGetProjectParametersResults } from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
@@ -186,6 +187,7 @@ export * from './authorization/index';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
+export * from './compiler/parameters';
 export * from './compiler/translator';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
@@ -202,6 +204,7 @@ export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
 export * from './types/api/paginatedQuery';
+export * from './types/api/parameters';
 export * from './types/api/share';
 export * from './types/api/sort';
 export * from './types/api/spotlight';
@@ -238,6 +241,7 @@ export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/paginateResults';
+export * from './types/parameters';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
@@ -535,6 +539,7 @@ export type ApiQueryResults = {
 type ApiExecuteAsyncQueryResultsCommon = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    parameterReferences: string[];
 };
 
 export type ApiExecuteAsyncMetricQueryResults =
@@ -663,7 +668,10 @@ export type UpdateProjectMember = {
 export type UpdateMetadata = {
     upstreamProjectUuid?: string | null; // null means we unset this value
 };
-export type ApiCompiledQueryResults = string;
+export type ApiCompiledQueryResults = {
+    query: string;
+    parameterReferences: string[];
+};
 
 export type ApiExploresResults = SummaryExplore[];
 
@@ -917,6 +925,7 @@ type ApiResults =
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
+    | ApiGetProjectParametersResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results'];
 

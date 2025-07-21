@@ -1,3 +1,24 @@
+# [0.1825.0](https://github.com/lightdash/lightdash/compare/0.1824.0...0.1825.0) (2025-07-21)
+
+
+### Features
+
+* lightdash parameters ([#15873](https://github.com/lightdash/lightdash/issues/15873)) ([3fcd6b6](https://github.com/lightdash/lightdash/commit/3fcd6b6c5db106126b009163d5e1f6b56c22dfeb)), closes [#15864](https://github.com/lightdash/lightdash/issues/15864) [#15869](https://github.com/lightdash/lightdash/issues/15869) [#15872](https://github.com/lightdash/lightdash/issues/15872)
+
+# [0.1824.0](https://github.com/lightdash/lightdash/compare/0.1823.0...0.1824.0) (2025-07-21)
+
+
+### Features
+
+* add role management to SCIM user provisioning ([#15916](https://github.com/lightdash/lightdash/issues/15916)) ([357df01](https://github.com/lightdash/lightdash/commit/357df01693b2c7b4e46add6054d90775debd2d8d))
+
+# [0.1823.0](https://github.com/lightdash/lightdash/compare/0.1822.5...0.1823.0) (2025-07-21)
+
+
+### Features
+
+* add acccountMiddleware to centralize identity in the app ([#15853](https://github.com/lightdash/lightdash/issues/15853)) ([38a10c8](https://github.com/lightdash/lightdash/commit/38a10c8849684de3d5086838399f941302d75502))
+
 ## [0.1822.5](https://github.com/lightdash/lightdash/compare/0.1822.4...0.1822.5) (2025-07-18)
 
 

@@ -63,7 +63,6 @@ const getAgentTools = (
 
     const findFields = getFindFields({
         getExplore: dependencies.getExplore,
-        searchFields: dependencies.searchFields,
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({

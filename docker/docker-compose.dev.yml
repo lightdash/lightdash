@@ -54,7 +54,6 @@ services:
             - OPENAI_API_KEY=${OPENAI_API_KEY}
             - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
             - AI_COPILOT_ENABLED=${AI_COPILOT_ENABLED}
-            - AI_COPILOT_EMBEDDING_SEARCH_ENABLED=${AI_COPILOT_EMBEDDING_SEARCH_ENABLED}
             - POSTHOG_FE_API_HOST=${POSTHOG_FE_API_HOST}
             - POSTHOG_BE_API_HOST=${POSTHOG_BE_API_HOST}
             - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
@@ -120,7 +119,6 @@ services:
             - '2222:2222'
         volumes:
             - ./ssh-server-configs/sshd_config:/config/sshd/sshd_config
-
 
     headless-browser:
         image: ghcr.io/browserless/chromium:v2.24.3

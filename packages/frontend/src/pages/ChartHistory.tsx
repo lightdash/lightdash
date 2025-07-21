@@ -273,6 +273,7 @@ const ChartHistory = () => {
                                 isOpen: false,
                             },
                         },
+                        parameters: {},
                     }}
                     savedChart={chartVersionQuery.data?.chart}
                 >

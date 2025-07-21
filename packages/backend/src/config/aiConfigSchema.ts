@@ -51,7 +51,6 @@ export const aiCopilotConfigSchema = z
         }),
         enabled: z.boolean(),
         requiresFeatureFlag: z.boolean(),
-        embeddingSearchEnabled: z.boolean(),
         telemetryEnabled: z.boolean(),
         debugLoggingEnabled: z.boolean(),
     })

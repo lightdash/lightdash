@@ -1,11 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 // This rule is failing in CI but passes locally
-import { ForbiddenError, ParameterError } from '@lightdash/common';
+import {
+    ForbiddenError,
+    NotFoundError,
+    ParameterError,
+} from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
+import * as Account from '../../auth/account';
 import { decodeLightdashJwt, JWT_HEADER_NAME } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
 import Logger from '../../logging/logger';
-import { hydrateEmbeddedAccount } from './hydrateEmbeddedAccount';
 
 /**
  * We don't have the parsed routes yet, so we get the path params in a
@@ -36,6 +40,11 @@ export async function jwtAuthMiddleware(
     next: NextFunction,
 ): Promise<void> {
     try {
+        if (req.account) {
+            next();
+            return;
+        }
+
         // Extract project UUID from URL path since middleware is applied to /api/v1/embed path
         // The path will be like /api/v1/embed/{projectUuid}/dashboard
         // TODO: This is a hack to get the project UUID because JWT secrets are bound to the project rather than the organization.
@@ -54,7 +63,7 @@ export async function jwtAuthMiddleware(
             return;
         }
 
-        const embedService = req.services.getEmbedService<EmbedService>();
+        const embedService = req.services?.getEmbedService() as EmbedService;
         if (!embedService) {
             Logger.error('Services are not initialized for embed token');
             next();
@@ -79,20 +88,20 @@ export async function jwtAuthMiddleware(
         ]);
 
         if (!dashboardUuid) {
-            res.status(404).json({
-                status: 'error',
-                message: 'Cannot verify JWT. Dashboard ID not found',
-            });
+            next(
+                new NotFoundError('Cannot verify JWT. Dashboard ID not found'),
+            );
+
             return;
         }
 
-        req.account = hydrateEmbeddedAccount(
-            organization,
+        req.account = Account.fromJwt({
             decodedToken,
-            embedToken,
+            source: embedToken,
+            organization,
             dashboardUuid,
             userAttributes,
-        );
+        });
 
         next();
     } catch (error) {

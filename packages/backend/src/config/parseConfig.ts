@@ -1004,8 +1004,6 @@ export const parseConfig = (): LightdashConfig => {
         telemetryEnabled: process.env.AI_COPILOT_TELEMETRY_ENABLED === 'true',
         requiresFeatureFlag:
             process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
-        embeddingSearchEnabled:
-            process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
         defaultProvider:
             process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
         providers: {
