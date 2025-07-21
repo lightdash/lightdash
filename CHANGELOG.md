@@ -1,3 +1,10 @@
+# [0.1824.0](https://github.com/lightdash/lightdash/compare/0.1823.0...0.1824.0) (2025-07-21)
+
+
+### Features
+
+* add role management to SCIM user provisioning ([#15916](https://github.com/lightdash/lightdash/issues/15916)) ([357df01](https://github.com/lightdash/lightdash/commit/357df01693b2c7b4e46add6054d90775debd2d8d))
+
 # [0.1823.0](https://github.com/lightdash/lightdash/compare/0.1822.5...0.1823.0) (2025-07-21)
 
 
