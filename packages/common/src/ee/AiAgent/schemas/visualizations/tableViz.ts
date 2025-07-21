@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Filters } from '../../../../types/filter';
 import type { AiMetricQueryWithFilters } from '../../types';
 import { getValidAiQueryLimit } from '../../validators';
+import { getFieldIdSchema } from '../fieldId';
 import sortFieldSchema from '../sortField';
 
 export const tableVizConfigSchema = z
@@ -12,12 +13,12 @@ export const tableVizConfigSchema = z
                 'The name of the explore containing the metrics and dimensions used for table query',
             ),
         metrics: z
-            .array(z.string())
+            .array(getFieldIdSchema({ additionalDescription: null }))
             .describe(
                 'The field ids of the metrics to be calculated for the table. They will be grouped by the dimensions.',
             ),
         dimensions: z
-            .array(z.string())
+            .array(getFieldIdSchema({ additionalDescription: null }))
             .nullable()
             .describe(
                 'The field id for the dimensions to group the metrics by',

@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { z } from 'zod';
 import type { FilterRule, Filters } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import fieldIdSchema from '../fieldId';
+import { getFieldIdSchema } from '../fieldId';
 import fieldTypeSchema from '../fieldType';
 import booleanFilterSchema from './booleanFilters';
 import dateFilterSchema from './dateFilters';
@@ -12,7 +12,7 @@ import stringFilterSchema from './stringFilters';
 const filterRuleSchema = z.object({
     type: z.enum(['or', 'and']).describe('Type of filter group operation'),
     target: z.object({
-        fieldId: fieldIdSchema,
+        fieldId: getFieldIdSchema({ additionalDescription: null }),
         type: fieldTypeSchema,
     }),
     rule: z.union([
