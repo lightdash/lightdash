@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     GroupWithMembers,
+    isOrganizationMemberRole,
     isValidEmailAddress,
     LightdashUser,
     NotFoundError,
@@ -137,7 +138,8 @@ export class ScimService extends BaseService {
         const updatedAt =
             'updatedAt' in user ? user.updatedAt : user.userUpdatedAt;
 
-        return {
+        // Create the base SCIM user
+        const scimUser: ScimUser = {
             schemas: [ScimSchemaType.USER],
             id: user.userUuid,
             userName: user.email || '',
@@ -162,6 +164,16 @@ export class ScimService extends BaseService {
                 ).href,
             },
         };
+
+        // Add the Lightdash extension schema if the user has a role
+        if (user.role) {
+            scimUser.schemas.push(ScimSchemaType.LIGHTDASH_USER_EXTENSION);
+            scimUser[ScimSchemaType.LIGHTDASH_USER_EXTENSION] = {
+                role: user.role,
+            };
+        }
+
+        return scimUser;
     }
 
     static getScimUserEmail(user: Pick<ScimUser, 'userName'>): string {
@@ -418,18 +430,47 @@ export class ScimService extends BaseService {
                     isActive: user.active ?? dbUser.isActive,
                 },
             );
+
+            // Update user's organization role if provided in the extension schema
+            const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
+            if (extensionData?.role && extensionData.role !== dbUser.role) {
+                // Validate that the role is a valid OrganizationMemberRole
+                if (!isOrganizationMemberRole(extensionData.role)) {
+                    throw new ParameterError(
+                        `Invalid role: ${
+                            extensionData.role
+                        }. Role must be one of: ${Object.values(
+                            OrganizationMemberRole,
+                        ).join(', ')}`,
+                    );
+                }
+
+                await this.organizationMemberProfileModel.updateOrganizationMember(
+                    organizationUuid,
+                    userUuid,
+                    {
+                        role: extensionData.role,
+                    },
+                );
+            }
+
+            // Get the updated user with potentially new role
+            const finalUser = await this.userModel.getUserDetailsById(
+                updatedUser.userId,
+            );
+
             this.analytics.track({
                 event: 'user.updated',
                 anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
-                    ...updatedUser,
-                    updatedUserId: updatedUser.userUuid,
-                    organizationId: updatedUser.organizationUuid,
+                    ...finalUser,
+                    updatedUserId: finalUser.userUuid,
+                    organizationId: finalUser.organizationUuid,
                     context: 'scim',
                 },
             });
             // Construct SCIM-compliant response
-            return this.convertLightdashUserToScimUser(updatedUser);
+            return this.convertLightdashUserToScimUser(finalUser);
         } catch (error) {
             if (error instanceof ParameterError) {
                 throw new ScimError({

@@ -16,6 +16,10 @@ export interface ScimResource {
     };
 }
 
+export interface LightdashScimExtension {
+    role?: string;
+}
+
 export interface ScimUser extends ScimResource {
     schemas: string[];
     userName: string;
@@ -28,6 +32,7 @@ export interface ScimUser extends ScimResource {
         value: string;
         primary: boolean;
     }[];
+    [ScimSchemaType.LIGHTDASH_USER_EXTENSION]?: LightdashScimExtension;
 }
 
 export interface ScimGroup extends ScimResource {
