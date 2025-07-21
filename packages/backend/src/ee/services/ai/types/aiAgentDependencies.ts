@@ -17,13 +17,7 @@ export type GetExploresFn = () => Promise<AiAgentExploreSummary[]>;
 
 export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
 
-export type SearchFieldsFn = (args: {
-    exploreName: string;
-    embeddingSearchQueries: Array<{
-        name: string;
-        description: string;
-    }>;
-}) => Promise<string[]>;
+export type SearchFieldsFn = (args: {}) => Promise<unknown>;
 
 export type UpdateProgressFn = (progress: string) => Promise<void>;
 
