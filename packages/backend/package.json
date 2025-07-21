@@ -27,6 +27,7 @@
         "@types/passport-oauth2": "^1.4.17",
         "@types/passport-oauth2-refresh": "^1.1.1",
         "@types/passport-strategy": "^0.2.35",
+        "@types/oauth2-server": "^3.0.18",
         "@types/pg": "^8.10.7",
         "@types/uuid": "^8.3.4",
         "chokidar-cli": "^3.0.0",

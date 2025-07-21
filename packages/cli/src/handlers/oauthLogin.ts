@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     CreatePersonalAccessToken,
     formatDate,
+    oauthPageStyles,
 } from '@lightdash/common';
 import { exec } from 'child_process';
 import * as crypto from 'crypto';
@@ -14,66 +15,6 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 
 // Shared CSS styles for OAuth response pages - matching Lightdash login design
-const oauthPageStyles = `
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Open Sans', 'Helvetica Neue', sans-serif;
-        background-color: #f8fafc;
-        margin: 0;
-        padding: 0;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        line-height: 1.4;
-    }
-    .container {
-        background: white;
-        border-radius: 4px;
-        border: 1px solid #e9ecef;
-        box-shadow: 0px 1px 2px 0px rgba(10, 13, 18, 0.05);
-        padding: 24px;
-        max-width: 400px;
-        width: 90%;
-        text-align: center;
-    }
-    h1 {
-        color: #111418;
-        margin: 0 0 16px 0;
-        font-size: 20px;
-        font-weight: 600;
-        text-align: center;
-    }
-    p {
-        color: #6c757d;
-        margin: 0 0 12px 0;
-        line-height: 1.4;
-        font-size: 14px;
-    }
-    .success h1 {
-        color: #10b981;
-    }
-    .error h1 {
-        color: #ef4444;
-    }
-    .icon {
-        width: 32px;
-        height: 32px;
-        margin: 0 auto 16px auto;
-        display: block;
-    }
-    .success .icon {
-        color: #10b981;
-    }
-    .error .icon {
-        color: #ef4444;
-    }
-    .stack {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-`;
 
 const execAsync = promisify(exec);
 
@@ -177,7 +118,7 @@ export const loginWithOauth = async (
     const state = crypto.randomBytes(16).toString('hex');
 
     // Find an available port
-    const port = await findAvailablePort(8100, 8200);
+    const port = await findAvailablePort(8100, 8110);
     const redirectUri = `http://localhost:${port}/callback`;
 
     // Create a promise that will be resolved when we get the authorization code
@@ -370,7 +311,6 @@ export const loginWithOauth = async (
                 grant_type: 'authorization_code',
                 code,
                 client_id: 'lightdash-cli',
-                client_secret: 'cli-secret', // This should be configurable
                 redirect_uri: redirectUri,
                 code_verifier: codeVerifier,
             }),
@@ -383,16 +323,16 @@ export const loginWithOauth = async (
             );
         }
         const tokenData = await tokenResponse.json();
-        const accessToken = tokenData.access_token;
+        const { access_token: accessToken } = tokenData;
 
-        GlobalState.debug(
-            `> Oauth access token: ${accessToken.substring(0, 10)}...`,
-        );
         if (!accessToken) {
             throw new AuthorizationError(
                 'No access token received from OAuth server',
             );
         }
+        GlobalState.debug(
+            `> Oauth access token: ${accessToken.substring(0, 10)}...`,
+        );
         GlobalState.debug(`> Creating PAT for user`);
 
         // Generate a new PAT from this access token

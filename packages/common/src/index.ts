@@ -295,6 +295,7 @@ export * from './utils/i18n';
 export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
+export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
