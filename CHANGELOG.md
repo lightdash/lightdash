@@ -1,3 +1,10 @@
+# [0.1823.0](https://github.com/lightdash/lightdash/compare/0.1822.5...0.1823.0) (2025-07-21)
+
+
+### Features
+
+* add acccountMiddleware to centralize identity in the app ([#15853](https://github.com/lightdash/lightdash/issues/15853)) ([38a10c8](https://github.com/lightdash/lightdash/commit/38a10c8849684de3d5086838399f941302d75502))
+
 ## [0.1822.5](https://github.com/lightdash/lightdash/compare/0.1822.4...0.1822.5) (2025-07-18)
 
 
