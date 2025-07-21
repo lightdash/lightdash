@@ -74,16 +74,12 @@ const postDashboardsAvailableFilters = async (
     });
 
 const postEmbedDashboardsAvailableFilters = async (
-    embedToken: string,
     projectUuid: string,
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
 ) =>
     lightdashApi<DashboardAvailableFilters>({
         url: `/embed/${projectUuid}/dashboard/availableFilters`,
         method: 'POST',
-        headers: {
-            'Lightdash-Embed-Token': embedToken!,
-        },
         body: JSON.stringify(savedChartUuidsAndTileUuids),
     });
 
@@ -109,7 +105,6 @@ export const useDashboardsAvailableFilters = (
         () =>
             embedToken && projectUuid
                 ? postEmbedDashboardsAvailableFilters(
-                      embedToken,
                       projectUuid,
                       savedChartUuidsAndTileUuids,
                   )

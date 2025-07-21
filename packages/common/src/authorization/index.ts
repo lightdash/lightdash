@@ -19,6 +19,8 @@ type UserAbilityBuilderArgs = {
 export * from './jwtAbility';
 export * from './serviceAccountAbility';
 
+export const JWT_HEADER_NAME = 'lightdash-embed-token';
+
 export const getUserAbilityBuilder = ({
     user,
     projectProfiles,
