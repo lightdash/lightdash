@@ -83,6 +83,8 @@ export interface OAuthTokenResponse {
 export interface OAuthIntrospectRequest {
     token: string;
     token_type_hint?: 'access_token' | 'refresh_token';
+    client_id?: string;
+    client_secret?: string;
 }
 
 export interface OAuthIntrospectResponse {
@@ -104,3 +106,8 @@ export interface OAuthRevokeRequest {
     token: string;
     token_type_hint?: 'access_token' | 'refresh_token';
 }
+
+export type UserWithOrganizationUuid = {
+    userId: number;
+    organizationUuid: string;
+};
