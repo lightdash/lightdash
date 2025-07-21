@@ -177,7 +177,7 @@ oauthRouter.post('/authorize', async (req, res, next) => {
 oauthRouter.post('/token', async (req, res, next) => {
     const oauthService = getOAuthService(req);
     const oauthReq = new OAuth2Server.Request(req);
-    const oauthRes = new OAuth2Server.Response(req);
+    const oauthRes = new OAuth2Server.Response(res);
 
     try {
         const token = await oauthService.token(oauthReq, oauthRes);
