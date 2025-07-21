@@ -1,0 +1,204 @@
+version: 2
+models:
+  - name: pipeline
+    config:
+      meta:
+        primary_key: order_id
+        spotlight:
+          categories: ["experimental"]
+        ai_hint: This is a pipeline table that joins customer and order data with parameterized filtering options.
+    description: |
+      # Customer Order Pipeline
+
+      This table joins customers and orders data with parameterized filtering capabilities.
+      It demonstrates how parameters can be used to create dynamic filtering and funnel analysis.
+    columns:
+      - name: order_id
+        description: Unique identifier for each order
+        tests:
+          - unique
+          - not_null
+        config:
+          meta:
+            metrics:
+              total_orders:
+                type: count
+                label: Total Orders
+                description: Total number of orders in the pipeline
+                spotlight:
+                  categories: ["core"]
+      - name: customer_id
+        description: Unique identifier for the customer who placed the order
+        config:
+          meta:
+            metrics:
+              unique_customers:
+                type: count_distinct
+                label: Unique Customers
+                description: Number of unique customers in the pipeline
+                spotlight:
+                  categories: ["core"]
+      - name: first_name
+        description: Customer's first name
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: last_name
+        description: Customer's last name
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: customer_created
+        description: Date when the customer was created
+        config:
+          meta:
+            dimension:
+              type: timestamp
+      - name: order_date
+        description: Date when the order was placed
+        config:
+          meta:
+            dimension:
+              type: date
+      - name: order_status
+        description: Current status of the order
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: is_completed_order
+        description: Whether the order is completed
+        config:
+          meta:
+            dimension:
+              type: boolean
+            metrics:
+              completion_rate:
+                type: average
+                label: Order Completion Rate
+                description: Percentage of orders that are completed
+                format: percent
+      - name: order_amount
+        description: Total amount for this order
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd
+            metrics:
+              total_revenue:
+                type: sum
+                label: Total Revenue
+                description: Sum of all order amounts
+                format: usd
+                spotlight:
+                  categories: ["core", "sales"]
+              avg_order_value:
+                type: average
+                label: Average Order Value
+                description: Average amount per order
+                format: usd
+                spotlight:
+                  categories: ["sales"]
+      - name: number_of_orders
+        description: Total number of orders for this customer
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: customer_lifetime_value
+        description: Total lifetime value of the customer
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd
+            metrics:
+              avg_customer_ltv:
+                type: average
+                label: Average Customer LTV
+                description: Average lifetime value per customer
+                format: usd
+                spotlight:
+                  categories: ["sales"]
+      - name: meets_min_order_threshold
+        description: Whether the order meets the minimum order amount parameter
+        config:
+          meta:
+            dimension:
+              type: boolean
+            metrics:
+              threshold_compliance_rate:
+                type: average
+                label: Min Order Threshold Compliance Rate
+                description: Percentage of orders meeting minimum threshold
+                format: percent
+      - name: company_quarter
+        description: Company fiscal quarter (Q1-Q4)
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: funnel_stage_name
+        description: Dynamic funnel stage name based on parameter
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: |
+                CASE 
+                  WHEN '${ld.parameters.funnel_type}' = 'customer_journey' THEN
+                    CASE 
+                      WHEN ${cj_stage} = 5 THEN 'Purchase'
+                      WHEN ${cj_stage} = 4 THEN 'Intent'
+                      WHEN ${cj_stage} = 3 THEN 'Consideration'
+                      WHEN ${cj_stage} = 2 THEN 'Interest'
+                      WHEN ${cj_stage} = 1 THEN 'Awareness'
+                      ELSE 'No Engagement'
+                    END
+                  WHEN '${ld.parameters.funnel_type}' = 'ecommerce' THEN
+                    CASE 
+                      WHEN ${ec_stage} = 5 THEN 'Purchase'
+                      WHEN ${ec_stage} = 4 THEN 'Checkout'
+                      WHEN ${ec_stage} = 3 THEN 'Add to Cart'
+                      WHEN ${ec_stage} = 2 THEN 'Click'
+                      WHEN ${ec_stage} = 1 THEN 'Impression'
+                      ELSE 'No Engagement'
+                    END
+                  WHEN '${ld.parameters.funnel_type}' = 'marketing' THEN
+                    CASE 
+                      WHEN ${mk_stage} = 5 THEN 'Customer'
+                      WHEN ${mk_stage} = 4 THEN 'Qualified Lead'
+                      WHEN ${mk_stage} = 3 THEN 'Lead'
+                      WHEN ${mk_stage} = 2 THEN 'Click'
+                      WHEN ${mk_stage} = 1 THEN 'Impression'
+                      ELSE 'No Engagement'
+                    END
+                  ELSE 'Unknown Funnel Type'
+                END
+            metrics:
+              funnel_stage_count:
+                label: Funnel Stage Count
+                description: Count of orders for each funnel stage (use with funnel_stage_name grouping)
+                type: count_distinct
+                sql: order_id
+      - name: cj_stage
+        description: Customer Journey funnel stage (1-5, highest stage reached)
+        config:
+          meta:
+            dimension:
+              hidden: true
+      - name: ec_stage
+        description: E-commerce funnel stage (1-5, highest stage reached)
+        config:
+          meta:
+            dimension:
+              hidden: true
+      - name: mk_stage
+        description: Marketing funnel stage (1-5, highest stage reached)
+        config:
+          meta:
+            dimension:
+              hidden: true
