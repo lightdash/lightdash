@@ -23,6 +23,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
+import { Parameters, useDashboardParameterState } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -88,6 +89,14 @@ const Dashboard: FC = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const dashboardParameterReferences = useDashboardContext(
+        (c) => c.dashboardParameterReferences,
+    );
+    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+
+    // Parameter state management for the Parameters component
+    const { parameterValues, handleParameterChange, clearAllParameters } =
+        useDashboardParameterState();
 
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -661,9 +670,19 @@ const Dashboard: FC = () => {
                     </Group>
                     {/* DateZoom section will adjust width dynamically */}
                     {hasDashboardTiles && (
-                        <Box style={{ marginLeft: 'auto' }}>
+                        <Group spacing="xs" style={{ marginLeft: 'auto' }}>
+                            <Parameters
+                                isEditMode={isEditMode}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onClearAll={clearAllParameters}
+                                parameterReferences={
+                                    dashboardParameterReferences
+                                }
+                                areAllChartsLoaded={areAllChartsLoaded}
+                            />
                             <DateZoom isEditMode={isEditMode} />
-                        </Box>
+                        </Group>
                     )}
                 </Group>
                 <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>

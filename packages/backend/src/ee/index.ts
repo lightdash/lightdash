@@ -166,6 +166,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    projectParametersModel: models.getProjectParametersModel(),
                 }),
             instanceConfigurationService: ({ models, context, repository }) =>
                 new InstanceConfigurationService({
@@ -223,6 +224,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     storageClient: clients.getResultsFileStorageClient(),
                     csvService: repository.getCsvService(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    projectParametersModel: models.getProjectParametersModel(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({

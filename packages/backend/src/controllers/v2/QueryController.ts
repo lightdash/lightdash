@@ -145,6 +145,7 @@ export class QueryController extends BaseController {
                 metricQuery,
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
+                parameters: body.parameters,
             });
 
         return {
@@ -177,6 +178,7 @@ export class QueryController extends BaseController {
                 versionUuid: body.versionUuid,
                 context: context ?? QueryExecutionContext.API,
                 limit: body.limit,
+                parameters: body.parameters,
             });
 
         return {
@@ -212,6 +214,7 @@ export class QueryController extends BaseController {
                 dateZoom: body.dateZoom,
                 limit: body.limit,
                 context: context ?? QueryExecutionContext.API,
+                parameters: body.parameters,
             });
 
         return {
@@ -247,6 +250,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
                 limit: body.limit,
+                parameters: body.parameters,
             });
 
         return {
@@ -278,6 +282,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 pivotConfiguration: body.pivotConfiguration,
                 limit: body.limit,
+                parameters: body.parameters,
             });
 
         return {
@@ -307,6 +312,7 @@ export class QueryController extends BaseController {
                 invalidateCache: body.invalidateCache ?? false,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 limit: body.limit,
+                parameters: body.parameters,
                 ...(isExecuteAsyncSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
@@ -343,6 +349,7 @@ export class QueryController extends BaseController {
                 dashboardSorts: body.dashboardSorts,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 limit: body.limit,
+                parameters: body.parameters,
                 ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),

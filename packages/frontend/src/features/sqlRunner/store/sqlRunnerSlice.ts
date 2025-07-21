@@ -2,6 +2,7 @@ import {
     ChartKind,
     WarehouseTypes,
     type ApiErrorDetail,
+    type ParametersValuesMap,
     type RawResultRow,
     type SqlChart,
     type VizColumn,
@@ -130,6 +131,7 @@ export interface SqlRunnerState {
     queryIsLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | Error | undefined;
     editorHighlightError: MonacoHighlightChar | undefined;
+    parameterValues: ParametersValuesMap;
 }
 
 export const initialState: SqlRunnerState = {
@@ -183,6 +185,7 @@ export const initialState: SqlRunnerState = {
     queryIsLoading: false,
     queryError: undefined,
     editorHighlightError: undefined,
+    parameterValues: {},
 };
 
 const sqlHistoryReducer = createHistoryReducer<string | undefined>({
@@ -204,6 +207,7 @@ export const sqlRunnerSlice = createSlice({
         selectSavedSqlChart: (state) => state.savedSqlChart,
         selectColumns: (state) => state.sqlColumns,
         selectRows: (state) => state.sqlRows,
+        selectParameterValues: (state) => state.parameterValues,
         selectSqlQueryResults: (state) => {
             if (state.sqlColumns === undefined || state.sqlRows === undefined) {
                 return undefined;
@@ -222,6 +226,28 @@ export const sqlRunnerSlice = createSlice({
         },
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
+        },
+        updateParameterValue: (
+            state,
+            action: PayloadAction<{
+                key: string;
+                value: string | string[] | null;
+            }>,
+        ) => {
+            const { key, value } = action.payload;
+            if (value) {
+                state.parameterValues = {
+                    ...state.parameterValues,
+                    [key]: value,
+                };
+            } else {
+                const newValues = { ...state.parameterValues };
+                delete newValues[key];
+                state.parameterValues = newValues;
+            }
+        },
+        clearParameterValues: (state) => {
+            state.parameterValues = {};
         },
         setFetchResultsOnLoad: (
             state,
@@ -437,6 +463,8 @@ export const {
     setMode,
     setEditorHighlightError,
     setState,
+    updateParameterValue,
+    clearParameterValues,
 } = sqlRunnerSlice.actions;
 
 export const {
@@ -450,6 +478,7 @@ export const {
     selectActiveEditorTab,
     selectSavedSqlChart,
     selectSqlQueryResults,
+    selectParameterValues,
 } = sqlRunnerSlice.selectors;
 
 export const selectSqlRunnerResultsRunner = createSelector(
@@ -460,8 +489,9 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectLimit,
         selectSql,
         (_state, sortBy?: VizSortBy[]) => sortBy,
+        selectParameterValues,
     ],
-    (columns, rows, projectUuid, limit, sql, sortBy) => {
+    (columns, rows, projectUuid, limit, sql, sortBy, parameterValues) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],
             rows: rows || [],
@@ -469,6 +499,7 @@ export const selectSqlRunnerResultsRunner = createSelector(
             limit,
             sql,
             sortBy,
+            parameters: parameterValues,
         });
     },
 );
