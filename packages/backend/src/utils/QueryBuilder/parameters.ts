@@ -1,8 +1,8 @@
-import type {
-    ParametersValuesMap,
-    WarehouseSqlBuilder,
+import {
+    parameterRegex,
+    type ParametersValuesMap,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { parameterRegex } from '@lightdash/common/src/compiler/parameters';
 import { replaceLightdashValues } from './utils';
 
 // We need this function so that we can replace when there's no access to the sql builder (e.g. in query builder)
