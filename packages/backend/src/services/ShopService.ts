@@ -29,8 +29,8 @@ export class ShopService {
                     updated_at: this.database.fn.now(),
                 })
                 .returning('*');
-            await this._registerOrdersWebhook(data.shop_url!, existing.access_token!);
-            await this._createScriptTag(data.shop_url!, existing.access_token!);
+            await this._registerOrdersWebhook(data.shop_url!, data.access_token!);
+            await this._createScriptTag(data.shop_url!, data.access_token!);
             return { shop_: updated, isNew: false };
         } else {
             const [created] = await this.database<DbShop>(ShopTableName)
@@ -214,8 +214,10 @@ export class ShopService {
 
         const { script_tags } = await getRes.json();
 
+        const path = 'https://storage.googleapis.com/storefront89752334/posthog-snippet.js?v=1'
+
         const alreadyExists = script_tags.some((tag: any) =>
-            tag.src.includes('https://storage.googleapis.com/storefront89752334/posthog-snippet.js'),
+            tag.src.includes(path),
         );
 
         if (alreadyExists) {
@@ -233,7 +235,7 @@ export class ShopService {
             body: JSON.stringify({
                 script_tag: {
                     event: 'onload',
-                    src: 'https://storage.googleapis.com/storefront89752334/posthog-snippet.js',
+                    src: path,
                 },
             }),
         });
