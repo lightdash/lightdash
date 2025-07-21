@@ -89,7 +89,7 @@ export const Parameters: FC<Props> = ({
         }
     }, [parameterValues, parameters, onParameterChange]);
 
-    if (isEditMode) {
+    if (isEditMode || !parameters || Object.keys(parameters).length === 0) {
         return null;
     }
 
