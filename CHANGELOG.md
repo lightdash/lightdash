@@ -1,3 +1,10 @@
+# [0.1825.0](https://github.com/lightdash/lightdash/compare/0.1824.0...0.1825.0) (2025-07-21)
+
+
+### Features
+
+* lightdash parameters ([#15873](https://github.com/lightdash/lightdash/issues/15873)) ([3fcd6b6](https://github.com/lightdash/lightdash/commit/3fcd6b6c5db106126b009163d5e1f6b56c22dfeb)), closes [#15864](https://github.com/lightdash/lightdash/issues/15864) [#15869](https://github.com/lightdash/lightdash/issues/15869) [#15872](https://github.com/lightdash/lightdash/issues/15872)
+
 # [0.1824.0](https://github.com/lightdash/lightdash/compare/0.1823.0...0.1824.0) (2025-07-21)
 
 
