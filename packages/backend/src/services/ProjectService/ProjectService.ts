@@ -6038,8 +6038,6 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // todo: call new model
-        console.log('save parameters', parameters);
         await this.projectParametersModel.replace(
             projectUuid,
             parameters ?? {},

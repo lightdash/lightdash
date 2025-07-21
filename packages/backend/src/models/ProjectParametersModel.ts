@@ -50,10 +50,15 @@ export class ProjectParametersModel {
                 .where('project_uuid', projectUuid)
                 .del();
 
+            const entries = parameters ? Object.entries(parameters) : [];
+            if (entries.length === 0) {
+                // Nothing to insert, just return
+                return [];
+            }
             // insert all
             return trx(ProjectParametersTableName)
                 .insert(
-                    Object.entries(parameters).map(([key, param]) => ({
+                    entries.map(([key, param]) => ({
                         project_uuid: projectUuid,
                         name: key,
                         config: param,
