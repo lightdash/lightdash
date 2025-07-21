@@ -1,3 +1,7 @@
+import {
+    OrganizationMemberProfile,
+    OrganizationMemberRole,
+} from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { EmailModel } from '../../../models/EmailModel';
@@ -8,14 +12,52 @@ import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagMo
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import { ScimService } from './ScimService';
 
+// Mock user for testing
+export const mockUser: OrganizationMemberProfile = {
+    userUuid: 'test-uuid',
+    firstName: 'Test',
+    lastName: 'User',
+    email: 'test@example.com',
+    isActive: true,
+    role: OrganizationMemberRole.MEMBER,
+    userCreatedAt: new Date(),
+    userUpdatedAt: new Date(),
+    organizationUuid: 'org-uuid',
+};
+
+// Mock organization member profile model
+const organizationMemberProfileModelMock = {
+    getOrganizationMemberByUuid: jest.fn().mockResolvedValue(mockUser),
+    updateOrganizationMember: jest.fn().mockResolvedValue(mockUser),
+} as unknown as OrganizationMemberProfileModel;
+
+// Mock user model
+const userModelMock = {
+    updateUser: jest.fn().mockResolvedValue({
+        userId: 1,
+        userUuid: mockUser.userUuid,
+        firstName: mockUser.firstName,
+        lastName: mockUser.lastName,
+        email: mockUser.email,
+        isActive: mockUser.isActive,
+        organizationUuid: mockUser.organizationUuid,
+    }),
+    getUserDetailsById: jest.fn().mockResolvedValue(mockUser),
+} as unknown as UserModel;
+
+// Mock analytics
+const analyticsMock = {
+    track: jest.fn(),
+} as unknown as LightdashAnalytics;
+
 export const ScimServiceArgumentsMock: ConstructorParameters<
     typeof ScimService
 >[0] = {
     lightdashConfig: lightdashConfigMock,
-    organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
-    userModel: {} as UserModel,
+    organizationMemberProfileModel: organizationMemberProfileModelMock,
+    userModel: userModelMock,
     emailModel: {} as EmailModel,
-    analytics: {} as LightdashAnalytics,
+    analytics: analyticsMock,
     groupsModel: {} as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
     commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
