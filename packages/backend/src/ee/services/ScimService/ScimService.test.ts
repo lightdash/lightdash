@@ -17,8 +17,8 @@ describe('ScimService', () => {
     describe('convertLightdashUserToScimUser', () => {
         test('should correctly add role to extension schema', () => {
             // Access the private method using type assertion
-            // @ts-expect-error - accessing private method for testing
             const convertMethod =
+                // @ts-expect-error - accessing private method for testing
                 service.convertLightdashUserToScimUser.bind(service);
 
             // Create a test user with a role
@@ -76,8 +76,8 @@ describe('ScimService', () => {
 
         test('should not add extension schema if user has no role', () => {
             // Access the private method using type assertion
-            // @ts-expect-error - accessing private method for testing
             const convertMethod =
+                // @ts-expect-error - accessing private method for testing
                 service.convertLightdashUserToScimUser.bind(service);
 
             // Create a test user without a role

@@ -52,7 +52,7 @@ const userModelMock = {
         isActive: mockUser.isActive,
         organizationUuid: mockUser.organizationUuid,
     }),
-    getUserDetailsById: jest.fn().mockResolvedValue(mockUser),
+    getUserDetailsByUuid: jest.fn().mockResolvedValue(mockUser),
 } as unknown as UserModel;
 
 // Mock analytics
