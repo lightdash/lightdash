@@ -378,7 +378,7 @@ export class ProjectModel {
         return parseInt(results.count, 10) > 0;
     }
 
-    async getNonPreviewProjectUuids(): Promise<string[]> {
+    async getDefaultProjectUuids(): Promise<string[]> {
         const projects = await this.database('projects')
             .where('project_type', ProjectType.DEFAULT)
             .select('project_uuid');
