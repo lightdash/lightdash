@@ -12,22 +12,6 @@ import {
 } from './user';
 import { type UserAttributeValueMap } from './userAttributes';
 
-type AccountAuthType =
-    | 'session'
-    | 'pat'
-    | 'service-account'
-    | 'jwt'
-    | 'browserless'
-    | 'scim';
-
-type IAccountAuth = {
-    type: AccountAuthType;
-    data?: CreateEmbedJwt;
-    source: string;
-};
-
-type LightdashAuth<T extends IAccountAuth> = T;
-
 /**
  * Prefixes for the authorization tokens we store in the database
  */
@@ -37,81 +21,97 @@ export enum AuthTokenPrefix {
     PERSONAL_ACCESS_TOKEN = 'ldpat_',
 }
 
-type EmbeddedAccountAuth = LightdashAuth<{
+export type AuthType =
+    | 'session'
+    | 'pat'
+    | 'service-account'
+    | 'jwt'
+    | 'browserless'
+    | 'scim';
+
+export type SessionAuth = {
+    type: 'session';
+    source: string; // The serialized cookie
+};
+
+export type JwtAuth = {
     type: 'jwt';
     data: CreateEmbedJwt;
-    /* The serialized token */
-    source: string;
-}>;
+    source: string; // The serialized token
+};
 
-type LightdashUserAccountAuth = LightdashAuth<{
-    type: 'session';
-    /* The serialized cookie */
-    source: string;
-}>;
-
-type ServiceAccountAuth = LightdashAuth<{
+export type ServiceAccountAuth = {
     type: 'service-account';
-    /* The service account token */
-    source: string;
-}>;
+    source: string; // The service account token
+};
 
-type LightdashAccountAuth =
-    | EmbeddedAccountAuth
-    | LightdashUserAccountAuth
-    | ServiceAccountAuth;
+export type Authentication = SessionAuth | JwtAuth | ServiceAccountAuth;
 
-export type AccountAccessControls = {
+export type UserAccessControls = {
     userAttributes: UserAttributeValueMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
 };
 
-/**
- * The dynamic access permissions the account has
- */
-export type AccountAccess = {
-    /**
-     * The dashboard ID the account has access to.
-     * This is for backwards compatibility with the current JWT Embed API.
-     * */
+export type DashboardAccess = {
+    /** The dashboard ID the account has access to */
     dashboardId: string;
+    /** Dashboard filtering options for interactivity */
     filtering?: DashboardFilterInteractivityOptions;
-    controls?: AccountAccessControls;
+    /** User-specific access controls */
+    controls?: UserAccessControls;
 };
 
-type AccountOrganization = Pick<Organization, 'organizationUuid' | 'name'>;
+export type AccountHelpers = {
+    /** Is this user logged in? */
+    isAuthenticated: () => boolean;
+    /** Is this account for a known user in our database? */
+    isRegisteredUser: () => boolean;
+    /** Is this account for an anonymous external user? */
+    isAnonymousUser: () => boolean;
+    /** Is this account for a session user? */
+    isSessionUser: () => boolean;
+    /** Is this account for a JWT user? */
+    isJwtUser: () => boolean;
+};
 
-type ILightdashAccount = {
+export type AccountOrganization = Partial<
+    Pick<Organization, 'organizationUuid' | 'name' | 'createdAt'>
+>;
+
+/**
+ * Base account interface that all account types extend
+ */
+export type BaseAccount = {
     organization: AccountOrganization;
-    authentication: LightdashAccountAuth;
+    authentication: Authentication;
     user: AccountUser;
 };
 
-type LightdashAccount<T extends ILightdashAccount> = {} & T;
-
-export type ExternalAccount = LightdashAccount<{
-    organization: AccountOrganization;
-    authentication: EmbeddedAccountAuth;
-    user: ExternalUser;
-    /** The access permissions the account has */
-    access: AccountAccess;
-}>;
-
-export type SessionAccount = LightdashAccount<{
-    organization: AccountOrganization;
-    authentication: LightdashUserAccountAuth;
-    user: LightdashSessionUser;
-}>;
+type BaseAccountWithHelpers = BaseAccount & AccountHelpers;
 
 /**
- * The account object is used to store the account information for the user.
- * It's meant to be agnostic of the authentication method.
+ * Account for registered users with session authentication
  */
-export type Account = SessionAccount | ExternalAccount;
+export type SessionAccount = BaseAccountWithHelpers & {
+    authentication: SessionAuth;
+    user: LightdashSessionUser;
+};
+
+/**
+ * Account for anonymous users with JWT authentication (embeds)
+ */
+export type AnonymousAccount = BaseAccountWithHelpers & {
+    authentication: JwtAuth;
+    user: ExternalUser;
+    /** The access permissions the account has */
+    access: DashboardAccess;
+};
+
+export type Account = SessionAccount | AnonymousAccount;
 
 export function assertEmbeddedAuth(
     account: Account | undefined,
-): asserts account is ExternalAccount {
+): asserts account is AnonymousAccount {
     if (account?.authentication.type !== 'jwt') {
         throw new ForbiddenError('Account is not an embedded account');
     }
