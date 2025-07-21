@@ -29,10 +29,20 @@ export const mockUser: OrganizationMemberProfile = {
 const organizationMemberProfileModelMock = {
     getOrganizationMemberByUuid: jest.fn().mockResolvedValue(mockUser),
     updateOrganizationMember: jest.fn().mockResolvedValue(mockUser),
+    createOrganizationMembershipByUuid: jest.fn().mockResolvedValue(mockUser),
 } as unknown as OrganizationMemberProfileModel;
 
 // Mock user model
 const userModelMock = {
+    createUser: jest.fn().mockResolvedValue({
+        userId: 1,
+        userUuid: mockUser.userUuid,
+        firstName: mockUser.firstName,
+        lastName: mockUser.lastName,
+        email: mockUser.email,
+        isActive: mockUser.isActive,
+        organizationUuid: mockUser.organizationUuid,
+    }),
     updateUser: jest.fn().mockResolvedValue({
         userId: 1,
         userUuid: mockUser.userUuid,
@@ -50,13 +60,18 @@ const analyticsMock = {
     track: jest.fn(),
 } as unknown as LightdashAnalytics;
 
+// Mock email model
+const emailModelMock = {
+    verifyUserEmailIfExists: jest.fn().mockResolvedValue(undefined),
+} as unknown as EmailModel;
+
 export const ScimServiceArgumentsMock: ConstructorParameters<
     typeof ScimService
 >[0] = {
     lightdashConfig: lightdashConfigMock,
     organizationMemberProfileModel: organizationMemberProfileModelMock,
     userModel: userModelMock,
-    emailModel: {} as EmailModel,
+    emailModel: emailModelMock,
     analytics: analyticsMock,
     groupsModel: {} as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,

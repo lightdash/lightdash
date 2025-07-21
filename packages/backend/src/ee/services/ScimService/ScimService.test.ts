@@ -17,7 +17,7 @@ describe('ScimService', () => {
     describe('convertLightdashUserToScimUser', () => {
         test('should correctly add role to extension schema', () => {
             // Access the private method using type assertion
-            // @ts-ignore
+            // @ts-expect-error - accessing private method for testing
             const convertMethod =
                 service.convertLightdashUserToScimUser.bind(service);
 
@@ -76,7 +76,7 @@ describe('ScimService', () => {
 
         test('should not add extension schema if user has no role', () => {
             // Access the private method using type assertion
-            // @ts-ignore
+            // @ts-expect-error - accessing private method for testing
             const convertMethod =
                 service.convertLightdashUserToScimUser.bind(service);
 
@@ -157,6 +157,117 @@ describe('ScimService', () => {
                 // @ts-ignore
                 ScimService.getScimUserEmail({ userName: undefined });
             }).toThrow('Username must be a valid email');
+        });
+    });
+
+    describe('createUser', () => {
+        test('should create user with default role when no role is provided', async () => {
+            // Create a SCIM user without a role in the extension schema
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: 'new-user@example.com',
+                name: {
+                    givenName: 'New',
+                    familyName: 'User',
+                },
+                active: true,
+                emails: [
+                    {
+                        value: 'new-user@example.com',
+                        primary: true,
+                    },
+                ],
+            };
+
+            // Call createUser
+            await service.createUser({
+                user: scimUser,
+                organizationUuid: 'org-uuid',
+            });
+
+            // Verify that createOrganizationMembershipByUuid was called with the default role
+            const { organizationMemberProfileModel } = ScimServiceArgumentsMock;
+            expect(
+                organizationMemberProfileModel.createOrganizationMembershipByUuid,
+            ).toHaveBeenCalledWith({
+                organizationUuid: 'org-uuid',
+                userUuid: mockUser.userUuid,
+                role: OrganizationMemberRole.MEMBER, // Default role
+            });
+        });
+
+        test('should create user with provided role when valid role is in extension schema', async () => {
+            // Create a SCIM user with a valid role in the extension schema
+            const scimUser = {
+                schemas: [
+                    ScimSchemaType.USER,
+                    ScimSchemaType.LIGHTDASH_USER_EXTENSION,
+                ],
+                userName: 'new-user@example.com',
+                name: {
+                    givenName: 'New',
+                    familyName: 'User',
+                },
+                active: true,
+                emails: [
+                    {
+                        value: 'new-user@example.com',
+                        primary: true,
+                    },
+                ],
+                [ScimSchemaType.LIGHTDASH_USER_EXTENSION]: {
+                    role: OrganizationMemberRole.ADMIN, // Valid role
+                },
+            };
+
+            // Call createUser
+            await service.createUser({
+                user: scimUser,
+                organizationUuid: 'org-uuid',
+            });
+
+            // Verify that createOrganizationMembershipByUuid was called with the provided role
+            const { organizationMemberProfileModel } = ScimServiceArgumentsMock;
+            expect(
+                organizationMemberProfileModel.createOrganizationMembershipByUuid,
+            ).toHaveBeenCalledWith({
+                organizationUuid: 'org-uuid',
+                userUuid: mockUser.userUuid,
+                role: OrganizationMemberRole.ADMIN, // Provided role
+            });
+        });
+
+        test('should throw error when invalid role is provided in extension schema', async () => {
+            // Create a SCIM user with an invalid role in the extension schema
+            const scimUser = {
+                schemas: [
+                    ScimSchemaType.USER,
+                    ScimSchemaType.LIGHTDASH_USER_EXTENSION,
+                ],
+                userName: 'new-user@example.com',
+                name: {
+                    givenName: 'New',
+                    familyName: 'User',
+                },
+                active: true,
+                emails: [
+                    {
+                        value: 'new-user@example.com',
+                        primary: true,
+                    },
+                ],
+                [ScimSchemaType.LIGHTDASH_USER_EXTENSION]: {
+                    role: 'invalid_role', // Invalid role
+                },
+            };
+
+            // Call createUser with the invalid role and expect it to throw an error
+            await expect(
+                service.createUser({
+                    user: scimUser,
+                    organizationUuid: 'org-uuid',
+                }),
+            ).rejects.toThrow(/Invalid role/);
         });
     });
 

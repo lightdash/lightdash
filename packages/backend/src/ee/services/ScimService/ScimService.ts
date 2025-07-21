@@ -348,12 +348,31 @@ export class ScimService extends BaseService {
                 },
                 user.active,
             );
+            // Extract role from extension schema if available
+            const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
+            let role = OrganizationMemberRole.MEMBER; // Default role
+
+            // If a role is provided in the extension schema, validate and use it
+            if (extensionData?.role) {
+                // Validate that the role is a valid OrganizationMemberRole
+                if (!isOrganizationMemberRole(extensionData.role)) {
+                    throw new ParameterError(
+                        `Invalid role: ${
+                            extensionData.role
+                        }. Role must be one of: ${Object.values(
+                            OrganizationMemberRole,
+                        ).join(', ')}`,
+                    );
+                }
+                role = extensionData.role;
+            }
+
             // Add user to organization
             await this.organizationMemberProfileModel.createOrganizationMembershipByUuid(
                 {
                     organizationUuid,
                     userUuid: dbUser.userUuid,
-                    role: OrganizationMemberRole.MEMBER,
+                    role,
                 },
             );
             // verify user email on create if coming from scim
@@ -455,8 +474,8 @@ export class ScimService extends BaseService {
             }
 
             // Get the updated user with potentially new role
-            const finalUser = await this.userModel.getUserDetailsById(
-                updatedUser.userId,
+            const finalUser = await this.userModel.getUserDetailsByUuid(
+                updatedUser.userUuid,
             );
 
             this.analytics.track({
