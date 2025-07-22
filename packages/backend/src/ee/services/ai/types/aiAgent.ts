@@ -1,9 +1,9 @@
 import { AiAgent } from '@lightdash/common';
 import { CoreMessage, LanguageModelV1 } from 'ai';
 import {
+    FindExploresFn,
     FindFieldFn,
     GetExploreFn,
-    GetExploresFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     SendFileFn,
@@ -28,8 +28,8 @@ export type AiAgentArgs = {
 };
 
 export type AiAgentDependencies = {
+    findExplores: FindExploresFn;
     findFields: FindFieldFn;
-    getExplores: GetExploresFn;
     getExplore: GetExploreFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
