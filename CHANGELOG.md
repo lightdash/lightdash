@@ -1,3 +1,10 @@
+# [0.1826.0](https://github.com/lightdash/lightdash/compare/0.1825.0...0.1826.0) (2025-07-22)
+
+
+### Features
+
+* update whitelist domain instance ([#15915](https://github.com/lightdash/lightdash/issues/15915)) ([e8c8bc6](https://github.com/lightdash/lightdash/commit/e8c8bc6c009cdaa4ae89d87f23b5d00925f7f9ca))
+
 # [0.1825.0](https://github.com/lightdash/lightdash/compare/0.1824.0...0.1825.0) (2025-07-21)
 
 
