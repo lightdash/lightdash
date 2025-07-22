@@ -1,10 +1,10 @@
 import { type BaseAiAgent } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Anchor,
     Box,
     Button,
+    Code,
     Group,
     LoadingOverlay,
     MultiSelect,
@@ -24,8 +24,8 @@ import {
     IconArrowLeft,
     IconBook2,
     IconCheck,
-    IconInfoCircle,
     IconPlug,
+    IconPointFilled,
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
@@ -44,7 +44,6 @@ import {
     InstructionsGuidelines,
     InstructionsTemplates,
 } from '../../features/aiCopilot/components/InstructionsSupport';
-import { SlackIntegrationSteps } from '../../features/aiCopilot/components/SlackIntegrationSteps';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useDeleteAiAgentMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 import {
@@ -53,6 +52,7 @@ import {
     useProjectCreateAiAgentMutation,
     useProjectUpdateAiAgentMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+
 const formSchema: z.ZodType<
     Pick<
         BaseAiAgent,
@@ -167,6 +167,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agent, isCreateMode]);
+
+    const slackChannelsConfigured = useMemo(
+        () =>
+            form.values.integrations.some(
+                (i) => i.type === 'slack' && i.channelId,
+            ),
+        [form.values.integrations],
+    );
 
     const handleBack = () => {
         void navigate(-1);
@@ -519,34 +527,63 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                             Integrations
                                         </Title>
                                     </Group>
-                                    <Stack gap="md">
-                                        <Title order={6}>Slack</Title>
+                                    <Stack gap="sm">
+                                        <Group
+                                            align="center"
+                                            justify="space-between"
+                                            gap="xs"
+                                        >
+                                            <Title order={6}>Slack</Title>
+                                            <Group
+                                                c={
+                                                    slackChannelsConfigured
+                                                        ? 'green.04'
+                                                        : 'dimmed'
+                                                }
+                                                gap="xxs"
+                                                align="flex-start"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconPointFilled}
+                                                    size={16}
+                                                />
+                                                <Text size="xs">
+                                                    {!slackInstallation?.organizationUuid
+                                                        ? 'Disabled'
+                                                        : !slackChannelsConfigured
+                                                        ? 'Channels not configured'
+                                                        : 'Enabled'}
+                                                </Text>
+                                            </Group>
+                                        </Group>
 
                                         <LoadingOverlay
                                             visible={isLoadingSlackInstallation}
                                         />
-
                                         {!slackInstallation?.organizationUuid ? (
-                                            <Alert
-                                                color="yellow"
-                                                icon={
-                                                    <MantineIcon
-                                                        icon={IconInfoCircle}
-                                                    />
-                                                }
+                                            <Paper
+                                                withBorder
+                                                p="sm"
+                                                style={{
+                                                    borderStyle: 'dashed',
+                                                    backgroundColor:
+                                                        'transparent',
+                                                }}
                                             >
-                                                <Text fw={500} mb="xs">
-                                                    Slack integration required
-                                                </Text>
-                                                <Text size="sm">
+                                                <Text
+                                                    size="xs"
+                                                    c="dimmed"
+                                                    ta="center"
+                                                >
                                                     To enable AI agent
                                                     interactions through Slack,
                                                     please connect your Slack
                                                     workspace in the{' '}
                                                     <Anchor
+                                                        c="dimmed"
+                                                        underline="always"
                                                         href="/generalSettings/integrations"
                                                         target="_blank"
-                                                        fz="sm"
                                                     >
                                                         Integrations settings
                                                     </Anchor>
@@ -554,32 +591,36 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                     select channels where this
                                                     agent will be available.
                                                 </Text>
-                                            </Alert>
+                                            </Paper>
                                         ) : (
                                             <Box>
-                                                <SlackIntegrationSteps
-                                                    slackInstallation={
-                                                        !!slackInstallation?.organizationUuid
-                                                    }
-                                                    channelsConfigured={form.values.integrations.some(
-                                                        (i) =>
-                                                            i.type ===
-                                                                'slack' &&
-                                                            i.channelId,
-                                                    )}
-                                                />
-
-                                                <Stack gap="xs" mt="md">
+                                                <Stack gap="xs">
                                                     <MultiSelect
                                                         variant="subtle"
-                                                        disabled={
-                                                            isRefreshing ||
-                                                            !slackInstallation?.organizationUuid
-                                                        }
+                                                        disabled={isRefreshing}
                                                         description={
-                                                            !slackInstallation?.organizationUuid
-                                                                ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
-                                                                : undefined
+                                                            <>
+                                                                Select the
+                                                                channels where
+                                                                this agent will
+                                                                be available.
+                                                                {slackChannelsConfigured && (
+                                                                    <>
+                                                                        {' '}
+                                                                        Tag the
+                                                                        Slack
+                                                                        app{' '}
+                                                                        <Code>
+                                                                            @
+                                                                            {
+                                                                                slackInstallation.appName
+                                                                            }
+                                                                        </Code>{' '}
+                                                                        to get
+                                                                        started.
+                                                                    </>
+                                                                )}
+                                                            </>
                                                         }
                                                         labelProps={{
                                                             style: {
