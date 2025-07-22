@@ -607,9 +607,7 @@ export class ValidationService extends BaseService {
             const virtualViews =
                 await this.projectModel.findVirtualViewsFromCache(projectUuid);
 
-            explores = Array.from(
-                compiledExplores.concat(Object.values(virtualViews)),
-            );
+            explores = compiledExplores.concat(Object.values(virtualViews));
             this.logger.debug(
                 `Merged ${compiledExplores.length} compiled explores with ${
                     Object.values(virtualViews).length
