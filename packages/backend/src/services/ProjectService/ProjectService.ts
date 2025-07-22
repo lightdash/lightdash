@@ -3958,11 +3958,13 @@ export class ProjectService extends BaseService {
         projectUuid,
         exploreNames,
         organizationUuid,
+        skipFilteredExplores = false,
     }: {
         user: SessionUser;
         projectUuid: string;
-        exploreNames: string[];
+        exploreNames?: string[];
         organizationUuid?: string;
+        skipFilteredExplores?: boolean;
     }): Promise<Record<string, Explore | ExploreError>> {
         return Sentry.startSpan(
             {
@@ -4014,10 +4016,20 @@ export class ProjectService extends BaseService {
                         if (!shouldFilterExplore) {
                             acc[explore.name] = explore;
                         } else {
-                            acc[explore.name] = getFilteredExplore(
+                            const filteredExplore = getFilteredExplore(
                                 explore,
                                 userAttributes,
                             );
+                            if (filteredExplore) {
+                                acc[explore.name] = filteredExplore;
+                            } else if (
+                                !filteredExplore &&
+                                !skipFilteredExplores
+                            ) {
+                                throw new ForbiddenError(
+                                    "You don't have authorization to access this explore",
+                                );
+                            }
                         }
                     }
                     return acc;

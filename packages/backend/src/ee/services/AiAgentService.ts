@@ -26,7 +26,6 @@ import {
     filterExploreByTags,
     findFieldInExplores,
     ForbiddenError,
-    getItemId,
     isExploreError,
     isSlackPrompt,
     LightdashUser,
@@ -48,7 +47,7 @@ import {
     ToolCallPart,
     ToolResultPart,
 } from 'ai';
-import _, { pick } from 'lodash';
+import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import {
     AiAgentCreatedEvent,
@@ -83,7 +82,6 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
-import { AiAgentExploreSummary } from './ai/types/aiAgentExploreSummary';
 import {
     getDeepLinkBlocks,
     getExploreBlocks,
@@ -1276,55 +1274,6 @@ export class AiAgentService {
         });
     }
 
-    private async getMinimalExploreInformation(
-        user: SessionUser,
-        projectUuid: string,
-        availableTags: string[] | null,
-    ): Promise<AiAgentExploreSummary[]> {
-        const exploreSummaries =
-            await this.projectService.getAllExploresSummary(
-                user,
-                projectUuid,
-                true,
-                false,
-            );
-
-        const explores = await this.projectService.findExplores({
-            user,
-            projectUuid,
-            exploreNames: exploreSummaries.map((s) => s.name),
-        });
-
-        const exploresWithoutErrors = Object.values(explores).filter(
-            (e): e is Explore => !isExploreError(e),
-        );
-
-        const exploresWithDescriptions = exploresWithoutErrors
-            .map((explore) =>
-                filterExploreByTags({
-                    explore,
-                    availableTags,
-                }),
-            )
-            .filter((explore) => explore !== undefined)
-            .map((explore, index) => ({
-                ...explore,
-                description: exploreSummaries[index]?.description,
-                aiHint: exploreSummaries[index]?.aiHint,
-            }));
-
-        const minimalExploreInformation: AiAgentExploreSummary[] =
-            exploresWithDescriptions.map((s) => ({
-                ...pick(s, ['name', 'label', 'description', 'baseTable']),
-                joinedTables: Object.keys(s.tables).filter(
-                    (table) => table !== s.baseTable,
-                ),
-                ...(s.aiHint ? { aiHint: s.aiHint } : {}),
-            }));
-
-        return minimalExploreInformation;
-    }
-
     private async getAgentSettings(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
@@ -1432,11 +1381,53 @@ export class AiAgentService {
         const getExplores = async () => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
-            return this.getMinimalExploreInformation(
-                user,
-                projectUuid,
-                agentSettings?.tags ?? null,
-            );
+            const userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                });
+
+            const { data: tables, pagination } =
+                await this.catalogService.searchCatalog({
+                    projectUuid,
+                    catalogSearch: {
+                        type: CatalogType.Table,
+                    },
+                    userAttributes,
+                    context: CatalogSearchContext.AI_AGENT,
+                    yamlTags: agentSettings.tags,
+                });
+
+            const fields = (
+                await this.catalogService.searchCatalog({
+                    projectUuid,
+                    catalogSearch: {
+                        type: CatalogType.Field,
+                        searchQuery: '',
+                    },
+                    userAttributes,
+                    context: CatalogSearchContext.AI_AGENT,
+                    yamlTags: agentSettings.tags,
+                    paginateArgs: {
+                        page: 1,
+                        pageSize: 300000,
+                    },
+                    sortArgs: {
+                        sort: 'chartUsage',
+                        order: 'desc',
+                    },
+                })
+            ).data.filter((item) => item.type === CatalogType.Field);
+
+            return {
+                tables: tables.filter(
+                    (table) => table.type === CatalogType.Table,
+                ),
+                fields: fields.filter(
+                    (field) => field.type === CatalogType.Field,
+                ),
+                pagination,
+            };
         };
 
         const getExplore: GetExploreFn = async ({ exploreName }) => {

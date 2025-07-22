@@ -6,7 +6,7 @@ import {
     createMessage,
     createMockDepsFactory,
     createToolMessages,
-    mockExploresSummary,
+    mockAvailableExplores,
     promptTestUtils,
 } from './testUtils';
 
@@ -45,7 +45,7 @@ describe('generateAgentResponse', () => {
                     internal.getToolCallsAndResults(),
                     ['findExplores'],
                 );
-                mockExploresSummary
+                mockAvailableExplores
                     .map((explore) => explore.label.toLowerCase())
                     .forEach((model) =>
                         promptTestUtils.expectResponseWithContent(text, model),

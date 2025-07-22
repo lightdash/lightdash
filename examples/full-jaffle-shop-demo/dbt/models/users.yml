@@ -1,6 +1,8 @@
 version: 2
 models:
   - name: users
+    config:
+      tags: ['ai']
     meta:
       primary_key: customer_id
       sql_filter: 'customer_id = ${ld.attr.customer_id}'

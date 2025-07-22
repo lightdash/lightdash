@@ -55,11 +55,9 @@ export const doesExploreMatchRequiredAttributes = (
 export const getFilteredExplore = (
     explore: Explore,
     userAttributes: UserAttributeValueMap,
-): Explore => {
+): Explore | null => {
     if (!doesExploreMatchRequiredAttributes(explore, userAttributes)) {
-        throw new AuthorizationError(
-            "You don't have authorization to access this explore",
-        );
+        return null;
     }
 
     const filteredTableNames: string[] = Object.values(explore.tables).reduce<
