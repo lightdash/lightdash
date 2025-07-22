@@ -74,8 +74,12 @@ const AgentsWelcome = () => {
     const isAiAgentEnabled =
         aiCopilotFlagQuery.isSuccess && aiCopilotFlagQuery.data.enabled;
 
-    const agentsQuery = useProjectAiAgents(projectUuid, {
-        enabled: isAiAgentEnabled,
+    const agentsQuery = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: true,
+        options: {
+            enabled: isAiAgentEnabled,
+        },
     });
     const userAgentPreferencesQuery = useGetUserAgentPreferences(projectUuid, {
         enabled: isAiAgentEnabled,

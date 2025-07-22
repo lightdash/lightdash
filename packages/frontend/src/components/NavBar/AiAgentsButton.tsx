@@ -24,7 +24,14 @@ export const AiAgentsButton = () => {
     });
     const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
     const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);
-    const agents = useProjectAiAgents(projectUuid);
+    const agents = useProjectAiAgents({
+        projectUuid,
+        options: {
+            enabled:
+                aiAgentFlagQuery.isSuccess && aiAgentFlagQuery.data.enabled,
+        },
+        redirectOnUnauthorized: false,
+    });
 
     const canViewButton =
         (canViewAiAgents &&

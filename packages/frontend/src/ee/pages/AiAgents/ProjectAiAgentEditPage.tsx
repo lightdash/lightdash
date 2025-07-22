@@ -114,8 +114,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     const { data: slackInstallation, isLoading: isLoadingSlackInstallation } =
         useGetSlack();
 
-    const { data: agents, isSuccess: isSuccessAgents } =
-        useProjectAiAgents(projectUuid);
+    const { data: agents, isSuccess: isSuccessAgents } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: true,
+    });
 
     const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups({
         includeMembers: 5,

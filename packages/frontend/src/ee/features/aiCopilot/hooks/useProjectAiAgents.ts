@@ -37,10 +37,17 @@ const getProjectAgent = async (
         body: undefined,
     });
 
-export const useProjectAiAgents = (
-    projectUuid?: string | null,
-    options?: UseQueryOptions<ApiAiAgentSummaryResponse['results'], ApiError>,
-) => {
+type UseProjectAiAgentsProps = {
+    projectUuid?: string | null;
+    options?: UseQueryOptions<ApiAiAgentSummaryResponse['results'], ApiError>;
+    redirectOnUnauthorized: boolean;
+};
+
+export const useProjectAiAgents = ({
+    projectUuid,
+    options,
+    redirectOnUnauthorized,
+}: UseProjectAiAgentsProps) => {
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
@@ -54,12 +61,8 @@ export const useProjectAiAgents = (
                     title: 'Failed to fetch project AI agents',
                     apiError: error.error,
                 });
-            } else {
+            } else if (redirectOnUnauthorized) {
                 void navigate(`/projects/${projectUuid}/home`);
-            }
-
-            if (options?.onError) {
-                options.onError(error);
             }
         },
         enabled: !!projectUuid && options?.enabled !== false,
