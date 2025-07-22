@@ -123,33 +123,30 @@ models:
                 format: usd
                 spotlight:
                   categories: ["sales"]
-      - name: meets_min_order_threshold
-        description: Whether the order meets the minimum order amount parameter
-        config:
-          meta:
-            dimension:
-              type: boolean
-            metrics:
-              threshold_compliance_rate:
-                type: average
-                label: Min Order Threshold Compliance Rate
-                description: Percentage of orders meeting minimum threshold
-                format: percent
       - name: company_quarter
-        description: Company fiscal quarter (Q1-Q4)
-        config:
-          meta:
-            dimension:
-              type: string
-      - name: funnel_stage_name
-        description: Dynamic funnel stage name based on parameter
+        description: Company Quarter
         config:
           meta:
             dimension:
               type: string
               sql: |
                 CASE 
-                  WHEN '${ld.parameters.funnel_type}' = 'customer_journey' THEN
+                  WHEN ${ld.parameters.company_quarter} = 'all' THEN 'all'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ1' AND EXTRACT(MONTH FROM order_date) IN (3, 4, 5) THEN 'LDQ1'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ2' AND EXTRACT(MONTH FROM order_date) IN (6, 7, 8) THEN 'LDQ2'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ3' AND EXTRACT(MONTH FROM order_date) IN (9, 10, 11) THEN 'LDQ3'
+                  WHEN ${ld.parameters.company_quarter} = 'LDQ4' AND EXTRACT(MONTH FROM order_date) IN (12, 1, 2) THEN 'LDQ4'
+                  ELSE 'Filtered Out'
+                END
+      - name: funnel_stage_name
+        description: Dynamic funnel stage name based on parameters
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: |
+                CASE 
+                  WHEN ${ld.parameters.funnel_type} = 'customer_journey' THEN
                     CASE 
                       WHEN ${cj_stage} = 5 THEN 'Purchase'
                       WHEN ${cj_stage} = 4 THEN 'Intent'
@@ -158,7 +155,7 @@ models:
                       WHEN ${cj_stage} = 1 THEN 'Awareness'
                       ELSE 'No Engagement'
                     END
-                  WHEN '${ld.parameters.funnel_type}' = 'ecommerce' THEN
+                  WHEN ${ld.parameters.funnel_type} = 'ecommerce' THEN
                     CASE 
                       WHEN ${ec_stage} = 5 THEN 'Purchase'
                       WHEN ${ec_stage} = 4 THEN 'Checkout'
@@ -167,7 +164,7 @@ models:
                       WHEN ${ec_stage} = 1 THEN 'Impression'
                       ELSE 'No Engagement'
                     END
-                  WHEN '${ld.parameters.funnel_type}' = 'marketing' THEN
+                  WHEN ${ld.parameters.funnel_type} = 'marketing' THEN
                     CASE 
                       WHEN ${mk_stage} = 5 THEN 'Customer'
                       WHEN ${mk_stage} = 4 THEN 'Qualified Lead'
@@ -202,3 +199,160 @@ models:
           meta:
             dimension:
               hidden: true
+              
+      # Parameter-based dimensions and metrics
+      - name: dynamic_customer_segment
+        description: "Dynamic customer segmentation based on parameter selection"
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: |
+                CASE 
+                  WHEN ${ld.parameters.customer_segment} = 'all' THEN
+                    CASE 
+                      WHEN customer_lifetime_value > 100 THEN 'High Value'
+                      WHEN number_of_orders >= 5 THEN 'Frequent Buyer'
+                      WHEN number_of_orders = 1 THEN 'New Customer'
+                      WHEN (CURRENT_DATE - order_date::DATE) > 1800 THEN 'Churned'
+                      WHEN (CURRENT_DATE - order_date::DATE) > 1500 THEN 'At Risk'
+                      ELSE 'Regular Customer'
+                    END
+                  WHEN ${ld.parameters.customer_segment} = 'high_value' THEN
+                    CASE WHEN customer_lifetime_value > 100 THEN 'High Value' ELSE 'Filtered Out' END
+                  WHEN ${ld.parameters.customer_segment} = 'frequent_buyer' THEN
+                    CASE WHEN number_of_orders >= 5 THEN 'Frequent Buyer' ELSE 'Filtered Out' END
+                  WHEN ${ld.parameters.customer_segment} = 'new_customer' THEN
+                    CASE WHEN number_of_orders = 1 THEN 'New Customer' ELSE 'Filtered Out' END
+                  WHEN ${ld.parameters.customer_segment} = 'at_risk' THEN
+                    CASE WHEN (CURRENT_DATE - order_date::DATE) > 1500 AND (CURRENT_DATE - order_date::DATE) <= 1800 THEN 'At Risk' ELSE 'Filtered Out' END
+                  WHEN ${ld.parameters.customer_segment} = 'churned' THEN
+                    CASE WHEN (CURRENT_DATE - order_date::DATE) > 1800 THEN 'Churned' ELSE 'Filtered Out' END
+                  ELSE 'Other'
+                END
+            metrics:
+              segmented_customer_count:
+                type: count_distinct
+                label: Segmented Customer Count
+                description: Customer count filtered by segment and minimum order count
+                sql: CASE WHEN number_of_orders >= ${ld.parameters.minimum_amount_order_count}::NUMERIC THEN customer_id ELSE NULL END
+              high_value_customers:
+                type: count_distinct
+                label: High Value Customers
+                description: Count of customers with high lifetime value
+                sql: CASE WHEN customer_lifetime_value > 100 AND ${ld.parameters.customer_segment} IN ('all', 'high_value') THEN customer_id ELSE NULL END
+              customers_by_order_count:
+                type: count_distinct
+                label: Customers by Order Count Threshold
+                description: Count customers meeting minimum order threshold
+                sql: CASE WHEN number_of_orders >= ${ld.parameters.minimum_amount_order_count}::NUMERIC THEN customer_id ELSE NULL END
+              average_clv_by_segment:
+                type: average
+                label: Average CLV by Segment
+                description: Average customer lifetime value filtered by segment
+                sql: |
+                  CASE 
+                    WHEN ${ld.parameters.customer_segment} = 'all' THEN customer_lifetime_value
+                    WHEN ${ld.parameters.customer_segment} = 'high_value' AND customer_lifetime_value > 100 THEN customer_lifetime_value
+                    WHEN ${ld.parameters.customer_segment} = 'frequent_buyer' AND number_of_orders >= 5 THEN customer_lifetime_value
+                    WHEN ${ld.parameters.customer_segment} = 'new_customer' AND number_of_orders = 1 THEN customer_lifetime_value
+                    ELSE NULL 
+                  END
+                  
+      - name: dynamic_payment_analysis
+        description: "Payment analysis dimensions and metrics"
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: |
+                CASE 
+                  WHEN ${ld.parameters.payment_method} = 'all' THEN 'All Payment Methods'
+                  ELSE CONCAT('Filtered by: ', ${ld.parameters.payment_method})
+                END
+            metrics:
+              filtered_order_amount:
+                type: sum
+                label: Filtered Order Amount
+                description: Total amount filtered by minimum order amount and other criteria
+                format: usd
+                sql: |
+                  CASE 
+                    WHEN order_amount >= ${ld.parameters.min_order_amount}::NUMERIC 
+                    THEN order_amount 
+                    ELSE NULL 
+                  END
+              orders_within_date_range:
+                type: count_distinct
+                label: Orders Within Date Range
+                description: Count orders within specified date range from most recent
+                sql: |
+                  CASE 
+                    WHEN order_date >= (CURRENT_DATE - INTERVAL ${ld.parameters.date_range_days} days)
+                    THEN order_id 
+                    ELSE NULL 
+                  END
+              funnel_conversion_rate:
+                type: number
+                label: Funnel Conversion Rate
+                description: Conversion rate between funnel stages
+                format: percent
+                sql: |
+                  CASE 
+                    WHEN ${ld.parameters.funnel_stage_name} = 'all' THEN 
+                      COUNT(CASE WHEN is_completed_order = TRUE THEN 1 END)::FLOAT / NULLIF(COUNT(order_id), 0)
+                    WHEN ${ld.parameters.funnel_stage_name} = 'purchase' THEN
+                      COUNT(CASE WHEN is_completed_order = TRUE THEN 1 END)::FLOAT / NULLIF(COUNT(CASE WHEN order_status IN ('placed', 'shipped') THEN 1 END), 0)
+                    ELSE 0.5
+                  END
+                  
+      - name: advanced_funnel_stage
+        description: "Advanced funnel stage analysis with parameter-based logic"
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: |
+                CASE 
+                  WHEN ${ld.parameters.funnel_type} = 'customer_journey' THEN
+                    CASE 
+                      WHEN cj_stage >= ${ld.parameters.funnel_stage_count}::INT THEN 'Final Stage'
+                      WHEN cj_stage = (${ld.parameters.funnel_stage_count}::INT - 1) THEN 'Pre-Final'
+                      WHEN cj_stage >= 3 THEN 'Mid Funnel'
+                      WHEN cj_stage >= 1 THEN 'Top Funnel'
+                      ELSE 'No Engagement'
+                    END
+                  WHEN ${ld.parameters.funnel_type} = 'ecommerce' THEN
+                    CASE 
+                      WHEN ec_stage >= ${ld.parameters.funnel_stage_count}::INT THEN 'Conversion'
+                      WHEN ec_stage >= 3 THEN 'Consideration'
+                      WHEN ec_stage >= 1 THEN 'Awareness'
+                      ELSE 'No Engagement'
+                    END
+                  ELSE 'Standard Journey'
+                END
+            metrics:
+              stage_specific_count:
+                type: count_distinct
+                label: Stage Specific Count
+                description: Count of orders in specific funnel stage based on parameters
+                sql: |
+                  CASE 
+                    WHEN ${ld.parameters.funnel_stage_name} = 'all' THEN order_id
+                    WHEN ${ld.parameters.funnel_stage_name} = 'awareness' AND cj_stage >= 1 THEN order_id
+                    WHEN ${ld.parameters.funnel_stage_name} = 'interest' AND cj_stage >= 2 THEN order_id
+                    WHEN ${ld.parameters.funnel_stage_name} = 'consideration' AND cj_stage >= 3 THEN order_id
+                    WHEN ${ld.parameters.funnel_stage_name} = 'intent' AND cj_stage >= 4 THEN order_id
+                    WHEN ${ld.parameters.funnel_stage_name} = 'purchase' AND cj_stage >= 5 THEN order_id
+                    ELSE NULL
+                  END
+              dynamic_stage_revenue:
+                type: sum
+                label: Dynamic Stage Revenue
+                description: Revenue from orders at specific funnel stages
+                format: usd
+                sql: |
+                  CASE 
+                    WHEN cj_stage >= ${ld.parameters.funnel_stage_count}::INT THEN order_amount
+                    ELSE NULL
+                  END

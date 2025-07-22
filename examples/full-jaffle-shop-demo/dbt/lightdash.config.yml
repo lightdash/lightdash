@@ -39,3 +39,67 @@ parameters:
       - "LDQ2"
       - "LDQ3"
       - "LDQ4"
+  funnel_stage_count:
+    label: "Funnel Stage Count"
+    description: "Number of funnel stages to analyze"
+    default: "5"
+    options:
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+  funnel_stage_name:
+    label: "Funnel Stage Name"
+    description: "Specific funnel stage to analyze"
+    default: "all"
+    options:
+      - "all"
+      - "awareness"
+      - "interest"
+      - "consideration"
+      - "intent"
+      - "purchase"
+      - "retention"
+  minimum_amount_order_count:
+    label: "Minimum Order Count"
+    description: "Minimum number of orders required for customer segmentation"
+    default: "1"
+    options:
+      - "1"
+      - "2"
+      - "3"
+      - "5"
+      - "10"
+  customer_segment:
+    label: "Customer Segment"
+    description: "Customer segmentation based on behavior"
+    default: "all"
+    options:
+      - "all"
+      - "high_value"
+      - "frequent_buyer"
+      - "new_customer"
+      - "at_risk"
+      - "churned"
+  date_range_days:
+    label: "Date Range (Days)"
+    description: "Number of days to analyze from most recent date"
+    default: "365"
+    options:
+      - "7"
+      - "30"
+      - "90"
+      - "180"
+      - "365"
+      - "730"
+  payment_method:
+    label: "Payment Method"
+    description: "Filter by payment method"
+    default: "all"
+    options:
+      - "all"
+      - "credit_card"
+      - "coupon"
+      - "bank_transfer"
+      - "gift_card"

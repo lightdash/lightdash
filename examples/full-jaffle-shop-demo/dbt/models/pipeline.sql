@@ -53,11 +53,6 @@ pipeline_data as (
         customer_orders.number_of_orders,
         customer_payments.total_amount as customer_lifetime_value,
         
-        -- Parameter-based filtering examples
-        case 
-            when order_payments.total_amount >= CAST('${ld.parameters.min_order_amount}' AS NUMERIC) then TRUE 
-            else FALSE 
-        end as meets_min_order_threshold,
         
         -- Quarter-based filtering for company quarters
         case 
