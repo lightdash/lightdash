@@ -1,3 +1,10 @@
+## [0.1826.2](https://github.com/lightdash/lightdash/compare/0.1826.1...0.1826.2) (2025-07-22)
+
+
+### Bug Fixes
+
+* validate field existence in visualization tools ([#15920](https://github.com/lightdash/lightdash/issues/15920)) ([1df884f](https://github.com/lightdash/lightdash/commit/1df884fb8097641ebf5ed941abd200fc17781ab4)), closes [#15919](https://github.com/lightdash/lightdash/issues/15919)
+
 ## [0.1826.1](https://github.com/lightdash/lightdash/compare/0.1826.0...0.1826.1) (2025-07-22)
 
 
