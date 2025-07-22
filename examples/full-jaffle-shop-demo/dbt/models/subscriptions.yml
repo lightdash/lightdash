@@ -59,6 +59,32 @@ models:
                 description: Count of subscriptions, use with plan dimension for breakdown
                 sql: subscription_id
       
+      - name: plan_name
+        description: "Name of the subscription plan from joined plan table"
+        config:
+          meta:
+            dimension:
+              type: string
+              sql: ${plan.plan_name}
+              colors:
+                "free": "#E0E0E0"
+                "silver": "#C0C0C0" 
+                "gold": "#FFD700"
+                "platinum": "#E5E4E2"
+                "diamond": "#B9F2FF"
+            metrics:
+              subscriptions_by_plan_name:
+                type: count_distinct
+                label: Subscriptions by Plan Name
+                description: Count of subscriptions grouped by plan name
+                sql: subscription_id
+              avg_mrr_by_plan:
+                type: average
+                label: Average MRR by Plan
+                description: Average monthly recurring revenue by plan type
+                format: "$#,##0.00"
+                sql: monthly_mrr
+      
       - name: subscription_start
         description: When the subscription started
         config:
