@@ -944,6 +944,23 @@ export class ProjectModel {
         );
     }
 
+    async findVirtualViewsFromCache(
+        projectUuid: string,
+    ): Promise<Record<string, Explore | ExploreError>> {
+        const virtualViews = await this.database(CachedExploreTableName)
+            .select('explore')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
+
+        return virtualViews.reduce<Record<string, Explore | ExploreError>>(
+            (acc, { explore }) => {
+                acc[explore.name] = explore;
+                return acc;
+            },
+            {},
+        );
+    }
+
     async getAllExploresFromCache(
         projectUuid: string,
     ): Promise<{ [exploreUuid: string]: Explore | ExploreError }> {
