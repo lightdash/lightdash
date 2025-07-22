@@ -141,7 +141,7 @@ export class MetricQueryBuilder {
         ctes: string[];
         joins: string[];
         tables: string[];
-        selects: string[];
+        selects: Record<string, string>;
         groupBySQL: string | undefined;
         filtersSQL: string | undefined;
     } {
@@ -239,22 +239,25 @@ export class MetricQueryBuilder {
             });
 
         // Selects
-        const selects = dimensionsObjects.map(
-            (dimension) =>
-                `  ${dimension.compiledSql} AS ${fieldQuoteChar}${getItemId(
-                    dimension,
-                )}${fieldQuoteChar}`,
-        );
+        const selects: Record<string, string> = {};
+
+        dimensionsObjects.forEach((dimension) => {
+            const id = getItemId(dimension);
+            const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
+            selects[id] = `  ${dimension.compiledSql} AS ${quotedAlias}`;
+        });
 
         if (customBinDimensionSql?.selects) {
-            selects.push(...customBinDimensionSql.selects);
+            Object.assign(selects, customBinDimensionSql.selects);
         }
         if (customSqlDimensionSql?.selects) {
-            selects.push(...customSqlDimensionSql.selects);
+            Object.assign(selects, customSqlDimensionSql.selects);
         }
+
+        const selectsArray = Object.values(selects);
         const groupBySQL =
-            selects.length > 0
-                ? `GROUP BY ${selects.map((val, i) => i + 1).join(',')}`
+            selectsArray.length > 0
+                ? `GROUP BY ${selectsArray.map((val, i) => i + 1).join(',')}`
                 : undefined;
 
         // Filters
@@ -768,7 +771,7 @@ export class MetricQueryBuilder {
         joins,
     }: {
         joinedTables: Set<string>;
-        dimensionSelects: string[];
+        dimensionSelects: Record<string, string>;
         dimensionFilters: string | undefined;
         dimensionGroupBy: string | undefined;
         sqlFrom: string;
@@ -821,11 +824,10 @@ export class MetricQueryBuilder {
             });
         });
 
-        // TODO: Extract column alias from original select. Dimensions private method should expose this info.
-        const dimensionAlias = dimensionSelects.map((select) => {
-            const selectParts = select.split(' AS ');
-            return selectParts.length === 2 ? selectParts[1] : undefined;
-        });
+        // Get dimension aliases directly from the keys of the dimensionSelects record
+        const dimensionAlias = Object.keys(dimensionSelects).map(
+            (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+        );
 
         tablesWithMetricInflation.forEach((tableName) => {
             const table = explore.tables[tableName];
@@ -883,7 +885,7 @@ export class MetricQueryBuilder {
                 const keysCteParts = [
                     `SELECT DISTINCT`,
                     [
-                        ...dimensionSelects,
+                        ...Object.values(dimensionSelects),
                         ...table.primaryKey.map(
                             (pk) =>
                                 `  ${fieldQuoteChar}${table.name}${fieldQuoteChar}.${pk} AS ${fieldQuoteChar}pk_${pk}${fieldQuoteChar}`,
@@ -971,7 +973,7 @@ export class MetricQueryBuilder {
             const unaffectedMetricsCteParts = [
                 'SELECT',
                 [
-                    ...dimensionSelects,
+                    ...Object.values(dimensionSelects),
                     ...metricsNotInCtes.map(
                         (metric) =>
                             `  ${
@@ -988,7 +990,7 @@ export class MetricQueryBuilder {
             ];
             const hasUnaffectedCte: boolean =
                 metricsNotInCtes.length > 0 ||
-                dimensionSelects.length > 0 ||
+                Object.keys(dimensionSelects).length > 0 ||
                 !!dimensionFilters;
 
             /**
@@ -1019,7 +1021,7 @@ export class MetricQueryBuilder {
                     ].join(',\n'),
                     `FROM ${unaffectedMetricsCteName}`,
                     ...metricCtes.map((metricCte) => {
-                        if (dimensionSelects.length === 0) {
+                        if (Object.keys(dimensionSelects).length === 0) {
                             return `CROSS JOIN ${metricCte.name}`;
                         }
                         return `INNER JOIN ${metricCte.name} ON ${dimensionAlias
@@ -1079,7 +1081,7 @@ export class MetricQueryBuilder {
             tablesReferencedInMetrics: metricsSQL.tables,
         });
         const sqlSelect = `SELECT\n${[
-            ...dimensionsSQL.selects,
+            ...Object.values(dimensionsSQL.selects),
             ...metricsSQL.selects,
         ].join(',\n')}`;
         const sqlFrom = this.getBaseTableFromSQL();

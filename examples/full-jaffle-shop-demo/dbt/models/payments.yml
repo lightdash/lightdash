@@ -17,6 +17,8 @@ models:
         description: This is a unique identifier for a payment
         config:
           meta:
+            dimension:
+              sql: CAST(payment_id AS TEXT)
             metrics:
               unique_payment_count:
                 type: count_distinct
