@@ -17,6 +17,8 @@ owners:
     # map users into WoW. This might be the manager or tech lead
     # for this repo.
   users:
+  - corp:ashrita.battepati
+  - corp:mike.moone
   - corp:thiago.croce
     # Groups are optional, but allow you to point to existing AD/LDAP
     # user groups (CNs), prefixed with 'corp:'. This might be your
