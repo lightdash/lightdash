@@ -4,6 +4,7 @@ import {
     QueryExecutionContext,
     SqlRunnerFieldType,
     assertUnreachable,
+    type ParametersValuesMap,
     type PivotChartData,
     type RawResultRow,
     type ResultColumns,
@@ -40,6 +41,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         limit,
         sql,
         sortBy,
+        parameters,
     }: {
         columns: VizColumn[];
         rows: RawResultRow[];
@@ -47,6 +49,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         limit?: number;
         sql: string;
         sortBy?: VizSortBy[];
+        parameters: ParametersValuesMap;
     }) {
         const fields: SqlRunnerField[] = columns.map((column) => ({
             kind: FieldType.DIMENSION,
@@ -71,6 +74,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
                 fields,
                 sortBy,
                 context: QueryExecutionContext.SQL_RUNNER,
+                parameters,
             }),
         });
     }

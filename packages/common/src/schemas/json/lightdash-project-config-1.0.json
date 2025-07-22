@@ -44,6 +44,64 @@
                     }
                 }
             }
+        },
+        "parameters": {
+            "type": ["object", "null"],
+            "description": "Define parameters that can be used in SQL queries",
+            "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "description": "The label of the parameter as it will be displayed in the UI",
+                            "type": "string"
+                        },
+                        "description": {
+                            "description": "A description of the parameter",
+                            "type": "string"
+                        },
+                        "options": {
+                            "description": "A list of possible values for the parameter",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "default": {
+                            "description": "The default value(s) for the parameter",
+                            "oneOf": [
+                                { "type": "string" },
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            ]
+                        },
+                        "multiple": {
+                            "description": "Whether the parameter input will be a multi select",
+                            "type": "boolean"
+                        },
+                        "options_from_dimension": {
+                            "description": "Get parameter options from a dimension in a model",
+                            "type": "object",
+                            "properties": {
+                                "model": {
+                                    "description": "The model containing the dimension",
+                                    "type": "string"
+                                },
+                                "dimension": {
+                                    "description": "The dimension to get options from",
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["model", "dimension"]
+                        }
+                    },
+                    "required": ["label"]
+                }
+            }
         }
     }
 }

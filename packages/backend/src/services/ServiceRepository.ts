@@ -27,6 +27,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
+import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
@@ -86,6 +87,7 @@ interface ServiceManifest {
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
+    projectParametersService: ProjectParametersService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -369,6 +371,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -477,6 +480,8 @@ export class ServiceRepository
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.models.getUserModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
                 }),
         );
     }
@@ -518,6 +523,8 @@ export class ServiceRepository
                     storageClient: this.clients.getResultsFileStorageClient(),
                     csvService: this.getCsvService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
                     prometheusMetrics: this.prometheusMetrics,
                 }),
         );
@@ -880,6 +887,19 @@ export class ServiceRepository
         InstanceConfigurationServiceImplT,
     >(): InstanceConfigurationServiceImplT {
         return this.getService('instanceConfigurationService');
+    }
+
+    public getProjectParametersService(): ProjectParametersService {
+        return this.getService(
+            'projectParametersService',
+            () =>
+                new ProjectParametersService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
+                }),
+        );
     }
 
     /**

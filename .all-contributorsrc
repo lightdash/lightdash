@@ -1670,6 +1670,25 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "fork-boy",
+      "name": "raghvendra",
+      "avatar_url": "https://avatars.githubusercontent.com/u/35917821?v=4",
+      "profile": "https://www.linkedin.com/in/raghvendra-singh-rathore-b47a3a161/",
+      "contributions": [
+        "bug",
+        "code"
+      ]
+    },
+    {
+      "login": "shanzeim",
+      "name": "shanzeim",
+      "avatar_url": "https://avatars.githubusercontent.com/u/211318613?v=4",
+      "profile": "https://github.com/shanzeim",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

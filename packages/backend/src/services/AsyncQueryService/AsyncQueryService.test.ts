@@ -35,6 +35,7 @@ import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -187,6 +188,7 @@ const getMockedAsyncQueryService = (
         } as unknown as S3ResultsFileStorageClient,
         csvService: {} as CsvService,
         featureFlagModel: {} as FeatureFlagModel,
+        projectParametersModel: {} as ProjectParametersModel,
         ...overrides,
     });
 
@@ -278,6 +280,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     sql: 'SELECT * FROM test',
                     fields: {},
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -297,7 +300,6 @@ describe('AsyncQueryService', () => {
             ).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
-                user.userUuid,
                 {
                     status: QueryHistoryStatus.READY,
                     error: null,
@@ -312,6 +314,7 @@ describe('AsyncQueryService', () => {
                     pivot_total_column_count: null,
                     pivot_values_columns: null,
                 },
+                user.userUuid,
             );
 
             // Verify that the warehouse client executeAsyncQuery method was not called
@@ -357,6 +360,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     sql: 'SELECT * FROM test',
                     fields: {},
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -441,6 +445,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: true,
                     sql: 'SELECT * FROM test',
                     fields: {},
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -519,6 +524,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.ERROR,
@@ -573,6 +579,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.PENDING,
@@ -629,6 +636,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.CANCELLED,
@@ -682,6 +690,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.READY,
@@ -771,6 +780,7 @@ describe('AsyncQueryService', () => {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
                 createdByUserUuid: user.userUuid,
+                createdByAccount: null,
                 queryUuid: 'test-query-uuid',
                 projectUuid,
                 status: QueryHistoryStatus.READY,
@@ -894,6 +904,7 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     originalColumns: mockOriginalColumns,
+                    missingParameterReferences: [],
                 },
                 { query: metricQueryMock },
             );
@@ -940,6 +951,7 @@ describe('AsyncQueryService', () => {
                     originalColumns: undefined,
                     dateZoom: undefined,
                     invalidateCache: false,
+                    missingParameterReferences: [],
                 };
                 const requestParameters = { query: metricQueryMock };
                 await service.executeAsyncQuery(args, requestParameters);
@@ -979,6 +991,7 @@ describe('AsyncQueryService', () => {
                     originalColumns: undefined,
                     dateZoom: undefined,
                     invalidateCache: false,
+                    missingParameterReferences: [],
                 };
                 const requestParameters = { query: metricQueryMock };
                 const warehouseCredentials = warehouseClientMock.credentials;

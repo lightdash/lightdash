@@ -601,14 +601,23 @@ export class ValidationService extends BaseService {
             }`,
         );
 
-        const explores =
-            compiledExplores !== undefined
-                ? compiledExplores
-                : Object.values(
-                      await this.projectModel.findExploresFromCache(
-                          projectUuid,
-                      ),
-                  );
+        let explores: (Explore | ExploreError)[];
+        if (compiledExplores !== undefined) {
+            // For CLI validation, when compiled Explores are provided, merge them with virtual views from cache
+            const virtualViews =
+                await this.projectModel.findVirtualViewsFromCache(projectUuid);
+
+            explores = compiledExplores.concat(Object.values(virtualViews));
+            this.logger.debug(
+                `Merged ${compiledExplores.length} compiled explores with ${
+                    Object.values(virtualViews).length
+                } virtual views for validation`,
+            );
+        } else {
+            explores = Object.values(
+                await this.projectModel.findExploresFromCache(projectUuid),
+            );
+        }
 
         const exploreFields =
             explores?.reduce<

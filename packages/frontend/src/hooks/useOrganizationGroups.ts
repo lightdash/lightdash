@@ -42,18 +42,19 @@ const getOrganizationGroupsQuery = async (
     });
 };
 
-export const useOrganizationGroups = ({
-    searchInput,
-    includeMembers,
-    queryOptions,
-}: {
-    searchInput?: string;
-    includeMembers?: number;
+export const useOrganizationGroups = (
+    {
+        searchInput,
+        includeMembers,
+    }: {
+        searchInput?: string;
+        includeMembers?: number;
+    },
     queryOptions?: UseQueryOptions<
         ApiGroupListResponse['results']['data'],
         ApiError
-    >;
-}) => {
+    >,
+) => {
     const setErrorResponse = useQueryError();
     return useQuery<ApiGroupListResponse['results']['data'], ApiError>({
         queryKey: ['organization_groups', includeMembers, searchInput],

@@ -7,10 +7,8 @@ type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 export type EmbedDashboardViewed = BaseTrack & {
     event: 'embed_dashboard.viewed';
     properties: {
-        organizationId: string;
         projectId: string;
         dashboardId: string;
-        externalId: string;
         context: 'preview' | 'production';
         dashboardFiltersInteractivity?: DashboardFilterInteractivityOptions;
         canExportCsv?: boolean;
@@ -23,11 +21,9 @@ export type EmbedDashboardViewed = BaseTrack & {
 export type EmbedQueryViewed = BaseTrack & {
     event: 'embed_query.executed';
     properties: {
-        organizationId: string;
         projectId: string;
         dashboardId: string;
         chartId: string;
-        externalId: string;
     };
 };
 

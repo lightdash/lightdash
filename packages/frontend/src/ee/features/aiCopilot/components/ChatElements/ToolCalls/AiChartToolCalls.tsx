@@ -148,7 +148,7 @@ const ToolCallDescription: FC<{
                     breakdownByDimension={
                         barVizConfigToolArgs.vizConfig.breakdownByDimension
                     }
-                    sql={compiledSql}
+                    sql={compiledSql?.query}
                 />
             );
         case AiResultType.TABLE_RESULT:
@@ -160,7 +160,7 @@ const ToolCallDescription: FC<{
                         tableVizConfigToolArgs.vizConfig.dimensions ?? []
                     }
                     metrics={tableVizConfigToolArgs.vizConfig.metrics}
-                    sql={compiledSql}
+                    sql={compiledSql?.query}
                 />
             );
         case AiResultType.TIME_SERIES_RESULT:
@@ -173,7 +173,7 @@ const ToolCallDescription: FC<{
                     breakdownByDimension={
                         timeSeriesToolCallArgs.vizConfig.breakdownByDimension
                     }
-                    sql={compiledSql}
+                    sql={compiledSql?.query}
                 />
             );
         default:

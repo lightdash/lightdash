@@ -6,6 +6,7 @@ import {
     getOidcRedirectURL,
     initiateOktaOpenIdLogin,
     storeOIDCRedirect,
+    storeSlackContext,
 } from '../controllers/authentication';
 import { UserModel } from '../models/UserModel';
 import { dashboardRouter } from './dashboardRouter';
@@ -175,6 +176,7 @@ apiV1Router.get(
         }
         return res.redirect('/login?redirect=/api/v1/auth/slack');
     },
+    storeSlackContext,
     passport.authenticate('slack'),
 );
 
@@ -183,8 +185,25 @@ apiV1Router.get(
     '/auth/slack/callback',
     passport.authenticate('slack', {
         failureRedirect: '/login',
-        successRedirect: '/auth/slack/success',
+        session: false,
     }),
+    (req, res) => {
+        const slackContext = req.session.slack;
+        const params = new URLSearchParams();
+
+        if (slackContext?.teamId) params.set('team', slackContext.teamId);
+        if (slackContext?.channelId)
+            params.set('channel', slackContext.channelId);
+        if (slackContext?.messageTs)
+            params.set('message', slackContext.messageTs);
+        if (slackContext?.threadTs)
+            params.set('thread_ts', slackContext.threadTs);
+
+        const redirectUrl = `/auth/slack/success${
+            params.toString() ? `?${params.toString()}` : ''
+        }`;
+        res.redirect(redirectUrl);
+    },
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {

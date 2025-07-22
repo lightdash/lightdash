@@ -74,6 +74,7 @@ import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { SlackClient } from './clients/Slack/SlackClient';
+import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -288,6 +289,7 @@ export default class App {
             const instanceConfigurationService =
                 this.serviceRepository.getInstanceConfigurationService<InstanceConfigurationService>();
             await instanceConfigurationService.initializeInstance();
+            await instanceConfigurationService.updateInstanceConfiguration();
         } catch (e) {
             if (e instanceof MissingConfigError) {
                 Logger.debug(
@@ -537,6 +539,7 @@ export default class App {
         // Add JWT parsing here so we can get services off the request
         // We'll also be able to add the user to Sentry for embedded users.
         expressApp.use(jwtAuthMiddleware);
+        expressApp.use(sessionAccountMiddleware);
 
         expressApp.use((req, res, next) => {
             if (req.user) {
@@ -626,12 +629,18 @@ export default class App {
                     error instanceof UnexpectedServerError ||
                     !(error instanceof LightdashError)
                 ) {
-                    console.error(error); // Log original error for debug purposes
+                    // This intentionally uses console vs. winston because of problems from some error/JSON payloads.
+                    console.error(error);
                 }
                 Logger.error(
                     `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
                     errorResponse,
                 );
+
+                if (process.env.NODE_ENV === 'development') {
+                    Logger.error(error.stack);
+                }
+
                 this.analytics.track({
                     event: 'api.error',
                     userId: req.user?.userUuid,

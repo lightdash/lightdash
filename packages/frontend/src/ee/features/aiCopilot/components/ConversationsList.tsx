@@ -73,7 +73,9 @@ export const ConversationsList: FC<ConversationsListProps> = ({
                                             'background-color 0.2s ease',
                                     }}
                                 >
-                                    <Table.Td>{thread.firstMessage}</Table.Td>
+                                    <Table.Td>
+                                        {thread.firstMessage.message}
+                                    </Table.Td>
                                     <Table.Td>{thread.user.name}</Table.Td>
                                     <Table.Td>
                                         {new Date(

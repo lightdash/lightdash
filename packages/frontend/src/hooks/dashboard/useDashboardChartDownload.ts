@@ -19,6 +19,7 @@ export const useDashboardChartDownload = (
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
+    const parameters = useDashboardContext((c) => c.parameters);
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
@@ -50,6 +51,7 @@ export const useDashboardChartDownload = (
                             : undefined,
                         limit: limit ?? MAX_SAFE_INTEGER,
                         invalidateCache: false,
+                        parameters,
                     }),
                 });
 
@@ -76,6 +78,7 @@ export const useDashboardChartDownload = (
             dashboardFilters,
             dashboardSorts,
             dateZoomGranularity,
+            parameters,
         ],
     );
 

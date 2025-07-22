@@ -2,7 +2,6 @@ import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
-import { type Organization } from './organization';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 
 export type AccountUser = {
@@ -12,7 +11,8 @@ export type AccountUser = {
     isActive: boolean;
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
     ability: MemberAbility;
-    type: 'lightdash' | 'external';
+    /* Is this a registered/known user in our DB or an anonymous/external user? */
+    type: 'registered' | 'anonymous';
 };
 
 export interface LightdashUser {
@@ -37,14 +37,13 @@ export interface LightdashUser {
 }
 
 export interface LightdashSessionUser extends AccountUser {
-    type: 'lightdash';
+    type: 'registered';
     // The current effective primary key for users. It duplicates user.id.
     userUuid: string;
     // The old sequential primary key for users
     userId: number;
     firstName: string;
     lastName: string;
-    organization: Pick<Organization, 'organizationUuid' | 'name'>;
     role?: OrganizationMemberRole;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
@@ -56,7 +55,7 @@ export interface LightdashSessionUser extends AccountUser {
 }
 
 export interface ExternalUser extends AccountUser {
-    type: 'external';
+    type: 'anonymous';
 }
 
 export type LightdashUserWithOrg = Required<LightdashUser>;

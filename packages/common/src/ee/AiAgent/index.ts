@@ -44,8 +44,8 @@ export const baseAgentSchema = z.object({
     instruction: z
         .string()
         .max(
-            4096,
-            'Custom instruction is too long. Maximum allowed is 4,000 characters.',
+            8192, // 8kb
+            'Custom instruction is too long. Maximum allowed is 8,100 characters.',
         )
         .nullable(),
     provider: z.string(),
@@ -126,7 +126,10 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     agentUuid: string;
     createdAt: string;
     createdFrom: string;
-    firstMessage: string;
+    firstMessage: {
+        uuid: string;
+        message: string;
+    };
     user: TUser;
 };
 

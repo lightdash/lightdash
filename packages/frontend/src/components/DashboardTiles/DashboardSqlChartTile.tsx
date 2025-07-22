@@ -76,6 +76,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const updateSqlChartTilesMetadata = useDashboardContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
+    const parameters = useDashboardContext((c) => c.parameters);
     const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
 
     const {
@@ -98,6 +99,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         tileUuid: tile.uuid,
         dashboardFilters,
         dashboardSorts: [],
+        parameters,
     });
 
     // Charts in Dashboard shouldn't have animation

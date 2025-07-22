@@ -61,17 +61,16 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { UserModel } from '../../models/UserModel';
 import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
+import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
-import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
 import { getModel } from './ai/models';
 import {
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
-    SearchFieldsFn,
     SendFileFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -88,7 +87,6 @@ import { validateSelectedFieldsExistence } from './ai/utils/validators';
 import { renderTableViz } from './ai/visualizations/vizTable';
 import { renderTimeSeriesViz } from './ai/visualizations/vizTimeSeries';
 import { renderVerticalBarViz } from './ai/visualizations/vizVerticalBar';
-import { CommercialCatalogService } from './CommercialCatalogService';
 
 type AiAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -97,7 +95,7 @@ type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     featureFlagService: FeatureFlagService;
     projectService: ProjectService;
-    catalogService: CommercialCatalogService;
+    catalogService: CatalogService;
     slackClient: SlackClient;
     asyncQueryService: AsyncQueryService;
 };
@@ -115,7 +113,7 @@ export class AiAgentService {
 
     private readonly projectService: ProjectService;
 
-    private readonly catalogService: CommercialCatalogService;
+    private readonly catalogService: CatalogService;
 
     private readonly slackClient: SlackClient;
 
@@ -1115,14 +1113,17 @@ export class AiAgentService {
             .map((explore, index) => ({
                 ...explore,
                 description: exploreSummaries[index]?.description,
+                aiHint: exploreSummaries[index]?.aiHint,
             }));
 
-        const minimalExploreInformation = exploresWithDescriptions.map((s) => ({
-            ...pick(s, ['name', 'label', 'description', 'baseTable']),
-            joinedTables: Object.keys(s.tables).filter(
-                (table) => table !== s.baseTable,
-            ),
-        }));
+        const minimalExploreInformation: AiAgentExploreSummary[] =
+            exploresWithDescriptions.map((s) => ({
+                ...pick(s, ['name', 'label', 'description', 'baseTable']),
+                joinedTables: Object.keys(s.tables).filter(
+                    (table) => table !== s.baseTable,
+                ),
+                ...(s.aiHint ? { aiHint: s.aiHint } : {}),
+            }));
 
         return minimalExploreInformation;
     }
@@ -1170,31 +1171,33 @@ export class AiAgentService {
                         message.ai_prompt_uuid,
                     );
 
-                messages.push({
-                    role: 'assistant',
-                    content: toolCallsAndResults.map(
-                        (toolCallAndResult) =>
-                            ({
-                                type: 'tool-call',
-                                toolCallId: toolCallAndResult.tool_call_id,
-                                toolName: toolCallAndResult.tool_name,
-                                args: toolCallAndResult.tool_args,
-                            } satisfies ToolCallPart),
-                    ),
-                } satisfies CoreAssistantMessage);
+                if (toolCallsAndResults.length > 0) {
+                    messages.push({
+                        role: 'assistant',
+                        content: toolCallsAndResults.map(
+                            (toolCallAndResult) =>
+                                ({
+                                    type: 'tool-call',
+                                    toolCallId: toolCallAndResult.tool_call_id,
+                                    toolName: toolCallAndResult.tool_name,
+                                    args: toolCallAndResult.tool_args,
+                                } satisfies ToolCallPart),
+                        ),
+                    } satisfies CoreAssistantMessage);
 
-                messages.push({
-                    role: 'tool',
-                    content: toolCallsAndResults.map(
-                        (toolCallAndResult) =>
-                            ({
-                                type: 'tool-result',
-                                toolCallId: toolCallAndResult.tool_call_id,
-                                toolName: toolCallAndResult.tool_name,
-                                result: toolCallAndResult.result,
-                            } satisfies ToolResultPart),
-                    ),
-                } satisfies CoreToolMessage);
+                    messages.push({
+                        role: 'tool',
+                        content: toolCallsAndResults.map(
+                            (toolCallAndResult) =>
+                                ({
+                                    type: 'tool-result',
+                                    toolCallId: toolCallAndResult.tool_call_id,
+                                    toolName: toolCallAndResult.tool_name,
+                                    result: toolCallAndResult.result,
+                                } satisfies ToolResultPart),
+                        ),
+                    } satisfies CoreToolMessage);
+                }
 
                 if (message.response) {
                     messages.push({
@@ -1258,40 +1261,6 @@ export class AiAgentService {
             }
 
             return filteredExplore;
-        };
-
-        const searchFields: SearchFieldsFn = async ({
-            exploreName,
-            embeddingSearchQueries,
-        }: {
-            exploreName: string;
-            embeddingSearchQueries: Array<{
-                name: string;
-                description: string;
-            }>;
-        }) => {
-            if (!this.lightdashConfig.ai.copilot.providers?.openai?.apiKey) {
-                throw new Error(
-                    'Embedding search needs OpenAI API key to be set',
-                );
-            }
-
-            const embedQueries = await generateEmbeddingsNameAndDescription({
-                apiKey: this.lightdashConfig.ai.copilot.providers?.openai
-                    ?.apiKey,
-                values: embeddingSearchQueries,
-            });
-
-            const catalogItems = await this.catalogService.hybridSearch({
-                user,
-                projectUuid,
-                embedQueries,
-                exploreName,
-                type: CatalogType.Field,
-                limit: 30,
-            });
-
-            return catalogItems.data.map((item) => item.name);
         };
 
         const updateProgress: UpdateProgressFn = (progress) =>
@@ -1372,9 +1341,8 @@ export class AiAgentService {
         return {
             getExplores,
             getExplore,
-            searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
-                ? searchFields
-                : undefined,
+            // TODO: to be replaced by the new searchFields function
+            searchFields: undefined,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -1459,6 +1427,8 @@ export class AiAgentService {
             maxLimit: this.lightdashConfig.query.maxLimit,
             organizationId: user.organizationUuid,
             userId: user.userUuid,
+            debugLoggingEnabled:
+                this.lightdashConfig.ai.copilot.debugLoggingEnabled,
         };
 
         const dependencies = {

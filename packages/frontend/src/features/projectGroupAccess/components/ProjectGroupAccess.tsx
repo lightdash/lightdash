@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isGroupWithMembers,
     type CreateProjectGroupAccess,
     type GroupWithMembers,
@@ -9,6 +10,7 @@ import { useMemo, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
@@ -34,8 +36,30 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
 
     const { showToastSuccess } = useToaster();
 
-    const { data: groups, isInitialLoading: isLoadingGroups } =
-        useOrganizationGroups({ includeMembers: 5 });
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
+
+    if (userGroupsFeatureFlagQuery.isError) {
+        console.error(userGroupsFeatureFlagQuery.error);
+        throw new Error('Error fetching user groups feature flag');
+    }
+
+    const isGroupManagementEnabled =
+        userGroupsFeatureFlagQuery.isSuccess &&
+        userGroupsFeatureFlagQuery.data.enabled;
+
+    const { data: groups } = useOrganizationGroups(
+        { includeMembers: 5 },
+        { enabled: isGroupManagementEnabled },
+    );
+
+    const {
+        data: projectGroupAccessList,
+        isInitialLoading: isLoadingProjectGroupAccessList,
+    } = useProjectGroupAccessList(projectUuid, {
+        enabled: isGroupManagementEnabled,
+    });
 
     const { mutateAsync: addProjectGroupAccess, isLoading: isSubmitting } =
         useAddProjectGroupAccessMutation();
@@ -47,11 +71,6 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
         showToastSuccess({ title: 'Group access added' });
         onAddProjectGroupAccessClose();
     };
-
-    const {
-        data: projectGroupAccessList,
-        isInitialLoading: isLoadingProjectGroupAccessList,
-    } = useProjectGroupAccessList(projectUuid);
 
     const availableGroups = useMemo(() => {
         if (!groups || !projectGroupAccessList) return [];
@@ -80,7 +99,7 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
             type={PageType.PAGE}
             category={CategoryName.SETTINGS}
         >
-            {isLoadingGroups || isLoadingProjectGroupAccessList ? (
+            {isLoadingProjectGroupAccessList ? (
                 <Box mt="4xl">
                     <SuboptimalState loading />
                 </Box>

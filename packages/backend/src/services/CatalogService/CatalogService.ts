@@ -339,7 +339,6 @@ export class CatalogService<
             cachedExploresMap,
             projectYamlTags,
             userUuid,
-            embedderFn,
         );
 
         if (
