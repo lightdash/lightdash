@@ -7,7 +7,6 @@ import {
 import { exec } from 'child_process';
 import * as crypto from 'crypto';
 import * as http from 'http';
-import { createServer } from 'net';
 import fetch from 'node-fetch';
 import { URL } from 'url';
 import { promisify } from 'util';
@@ -54,43 +53,6 @@ const generatePersonalAccessToken = async (
     const { token } = patResponseBody.results;
     return token;
 };
-// Helper function to find an available port
-const findAvailablePort = async (
-    startPort: number,
-    endPort: number,
-): Promise<number> => {
-    const ports = Array.from(
-        { length: endPort - startPort + 1 },
-        (_, i) => startPort + i,
-    );
-
-    const checkPort = async (port: number): Promise<number | null> => {
-        try {
-            await new Promise<void>((resolve, reject) => {
-                const server = createServer();
-                server.listen(port, () => {
-                    server.close();
-                    resolve();
-                });
-                server.on('error', () => {
-                    reject();
-                });
-            });
-            return port;
-        } catch {
-            return null;
-        }
-    };
-
-    const results = await Promise.all(ports.map(checkPort));
-    const availablePort = results.find((port) => port !== null);
-
-    if (availablePort === null || availablePort === undefined) {
-        throw new Error('No available ports found');
-    }
-
-    return availablePort;
-};
 
 // Helper function to open browser
 const openBrowser = async (url: string): Promise<void> => {
@@ -117,10 +79,6 @@ export const loginWithOauth = async (
     const codeChallenge = generateCodeChallenge(codeVerifier);
     const state = crypto.randomBytes(16).toString('hex');
 
-    // Find an available port
-    const port = await findAvailablePort(8100, 8110);
-    const redirectUri = `http://localhost:${port}/callback`;
-
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
     let rejectAuth: (reason: Error) => void;
@@ -130,6 +88,7 @@ export const loginWithOauth = async (
             rejectAuth = reject;
         },
     );
+    let port: number = 0;
 
     // Create HTTP server to handle the callback
     const server = http.createServer((req, res) => {
@@ -260,15 +219,27 @@ export const loginWithOauth = async (
         }
     });
 
-    // Start the server
+    // Start the server on random port
     await new Promise<void>((resolve) => {
-        server.listen(port, () => {
+        server.listen(0, () => {
+            const address = server.address();
+            if (address === null)
+                throw new Error('Failed to get server address');
+
+            if (typeof address === 'object') {
+                port = address.port;
+            } else {
+                port = parseInt(address.toString(), 10);
+            }
             GlobalState.debug(
-                `> OAuth callback server listening on port ${port}`,
+                `> OAuth callback server listening on port ${address}`,
             );
+
             resolve();
         });
     });
+
+    const redirectUri = `http://localhost:${port}/callback`;
 
     try {
         // Construct the authorization URL

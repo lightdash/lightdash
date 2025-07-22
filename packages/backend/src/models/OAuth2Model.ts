@@ -7,7 +7,6 @@ import type {
     Token,
     User,
 } from '@node-oauth/oauth2-server';
-import { createHash } from 'crypto';
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { Scope } from 'oauth2-server';
@@ -281,20 +280,37 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return `${AuthTokenPrefix.OAUTH_REFRESH}${nanoid(64)}`;
     }
 
-    async generateAuthorizationCode(
+    async validateRedirectUri(
+        redirectUri: string,
         client: Client,
-        user: User,
-        scope: Scope,
-    ): Promise<string> {
-        return nanoid(32);
-    }
+    ): Promise<boolean> {
+        const escapeRegExp = (string: string) =>
+            string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    async verifyScope(token: Token, scope: Scope): Promise<boolean> {
-        if (!token.scope) {
+        const wildcardToRegExp = (wildcard: string) =>
+            new RegExp(`^${escapeRegExp(wildcard).replace(/\\\*/g, '.*')}$`);
+
+        if (!client.redirectUris) {
             return false;
         }
-        const scopes = Array.isArray(token.scope) ? token.scope : [token.scope];
-        const requestedScopes = Array.isArray(scope) ? scope : [scope];
-        return requestedScopes.every((s) => scopes.includes(s));
+
+        const isValidRedirectUri =
+            Array.isArray(client.redirectUris) &&
+            client.redirectUris.some((uri) => {
+                const regex = wildcardToRegExp(uri);
+                return regex.test(redirectUri);
+            });
+
+        if (isValidRedirectUri) {
+            return true;
+        }
+
+        return false;
     }
+
+    // Optional not implemented methods
+    // We will be using the default implementation from the oauth2-server library
+
+    // async generateAuthorizationCode(client: Client,user: User,scope: Scope,): Promise<string>
+    // async verifyScope(token: Token, scope: Scope): Promise<boolean>
 }
