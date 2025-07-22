@@ -28,6 +28,7 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
@@ -77,6 +78,11 @@ describe('Csv service', () => {
         schedulerClient: {} as SchedulerClient,
         projectModel: {} as ProjectModel,
         savedSqlModel: {} as SavedSqlModel,
+        pivotTableService: new PivotTableService({
+            lightdashConfig,
+            s3Client: {} as S3Client,
+            downloadFileModel: {} as DownloadFileModel,
+        }),
     });
 
     it('Should convert rows to CSV with format', async () => {

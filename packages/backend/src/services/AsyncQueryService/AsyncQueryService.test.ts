@@ -53,6 +53,7 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/queryBuilder.mock'
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import type { CsvService } from '../CsvService/CsvService';
+import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     allExplores,
     expectedColumns,
@@ -186,9 +187,13 @@ const getMockedAsyncQueryService = (
                 close: jest.fn(),
             })),
         } as unknown as S3ResultsFileStorageClient,
-        csvService: {} as CsvService,
         featureFlagModel: {} as FeatureFlagModel,
         projectParametersModel: {} as ProjectParametersModel,
+        pivotTableService: new PivotTableService({
+            lightdashConfig,
+            s3Client: {} as S3Client,
+            downloadFileModel: {} as DownloadFileModel,
+        }),
         ...overrides,
     });
 
