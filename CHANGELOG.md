@@ -1,3 +1,10 @@
+## [0.1826.1](https://github.com/lightdash/lightdash/compare/0.1826.0...0.1826.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* get virtual views when cli-validate project ([#15923](https://github.com/lightdash/lightdash/issues/15923)) ([90a2c46](https://github.com/lightdash/lightdash/commit/90a2c4661aa84177dee20af62c80419de4222e43))
+
 # [0.1826.0](https://github.com/lightdash/lightdash/compare/0.1825.0...0.1826.0) (2025-07-22)
 
 
