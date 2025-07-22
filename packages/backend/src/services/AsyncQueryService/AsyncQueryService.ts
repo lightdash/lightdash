@@ -1621,6 +1621,13 @@ export class AsyncQueryService extends ProjectService {
                             user.userUuid,
                         );
 
+                        // Track successful query in Prometheus
+                        this.prometheusMetrics?.incrementQueryStatus(
+                            QueryHistoryStatus.READY,
+                            warehouseCredentialsType,
+                            queryTags.query_context,
+                        );
+
                         return {
                             queryUuid: queryHistoryUuid,
                             cacheMetadata: {

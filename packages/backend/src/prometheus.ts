@@ -1,4 +1,4 @@
-import { AnyType } from '@lightdash/common';
+import { AnyType, QueryHistoryStatus } from '@lightdash/common';
 import express from 'express';
 import http from 'http';
 import { Knex } from 'knex';
@@ -38,6 +38,15 @@ export default class PrometheusMetrics {
                         );
                     },
                 });
+
+                // Initialize query status metrics
+                this.queryStatusCounter = new prometheus.Counter({
+                    name: 'query_status_total',
+                    help: 'Total number of queries by status',
+                    labelNames: ['status', 'warehouse_type', 'context'],
+                    ...rest,
+                });
+
                 const app = express();
                 this.server = http.createServer(app);
                 app.get(path, async (req, res) => {
@@ -55,20 +64,8 @@ export default class PrometheusMetrics {
         }
     }
 
-    public initializeQueryMetrics() {
-        const { enabled, ...rest } = this.config;
-        if (enabled) {
-            this.queryStatusCounter = new prometheus.Counter({
-                name: 'query_status_total',
-                help: 'Total number of queries by status',
-                labelNames: ['status', 'warehouse_type', 'context'],
-                ...rest,
-            });
-        }
-    }
-
     public incrementQueryStatus(
-        status: string,
+        status: QueryHistoryStatus,
         warehouseType?: string,
         context?: string,
     ) {

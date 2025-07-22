@@ -166,7 +166,6 @@ export default class SchedulerApp {
         }
 
         this.prometheusMetrics.start();
-        this.prometheusMetrics.initializeQueryMetrics();
         this.prometheusMetrics.monitorDatabase(this.database);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
