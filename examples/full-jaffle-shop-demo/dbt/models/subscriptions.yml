@@ -350,3 +350,20 @@ models:
                     WHEN ${ld.parameters.time_zoom} = 'quarterly' THEN quarterly_mrr
                     ELSE monthly_mrr
                   END
+              dynamic_subscription_metric:
+                type: sum
+                label: Dynamic Metric (Count vs MRR)
+                description: Switches between subscription count and MRR based on parameter
+                format: "#,##0.00"
+                sql: |
+                  CASE 
+                    WHEN ${ld.parameters.metric_type} = 'count' THEN 1
+                    WHEN ${ld.parameters.metric_type} = 'mrr' THEN
+                      CASE 
+                        WHEN ${ld.parameters.time_zoom} = 'weekly' THEN weekly_mrr
+                        WHEN ${ld.parameters.time_zoom} = 'monthly' THEN monthly_mrr
+                        WHEN ${ld.parameters.time_zoom} = 'quarterly' THEN quarterly_mrr
+                        ELSE monthly_mrr
+                      END
+                    ELSE 1
+                  END

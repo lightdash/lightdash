@@ -49,3 +49,10 @@ parameters:
       - "weekly"
       - "monthly"
       - "quarterly"
+  metric_type:
+    label: "Metric Type"
+    description: "Switch between counting subscriptions or calculating MRR"
+    default: "count"
+    options:
+      - "count"
+      - "mrr"
