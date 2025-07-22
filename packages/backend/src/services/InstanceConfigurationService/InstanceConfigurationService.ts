@@ -197,7 +197,7 @@ export class InstanceConfigurationService extends BaseService {
                 const allowedDomains: AllowedEmailDomains = {
                     organizationUuid,
                     emailDomains,
-                    role: OrganizationMemberRole.VIEWER,
+                    role: setup.organization.defaultRole,
                     projects: [],
                 };
                 await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
@@ -421,13 +421,49 @@ export class InstanceConfigurationService extends BaseService {
     }
 
     private async getSingleProject() {
-        const projectUuids = await this.projectModel.getProjectUuids();
+        const projectUuids = await this.projectModel.getDefaultProjectUuids();
         if (projectUuids.length !== 1) {
             throw new ParameterError(
                 `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to continue`,
             );
         }
         return projectUuids[0];
+    }
+
+    private async updateOrganizationDefaultRole(
+        config: NonNullable<LightdashConfig['updateSetup']>,
+    ) {
+        if (
+            !config.organization?.defaultRole ||
+            !config.organization?.emailDomain
+        ) {
+            this.logger.debug(
+                `Update instance: No default role config found, skipping`,
+            );
+            return;
+        }
+
+        const orgUuid = await this.getSingleOrg();
+
+        const emailDomains = [config.organization.emailDomain];
+        // Validates input
+        const error = validateOrganizationEmailDomains(emailDomains);
+        if (error) {
+            throw new ParameterError(error);
+        }
+        const allowedDomains: AllowedEmailDomains = {
+            organizationUuid: orgUuid,
+            emailDomains,
+            role: config.organization.defaultRole,
+            projects: [],
+        };
+        await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+            allowedDomains,
+        );
+
+        this.logger.info(
+            `Update instance: Updated default role to ${config.organization.defaultRole} for organization ${orgUuid}`,
+        );
     }
 
     async updateInstanceConfiguration() {
@@ -444,5 +480,7 @@ export class InstanceConfigurationService extends BaseService {
         await this.updateServiceAccountForAdmin(config);
 
         await this.updateProjectConfiguration(config);
+
+        await this.updateOrganizationDefaultRole(config);
     }
 }

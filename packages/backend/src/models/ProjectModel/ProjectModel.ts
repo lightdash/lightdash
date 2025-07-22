@@ -378,8 +378,10 @@ export class ProjectModel {
         return parseInt(results.count, 10) > 0;
     }
 
-    async getProjectUuids(): Promise<string[]> {
-        const projects = await this.database('projects').select('project_uuid');
+    async getDefaultProjectUuids(): Promise<string[]> {
+        const projects = await this.database('projects')
+            .where('project_type', ProjectType.DEFAULT)
+            .select('project_uuid');
         return projects.map((project) => project.project_uuid);
     }
 
@@ -941,6 +943,23 @@ export class ProjectModel {
                 );
                 return finalExplores;
             },
+        );
+    }
+
+    async findVirtualViewsFromCache(
+        projectUuid: string,
+    ): Promise<Record<string, Explore | ExploreError>> {
+        const virtualViews = await this.database(CachedExploreTableName)
+            .select('explore')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
+
+        return virtualViews.reduce<Record<string, Explore | ExploreError>>(
+            (acc, { explore }) => {
+                acc[explore.name] = explore;
+                return acc;
+            },
+            {},
         );
     }
 

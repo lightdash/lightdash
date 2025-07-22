@@ -1,3 +1,38 @@
+# [0.1827.0](https://github.com/lightdash/lightdash/compare/0.1826.3...0.1827.0) (2025-07-22)
+
+
+### Features
+
+* ai agents - refactor slack integrations ui ([#15940](https://github.com/lightdash/lightdash/issues/15940)) ([80722e2](https://github.com/lightdash/lightdash/commit/80722e245a905551746e3753281404d661bd2b7a)), closes [/github.com/lightdash/lightdash/pull/15815#issuecomment-3058293794](https://github.com//github.com/lightdash/lightdash/pull/15815/issues/issuecomment-3058293794) [/github.com/lightdash/lightdash/pull/15815#pullrequestreview-3008739226](https://github.com//github.com/lightdash/lightdash/pull/15815/issues/pullrequestreview-3008739226)
+
+## [0.1826.3](https://github.com/lightdash/lightdash/compare/0.1826.2...0.1826.3) (2025-07-22)
+
+
+### Bug Fixes
+
+* get non preview project uuids ([#15924](https://github.com/lightdash/lightdash/issues/15924)) ([d252ec4](https://github.com/lightdash/lightdash/commit/d252ec47c5d3612e1538547c1e27e00034b0b0e9))
+
+## [0.1826.2](https://github.com/lightdash/lightdash/compare/0.1826.1...0.1826.2) (2025-07-22)
+
+
+### Bug Fixes
+
+* validate field existence in visualization tools ([#15920](https://github.com/lightdash/lightdash/issues/15920)) ([1df884f](https://github.com/lightdash/lightdash/commit/1df884fb8097641ebf5ed941abd200fc17781ab4)), closes [#15919](https://github.com/lightdash/lightdash/issues/15919)
+
+## [0.1826.1](https://github.com/lightdash/lightdash/compare/0.1826.0...0.1826.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* get virtual views when cli-validate project ([#15923](https://github.com/lightdash/lightdash/issues/15923)) ([90a2c46](https://github.com/lightdash/lightdash/commit/90a2c4661aa84177dee20af62c80419de4222e43))
+
+# [0.1826.0](https://github.com/lightdash/lightdash/compare/0.1825.0...0.1826.0) (2025-07-22)
+
+
+### Features
+
+* update whitelist domain instance ([#15915](https://github.com/lightdash/lightdash/issues/15915)) ([e8c8bc6](https://github.com/lightdash/lightdash/commit/e8c8bc6c009cdaa4ae89d87f23b5d00925f7f9ca))
+
 # [0.1825.0](https://github.com/lightdash/lightdash/compare/0.1824.0...0.1825.0) (2025-07-21)
 
 
