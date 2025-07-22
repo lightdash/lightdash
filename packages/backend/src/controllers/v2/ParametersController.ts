@@ -2,12 +2,15 @@ import {
     ApiErrorPayload,
     ApiSuccess,
     type ApiGetProjectParametersResults,
+    type LightdashProjectConfig,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Put,
     Query,
     Request,
     Response,
@@ -16,14 +19,17 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../authentication';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/projects/{projectUuid}/parameters')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Parameters')
 export class ParametersController extends BaseController {
-    // eslint-disable-next-line class-methods-use-this
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
@@ -49,6 +55,31 @@ export class ParametersController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/')
+    @OperationId('replaceProjectParameters')
+    async replaceParameters(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() parameters: LightdashProjectConfig['parameters'],
+    ): Promise<ApiSuccess<undefined>> {
+        await this.services.getProjectService().replaceProjectParameters({
+            user: req.user!,
+            projectUuid,
+            parameters,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

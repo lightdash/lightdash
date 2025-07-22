@@ -62,6 +62,17 @@ const replaceProjectYamlTags = async (
     });
 };
 
+const replaceProjectParameters = async (
+    projectUuid: string,
+    lightdashProjectConfig: LightdashProjectConfig,
+) => {
+    await lightdashApi<null>({
+        method: 'PUT',
+        url: `/api/v2/projects/${projectUuid}/parameters`,
+        body: JSON.stringify(lightdashProjectConfig.parameters ?? {}),
+    });
+};
+
 export const deploy = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
@@ -95,6 +106,7 @@ export const deploy = async (
     );
 
     await replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig);
+    await replaceProjectParameters(options.projectUuid, lightdashProjectConfig);
 
     await lightdashApi<null>({
         method: 'PUT',
