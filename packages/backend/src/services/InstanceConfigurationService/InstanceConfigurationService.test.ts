@@ -398,6 +398,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     update: jest.fn().mockResolvedValue(undefined),
                 },
                 updateSetup: {
+                    organization: {},
                     dbt: {
                         personal_access_token: 'new-dbt-token',
                     },
