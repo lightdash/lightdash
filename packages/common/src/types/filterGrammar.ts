@@ -63,7 +63,7 @@ FLOAT
   = INTEGER '.'? INTEGER?
 
 INTEGER
-  = '-'? [0-9]+
+  = '-'?[0-9]+
 
 LIST
 = left:TERM COMMA right:EXPRESSION {
