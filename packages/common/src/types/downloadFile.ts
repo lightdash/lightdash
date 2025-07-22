@@ -26,4 +26,5 @@ export type DownloadOptions = {
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    attachmentDownloadName?: string;
 };

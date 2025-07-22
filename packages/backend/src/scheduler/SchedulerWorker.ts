@@ -1,8 +1,10 @@
 import {
     getErrorMessage,
     getSchedulerUuid,
+    isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    type SchedulerTaskName,
 } from '@lightdash/common';
 import {
     Logger as GraphileLogger,
@@ -14,7 +16,7 @@ import moment from 'moment';
 import Logger from '../logging/logger';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
-import SchedulerTask from './SchedulerTask';
+import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 import { TypedTaskList } from './types';
@@ -34,6 +36,13 @@ export class SchedulerWorker extends SchedulerTask {
 
     isRunning: boolean = false;
 
+    enabledTasks: Array<SchedulerTaskName>;
+
+    constructor(schedulerTaskArgs: SchedulerTaskArguments & {}) {
+        super(schedulerTaskArgs);
+        this.enabledTasks = this.lightdashConfig.scheduler.tasks;
+    }
+
     async run() {
         // Wait for graphile utils to finish migration and prevent race conditions
         await this.schedulerClient.graphileUtils;
@@ -43,7 +52,7 @@ export class SchedulerWorker extends SchedulerTask {
         this.runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
-            concurrency: this.lightdashConfig.scheduler?.concurrency,
+            concurrency: this.lightdashConfig.scheduler.concurrency,
             noHandleSignals: true,
             pollInterval: 1000,
             parsedCronItems: parseCronItems([
@@ -67,7 +76,17 @@ export class SchedulerWorker extends SchedulerTask {
         });
     }
 
-    protected getTaskList(): TypedTaskList {
+    protected getTaskList(): Partial<TypedTaskList> {
+        return Object.fromEntries(
+            Object.entries(this.getFullTaskList()).filter(
+                ([taskKey]) =>
+                    isSchedulerTaskName(taskKey) &&
+                    this.enabledTasks.includes(taskKey),
+            ),
+        );
+    }
+
+    protected getFullTaskList(): TypedTaskList {
         return {
             [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: async () => {
                 const currentDateStartOfDay = moment()
@@ -489,42 +508,6 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY]: async (
-                payload,
-                helpers,
-            ) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.semanticLayerQuery(
-                                helpers.job.id,
-                                helpers.job.run_at,
-                                payload,
-                            );
-                        },
-                    ),
-                    helpers.job,
-                    this.lightdashConfig.scheduler.jobTimeout,
-                    async (job, e) => {
-                        await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                createdByUserUuid: payload.userUuid,
-                                error: getErrorMessage(e),
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                            },
-                        });
-                    },
-                );
-            },
             [SCHEDULER_TASKS.INDEX_CATALOG]: async (payload, helpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
@@ -660,6 +643,42 @@ export class SchedulerWorker extends SchedulerTask {
                                 organizationUuid: payload.organizationUuid,
                                 error: getErrorMessage(e),
                                 createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.runAsyncWarehouseQuery(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                queryHistoryUuid: payload.queryHistoryUuid,
                             },
                         });
                     },

@@ -10,6 +10,10 @@ type CacheServiceDependencies = {
     storageClient: S3ResultsFileStorageClient;
 };
 
+// Buffer time to ensure cache doesn't expire while being fetched
+// This prevents queries from expiring during pagination requests
+const DEFAULT_CACHE_EXPIRY_BUFFER_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
+
 export class CommercialCacheService implements ICacheService {
     private readonly queryHistoryModel: QueryHistoryModel;
 
@@ -27,12 +31,16 @@ export class CommercialCacheService implements ICacheService {
         this.storageClient = storageClient;
     }
 
+    get isEnabled() {
+        return this.lightdashConfig.results.cacheEnabled;
+    }
+
     async findCachedResultsFile(
         projectUuid: string,
         cacheKey: string,
     ): Promise<CacheHitCacheResult | null> {
         // If caching is disabled, return null
-        if (!this.lightdashConfig.results.cacheEnabled) {
+        if (!this.isEnabled) {
             return null;
         }
 
@@ -43,7 +51,18 @@ export class CommercialCacheService implements ICacheService {
                 projectUuid,
             );
 
-        // Case 1: Valid cache exists
+        const staleTimeMilliseconds =
+            this.lightdashConfig.results.cacheStateTimeSeconds * 1000;
+
+        // If stale time is greater than quadruple default buffer, use default buffer
+        // Otherwise, use quarter of stale time
+        // This is to still allow any stale time to be used and keep a buffer for pagination requests
+        const expiryBuffer =
+            staleTimeMilliseconds > DEFAULT_CACHE_EXPIRY_BUFFER_MS * 4
+                ? DEFAULT_CACHE_EXPIRY_BUFFER_MS
+                : staleTimeMilliseconds / 4;
+
+        // Case 1: Valid cache exists with sufficient buffer time
         if (
             latestMatchingQuery &&
             latestMatchingQuery.resultsFileName &&
@@ -52,7 +71,8 @@ export class CommercialCacheService implements ICacheService {
             latestMatchingQuery.resultsExpiresAt &&
             latestMatchingQuery.resultsUpdatedAt &&
             latestMatchingQuery.totalRowCount !== null &&
-            latestMatchingQuery.resultsExpiresAt > new Date()
+            latestMatchingQuery.resultsExpiresAt >
+                new Date(Date.now() + expiryBuffer)
         ) {
             return {
                 cacheHit: true,

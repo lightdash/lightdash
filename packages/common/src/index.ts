@@ -33,7 +33,11 @@ import {
     type Metric,
     type TableCalculation,
 } from './types/field';
-import { type AdditionalMetric, type MetricQuery } from './types/metricQuery';
+import {
+    type AdditionalMetric,
+    type MetricQuery,
+    type QueryWarning,
+} from './types/metricQuery';
 import {
     OrganizationMemberRole,
     type ApiOrganizationMemberProfiles,
@@ -116,15 +120,20 @@ import { type UserWarehouseCredentials } from './types/userWarehouseCredentials'
 import { type ValidationResponse } from './types/validation';
 
 import type {
+    ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadMessageCreateResponse,
+    ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiConversationMessages,
-    ApiAiConversationResponse,
     ApiAiConversations,
+    ApiGetUserAgentPreferencesResponse,
+    ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
     EmbedUrl,
 } from './ee';
 import { type AnyType } from './types/any';
+import { type ApiGetProjectParametersResults } from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
@@ -152,12 +161,6 @@ import type { QueryHistoryStatus } from './types/queryHistory';
 import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
-    type ApiSemanticLayerClientInfo,
-    type ApiSemanticViewerChartCreate,
-    type ApiSemanticViewerChartGet,
-    type ApiSemanticViewerChartUpdate,
-} from './types/semanticLayer';
-import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
     type ApiGithubDbtWritePreview,
@@ -184,6 +187,7 @@ export * from './authorization/index';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
+export * from './compiler/parameters';
 export * from './compiler/translator';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
@@ -200,22 +204,22 @@ export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
 export * from './types/api/paginatedQuery';
+export * from './types/api/parameters';
 export * from './types/api/share';
 export * from './types/api/sort';
 export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
 export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
-export * from './types/conditionalRule';
 export * from './types/content';
 export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
-export * from './types/dbtSemanticLayer';
 export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
@@ -237,6 +241,7 @@ export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/paginateResults';
+export * from './types/parameters';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
@@ -254,7 +259,6 @@ export * from './types/scheduler';
 export * from './types/schedulerLog';
 export * from './types/schedulerTaskList';
 export * from './types/search';
-export * from './types/semanticLayer';
 export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
@@ -300,7 +304,6 @@ export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/searchParams';
-export * from './utils/semanticLayer';
 export * from './utils/sleep';
 export * from './utils/slugs';
 export * from './utils/subtotals';
@@ -536,12 +539,14 @@ export type ApiQueryResults = {
 type ApiExecuteAsyncQueryResultsCommon = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    parameterReferences: string[];
 };
 
 export type ApiExecuteAsyncMetricQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         metricQuery: MetricQuery;
         fields: ItemsMap;
+        warnings: QueryWarning[];
     };
 
 export type ApiExecuteAsyncDashboardChartQueryResults =
@@ -663,7 +668,10 @@ export type UpdateProjectMember = {
 export type UpdateMetadata = {
     upstreamProjectUuid?: string | null; // null means we unset this value
 };
-export type ApiCompiledQueryResults = string;
+export type ApiCompiledQueryResults = {
+    query: string;
+    parameterReferences: string[];
+};
 
 export type ApiExploresResults = SummaryExplore[];
 
@@ -673,6 +681,11 @@ export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
 export type ApiRefreshResults = {
     jobUuid: string;
+};
+
+export type ApiCreatePreviewResults = {
+    projectUuid: string;
+    compileJobUuid: string;
 };
 
 export type ApiJobStartedResults = {
@@ -798,6 +811,7 @@ type ApiResults =
     | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
+    | ApiCreatePreviewResults
     | ApiHealthResults
     | Organization
     | LightdashUser
@@ -874,7 +888,6 @@ type ApiResults =
     | ApiCatalogAnalyticsResults
     | ApiAiConversations['results']
     | ApiAiConversationMessages['results']
-    | ApiAiConversationResponse['results']
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results']
@@ -885,10 +898,6 @@ type ApiResults =
     | ApiContentResponse['results']
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
-    | ApiSemanticLayerClientInfo['results']
-    | ApiSemanticViewerChartCreate['results']
-    | ApiSemanticViewerChartGet['results']
-    | ApiSemanticViewerChartUpdate['results']
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
@@ -912,7 +921,13 @@ type ApiResults =
     | ApiDownloadAsyncQueryResults
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
-    | ApiAiAgentThreadMessageVizResponse['results'];
+    | ApiAiAgentThreadMessageVizResponse['results']
+    | ApiAiAgentThreadMessageVizQueryResponse['results']
+    | ApiUpdateUserAgentPreferencesResponse['results']
+    | ApiGetUserAgentPreferencesResponse[`results`]
+    | ApiGetProjectParametersResults
+    | ApiAiAgentThreadCreateResponse['results']
+    | ApiAiAgentThreadMessageCreateResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -985,6 +1000,7 @@ export type HealthState = {
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
     hasMicrosoftTeams: boolean;
+    isServiceAccountEnabled: boolean;
     latest: {
         version?: string;
     };
@@ -1007,6 +1023,7 @@ export type HealthState = {
             loginPath: string;
             googleDriveApiKey: string | undefined;
             enabled: boolean;
+            enableGCloudADC: boolean;
         };
         okta: {
             enabled: boolean;
@@ -1103,7 +1120,23 @@ export type CreateProject = Omit<
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
     tableConfiguration?: CreateProjectTableConfiguration;
+    copyContent?: boolean;
 };
+
+export type CreateProjectOptionalCredentials = Omit<
+    CreateProject,
+    'warehouseConnection'
+> & {
+    warehouseConnection?: CreateWarehouseCredentials;
+};
+
+export const hasWarehouseCredentials = (
+    createProject: CreateProjectOptionalCredentials,
+): createProject is CreateProjectOptionalCredentials & {
+    warehouseConnection: CreateWarehouseCredentials;
+} =>
+    !!createProject.warehouseConnection &&
+    Object.keys(createProject.warehouseConnection).length > 0;
 
 export type UpdateProject = Omit<
     Project,
@@ -1120,6 +1153,7 @@ export const getResultValueArray = (
     rows: ResultRow[],
     preferRaw: boolean = false,
     calculateMinAndMax: boolean = false,
+    excludeNulls: boolean = false,
 ): {
     results: Record<string, unknown>[];
     minsAndMaxes?: Record<string, { min: number; max: number }>;
@@ -1128,6 +1162,9 @@ export const getResultValueArray = (
 
     const results = rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
+            if (excludeNulls && row[key]?.value.raw === null) {
+                return acc;
+            }
             const rawWithFallback =
                 row[key]?.value.raw ?? row[key]?.value.formatted; // using nullish coalescing operator to handle null and undefined only
             const formattedWithFallback =

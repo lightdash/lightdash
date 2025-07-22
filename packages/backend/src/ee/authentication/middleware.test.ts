@@ -1,5 +1,5 @@
 import { ScimError } from '@lightdash/common';
-import { ScimService } from '../services/ScimService/ScimService';
+import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 import {
     mockNext,
     mockRequest,
@@ -21,8 +21,8 @@ describe('SCIM Authentication Middleware', () => {
         await isScimAuthenticated(mockRequest, mockResponse, mockNext);
 
         expect(
-            mockRequest.services.getScimService<ScimService>()
-                .authenticateToken,
+            mockRequest.services.getServiceAccountService<ServiceAccountService>()
+                .authenticateScim,
         ).toHaveBeenCalledWith('scim_test_token', {
             method: mockRequest.method,
             path: mockRequest.path,

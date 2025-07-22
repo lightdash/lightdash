@@ -47,14 +47,24 @@ const handleError = (err: any): ApiError => {
     };
 };
 
-type LightdashApiProps = {
-    method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
+type LightdashApiPropsBase = {
     url: string;
-    body: BodyInit | null | undefined;
     headers?: Record<string, string> | undefined;
     version?: 'v1' | 'v2';
     signal?: AbortSignal;
 };
+
+type LightdashApiPropsGetOrDelete = LightdashApiPropsBase & {
+    method: 'GET' | 'DELETE';
+    body?: BodyInit | null | undefined;
+};
+
+type LightdashApiPropsWrite = LightdashApiPropsBase & {
+    method: 'POST' | 'PATCH' | 'PUT';
+    body: BodyInit | null | undefined;
+};
+
+type LightdashApiProps = LightdashApiPropsGetOrDelete | LightdashApiPropsWrite;
 
 const MAX_NETWORK_HISTORY = 10;
 export let networkHistory: AnyType[] = [];
@@ -144,6 +154,59 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             // only store last MAX_NETWORK_HISTORY requests
             if (networkHistory.length > MAX_NETWORK_HISTORY)
                 networkHistory.shift();
+            throw handleError(err);
+        });
+};
+
+export const lightdashApiStream = ({
+    method,
+    url,
+    body,
+    headers,
+    version = 'v1',
+    signal,
+}: LightdashApiProps) => {
+    const baseUrl = sessionStorage.getItem(
+        LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
+    );
+    const apiPrefix = `${baseUrl ?? BASE_API_URL}api/${version}`;
+
+    let sentryTrace: string | undefined;
+    // Manually create a span for the fetch request to be able to trace it in Sentry. This also enables Distributed Tracing.
+    startSpan(
+        {
+            op: 'http.client',
+            name: `API Streaming Request: ${method} ${url}`,
+            attributes: {
+                'http.method': method,
+                'http.url': url,
+                type: 'fetch',
+                url,
+                method,
+            },
+        },
+        (s) => {
+            sentryTrace = spanToTraceHeader(s);
+        },
+    );
+
+    return fetch(`${apiPrefix}${url}`, {
+        method,
+        headers: {
+            ...defaultHeaders,
+            ...headers,
+            ...(sentryTrace ? { 'sentry-trace': sentryTrace } : {}),
+        },
+        body,
+        signal,
+    })
+        .then((r) => {
+            if (!r.ok) {
+                throw r;
+            }
+            return r;
+        })
+        .catch((err) => {
             throw handleError(err);
         });
 };

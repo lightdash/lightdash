@@ -56,7 +56,6 @@ export enum ContentSortByColumns {
 export enum ChartSourceType {
     DBT_EXPLORE = 'dbt_explore',
     SQL = 'sql',
-    SEMANTIC_LAYER = 'semantic_layer',
 }
 
 export interface ChartContent extends Content {

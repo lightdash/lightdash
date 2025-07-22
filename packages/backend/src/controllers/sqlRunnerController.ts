@@ -49,7 +49,6 @@ import { BaseController } from './baseController';
 @Route('/api/v1/projects/{projectUuid}/sqlRunner')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('SQL runner')
-@Hidden() // Hide from documentation while in beta
 export class SqlRunnerController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

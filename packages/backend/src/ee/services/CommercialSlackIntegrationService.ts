@@ -24,10 +24,6 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
 
-        if (user.ability.cannot('view', 'Organization')) {
-            throw new ForbiddenError();
-        }
-
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
@@ -47,7 +43,11 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             appProfilePhotoUrl: installation.appProfilePhotoUrl,
             slackChannelProjectMappings:
                 installation.slackChannelProjectMappings,
+            hasRequiredScopes: this.slackClient.hasRequiredScopes(
+                installation.scopes,
+            ),
             aiThreadAccessConsent: installation.aiThreadAccessConsent,
+            aiRequireOAuth: installation.aiRequireOAuth,
         };
 
         return response;

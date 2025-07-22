@@ -12,30 +12,20 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
 import { setFirstProject, setProjectCommand } from './setProject';
+import { buildRequestHeaders } from './utils';
 
 type LoginOptions = {
+    /** Associated with a Personal Access Token or Service Account Token */
     token?: string;
     interactive?: boolean;
     verbose: boolean;
 };
 
-const loginWithToken = async (
-    url: string,
-    token: string,
-    proxyAuthorization?: string,
-) => {
+const loginWithToken = async (url: string, token: string) => {
     const userInfoUrl = new URL(`/api/v1/user`, url).href;
-    const proxyAuthorizationHeader = proxyAuthorization
-        ? { 'Proxy-Authorization': proxyAuthorization }
-        : undefined;
-    const headers = {
-        Authorization: `ApiKey ${token}`,
-        'Content-Type': 'application/json',
-        ...proxyAuthorizationHeader,
-    };
     const response = await fetch(userInfoUrl, {
         method: 'GET',
-        headers,
+        headers: buildRequestHeaders(token),
     });
 
     if (response.status !== 200) {
@@ -46,7 +36,8 @@ const loginWithToken = async (
         );
     }
     const userBody = await response.json();
-    const { userUuid, organizationUuid } = userBody;
+
+    const { userUuid, organizationUuid } = userBody.results || userBody;
     return {
         userUuid,
         organizationUuid,
@@ -150,9 +141,8 @@ export const login = async (url: string, options: LoginOptions) => {
             )} ?\n`,
         );
     }
-    const proxyAuthorization = process.env.LIGHTDASH_PROXY_AUTHORIZATION;
     const { userUuid, token, organizationUuid } = options.token
-        ? await loginWithToken(url, options.token, proxyAuthorization)
+        ? await loginWithToken(url, options.token)
         : await loginWithPassword(url);
 
     GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);
@@ -166,7 +156,10 @@ export const login = async (url: string, options: LoginOptions) => {
             method: options.token ? 'token' : 'password',
         },
     });
-    await setContext({ serverUrl: url, apiKey: token });
+    await setContext({
+        serverUrl: url,
+        apiKey: token,
+    });
 
     GlobalState.debug(`> Saved config on: ${configFilePath}`);
 

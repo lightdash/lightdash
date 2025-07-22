@@ -14,6 +14,16 @@ export enum Compact {
     MILLIONS = 'millions',
     BILLIONS = 'billions',
     TRILLIONS = 'trillions',
+    KILOBYTES = 'kilobytes',
+    MEGABYTES = 'megabytes',
+    GIGABYTES = 'gigabytes',
+    TERABYTES = 'terabytes',
+    PETABYTES = 'petabytes',
+    KIBIBYTES = 'kibibytes',
+    MEBIBYTES = 'mebibytes',
+    GIBIBYTES = 'gibibytes',
+    TEBIBYTES = 'tebibytes',
+    PEBIBYTES = 'pebibytes',
 }
 
 const CompactAlias = [
@@ -25,6 +35,26 @@ const CompactAlias = [
     'billion',
     'T',
     'trillion',
+    'KB',
+    'kilobyte',
+    'MB',
+    'megabyte',
+    'GB',
+    'gigabyte',
+    'TB',
+    'terabyte',
+    'PB',
+    'petabyte',
+    'KiB',
+    'kibibyte',
+    'MiB',
+    'mebibyte',
+    'GiB',
+    'gibibyte',
+    'TiB',
+    'tebibyte',
+    'PiB',
+    'pebibyte',
 ] as const;
 
 export enum NumberSeparator {
@@ -77,6 +107,86 @@ export const CompactConfigMap: Record<Compact, CompactConfig> = {
         convertFn: (value: number) => value / 1000000000000,
         label: 'trillions (T)',
         suffix: 'T',
+    },
+    [Compact.KILOBYTES]: {
+        compact: Compact.KILOBYTES,
+        alias: ['KB', 'kilobyte'],
+        orderOfMagnitude: 3,
+        convertFn: (value: number) => value / 1000,
+        label: 'kilobytes (KB)',
+        suffix: 'KB',
+    },
+    [Compact.MEGABYTES]: {
+        compact: Compact.MEGABYTES,
+        alias: ['MB', 'megabyte'],
+        orderOfMagnitude: 6,
+        convertFn: (value: number) => value / 1000000,
+        label: 'megabytes (MB)',
+        suffix: 'MB',
+    },
+    [Compact.GIGABYTES]: {
+        compact: Compact.GIGABYTES,
+        alias: ['GB', 'gigabyte'],
+        orderOfMagnitude: 9,
+        convertFn: (value: number) => value / 1000000000,
+        label: 'gigabytes (GB)',
+        suffix: 'GB',
+    },
+    [Compact.TERABYTES]: {
+        compact: Compact.TERABYTES,
+        alias: ['TB', 'terabyte'],
+        orderOfMagnitude: 12,
+        convertFn: (value: number) => value / 1000000000000,
+        label: 'terabytes (TB)',
+        suffix: 'TB',
+    },
+    [Compact.PETABYTES]: {
+        compact: Compact.PETABYTES,
+        alias: ['PB', 'petabyte'],
+        orderOfMagnitude: 15,
+        convertFn: (value: number) => value / 1000000000000000,
+        label: 'petabytes (PB)',
+        suffix: 'PB',
+    },
+    [Compact.KIBIBYTES]: {
+        compact: Compact.KIBIBYTES,
+        alias: ['KiB', 'kibibyte'],
+        orderOfMagnitude: -1,
+        convertFn: (value: number) => value / 1024,
+        label: 'kibibytes (KiB)',
+        suffix: 'KiB',
+    },
+    [Compact.MEBIBYTES]: {
+        compact: Compact.MEBIBYTES,
+        alias: ['MiB', 'mebibyte'],
+        orderOfMagnitude: -1,
+        convertFn: (value: number) => value / 1048576,
+        label: 'mebibytes (MiB)',
+        suffix: 'MiB',
+    },
+    [Compact.GIBIBYTES]: {
+        compact: Compact.GIBIBYTES,
+        alias: ['GiB', 'gibibyte'],
+        orderOfMagnitude: -1,
+        convertFn: (value: number) => value / 1073741824,
+        label: 'gibibytes (GiB)',
+        suffix: 'GiB',
+    },
+    [Compact.TEBIBYTES]: {
+        compact: Compact.TEBIBYTES,
+        alias: ['TiB', 'tebibyte'],
+        orderOfMagnitude: -1,
+        convertFn: (value: number) => value / 1099511627776,
+        label: 'tebibytes (TiB)',
+        suffix: 'TiB',
+    },
+    [Compact.PEBIBYTES]: {
+        compact: Compact.PEBIBYTES,
+        alias: ['PiB', 'pebibyte'],
+        orderOfMagnitude: -1,
+        convertFn: (value: number) => value / 1125899906842624,
+        label: 'pebibytes (PiB)',
+        suffix: 'PiB',
     },
 };
 
@@ -151,6 +261,7 @@ export const isCustomSqlDimension = (
 export type CompiledCustomSqlDimension = CustomSqlDimension & {
     compiledSql: string;
     tablesReferences: Array<string>;
+    parameterReferences?: string[];
 };
 
 export type CompiledCustomDimension =
@@ -188,6 +299,8 @@ export enum CustomFormatType {
     ID = 'id',
     DATE = 'date',
     TIMESTAMP = 'timestamp',
+    BYTES_SI = 'bytes_si',
+    BYTES_IEC = 'bytes_iec',
     CUSTOM = 'custom',
 }
 
@@ -265,6 +378,7 @@ export interface Field {
     urls?: FieldUrl[];
     index?: number;
     tags?: string[];
+    parameterReferences?: string[];
 }
 
 export const isField = (field: AnyType): field is Field =>
@@ -330,16 +444,19 @@ export interface Dimension extends Field {
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
+    aiHint?: string;
 }
 
-export interface CompiledDimension extends Dimension {
+type CompiledProperties = {
     compiledSql: string; // sql string with resolved template variables
     tablesReferences: Array<string> | undefined;
     tablesRequiredAttributes?: Record<
         string,
         Record<string, string | string[]>
     >;
-}
+};
+export type CompiledDimension = Dimension & CompiledProperties;
+export type CompiledMetric = Metric & CompiledProperties;
 
 export type CompiledField = CompiledDimension | CompiledMetric;
 
@@ -347,15 +464,6 @@ export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
-
-export interface CompiledMetric extends Metric {
-    compiledSql: string;
-    tablesReferences: Array<string> | undefined;
-    tablesRequiredAttributes?: Record<
-        string,
-        Record<string, string | string[]>
-    >;
-}
 
 export interface FilterableDimension extends Dimension {
     type:
@@ -475,6 +583,7 @@ export interface Metric extends Field {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
+    aiHint?: string;
 }
 
 export const isFilterableDimension = (
@@ -569,3 +678,32 @@ export const isSummable = (item: Item | undefined) => {
     const isDatePart = isDimension(item) && item.timeInterval;
     return isNumbericType && !isPercent && !isDatePart;
 };
+
+const SIByteCompacts: Compact[] = [
+    Compact.KILOBYTES,
+    Compact.MEGABYTES,
+    Compact.GIGABYTES,
+    Compact.TERABYTES,
+    Compact.PETABYTES,
+];
+
+export const IECByteCompacts: Compact[] = [
+    Compact.KIBIBYTES,
+    Compact.MEBIBYTES,
+    Compact.GIBIBYTES,
+    Compact.TEBIBYTES,
+    Compact.PEBIBYTES,
+];
+
+export function getCompactOptionsForFormatType(
+    type: CustomFormatType,
+): Compact[] {
+    if (type === CustomFormatType.BYTES_IEC) return IECByteCompacts;
+    if (type === CustomFormatType.BYTES_SI) return SIByteCompacts;
+    return [
+        Compact.THOUSANDS,
+        Compact.MILLIONS,
+        Compact.BILLIONS,
+        Compact.TRILLIONS,
+    ];
+}

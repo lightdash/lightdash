@@ -170,15 +170,13 @@ import {
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
+    ProjectParametersTable,
+    ProjectParametersTableName,
+} from '../database/entities/projectParameters';
+import {
     QueryHistoryTable,
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
-import {
-    SavedSemanticViewerChartsTable,
-    SavedSemanticViewerChartsTableName,
-    SavedSemanticViewerChartVersionsTable,
-    SavedSemanticViewerChartVersionsTableName,
-} from '../database/entities/savedSemanticViewerCharts';
 import {
     SavedSqlTable,
     SavedSqlTableName,
@@ -229,6 +227,9 @@ import {
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
 import {
+    AiAgentToolCallTableName,
+    AiAgentToolResultTable,
+    AiAgentToolResultTableName,
     AiPromptTable,
     AiPromptTableName,
     AiSlackPromptTable,
@@ -237,8 +238,12 @@ import {
     AiSlackThreadTableName,
     AiThreadTable,
     AiThreadTableName,
+    AiWebAppPromptTable,
+    AiWebAppPromptTableName,
 } from '../ee/database/entities/ai';
 import {
+    AiAgentGroupAccessTable,
+    AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTable,
     AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
@@ -248,13 +253,17 @@ import {
     AiAgentTableName,
 } from '../ee/database/entities/aiAgent';
 import {
+    AiAgentUserPreferencesTable,
+    AiAgentUserPreferencesTableName,
+} from '../ee/database/entities/aiAgentUserPreferences';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
 import {
-    ScimOrganizationAccessTokenTable,
-    ScimOrganizationAccessTokenTableName,
-} from '../ee/database/entities/scim';
+    ServiceAccountsTableName,
+    ServiceAccountTable,
+} from '../ee/database/entities/serviceAccounts';
 import {
     SlackChannelProjectMappingsTable,
     SlackChannelProjectMappingsTableName,
@@ -279,8 +288,6 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
-        [SavedSemanticViewerChartsTableName]: SavedSemanticViewerChartsTable;
-        [SavedSemanticViewerChartVersionsTableName]: SavedSemanticViewerChartVersionsTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
@@ -336,10 +343,15 @@ declare module 'knex/types/tables' {
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
+        [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiAgentTableName]: AiAgentTable;
+        [AiAgentGroupAccessTableName]: AiAgentGroupAccessTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
+        [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
+        [AiAgentToolCallTableName]: AiAgentToolCallTable;
+        [AiAgentToolResultTableName]: AiAgentToolResultTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;
@@ -348,10 +360,11 @@ declare module 'knex/types/tables' {
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
-        [ScimOrganizationAccessTokenTableName]: ScimOrganizationAccessTokenTable;
+        [ServiceAccountsTableName]: ServiceAccountTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [QueryHistoryTableName]: QueryHistoryTable;
+        [ProjectParametersTableName]: ProjectParametersTable;
     }
 }

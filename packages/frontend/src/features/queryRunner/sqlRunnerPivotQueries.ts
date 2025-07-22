@@ -1,18 +1,19 @@
 import {
     VIZ_DEFAULT_AGGREGATION,
     type DashboardFilters,
+    type ParametersValuesMap,
     type PivotChartData,
     type QueryExecutionContext,
     type ResultColumns,
     type RunPivotQuery,
-    type SemanticLayerField,
-    type SemanticLayerQuery,
     type SortField,
+    type SqlRunnerField,
     type SqlRunnerPivotQueryBody,
+    type SqlRunnerQuery,
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
-import { getVizIndexTypeFromSemanticLayerFieldType } from './BaseResultsRunner';
+import { getVizIndexTypeFromSqlRunnerFieldType } from './BaseResultsRunner';
 import {
     executeDashboardSqlChartPivotQuery,
     executeSqlChartPivotQuery,
@@ -20,9 +21,9 @@ import {
 } from './executeQuery';
 
 // TODO: REMOVE THIS - temporary mapping logic - also needs access to fields :(
-const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
-    query: SemanticLayerQuery,
-    fields: SemanticLayerField[],
+const convertSqlRunnerQueryToSqlRunnerPivotQuery = (
+    query: SqlRunnerQuery,
+    fields: SqlRunnerField[],
 ): Pick<
     SqlRunnerPivotQueryBody,
     'indexColumn' | 'groupByColumns' | 'valuesColumns'
@@ -60,7 +61,7 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
     return {
         indexColumn: {
             reference: index.name,
-            type: getVizIndexTypeFromSemanticLayerFieldType(index.type),
+            type: getVizIndexTypeFromSqlRunnerFieldType(index.type),
         },
         valuesColumns: values.map((value) => ({
             reference: value.name,
@@ -77,19 +78,22 @@ export const getPivotQueryFunctionForSqlQuery = ({
     sql,
     fields,
     context,
+    parameters,
 }: {
     projectUuid: string;
     limit?: number;
     sql: string;
     sortBy?: VizSortBy[];
-    fields: SemanticLayerField[];
+    fields: SqlRunnerField[];
     context?: QueryExecutionContext;
+    parameters: ParametersValuesMap;
 }): RunPivotQuery => {
-    return async (query: SemanticLayerQuery) => {
+    return async (query: SqlRunnerQuery) => {
         const index = query.pivot?.index[0];
 
         if (index === undefined) {
             return {
+                queryUuid: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -100,7 +104,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
         }
 
         const { indexColumn, valuesColumns, groupByColumns } =
-            convertSemanticLayerQueryToSqlRunnerPivotQuery(query, fields);
+            convertSqlRunnerQueryToSqlRunnerPivotQuery(query, fields);
 
         const pivotResults = await executeSqlPivotQuery(projectUuid, {
             context,
@@ -112,6 +116,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
                 groupByColumns,
                 sortBy,
             },
+            parameters,
         });
 
         const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
@@ -121,6 +126,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
         );
 
         return {
+            queryUuid: pivotResults.queryUuid,
             fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
@@ -136,11 +142,13 @@ export const getSqlChartPivotChartData = async ({
     savedSqlUuid,
     limit,
     context,
+    parameters,
 }: {
     projectUuid: string;
     savedSqlUuid: string;
     limit?: number;
     context?: QueryExecutionContext;
+    parameters?: ParametersValuesMap;
 }): Promise<
     PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
 > => {
@@ -148,6 +156,7 @@ export const getSqlChartPivotChartData = async ({
         savedSqlUuid,
         context,
         limit,
+        parameters,
     });
 
     const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
@@ -171,6 +180,7 @@ export const getDashboardSqlChartPivotChartData = async ({
     dashboardFilters,
     dashboardSorts,
     context,
+    parameters,
 }: {
     projectUuid: string;
     dashboardUuid: string;
@@ -180,6 +190,7 @@ export const getDashboardSqlChartPivotChartData = async ({
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
     context?: QueryExecutionContext;
+    parameters?: ParametersValuesMap;
 }): Promise<
     PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
 > => {
@@ -191,6 +202,7 @@ export const getDashboardSqlChartPivotChartData = async ({
         dashboardFilters,
         dashboardSorts,
         limit,
+        parameters,
     });
 
     const columns: VizColumn[] = Object.keys(pivotResults.columns).map(

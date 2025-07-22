@@ -4,7 +4,7 @@ import type { QueryExecutionContext } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
-import { WarehouseTypes } from './projects';
+import type { WarehouseTypes } from './projects';
 import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 
 export interface IWarehouseQueryMetadata {
@@ -19,12 +19,6 @@ export interface BigQueryWarehouseQueryMetadata
 
 export type WarehouseQueryMetadata = BigQueryWarehouseQueryMetadata;
 
-export function isBigQueryWarehouseQueryMetadata(
-    metadata: WarehouseQueryMetadata | null,
-): metadata is BigQueryWarehouseQueryMetadata {
-    return !!metadata && metadata.type === WarehouseTypes.BIGQUERY;
-}
-
 export enum QueryHistoryStatus {
     PENDING = 'pending',
     READY = 'ready',
@@ -36,6 +30,7 @@ export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
     createdByUserUuid: string | null;
+    createdByAccount: string | null;
     organizationUuid: string;
     projectUuid: string | null;
     warehouseQueryId: string | null;

@@ -3,6 +3,7 @@ import {
     type ReplaceCustomFields,
     type SkippedReplaceCustomFields,
 } from '../types/savedCharts';
+import { type VizTableConfig } from '../visualizations/types';
 import { getItemId } from './item';
 
 export function maybeReplaceFieldsInChartVersion({
@@ -61,4 +62,52 @@ export function maybeReplaceFieldsInChartVersion({
         skippedFields,
         chartVersion: newChartData || chartVersion,
     };
+}
+
+/**
+ * Extracts custom labels from a VizTableConfig columns configuration.
+ * Returns a record mapping field references to their custom labels,
+ * but only for fields where the label differs from the reference.
+ */
+export function getCustomLabelsFromVizTableConfig(
+    config: VizTableConfig | undefined,
+): Record<string, string> {
+    if (!config?.columns) return {};
+
+    return Object.fromEntries(
+        Object.entries(config.columns)
+            .filter(
+                ([_, columnConfig]) =>
+                    columnConfig.label !== columnConfig.reference,
+            )
+            .map(([key, columnConfig]) => [key, columnConfig.label]),
+    );
+}
+
+/**
+ * Extracts hidden field references from a VizTableConfig columns configuration.
+ * Returns an array of field references that are marked as not visible.
+ */
+export function getHiddenFieldsFromVizTableConfig(
+    config: VizTableConfig | undefined,
+): string[] {
+    if (!config?.columns) return [];
+
+    return Object.entries(config.columns)
+        .filter(([_, columnConfig]) => !columnConfig.visible)
+        .map(([key]) => key);
+}
+
+/**
+ * Extracts column order from a VizTableConfig columns configuration.
+ * Returns an array of field references sorted by their order property.
+ */
+export function getColumnOrderFromVizTableConfig(
+    config: VizTableConfig | undefined,
+): string[] {
+    if (!config?.columns) return [];
+
+    return Object.entries(config.columns)
+        .sort(([_, a], [__, b]) => (a.order ?? 0) - (b.order ?? 0))
+        .map(([key]) => key);
 }

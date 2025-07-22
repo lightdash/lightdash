@@ -4,7 +4,8 @@ on:
     push:
         branches: [main]
     pull_request:
-        branches: [main]
+        types: [opened, synchronize, reopened]
+    workflow_dispatch:
 
 jobs:
     build:
@@ -39,5 +40,47 @@ jobs:
             - name: Build warehouses
               run: pnpm warehouses-build
 
+            - name: Build frontend
+              run: pnpm frontend-build
+
+            - name: Build Backend
+              run: pnpm backend-build
+
+            - name: Check types for all packages
+              run: pnpm typecheck
+
             - name: Run unit tests
-              run: pnpm backend-build && pnpm test
+              run: pnpm test
+
+            # AI Agent Tests to run only after file changes
+            - name: Check for AI files changes
+              uses: dorny/paths-filter@v3
+              id: ai_changes
+              with:
+                  token: ${{ github.token }}
+                  filters: |
+                    ai:
+                      - 'packages/backend/src/ee/services/ai/**/*'
+                      - 'packages/common/src/ee/AiAgent/**/*'
+
+            - uses: 8BitJonny/gh-get-current-pr@3.0.0
+              id: PR
+              if: github.event_name == 'pull_request'
+
+            - name: Check for AI test override if the PR description contains "test-ai"
+              id: ai_override
+              run: |
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      echo "AI override: ${{contains(steps.PR.outputs.pr_body, 'test-ai')}}"
+                      echo "should_run=${{contains(steps.PR.outputs.pr_body, 'test-ai')}}" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "should_run=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Run AI Agent Tests
+              if: steps.ai_changes.outputs.ai == 'true' || steps.ai_override.outputs.should_run == 'true'
+              run: pnpm --filter backend test:ai
+              env:
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+                  OPENAI_MODEL_NAME: 'gpt-4.1'
+                  AI_COPILOT_ENABLED: 'true'

@@ -18,6 +18,10 @@ export type Config = {
         serverUrl?: string;
         project?: string;
         projectName?: string;
+        /**
+         * This is an API token that is used to authenticate with the Lightdash API.
+         * It could be a personal access token or a service account token.
+         */
         apiKey?: string;
         proxyAuthorization?: string;
         previewProject?: string;
@@ -28,7 +32,7 @@ export type Config = {
     };
 };
 
-export const setConfig = async (config: Config) => {
+const setConfig = async (config: Config) => {
     await fs.mkdir(path.dirname(configFilePath), { recursive: true });
     await fs.writeFile(configFilePath, yaml.dump(config), 'utf8');
 };

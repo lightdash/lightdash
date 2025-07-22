@@ -1,4 +1,5 @@
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     CompiledField,
     Explore,
     FilterRule,
@@ -9,6 +10,8 @@ import {
     SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
+import Logger from '../../../../logging/logger';
+import { serializeData } from './serializeData';
 
 /**
  * Validate that all selected fields exist in the explore
@@ -25,12 +28,18 @@ export function validateSelectedFieldsExistence(
     );
 
     if (nonExploreFields.length) {
-        throw new Error(`The following fields do not exist in the selected explore.
+        const errorMessage = `The following fields do not exist in the selected explore.
 
 Fields:
 \`\`\`json
 ${nonExploreFields.join('\n')}
-\`\`\``);
+\`\`\``;
+
+        Logger.error(
+            `[AiAgent][Validate Selected Fields Existence] ${errorMessage}`,
+        );
+
+        throw new Error(errorMessage);
     }
 }
 
@@ -47,13 +56,14 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
             SupportedDbtAdapter.BIGQUERY,
         );
     } catch (e) {
-        throw new Error(`
-Error: ${getErrorMessage(e)}
-Filter Rule:
+        const errorMessage = `Error: ${getErrorMessage(e)}
 
-\`\`\`json
-${JSON.stringify(filterRule, null, 2)}
-\`\`\``);
+Filter Rule:
+${serializeData(filterRule, 'json')}`;
+
+        Logger.error(`[AiAgent][Validate Filter Rule] ${errorMessage}`);
+
+        throw new Error(errorMessage);
     }
 }
 
@@ -71,15 +81,11 @@ export function validateFilterRules(
 
         if (!field) {
             filterRuleErrors.push(
-                `
-Error: the field with id "${
+                `Error: the field with id "${
                     rule.target.fieldId
                 }" does not exist in the selected explore.
 FilterRule:
-
-\`\`\`json
-${JSON.stringify(rule, null, 2)}
-\`\`\``,
+${serializeData(rule, 'json')}`,
             );
             return;
         }
@@ -96,28 +102,13 @@ ${JSON.stringify(rule, null, 2)}
             .map((e) => `<filterRuleError>${e}</filterRuleError>`)
             .join('\n');
 
-        throw new Error(`The following filter rules are invalid:
+        const errorMessage = `The following filter rules are invalid:
 
 Errors:
+${filterRuleErrorStrings}`;
 
-${filterRuleErrorStrings}`);
+        Logger.error(`[AiAgent][Validate Filter Rules] ${errorMessage}`);
+
+        throw new Error(errorMessage);
     }
-}
-
-export const AI_DEFAULT_MAX_QUERY_LIMIT = 1000;
-export function getValidAiQueryLimit(
-    limit: number | null,
-    maxLimit: number = AI_DEFAULT_MAX_QUERY_LIMIT, // ! Allow limit override
-) {
-    if (!limit) {
-        return maxLimit;
-    }
-
-    if (limit > maxLimit) {
-        throw new Error(
-            `The limit provided is greater than the maximum allowed limit of ${maxLimit}`,
-        );
-    }
-
-    return limit;
 }

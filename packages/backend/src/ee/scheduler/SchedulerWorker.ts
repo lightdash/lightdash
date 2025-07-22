@@ -1,4 +1,4 @@
-import { EE_SCHEDULER_TASKS, SchedulerJobStatus } from '@lightdash/common';
+import { EE_SCHEDULER_TASKS, isSchedulerTaskName } from '@lightdash/common';
 import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
 import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
@@ -16,41 +16,23 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiAgentService = args.aiAgentService;
     }
 
-    protected getTaskList(): TypedEETaskList {
+    protected getTaskList(): Partial<TypedEETaskList> {
+        return Object.fromEntries(
+            Object.entries(this.getFullTaskList()).filter(
+                ([taskKey]) =>
+                    isSchedulerTaskName(taskKey) &&
+                    this.enabledTasks.includes(taskKey),
+            ),
+        );
+    }
+
+    protected getFullTaskList(): TypedEETaskList {
         return {
-            ...super.getTaskList(),
+            ...super.getFullTaskList(),
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,
                 );
-            },
-            [EE_SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: async (
-                payload,
-                helpers,
-            ) => {
-                try {
-                    await this.schedulerService.setJobStatus(
-                        helpers.job.id,
-                        SchedulerJobStatus.STARTED,
-                    );
-
-                    await this.aiAgentService.generateAgentThreadResponse({
-                        agentUuid: payload.agentUuid,
-                        threadUuid: payload.threadUuid,
-                        promptUuid: payload.promptUuid,
-                    });
-
-                    await this.schedulerService.setJobStatus(
-                        helpers.job.id,
-                        SchedulerJobStatus.COMPLETED,
-                    );
-                } catch (e) {
-                    await this.schedulerService.setJobStatus(
-                        helpers.job.id,
-                        SchedulerJobStatus.ERROR,
-                    );
-                    throw e;
-                }
             },
         };
     }

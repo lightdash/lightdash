@@ -30,6 +30,7 @@ import {
     MissingConfigError,
     NotExistsError,
     NotFoundError,
+    NotImplementedError,
     OpenIdIdentityIssuerType,
     OpenIdIdentitySummary,
     OpenIdUser,
@@ -868,7 +869,7 @@ export class UserService extends BaseService {
         return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
-    private async linkOpenIdIdentityToUser(
+    async linkOpenIdIdentityToUser(
         sessionUser: SessionUser,
         openIdUser: OpenIdUser,
         refreshToken?: string,
@@ -880,6 +881,7 @@ export class UserService extends BaseService {
             email: openIdUser.openId.email,
             issuerType: openIdUser.openId.issuerType,
             refreshToken,
+            teamId: openIdUser.openId.teamId,
         });
         await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
         this.analytics.track({
@@ -1533,14 +1535,22 @@ export class UserService extends BaseService {
                     if (err || !accessToken) {
                         // Make sure you are passing a google's refresh token, and not a snowflake refresh token by mistake
                         // othwerise this will throw a `invalid_grant` error
+                        const lastFourDigits = refreshToken.slice(-4);
+
+                        // Extract meaningful error message from the error object
+                        const errorMessage =
+                            err?.data?.error ||
+                            err?.message ||
+                            err?.error ||
+                            'Unknown error';
+
                         console.error(
-                            `Unable to get google ${type} access token ${JSON.stringify(
-                                err,
-                            )}`,
+                            `Unable to get google "${type}" access token for "xxxx${lastFourDigits}": "${errorMessage}"`,
+                            err,
                         );
                         reject(
                             new AuthorizationError(
-                                `Authentication failed with Google ${err.data?.error}`,
+                                `Authentication failed with Google: ${errorMessage}`,
                             ),
                         );
                         return;
@@ -1654,6 +1664,8 @@ export class UserService extends BaseService {
             case OpenIdIdentityIssuerType.GENERIC_OIDC:
             case OpenIdIdentityIssuerType.SNOWFLAKE:
                 return true;
+            case OpenIdIdentityIssuerType.SLACK:
+                return false;
             default:
                 assertUnreachable(
                     loginMethod,
@@ -1791,6 +1803,8 @@ export class UserService extends BaseService {
                 return this.lightdashConfig.auth.oidc.loginPath;
             case OpenIdIdentityIssuerType.SNOWFLAKE:
                 return this.lightdashConfig.auth.snowflake.loginPath;
+            case OpenIdIdentityIssuerType.SLACK:
+                throw new NotImplementedError('Slack login is not supported');
             default:
                 assertUnreachable(
                     issuer,
@@ -1871,5 +1885,52 @@ export class UserService extends BaseService {
             forceRedirect: false,
             redirectUri: undefined,
         };
+    }
+
+    /* 
+    For service accounts, we get the admin user from the userUuid who created the user 
+    if this user no longer exist, then we will get another admin user from the org
+    */
+    async getAdminUser(userUuid: string | null, organizationUuid: string) {
+        try {
+            if (!userUuid) {
+                throw new Error('User uuid is required');
+            }
+            return await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            const members =
+                await this.organizationMemberProfileModel.getOrganizationMembers(
+                    {
+                        organizationUuid,
+                        searchQuery: 'admin', // Filtering by role
+                    },
+                );
+
+            const adminUser = members.data.find(
+                (member) => member.role === 'admin',
+            );
+            if (adminUser) {
+                return await this.userModel.findSessionUserAndOrgByUuid(
+                    adminUser.userUuid,
+                    organizationUuid,
+                );
+            }
+            throw new Error('No admin user found');
+        }
+    }
+
+    async isOpenIdLinked(
+        userUuid: string,
+        issuerType: OpenIdIdentityIssuerType,
+    ): Promise<boolean> {
+        const openId = await this.userModel.getOpenIdByIssuerType(
+            userUuid,
+            issuerType,
+        );
+
+        return openId !== undefined;
     }
 }

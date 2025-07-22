@@ -1,16 +1,22 @@
 import {
     Badge,
+    Box,
+    Button,
     Group,
+    LoadingOverlay,
     Modal,
     Paper,
-    ScrollArea,
     Stack,
-    Text,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
+import { IconExternalLink, IconHelpCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { LightdashUserAvatar } from '../../../../components/Avatar';
+import { Link, useParams } from 'react-router';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import useApp from '../../../../providers/App/useApp';
 import { useAiAgentThread } from '../hooks/useOrganizationAiAgents';
+import { AgentChatDisplay } from './ChatElements/AgentChatDisplay';
 
 type ThreadDetailsModalProps = {
     agentName: string;
@@ -25,6 +31,8 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
     threadUuid,
     onClose,
 }) => {
+    const { user } = useApp();
+    const { projectUuid } = useParams();
     const { data: thread, isLoading } = useAiAgentThread(agentUuid, threadUuid);
 
     // Format date function since date-fns is not available
@@ -33,92 +41,84 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
         return date.toLocaleString();
     };
 
+    const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
+
+    const chatUrl =
+        projectUuid && agentUuid && threadUuid
+            ? `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`
+            : null;
+
     return (
         <Modal
             opened={!!threadUuid}
             onClose={onClose}
-            title={<Title order={4}>Conversation Details</Title>}
+            title={
+                <Group justify="space-between">
+                    <Title order={4}>Conversation Preview</Title>
+                    {thread && (
+                        <Group justify="space-between">
+                            <Group gap="xs">
+                                <Badge
+                                    color={
+                                        thread.createdFrom === 'slack'
+                                            ? 'indigo'
+                                            : 'blue'
+                                    }
+                                    variant="light"
+                                >
+                                    {thread.createdFrom === 'slack'
+                                        ? 'Slack'
+                                        : 'Web'}
+                                </Badge>
+                                <Tooltip
+                                    position="right"
+                                    label={`Started by ${
+                                        thread.user.name
+                                    } on ${formatDate(thread.createdAt)}`}
+                                >
+                                    <MantineIcon icon={IconHelpCircle} />
+                                </Tooltip>
+                            </Group>
+                        </Group>
+                    )}
+                </Group>
+            }
             size="xl"
         >
-            {isLoading ? (
-                <Text>Loading conversation...</Text>
-            ) : thread ? (
+            {isLoading && (
+                <Box h={300}>
+                    <LoadingOverlay visible={isLoading} />
+                </Box>
+            )}
+            {!!thread && !isLoading && (
                 <Stack gap="md">
-                    <Group gap="xs">
-                        <Badge
-                            color={
-                                thread.createdFrom === 'slack'
-                                    ? 'indigo'
-                                    : 'blue'
-                            }
-                            variant="light"
-                        >
-                            {thread.createdFrom === 'slack' ? 'Slack' : 'Web'}
-                        </Badge>
-                        <Text size="sm" c="dimmed">
-                            Started by {thread.user.name} on{' '}
-                            {formatDate(thread.createdAt)}
-                        </Text>
-                    </Group>
-
-                    <ScrollArea h={400}>
-                        <Stack gap="md">
-                            {thread.messages.map((message) => {
-                                const name =
-                                    message.role === 'assistant'
-                                        ? agentName || 'AI Assistant'
-                                        : message.user.name;
-
-                                return (
-                                    <Paper
-                                        key={message.uuid}
-                                        withBorder
-                                        p="md"
-                                        radius="md"
-                                        style={{
-                                            backgroundColor:
-                                                message.role === 'assistant'
-                                                    ? '#E6F7FF'
-                                                    : 'transparent',
-                                            alignSelf:
-                                                message.role === 'assistant'
-                                                    ? 'flex-start'
-                                                    : 'flex-end',
-                                            maxWidth: '80%',
-                                        }}
-                                    >
-                                        <Stack gap="xs">
-                                            <Group gap="xs">
-                                                <LightdashUserAvatar
-                                                    name={name}
-                                                    variant="filled"
-                                                />
-
-                                                <Text fw={500} size="sm">
-                                                    {name}
-                                                </Text>
-                                                <Text size="xs" c="dimmed">
-                                                    {formatDate(
-                                                        message.createdAt,
-                                                    )}
-                                                </Text>
-                                            </Group>
-                                            <Text
-                                                style={{
-                                                    whiteSpace: 'pre-wrap',
-                                                }}
-                                            >
-                                                {message.message}
-                                            </Text>
-                                        </Stack>
-                                    </Paper>
-                                );
-                            })}
-                        </Stack>
-                    </ScrollArea>
+                    <Paper py="md" shadow="subtle">
+                        <AgentChatDisplay
+                            thread={thread}
+                            agentName={agentName}
+                            height={400}
+                            enableAutoScroll={false}
+                            mode="preview"
+                        />
+                    </Paper>
+                    {chatUrl && isThreadFromCurrentUser && (
+                        <Group justify="flex-end">
+                            <Button
+                                variant="light"
+                                size="xs"
+                                component={Link}
+                                target="_blank"
+                                to={chatUrl}
+                                leftSection={
+                                    <MantineIcon icon={IconExternalLink} />
+                                }
+                                onClick={onClose}
+                            >
+                                Open chat in new tab
+                            </Button>
+                        </Group>
+                    )}
                 </Stack>
-            ) : (
-                <Text>Thread not found</Text>
             )}
         </Modal>
     );

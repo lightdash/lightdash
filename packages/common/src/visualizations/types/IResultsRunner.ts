@@ -5,15 +5,13 @@ import {
     type VizValuesLayoutOptions,
 } from '.';
 import { type RawResultRow } from '../../types/results';
-import { type SemanticLayerQuery } from '../../types/semanticLayer';
+import { type SqlRunnerQuery } from '../../types/sqlRunner';
 
-export type RunPivotQuery = (
-    query: SemanticLayerQuery,
-) => Promise<PivotChartData>;
+export type RunPivotQuery = (query: SqlRunnerQuery) => Promise<PivotChartData>;
 
 export interface IResultsRunner {
     getPivotedVisualizationData(
-        query: SemanticLayerQuery,
+        query: SqlRunnerQuery,
         context?: string, // TODO: pick up these changes in the pivot functions
     ): Promise<PivotChartData>;
 

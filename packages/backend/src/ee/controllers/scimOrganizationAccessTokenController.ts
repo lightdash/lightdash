@@ -1,9 +1,11 @@
 import {
-    ApiCreateScimTokenRequest,
+    ApiCreateScimServiceAccountRequest,
     ApiErrorPayload,
+    AuthTokenPrefix,
     ScimErrorPayload,
-    ScimOrganizationAccessToken,
-    ScimOrganizationAccessTokenWithToken,
+    ServiceAccount,
+    ServiceAccountScope,
+    ServiceAccountWithToken,
 } from '@lightdash/common';
 import {
     Body,
@@ -28,7 +30,9 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
-import { ScimService } from '../services/ScimService/ScimService';
+import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
+
+const SCIM_SCOPES = [ServiceAccountScope.SCIM_MANAGE];
 
 @Route('/api/v1/scim/organization-access-tokens')
 @Hidden()
@@ -42,12 +46,14 @@ export class ScimOrganizationAccessTokenController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/')
     @OperationId('GetScimOrganizationAccessTokens')
-    @Response<ScimOrganizationAccessToken[]>('200', 'Success')
+    @Response<ServiceAccount[]>('200', 'Success')
     async getOrganizationAccessTokens(
         @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: ScimOrganizationAccessToken[] }> {
-        const results =
-            await this.getScimService().listOrganizationAccessTokens(req.user!);
+    ): Promise<{ status: 'ok'; results: ServiceAccount[] }> {
+        const results = await this.getServiceAccountService().list(
+            req.user!,
+            SCIM_SCOPES,
+        );
         this.setStatus(200);
         return {
             status: 'ok',
@@ -63,21 +69,21 @@ export class ScimOrganizationAccessTokenController extends BaseController {
     @Middlewares([isAuthenticated])
     @Post('/')
     @OperationId('CreateScimOrganizationAccessToken')
-    @Response<ScimOrganizationAccessToken>('201', 'Created')
+    @Response<ServiceAccount>('201', 'Created')
     @Response<ScimErrorPayload>('400', 'Bad request')
     async createOrganizationAccessToken(
         @Request() req: express.Request,
-        @Body() body: ApiCreateScimTokenRequest,
-    ): Promise<{ status: 'ok'; results: ScimOrganizationAccessToken }> {
-        const token = await this.getScimService().createOrganizationAccessToken(
-            {
-                user: req.user!,
-                tokenDetails: {
-                    ...body,
-                    organizationUuid: req.user?.organizationUuid as string,
-                },
+        @Body() body: ApiCreateScimServiceAccountRequest, // Service account request without scopes
+    ): Promise<{ status: 'ok'; results: ServiceAccount }> {
+        const token = await this.getServiceAccountService().create({
+            user: req.user!,
+            tokenDetails: {
+                ...body,
+                organizationUuid: req.user?.organizationUuid as string,
+                scopes: SCIM_SCOPES,
             },
-        );
+            prefix: AuthTokenPrefix.SCIM,
+        });
         this.setStatus(201);
         return {
             status: 'ok',
@@ -99,7 +105,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Request() req: express.Request,
         @Path() tokenUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
-        await this.getScimService().deleteOrganizationAccessToken({
+        await this.getServiceAccountService().delete({
             user: req.user!,
             tokenUuid,
         });
@@ -123,11 +129,11 @@ export class ScimOrganizationAccessTokenController extends BaseController {
     async getOrganizationAccessToken(
         @Path() tokenUuid: string,
         @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: ScimOrganizationAccessToken }> {
+    ): Promise<{ status: 'ok'; results: ServiceAccount }> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getScimService().getOrganizationAccessToken({
+            results: await this.getServiceAccountService().get({
                 user: req.user!,
                 tokenUuid,
             }),
@@ -154,21 +160,22 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         },
     ): Promise<{
         status: 'ok';
-        results: ScimOrganizationAccessTokenWithToken;
+        results: ServiceAccountWithToken;
     }> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getScimService().rotateOrganizationAccessToken({
+            results: await this.getServiceAccountService().rotate({
                 user: req.user!,
                 tokenUuid,
                 update: body,
+                prefix: AuthTokenPrefix.SCIM,
             }),
         };
     }
 
-    // Convenience method to access the SCIM service
-    protected getScimService() {
-        return this.services.getScimService<ScimService>();
+    // Convenience method to access the getServiceAccountService
+    protected getServiceAccountService() {
+        return this.services.getServiceAccountService<ServiceAccountService>();
     }
 }

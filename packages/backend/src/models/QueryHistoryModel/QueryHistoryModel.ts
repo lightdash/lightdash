@@ -38,6 +38,7 @@ function convertDbQueryHistoryToQueryHistory(
         queryUuid: queryHistory.query_uuid,
         createdAt: queryHistory.created_at,
         createdByUserUuid: queryHistory.created_by_user_uuid,
+        createdByAccount: queryHistory.created_by_account,
         organizationUuid: queryHistory.organization_uuid,
         projectUuid: queryHistory.project_uuid,
         compiledSql: queryHistory.compiled_sql,
@@ -111,12 +112,16 @@ export class QueryHistoryModel {
             | 'resultsExpiresAt'
             | 'columns'
             | 'originalColumns'
-        >,
+            | 'createdByAccount'
+        > & {
+            createdByAccount?: string | null;
+        },
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
                 status: QueryHistoryStatus.PENDING,
-                created_by_user_uuid: queryHistory.createdByUserUuid,
+                created_by_user_uuid: queryHistory?.createdByUserUuid ?? null,
+                created_by_account: queryHistory?.createdByAccount ?? null,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
                 compiled_sql: queryHistory.compiledSql,
@@ -151,14 +156,21 @@ export class QueryHistoryModel {
     async update(
         queryUuid: string,
         projectUuid: string,
-        userUuid: string,
         update: DbQueryHistoryUpdate,
+        userUuid?: string,
+        accountId?: string,
     ) {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
-            .andWhere('created_by_user_uuid', userUuid)
             .update(update);
+
+        if (userUuid) {
+            void query.andWhere('created_by_user_uuid', userUuid);
+        } else if (accountId) {
+            void query.andWhere('created_by_account', accountId);
+        }
+
         // only update pending queries to ready
         if (update.status === QueryHistoryStatus.READY) {
             void query.andWhere('status', QueryHistoryStatus.PENDING);
@@ -166,12 +178,33 @@ export class QueryHistoryModel {
         return query;
     }
 
-    async get(queryUuid: string, projectUuid: string, userUuid: string) {
-        const result = await this.database(QueryHistoryTableName)
+    async get(
+        queryUuid: string,
+        projectUuid: string,
+        userUuid?: string,
+        accountId?: string,
+    ) {
+        const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere('created_by_user_uuid', userUuid)
-            .first();
+            .andWhere('project_uuid', projectUuid);
+
+        if (userUuid && accountId) {
+            throw new Error('Cannot filter by both userUuid and account');
+        }
+
+        if (!userUuid && !accountId) {
+            throw new Error(
+                'Queries must be identified by either userUuid or account',
+            );
+        }
+
+        if (userUuid) {
+            void query.andWhere('created_by_user_uuid', userUuid);
+        } else if (accountId) {
+            void query.andWhere('created_by_account', accountId);
+        }
+
+        const result = await query.first();
 
         if (!result) {
             throw new NotFoundError(

@@ -4,11 +4,11 @@ import {
     CartesianChartConfig,
     ChartType,
     ConditionalFormattingConfigWithSingleColor,
-    ConditionalOperator,
     CustomVisConfig,
     DashboardDAO,
     DashboardFilterRule,
     FilterGroup,
+    FilterOperator,
     isFilterRuleDefinedForFieldId,
     MetricFilterRule,
     MetricType,
@@ -34,7 +34,10 @@ import {
 } from './rename';
 import {
     chartMocked,
+    chartWithCustomMetric,
+    chartWithCustomMetricWithSimilarName,
     expectedRenamedChartMocked,
+    expectedRenamedChartWithCustomMetric,
     fieldRename,
     tableRename,
 } from './rename.mock';
@@ -49,7 +52,7 @@ describe('removeFieldFromFilterGroup', () => {
                 target: {
                     fieldId: fieldToBeRemoved,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_1'],
             },
             {
@@ -60,7 +63,7 @@ describe('removeFieldFromFilterGroup', () => {
                         target: {
                             fieldId: fieldToBeRemoved,
                         },
-                        operator: ConditionalOperator.EQUALS,
+                        operator: FilterOperator.EQUALS,
                         values: ['metric_value_2'],
                     },
                 ],
@@ -82,7 +85,7 @@ describe('removeFieldFromFilterGroup', () => {
             target: {
                 fieldId: 'metric_field_id_3',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['metric_value_3'],
         };
         const filterGroupWithRemainingMetrics = cloneDeep(filterGroup);
@@ -119,7 +122,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                 target: {
                     fieldId: fieldToBeFound1,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_1'],
             },
             {
@@ -127,7 +130,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                 target: {
                     fieldId: `${fieldToBeFound3}_to_be_found`,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_3'],
             },
             {
@@ -138,7 +141,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                         target: {
                             fieldId: fieldToBeFound2,
                         },
-                        operator: ConditionalOperator.EQUALS,
+                        operator: FilterOperator.EQUALS,
                         values: ['metric_value_2'],
                     },
                 ],
@@ -362,7 +365,7 @@ describe('renameMetricQuery', () => {
                             target: {
                                 fieldId: 'payment_id',
                             },
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['123'],
                         },
                     ],
@@ -436,7 +439,7 @@ describe('renameMetricQuery', () => {
                             target: {
                                 fieldId: 'payment_amount',
                             },
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['123'],
                         },
                     ],
@@ -641,7 +644,7 @@ describe('renameChartConfigType', () => {
                         rules: [
                             {
                                 id: 'rule_id',
-                                operator: ConditionalOperator.GREATER_THAN,
+                                operator: FilterOperator.GREATER_THAN,
                                 values: [100],
                             },
                         ],
@@ -702,6 +705,42 @@ describe('renameSavedChart', () => {
 
         expect(hasChanges).toBe(true);
         expect(updatedChart).toEqual(expectedRenamedChartMocked); // toEqual doesn't check extra `undefined` fields
+    });
+    test('should rename mocked saved chart field with custom metric', () => {
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.FIELD,
+            chart: chartWithCustomMetric,
+            nameChanges: {
+                from: 'customers_Customer_ID',
+                to: 'customers_customer_id',
+                fromReference: 'customers.Customer_ID',
+                toReference: 'customers.customer_id',
+                fromFieldName: 'Customer_ID',
+                toFieldName: 'customer_id',
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(true);
+        expect(updatedChart).toEqual(expectedRenamedChartWithCustomMetric);
+    });
+    test('should not update chart with custom metric with similar name', () => {
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.FIELD,
+            chart: chartWithCustomMetricWithSimilarName,
+            nameChanges: {
+                from: 'customers_Customer_ID',
+                to: 'customers_customer_id',
+                fromReference: 'customers.Customer_ID',
+                toReference: 'customers.customer_id',
+                fromFieldName: 'Customer_ID',
+                toFieldName: 'customer_id',
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(false);
+        expect(updatedChart).toEqual(chartWithCustomMetricWithSimilarName);
     });
 
     test('should rename subscriptions saved chart model', () => {

@@ -11,6 +11,7 @@ import {
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, type FC, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
+import { COLLAPSIBLE_CARD_GAP_SIZE } from './constants';
 
 interface CollapsableCardProps {
     onToggle?: (isOpen: boolean) => void;
@@ -174,9 +175,14 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                                     overflow: 'hidden',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    paddingTop: 8,
                                 }}
                             >
+                                <div
+                                    style={{
+                                        height: COLLAPSIBLE_CARD_GAP_SIZE,
+                                        minHeight: COLLAPSIBLE_CARD_GAP_SIZE,
+                                    }}
+                                />
                                 {children}
                             </div>
                         </div>

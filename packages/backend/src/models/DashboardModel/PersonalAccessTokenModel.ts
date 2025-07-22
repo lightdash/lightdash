@@ -1,4 +1,5 @@
 import {
+    AuthTokenPrefix,
     CreatePersonalAccessToken,
     NotFoundError,
     PersonalAccessToken,
@@ -110,7 +111,9 @@ export class PersonalAccessTokenModel {
         user: Pick<SessionUser, 'userId'>,
         data: CreatePersonalAccessToken,
     ): Promise<PersonalAccessTokenWithToken> {
-        const token = crypto.randomBytes(16).toString('hex');
+        const token = `${AuthTokenPrefix.PERSONAL_ACCESS_TOKEN}${crypto
+            .randomBytes(16)
+            .toString('hex')}`;
         return this.save(user, {
             ...data,
             token,
@@ -143,6 +146,12 @@ export class PersonalAccessTokenModel {
             ...PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
             token: data.token,
         };
+    }
+
+    async deleteAllTokensForUser(userId: number): Promise<void> {
+        await this.database(PersonalAccessTokenTableName)
+            .delete()
+            .where('created_by_user_id', userId);
     }
 
     async delete(personalAccessTokenUuid: string): Promise<void> {

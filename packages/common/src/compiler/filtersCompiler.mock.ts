@@ -1,4 +1,3 @@
-import { ConditionalOperator } from '../types/conditionalRule';
 import { SupportedDbtAdapter } from '../types/dbt';
 import { DimensionType, FieldType } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
@@ -502,7 +501,7 @@ export const disabledFilterMock: {
         id: '3cf51ddc-fa2b-4442-afaa-9eee4f348d7a',
         target: { fieldId: 'payments_payment_method' },
         values: [],
-        operator: ConditionalOperator.NOT_EQUALS,
+        operator: FilterOperator.NOT_EQUALS,
         disabled: true,
     },
     field: {

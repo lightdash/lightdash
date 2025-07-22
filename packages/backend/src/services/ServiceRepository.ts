@@ -1,3 +1,4 @@
+import { MissingConfigError } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
@@ -25,15 +26,15 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
+import { PivotTableService } from './PivotTableService/PivotTableService';
+import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
-import { SavedSemanticViewerChartService } from './SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
-import { SemanticLayerService } from './SemanticLayerService/SemanticLayerService';
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
@@ -63,6 +64,7 @@ interface ServiceManifest {
     organizationService: OrganizationService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
+    pivotTableService: PivotTableService;
     projectService: ProjectService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -80,14 +82,13 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
-    semanticLayerService: SemanticLayerService;
-    savedSemanticViewerChartService: SavedSemanticViewerChartService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
+    projectParametersService: ProjectParametersService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -95,6 +96,8 @@ interface ServiceManifest {
     scimService: unknown;
     supportService: unknown;
     cacheService: unknown;
+    serviceAccountService: unknown;
+    instanceConfigurationService: unknown;
 }
 
 /**
@@ -274,6 +277,7 @@ export class ServiceRepository
                     downloadFileModel: this.models.getDownloadFileModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     projectModel: this.models.getProjectModel(),
+                    pivotTableService: this.getPivotTableService(),
                 }),
         );
     }
@@ -363,6 +367,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -399,17 +404,12 @@ export class ServiceRepository
                     organizationModel: this.models.getOrganizationModel(),
                     projectModel: this.models.getProjectModel(),
                     onboardingModel: this.models.getOnboardingModel(),
-                    inviteLinkModel: this.models.getInviteLinkModel(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     userModel: this.models.getUserModel(),
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
-                    personalAccessTokenModel:
-                        this.models.getPersonalAccessTokenModel(),
-                    emailModel: this.models.getEmailModel(),
-                    projectService: this.getProjectService(),
                 }),
         );
     }
@@ -439,6 +439,18 @@ export class ServiceRepository
                     resourceViewItemModel:
                         this.models.getResourceViewItemModel(),
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getPivotTableService(): PivotTableService {
+        return this.getService(
+            'pivotTableService',
+            () =>
+                new PivotTableService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    s3Client: this.clients.getS3Client(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
                 }),
         );
     }
@@ -475,6 +487,9 @@ export class ServiceRepository
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.models.getUserModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
                 }),
         );
     }
@@ -514,7 +529,10 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
-                    csvService: this.getCsvService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
+                    pivotTableService: this.getPivotTableService(),
                 }),
         );
     }
@@ -802,42 +820,6 @@ export class ServiceRepository
                     dashboardService: this.getDashboardService(),
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
-                    savedSemanticViewerChartService:
-                        this.getSavedSemanticViewerChartService(),
-                }),
-        );
-    }
-
-    public getSemanticLayerService(): SemanticLayerService {
-        return this.getService(
-            'semanticLayerService',
-            () =>
-                new SemanticLayerService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    analytics: this.context.lightdashAnalytics,
-
-                    schedulerClient: this.clients.getSchedulerClient(),
-                    s3Client: this.clients.getS3Client(),
-
-                    savedSemanticViewerChartService:
-                        this.getSavedSemanticViewerChartService(),
-
-                    projectModel: this.models.getProjectModel(),
-                    downloadFileModel: this.models.getDownloadFileModel(),
-                }),
-        );
-    }
-
-    public getSavedSemanticViewerChartService(): SavedSemanticViewerChartService {
-        return this.getService(
-            'savedSemanticViewerChartService',
-            () =>
-                new SavedSemanticViewerChartService({
-                    analytics: this.context.lightdashAnalytics,
-                    projectModel: this.models.getProjectModel(),
-                    savedSemanticViewerChartModel:
-                        this.models.getSavedSemanticViewerChartModel(),
-                    spaceModel: this.models.getSpaceModel(),
                 }),
         );
     }
@@ -902,6 +884,31 @@ export class ServiceRepository
         return this.getService('cacheService');
     }
 
+    public getServiceAccountService<
+        ServiceAccountServiceImplT,
+    >(): ServiceAccountServiceImplT {
+        return this.getService('serviceAccountService');
+    }
+
+    public getInstanceConfigurationService<
+        InstanceConfigurationServiceImplT,
+    >(): InstanceConfigurationServiceImplT {
+        return this.getService('instanceConfigurationService');
+    }
+
+    public getProjectParametersService(): ProjectParametersService {
+        return this.getService(
+            'projectParametersService',
+            () =>
+                new ProjectParametersService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
+                }),
+        );
+    }
+
     /**
      * Handles initializing a service, and taking into account service
      * providers + memoization.
@@ -927,7 +934,7 @@ export class ServiceRepository
             } else if (factory != null) {
                 serviceInstance = factory();
             } else {
-                throw new Error(
+                throw new MissingConfigError(
                     `Unable to initialize service '${serviceName}' - no factory or provider.`,
                 );
             }

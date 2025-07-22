@@ -16,8 +16,8 @@ import {
     isFilterRule,
     isFilterableItem,
     isMomentInput,
-    type ConditionalRule,
-    type ConditionalRuleLabels,
+    type BaseFilterRule,
+    type ConditionalRuleLabel,
     type CustomSqlDimension,
     type Field,
     type FilterableDimension,
@@ -81,7 +81,9 @@ export const getFilterOperatorOptions = (
                 FilterOperator.EQUALS,
                 FilterOperator.NOT_EQUALS,
                 FilterOperator.LESS_THAN,
+                FilterOperator.LESS_THAN_OR_EQUAL,
                 FilterOperator.GREATER_THAN,
+                FilterOperator.GREATER_THAN_OR_EQUAL,
                 FilterOperator.IN_BETWEEN,
                 FilterOperator.NOT_IN_BETWEEN,
             ]);
@@ -104,7 +106,7 @@ export const getFilterOperatorOptions = (
 
 const getValueAsString = (
     filterType: FilterType,
-    rule: ConditionalRule,
+    rule: BaseFilterRule,
     field?: Field | TableCalculation | CustomSqlDimension,
 ) => {
     const { operator, values } = rule;
@@ -210,10 +212,10 @@ const getValueAsString = (
 };
 
 export const getConditionalRuleLabel = (
-    rule: ConditionalRule,
+    rule: BaseFilterRule,
     filterType: FilterType,
     label: string,
-): ConditionalRuleLabels => {
+): ConditionalRuleLabel => {
     const operatorOptions = getFilterOperatorOptions(filterType);
     const operationLabel =
         operatorOptions.find((o) => o.value === rule.operator)?.label ||
@@ -227,9 +229,9 @@ export const getConditionalRuleLabel = (
 };
 
 export const getConditionalRuleLabelFromItem = (
-    rule: ConditionalRule,
+    rule: BaseFilterRule,
     item: FilterableItem,
-): ConditionalRuleLabels => {
+): ConditionalRuleLabel => {
     const filterType = isFilterableItem(item)
         ? getFilterTypeFromItem(item)
         : FilterType.STRING;
@@ -246,7 +248,7 @@ export const getConditionalRuleLabelFromItem = (
 };
 
 export const getFilterRuleTables = (
-    filterRule: ConditionalRule,
+    filterRule: BaseFilterRule,
     field: FilterableDimension,
     filterableFields: FilterableDimension[],
 ): string[] => {

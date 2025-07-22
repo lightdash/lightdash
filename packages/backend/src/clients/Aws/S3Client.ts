@@ -17,6 +17,7 @@ import { ReadStream } from 'fs';
 import { PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 
 type S3ClientArguments = {
     lightdashConfig: LightdashConfig;

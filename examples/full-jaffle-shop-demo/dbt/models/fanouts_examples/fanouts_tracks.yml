@@ -1,0 +1,38 @@
+version: 2
+models:
+  - name: fanouts_tracks
+    meta: 
+      required_attributes: 
+        is_admin_saas_demo: 'true'
+      primary_key: event_id
+    columns:
+      - name: user_id
+        description: "Links to the users table"
+        meta:
+          dimension:
+            type: string
+      - name: event_id
+        description: ""
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_event_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique Event Count"
+              description: "✅ CORRECT: Uses count_distinct so won't inflate"
+            inflated_event_count:
+              type: count
+              label: "🚨 INFLATED Event Count"
+              description: "❌ WRONG: If grain of data is not at event/track level then this
+                will be inflated"
+      - name: event_name
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: timestamp
+        description: ""
+        meta:
+          dimension:
+            type: timestamp

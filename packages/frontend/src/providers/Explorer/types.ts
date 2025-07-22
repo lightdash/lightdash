@@ -34,6 +34,7 @@ export enum ExplorerSection {
     CUSTOMVISUALIZATION = 'CUSTOMVISUALIZATION',
     RESULTS = 'RESULTS',
     SQL = 'SQL',
+    PARAMETERS = 'PARAMETERS',
 }
 
 interface SwapSortFieldsPayload {
@@ -56,6 +57,8 @@ export enum ActionType {
     SET_TIME_ZONE,
     SET_FILTERS,
     SET_COLUMN_ORDER,
+    SET_PARAMETER,
+    CLEAR_ALL_PARAMETERS,
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
@@ -77,6 +80,8 @@ export enum ActionType {
     TOGGLE_FORMAT_MODAL,
     UPDATE_METRIC_FORMAT,
     REPLACE_FIELDS,
+    OPEN_VISUALIZATION_CONFIG,
+    CLOSE_VISUALIZATION_CONFIG,
 }
 
 export type ConfigCacheMap = {
@@ -149,6 +154,11 @@ export type Action =
           type: ActionType.SET_COLUMN_ORDER;
           payload: string[];
       }
+    | {
+          type: ActionType.SET_PARAMETER;
+          payload: { key: string; value: string | string[] | null };
+      }
+    | { type: ActionType.CLEAR_ALL_PARAMETERS }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
           payload: AdditionalMetric;
@@ -228,6 +238,12 @@ export type Action =
           payload: {
               fieldsToReplace: ReplaceCustomFields[string];
           };
+      }
+    | {
+          type: ActionType.OPEN_VISUALIZATION_CONFIG;
+      }
+    | {
+          type: ActionType.CLOSE_VISUALIZATION_CONFIG;
       };
 
 export interface ExplorerReduceState {
@@ -237,6 +253,7 @@ export interface ExplorerReduceState {
         // Temporary state that tracks changes to `table calculations` - keeps track of new name and previous name to ensure these get updated correctly when making changes to the layout & config of a chart
         tableCalculations?: TableCalculationMetadata[];
     };
+    isVisualizationConfigOpen?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
     modals: {
@@ -261,6 +278,7 @@ export interface ExplorerReduceState {
             items?: CustomDimension[] | AdditionalMetric[];
         };
     };
+    parameters: Record<string, string | string[]>;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -296,6 +314,8 @@ export interface ExplorerContextType {
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
         ) => void;
+        setParameter: (key: string, value: string | string[] | null) => void;
+        clearAllParameters: () => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
             metric: AdditionalMetric,
@@ -346,5 +366,7 @@ export interface ExplorerContextType {
         }) => void;
         replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
         getDownloadQueryUuid: (limit: number | null) => Promise<string>;
+        openVisualizationConfig: () => void;
+        closeVisualizationConfig: () => void;
     };
 }

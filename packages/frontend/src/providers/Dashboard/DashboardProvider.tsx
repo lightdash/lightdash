@@ -49,6 +49,7 @@ const DashboardProvider: React.FC<
         projectUuid?: string;
         embedToken?: string;
         dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
+        defaultInvalidateCache?: boolean;
     }>
 > = ({
     schedulerFilters,
@@ -56,6 +57,7 @@ const DashboardProvider: React.FC<
     projectUuid,
     embedToken,
     dashboardCommentsCheck,
+    defaultInvalidateCache,
     children,
 }) => {
     const { search, pathname } = useLocation();
@@ -124,8 +126,9 @@ const DashboardProvider: React.FC<
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
-
-    const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
+    const [invalidateCache, setInvalidateCache] = useState<boolean>(
+        defaultInvalidateCache === true,
+    );
 
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
 
@@ -146,6 +149,72 @@ const DashboardProvider: React.FC<
             setIsDateZoomDisabled(true);
         }
     }, [dashboard]);
+
+    const [parameters, setParameters] = useState<
+        Record<string, string | string[]>
+    >({});
+
+    const setParameter = useCallback(
+        (key: string, value: string | string[] | null) => {
+            if (value === null) {
+                setParameters((prev) => {
+                    const newParams = { ...prev };
+                    delete newParams[key];
+                    return newParams;
+                });
+            } else {
+                setParameters((prev) => ({
+                    ...prev,
+                    [key]: value,
+                }));
+            }
+        },
+        [],
+    );
+
+    // Track parameter references from each tile
+    const [tileParameterReferences, setTileParameterReferences] = useState<
+        Record<string, string[]>
+    >({});
+
+    // Track which tiles have loaded (to know when all are complete)
+    const [loadedTiles, setLoadedTiles] = useState<Set<string>>(new Set());
+
+    const addParameterReferences = useCallback(
+        (tileUuid: string, references: string[]) => {
+            setTileParameterReferences((prev) => ({
+                ...prev,
+                [tileUuid]: references,
+            }));
+            setLoadedTiles((prev) => new Set(prev).add(tileUuid));
+        },
+        [],
+    );
+
+    // Calculate aggregated parameter references from all tiles
+    const dashboardParameterReferences = useMemo(() => {
+        const allReferences = Object.values(tileParameterReferences).flat();
+        return new Set(allReferences);
+    }, [tileParameterReferences]);
+
+    // Determine if all chart tiles have loaded their parameter references
+    const areAllChartsLoaded = useMemo(() => {
+        if (!dashboardTiles) return false;
+
+        const chartTileUuids = dashboardTiles
+            .filter(isDashboardChartTileType)
+            .map((tile) => tile.uuid);
+
+        return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
+    }, [dashboardTiles, loadedTiles]);
+
+    // Reset parameter references and loaded tiles when dashboard tiles change
+    useEffect(() => {
+        if (dashboardTiles) {
+            setTileParameterReferences({});
+            setLoadedTiles(new Set());
+        }
+    }, [dashboardTiles]);
 
     const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
         useState<Set<string>>();
@@ -668,6 +737,11 @@ const DashboardProvider: React.FC<
         requiredDashboardFilters,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
+        parameters,
+        setParameter,
+        dashboardParameterReferences,
+        addParameterReferences,
+        areAllChartsLoaded,
     };
     return (
         <DashboardContext.Provider value={value}>

@@ -93,7 +93,6 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
     // TODO: this sometimes runs `/api/v1/projects//spaces` request
     // because initial `projectUuid` is set to '' (empty string)
     // we should handle this by creating an impossible state
-    // check first few lines inside `features/semanticViewer/store/selectors.ts`
     const {
         data: spaces = [],
         isLoading: isLoadingSpace,

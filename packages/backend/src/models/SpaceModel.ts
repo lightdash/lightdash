@@ -55,7 +55,6 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import { SavedSemanticViewerChartsTableName } from '../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     DbSpace,
@@ -1234,24 +1233,6 @@ export class SpaceModel {
         );
     }
 
-    async getSpaceSemanticViewerCharts(
-        spaceUuids: string[],
-        filters?: {
-            recentlyUpdated?: boolean;
-            mostPopular?: boolean;
-        },
-    ): Promise<SpaceQuery[]> {
-        return this.getSpaceCharts(
-            {
-                name: SavedSemanticViewerChartsTableName,
-                uuidColumnName: 'saved_semantic_viewer_chart_uuid',
-                chartSourceType: ChartSourceType.SEMANTIC_LAYER,
-            },
-            spaceUuids,
-            filters,
-        );
-    }
-
     async getSpaceQueries(
         spaceUuids: string[],
         filters?: {
@@ -1814,7 +1795,7 @@ export class SpaceModel {
 
     async moveToSpace(
         {
-            projectUuid: _projectUuid, // TODO: use projectUuid to narrow down the scope
+            projectUuid,
             itemUuid: spaceUuid,
             targetSpaceUuid,
         }: {
@@ -1824,23 +1805,45 @@ export class SpaceModel {
         },
         { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
+        const [project] = await tx(ProjectTableName)
+            .select('project_id')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} does not exist`,
+            );
+        }
+
         // check if parent space is not subtree of space
         const isCycle = await tx
-            .with('space', (query) => {
+            .with('space_to_move', (query) => {
                 void query
                     .select('path')
                     .from(SpaceTableName)
-                    .where('space_uuid', spaceUuid);
+                    .where('space_uuid', spaceUuid)
+                    .andWhere('project_id', project.project_id); // scope the space being moved to the project
             })
-            .with('parent', (query) => {
-                void query
-                    .select('path')
-                    .from(SpaceTableName)
-                    .where('space_uuid', targetSpaceUuid);
+            .with('target_parent', (query) => {
+                if (targetSpaceUuid === null) {
+                    // If moving to root, there's no parent, so no cycle is possible from here.
+                    void query
+                        .select(tx.raw('null::ltree as path'))
+                        .where(tx.raw('false'));
+                } else {
+                    void query
+                        .select('path')
+                        .from(SpaceTableName)
+                        .where('space_uuid', targetSpaceUuid)
+                        .andWhere('project_id', project.project_id); // scope the target parent space to the project
+                }
             })
-            .select('*')
-            .from('space')
-            .joinRaw('JOIN parent ON parent.path <@ space.path')
+            .select(tx.raw('1')) // We only care if a row exists
+            .from('space_to_move')
+            // Check if the target parent's path is a descendant of the space we are moving.
+            .joinRaw(
+                'JOIN target_parent ON target_parent.path <@ space_to_move.path',
+            )
             .first();
 
         if (isCycle) {
@@ -1853,16 +1856,25 @@ export class SpaceModel {
             `
                 UPDATE ${SpaceTableName} AS s
                 SET
+                    -- Recalculate the path by prepending the new parent's path.
+                    -- COALESCE handles moving to the root (where p.path is NULL).
                     path = COALESCE(p.path, ''::ltree) || subpath(s.path, nlevel(m.path) - 1),
+                    -- Update the foreign key for the specific space being moved.
                     parent_space_uuid = CASE
                         WHEN s.space_uuid = ? THEN ?
                         ELSE s.parent_space_uuid
                     END
                 FROM
+                    -- 'm' is the space being moved.
                     ${SpaceTableName} AS m
+                    -- 'p' is the target parent space. LEFT JOIN handles moving to the root.
                     LEFT JOIN ${SpaceTableName} AS p ON p.space_uuid = ?
                 WHERE
                     m.space_uuid = ?
+                    -- Scope the space being moved ('m') to the correct project and UUID.
+                    AND m.project_id = ?
+                    -- Ensure the parent space 'p' also belongs to the same project.
+                    AND s.project_id = m.project_id
                     AND s.path <@ m.path
                     AND ((?::uuid) IS NULL OR p.project_id = m.project_id)
             `,
@@ -1871,6 +1883,7 @@ export class SpaceModel {
                 targetSpaceUuid,
                 targetSpaceUuid,
                 spaceUuid,
+                project.project_id,
                 targetSpaceUuid,
             ],
         );

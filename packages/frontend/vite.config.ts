@@ -113,6 +113,9 @@ export default defineConfig({
             'lightdash-dev', // for local development with docker
             '.lightdash.dev', // for cloudflared tunnels
         ],
+        watch: {
+            ignored: ['!**/node_modules/@lightdash/common/**'],
+        },
         proxy: {
             '/api': {
                 target: 'http://localhost:8080',

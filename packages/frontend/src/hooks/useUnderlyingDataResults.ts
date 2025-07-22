@@ -4,7 +4,6 @@ import {
     type ApiGetAsyncQueryResults,
     type ApiQueryResults,
     assertUnreachable,
-    type DateGranularity,
     type DateZoom,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MetricQuery,
@@ -18,31 +17,20 @@ import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 
-export type QueryResultsProps = {
-    projectUuid: string;
-    tableId: string;
-    query?: MetricQuery;
-    csvLimit?: number | null; //giving null returns all results (no limit)
-    chartUuid?: string;
-    chartVersionUuid?: string;
-    dateZoomGranularity?: DateGranularity;
-    context?: string;
+type UnderlyingDataResults = ApiQueryResults & {
+    queryUuid: string;
+    warehouseExecutionTimeMs?: number;
+    totalClientFetchTimeMs?: number;
 };
 
 /**
  * Aggregates pagination results for a query
  */
-const getUnderlyingDataResults = async (
+export const getUnderlyingDataResults = async (
     projectUuid: string,
     data: ExecuteAsyncUnderlyingDataRequestParams,
     pageSize?: number, // pageSize is used when getting the results but not when creating the query
-): Promise<
-    ApiQueryResults & {
-        queryUuid: string;
-        warehouseExecutionTimeMs?: number;
-        totalClientFetchTimeMs?: number;
-    }
-> => {
+): Promise<UnderlyingDataResults> => {
     const startTime = new Date();
 
     const executeQueryResponse =
@@ -150,7 +138,7 @@ export const useUnderlyingDataResults = (
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    return useQuery<ApiQueryResults, ApiError>({
+    return useQuery<UnderlyingDataResults, ApiError>({
         queryKey: [
             'underlyingDataResults',
             projectUuid,

@@ -2,17 +2,26 @@
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
 
+type LightdashErrorData = {
+    /**
+     * Optional URL linking to relevant documentation.
+     * Can be used to provide users with additional context/guidance about the error.
+     */
+    documentationUrl?: string;
+    [key: string]: AnyType;
+};
+
 type LightdashErrorParams = {
     message: string;
     name: string;
     statusCode: number;
-    data: { [key: string]: AnyType };
+    data: LightdashErrorData;
 };
 
 export class LightdashError extends Error {
     statusCode: number;
 
-    data: { [key: string]: AnyType };
+    data: LightdashErrorData;
 
     constructor({ message, name, statusCode, data }: LightdashErrorParams) {
         super(message);
@@ -521,6 +530,35 @@ export class AiAgentNotFoundError extends LightdashError {
             name: 'AiAgentNotFoundError',
             statusCode: 400,
             data: {},
+        });
+    }
+}
+
+/* This specific error will be used in the frontend
+to show a "reauthenticate" button in the UI
+*/
+export class SnowflakeTokenError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'SnowflakeTokenError',
+            statusCode: 401,
+            data: {},
+        });
+    }
+}
+
+export class CustomSqlQueryForbiddenError extends LightdashError {
+    constructor(
+        message: string = 'User cannot run queries with custom SQL dimensions',
+    ) {
+        super({
+            message,
+            name: 'CustomSqlQueryForbiddenError',
+            statusCode: 403,
+            data: {
+                documentationUrl: `https://docs.lightdash.com/references/custom-fields#custom-sql`,
+            },
         });
     }
 }

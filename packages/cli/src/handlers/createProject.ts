@@ -1,10 +1,11 @@
 import {
-    CreateProject,
+    CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
     DbtProjectType,
     ProjectType,
     WarehouseTypes,
     type ApiCreateProjectResults,
+    type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -73,7 +74,10 @@ type CreateProjectOptions = {
     startOfWeek?: number;
     upstreamProjectUuid?: string;
     tableConfiguration?: CreateProjectTableConfiguration;
+    copyContent?: boolean;
+    warehouseCredentials?: boolean;
 };
+
 export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<ApiCreateProjectResults | undefined> => {
@@ -81,29 +85,45 @@ export const createProject = async (
 
     const absoluteProjectPath = path.resolve(options.projectDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
-    const targetName = await getDbtProfileTargetName({
-        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
-        profilesDir: options.profilesDir,
-        profile: options.profile || context.profileName,
-        target: options.target,
-    });
-    const canStoreWarehouseCredentials =
-        await askPermissionToStoreWarehouseCredentials();
-    if (!canStoreWarehouseCredentials) {
-        return undefined;
+
+    let targetName: string | undefined;
+    let credentials: CreateWarehouseCredentials | undefined;
+
+    if (options.warehouseCredentials === false) {
+        GlobalState.debug('> Creating project without warehouse credentials');
+    } else {
+        GlobalState.debug(
+            `> Using profiles dir ${options.profilesDir} and profile ${
+                options.profile || context.profileName
+            }`,
+        );
+        targetName = await getDbtProfileTargetName({
+            isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+            profilesDir: options.profilesDir,
+            profile: options.profile || context.profileName,
+            target: options.target,
+        });
+        GlobalState.debug(`> Using target name ${targetName}`);
+        const canStoreWarehouseCredentials =
+            await askPermissionToStoreWarehouseCredentials();
+        if (!canStoreWarehouseCredentials) {
+            GlobalState.debug(
+                '> User declined to store warehouse credentials use --no-warehouse-credentials to create a project without warehouse credentials',
+            );
+            return undefined;
+        }
+        const result = await getWarehouseClient({
+            isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+            profilesDir: options.profilesDir,
+            profile: options.profile || context.profileName,
+            target: options.target,
+            startOfWeek: options.startOfWeek,
+        });
+        credentials = result.credentials;
     }
 
-    const { credentials } = await getWarehouseClient({
-        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
-        profilesDir: options.profilesDir,
-        profile: options.profile || context.profileName,
-        target: options.target,
-        startOfWeek: options.startOfWeek,
-    });
-
     if (
-        credentials.type === WarehouseTypes.BIGQUERY &&
-        'project_id' in credentials.keyfileContents &&
+        credentials?.type === WarehouseTypes.BIGQUERY &&
         credentials.keyfileContents.project_id &&
         credentials.keyfileContents.project_id !== credentials.project
     ) {
@@ -128,7 +148,8 @@ export const createProject = async (
         }
         spinner?.start();
     }
-    const project: CreateProject = {
+
+    const project: CreateProjectOptionalCredentials = {
         name: options.name,
         type: options.type,
         warehouseConnection: credentials,
@@ -140,6 +161,7 @@ export const createProject = async (
         upstreamProjectUuid: options.upstreamProjectUuid,
         dbtVersion: dbtVersion.versionOption,
         tableConfiguration: options.tableConfiguration,
+        copyContent: options.copyContent,
     };
 
     return lightdashApi<ApiCreateProjectResults>({

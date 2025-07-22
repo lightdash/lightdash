@@ -8,9 +8,11 @@ import {
     isValidFormat,
 } from 'numfmt';
 import {
+    CompactConfigMap,
     CustomFormatType,
     DimensionType,
     Format,
+    IECByteCompacts,
     MetricType,
     NumberSeparator,
     TableCalculationType,
@@ -129,6 +131,11 @@ export function formatDate(
     convertToUTC: boolean = false,
 ): string {
     const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+
+    if (!momentDate.isValid()) {
+        return 'NaT';
+    }
+
     return momentDate.format(getDateFormat(timeInterval));
 }
 
@@ -138,6 +145,11 @@ export function formatTimestamp(
     convertToUTC: boolean = false,
 ): string {
     const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+
+    if (!momentDate.isValid()) {
+        return 'NaT';
+    }
+
     return momentDate.format(getTimeFormat(timeInterval));
 }
 
@@ -382,6 +394,36 @@ export function formatValueWithExpression(expression: string, value: unknown) {
             }
         }
 
+        // Check if this is a binary (IEC) byte unit format expression using KiB, MiB, etc.
+        const binaryByteUnits = IECByteCompacts.map(
+            (compact) => CompactConfigMap[compact].suffix,
+        );
+        const binarySuffixMatch = binaryByteUnits.find((unit) =>
+            expression.includes(`"${unit}"`),
+        );
+        if (binarySuffixMatch && !valueIsNaN(Number(sanitizedValue))) {
+            const compactConfig = Object.values(CompactConfigMap).find(
+                (config) =>
+                    config.suffix === binarySuffixMatch &&
+                    IECByteCompacts.includes(config.compact),
+            );
+
+            if (compactConfig) {
+                const convertedValue = compactConfig.convertFn(
+                    Number(sanitizedValue),
+                );
+                const baseExpression = expression.replace(
+                    `"${binarySuffixMatch}"`,
+                    '',
+                );
+                const formattedNumber = formatWithExpression(
+                    baseExpression,
+                    convertedValue,
+                );
+                return `${formattedNumber}${binarySuffixMatch}`;
+            }
+        }
+
         // format date
         if (isDateFormat(expression)) {
             if (!isMomentInput(sanitizedValue)) {
@@ -461,6 +503,17 @@ export function applyCustomFormat(
             const numberFormatted = formatNumberValue(compactNumber, format);
 
             return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
+        case CustomFormatType.BYTES_SI:
+        case CustomFormatType.BYTES_IEC: {
+            const {
+                compactValue: bytesCompactValue,
+                compactSuffix: bytesCompactSuffix,
+            } = applyCompact(value, format);
+            return `${formatNumberValue(
+                bytesCompactValue,
+                format,
+            )}${bytesCompactSuffix}`;
+        }
         case CustomFormatType.CUSTOM:
             return formatValueWithExpression(format.custom || '', value);
         default:
@@ -552,6 +605,14 @@ const customFormatConversionFnMap: Record<
         if (format.compact) {
             const compactConfig = findCompactConfig(format.compact);
             if (compactConfig) {
+                // Check if this is a binary (IEC) byte unit, like KiB, MiB, etc.
+                const isBinaryByteUnit = IECByteCompacts.includes(
+                    compactConfig.compact,
+                );
+
+                if (isBinaryByteUnit) {
+                    return `${formatExpression}"${compactConfig.suffix}"`;
+                }
                 return `${formatExpression}${','.repeat(
                     compactConfig.orderOfMagnitude / 3,
                 )}"${compactConfig.suffix}"`;
@@ -596,6 +657,18 @@ export function convertCustomFormatToFormatExpression(
         case CustomFormatType.NUMBER: {
             defaultFormatExpression = `0`;
             conversions = ['separator', 'prefix', 'round', 'compact', 'suffix'];
+            break;
+        }
+        case CustomFormatType.BYTES_SI: {
+            defaultFormatExpression = '0';
+            conversions = ['separator', 'round', 'compact'];
+            break;
+        }
+        case CustomFormatType.BYTES_IEC: {
+            // ECMA-376 format expressions cannot accurately represent binary (1024-based) scaling
+            // Use a special format that includes the suffix but no comma scaling
+            defaultFormatExpression = '0';
+            conversions = ['separator', 'round', 'compact'];
             break;
         }
         case CustomFormatType.ID:

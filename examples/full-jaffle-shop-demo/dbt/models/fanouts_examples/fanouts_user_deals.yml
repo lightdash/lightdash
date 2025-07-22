@@ -1,0 +1,41 @@
+version: 2
+models:
+  - name: fanouts_user_deals
+    meta: 
+      required_attributes: 
+        is_admin_saas_demo: 'true'
+      primary_key: [deal_id, user_id]
+    description: "Junction table demonstrating many-to-many relationship between
+      users and deals. Shows how multiple users can work on multiple deals,
+      creating extreme fanout when joined through accounts."
+    columns:
+      - name: user_id
+        description: "Links to the users table"
+        meta:
+          dimension:
+            type: string
+
+      - name: deal_id
+        description: "Links to the deals table"
+        meta:
+          dimension:
+            type: string
+
+      - name: role
+        description: "The user's role in this deal (primary_contact, stakeholder,
+          decision_maker, technical_contact)"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_role_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique Role Count"
+              description: "✅ CORRECT: Count of unique roles across all user-deal
+                relationships"
+
+            inflated_role_count:
+              type: count
+              label: "🚨 INFLATED Role Count"
+              description: "❌ WRONG: Role count gets inflated when joined through accounts -
+                each role appears once per user-deal combination"

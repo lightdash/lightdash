@@ -16,8 +16,8 @@ export const mockRequest = {
         path: '/Users',
     },
     services: {
-        getScimService: jest.fn().mockReturnValue({
-            authenticateToken: jest.fn().mockResolvedValue(mockServiceAccount),
+        getServiceAccountService: jest.fn().mockReturnValue({
+            authenticateScim: jest.fn().mockResolvedValue(mockServiceAccount),
         }),
     },
 } as unknown as express.Request;
@@ -28,8 +28,8 @@ export const mockRequestWithInvalidToken = {
         authorization: 'Bearer invalid_token',
     },
     services: {
-        getScimService: jest.fn().mockReturnValue({
-            authenticateToken: jest.fn().mockResolvedValue(null),
+        getServiceAccountService: jest.fn().mockReturnValue({
+            authenticateScim: jest.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;

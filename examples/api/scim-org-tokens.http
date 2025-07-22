@@ -1,0 +1,39 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### List scim/organization-access-tokens
+GET http://localhost:8080/api/v1/scim/organization-access-tokens
+
+### Create a scim/organization-access-token
+POST http://localhost:8080/api/v1/scim/organization-access-tokens
+Content-Type: application/json
+
+{
+    "description": "http test",
+    "expiresAt": "2025-09-11T14:00:00.000Z"
+}
+
+### Get token by UUID
+GET http://localhost:8080/api/v1/scim/organization-access-tokens/8298d0ad-4f90-4975-906e-a2444e1d040e
+
+
+### Rotate token 
+PATCH http://localhost:8080/api/v1/scim/organization-access-tokens/8298d0ad-4f90-4975-906e-a2444e1d040e/rotate
+Content-Type: application/json
+
+{
+    "expiresAt": "2025-09-11T14:00:00.000Z"
+}
+
+
+### Logout
+GET http://localhost:8080/api/v1/logout
+### Make a request using the scim token
+GET http://localhost:8080/api/v1/scim/v2/Groups
+Authorization: Bearer scim_1b593fb911bbe92cbabd67b6f6234957

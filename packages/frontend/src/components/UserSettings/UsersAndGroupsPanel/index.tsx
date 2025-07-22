@@ -13,17 +13,24 @@ import UsersView from './UsersView';
 
 const UsersAndGroupsPanel: FC = () => {
     const { user } = useApp();
-    const { data: UserGroupsFeatureFlag } = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 
-    if (!user.data || !UserGroupsFeatureFlag) return null;
+    if (!user.data) return null;
 
     if (user.data.ability.cannot('view', 'OrganizationMemberProfile')) {
         return <ForbiddenPanel />;
     }
 
-    const isGroupManagementEnabled = UserGroupsFeatureFlag?.enabled;
+    if (userGroupsFeatureFlagQuery.isError) {
+        console.error(userGroupsFeatureFlagQuery.error);
+        throw new Error('Error fetching user groups feature flag');
+    }
+
+    const isGroupManagementEnabled =
+        userGroupsFeatureFlagQuery.isSuccess &&
+        userGroupsFeatureFlagQuery.data.enabled;
 
     return (
         <Stack spacing="sm">

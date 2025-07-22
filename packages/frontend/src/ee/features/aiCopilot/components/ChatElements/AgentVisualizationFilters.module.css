@@ -1,0 +1,13 @@
+.filterButton {
+    background-color: white;
+    cursor: default;
+    border: 1px solid var(--mantine-color-gray-3);
+}
+
+.filterButton:hover {
+    background-color: white;
+}
+
+.filterButton:active {
+    transform: none;
+}

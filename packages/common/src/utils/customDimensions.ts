@@ -1,17 +1,17 @@
 import { type BinRange } from '../types/field';
-import { type WarehouseClient } from '../types/warehouse';
+import { type WarehouseSqlBuilder } from '../types/warehouse';
 
 export const getFixedWidthBinSelectSql = ({
     binWidth,
     baseDimensionSql,
-    warehouseClient,
+    warehouseSqlBuilder,
 }: {
     binWidth: number;
     baseDimensionSql: string;
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
 }) => {
-    const quoteChar = warehouseClient.getStringQuoteChar();
-    return `${warehouseClient.concatString(
+    const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
+    return `${warehouseSqlBuilder.concatString(
         `FLOOR(${baseDimensionSql} / ${binWidth}) * ${binWidth}`,
         `${quoteChar} - ${quoteChar}`,
         `(FLOOR(${baseDimensionSql} / ${binWidth}) + 1) * ${binWidth} - 1`,
@@ -21,26 +21,26 @@ export const getFixedWidthBinSelectSql = ({
 export const getCustomRangeSelectSql = ({
     binRanges,
     baseDimensionSql,
-    warehouseClient,
+    warehouseSqlBuilder,
 }: {
     binRanges: BinRange[];
     baseDimensionSql: string;
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
 }) => {
-    const quoteChar = warehouseClient.getStringQuoteChar();
+    const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
     const binRangeWhens = binRanges.map((range) => {
         if (range.from === undefined) {
             // First range
             return `WHEN ${baseDimensionSql} < ${
                 range.to
-            } THEN ${warehouseClient.concatString(
+            } THEN ${warehouseSqlBuilder.concatString(
                 `${quoteChar}<${quoteChar}`,
                 `${range.to}`,
             )}`;
         }
         if (range.to === undefined) {
             // Last range
-            return `ELSE ${warehouseClient.concatString(
+            return `ELSE ${warehouseSqlBuilder.concatString(
                 `${quoteChar}≥${quoteChar}`,
                 `${range.from}`,
             )}`;
@@ -50,7 +50,7 @@ export const getCustomRangeSelectSql = ({
             range.from
         } AND ${baseDimensionSql} < ${
             range.to
-        } THEN ${warehouseClient.concatString(
+        } THEN ${warehouseSqlBuilder.concatString(
             `${range.from}`,
             "'-'",
             `${range.to}`,

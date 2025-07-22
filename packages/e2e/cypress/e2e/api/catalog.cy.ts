@@ -14,7 +14,7 @@ describe('Lightdash catalog all tables and fields', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?type=table`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(11);
+            expect(resp.body.results).to.have.length(20);
             const userTable = resp.body.results.find(
                 (table) => table.name === 'users',
             );
@@ -131,11 +131,17 @@ describe('Lightdash catalog search', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?search=revenue`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(1);
+            expect(resp.body.results).to.have.length(2);
 
-            const field = resp.body.results[0];
+            const field1 = resp.body.results[0];
 
-            expect(field).to.have.property('name', 'total_revenue');
+            expect(field1).to.have.property('name', 'total_revenue');
+
+            const field2 = resp.body.results[1];
+
+            expect(field2)
+                .to.have.property('description')
+                .that.match(/revenue/i);
         });
     });
 
@@ -210,7 +216,11 @@ describe('Lightdash catalog search', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?search=plan`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(0);
+
+            cy.log('only find the one under fanouts');
+            expect(resp.body.results).to.have.length(1);
+            expect(resp.body.results[0].name).to.eq('plan');
+            expect(resp.body.results[0].tableGroupLabel).to.eq('fanouts');
         });
     });
 });

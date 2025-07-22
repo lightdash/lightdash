@@ -1,4 +1,8 @@
-import { type VizTableConfig } from '@lightdash/common';
+import {
+    getCustomLabelsFromVizTableConfig,
+    getHiddenFieldsFromVizTableConfig,
+    type VizTableConfig,
+} from '@lightdash/common';
 import { ActionIcon, Popover, Tooltip } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import { type FC, useMemo } from 'react';
@@ -25,33 +29,8 @@ const ResultsDownloadButton: FC<Props> = ({
     chartName,
 }) => {
     const [downloadCustomLabels, downloadHiddenColumns] = useMemo(() => {
-        let customLabels: Record<string, string> = {};
-        try {
-            if (vizTableConfig?.columns) {
-                customLabels = Object.fromEntries(
-                    Object.entries(vizTableConfig?.columns).map(
-                        ([key, config]) => [key, config.label],
-                    ),
-                );
-            }
-        } catch (error) {
-            console.warn('Failed to get custom labels for download', error);
-        }
-        let hiddenColumns: string[] = [];
-        try {
-            if (vizTableConfig?.columns) {
-                hiddenColumns = Object.entries(vizTableConfig?.columns).reduce<
-                    string[]
-                >((acc, [key, config]) => {
-                    if (!config.visible) {
-                        acc.push(key);
-                    }
-                    return acc;
-                }, []);
-            }
-        } catch (error) {
-            console.warn('Failed to get hidden columns for download', error);
-        }
+        const customLabels = getCustomLabelsFromVizTableConfig(vizTableConfig);
+        const hiddenColumns = getHiddenFieldsFromVizTableConfig(vizTableConfig);
         return [customLabels, hiddenColumns];
     }, [vizTableConfig]);
 

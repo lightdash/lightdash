@@ -53,7 +53,6 @@ export type ApiGetAsyncQueryResultsResponse = {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Query')
 export class QueryController extends BaseController {
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}')
@@ -87,7 +86,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/cancel')
@@ -111,7 +109,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/metric-query')
@@ -148,6 +145,7 @@ export class QueryController extends BaseController {
                 metricQuery,
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
+                parameters: body.parameters,
             });
 
         return {
@@ -156,7 +154,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart')
@@ -181,6 +178,7 @@ export class QueryController extends BaseController {
                 versionUuid: body.versionUuid,
                 context: context ?? QueryExecutionContext.API,
                 limit: body.limit,
+                parameters: body.parameters,
             });
 
         return {
@@ -189,7 +187,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-chart')
@@ -215,7 +212,9 @@ export class QueryController extends BaseController {
                 dashboardFilters: body.dashboardFilters,
                 dashboardSorts: body.dashboardSorts,
                 dateZoom: body.dateZoom,
+                limit: body.limit,
                 context: context ?? QueryExecutionContext.API,
+                parameters: body.parameters,
             });
 
         return {
@@ -224,7 +223,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/underlying-data')
@@ -251,6 +249,8 @@ export class QueryController extends BaseController {
                 underlyingDataItemId: body.underlyingDataItemId,
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
+                limit: body.limit,
+                parameters: body.parameters,
             });
 
         return {
@@ -259,7 +259,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql')
@@ -283,6 +282,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 pivotConfiguration: body.pivotConfiguration,
                 limit: body.limit,
+                parameters: body.parameters,
             });
 
         return {
@@ -291,7 +291,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql-chart')
@@ -313,6 +312,7 @@ export class QueryController extends BaseController {
                 invalidateCache: body.invalidateCache ?? false,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 limit: body.limit,
+                parameters: body.parameters,
                 ...(isExecuteAsyncSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
@@ -324,7 +324,6 @@ export class QueryController extends BaseController {
         };
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-sql-chart')
@@ -350,6 +349,7 @@ export class QueryController extends BaseController {
                 dashboardSorts: body.dashboardSorts,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 limit: body.limit,
+                parameters: body.parameters,
                 ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
@@ -364,7 +364,7 @@ export class QueryController extends BaseController {
     /**
      * Stream results from S3
      */
-    @Hidden()
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}/results')
@@ -397,7 +397,6 @@ export class QueryController extends BaseController {
         }
     }
 
-    @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/download')
@@ -416,20 +415,19 @@ export class QueryController extends BaseController {
     > {
         this.setStatus(200);
 
-        const results = await this.services
-            .getAsyncQueryService()
-            .downloadAsyncQueryResults({
-                user: req.user!,
-                projectUuid,
-                queryUuid,
-                type: body.type,
-                onlyRaw: body.onlyRaw,
-                showTableNames: body.showTableNames,
-                customLabels: body.customLabels,
-                columnOrder: body.columnOrder,
-                hiddenFields: body.hiddenFields,
-                pivotConfig: body.pivotConfig,
-            });
+        const results = await this.services.getAsyncQueryService().download({
+            user: req.user!,
+            projectUuid,
+            queryUuid,
+            type: body.type,
+            onlyRaw: body.onlyRaw,
+            showTableNames: body.showTableNames,
+            customLabels: body.customLabels,
+            columnOrder: body.columnOrder,
+            hiddenFields: body.hiddenFields,
+            pivotConfig: body.pivotConfig,
+            attachmentDownloadName: body.attachmentDownloadName,
+        });
 
         return {
             status: 'ok',

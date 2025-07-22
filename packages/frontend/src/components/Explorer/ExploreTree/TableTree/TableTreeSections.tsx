@@ -30,7 +30,6 @@ import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import MantineIcon from '../../../common/MantineIcon';
 import { TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
-import { getSearchResults } from './Tree/utils';
 
 type Props = {
     searchQuery?: string;
@@ -45,6 +44,8 @@ type Props = {
         customMetrics: AdditionalMetric[] | undefined;
     };
     selectedDimensions?: string[];
+    searchResults: string[];
+    isSearching: boolean;
 };
 const TableTreeSections: FC<Props> = ({
     searchQuery,
@@ -55,6 +56,8 @@ const TableTreeSections: FC<Props> = ({
     missingFields,
     selectedDimensions,
     onSelectedNodeChange,
+    searchResults,
+    isSearching,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
@@ -120,8 +123,6 @@ const TableTreeSections: FC<Props> = ({
             );
     }, [customDimensions, table]);
 
-    const isSearching = !!searchQuery && searchQuery !== '';
-
     const hasMetrics = Object.keys(table.metrics).length > 0;
     const hasDimensions = Object.keys(table.dimensions).length > 0;
     const hasCustomMetrics = additionalMetrics.length > 0;
@@ -163,11 +164,6 @@ const TableTreeSections: FC<Props> = ({
             };
         }, {});
     }, [metrics, additionalMetrics]);
-
-    const searchResults = useMemo(
-        () => getSearchResults(dimensions, searchQuery),
-        [dimensions, searchQuery],
-    );
 
     const handleItemClickDimension = useCallback(
         (key: string) => onSelectedNodeChange(key, true),
@@ -319,6 +315,7 @@ const TableTreeSections: FC<Props> = ({
                     selectedItems={selectedItems}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickDimension}
+                    searchResults={searchResults}
                 >
                     <TreeRoot />
                 </TreeProvider>
@@ -367,6 +364,7 @@ const TableTreeSections: FC<Props> = ({
                     selectedItems={selectedItems}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickMetric}
+                    searchResults={searchResults}
                 >
                     <TreeRoot />
                 </TreeProvider>
@@ -418,6 +416,7 @@ const TableTreeSections: FC<Props> = ({
                     onItemClick={handleItemClickMetric}
                     isGithubIntegrationEnabled={isGithubProject}
                     gitIntegration={gitIntegration}
+                    searchResults={searchResults}
                 >
                     <TreeRoot />
                 </TreeProvider>
@@ -470,6 +469,7 @@ const TableTreeSections: FC<Props> = ({
                     selectedItems={selectedItems}
                     groupDetails={table.groupDetails}
                     onItemClick={handleItemClickDimension}
+                    searchResults={searchResults}
                 >
                     <TreeRoot />
                 </TreeProvider>

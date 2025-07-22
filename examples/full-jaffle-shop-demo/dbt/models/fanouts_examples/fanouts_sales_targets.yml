@@ -1,0 +1,47 @@
+version: 2
+models:
+  - name: fanouts_sales_targets
+    meta:
+      required_attributes:
+        is_admin_saas_demo: 'true'
+      primary_key: [ target_type, target_value, quarter_start_date ]
+    columns:
+      - name: target_type
+        description: "The type of target (industry, segment, or country)"
+        meta:
+          dimension:
+            type: string
+      - name: target_value
+        description: "The specific value for the target type (e.g., 'Technology', 'SMB',
+          'USA')"
+        meta:
+          dimension:
+            type: string
+      - name: quarter_start_date
+        description: "The quarter start date for the sales target"
+        meta:
+          dimension:
+            type: date
+      - name: quarter_end_date
+        description: "The quarter end date for the sales target"
+        meta:
+          dimension:
+            type: date
+      - name: target_deals
+        description: "Number of deals targeted for this country/year/quarter"
+        meta:
+          metrics:
+            total_target_deal_count:
+              type: sum
+              label: "🚨 INFLATED Total Target Deal Count"
+          dimension:
+            type: number
+      - name: target_amount
+        description: "Revenue amount targeted for this country/year/quarter"
+        meta:
+          metrics:
+            total_target_deal_amount:
+              type: sum
+              label: "🚨 INFLATED Total Target Deal Amount"
+          dimension:
+            type: number

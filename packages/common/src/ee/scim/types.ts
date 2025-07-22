@@ -1,4 +1,4 @@
-import { type ScimSchemaType } from '..';
+import { type ScimSchemaType, type ServiceAccount } from '..';
 
 export type SessionServiceAccount = {
     organizationUuid: string;
@@ -16,6 +16,10 @@ export interface ScimResource {
     };
 }
 
+export interface LightdashScimExtension {
+    role?: string;
+}
+
 export interface ScimUser extends ScimResource {
     schemas: string[];
     userName: string;
@@ -28,6 +32,7 @@ export interface ScimUser extends ScimResource {
         value: string;
         primary: boolean;
     }[];
+    [ScimSchemaType.LIGHTDASH_USER_EXTENSION]?: LightdashScimExtension;
 }
 
 export interface ScimGroup extends ScimResource {
@@ -122,32 +127,7 @@ export type ScimUpsertUser = Omit<ScimUser, 'id'> & {
     title?: string; // okta sends this on create
 };
 
-export type ScimOrganizationAccessToken = {
-    uuid: string;
-    organizationUuid: string;
-    createdAt: Date;
-    expiresAt: Date | null;
-    description: string;
-    lastUsedAt: Date | null;
-    rotatedAt: Date | null;
-};
-
-export type ScimOrganizationAccessTokenWithToken =
-    ScimOrganizationAccessToken & {
-        token: string;
-    };
-
-export type ApiCreateScimTokenRequest = Pick<
-    ScimOrganizationAccessToken,
+export type ApiCreateScimServiceAccountRequest = Pick<
+    ServiceAccount,
     'expiresAt' | 'description'
->;
-
-export type ApiCreateScimTokenResponse = {
-    token: string;
-    expiresAt: Date;
-};
-
-export type CreateScimOrganizationAccessToken = Pick<
-    ScimOrganizationAccessToken,
-    'organizationUuid' | 'expiresAt' | 'description'
 >;

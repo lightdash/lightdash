@@ -1,6 +1,5 @@
 import {
     ContentType,
-    DashboardTileTypes,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -24,6 +23,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
+import { Parameters, useDashboardParameterState } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -47,9 +47,10 @@ const Dashboard: FC = () => {
         mode?: string;
         tabUuid?: string;
     }>();
-    const { data: spaces } = useSpaceSummaries(projectUuid);
+    const { data: spaces } = useSpaceSummaries(projectUuid, true);
 
-    const { clearIsEditingDashboardChart } = useDashboardStorage();
+    const { clearIsEditingDashboardChart, clearDashboardStorage } =
+        useDashboardStorage();
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -88,6 +89,14 @@ const Dashboard: FC = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const dashboardParameterReferences = useDashboardContext(
+        (c) => c.dashboardParameterReferences,
+    );
+    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+
+    // Parameter state management for the Parameters component
+    const { parameterValues, handleParameterChange, clearAllParameters } =
+        useDashboardParameterState();
 
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -126,14 +135,6 @@ const Dashboard: FC = () => {
     const [isDuplicateModalOpen, duplicateModalHandlers] = useDisclosure();
     const [isExportDashboardModalOpen, exportDashboardModalHandlers] =
         useDisclosure();
-
-    const hasNewSemanticLayerChart = useMemo(() => {
-        if (!dashboardTiles) return false;
-
-        return dashboardTiles.some(
-            (tile) => tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-        );
-    }, [dashboardTiles]);
 
     // tabs state
     const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
@@ -565,6 +566,7 @@ const Dashboard: FC = () => {
                             <Button
                                 color="red"
                                 onClick={() => {
+                                    clearDashboardStorage();
                                     blocker.proceed();
                                 }}
                             >
@@ -597,7 +599,6 @@ const Dashboard: FC = () => {
                             haveTabsChanged ||
                             hasDateZoomDisabledChanged
                         }
-                        hasNewSemanticLayerChart={hasNewSemanticLayerChart}
                         onAddTiles={handleAddTiles}
                         onSaveDashboard={() => {
                             const dimensionFilters = [
@@ -668,10 +669,20 @@ const Dashboard: FC = () => {
                         )}
                     </Group>
                     {/* DateZoom section will adjust width dynamically */}
-                    {hasDashboardTiles && !hasNewSemanticLayerChart && (
-                        <Box style={{ marginLeft: 'auto' }}>
+                    {hasDashboardTiles && (
+                        <Group spacing="xs" style={{ marginLeft: 'auto' }}>
+                            <Parameters
+                                isEditMode={isEditMode}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onClearAll={clearAllParameters}
+                                parameterReferences={
+                                    dashboardParameterReferences
+                                }
+                                areAllChartsLoaded={areAllChartsLoaded}
+                            />
                             <DateZoom isEditMode={isEditMode} />
-                        </Box>
+                        </Group>
                     )}
                 </Group>
                 <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>

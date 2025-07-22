@@ -1,0 +1,82 @@
+version: 2
+models:
+  - name: fanouts_addresses
+    description: |
+      This model demonstrates Slowly Changing Dimension (SCD Type 2) patterns with temporal validity:
+      - Each address has valid_from and valid_to timestamps
+      - Current addresses have NULL valid_to values
+      - Historical addresses show when they were active
+      - This allows for point-in-time analysis and historical reporting
+    meta:
+      required_attributes:
+        is_admin_saas_demo: 'true'
+      primary_key: address_id
+      joins:
+        - join: fanouts_countries
+          relatiosnship: many_to_one
+          sql_on: ${fanouts_addresses.country_iso_code} = ${fanouts_countries.iso_code}
+          type: left
+          fields: [ country_name, unique_country_count, inflated_country_count ]
+    columns:
+      - name: user_id
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: address_id
+        description: "Unique identifier for user's address"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            inflated_address_count:
+              type: count
+              label: "🚨 INFLATED Address Count"
+              description: "❌ WRONG: If grain of data is not at address level then this will be inflated"
+            unique_address_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique Address Count"
+              description: "✅ CORRECT: Uses count_distinct so won't inflate"
+      - name: street_address
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: city
+        description: ""
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_city_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique City Count"
+              description: "✅ CORRECT: Count distinct cities"
+            inflated_city_count:
+              type: count
+              label: "🚨 INFLATED City Count"
+      - name: state
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: postal_code
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: country_iso_code
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: valid_from
+        description: "Start date of address validity"
+        meta:
+          dimension:
+            type: timestamp
+      - name: valid_to
+        description: "End date of address validity (NULL if current)"
+        meta:
+          dimension:
+            type: timestamp

@@ -35,6 +35,10 @@ export const loadLightdashProjectConfig = async (
         );
     }
 
+    if (configFile.parameters == null) {
+        configFile.parameters = undefined;
+    }
+
     if (onLoaded) {
         await onLoaded(configFile);
     }

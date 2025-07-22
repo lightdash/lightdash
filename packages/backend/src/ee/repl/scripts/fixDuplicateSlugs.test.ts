@@ -1,5 +1,8 @@
+import { AnyType } from '@lightdash/common';
 import { knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { ClientRepository } from '../../../clients/ClientRepository';
+import EmailClient from '../../../clients/EmailClient/EmailClient';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 import { getFixDuplicateSlugsScripts } from './fixDuplicateSlugs';
@@ -9,10 +12,15 @@ jest.mock('../../../utils/SlugUtils', () => ({
     generateUniqueSlugScopedToProject: jest.fn(),
 }));
 
+const clientRepositoryMock = {
+    getEmailClient: () =>
+        ({ canSendEmail: () => false } as AnyType as EmailClient),
+} as AnyType as ClientRepository;
+
 describe('fixDuplicateSlugs', () => {
     let tracker: Tracker;
     const database = knex({ client: MockClient });
-    const scripts = getFixDuplicateSlugsScripts(database);
+    const scripts = getFixDuplicateSlugsScripts(database, clientRepositoryMock);
 
     beforeAll(() => {
         tracker = getTracker();

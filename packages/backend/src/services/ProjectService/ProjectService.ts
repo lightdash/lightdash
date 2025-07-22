@@ -6,6 +6,7 @@ import {
     AndFilterGroup,
     AnyType,
     ApiChartAndResults,
+    ApiCreatePreviewResults,
     type ApiCreateProjectResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -22,17 +23,18 @@ import {
     convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
+    CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -50,6 +52,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FeatureFlags,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -71,6 +74,7 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
+    hasWarehouseCredentials,
     IntrinsicUserAttributes,
     isCartesianChartConfig,
     isCustomSqlDimension,
@@ -87,6 +91,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    LightdashProjectConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
@@ -98,6 +103,7 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
+    type ParametersValuesMap,
     PivotChartData,
     PivotValuesColumn,
     Project,
@@ -116,9 +122,9 @@ import {
     type RunQueryTags,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
-    type SemanticLayerConnectionUpdate,
     SessionUser,
     snakeCaseName,
+    SnowflakeTokenError,
     SortByDirection,
     SortField,
     SpaceQuery,
@@ -140,6 +146,7 @@ import {
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseCredentials,
+    type WarehouseSqlBuilder,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -174,10 +181,12 @@ import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -186,18 +195,23 @@ import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
-import {
-    applyLimitToSqlQuery,
-    buildQuery,
-    CompiledQuery,
-} from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    runWorkerThread,
+    wrapSentryTransaction,
+    wrapSentryTransactionSync,
+} from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    CompiledQuery,
+    MetricQueryBuilder,
+} from '../../utils/QueryBuilder/queryBuilder';
+import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -237,6 +251,8 @@ export type ProjectServiceArguments = {
     contentModel: ContentModel;
     encryptionUtil: EncryptionUtil;
     userModel: UserModel;
+    featureFlagModel: FeatureFlagModel;
+    projectParametersModel: ProjectParametersModel;
 };
 
 export class ProjectService extends BaseService {
@@ -292,6 +308,10 @@ export class ProjectService extends BaseService {
 
     userModel: UserModel;
 
+    featureFlagModel: FeatureFlagModel;
+
+    projectParametersModel: ProjectParametersModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -318,6 +338,8 @@ export class ProjectService extends BaseService {
         contentModel,
         encryptionUtil,
         userModel,
+        featureFlagModel,
+        projectParametersModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -346,6 +368,8 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.encryptionUtil = encryptionUtil;
         this.userModel = userModel;
+        this.featureFlagModel = featureFlagModel;
+        this.projectParametersModel = projectParametersModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -457,7 +481,7 @@ export class ProjectService extends BaseService {
 
     private async validateProjectCreationPermissions(
         user: SessionUser,
-        data: CreateProject,
+        data: Pick<CreateProject, 'type' | 'upstreamProjectUuid'>,
     ) {
         if (!data.type) {
             throw new ParameterError('Project type must be provided');
@@ -568,7 +592,7 @@ export class ProjectService extends BaseService {
         return { userAttributes, intrinsicUserAttributes };
     }
 
-    /* 
+    /*
     This method is used to refresh the credentials for the warehouse client
     This runs on every request to the warehouse, to refresh the token if needed when an accessToken is requested
     Bigquery uses the refresh token directly on the warehouse connection, so there is no need to refresh it
@@ -581,27 +605,43 @@ export class ProjectService extends BaseService {
             args.type === WarehouseTypes.SNOWFLAKE &&
             args.authenticationType === 'sso'
         ) {
-            const token = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.SNOWFLAKE,
-            );
-            this.logger.debug(
-                `Refreshing snowflake token for user ${userUuid}`,
-            );
-            const accessToken = await UserService.generateSnowflakeAccessToken(
-                token,
-            );
-            return {
-                ...args,
-                authenticationType: 'sso',
-                token: accessToken,
-            };
+            try {
+                let { token } = args;
+
+                // We pass the refresh token for snowflake on args
+                // This is used on user warehouse credentials.
+                // If this is provided, use this instead of getting the refresh token from the openid table
+                if (token === undefined) {
+                    token = await this.userModel.getRefreshToken(
+                        userUuid,
+                        OpenIdIdentityIssuerType.SNOWFLAKE,
+                    );
+                }
+
+                this.logger.debug(
+                    `Refreshing snowflake token for user ${userUuid}`,
+                );
+                const accessToken =
+                    await UserService.generateSnowflakeAccessToken(token);
+                return {
+                    ...args,
+                    authenticationType: 'sso',
+                    token: accessToken,
+                };
+            } catch (e: unknown) {
+                this.logger.error(
+                    `Error refreshing snowflake token: ${JSON.stringify(e)}`,
+                );
+                throw new SnowflakeTokenError(
+                    `Error refreshing snowflake token`,
+                );
+            }
         }
         return args;
     }
 
     /*
-    This method is used when the user is creating a project 
+    This method is used when the user is creating a project
     This does not depend on `requireUserCredentials` flag (check getWarehouseCredentials for more details about that)
     In here, we will load on runtime SSH credentials or refresh tokens for SSO
     */
@@ -630,7 +670,10 @@ export class ProjectService extends BaseService {
                 BigqueryAuthenticationType.SSO &&
             args.warehouseConnection.keyfileContents.type !== 'authorized_user'
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(userUuid);
+            const refreshToken = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
 
             // Validate refresh token has the right bigquery scopes
             await UserService.generateGoogleAccessToken(
@@ -674,9 +717,9 @@ export class ProjectService extends BaseService {
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
-    /* 
-        This method is used when the user is making requests to the warehouse 
-        and . 
+    /*
+        This method is used when the user is making requests to the warehouse
+        and .
         Then if `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
         If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like nowflake on SSO).
     */
@@ -877,7 +920,7 @@ export class ProjectService extends BaseService {
 
     async createWithoutCompile(
         user: SessionUser,
-        data: CreateProject,
+        data: CreateProjectOptionalCredentials,
         method: RequestMethod,
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
@@ -898,15 +941,19 @@ export class ProjectService extends BaseService {
                 );
         }
 
-        const createProject = await this._resolveWarehouseClientCredentials(
-            newProjectData,
-            user.userUuid,
-        );
-        const projectUuid = await this.projectModel.create(
-            user.userUuid,
-            user.organizationUuid,
-            createProject,
-        );
+        const createProject: CreateProjectOptionalCredentials =
+            hasWarehouseCredentials(newProjectData)
+                ? await this._resolveWarehouseClientCredentials(
+                      newProjectData,
+                      user.userUuid,
+                  )
+                : newProjectData;
+        const projectUuid =
+            await this.projectModel.createWithOptionalCredentials(
+                user.userUuid,
+                user.organizationUuid,
+                createProject,
+            );
 
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview
@@ -930,13 +977,16 @@ export class ProjectService extends BaseService {
                     data.upstreamProjectUuid,
                     projectUuid,
                 );
-                await this.copyContentOnPreview(
-                    data.upstreamProjectUuid,
-                    projectUuid,
-                    user,
-                );
 
-                hasContentCopy = true;
+                if (data.copyContent ?? true) {
+                    await this.copyContentOnPreview(
+                        data.upstreamProjectUuid,
+                        projectUuid,
+                        user,
+                    );
+
+                    hasContentCopy = true;
+                }
             } catch (e) {
                 Sentry.captureException(e);
                 this.logger.error(`Unable to copy content on preview ${e}`);
@@ -1027,29 +1077,32 @@ export class ProjectService extends BaseService {
     }
 
     static getAnalyticProperties(
-        createProject: CreateProject,
+        createProject: Pick<
+            CreateProjectOptionalCredentials,
+            'warehouseConnection' | 'name' | 'dbtConnection' | 'type'
+        >,
         projectUuid: string,
         user: SessionUser,
         method: RequestMethod,
     ): ProjectEvent['properties'] {
-        const warehouseType = createProject.warehouseConnection.type;
+        const warehouseType = createProject.warehouseConnection?.type;
         const authenticationType =
             warehouseType === WarehouseTypes.BIGQUERY ||
             warehouseType === WarehouseTypes.SNOWFLAKE
-                ? createProject.warehouseConnection.authenticationType
+                ? createProject.warehouseConnection?.authenticationType
                 : undefined;
         return {
             projectName: createProject.name,
             projectId: projectUuid,
             projectType: createProject.dbtConnection.type,
-            warehouseConnectionType: createProject.warehouseConnection.type,
+            warehouseConnectionType: createProject.warehouseConnection?.type,
             organizationId: user.organizationUuid!,
             dbtConnectionType: createProject.dbtConnection.type,
             isPreview: createProject.type === ProjectType.PREVIEW,
             method,
             authenticationType,
             requireUserCredentials:
-                createProject.warehouseConnection.requireUserCredentials,
+                createProject.warehouseConnection?.requireUserCredentials,
         };
     }
 
@@ -1131,6 +1184,11 @@ export class ProjectService extends BaseService {
                             color: category.color ?? 'gray',
                         })),
                     );
+                    await this.replaceProjectParameters({
+                        user,
+                        projectUuid: newProjectUuid,
+                        parameters: lightdashProjectConfig.parameters,
+                    });
                     await this.saveExploresToCacheAndIndexCatalog(
                         user.userUuid,
                         newProjectUuid,
@@ -1211,9 +1269,9 @@ export class ProjectService extends BaseService {
     }
 
     /* When editing a project, most fields are optional
-    but if the user switches from one authentication type to another, 
+    but if the user switches from one authentication type to another,
     we need to validate the secrets are present */
-    static validateConfigSecrets(project: UpdateProject) {
+    validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.BIGQUERY:
                 const keyFileContents =
@@ -1223,16 +1281,28 @@ export class ProjectService extends BaseService {
                 switch (authenticationType) {
                     case undefined: // Default, for backwards compatibility
                     case BigqueryAuthenticationType.PRIVATE_KEY:
-                        if (keyFileContents.private_key === undefined) {
+                        if (keyFileContents?.private_key === undefined) {
                             throw new ParameterError(
                                 'Bigquery key file is required for private key authentication',
                             );
                         }
                         break;
                     case BigqueryAuthenticationType.SSO:
-                        if (keyFileContents.refresh_token === undefined) {
+                        if (keyFileContents?.refresh_token === undefined) {
                             throw new ParameterError(
                                 'Bigquery refresh token is required for SSO authentication',
+                            );
+                        }
+                        break;
+                    case BigqueryAuthenticationType.ADC:
+                        if (keyFileContents) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication should not have any sensitive fields set',
+                            );
+                        }
+                        if (!this.lightdashConfig.auth.google.enableGCloudADC) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication is not enabled in the configuration',
                             );
                         }
                         break;
@@ -1294,7 +1364,7 @@ export class ProjectService extends BaseService {
             savedProject,
         );
 
-        ProjectService.validateConfigSecrets(updatedProject);
+        this.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);
@@ -1409,6 +1479,11 @@ export class ProjectService extends BaseService {
                                     color: category.color ?? 'gray',
                                 })),
                             );
+                            await this.replaceProjectParameters({
+                                user,
+                                projectUuid,
+                                parameters: lightdashProjectConfig.parameters,
+                            });
                             await this.saveExploresToCacheAndIndexCatalog(
                                 user.userUuid,
                                 projectUuid,
@@ -1555,7 +1630,7 @@ export class ProjectService extends BaseService {
     static updateExploreWithDateZoom(
         explore: Explore,
         metricQuery: MetricQuery,
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
         dateZoom?: DateZoom,
     ): Explore {
         if (dateZoom?.granularity) {
@@ -1598,7 +1673,7 @@ export class ProjectService extends BaseService {
                         dimToOverride.name,
                         baseTimeDimension,
                         explore,
-                        warehouseClient,
+                        warehouseSqlBuilder,
                         dateZoom?.granularity,
                     );
 
@@ -1614,45 +1689,57 @@ export class ProjectService extends BaseService {
     static async _compileQuery(
         metricQuery: MetricQuery,
         explore: Explore,
-        warehouseClient: WarehouseClient,
+        warehouseSqlBuilder: WarehouseSqlBuilder,
         intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         timezone: string,
         dateZoom?: DateZoom,
+        useExperimentalMetricCtes?: boolean,
+        parameters?: ParametersValuesMap,
     ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
             metricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             dateZoom,
         );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
             metricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
         });
 
-        const buildQueryResult = buildQuery({
+        const queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
-            warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
             timezone,
+            parameters,
         });
 
-        return buildQueryResult;
+        return wrapSentryTransactionSync(
+            'QueryBuilder.buildQuery',
+            { useExperimentalMetricCtes },
+            () => queryBuilder.compileQuery(useExperimentalMetricCtes),
+        );
     }
 
     async compileQuery(
         args: {
             user: SessionUser;
-            metricQuery: MetricQuery;
+            // ! TODO: we need to fix this type
+            body: MetricQuery & { parameters?: ParametersValuesMap };
             projectUuid: string;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
-        const { user, metricQuery, projectUuid } = args;
+        const {
+            user,
+            body: { parameters, ...metricQuery },
+            projectUuid,
+        } = args;
 
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1673,9 +1760,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const explore =
@@ -1695,6 +1780,12 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes(user, organizationUuid);
 
+        const { enabled: useExperimentalMetricCtes } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ShowQueryWarnings,
+            });
+
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
@@ -1702,9 +1793,17 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            undefined,
+            useExperimentalMetricCtes,
+            parameters,
         );
         await sshTunnel.disconnect();
-        return compiledQuery;
+
+        return {
+            ...compiledQuery,
+            // Convert to array so TSOA can serialize it when using in controllers
+            parameterReferences: Array.from(compiledQuery.parameterReferences),
+        };
     }
 
     private metricQueryWithLimit(
@@ -1771,9 +1870,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const queryTags: RunQueryTags = {
@@ -2086,9 +2183,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const queryTags: RunQueryTags = {
@@ -2692,6 +2787,7 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    // TODO: consider removing this method in milestone #212
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. We know that the warehouse client method shouldn't be in a model, but instead it should be its own client.
     async streamSqlQueryIntoFile({
         userUuid,
@@ -2845,8 +2941,8 @@ export class ProjectService extends BaseService {
 
             // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
-            WITH original_query AS (${userSql}), 
-                 group_by_query AS (${groupByQuery}), 
+            WITH original_query AS (${userSql}),
+                 group_by_query AS (${groupByQuery}),
                  pivot_query AS (${pivotQuery}),
                  filtered_rows AS (
                     SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
@@ -3046,6 +3142,7 @@ export class ProjectService extends BaseService {
                   }));
 
         return {
+            queryUuid: undefined,
             fileUrl,
             valuesColumns: processedColumns,
             indexColumn,
@@ -3147,6 +3244,14 @@ export class ProjectService extends BaseService {
                 operator: FilterOperator.INCLUDE,
                 values: [search],
             },
+            {
+                id: uuidv4(),
+                target: {
+                    fieldId,
+                },
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
         ];
         if (filters) {
             const filtersCompatibleWithExplore = filters.and.filter(
@@ -3190,6 +3295,7 @@ export class ProjectService extends BaseService {
         limit: number,
         filters: AndFilterGroup | undefined,
         forceRefresh: boolean = false,
+        parameters?: ParametersValuesMap,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3232,7 +3338,11 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            undefined,
+            undefined,
+            parameters,
         );
+
         // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
         const queryHashKey = metricQuery.timezone
             ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
@@ -3656,6 +3766,11 @@ export class ProjectService extends BaseService {
                                 color: category.color ?? 'gray',
                             })),
                         );
+                        await this.replaceProjectParameters({
+                            user,
+                            projectUuid,
+                            parameters: lightdashProjectConfig.parameters,
+                        });
                         return this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
                             projectUuid,
@@ -3744,6 +3859,7 @@ export class ProjectService extends BaseService {
                                       explore.baseTable &&
                                       explore.tables?.[explore.baseTable]
                                           ?.description,
+                                  aiHint: explore.aiHint,
                               },
                           ]
                         : acc;
@@ -3765,6 +3881,7 @@ export class ProjectService extends BaseService {
                             description:
                                 explore.tables[explore.baseTable].description,
                             type: explore.type ?? ExploreType.DEFAULT,
+                            aiHint: explore.aiHint,
                         },
                     ];
                 }
@@ -3835,7 +3952,7 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private async findExplores({
+    async findExplores({
         user,
         projectUuid,
         exploreNames,
@@ -4640,16 +4757,8 @@ export class ProjectService extends BaseService {
         const savedSqlCharts = await this.spaceModel.getSpaceSqlCharts(
             allowedSpaceUuids,
         );
-        const savedSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaceUuids,
-            );
 
-        return [
-            ...savedQueries,
-            ...savedSqlCharts,
-            ...savedSemanticViewerCharts,
-        ];
+        return [...savedQueries, ...savedSqlCharts];
     }
 
     async getChartSummaries(
@@ -4752,13 +4861,6 @@ export class ProjectService extends BaseService {
                 mostPopular: true,
             },
         );
-        const mostPopularSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    mostPopular: true,
-                },
-            );
         const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
             allowedSpaces.map(({ uuid }) => uuid),
             {
@@ -4769,7 +4871,6 @@ export class ProjectService extends BaseService {
         return [
             ...mostPopularCharts,
             ...mostPopularSqlCharts,
-            ...mostPopularSemanticViewerCharts,
             ...mostPopularDashboards,
         ];
     }
@@ -4790,13 +4891,6 @@ export class ProjectService extends BaseService {
                     recentlyUpdated: true,
                 },
             );
-        const recentlyUpdatedSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    recentlyUpdated: true,
-                },
-            );
         const recentlyUpdatedDashboards =
             await this.spaceModel.getSpaceDashboards(
                 allowedSpaces.map(({ uuid }) => uuid),
@@ -4807,7 +4901,6 @@ export class ProjectService extends BaseService {
         return [
             ...recentlyUpdatedCharts,
             ...recentlyUpdatedSqlCharts,
-            ...recentlyUpdatedSemanticViewerCharts,
             ...recentlyUpdatedDashboards,
         ];
     }
@@ -4859,7 +4952,7 @@ export class ProjectService extends BaseService {
             warehouseConnectionOverrides?: { schema?: string };
         },
         context: RequestMethod,
-    ): Promise<string> {
+    ): Promise<ApiCreatePreviewResults> {
         // create preview project permissions are checked in `createWithoutCompile`
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
@@ -4894,13 +4987,16 @@ export class ProjectService extends BaseService {
         // it is possible that the user `abilities` are not uptodate
         // Before we check permissions on scheduleCompileProject
         // Permissions will be checked again with the uptodate user on scheduler
-        await this.scheduleCompileProject(
+        const { jobUuid } = await this.scheduleCompileProject(
             user,
             previewProject.project.projectUuid,
             context,
             true, // Skip permission check
         );
-        return previewProject.project.projectUuid;
+        return {
+            projectUuid: previewProject.project.projectUuid,
+            compileJobUuid: jobUuid,
+        };
     }
 
     /*
@@ -4993,6 +5089,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
+        useExperimentalMetricCtes?: boolean,
     ) {
         const totalQuery: MetricQuery = {
             ...metricQuery,
@@ -5012,6 +5109,8 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            undefined,
+            useExperimentalMetricCtes,
         );
 
         return { query, totalQuery };
@@ -5043,12 +5142,19 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes(user, organizationUuid);
 
+        const { enabled: useExperimentalMetricCtes } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ShowQueryWarnings,
+            });
+
         const { query } = await this._getCalculateTotalQuery(
             userAttributes,
             intrinsicUserAttributes,
             explore,
             metricQuery,
             warehouseClient,
+            useExperimentalMetricCtes,
         );
 
         const queryTags: RunQueryTags = {
@@ -5230,9 +5336,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const results = await this._calculateTotal(
@@ -5407,9 +5511,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid
@@ -5676,42 +5778,6 @@ export class ProjectService extends BaseService {
         return { name: virtualView.name };
     }
 
-    async updateSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-        payload: SemanticLayerConnectionUpdate,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.updateSemanticLayerConnection(
-                projectUuid,
-                payload,
-            );
-
-        return updatedProject;
-    }
-
-    async deleteSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.deleteSemanticLayerConnection(projectUuid);
-
-        return updatedProject;
-    }
-
     async updateVirtualView(
         user: SessionUser,
         projectUuid: string,
@@ -5945,6 +6011,37 @@ export class ProjectService extends BaseService {
         }
 
         return this.tagsModel.list(projectUuid);
+    }
+
+    async replaceProjectParameters({
+        user,
+        projectUuid,
+        parameters,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        parameters: LightdashProjectConfig['parameters'];
+    }) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectParametersModel.replace(
+            projectUuid,
+            parameters ?? {},
+        );
     }
 
     async replaceYamlTags(
@@ -6246,6 +6343,7 @@ export class ProjectService extends BaseService {
         // Bigquery will handle the permissions
         const refreshToken = await this.userModel.getRefreshToken(
             user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
         );
 
         if (projectId.length === 0) {

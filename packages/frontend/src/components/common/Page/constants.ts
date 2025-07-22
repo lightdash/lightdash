@@ -13,6 +13,6 @@ export const PAGE_CONTENT_MAX_WIDTH_LARGE = 1600;
 export const PAGE_MIN_CONTENT_WIDTH = 600;
 
 export const SIDEBAR_DEFAULT_WIDTH = 400;
-export const SIDEBAR_MIN_WIDTH = 300;
+export const SIDEBAR_MIN_WIDTH = 320;
 
 export const SIDEBAR_RESIZE_HANDLE_WIDTH = 6;

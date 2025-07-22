@@ -25,14 +25,14 @@ import {
     dateGranularityToTimeFrameMap,
     type DateGranularity,
 } from '../types/timeFrames';
-import { type WarehouseClient } from '../types/warehouse';
+import { type WarehouseSqlBuilder } from '../types/warehouse';
 import { timeFrameConfigs } from '../utils/timeFrames';
-import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
+import { getParameterReferences } from './parameters';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -83,6 +83,7 @@ export type UncompiledExplore = {
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
+    aiHint?: string;
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
 };
@@ -98,10 +99,11 @@ const getReferencedTable = (
         (table) => table.name === refTable || table.originalName === refTable,
     );
 };
-export class ExploreCompiler {
-    private readonly warehouseClient: WarehouseClient;
 
-    constructor(warehouseClient: WarehouseClient) {
+export class ExploreCompiler {
+    private readonly warehouseClient: WarehouseSqlBuilder;
+
+    constructor(warehouseClient: WarehouseSqlBuilder) {
         this.warehouseClient = warehouseClient;
     }
 
@@ -120,6 +122,7 @@ export class ExploreCompiler {
         spotlightConfig,
         meta,
         databricksCompute,
+        aiHint,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -278,6 +281,7 @@ export class ExploreCompiler {
             ymlPath,
             sqlPath,
             databricksCompute,
+            ...(aiHint ? { aiHint } : {}),
             ...getSpotlightConfigurationForResource(
                 spotlightVisibility,
                 spotlightCategories,
@@ -324,12 +328,18 @@ export class ExploreCompiler {
             },
         );
 
+        // Extract parameter references from sqlWhere
+        const parameterReferences = compiledSqlWhere
+            ? getParameterReferences(compiledSqlWhere)
+            : [];
+
         return {
             ...table,
             uncompiledSqlWhere: table.sqlWhere,
             sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -363,13 +373,20 @@ export class ExploreCompiler {
             },
             {},
         );
+
+        const compiledSql = compiledMetric.sql;
+
+        // Extract parameter references from metric sql
+        const parameterReferences = getParameterReferences(compiledSql);
+
         return {
             ...metric,
-            compiledSql: compiledMetric.sql,
+            compiledSql,
             tablesReferences: Array.from(compiledMetric.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
                 : {}),
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -458,7 +475,7 @@ export class ExploreCompiler {
                 return renderFilterRuleSqlFromField(
                     filter,
                     compiledDimension,
-                    getFieldQuoteChar(this.warehouseClient.credentials.type),
+                    this.warehouseClient.getFieldQuoteChar(),
                     this.warehouseClient.getStringQuoteChar(),
                     this.warehouseClient.getEscapeStringQuoteChar(),
                     this.warehouseClient.getStartOfWeek(),
@@ -494,13 +511,19 @@ export class ExploreCompiler {
             },
             {},
         );
+
+        const compiledSql = compiledDimension.sql;
+        // Extract parameter references from dimension sql
+        const parameterReferences = getParameterReferences(compiledSql);
+
         return {
             ...dimension,
-            compiledSql: compiledDimension.sql,
+            compiledSql,
             tablesReferences: Array.from(compiledDimension.tablesReferences),
             ...(Object.keys(tablesRequiredAttributes).length
                 ? { tablesRequiredAttributes }
                 : {}),
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -538,7 +561,10 @@ export class ExploreCompiler {
     compileCustomDimensionSql(
         dimension: CustomSqlDimension,
         tables: Record<string, Table>,
-    ): Pick<CompiledCustomSqlDimension, 'compiledSql' | 'tablesReferences'> {
+    ): Pick<
+        CompiledCustomSqlDimension,
+        'compiledSql' | 'tablesReferences' | 'parameterReferences'
+    > {
         const currentRef = dimension.id;
         let tablesReferences = new Set<string>([]);
         const compiledSql = dimension.sql.replace(
@@ -563,9 +589,14 @@ export class ExploreCompiler {
                 return compiledReference.sql;
             },
         );
+
+        // Extract parameter references from custom dimension sql
+        const parameterReferences = getParameterReferences(compiledSql);
+
         return {
             compiledSql,
             tablesReferences: Array.from(tablesReferences),
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 
@@ -595,9 +626,7 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = getFieldQuoteChar(
-                this.warehouseClient.credentials.type,
-            );
+            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
@@ -637,9 +666,7 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = getFieldQuoteChar(
-                this.warehouseClient.credentials.type,
-            );
+            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
@@ -673,39 +700,51 @@ export class ExploreCompiler {
     }
 
     compileExploreJoinSql(
-        join: ExploreJoin,
+        join: Pick<ExploreJoin, 'sqlOn' | 'table'>,
         tables: Record<string, Table>,
-    ): string {
+    ): { sql: string; tablesReferences: Set<string> } {
+        const tablesReferences = new Set<string>([]);
         // Sql join contains references to dimensions
-        return join.sqlOn.replace(lightdashVariablePattern, (_, p1) => {
+        const sql = join.sqlOn.replace(lightdashVariablePattern, (_, p1) => {
             const compiledReference = this.compileDimensionReference(
                 p1,
                 tables,
                 join.table,
             );
-
+            // Update table references
+            compiledReference.tablesReferences.forEach((value) =>
+                tablesReferences.add(value),
+            );
             return compiledReference.sql;
         });
+        return { sql, tablesReferences };
     }
 
     compileJoin(
         join: ExploreJoin,
         tables: Record<string, Table>,
     ): CompiledExploreJoin {
+        const { sql, tablesReferences } = this.compileExploreJoinSql(
+            {
+                table: join.alias || join.table,
+                sqlOn: join.sqlOn,
+            },
+            tables,
+        );
+
+        // Extract parameter references from sqlOn
+        const parameterReferences = getParameterReferences(sql);
+
         return {
             table: join.alias || join.table,
             sqlOn: join.sqlOn,
             type: join.type,
-            compiledSqlOn: this.compileExploreJoinSql(
-                {
-                    table: join.alias || join.table,
-                    sqlOn: join.sqlOn,
-                    always: join.always,
-                },
-                tables,
-            ),
+            compiledSqlOn: sql,
+            tablesReferences: Array.from(tablesReferences),
             hidden: join.hidden,
             always: join.always,
+            relationship: join.relationship,
+            ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
         };
     }
 }
@@ -714,11 +753,11 @@ export const createDimensionWithGranularity = (
     dimensionName: string,
     baseTimeDimension: CompiledDimension,
     explore: Explore,
-    warehouseClient: WarehouseClient,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
     granularity: DateGranularity,
 ) => {
     const newTimeInterval = dateGranularityToTimeFrameMap[granularity];
-    const exploreCompiler = new ExploreCompiler(warehouseClient);
+    const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
     return exploreCompiler.compileDimension(
         {
             ...baseTimeDimension,
@@ -733,13 +772,13 @@ export const createDimensionWithGranularity = (
                 .getLabel()
                 .toLowerCase()}`,
             sql: timeFrameConfigs[newTimeInterval].getSql(
-                warehouseClient.getAdapterType(),
+                warehouseSqlBuilder.getAdapterType(),
                 newTimeInterval,
                 baseTimeDimension.sql,
                 timeFrameConfigs[newTimeInterval].getDimensionType(
                     baseTimeDimension.type,
                 ),
-                warehouseClient.getStartOfWeek(),
+                warehouseSqlBuilder.getStartOfWeek(),
             ),
         },
         explore.tables,

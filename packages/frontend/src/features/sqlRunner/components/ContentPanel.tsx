@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    getParameterReferences,
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     MAX_SAFE_INTEGER,
@@ -23,7 +24,6 @@ import { notifications } from '@mantine/notifications';
 import {
     IconAlertCircle,
     IconChartHistogram,
-    IconCodeCircle,
     IconGripHorizontal,
 } from '@tabler/icons-react';
 import type { EChartsInstance } from 'echarts-for-react';
@@ -56,15 +56,18 @@ import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
+import { Parameters } from '../../parameters';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
+    clearParameterValues,
     EditorTabs,
     selectActiveChartType,
     selectActiveEditorTab,
     selectFetchResultsOnLoad,
     selectLimit,
+    selectParameterValues,
     selectProjectUuid,
     selectQueryUuid,
     selectResultsTableConfig,
@@ -75,11 +78,13 @@ import {
     setActiveEditorTab,
     setEditorHighlightError,
     setSqlLimit,
+    updateParameterValue,
 } from '../store/sqlRunnerSlice';
 import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
 import { SqlEditor } from './SqlEditor';
+import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
 export const ContentPanel: FC = () => {
@@ -123,6 +128,24 @@ export const ContentPanel: FC = () => {
         height: inputSectionHeight,
     } = useElementSize();
 
+    // Parameter state management for SQL Runner context
+    const parameterValues = useAppSelector(selectParameterValues);
+
+    const handleParameterChange = useCallback(
+        (key: string, value: string | string[] | null) => {
+            dispatch(updateParameterValue({ key, value }));
+        },
+        [dispatch],
+    );
+
+    const parameterReferences = useMemo(() => {
+        return new Set(getParameterReferences(sql));
+    }, [sql]);
+
+    const clearAllParameters = useCallback(() => {
+        dispatch(clearParameterValues());
+    }, [dispatch]);
+
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),
     );
@@ -145,10 +168,11 @@ export const ContentPanel: FC = () => {
                     sql: sqlToUse,
                     limit,
                     projectUuid,
+                    parameterValues,
                 }),
             );
         },
-        [dispatch, projectUuid, limit],
+        [dispatch, projectUuid, limit, parameterValues],
     );
 
     useEffect(() => {
@@ -345,6 +369,13 @@ export const ContentPanel: FC = () => {
         [sql, projectUuid, limit, queryUuid],
     );
 
+    const getDownloadPivotQueryUuid = useCallback(async () => {
+        if (!pivotedChartInfo?.data?.queryUuid) {
+            throw new Error('No query uuid to download');
+        }
+        return pivotedChartInfo?.data?.queryUuid;
+    }, [pivotedChartInfo]);
+
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
@@ -392,12 +423,8 @@ export const ContentPanel: FC = () => {
                                                     label="You haven't run this query yet."
                                                 >
                                                     <Group spacing={4} noWrap>
-                                                        <MantineIcon
-                                                            color="gray.6"
-                                                            icon={
-                                                                IconCodeCircle
-                                                            }
-                                                        />
+                                                        <SqlEditorPreferencesPopover />
+
                                                         <Text>SQL</Text>
                                                     </Group>
                                                 </Tooltip>
@@ -448,6 +475,13 @@ export const ContentPanel: FC = () => {
                             </Indicator>
                         </Group>
                         <Group spacing="xs">
+                            <Parameters
+                                isEditMode={false}
+                                parameterReferences={parameterReferences}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onClearAll={clearAllParameters}
+                            />
                             {activeEditorTab === EditorTabs.SQL && (
                                 <SqlQueryHistory />
                             )}
@@ -467,16 +501,22 @@ export const ContentPanel: FC = () => {
                             !isVizTableConfig(currentVizConfig) &&
                             selectedChartType ? (
                                 <ChartDownload
-                                    fileUrl={
-                                        pivotedChartInfo?.data?.chartFileUrl
+                                    chartName={savedSqlChart?.name}
+                                    echartsInstance={activeEchartsInstance}
+                                    projectUuid={projectUuid}
+                                    disabled={isLoadingSqlQuery}
+                                    hideLimitSelection={true}
+                                    totalResults={
+                                        resultsRunner.getRows().length
                                     }
-                                    columnNames={
+                                    columnOrder={
                                         pivotedChartInfo?.data?.columns?.map(
                                             (c) => c.reference,
                                         ) ?? []
                                     }
-                                    chartName={savedSqlChart?.name}
-                                    echartsInstance={activeEchartsInstance}
+                                    getDownloadQueryUuid={
+                                        getDownloadPivotQueryUuid
+                                    }
                                 />
                             ) : (
                                 mode === 'default' && (

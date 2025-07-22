@@ -4,16 +4,14 @@ import {
     ApiResponse,
     AuthorizationError,
     LightdashError,
-    LightdashRequestMethodHeader,
-    RequestMethod,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig } from '../../config';
+import { CLI_VERSION } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
-
-const { version: VERSION } = require('../../../package.json');
+import { buildRequestHeaders } from '../utils';
 
 type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
@@ -31,18 +29,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             `Not logged in. Run 'lightdash login --help'`,
         );
     }
-    const proxyAuthorizationHeader = config.context.proxyAuthorization
-        ? { 'Proxy-Authorization': config.context.proxyAuthorization }
-        : undefined;
-    const headers = {
-        'Content-Type': 'application/json',
-        Authorization: `ApiKey ${config.context.apiKey}`,
-        [LightdashRequestMethodHeader]:
-            process.env.CI === 'true'
-                ? RequestMethod.CLI_CI
-                : RequestMethod.CLI,
-        ...proxyAuthorizationHeader,
-    };
+    const headers = buildRequestHeaders(config.context.apiKey);
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
@@ -82,12 +69,12 @@ export const checkLightdashVersion = async (): Promise<void> => {
             url: `/api/v1/health`,
             body: undefined,
         });
-        if (health.version !== VERSION) {
+        if (health.version !== CLI_VERSION) {
             const config = await getConfig();
             console.error(
                 `${styles.title(
                     'Warning',
-                )}: CLI (${VERSION}) is running a different version than Lightdash (${
+                )}: CLI (${CLI_VERSION}) is running a different version than Lightdash (${
                     health.version
                 }) on ${
                     config.context?.serverUrl

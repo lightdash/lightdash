@@ -1,4 +1,3 @@
-import { ConditionalOperator } from '../types/conditionalRule';
 import { SupportedDbtAdapter } from '../types/dbt';
 import { type Explore, type Table } from '../types/explore';
 import {
@@ -30,14 +29,14 @@ export const chartAndFilterGroup: AndFilterGroup = {
             target: { fieldId: 'field-1' },
             values: ['1'],
             disabled: false,
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
         },
         {
             id: '2',
             target: { fieldId: 'field-2' },
             values: ['2'],
             disabled: false,
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
         },
     ],
 };
@@ -50,14 +49,14 @@ export const chartOrFilterGroup: OrFilterGroup = {
             target: { fieldId: 'field-1' },
             values: ['1'],
             disabled: false,
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
         },
         {
             id: '4',
             target: { fieldId: 'field-2' },
             values: ['2'],
             disabled: false,
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
         },
     ],
 };
@@ -68,7 +67,7 @@ export const dashboardFilterWithSameTargetAndOperator: FilterRule[] = [
         target: { fieldId: 'field-1' },
         values: ['1', '2', '3'],
         disabled: false,
-        operator: ConditionalOperator.EQUALS,
+        operator: FilterOperator.EQUALS,
     },
 ];
 
@@ -78,7 +77,7 @@ export const dashboardFilterWithSameTargetButDifferentOperator: FilterRule[] = [
         target: { fieldId: 'field-1' },
         values: ['1', '2', '3'],
         disabled: false,
-        operator: ConditionalOperator.NOT_EQUALS,
+        operator: FilterOperator.NOT_EQUALS,
     },
 ];
 
@@ -139,7 +138,7 @@ export const dashboardFilters: DashboardFilters = {
                 fieldId: 'a_dim1',
                 tableName: 'test',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['1', '2', '3'],
         },
     ],
@@ -230,7 +229,7 @@ export const expectedFiltersWithCustomSqlDimension: Filters = {
         and: [
             {
                 id: 'uuid',
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 target: {
                     fieldId: 'custom-sql-dimension',
                 },
@@ -335,7 +334,7 @@ export const expectedRequiredResetResult: FilterGroup = {
             target: {
                 fieldId: 'table_mockFieldRef1',
             },
-            operator: ConditionalOperator.IN_THE_NEXT,
+            operator: FilterOperator.IN_THE_NEXT,
             values: [14],
             required: true,
             settings: {
@@ -347,7 +346,7 @@ export const expectedRequiredResetResult: FilterGroup = {
             target: {
                 fieldId: 'table_mockFieldRef2',
             },
-            operator: ConditionalOperator.IN_THE_NEXT,
+            operator: FilterOperator.IN_THE_NEXT,
             values: [14],
             required: false,
             settings: {

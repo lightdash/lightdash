@@ -1,10 +1,10 @@
 import {
     FilterType,
     getFilterTypeFromItem,
-    type ConditionalOperator,
     type Dashboard,
     type DashboardFilterRule,
     type FilterableDimension,
+    type FilterOperator,
     type SchedulerFilterRule,
 } from '@lightdash/common';
 import {
@@ -199,7 +199,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                                 dashboardFilter.operator
                             }
                             data={filterOperatorOptions}
-                            onChange={(operator: ConditionalOperator) => {
+                            onChange={(operator: FilterOperator) => {
                                 onChange({
                                     ...dashboardFilter,
                                     operator,

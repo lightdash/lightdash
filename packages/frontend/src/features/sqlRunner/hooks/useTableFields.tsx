@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
+import { isEmpty } from 'lodash';
 import { lightdashApi } from '../../../api';
 
 export type GetTableFieldsParams = {
@@ -14,7 +15,7 @@ export type GetTableFieldsParams = {
     search: string | undefined;
 };
 
-const fetchTableFields = async ({
+export const fetchTableFields = async ({
     projectUuid,
     tableName,
     schema,
@@ -34,6 +35,11 @@ const fetchTableFields = async ({
 export type WarehouseTableField = {
     name: string;
     type: DimensionType;
+};
+
+export type WarehouseTableFieldWithContext = WarehouseTableField & {
+    table: string;
+    schema: string;
 };
 
 export const useTableFields = ({
@@ -57,9 +63,11 @@ export const useTableFields = ({
         retry: false,
         enabled: !!tableName,
         select(data) {
-            const fields = Object.entries(data).map<WarehouseTableField>(
-                ([name, type]) => ({ name, type }),
-            );
+            if (!data || isEmpty(data)) return;
+
+            const fields = Object.entries(data)
+                .map<WarehouseTableField>(([name, type]) => ({ name, type }))
+                .filter((field) => field.name && field.name.trim() !== '');
 
             if (!search) return fields;
 

@@ -14,10 +14,12 @@ const getCompiledQuery = async (
     projectUuid: string,
     tableId: string,
     query: MetricQuery,
+    queryParameters?: Record<string, string | string[]>,
 ) => {
     const timezoneFixQuery = {
         ...query,
         filters: convertDateFilters(query.filters),
+        parameters: queryParameters,
     };
 
     return lightdashApi<ApiCompiledQueryResults>({
@@ -48,6 +50,10 @@ export const useCompiledSql = (
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
 
+    const queryParameters = useExplorerContext(
+        (context) => context.state.parameters,
+    );
+
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
         exploreName: tableId,
@@ -67,13 +73,36 @@ export const useCompiledSql = (
         metricQuery,
         projectUuid,
         timezone,
+        queryParameters,
     ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         enabled: tableId !== undefined,
         queryKey,
         queryFn: () =>
-            getCompiledQuery(projectUuid!, tableId || '', metricQuery),
+            getCompiledQuery(
+                projectUuid!,
+                tableId || '',
+                metricQuery,
+                queryParameters,
+            ),
         onError: (result) => setErrorResponse(result),
+        keepPreviousData: true,
         ...queryOptions,
+    });
+};
+
+export const useCompiledSqlFromMetricQuery = ({
+    tableName,
+    projectUuid,
+    metricQuery,
+}: Partial<{
+    tableName: string;
+    projectUuid: string;
+    metricQuery: MetricQuery;
+}>) => {
+    return useQuery<ApiCompiledQueryResults, ApiError>({
+        queryKey: ['compiledQuery', tableName, metricQuery, projectUuid],
+        queryFn: () => getCompiledQuery(projectUuid!, tableName!, metricQuery!),
+        enabled: !!tableName && !!projectUuid && !!metricQuery,
     });
 };

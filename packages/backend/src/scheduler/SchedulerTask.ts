@@ -1,11 +1,14 @@
 import {
     AnyType,
+    type AsyncWarehouseQueryPayload,
     CompileProjectPayload,
     CreateProject,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
+    type CreateWarehouseCredentials,
     DownloadCsvPayload,
+    DownloadFileType,
     EmailNotificationPayload,
     ExportCsvDashboardPayload,
     FeatureFlags,
@@ -13,13 +16,14 @@ import {
     ForbiddenError,
     GsheetsNotificationPayload,
     LightdashPage,
+    MAX_SAFE_INTEGER,
     MissingConfigError,
     type MsTeamsNotificationPayload,
     NotEnoughResults,
-    NotImplementedError,
     NotificationFrequency,
     NotificationPayloadBase,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadFileError,
     RenameResourcesPayload,
     ReplaceCustomFields,
@@ -36,7 +40,6 @@ import {
     type SchedulerIndexCatalogJobPayload,
     SchedulerJobStatus,
     SchedulerLog,
-    SemanticLayerQueryPayload,
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
@@ -49,12 +52,17 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
+    applyDimensionOverrides,
     assertUnreachable,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     formatRows,
     friendlyName,
+    getColumnOrderFromVizTableConfig,
     getCustomLabelsFromTableConfig,
+    getCustomLabelsFromVizTableConfig,
     getErrorMessage,
+    getFulfilledValues,
+    getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
     getItemMap,
@@ -67,15 +75,18 @@ import {
     isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
     isDashboardScheduler,
+    isDashboardSqlChartTile,
     isDashboardValidationError,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isTableChartConfig,
+    isVizTableConfig,
     operatorActionValue,
     pivotResultsAsCsv,
     setUuidParam,
 } from '@lightdash/common';
+import type { SshTunnel } from '@lightdash/warehouses';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -88,6 +99,7 @@ import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from '../clients/MicrosoftTeams/MicrosoftTeamsClient';
+import { S3ResultsFileStorageClient } from '../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
 import {
     getChartAndDashboardBlocks,
@@ -98,15 +110,19 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import { QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
 import { isFeatureFlagEnabled } from '../postHog';
+import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
-import { CsvService } from '../services/CsvService/CsvService';
+import {
+    CsvService,
+    getSchedulerCsvLimit,
+} from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
+import { ExcelService } from '../services/ExcelService/ExcelService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
-import { PromoteService } from '../services/PromoteService/PromoteService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
-import { SemanticLayerService } from '../services/SemanticLayerService/SemanticLayerService';
 import {
     ScreenshotContext,
     UnfurlService,
@@ -131,11 +147,11 @@ export type SchedulerTaskArguments = {
     s3Client: S3Client;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
-    semanticLayerService: SemanticLayerService;
     catalogService: CatalogService;
     encryptionUtil: EncryptionUtil;
     msTeamsClient: MicrosoftTeamsClient;
     renameService: RenameService;
+    asyncQueryService: AsyncQueryService;
 };
 
 export default class SchedulerTask {
@@ -167,8 +183,6 @@ export default class SchedulerTask {
 
     protected readonly slackClient: SlackClient;
 
-    private readonly semanticLayerService: SemanticLayerService;
-
     private readonly catalogService: CatalogService;
 
     private readonly encryptionUtil: EncryptionUtil;
@@ -176,6 +190,8 @@ export default class SchedulerTask {
     protected readonly msTeamsClient: MicrosoftTeamsClient;
 
     private readonly renameService: RenameService;
+
+    protected readonly asyncQueryService: AsyncQueryService;
 
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -192,11 +208,11 @@ export default class SchedulerTask {
         this.s3Client = args.s3Client;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
-        this.semanticLayerService = args.semanticLayerService;
         this.catalogService = args.catalogService;
         this.encryptionUtil = args.encryptionUtil;
         this.msTeamsClient = args.msTeamsClient;
         this.renameService = args.renameService;
+        this.asyncQueryService = args.asyncQueryService;
     }
 
     protected async getChartOrDashboard(
@@ -375,6 +391,302 @@ export default class SchedulerTask {
                 // We don't generate CSV files for Google sheets on handleNotification task,
                 // instead we directly upload the data from the row results in the uploadGsheets task
                 throw new Error("Don't fetch csv for gsheets");
+            case SchedulerFormat.XLSX: {
+                const user = await this.userService.getSessionByUserUuid(
+                    userUuid,
+                );
+                const csvOptions = isSchedulerCsvOptions(options)
+                    ? options
+                    : undefined;
+                const baseAnalyticsProperties: DownloadCsv['properties'] = {
+                    jobId,
+                    userId: userUuid,
+                    organizationId: user.organizationUuid,
+                    projectId: projectUuid,
+                    fileType: SchedulerFormat.XLSX,
+                    values: csvOptions?.formatted ? 'formatted' : 'raw',
+                    limit: parseAnalyticsLimit(csvOptions?.limit),
+                    storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                    context,
+                };
+
+                try {
+                    if (savedChartUuid) {
+                        this.analytics.track({
+                            event: 'download_results.started',
+                            userId: user.userUuid,
+                            properties: baseAnalyticsProperties,
+                        });
+                        const query =
+                            await this.asyncQueryService.executeAsyncSavedChartQuery(
+                                {
+                                    user,
+                                    projectUuid,
+                                    chartUuid: savedChartUuid,
+                                    invalidateCache: true,
+                                    context:
+                                        QueryExecutionContext.SCHEDULED_DELIVERY,
+                                    limit: getSchedulerCsvLimit(csvOptions),
+                                },
+                            );
+
+                        const chart =
+                            await this.schedulerService.savedChartModel.get(
+                                savedChartUuid,
+                            );
+                        const downloadResult =
+                            await this.asyncQueryService.downloadSyncQueryResults(
+                                {
+                                    user,
+                                    projectUuid,
+                                    queryUuid: query.queryUuid,
+                                    type: DownloadFileType.XLSX,
+                                    onlyRaw: csvOptions?.formatted === false,
+                                    customLabels:
+                                        getCustomLabelsFromTableConfig(
+                                            chart.chartConfig.config,
+                                        ),
+                                    hiddenFields: getHiddenTableFields(
+                                        chart.chartConfig,
+                                    ),
+                                    pivotConfig: getPivotConfig(chart),
+                                    columnOrder: chart.tableConfig.columnOrder,
+                                },
+                            );
+                        csvUrl = {
+                            filename: ExcelService.generateFileId(chart.name),
+                            path: downloadResult.fileUrl,
+                            localPath: downloadResult.fileUrl,
+                            truncated: false,
+                        };
+                        this.analytics.track({
+                            event: 'download_results.completed',
+                            userId: userUuid,
+                            properties: baseAnalyticsProperties,
+                        });
+                    } else if (dashboardUuid) {
+                        this.analytics.track({
+                            event: 'download_results.started',
+                            userId: userUuid,
+                            properties: baseAnalyticsProperties,
+                        });
+                        const dashboard =
+                            await this.schedulerService.dashboardModel.getById(
+                                dashboardUuid,
+                            );
+
+                        const dashboardFilters = dashboard.filters;
+                        const schedulerFilters = isDashboardScheduler(scheduler)
+                            ? scheduler.filters
+                            : undefined;
+
+                        if (schedulerFilters) {
+                            // Scheduler filters can only override existing filters from the dashboard
+                            dashboardFilters.dimensions =
+                                applyDimensionOverrides(
+                                    dashboard.filters,
+                                    schedulerFilters,
+                                );
+                        }
+
+                        const chartTileUuidsWithChartUuids = dashboard.tiles
+                            .filter(isDashboardChartTileType)
+                            .filter((tile) => tile.properties.savedChartUuid)
+                            .filter(
+                                (tile) =>
+                                    !selectedTabs ||
+                                    selectedTabs.includes(tile.tabUuid || ''),
+                            )
+                            .map((tile) => ({
+                                tileUuid: tile.uuid,
+                                chartUuid: tile.properties.savedChartUuid!,
+                            }));
+                        const sqlChartTileUuids = dashboard.tiles
+                            .filter(isDashboardSqlChartTile)
+                            .filter((tile) => !!tile.properties.savedSqlUuid)
+                            .map((tile) => ({
+                                tileUuid: tile.uuid,
+                                chartUuid: tile.properties.savedSqlUuid!,
+                            }));
+                        const csvForChartPromises =
+                            chartTileUuidsWithChartUuids.map(
+                                async ({ chartUuid }) => {
+                                    const chartLimit =
+                                        getSchedulerCsvLimit(csvOptions);
+                                    const query =
+                                        await this.asyncQueryService.executeAsyncDashboardChartQuery(
+                                            {
+                                                user,
+                                                projectUuid,
+                                                chartUuid,
+                                                invalidateCache: true,
+                                                context:
+                                                    QueryExecutionContext.SCHEDULED_DELIVERY,
+                                                dashboardUuid,
+                                                dashboardFilters,
+                                                dashboardSorts: [],
+                                                limit: chartLimit,
+                                            },
+                                        );
+                                    const chart =
+                                        await this.schedulerService.savedChartModel.get(
+                                            chartUuid,
+                                        );
+                                    const downloadResult =
+                                        await this.asyncQueryService.downloadSyncQueryResults(
+                                            {
+                                                user,
+                                                projectUuid,
+                                                queryUuid: query.queryUuid,
+                                                type: DownloadFileType.XLSX,
+                                                onlyRaw:
+                                                    csvOptions?.formatted ===
+                                                    false,
+                                                customLabels:
+                                                    getCustomLabelsFromTableConfig(
+                                                        chart.chartConfig
+                                                            .config,
+                                                    ),
+                                                hiddenFields:
+                                                    getHiddenTableFields(
+                                                        chart.chartConfig,
+                                                    ),
+                                                pivotConfig:
+                                                    getPivotConfig(chart),
+                                                columnOrder:
+                                                    chart.tableConfig
+                                                        .columnOrder,
+                                            },
+                                        );
+                                    return {
+                                        filename: chart.name,
+                                        path: downloadResult.fileUrl,
+                                        localPath: downloadResult.fileUrl,
+                                        truncated: false,
+                                    };
+                                },
+                            );
+                        const csvForSqlChartPromises = sqlChartTileUuids.map(
+                            async ({ chartUuid, tileUuid }) => {
+                                const sqlLimit =
+                                    getSchedulerCsvLimit(csvOptions);
+                                const query =
+                                    await this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
+                                        {
+                                            user,
+                                            projectUuid,
+                                            savedSqlUuid: chartUuid,
+                                            invalidateCache: true,
+                                            context:
+                                                QueryExecutionContext.SCHEDULED_DELIVERY,
+                                            dashboardUuid,
+                                            tileUuid,
+                                            dashboardFilters,
+                                            dashboardSorts: [],
+                                            limit:
+                                                sqlLimit === null
+                                                    ? MAX_SAFE_INTEGER
+                                                    : sqlLimit,
+                                        },
+                                    );
+                                const chart =
+                                    await this.asyncQueryService.savedSqlModel.getByUuid(
+                                        chartUuid,
+                                        {
+                                            projectUuid,
+                                        },
+                                    );
+                                const downloadResult =
+                                    await this.asyncQueryService.downloadSyncQueryResults(
+                                        {
+                                            user,
+                                            projectUuid,
+                                            queryUuid: query.queryUuid,
+                                            type: DownloadFileType.XLSX,
+                                            onlyRaw:
+                                                csvOptions?.formatted === false,
+                                            customLabels:
+                                                getCustomLabelsFromVizTableConfig(
+                                                    isVizTableConfig(
+                                                        chart.config,
+                                                    )
+                                                        ? chart.config
+                                                        : undefined,
+                                                ),
+                                            hiddenFields:
+                                                getHiddenFieldsFromVizTableConfig(
+                                                    isVizTableConfig(
+                                                        chart.config,
+                                                    )
+                                                        ? chart.config
+                                                        : undefined,
+                                                ),
+                                            columnOrder:
+                                                getColumnOrderFromVizTableConfig(
+                                                    isVizTableConfig(
+                                                        chart.config,
+                                                    )
+                                                        ? chart.config
+                                                        : undefined,
+                                                ),
+                                        },
+                                    );
+                                return {
+                                    filename: chart.name,
+                                    path: downloadResult.fileUrl,
+                                    localPath: downloadResult.fileUrl,
+                                    truncated: false,
+                                };
+                            },
+                        );
+
+                        csvUrls = await Promise.allSettled([
+                            ...csvForChartPromises,
+                            ...csvForSqlChartPromises,
+                        ]).then(getFulfilledValues);
+
+                        this.analytics.track({
+                            event: 'download_results.completed',
+                            userId: userUuid,
+                            properties: {
+                                ...baseAnalyticsProperties,
+                                numCharts: csvUrls.length,
+                            },
+                        });
+                    } else {
+                        throw new Error('Not implemented');
+                    }
+                } catch (e) {
+                    Logger.error(
+                        `Unable to download XLSX on scheduled task: ${e}`,
+                    );
+
+                    if (this.slackClient.isEnabled) {
+                        await this.slackClient.postMessageToNotificationChannel(
+                            {
+                                organizationUuid,
+                                text: `Error sending Scheduled Delivery: ${scheduler.name}`,
+                                blocks: getNotificationChannelErrorBlocks(
+                                    scheduler.name,
+                                    e,
+                                    deliveryUrl,
+                                ),
+                            },
+                        );
+                    }
+
+                    this.analytics.track({
+                        event: 'download_results.error',
+                        userId: userUuid,
+                        properties: {
+                            ...baseAnalyticsProperties,
+                            error: `${e}`,
+                        },
+                    });
+                    throw e; // cascade error
+                }
+                break;
+            }
             case SchedulerFormat.CSV:
                 const user = await this.userService.getSessionByUserUuid(
                     userUuid,
@@ -395,12 +707,13 @@ export default class SchedulerTask {
 
                 try {
                     if (savedChartUuid) {
-                        csvUrl = await this.csvService.getCsvForChart(
+                        csvUrl = await this.csvService.getCsvForChart({
                             user,
-                            savedChartUuid,
-                            csvOptions,
+                            chartUuid: savedChartUuid,
+                            options: csvOptions,
                             jobId,
-                        );
+                            invalidateCache: true,
+                        });
                     } else if (dashboardUuid) {
                         this.analytics.track({
                             event: 'download_results.started',
@@ -420,6 +733,7 @@ export default class SchedulerTask {
                                 ? scheduler.filters
                                 : undefined,
                             selectedTabs,
+                            invalidateCache: true,
                         });
 
                         this.analytics.track({
@@ -1418,26 +1732,6 @@ export default class SchedulerTask {
             Logger.error(`Error in scheduler task: ${e}`);
             throw e;
         }
-    }
-
-    protected async semanticLayerQuery(
-        jobId: string,
-        scheduledTime: Date,
-        payload: SemanticLayerQueryPayload,
-    ) {
-        await this.logWrapper(
-            {
-                task: SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
-                jobId,
-                scheduledTime,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                },
-            },
-            async () => this.semanticLayerService.streamQueryIntoFile(payload),
-        );
     }
 
     protected async sqlRunner(
@@ -2823,6 +3117,33 @@ export default class SchedulerTask {
                         payload,
                     );
                 return { results };
+            },
+        );
+    }
+
+    /**
+     * Runs the query against the warehouse and updates the query history when complete
+     */
+    protected async runAsyncWarehouseQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: AsyncWarehouseQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    queryHistoryUuid: payload.queryHistoryUuid,
+                },
+            },
+            async () => {
+                await this.asyncQueryService.runAsyncWarehouseQuery(payload);
+                return {};
             },
         );
     }

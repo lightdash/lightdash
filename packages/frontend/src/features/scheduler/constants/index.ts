@@ -15,4 +15,12 @@ export const CUSTOM_WIDTH_OPTIONS = [
         label: 'TV Screen (1600px)',
         value: '1600',
     },
+    {
+        label: 'Large Monitor (1920px)',
+        value: '1920',
+    },
+    {
+        label: 'Ultra-wide Monitor (2560px)',
+        value: '2560',
+    },
 ];

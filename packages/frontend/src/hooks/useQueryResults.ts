@@ -14,6 +14,7 @@ import {
     MAX_SAFE_INTEGER,
     type MetricQuery,
     ParameterError,
+    type ParametersValuesMap,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ReadyQueryResultsPage,
@@ -36,6 +37,8 @@ export type QueryResultsProps = {
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity;
     context?: string;
+    invalidateCache?: boolean;
+    parameters?: ParametersValuesMap;
 };
 
 /**
@@ -89,6 +92,7 @@ export const downloadQuery = async (
             columnOrder: options.columnOrder,
             hiddenFields: options.hiddenFields,
             pivotConfig: options.pivotConfig,
+            attachmentDownloadName: options.attachmentDownloadName,
         }),
         version: 'v2',
     });
@@ -105,6 +109,8 @@ const executeAsyncQuery = (
                 chartUuid: data.chartUuid,
                 versionUuid: data.chartVersionUuid,
                 limit: data.csvLimit,
+                invalidateCache: data.invalidateCache,
+                parameters: data.parameters,
             },
             { signal },
         );
@@ -115,6 +121,8 @@ const executeAsyncQuery = (
                 context: QueryExecutionContext.CHART,
                 chartUuid: data.chartUuid,
                 limit: data.csvLimit,
+                invalidateCache: data.invalidateCache,
+                parameters: data.parameters,
             },
             { signal },
         );
@@ -146,6 +154,7 @@ const executeAsyncQuery = (
                         : undefined,
                 },
                 invalidateCache: true, // Note: do not cache explore queries
+                parameters: data.parameters,
             },
             { signal },
         );
@@ -174,14 +183,12 @@ export const executeQueryAndWaitForResults = async (
 };
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
-    const setErrorResponse = useQueryError({
-        forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
-    });
+    const setErrorResponse = useQueryError();
 
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
+        keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
             return executeAsyncQuery(data, signal);
         },
@@ -250,10 +257,14 @@ export type InfiniteQueryResults = Partial<
 export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
+    chartName?: string,
 ): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
+        forbiddenToastTitle: chartName
+            ? `Error running query for chart '${chartName}'`
+            : 'Error running query',
+        chartName,
     });
     const [fetchArgs, setFetchArgs] = useState<{
         queryUuid?: string;

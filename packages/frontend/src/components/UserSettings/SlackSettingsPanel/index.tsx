@@ -39,11 +39,11 @@ import {
     useSlackChannels,
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
-import { hasRequiredScopes } from './utils';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 const MAX_SLACK_CHANNELS = 100000;
@@ -64,9 +64,12 @@ const formSchema = z.object({
             availableTags: z.array(z.string().min(1)).nullable(),
         }),
     ),
+    aiThreadAccessConsent: z.boolean().optional(),
+    aiRequireOAuth: z.boolean().optional(),
 });
 
 const SlackSettingsPanel: FC = () => {
+    const { activeProjectUuid } = useActiveProjectUuid();
     const { data: aiCopilotFlag } = useFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
@@ -97,6 +100,8 @@ const SlackSettingsPanel: FC = () => {
             notificationChannel: null,
             appProfilePhotoUrl: null,
             slackChannelProjectMappings: [],
+            aiThreadAccessConsent: false,
+            aiRequireOAuth: false,
         },
         validate: zodResolver(formSchema),
     });
@@ -113,6 +118,7 @@ const SlackSettingsPanel: FC = () => {
                 slackInstallation.slackChannelProjectMappings ?? [],
             aiThreadAccessConsent:
                 slackInstallation.aiThreadAccessConsent ?? false,
+            aiRequireOAuth: slackInstallation.aiRequireOAuth ?? false,
         };
 
         if (form.initialized) {
@@ -288,24 +294,47 @@ const SlackSettingsPanel: FC = () => {
                                             );
                                         }}
                                     />
-                                    <Alert
-                                        color="blue"
-                                        fz="xs"
-                                        icon={
-                                            <MantineIcon
-                                                icon={IconHelpCircle}
-                                            />
-                                        }
-                                    >
-                                        Configure Slack channel project mappings{' '}
+                                    <Text fz="xs" c="dimmed">
+                                        Configure which channels your AI Agents
+                                        can access{' '}
                                         <Anchor
                                             component={Link}
-                                            to="/generalSettings/aiAgents"
+                                            to={`/projects/${activeProjectUuid}/ai-agents`}
                                         >
                                             here
                                         </Anchor>
                                         .
-                                    </Alert>
+                                    </Text>
+
+                                    <Stack spacing="sm">
+                                        <Group spacing="two">
+                                            <Title order={6} fw={500}>
+                                                AI Agents OAuth requirement
+                                            </Title>
+
+                                            <Tooltip
+                                                multiline
+                                                variant="xs"
+                                                maw={250}
+                                                label="When enabled, users must authenticate with OAuth to use AI Agent features."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </Tooltip>
+                                        </Group>
+
+                                        <Switch
+                                            label="Require OAuth for AI Agent"
+                                            checked={form.values.aiRequireOAuth}
+                                            onChange={(event) => {
+                                                setFieldValue(
+                                                    'aiRequireOAuth',
+                                                    event.currentTarget.checked,
+                                                );
+                                            }}
+                                        />
+                                    </Stack>
                                 </Stack>
                             )}
                         </Stack>
@@ -347,9 +376,9 @@ const SlackSettingsPanel: FC = () => {
                             </Group>
 
                             {organizationHasSlack &&
-                                !hasRequiredScopes(slackInstallation) && (
+                                !slackInstallation.hasRequiredScopes && (
                                     <Alert
-                                        color="blue"
+                                        color="yellow"
                                         icon={
                                             <MantineIcon
                                                 icon={IconAlertCircle}

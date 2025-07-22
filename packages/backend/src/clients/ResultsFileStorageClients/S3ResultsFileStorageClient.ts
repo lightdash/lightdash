@@ -1,9 +1,15 @@
 import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getErrorMessage, WarehouseResults } from '@lightdash/common';
+import {
+    getErrorMessage,
+    MissingConfigError,
+    WarehouseResults,
+} from '@lightdash/common';
+import fs from 'fs';
 import { PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
+import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     S3CacheClient,
     type S3CacheClientArguments,
@@ -16,7 +22,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         super(args);
 
         const { lightdashConfig } = args;
-        this.s3ExpiresIn = lightdashConfig.s3.expirationTime;
+        this.s3ExpiresIn = lightdashConfig.s3?.expirationTime;
     }
 
     static sanitizeFileExtension(
@@ -29,12 +35,21 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         return hasExtension ? fileName : `${fileName}.${fileExtension}`;
     }
 
+    get isEnabled() {
+        return !!this.configuration && !!this.s3;
+    }
+
     createUploadStream(
         fileName: string,
         opts: {
             contentType: string;
         },
+        attachmentDownloadName?: string,
     ) {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+
         const passThrough = new PassThrough();
 
         const upload = new Upload({
@@ -44,12 +59,18 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 Key: fileName,
                 Body: passThrough,
                 ContentType: opts.contentType,
-                ContentDisposition: `attachment; filename="${fileName}"`,
+                ContentDisposition: createContentDispositionHeader(
+                    attachmentDownloadName || fileName,
+                ),
             },
         });
 
         let isClosed = false;
         const close = async () => {
+            if (!this.configuration) {
+                throw new MissingConfigError('S3 configuration is not set');
+            }
+
             if (isClosed) return;
             isClosed = true;
             try {
@@ -110,6 +131,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     }
 
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+
         const key = S3ResultsFileStorageClient.sanitizeFileExtension(
             cacheKey,
             fileExtension,
@@ -137,6 +162,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             readStream: Readable,
             writeStream: Writable,
         ) => Promise<{ truncated: boolean }>,
+        attachmentDownloadName?: string,
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // File format configuration map
         const formatConfig = new Map([
@@ -159,9 +185,15 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             formatConfig.get(fileExtension) || formatConfig.get('jsonl')!;
 
         // Create upload stream
-        const { writeStream, close } = this.createUploadStream(sinkFileName, {
-            contentType: config.contentType,
-        });
+        const { writeStream, close } = this.createUploadStream(
+            sinkFileName,
+            {
+                contentType: config.contentType,
+            },
+            attachmentDownloadName
+                ? `${attachmentDownloadName}.${config.extension}`
+                : undefined,
+        );
 
         // Get the results stream
         const resultsStream = await this.getDowloadStream(
@@ -179,5 +211,56 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             fileUrl: url,
             truncated,
         };
+    }
+
+    /**
+     * Upload a file directly to S3 from a local file path
+     * Useful for uploading pre-generated files like Excel files
+     */
+    async uploadFile(
+        fileName: string,
+        filePath: string,
+        options: {
+            contentType: string;
+            attachmentDownloadName?: string;
+        },
+    ): Promise<string> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+
+        const fileStream = fs.createReadStream(filePath);
+
+        const upload = new Upload({
+            client: this.s3,
+            params: {
+                Bucket: this.configuration.bucket,
+                Key: fileName,
+                Body: fileStream,
+                ContentType: options.contentType,
+                ContentDisposition: createContentDispositionHeader(
+                    options.attachmentDownloadName || fileName,
+                ),
+            },
+        });
+
+        try {
+            await upload.done();
+            Logger.debug(
+                `Successfully uploaded file to s3://${this.configuration.bucket}/${fileName}`,
+            );
+
+            // Determine file extension for URL generation
+            const fileExtension =
+                fileName.toLowerCase().split('.').pop() || 'xlsx';
+            return await this.getFileUrl(fileName, fileExtension);
+        } catch (error) {
+            Logger.error(
+                `Failed to upload file to s3://${
+                    this.configuration.bucket
+                }/${fileName}: ${getErrorMessage(error)}`,
+            );
+            throw error;
+        }
     }
 }

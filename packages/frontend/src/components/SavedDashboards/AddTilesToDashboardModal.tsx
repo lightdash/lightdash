@@ -2,7 +2,6 @@ import {
     DashboardTileTypes,
     assertUnreachable,
     getDefaultChartTileSize,
-    type DashboardBasicDetailsWithTileTypes,
     type DashboardTile,
 } from '@lightdash/common';
 import {
@@ -12,11 +11,9 @@ import {
     Modal,
     Select,
     Stack,
-    Text,
     TextInput,
     Textarea,
     Title,
-    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
@@ -24,16 +21,8 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import {
-    forwardRef,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
-import { useSavedSemanticViewerChart } from '../../features/semanticViewer/api/hooks';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
     appendNewTilesToBottom,
@@ -64,25 +53,6 @@ interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     spaceUuid: string;
 }
 
-const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ label, disabled, ...others }: ItemProps, ref) => (
-        <div ref={ref} {...others}>
-            <Tooltip
-                label={
-                    'Dashboard has charts created from a different semantic layer connection'
-                }
-                disabled={!disabled}
-                position="top-start"
-                withinPortal
-            >
-                <Text c={disabled ? 'dimmed' : 'gray.8'} fw={500} fz="xs">
-                    {label}
-                </Text>
-            </Tooltip>
-        </div>
-    ),
-);
-
 const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     isOpen,
     projectUuid,
@@ -104,13 +74,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const sqlChartQuery = useSavedSqlChart(
         { projectUuid, uuid: uuid },
         { enabled: dashboardTileType === DashboardTileTypes.SQL_CHART },
-    );
-    const semanticViewerChartQuery = useSavedSemanticViewerChart(
-        { projectUuid, findBy: { uuid } },
-        {
-            enabled:
-                dashboardTileType === DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-        },
     );
 
     const tile = useMemo<
@@ -164,31 +127,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     },
                 };
 
-            case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
-                if (!semanticViewerChartQuery.isSuccess) return;
-
-                return {
-                    props: {
-                        uuid: semanticViewerChartQuery.data
-                            .savedSemanticViewerChartUuid,
-                        spaceUuid: semanticViewerChartQuery.data.space.uuid,
-                    },
-                    payload: {
-                        uuid: uuid4(),
-                        type: DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-                        properties: {
-                            chartName: semanticViewerChartQuery.data.name,
-                            savedSemanticViewerChartUuid:
-                                semanticViewerChartQuery.data
-                                    .savedSemanticViewerChartUuid,
-                        },
-                        tabUuid: undefined,
-                        ...getDefaultChartTileSize(
-                            semanticViewerChartQuery.data.config.type,
-                        ),
-                    },
-                };
-
             case DashboardTileTypes.LOOM:
             case DashboardTileTypes.MARKDOWN:
                 throw new Error(
@@ -200,12 +138,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     `Unsupported chart tile type: ${dashboardTileType}`,
                 );
         }
-    }, [
-        dashboardTileType,
-        exploreChartQuery,
-        sqlChartQuery,
-        semanticViewerChartQuery,
-    ]);
+    }, [dashboardTileType, exploreChartQuery, sqlChartQuery]);
 
     const { data: dashboards, isInitialLoading: isLoadingDashboards } =
         useDashboards(
@@ -233,47 +166,16 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
     const currentSpace = spaces?.find((s) => s.uuid === tile?.props.spaceUuid);
 
-    const isDashboardSelectItemDisabled = useCallback(
-        (dashboard: DashboardBasicDetailsWithTileTypes) => {
-            switch (dashboardTileType) {
-                case DashboardTileTypes.SAVED_CHART:
-                case DashboardTileTypes.SQL_CHART:
-                    return dashboard.tileTypes.includes(
-                        DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-                    );
-                case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
-                    return (
-                        dashboard.tileTypes.includes(
-                            DashboardTileTypes.SAVED_CHART,
-                        ) ||
-                        dashboard.tileTypes.includes(
-                            DashboardTileTypes.SQL_CHART,
-                        )
-                    );
-                case DashboardTileTypes.LOOM:
-                case DashboardTileTypes.MARKDOWN:
-                    return false;
-                default:
-                    return assertUnreachable(
-                        dashboardTileType,
-                        `Unknown tile type: ${dashboardTileType}`,
-                    );
-            }
-        },
-        [dashboardTileType],
-    );
-
     const dashboardSelectItems = useMemo(() => {
         return (
             dashboards?.map<ItemProps>((d) => ({
                 value: d.uuid,
                 label: d.name,
                 group: spaces?.find((s) => s.uuid === d.spaceUuid)?.name,
-                disabled: isDashboardSelectItemDisabled(d),
                 spaceUuid: d.spaceUuid, // ? Adding spaceUuid here for simplicity of selecting the default value in the select
             })) ?? []
         );
-    }, [dashboards, isDashboardSelectItemDisabled, spaces]);
+    }, [dashboards, spaces]);
 
     const form = useForm({
         initialValues: {
@@ -411,7 +313,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 }
                                 withinPortal
                                 required
-                                itemComponent={SelectItem}
                                 {...form.getInputProps('dashboardUuid')}
                             />
                             <Anchor

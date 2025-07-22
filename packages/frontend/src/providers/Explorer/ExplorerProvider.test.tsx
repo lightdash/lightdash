@@ -1,7 +1,6 @@
 import {
     ChartType,
     Compact,
-    ConditionalOperator,
     CustomFormatType,
     FilterOperator,
     getItemId,
@@ -1085,7 +1084,7 @@ describe('ExplorerProvider reducer', () => {
                         {
                             id: 'rule-2',
                             target: { fieldId: 'metric_1' },
-                            operator: ConditionalOperator.GREATER_THAN,
+                            operator: FilterOperator.GREATER_THAN,
                             values: [100],
                         },
                     ],
@@ -1124,7 +1123,7 @@ describe('ExplorerProvider reducer', () => {
                         {
                             id: 'mock-rule',
                             target: { fieldId: 'mock_field' },
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['mock-value'],
                         },
                     ],
@@ -1427,7 +1426,7 @@ describe('ExplorerProvider reducer', () => {
                                     {
                                         id: 'mock-rule',
                                         target: { fieldId: previousMetricName },
-                                        operator: ConditionalOperator.EQUALS,
+                                        operator: FilterOperator.EQUALS,
                                         values: ['mock-value'],
                                     },
                                 ],
