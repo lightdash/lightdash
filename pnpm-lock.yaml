@@ -579,6 +579,9 @@ importers:
       nunjucks:
         specifier: ^3.2.3
         version: 3.2.3(chokidar@3.6.0)
+      openid-client:
+        specifier: ^5.6.4
+        version: 5.6.4
       ora:
         specifier: 5.4.1
         version: 5.4.1
@@ -643,6 +646,9 @@ importers:
       dependency-graph:
         specifier: ^0.11.0
         version: 0.11.0
+      handlebars:
+        specifier: ^4.7.8
+        version: 4.7.8
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
@@ -680,6 +686,9 @@ importers:
         specifier: ^3.25.55
         version: 3.25.55
     devDependencies:
+      '@types/handlebars':
+        specifier: ^4.1.0
+        version: 4.1.0
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -5346,6 +5355,10 @@ packages:
 
   '@types/graceful-fs@4.1.5':
     resolution: {integrity: sha512-anKkLmZZ+xm4p8JWBf4hElkM4XR+EZeA2M9BAkkTldmcyDY4mbdIJnRghDJH3Ov5ooY7/UAoENtmdMSkaAd7Cw==}
+
+  '@types/handlebars@4.1.0':
+    resolution: {integrity: sha512-gq9YweFKNNB1uFK71eRqsd4niVkXrxHugqWFQkeLRJvGjnxsLr16bYtcsG4tOFwmYi0Bax+wCkbf1reUfdl4kA==}
+    deprecated: This is a stub types definition. handlebars provides its own type definitions, so you do not need this installed.
 
   '@types/hast@2.3.1':
     resolution: {integrity: sha512-viwwrB+6xGzw+G1eWpF9geV3fnsDgXqHG+cqgiHrvQfDUW5hzhCyV7Sy3UJxhfRFBsgky2SSW33qi/YrIkjX5Q==}
@@ -19624,6 +19637,10 @@ snapshots:
   '@types/graceful-fs@4.1.5':
     dependencies:
       '@types/node': 22.15.3
+
+  '@types/handlebars@4.1.0':
+    dependencies:
+      handlebars: 4.7.8
 
   '@types/hast@2.3.1':
     dependencies:

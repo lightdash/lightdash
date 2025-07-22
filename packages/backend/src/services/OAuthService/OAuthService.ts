@@ -42,9 +42,11 @@ export class OAuthService extends BaseService {
     private initializeOAuthServer(): void {
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
-            accessTokenLifetime: 60 * 60,
-            refreshTokenLifetime: 60 * 60 * 24 * 30,
             allowBearerTokensInQueryString: true,
+            accessTokenLifetime:
+                this.lightdashConfig.auth.oauthServer?.accessTokenLifetime,
+            refreshTokenLifetime:
+                this.lightdashConfig.auth.oauthServer?.refreshTokenLifetime,
         });
     }
 

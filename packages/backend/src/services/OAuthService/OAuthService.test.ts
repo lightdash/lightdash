@@ -45,7 +45,10 @@ describe('OAuthService', () => {
                 organizationUuid: 'org-uuid',
             },
         });
-        mockLightdashConfig = { siteUrl: 'https://lightdash.com' } as AnyType;
+        mockLightdashConfig = {
+            siteUrl: 'https://lightdash.com',
+            auth: {},
+        } as AnyType;
         oauthService = new TestOAuthService({
             userModel: mockUserModel,
             oauthModel: mockOAuthModel,
@@ -153,7 +156,10 @@ describe('OAuthService edge cases', () => {
             revokeToken: jest.fn(),
             revokeRefreshToken: jest.fn(),
         } as AnyType;
-        mockLightdashConfig = { siteUrl: 'https://lightdash.com' } as AnyType;
+        mockLightdashConfig = {
+            siteUrl: 'https://lightdash.com',
+            auth: {},
+        } as AnyType;
         oauthService = new TestOAuthService({
             userModel: mockUserModel,
             oauthModel: mockOAuthModel,
