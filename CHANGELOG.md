@@ -1,3 +1,10 @@
+## [0.1826.3](https://github.com/lightdash/lightdash/compare/0.1826.2...0.1826.3) (2025-07-22)
+
+
+### Bug Fixes
+
+* get non preview project uuids ([#15924](https://github.com/lightdash/lightdash/issues/15924)) ([d252ec4](https://github.com/lightdash/lightdash/commit/d252ec47c5d3612e1538547c1e27e00034b0b0e9))
+
 ## [0.1826.2](https://github.com/lightdash/lightdash/compare/0.1826.1...0.1826.2) (2025-07-22)
 
 
