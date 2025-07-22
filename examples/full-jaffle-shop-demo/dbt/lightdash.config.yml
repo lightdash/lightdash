@@ -36,11 +36,11 @@ parameters:
     default: "all"
     options:
       - "all"
-      - "1"
-      - "2"
-      - "3"
-      - "4"
-      - "5"
+      - "free"
+      - "silver"
+      - "gold"
+      - "platinum"
+      - "diamond"
   time_zoom:
     label: "Time Zoom"
     description: "Select time period for MRR calculations"
