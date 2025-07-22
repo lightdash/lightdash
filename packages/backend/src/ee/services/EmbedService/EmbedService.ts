@@ -20,6 +20,7 @@ import {
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
+    formatRawRows,
     formatRows,
     getDashboardFiltersForTileAndTables,
     getDimensions,
@@ -60,6 +61,7 @@ import { BaseService } from '../../../services/BaseService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
 
@@ -845,12 +847,14 @@ export class EmbedService extends BaseService {
         };
     }
 
-    async calculateTotalFromSavedChart(
+    /**
+     * Common setup logic for saved chart calculations in embed context
+     */
+    private async _prepareSavedChartForCalculation(
         account: AnonymousAccount,
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
-        invalidateCache?: boolean,
     ) {
         const dashboardUuid = account.access.dashboardId;
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
@@ -904,6 +908,29 @@ export class EmbedService extends BaseService {
               )
             : chart.metricQuery;
 
+        return {
+            dashboardUuid,
+            chart,
+            explore,
+            metricQuery,
+        };
+    }
+
+    async calculateTotalFromSavedChart(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dashboardFilters?: DashboardFilters,
+        invalidateCache?: boolean,
+    ) {
+        const { dashboardUuid, chart, explore, metricQuery } =
+            await this._prepareSavedChartForCalculation(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dashboardFilters,
+            );
+
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             explore,
@@ -945,6 +972,133 @@ export class EmbedService extends BaseService {
         const row = rows[0];
 
         return row;
+    }
+
+    async calculateSubtotalsFromSavedChart(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dashboardFilters?: DashboardFilters,
+        columnOrder?: string[],
+        pivotDimensions?: string[],
+        invalidateCache?: boolean,
+    ) {
+        const { dashboardUuid, chart, explore, metricQuery } =
+            await this._prepareSavedChartForCalculation(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dashboardFilters,
+            );
+
+        // If columnOrder is not provided, derive it from the chart's metricQuery
+        const finalColumnOrder = columnOrder || [
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+            ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
+        ];
+
+        return this._calculateSubtotalsForEmbed(
+            account,
+            projectUuid,
+            explore,
+            metricQuery,
+            finalColumnOrder,
+            pivotDimensions,
+            chart.organizationUuid,
+            chart.uuid,
+            dashboardUuid,
+        );
+    }
+
+    private async _calculateSubtotalsForEmbed(
+        account: AnonymousAccount,
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        columnOrder: string[],
+        pivotDimensions?: string[],
+        organizationUuid?: string,
+        chartUuid?: string,
+        dashboardUuid?: string,
+    ) {
+        // Use the shared utility to prepare dimension groups
+        const { dimensionGroupsToSubtotal, analyticsData } =
+            SubtotalsCalculator.prepareDimensionGroups(
+                metricQuery,
+                columnOrder,
+                pivotDimensions,
+            );
+
+        // Track analytics for embed context
+        this.analytics.trackAccount(account, {
+            event: 'embed_query.subtotal',
+            properties: {
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                chartId: chartUuid,
+                organizationId: organizationUuid,
+                exploreName: explore.name,
+                ...analyticsData,
+            },
+        });
+
+        // Run the query for each dimension group using embed query runner
+        const subtotalsPromises = dimensionGroupsToSubtotal.map(
+            async (subtotalDimensions) => {
+                let subtotals: Record<string, unknown>[] = [];
+
+                try {
+                    // Use utility to create properly configured subtotal query
+                    const { metricQuery: subtotalMetricQuery } =
+                        SubtotalsCalculator.createSubtotalQueryConfig(
+                            metricQuery,
+                            subtotalDimensions,
+                            pivotDimensions,
+                        );
+
+                    const { rows, fields } = await this._runEmbedQuery({
+                        projectUuid,
+                        metricQuery: subtotalMetricQuery,
+                        explore,
+                        queryTags: {
+                            embed: 'true',
+                            external_id: account.user.id,
+                            project_uuid: projectUuid,
+                            organization_uuid: organizationUuid || '',
+                            chart_uuid: chartUuid || '',
+                            dashboard_uuid: dashboardUuid || '',
+                            explore_name: explore.name,
+                            query_context:
+                                QueryExecutionContext.CALCULATE_SUBTOTAL,
+                        },
+                        account,
+                    });
+
+                    // Format raw rows (this matches the logic in ProjectService)
+                    subtotals = formatRawRows(rows, fields) as Record<
+                        string,
+                        number
+                    >[];
+                } catch (e) {
+                    this.logger.error(
+                        `Error running subtotal query for dimensions ${subtotalDimensions.join(
+                            ',',
+                        )}`,
+                    );
+                }
+
+                return [
+                    SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
+                    subtotals,
+                ];
+            },
+        );
+
+        const subtotalsEntries = await Promise.all(subtotalsPromises);
+        return SubtotalsCalculator.formatSubtotalEntries(
+            subtotalsEntries as Array<[string, Record<string, unknown>[]]>,
+        );
     }
 
     async searchFilterValues({
