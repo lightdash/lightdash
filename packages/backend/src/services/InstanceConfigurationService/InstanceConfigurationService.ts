@@ -421,7 +421,7 @@ export class InstanceConfigurationService extends BaseService {
     }
 
     private async getSingleProject() {
-        const projectUuids = await this.projectModel.getProjectUuids();
+        const projectUuids = await this.projectModel.getDefaultProjectUuids();
         if (projectUuids.length !== 1) {
             throw new ParameterError(
                 `There must be exactly 1 project to update instance configuration, remove all the LD_SETUP* env variables or keep only one project to continue`,
