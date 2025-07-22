@@ -236,6 +236,14 @@ const models: TsoaRoute.Models = {
         enums: ['urn:ietf:params:scim:api:messages:2.0:ListResponse'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LightdashScimExtension: {
+        dataType: 'refObject',
+        properties: {
+            role: { dataType: 'string' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ScimUser: {
         dataType: 'refObject',
         properties: {
@@ -274,6 +282,9 @@ const models: TsoaRoute.Models = {
                         value: { dataType: 'string', required: true },
                     },
                 },
+            },
+            'urn:lightdash:params:scim:schemas:extension:2.0:User': {
+                ref: 'LightdashScimExtension',
             },
         },
         additionalProperties: true,
@@ -344,6 +355,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                'urn:lightdash:params:scim:schemas:extension:2.0:User': {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'LightdashScimExtension' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 schemas: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -682,12 +700,19 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Organization.name-or-organizationUuid_': {
+    'Pick_Organization.name-or-createdAt-or-organizationUuid_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                createdAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 organizationUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -714,7 +739,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 projectUuid: { dataType: 'string', required: true },
                 organization: {
-                    ref: 'Pick_Organization.name-or-organizationUuid_',
+                    ref: 'Pick_Organization.name-or-createdAt-or-organizationUuid_',
                     required: true,
                 },
                 dashboardUuids: {
@@ -12250,6 +12275,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                createdAt: { dataType: 'datetime' },
                 defaultProjectUuid: { dataType: 'string' },
                 needsProject: { dataType: 'boolean' },
                 colorPaletteUuid: { dataType: 'string' },
@@ -12299,6 +12325,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                createdAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
                         { dataType: 'undefined' },
                     ],
                 },

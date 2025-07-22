@@ -143,6 +143,15 @@
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
                 "type": "string"
             },
+            "LightdashScimExtension": {
+                "properties": {
+                    "role": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "additionalProperties": true
+            },
             "ScimUser": {
                 "properties": {
                     "schemas": {
@@ -208,6 +217,9 @@
                             "type": "object"
                         },
                         "type": "array"
+                    },
+                    "urn:lightdash:params:scim:schemas:extension:2.0:User": {
+                        "$ref": "#/components/schemas/LightdashScimExtension"
                     }
                 },
                 "required": ["schemas", "id", "userName", "name", "active"],
@@ -294,6 +306,9 @@
             },
             "Pick_ScimUser.Exclude_keyofScimUser.id__": {
                 "properties": {
+                    "urn:lightdash:params:scim:schemas:extension:2.0:User": {
+                        "$ref": "#/components/schemas/LightdashScimExtension"
+                    },
                     "schemas": {
                         "items": {
                             "type": "string"
@@ -634,11 +649,15 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "Pick_Organization.name-or-organizationUuid_": {
+            "Pick_Organization.name-or-createdAt-or-organizationUuid_": {
                 "properties": {
                     "name": {
                         "type": "string",
                         "description": "The name of the organization"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "organizationUuid": {
                         "type": "string",
@@ -672,7 +691,7 @@
                         "type": "string"
                     },
                     "organization": {
-                        "$ref": "#/components/schemas/Pick_Organization.name-or-organizationUuid_"
+                        "$ref": "#/components/schemas/Pick_Organization.name-or-createdAt-or-organizationUuid_"
                     },
                     "dashboardUuids": {
                         "items": {
@@ -13030,6 +13049,10 @@
             },
             "Organization": {
                 "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "defaultProjectUuid": {
                         "type": "string",
                         "description": "The project a user sees when they first log in to the organization"
@@ -13096,6 +13119,10 @@
                     "name": {
                         "type": "string",
                         "description": "The name of the organization"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "chartColors": {
                         "items": {
@@ -17624,7 +17651,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1817.1",
+        "version": "0.1826.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
