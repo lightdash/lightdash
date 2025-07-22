@@ -430,6 +430,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
 
                                         <Stack gap="xs">
                                             <MultiSelect
+                                                variant="subtle"
                                                 label={
                                                     <Group gap="xs">
                                                         <Text fz="sm" fw={500}>
