@@ -235,7 +235,6 @@ export class CatalogModel {
         projectUuid,
         exploreName,
         catalogSearch: { catalogTags, filter, searchQuery = '', type },
-        limit = 50,
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
@@ -248,7 +247,6 @@ export class CatalogModel {
         projectUuid: string;
         exploreName?: string;
         catalogSearch: ApiCatalogSearch;
-        limit?: number;
         excludeUnmatched?: boolean;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
@@ -559,9 +557,7 @@ export class CatalogModel {
             );
         }
 
-        catalogItemsQuery = catalogItemsQuery
-            .orderBy('search_rank', 'desc')
-            .limit(limit ?? 50);
+        catalogItemsQuery = catalogItemsQuery.orderBy('search_rank', 'desc');
 
         if (sortArgs) {
             const { sort, order } = sortArgs;
@@ -574,12 +570,11 @@ export class CatalogModel {
         }
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
-            catalogItemsQuery.select<
-                (DbCatalog & {
-                    explore: Explore;
-                })[]
-            >(),
-            paginateArgs,
+            catalogItemsQuery.select<(DbCatalog & { explore: Explore })[]>(),
+            {
+                page: paginateArgs?.page ?? 1,
+                pageSize: paginateArgs?.pageSize ?? 50,
+            },
         );
 
         const tagsPerItem = await this.getTagsPerItem(

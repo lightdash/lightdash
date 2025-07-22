@@ -4009,7 +4009,7 @@ export class ProjectService extends BaseService {
     }: {
         account: Account;
         projectUuid: string;
-        exploreNames: string[];
+        exploreNames?: string[];
         organizationUuid?: string;
     }): Promise<Record<string, Explore | ExploreError>> {
         return Sentry.startSpan(
