@@ -125,6 +125,12 @@ describe('Parse grammar', () => {
         expect(parser.parse('>= 15')).toEqual({ type: '>=', values: [15] });
     });
 
+    it('Negative numbers in operators', async () => {
+        expect(parser.parse('>= -1')).toEqual({ type: '>=', values: [-1] });
+        expect(parser.parse('< -5')).toEqual({ type: '<', values: [-5] });
+        expect(parser.parse('> -10.5')).toEqual({ type: '>', values: [-10.5] });
+    });
+
     it('Float number', async () => {
         expect(parser.parse('< 15.0')).toEqual({ type: '<', values: [15] });
         expect(parser.parse('> 15.05')).toEqual({ type: '>', values: [15.05] });
