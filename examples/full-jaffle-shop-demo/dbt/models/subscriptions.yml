@@ -65,7 +65,6 @@ models:
           meta:
             dimension:
               type: string
-              sql: ${plan.plan_name}
               colors:
                 "free": "#E0E0E0"
                 "silver": "#C0C0C0" 
