@@ -62,10 +62,7 @@ export async function up(knex: Knex): Promise<void> {
         VALUES (
             'lightdash-cli',
             null,
-            ARRAY[${Array.from(
-                { length: 11 },
-                (_, i) => `'http://localhost:${8100 + i}/callback'`,
-            ).join(', ')}],
+            ARRAY['http://localhost:*/callback'],
             ARRAY['authorization_code', 'refresh_token', 'client_credentials'],
             ARRAY['read', 'write'],
             'Lightdash CLI'

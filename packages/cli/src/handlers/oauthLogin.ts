@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { exec } from 'child_process';
 import * as http from 'http';
-import { createServer } from 'net';
 import fetch from 'node-fetch';
 import { generators, Issuer } from 'openid-client';
 import { URL } from 'url';
@@ -15,44 +14,6 @@ import * as styles from '../styles';
 import { generatePersonalAccessToken } from './login/pat';
 
 const execAsync = promisify(exec);
-
-// Helper function to find an available port
-const findAvailablePort = async (
-    startPort: number,
-    endPort: number,
-): Promise<number> => {
-    const ports = Array.from(
-        { length: endPort - startPort + 1 },
-        (_, i) => startPort + i,
-    );
-
-    const checkPort = async (port: number): Promise<number | null> => {
-        try {
-            await new Promise<void>((resolve, reject) => {
-                const server = createServer();
-                server.listen(port, () => {
-                    server.close();
-                    resolve();
-                });
-                server.on('error', () => {
-                    reject();
-                });
-            });
-            return port;
-        } catch {
-            return null;
-        }
-    };
-
-    const results = await Promise.all(ports.map(checkPort));
-    const availablePort = results.find((port) => port !== null);
-
-    if (availablePort === null || availablePort === undefined) {
-        throw new Error('No available ports found');
-    }
-
-    return availablePort;
-};
 
 // Helper function to open browser
 const openBrowser = async (url: string): Promise<void> => {
@@ -74,31 +35,6 @@ const openBrowser = async (url: string): Promise<void> => {
 export const loginWithOauth = async (
     url: string,
 ): Promise<{ userUuid: string; organizationUuid: string; token: string }> => {
-    // Find an available port
-    const port = await findAvailablePort(8100, 8110);
-    const redirectUri = `http://localhost:${port}/callback`;
-
-    // Create OAuth2 issuer and client using openid-client
-    const issuerUrl = new URL('/api/v1/oauth', url).href;
-    const issuer = new Issuer({
-        issuer: issuerUrl,
-        authorization_endpoint: new URL('/api/v1/oauth/authorize', url).href,
-        token_endpoint: new URL('/api/v1/oauth/token', url).href,
-    });
-
-    const client = new issuer.Client({
-        client_id: 'lightdash-cli',
-        redirect_uris: [redirectUri],
-        response_types: ['code'],
-        token_endpoint_auth_method: 'none', // Public client (no client secret)
-        id_token_signed_response_alg: 'none', // Disable ID token validation for OAuth2
-    });
-
-    // Generate PKCE values using openid-client generators
-    const codeVerifier = generators.codeVerifier();
-    const codeChallenge = generators.codeChallenge(codeVerifier);
-    const state = generators.state();
-
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
     let rejectAuth: (reason: Error) => void;
@@ -108,6 +44,12 @@ export const loginWithOauth = async (
             rejectAuth = reject;
         },
     );
+    let port = 0; // Port will be set by once the CLI callback server starts, using a random port number
+
+    // Generate PKCE values using openid-client generators
+    const codeVerifier = generators.codeVerifier();
+    const codeChallenge = generators.codeChallenge(codeVerifier);
+    const state = generators.state();
 
     // Create HTTP server to handle the callback
     const server = http.createServer((req, res) => {
@@ -189,12 +131,40 @@ export const loginWithOauth = async (
 
     // Start the server
     await new Promise<void>((resolve) => {
-        server.listen(port, () => {
+        server.listen(0, () => {
+            const address = server.address();
+            if (address === null)
+                throw new Error('Failed to get server address');
+
+            if (typeof address === 'object') {
+                port = address.port;
+            } else {
+                port = parseInt(address.toString(), 10);
+            }
             GlobalState.debug(
                 `> OAuth callback server listening on port ${port}`,
             );
+
             resolve();
         });
+    });
+    const redirectUri = `http://localhost:${port}/callback`;
+    GlobalState.debug(`> Starting CLI callback server on URI: ${redirectUri}`);
+    // TODO: This is a temporary solution to get the OAuth2 issuer and client using openid-client.
+    // Create OAuth2 issuer and client using openid-client
+    const issuerUrl = new URL('/api/v1/oauth', url).href;
+    const issuer = new Issuer({
+        issuer: issuerUrl,
+        authorization_endpoint: new URL('/api/v1/oauth/authorize', url).href,
+        token_endpoint: new URL('/api/v1/oauth/token', url).href,
+    });
+
+    const client = new issuer.Client({
+        client_id: 'lightdash-cli',
+        redirect_uris: [redirectUri],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none', // Public client (no client secret)
+        id_token_signed_response_alg: 'none', // Disable ID token validation for OAuth2
     });
 
     try {
