@@ -9301,7 +9301,15 @@
                     "options": {
                         "$ref": "#/components/schemas/SchedulerOptions"
                     },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartName": {
                         "type": "string",
                         "nullable": true
                     },
@@ -9317,6 +9325,10 @@
                     },
                     "format": {
                         "$ref": "#/components/schemas/SchedulerFormat"
+                    },
+                    "createdByName": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "createdBy": {
                         "type": "string"
@@ -9343,10 +9355,13 @@
                     "includeLinks",
                     "enabled",
                     "options",
+                    "dashboardName",
                     "dashboardUuid",
+                    "savedChartName",
                     "savedChartUuid",
                     "cron",
                     "format",
+                    "createdByName",
                     "createdBy",
                     "updatedAt",
                     "createdAt",
