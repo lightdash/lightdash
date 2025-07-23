@@ -236,6 +236,14 @@ const models: TsoaRoute.Models = {
         enums: ['urn:ietf:params:scim:api:messages:2.0:ListResponse'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LightdashScimExtension: {
+        dataType: 'refObject',
+        properties: {
+            role: { dataType: 'string' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ScimUser: {
         dataType: 'refObject',
         properties: {
@@ -274,6 +282,9 @@ const models: TsoaRoute.Models = {
                         value: { dataType: 'string', required: true },
                     },
                 },
+            },
+            'urn:lightdash:params:scim:schemas:extension:2.0:User': {
+                ref: 'LightdashScimExtension',
             },
         },
         additionalProperties: true,
@@ -344,6 +355,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                'urn:lightdash:params:scim:schemas:extension:2.0:User': {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'LightdashScimExtension' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 schemas: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -682,12 +700,19 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Organization.name-or-organizationUuid_': {
+    'Pick_Organization.name-or-createdAt-or-organizationUuid_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                createdAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 organizationUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -714,7 +739,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 projectUuid: { dataType: 'string', required: true },
                 organization: {
-                    ref: 'Pick_Organization.name-or-organizationUuid_',
+                    ref: 'Pick_Organization.name-or-createdAt-or-organizationUuid_',
                     required: true,
                 },
                 dashboardUuids: {
@@ -4318,7 +4343,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_':
+    'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_':
         {
             dataType: 'refAlias',
             type: {
@@ -4375,6 +4400,11 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    groupAccess: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                        required: true,
+                    },
                 },
                 validators: {},
             },
@@ -4383,7 +4413,7 @@ const models: TsoaRoute.Models = {
     AiAgentSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_',
+            ref: 'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_',
             validators: {},
         },
     },
@@ -4404,7 +4434,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_':
+    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_':
         {
             dataType: 'refAlias',
             type: {
@@ -4461,6 +4491,11 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    groupAccess: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                        required: true,
+                    },
                 },
                 validators: {},
             },
@@ -4469,7 +4504,7 @@ const models: TsoaRoute.Models = {
     AiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_',
+            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_',
             validators: {},
         },
     },
@@ -4498,7 +4533,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl_':
+    'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess_':
         {
             dataType: 'refAlias',
             type: {
@@ -4551,6 +4586,11 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    groupAccess: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                        required: true,
+                    },
                 },
                 validators: {},
             },
@@ -4559,12 +4599,12 @@ const models: TsoaRoute.Models = {
     ApiCreateAiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl_',
+            ref: 'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess_',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl__':
+    'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess__':
         {
             dataType: 'refAlias',
             type: {
@@ -4634,6 +4674,16 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    groupAccess: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
@@ -4645,7 +4695,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl__',
+                    ref: 'Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess__',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -12225,6 +12275,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                createdAt: { dataType: 'datetime' },
                 defaultProjectUuid: { dataType: 'string' },
                 needsProject: { dataType: 'boolean' },
                 colorPaletteUuid: { dataType: 'string' },
@@ -12274,6 +12325,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                createdAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
                         { dataType: 'undefined' },
                     ],
                 },

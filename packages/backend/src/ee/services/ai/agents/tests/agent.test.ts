@@ -1,11 +1,10 @@
-import { CoreAssistantMessage, CoreMessage } from 'ai';
+import { CoreMessage } from 'ai';
 import fetchMock from 'jest-fetch-mock';
 import { generateAgentResponse } from '../agent';
 import {
     createArgs as createArgsFactory,
     createMessage,
     createMockDepsFactory,
-    createToolMessage,
     createToolMessages,
     mockExploresSummary,
     promptTestUtils,
