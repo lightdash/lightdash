@@ -1,3 +1,10 @@
+## [0.1827.2](https://github.com/lightdash/lightdash/compare/0.1827.1...0.1827.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* remove nullable (can be an empty array) from tableVizConfigSchema dimensions ([#15921](https://github.com/lightdash/lightdash/issues/15921)) ([7521a14](https://github.com/lightdash/lightdash/commit/7521a14b139fa406493dd0424fd48a890564390c))
+
 ## [0.1827.1](https://github.com/lightdash/lightdash/compare/0.1827.0...0.1827.1) (2025-07-22)
 
 
