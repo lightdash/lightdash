@@ -83,7 +83,10 @@ const AgentPage = () => {
         projectUuid,
     });
 
-    const { data: agentsList } = useProjectAiAgents(projectUuid!);
+    const { data: agentsList } = useProjectAiAgents({
+        projectUuid: projectUuid!,
+        redirectOnUnauthorized: true,
+    });
 
     const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid);
 

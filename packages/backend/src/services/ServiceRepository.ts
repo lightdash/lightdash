@@ -27,6 +27,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
+import { PivotTableService } from './PivotTableService/PivotTableService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
@@ -64,6 +65,7 @@ interface ServiceManifest {
     organizationService: OrganizationService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
+    pivotTableService: PivotTableService;
     projectService: ProjectService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -282,6 +284,7 @@ export class ServiceRepository
                     downloadFileModel: this.models.getDownloadFileModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     projectModel: this.models.getProjectModel(),
+                    pivotTableService: this.getPivotTableService(),
                 }),
         );
     }
@@ -447,6 +450,18 @@ export class ServiceRepository
         );
     }
 
+    public getPivotTableService(): PivotTableService {
+        return this.getService(
+            'pivotTableService',
+            () =>
+                new PivotTableService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    s3Client: this.clients.getS3Client(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
+                }),
+        );
+    }
+
     public getProjectService(): ProjectService {
         return this.getService(
             'projectService',
@@ -521,10 +536,10 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
-                    csvService: this.getCsvService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
+                    pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
                 }),
         );

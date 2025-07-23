@@ -1,3 +1,64 @@
+## [0.1829.1](https://github.com/lightdash/lightdash/compare/0.1829.0...0.1829.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* add import of icon ([#15951](https://github.com/lightdash/lightdash/issues/15951)) ([f2dd0bc](https://github.com/lightdash/lightdash/commit/f2dd0bc497f561e7c8d4e38dd49c310f732347c2))
+
+# [0.1829.0](https://github.com/lightdash/lightdash/compare/0.1828.0...0.1829.0) (2025-07-23)
+
+
+### Features
+
+* add group access to ai agents  ([#15937](https://github.com/lightdash/lightdash/issues/15937)) ([aad25fb](https://github.com/lightdash/lightdash/commit/aad25fb6f6adace469f95edc5f0f9460de9e6044)), closes [#15706](https://github.com/lightdash/lightdash/issues/15706) [#15385](https://github.com/lightdash/lightdash/issues/15385)
+
+# [0.1828.0](https://github.com/lightdash/lightdash/compare/0.1827.2...0.1828.0) (2025-07-23)
+
+
+### Bug Fixes
+
+* Markdown tile image obscured by comment icon on hover ([#15900](https://github.com/lightdash/lightdash/issues/15900)) ([d56d604](https://github.com/lightdash/lightdash/commit/d56d604e403c38f93d9e682d7a8fca2f3da22579)), closes [#15898](https://github.com/lightdash/lightdash/issues/15898)
+
+
+### Features
+
+* support array format for AI hints ([#15897](https://github.com/lightdash/lightdash/issues/15897)) ([9e9b0b2](https://github.com/lightdash/lightdash/commit/9e9b0b295184359ec1a464b724f52056fac4b66e))
+
+## [0.1827.2](https://github.com/lightdash/lightdash/compare/0.1827.1...0.1827.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* remove nullable (can be an empty array) from tableVizConfigSchema dimensions ([#15921](https://github.com/lightdash/lightdash/issues/15921)) ([7521a14](https://github.com/lightdash/lightdash/commit/7521a14b139fa406493dd0424fd48a890564390c))
+
+## [0.1827.1](https://github.com/lightdash/lightdash/compare/0.1827.0...0.1827.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* **sql-runner:** apply limit in final query ([#15887](https://github.com/lightdash/lightdash/issues/15887)) ([c34ca84](https://github.com/lightdash/lightdash/commit/c34ca84c1110399da422f6c2af1c20f6b128c5e8))
+
+# [0.1827.0](https://github.com/lightdash/lightdash/compare/0.1826.3...0.1827.0) (2025-07-22)
+
+
+### Features
+
+* ai agents - refactor slack integrations ui ([#15940](https://github.com/lightdash/lightdash/issues/15940)) ([80722e2](https://github.com/lightdash/lightdash/commit/80722e245a905551746e3753281404d661bd2b7a)), closes [/github.com/lightdash/lightdash/pull/15815#issuecomment-3058293794](https://github.com//github.com/lightdash/lightdash/pull/15815/issues/issuecomment-3058293794) [/github.com/lightdash/lightdash/pull/15815#pullrequestreview-3008739226](https://github.com//github.com/lightdash/lightdash/pull/15815/issues/pullrequestreview-3008739226)
+
+## [0.1826.3](https://github.com/lightdash/lightdash/compare/0.1826.2...0.1826.3) (2025-07-22)
+
+
+### Bug Fixes
+
+* get non preview project uuids ([#15924](https://github.com/lightdash/lightdash/issues/15924)) ([d252ec4](https://github.com/lightdash/lightdash/commit/d252ec47c5d3612e1538547c1e27e00034b0b0e9))
+
+## [0.1826.2](https://github.com/lightdash/lightdash/compare/0.1826.1...0.1826.2) (2025-07-22)
+
+
+### Bug Fixes
+
+* validate field existence in visualization tools ([#15920](https://github.com/lightdash/lightdash/issues/15920)) ([1df884f](https://github.com/lightdash/lightdash/commit/1df884fb8097641ebf5ed941abd200fc17781ab4)), closes [#15919](https://github.com/lightdash/lightdash/issues/15919)
+
 ## [0.1826.1](https://github.com/lightdash/lightdash/compare/0.1826.0...0.1826.1) (2025-07-22)
 
 

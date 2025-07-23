@@ -19,7 +19,6 @@ export const tableVizConfigSchema = z
             ),
         dimensions: z
             .array(getFieldIdSchema({ additionalDescription: null }))
-            .nullable()
             .describe(
                 'The field id for the dimensions to group the metrics by',
             ),

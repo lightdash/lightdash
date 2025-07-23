@@ -14,7 +14,9 @@ models:
           - join: plan
             sql_on: ${membership.plan_id} = ${plan.id}
             relationship: many-to-one
-        ai_hint: This is a customers table.
+        ai_hint: 
+          - This is a customers table.
+          - Contains customer information and demographics.
     description: |
       # Customers
 
@@ -65,8 +67,9 @@ models:
         config:
           meta:
             dimension:
-              ai_hint: |
-                  Last name of the customer. PII.
+              ai_hint: 
+                - Last name of the customer
+                - Contains PII data
       - name: age
         description: Customer's age
         config:
