@@ -83,7 +83,7 @@ export type UncompiledExplore = {
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
-    aiHint?: string;
+    aiHint?: string | string[];
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
 };
