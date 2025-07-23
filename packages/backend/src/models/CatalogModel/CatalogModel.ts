@@ -135,6 +135,7 @@ export class CatalogModel {
                                     .delete();
 
                                 const BATCH_SIZE = 3000;
+
                                 const results = await trx
                                     .batchInsert<DbCatalog>(
                                         CatalogTableName,
@@ -235,9 +236,9 @@ export class CatalogModel {
         catalogSearch: { catalogTags, filter, searchQuery = '', type },
         limit = 50,
         excludeUnmatched = true,
-        searchRankFunction = getFullTextSearchRankCalcSql,
         tablesConfiguration,
         userAttributes,
+        yamlTags,
         paginateArgs,
         sortArgs,
         context,
@@ -247,24 +248,13 @@ export class CatalogModel {
         catalogSearch: ApiCatalogSearch;
         limit?: number;
         excludeUnmatched?: boolean;
-        searchRankFunction?: (args: {
-            database: Knex;
-            variables: Record<string, string>;
-        }) => Knex.Raw;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
+        yamlTags: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
         context: CatalogSearchContext;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
-        const searchRankRawSql = searchRankFunction({
-            database: this.database,
-            variables: {
-                searchVectorColumn: `${CatalogTableName}.search_vector`,
-                searchQuery,
-            },
-        });
-
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
@@ -276,9 +266,14 @@ export class CatalogModel {
                 `required_attributes`,
                 `chart_usage`,
                 `icon`,
-                // Add tags as an aggregated JSON array
                 {
-                    search_rank: searchRankRawSql,
+                    search_rank: getFullTextSearchRankCalcSql({
+                        database: this.database,
+                        variables: {
+                            searchVectorColumn: `${CatalogTableName}.search_vector`,
+                            searchQuery,
+                        },
+                    }),
                 },
             )
             .leftJoin(
@@ -456,6 +451,76 @@ export class CatalogModel {
                                 );
                         });
                     }
+                },
+            );
+        }
+
+        if (yamlTags) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                function yamlTagsFiltering() {
+                    void this
+                        // Condition 1: The item itself has a matching tag.
+                        // This correctly includes any tagged field or table.
+                        .whereRaw(
+                            `${CatalogTableName}.yaml_tags && ?::text[]`,
+                            [yamlTags],
+                        )
+
+                        // Condition 2: The item is part of an explore where ONLY the explore-level
+                        // table is tagged, making all items in that explore visible.
+                        .orWhere(function exploreTaggedButFieldsAreNot() {
+                            void this.whereExists(function exploreIsTagged() {
+                                void this.select('name')
+                                    .from(
+                                        `${CatalogTableName} as explore_table`,
+                                    )
+                                    .whereRaw(
+                                        `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                    )
+                                    .andWhere('explore_table.type', 'table')
+                                    .andWhereRaw(
+                                        `explore_table.yaml_tags && ?::text[]`,
+                                        [yamlTags],
+                                    );
+                            }).whereNotExists(function anyFieldIsTagged() {
+                                void this.select('name')
+                                    .from(
+                                        `${CatalogTableName} as any_field_in_explore`,
+                                    )
+                                    .whereRaw(
+                                        `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                    )
+                                    .andWhereNot(
+                                        'any_field_in_explore.type',
+                                        'table',
+                                    )
+                                    .andWhereRaw(
+                                        `any_field_in_explore.yaml_tags && ?::text[]`,
+                                        [yamlTags],
+                                    );
+                            });
+                        })
+
+                        // Condition 3: The item is a table, and at least one of its
+                        // child fields has a matching tag. This ensures the parent table is
+                        // always included if any of its fields are visible.
+                        .orWhere(function isTableWithTaggedChildren() {
+                            void this.where(
+                                `${CatalogTableName}.type`,
+                                'table',
+                            ).whereExists(function hasTaggedChild() {
+                                void this.select('name')
+                                    .from(`${CatalogTableName} as child_field`)
+                                    .whereRaw(
+                                        `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                    )
+                                    .andWhereNot('child_field.type', 'table')
+                                    .andWhereRaw(
+                                        `child_field.yaml_tags && ?::text[]`,
+                                        [yamlTags],
+                                    );
+                            });
+                        });
                 },
             );
         }
