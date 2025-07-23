@@ -10,6 +10,7 @@ import {
     LightdashMode,
     LightdashVersionHeader,
     MissingConfigError,
+    OauthAuthenticationError,
     Project,
     ServiceAccount,
     SessionUser,
@@ -653,6 +654,18 @@ export default class App {
                         method: req.method,
                     },
                 });
+
+                // Check if this is an OAuth endpoint and return OAuth2-compliant error response
+                if (error instanceof OauthAuthenticationError) {
+                    const oauthErrorResponse = {
+                        error: errorResponse.data?.error || 'server_error',
+                        error_description: errorResponse.message,
+                    };
+                    res.status(errorResponse.statusCode).send(
+                        oauthErrorResponse,
+                    );
+                    return;
+                }
 
                 const apiErrorResponse: ApiError = {
                     status: 'error',

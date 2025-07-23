@@ -16,6 +16,7 @@ import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
+import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
@@ -60,6 +61,7 @@ export type ModelManifest = {
     jobModel: JobModel;
     migrationModel: MigrationModel;
     notificationsModel: NotificationsModel;
+    oauthModel: OAuth2Model;
     onboardingModel: OnboardingModel;
     openIdIdentityModel: OpenIdIdentityModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
@@ -274,6 +276,13 @@ export class ModelRepository
         return this.getModel(
             'notificationsModel',
             () => new NotificationsModel({ database: this.database }),
+        );
+    }
+
+    public getOauthModel(): OAuth2Model {
+        return this.getModel(
+            'oauthModel',
+            () => new OAuth2Model(this.database),
         );
     }
 

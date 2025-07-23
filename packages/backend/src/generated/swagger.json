@@ -1958,7 +1958,17 @@
                         "type": "boolean"
                     },
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     }
                 },
                 "required": [
@@ -3829,7 +3839,17 @@
             "TableBase": {
                 "properties": {
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     },
                     "defaultTimeDimension": {
                         "$ref": "#/components/schemas/DefaultTimeDimension"
@@ -3993,7 +4013,17 @@
                         "type": "boolean"
                     },
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     }
                 },
                 "required": [
@@ -4183,7 +4213,17 @@
                         "type": "object"
                     },
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     }
                 },
                 "required": [
@@ -4296,7 +4336,17 @@
             "Explore": {
                 "properties": {
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     },
                     "spotlight": {
                         "properties": {
@@ -15182,7 +15232,17 @@
                         "type": "string"
                     },
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -15241,7 +15301,17 @@
                         "type": "string"
                     },
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     },
                     "errors": {
                         "items": {
@@ -15339,7 +15409,17 @@
                         "type": "string"
                     },
                     "aiHint": {
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     },
                     "baseTable": {
                         "type": "string"
@@ -17794,7 +17874,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1826.2",
+        "version": "0.1829.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

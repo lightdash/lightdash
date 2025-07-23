@@ -19,6 +19,8 @@ export enum AuthTokenPrefix {
     SCIM = 'scim_',
     SERVICE_ACCOUNT = 'ldsvc_',
     PERSONAL_ACCESS_TOKEN = 'ldpat_',
+    OAUTH_APP = 'ldapp_',
+    OAUTH_REFRESH = 'ldref_',
 }
 
 export type AuthType =
