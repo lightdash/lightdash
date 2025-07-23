@@ -1,3 +1,10 @@
+## [0.1829.1](https://github.com/lightdash/lightdash/compare/0.1829.0...0.1829.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* add import of icon ([#15951](https://github.com/lightdash/lightdash/issues/15951)) ([f2dd0bc](https://github.com/lightdash/lightdash/commit/f2dd0bc497f561e7c8d4e38dd49c310f732347c2))
+
 # [0.1829.0](https://github.com/lightdash/lightdash/compare/0.1828.0...0.1829.0) (2025-07-23)
 
 
