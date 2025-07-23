@@ -1,14 +1,7 @@
-import {
-    AnyType,
-    AuthTokenPrefix,
-    ForbiddenError,
-    NotFoundError,
-    UserWithOrganizationUuid,
-} from '@lightdash/common';
+import { UserWithOrganizationUuid } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import { NextFunction, Request, Response } from 'express';
 import { LightdashConfig } from '../../config/parseConfig';
-import { DEFAULT_OAUTH_CLIENT_ID, OAuth2Model } from '../../models/OAuth2Model';
+import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 

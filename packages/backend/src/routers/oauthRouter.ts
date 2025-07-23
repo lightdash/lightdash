@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { OAuthIntrospectResponse, oauthPageStyles } from '@lightdash/common';
+import {
+    generateOAuthAuthorizePage,
+    OAuthIntrospectResponse,
+} from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
@@ -31,86 +34,52 @@ oauthRouter.get('/authorize', async (req, res, next) => {
     if (!client_id || !redirect_uri || !scope) {
         return res.status(400).send('Missing required parameters');
     }
-    // Render authorize page
+    // Render authorize page using Handlebars template
     res.set('Content-Type', 'text/html');
-    return res.send(`
-        <html>
-            <head>
-                <title>Authorize Application</title>
-                <style>${oauthPageStyles}
-                .container, .container p, .container strong, .container form { text-align: center; }
-                .container p { margin-left: auto; margin-right: auto; }
-                .oauth-desc { margin-bottom: 18px; color: #374151; font-size: 12px; }
-                .oauth-btn-row { display: flex; justify-content: center; gap: 12px; margin-top: 18px; }
-                .oauth-btn {
-                    padding: 8px 24px;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: 600;
-                    font-size: 15px;
-                    cursor: pointer;
-                    transition: background 0.15s;
-                }
-                .oauth-btn.approve {
-                    background: #00B26F;
-                    color: #fff;
-                }
-                .oauth-btn.approve:hover {
-                    background: #00975E;
-                }
-                .oauth-btn.deny {
-                    background: #E03131;
-                    color: #fff;
-                }
-                .oauth-btn.deny:hover {
-                    background: #B32525;
-                }
-                </style>
-            </head>
-            <body>
-                <div class="stack">
-                    <form class="container" method="POST" action="/api/v1/oauth/authorize">
-                        <h1>Authorize Application</h1>
-                        <p class="oauth-desc">
-                            You are about to grant access to your Lightdash account using OAuth.<br/>
-                            This is a secure way to let trusted applications access your account without sharing your password.<br/>
-                            Approving will allow the client below to perform actions on your behalf, according to the requested permissions.
-                        </p>
-                        <p>Client: <b>${client_id}</b></p>
-                        <p>Scope: <b>${scope}</b></p>
-                        <input type="hidden" name="response_type" value="${
-                            req.query.response_type ||
-                            req.body.response_type ||
-                            'code'
-                        }" />
-                        <input type="hidden" name="client_id" value="${client_id}" />
-                        <input type="hidden" name="redirect_uri" value="${redirect_uri}" />
-                        <input type="hidden" name="scope" value="${scope}" />
-                        <input type="hidden" name="state" value="${
-                            state || ''
-                        }" />
-                        <input type="hidden" name="code_challenge" value="${
-                            code_challenge || ''
-                        }" />
-                        <input type="hidden" name="code_challenge_method" value="${
-                            code_challenge_method || ''
-                        }" />
-                        <p>Authenticate as user: <b>${req.user.firstName} ${
-        req.user.lastName
-    }</b></p>
-                        <p>on organization: <b>${
-                            req.user.organizationName
-                        }</b></p>
-
-                        <div class="oauth-btn-row">
-                            <button type="submit" name="approve" value="true" class="oauth-btn approve">Approve</button>
-                            <button type="submit" name="approve" value="false" class="oauth-btn deny">Deny</button>
-                        </div>
-                    </form>
-                </div>
-            </body>
-        </html>
-    `);
+    return res.send(
+        generateOAuthAuthorizePage({
+            action: '/api/v1/oauth/authorize',
+            client_id: client_id as string,
+            scope: scope as string,
+            user: {
+                firstName: req.user.firstName,
+                lastName: req.user.lastName,
+                organizationName: req.user.organizationName!,
+            },
+            hiddenInputs: [
+                {
+                    name: 'response_type',
+                    value: (req.query.response_type ||
+                        req.body.response_type ||
+                        'code') as string,
+                },
+                {
+                    name: 'client_id',
+                    value: client_id as string,
+                },
+                {
+                    name: 'redirect_uri',
+                    value: redirect_uri as string,
+                },
+                {
+                    name: 'scope',
+                    value: scope as string,
+                },
+                {
+                    name: 'state',
+                    value: (state || '') as string,
+                },
+                {
+                    name: 'code_challenge',
+                    value: (code_challenge || '') as string,
+                },
+                {
+                    name: 'code_challenge_method',
+                    value: (code_challenge_method || '') as string,
+                },
+            ],
+        }),
+    );
 });
 
 oauthRouter.post('/authorize', async (req, res, next) => {

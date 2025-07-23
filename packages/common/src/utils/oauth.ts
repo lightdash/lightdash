@@ -83,6 +83,71 @@ const OAUTH_RESPONSE_TEMPLATE = `
 </html>
 `;
 
+// OAuth authorization page template
+const OAUTH_AUTHORIZE_TEMPLATE = `
+<html>
+    <head>
+        <title>Authorize Application</title>
+        <style>
+            {{{styles}}}
+            .container, .container p, .container strong, .container form { text-align: center; }
+            .container p { margin-left: auto; margin-right: auto; }
+            .oauth-desc { margin-bottom: 18px; color: #374151; font-size: 12px; }
+            .oauth-btn-row { display: flex; justify-content: center; gap: 12px; margin-top: 18px; }
+            .oauth-btn {
+                padding: 8px 24px;
+                border: none;
+                border-radius: 4px;
+                font-weight: 600;
+                font-size: 15px;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+            .oauth-btn.approve {
+                background: #00B26F;
+                color: #fff;
+            }
+            .oauth-btn.approve:hover {
+                background: #00975E;
+            }
+            .oauth-btn.deny {
+                background: #E03131;
+                color: #fff;
+            }
+            .oauth-btn.deny:hover {
+                background: #B32525;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="stack">
+            <form class="container" method="POST" action="{{action}}">
+                <h1>Authorize Application</h1>
+                <p class="oauth-desc">
+                    You are about to grant access to your Lightdash account using OAuth.<br/>
+                    This is a secure way to let trusted applications access your account without sharing your password.<br/>
+                    Approving will allow the client below to perform actions on your behalf, according to the requested permissions.
+                </p>
+                <p>Client: <b>{{client_id}}</b></p>
+                <p>Scope: <b>{{scope}}</b></p>
+                
+                {{#each hiddenInputs}}
+                <input type="hidden" name="{{name}}" value="{{value}}" />
+                {{/each}}
+                
+                <p>Authenticate as user: <b>{{user.firstName}} {{user.lastName}}</b></p>
+                <p>on organization: <b>{{user.organizationName}}</b></p>
+
+                <div class="oauth-btn-row">
+                    <button type="submit" name="approve" value="true" class="oauth-btn approve">Approve</button>
+                    <button type="submit" name="approve" value="false" class="oauth-btn deny">Deny</button>
+                </div>
+            </form>
+        </div>
+    </body>
+</html>
+`;
+
 // SVG icons for different response types
 const OAUTH_ICONS = {
     success:
@@ -92,11 +157,32 @@ const OAUTH_ICONS = {
         '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
 } as const;
 
-// Compile the template once with proper type safety
-const compiledTemplate = compile(OAUTH_RESPONSE_TEMPLATE);
+// Compile the templates once with proper type safety
+const compiledResponseTemplate = compile(OAUTH_RESPONSE_TEMPLATE);
+const compiledAuthorizeTemplate = compile(OAUTH_AUTHORIZE_TEMPLATE);
 
 export type OAuthResponseStatus = 'success' | 'error';
 export type OAuthIconType = keyof typeof OAUTH_ICONS;
+
+// Types for OAuth authorization page
+export interface OAuthHiddenInput {
+    name: string;
+    value: string;
+}
+
+export interface OAuthUser {
+    firstName: string;
+    lastName: string;
+    organizationName: string;
+}
+
+export interface OAuthAuthorizeParams {
+    action: string;
+    client_id: string;
+    scope: string;
+    user: OAuthUser;
+    hiddenInputs: OAuthHiddenInput[];
+}
 
 /**
  * Generates an OAuth response HTML page using Handlebars templating
@@ -108,7 +194,7 @@ export const generateOAuthResponseHtml = (
     messages: string[],
     iconType: OAuthIconType = status === 'success' ? 'success' : 'error',
 ): string =>
-    compiledTemplate({
+    compiledResponseTemplate({
         styles: oauthPageStyles,
         status,
         title,
@@ -141,3 +227,15 @@ export const generateOAuthErrorResponse = (
         [...messages, 'You can close this window and try again.'],
         iconType,
     );
+
+/**
+ * Generates an OAuth authorization page HTML using Handlebars templating
+ * This prevents XSS issues by auto-escaping all user content
+ */
+export const generateOAuthAuthorizePage = (
+    params: OAuthAuthorizeParams,
+): string =>
+    compiledAuthorizeTemplate({
+        styles: oauthPageStyles,
+        ...params,
+    });
