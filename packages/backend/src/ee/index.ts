@@ -190,6 +190,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 clients,
                 utils,
                 repository,
+                prometheusMetrics,
             }) =>
                 new AsyncQueryService({
                     lightdashConfig: context.lightdashConfig,
@@ -226,6 +227,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     pivotTableService: repository.getPivotTableService(),
+                    prometheusMetrics,
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
