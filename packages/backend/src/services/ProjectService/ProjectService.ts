@@ -212,6 +212,7 @@ import {
     MetricQueryBuilder,
 } from '../../utils/QueryBuilder/queryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
+import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -5369,34 +5370,13 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
-        // Order dimensions according to columnOrder
-        const orderedDimensions = metricQuery.dimensions.sort((a, b) => {
-            const aIndex = columnOrder.indexOf(a);
-            const bIndex = columnOrder.indexOf(b);
-            // Handle cases where dimension isn't in columnOrder
-            if (aIndex === -1) return 1;
-            if (bIndex === -1) return -1;
-            return aIndex - bIndex;
-        });
-
-        // Pivot dimensions always need to be in the query, therefore we need to remove them before calculating the subtotal groupings by order
-        const orderedDimensionsWithoutPivot = orderedDimensions.filter(
-            (dimension) => !pivotDimensions?.includes(dimension),
-        );
-
-        // Remove the last dimension since it will not be used for subtotals, would produce the most detailed row
-        const dimensionsToSubtotal = orderedDimensionsWithoutPivot.slice(0, -1);
-
-        // Create a list of all the dimension groups to subtotal, starting with the first dimension, then the first two dimensions, then the first three dimensions, etc.
-        const dimensionGroupsToSubtotal = dimensionsToSubtotal.map(
-            (dimension, index) => {
-                if (index === 0) {
-                    return [dimension];
-                }
-
-                return [...dimensionsToSubtotal.slice(0, index), dimension];
-            },
-        );
+        // Use the shared utility to prepare dimension groups
+        const { dimensionGroupsToSubtotal, analyticsData } =
+            SubtotalsCalculator.prepareDimensionGroups(
+                metricQuery,
+                columnOrder,
+                pivotDimensions,
+            );
 
         this.analytics.track({
             userId: user.userUuid,
@@ -5406,10 +5386,7 @@ export class ProjectService extends BaseService {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 exploreName,
-                subtotalDimensionGroups: dimensionGroupsToSubtotal.map(
-                    (group) => group.join(','),
-                ),
-                subtotalQueryCount: dimensionGroupsToSubtotal.length,
+                ...analyticsData,
             },
         });
 
@@ -5440,47 +5417,37 @@ export class ProjectService extends BaseService {
             return formatRawRows(rows, fields);
         };
 
-        const subtotalsPromises = dimensionGroupsToSubtotal.map(
-            async (subtotalDimensions) => {
-                let subtotals: Record<string, unknown>[] = [];
+        const subtotalsPromises = dimensionGroupsToSubtotal.map<
+            Promise<[string, Record<string, unknown>[]]>
+        >(async (subtotalDimensions) => {
+            let subtotals: Record<string, unknown>[] = [];
 
-                const dimensions = [
-                    ...subtotalDimensions,
-                    ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
-                ];
-                // Exclude table calculations that require dims/metrics that are not in subtotal query
-                const tableCalculations = metricQuery.tableCalculations.filter(
-                    (tc) => {
-                        const referencedFields =
-                            ValidationService.getTableCalculationFieldIds([tc]);
-                        return referencedFields.every(
-                            (field) =>
-                                dimensions.includes(field) ||
-                                metricQuery.metrics.includes(field),
-                        );
-                    },
-                );
-                try {
-                    subtotals = await runQueryAndFormatRaw({
-                        ...metricQuery,
-                        dimensions,
-                        tableCalculations,
-                        sorts: [],
-                    });
-                } catch (e) {
-                    this.logger.error(
-                        `Error running subtotal query for dimensions ${subtotalDimensions.join(
-                            ',',
-                        )}`,
+            try {
+                // Use utility to create properly configured subtotal query
+                const { metricQuery: subtotalMetricQuery } =
+                    SubtotalsCalculator.createSubtotalQueryConfig(
+                        metricQuery,
+                        subtotalDimensions,
+                        pivotDimensions,
                     );
-                }
 
-                return [getSubtotalKey(subtotalDimensions), subtotals];
-            },
-        );
+                subtotals = await runQueryAndFormatRaw(subtotalMetricQuery);
+            } catch (e) {
+                this.logger.error(
+                    `Error running subtotal query for dimensions ${subtotalDimensions.join(
+                        ',',
+                    )}`,
+                );
+            }
+
+            return [
+                SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
+                subtotals,
+            ] satisfies [string, Record<string, unknown>[]];
+        });
 
         const subtotalsEntries = await Promise.all(subtotalsPromises);
-        return Object.fromEntries(subtotalsEntries);
+        return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
     }
 
     async calculateSubtotalsFromQuery(
