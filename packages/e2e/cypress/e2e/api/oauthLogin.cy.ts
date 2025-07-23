@@ -317,7 +317,7 @@ describe('OAuth API Integration Tests', () => {
                             grant_type: 'refresh_token',
                             refresh_token: tokenResponse.body.refresh_token,
                             client_id: 'lightdash-cli',
-                            client_secret: 'secret',
+                            client_secret: '', // No secret is required for refresh token
                         };
                         cy.request({
                             method: 'POST',
