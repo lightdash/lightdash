@@ -42,3 +42,12 @@ seeds:
         numberrange15: integer
         primary_key: integer
         time: time
+  - name: raw_subscriptions
+    config:
+      column_types:
+        id: integer
+        customer_id: integer
+        plan_id: integer
+        start_date: timestamp
+        end_date: timestamp
+        active: boolean

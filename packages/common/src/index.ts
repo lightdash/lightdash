@@ -135,6 +135,7 @@ import type {
 import { type AnyType } from './types/any';
 import { type ApiGetProjectParametersResults } from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
+import { type Account } from './types/auth';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -197,6 +198,7 @@ export * from './pivotTable/pivotQueryResults';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
+export * from './types/account';
 export * from './types/analytics';
 export * from './types/any';
 export * from './types/api';
@@ -237,6 +239,7 @@ export * from './types/lightdashProjectConfig';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
+export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
@@ -298,6 +301,7 @@ export * from './utils/i18n';
 export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
+export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
@@ -927,7 +931,8 @@ type ApiResults =
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
     | ApiAiAgentThreadCreateResponse['results']
-    | ApiAiAgentThreadMessageCreateResponse['results'];
+    | ApiAiAgentThreadMessageCreateResponse['results']
+    | Account;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

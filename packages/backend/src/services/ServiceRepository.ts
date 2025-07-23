@@ -3,6 +3,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
+import PrometheusMetrics from '../prometheus';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
@@ -23,6 +24,7 @@ import { HealthService } from './HealthService/HealthService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
+import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
@@ -61,6 +63,8 @@ interface ServiceManifest {
     groupService: GroupsService;
     healthService: HealthService;
     notificationService: NotificationsService;
+    oauthService: OAuthService;
+
     organizationService: OrganizationService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
@@ -113,6 +117,7 @@ type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     models: ModelRepository;
     utils: UtilRepository;
     clients: ClientRepository;
+    prometheusMetrics?: PrometheusMetrics;
 }) => T[keyof T];
 
 /**
@@ -194,24 +199,29 @@ abstract class ServiceRepositoryBase {
 
     protected readonly utils: UtilRepository;
 
+    protected readonly prometheusMetrics?: PrometheusMetrics;
+
     constructor({
         serviceProviders,
         context,
         clients,
         models,
         utils,
+        prometheusMetrics,
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
         clients: ClientRepository;
         models: ModelRepository;
         utils: UtilRepository;
+        prometheusMetrics?: PrometheusMetrics;
     }) {
         this.providers = serviceProviders ?? {};
         this.context = context;
         this.clients = clients;
         this.models = models;
         this.utils = utils;
+        this.prometheusMetrics = prometheusMetrics;
     }
 }
 
@@ -394,6 +404,18 @@ export class ServiceRepository
         );
     }
 
+    public getOauthService(): OAuthService {
+        return this.getService(
+            'oauthService',
+            () =>
+                new OAuthService({
+                    userModel: this.models.getUserModel(),
+                    oauthModel: this.models.getOauthModel(),
+                    lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
+
     public getOrganizationService(): OrganizationService {
         return this.getService(
             'organizationService',
@@ -533,6 +555,7 @@ export class ServiceRepository
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
                     pivotTableService: this.getPivotTableService(),
+                    prometheusMetrics: this.prometheusMetrics,
                 }),
         );
     }
@@ -930,6 +953,7 @@ export class ServiceRepository
                     models: this.models,
                     clients: this.clients,
                     utils: this.utils,
+                    prometheusMetrics: this.prometheusMetrics,
                 }) as T;
             } else if (factory != null) {
                 serviceInstance = factory();

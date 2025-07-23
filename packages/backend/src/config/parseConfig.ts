@@ -934,6 +934,10 @@ export type AuthConfig = {
         allowedOrgRoles: OrganizationMemberRole[];
         maxExpirationTimeInDays: number | undefined;
     };
+    oauthServer?: {
+        accessTokenLifetime: number; // in seconds (default = 1 hour)
+        refreshTokenLifetime: number; // in seconds (default = 2 weeks)
+    };
 };
 
 export type SmtpConfig = {
@@ -1271,6 +1275,16 @@ export const parseConfig = (): LightdashConfig => {
                 tokenEndpoint: process.env.SNOWFLAKE_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake',
                 callbackPath: '/oauth/redirect/snowflake',
+            },
+            oauthServer: {
+                accessTokenLifetime:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_ACCESS_TOKEN_LIFETIME',
+                    ) || 60 * 60, // 1 hour
+                refreshTokenLifetime:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_REFRESH_TOKEN_LIFETIME',
+                    ) || 60 * 60 * 24 * 14, // 2 weeks
             },
         },
         intercom: {

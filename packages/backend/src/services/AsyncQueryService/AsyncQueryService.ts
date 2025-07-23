@@ -97,6 +97,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { isFeatureFlagEnabled } from '../../postHog';
+import PrometheusMetrics from '../../prometheus';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { replaceParametersAsString } from '../../utils/QueryBuilder/parameters';
@@ -144,6 +145,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     featureFlagModel: FeatureFlagModel;
     storageClient: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -159,6 +161,8 @@ export class AsyncQueryService extends ProjectService {
 
     pivotTableService: PivotTableService;
 
+    prometheusMetrics?: PrometheusMetrics;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
@@ -167,6 +171,7 @@ export class AsyncQueryService extends ProjectService {
         this.featureFlagModel = args.featureFlagModel;
         this.storageClient = args.storageClient;
         this.pivotTableService = args.pivotTableService;
+        this.prometheusMetrics = args.prometheusMetrics;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -367,6 +372,13 @@ export class AsyncQueryService extends ProjectService {
                 status: QueryHistoryStatus.CANCELLED,
             },
             user.userUuid,
+        );
+
+        // Track cancelled query in Prometheus
+        this.prometheusMetrics?.incrementQueryStatus(
+            QueryHistoryStatus.CANCELLED,
+            queryHistory.warehouseQueryMetadata?.type || 'unknown',
+            queryHistory.context,
         );
     }
 
@@ -1297,6 +1309,13 @@ export class AsyncQueryService extends ProjectService {
                 },
                 userUuid,
             );
+
+            // Track successful query in Prometheus
+            this.prometheusMetrics?.incrementQueryStatus(
+                QueryHistoryStatus.READY,
+                warehouseClient.credentials.type,
+                queryTags.query_context,
+            );
         } catch (e) {
             this.analytics.track({
                 userId: userUuid,
@@ -1315,6 +1334,13 @@ export class AsyncQueryService extends ProjectService {
                     error: getErrorMessage(e),
                 },
                 userUuid,
+            );
+
+            // Track error query in Prometheus
+            this.prometheusMetrics?.incrementQueryStatus(
+                QueryHistoryStatus.ERROR,
+                warehouseCredentialsType,
+                queryTags.query_context,
             );
         } finally {
             void sshTunnel?.disconnect();
@@ -1594,6 +1620,13 @@ export class AsyncQueryService extends ProjectService {
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
                             },
                             user.userUuid,
+                        );
+
+                        // Track successful query in Prometheus
+                        this.prometheusMetrics?.incrementQueryStatus(
+                            QueryHistoryStatus.READY,
+                            warehouseCredentialsType,
+                            queryTags.query_context,
                         );
 
                         return {

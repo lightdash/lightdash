@@ -58,6 +58,10 @@ export const convertExploresToCatalog = (
                 chart_usage: null, // Tables don't have chart usage
                 table_name: explore.baseTable,
                 spotlight_show: getSpotlightShow(explore.spotlight),
+                yaml_tags:
+                    Array.isArray(explore.tags) && explore.tags.length > 0
+                        ? explore.tags
+                        : null,
             };
 
             const dimensionsAndMetrics = [
@@ -110,6 +114,10 @@ export const convertExploresToCatalog = (
                                 : explore.spotlight,
                         ),
                         assigned_yaml_tags: assignedYamlTags,
+                        yaml_tags:
+                            Array.isArray(field.tags) && field.tags.length > 0
+                                ? field.tags
+                                : null,
                     };
                 },
             );

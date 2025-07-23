@@ -1409,8 +1409,7 @@ export const EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_NUMBER = `WITH age_range_cte
                                                                                      age_range_cte.bin_width * 2, ' - ',
                                                                                      age_range_cte.max_id)
                                                                          END
-                                                                                                 AS \`age_range\`
-                                                                      ,
+                                                                                                 AS \`age_range\`,
                                                                      MAX("table1".number_column) AS \`table1_metric1\`
                                                               FROM "db"."schema"."table1" AS \`table1\`
 
@@ -1479,8 +1478,7 @@ export const EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION = `WITH ag
                                                                                                          ' - ',
                                                                                                          age_range_cte.max_id)
                                                                                                  END
-                                                                                                                         AS \`age_range\`
-                                                                                              ,
+                                                                                                                         AS \`age_range\`,
                                                                                              MAX("table1".number_column) AS \`table1_metric1\`
                                                                                       FROM "db"."schema"."table1" AS \`table1\`
 

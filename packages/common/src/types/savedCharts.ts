@@ -4,6 +4,7 @@ import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
+import { type ParametersValuesMap } from './parameters';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceShare } from './space';
 import { type LightdashUser, type UpdatedByUser } from './user';
@@ -389,6 +390,7 @@ export type SavedChart = {
     tableConfig: {
         columnOrder: string[];
     };
+    parameters?: ParametersValuesMap;
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
     organizationUuid: string;
@@ -413,6 +415,7 @@ type CreateChartBase = Pick<
     | 'pivotConfig'
     | 'chartConfig'
     | 'tableConfig'
+    | 'parameters'
 >;
 
 export type CreateChartInSpace = CreateChartBase & {

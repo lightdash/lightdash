@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.1827.1",
+    "version": "0.1834.0",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
@@ -28,6 +28,7 @@
         "lodash": "^4.17.21",
         "node-fetch": "^2.7.0",
         "nunjucks": "^3.2.3",
+        "openid-client": "^5.6.4",
         "ora": "5.4.1",
         "parse-node-version": "^2.0.0",
         "unique-names-generator": "^4.7.1",

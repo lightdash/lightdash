@@ -1,3 +1,93 @@
+# [0.1834.0](https://github.com/lightdash/lightdash/compare/0.1833.0...0.1834.0) (2025-07-23)
+
+
+### Features
+
+* add OAuth2 server for CLI authentication ([#15889](https://github.com/lightdash/lightdash/issues/15889)) ([60b9386](https://github.com/lightdash/lightdash/commit/60b9386c98c9a5689c08e0cd9b0f13133c8e2831)), closes [#15908](https://github.com/lightdash/lightdash/issues/15908) [#15935](https://github.com/lightdash/lightdash/issues/15935) [#15925](https://github.com/lightdash/lightdash/issues/15925) [#15930](https://github.com/lightdash/lightdash/issues/15930) [#15933](https://github.com/lightdash/lightdash/issues/15933) [#15926](https://github.com/lightdash/lightdash/issues/15926) [#15934](https://github.com/lightdash/lightdash/issues/15934)
+
+# [0.1833.0](https://github.com/lightdash/lightdash/compare/0.1832.0...0.1833.0) (2025-07-23)
+
+
+### Features
+
+* implement /calculate-subtotals for embedded dashboards ([#15947](https://github.com/lightdash/lightdash/issues/15947)) ([92e33b2](https://github.com/lightdash/lightdash/commit/92e33b2ea79542e0d11abd22f9aa94234b71e854))
+
+# [0.1832.0](https://github.com/lightdash/lightdash/compare/0.1831.1...0.1832.0) (2025-07-23)
+
+
+### Features
+
+* add yaml_tags to catalog search for AI visibility filtering ([#15948](https://github.com/lightdash/lightdash/issues/15948)) ([2fd5c48](https://github.com/lightdash/lightdash/commit/2fd5c4853bfa3a145bf2f86c480c656389823308))
+
+## [0.1831.1](https://github.com/lightdash/lightdash/compare/0.1831.0...0.1831.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* dimension alias on fanouts CTEs ([#15939](https://github.com/lightdash/lightdash/issues/15939)) ([fdde1ad](https://github.com/lightdash/lightdash/commit/fdde1ad6d83122e1f9f1e2278a5dd7863efb8d43))
+
+# [0.1831.0](https://github.com/lightdash/lightdash/compare/0.1830.2...0.1831.0) (2025-07-23)
+
+
+### Features
+
+* add account endpoint ([#15805](https://github.com/lightdash/lightdash/issues/15805)) ([229144a](https://github.com/lightdash/lightdash/commit/229144abba8d8023f2804a163255e93f7274badd))
+* track query statuses on execution in prometheus ([#15833](https://github.com/lightdash/lightdash/issues/15833)) ([4ad3795](https://github.com/lightdash/lightdash/commit/4ad3795ab136f2e5f1db333419519a860f5c7b05))
+
+## [0.1830.2](https://github.com/lightdash/lightdash/compare/0.1830.1...0.1830.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* rename migration ([#15973](https://github.com/lightdash/lightdash/issues/15973)) ([73501df](https://github.com/lightdash/lightdash/commit/73501dfc8b97706a913ca2d2c8f2d144f176b7f7)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.1830.1](https://github.com/lightdash/lightdash/compare/0.1830.0...0.1830.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* authentication/CLAUDE.md formatting ([#15960](https://github.com/lightdash/lightdash/issues/15960)) ([983fd58](https://github.com/lightdash/lightdash/commit/983fd588c1cf9c947456132c1faf5f2c0233d3d5))
+
+# [0.1830.0](https://github.com/lightdash/lightdash/compare/0.1829.1...0.1830.0) (2025-07-23)
+
+
+### Features
+
+* add JWT header to all UI network requests if present ([#15914](https://github.com/lightdash/lightdash/issues/15914)) ([f9326a4](https://github.com/lightdash/lightdash/commit/f9326a4db1e0e654f2c2dc0c2a536ad2ad854b8b))
+
+## [0.1829.1](https://github.com/lightdash/lightdash/compare/0.1829.0...0.1829.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* add import of icon ([#15951](https://github.com/lightdash/lightdash/issues/15951)) ([f2dd0bc](https://github.com/lightdash/lightdash/commit/f2dd0bc497f561e7c8d4e38dd49c310f732347c2))
+
+# [0.1829.0](https://github.com/lightdash/lightdash/compare/0.1828.0...0.1829.0) (2025-07-23)
+
+
+### Features
+
+* add group access to ai agents  ([#15937](https://github.com/lightdash/lightdash/issues/15937)) ([aad25fb](https://github.com/lightdash/lightdash/commit/aad25fb6f6adace469f95edc5f0f9460de9e6044)), closes [#15706](https://github.com/lightdash/lightdash/issues/15706) [#15385](https://github.com/lightdash/lightdash/issues/15385)
+
+# [0.1828.0](https://github.com/lightdash/lightdash/compare/0.1827.2...0.1828.0) (2025-07-23)
+
+
+### Bug Fixes
+
+* Markdown tile image obscured by comment icon on hover ([#15900](https://github.com/lightdash/lightdash/issues/15900)) ([d56d604](https://github.com/lightdash/lightdash/commit/d56d604e403c38f93d9e682d7a8fca2f3da22579)), closes [#15898](https://github.com/lightdash/lightdash/issues/15898)
+
+
+### Features
+
+* support array format for AI hints ([#15897](https://github.com/lightdash/lightdash/issues/15897)) ([9e9b0b2](https://github.com/lightdash/lightdash/commit/9e9b0b295184359ec1a464b724f52056fac4b66e))
+
+## [0.1827.2](https://github.com/lightdash/lightdash/compare/0.1827.1...0.1827.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* remove nullable (can be an empty array) from tableVizConfigSchema dimensions ([#15921](https://github.com/lightdash/lightdash/issues/15921)) ([7521a14](https://github.com/lightdash/lightdash/commit/7521a14b139fa406493dd0424fd48a890564390c))
+
 ## [0.1827.1](https://github.com/lightdash/lightdash/compare/0.1827.0...0.1827.1) (2025-07-22)
 
 
