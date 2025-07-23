@@ -1,3 +1,11 @@
+# [0.1831.0](https://github.com/lightdash/lightdash/compare/0.1830.2...0.1831.0) (2025-07-23)
+
+
+### Features
+
+* add account endpoint ([#15805](https://github.com/lightdash/lightdash/issues/15805)) ([229144a](https://github.com/lightdash/lightdash/commit/229144abba8d8023f2804a163255e93f7274badd))
+* track query statuses on execution in prometheus ([#15833](https://github.com/lightdash/lightdash/issues/15833)) ([4ad3795](https://github.com/lightdash/lightdash/commit/4ad3795ab136f2e5f1db333419519a860f5c7b05))
+
 ## [0.1830.2](https://github.com/lightdash/lightdash/compare/0.1830.1...0.1830.2) (2025-07-23)
 
 
