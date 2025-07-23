@@ -47,6 +47,10 @@ export class OAuthService extends BaseService {
                 this.lightdashConfig.auth.oauthServer?.accessTokenLifetime,
             refreshTokenLifetime:
                 this.lightdashConfig.auth.oauthServer?.refreshTokenLifetime,
+            // Allow public clients (no client authentication required for refresh tokens)
+            requireClientAuthentication: {
+                refresh_token: false, // Don't require for refresh token (public client)
+            },
         });
     }
 

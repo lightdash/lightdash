@@ -61,12 +61,12 @@ export async function up(knex: Knex): Promise<void> {
         INSERT INTO oauth2_clients (client_id, client_secret, redirect_uris, grants, scopes, client_name) 
         VALUES (
             'lightdash-cli',
-            'secret',
+            null,
             ARRAY[${Array.from(
                 { length: 11 },
                 (_, i) => `'http://localhost:${8100 + i}/callback'`,
             ).join(', ')}],
-            ARRAY['authorization_code', 'refresh_token'],
+            ARRAY['authorization_code', 'refresh_token', 'client_credentials'],
             ARRAY['read', 'write'],
             'Lightdash CLI'
         );
