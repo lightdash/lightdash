@@ -1,4 +1,4 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT } from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
@@ -14,7 +14,7 @@ describe('Lightdash catalog all tables and fields', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?type=table`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(20);
+            expect(resp.body.results).to.have.length(21);
             const userTable = resp.body.results.find(
                 (table) => table.name === 'users',
             );
@@ -131,7 +131,7 @@ describe('Lightdash catalog search', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?search=revenue`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(2);
+            expect(resp.body.results).to.have.length(9);
 
             const field1 = resp.body.results[0];
 
@@ -217,10 +217,24 @@ describe('Lightdash catalog search', () => {
         ).then((resp) => {
             expect(resp.status).to.eq(200);
 
-            cy.log('only find the one under fanouts');
-            expect(resp.body.results).to.have.length(1);
-            expect(resp.body.results[0].name).to.eq('plan');
-            expect(resp.body.results[0].tableGroupLabel).to.eq('fanouts');
+            expect(resp.body.results).to.have.length(7);
+            cy.log('find the one under fanouts');
+            const planResult = resp.body.results.find(
+                (r: AnyType) =>
+                    r.name === 'plan' && r.tableGroupLabel === 'fanouts',
+            );
+            expect(planResult).to.have.property('name', 'plan');
+            expect(planResult).to.have.property('tableGroupLabel', 'fanouts');
+            cy.log('find the one under subscriptions');
+            const planNameResult = resp.body.results.find(
+                (r: AnyType) =>
+                    r.name === 'plan_name' && r.tableName === 'subscriptions',
+            );
+            expect(planNameResult).to.have.property('name', 'plan_name');
+            expect(planNameResult).to.have.property(
+                'tableName',
+                'subscriptions',
+            );
         });
     });
 });
