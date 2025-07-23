@@ -1,4 +1,4 @@
-import { type BaseAiAgent } from '@lightdash/common';
+import { FeatureFlags, type BaseAiAgent } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -41,6 +41,7 @@ import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import {
     InstructionsGuidelines,
@@ -120,9 +121,22 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         redirectOnUnauthorized: true,
     });
 
-    const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups({
-        includeMembers: 5,
-    });
+    const userGroupsFeatureFlagQuery = useFeatureFlag(
+        FeatureFlags.UserGroupsEnabled,
+    );
+
+    const isGroupsEnabled =
+        userGroupsFeatureFlagQuery.isSuccess &&
+        userGroupsFeatureFlagQuery.data.enabled;
+
+    const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
+        {
+            includeMembers: 5,
+        },
+        {
+            enabled: isGroupsEnabled,
+        },
+    );
 
     const {
         data: slackChannels,
@@ -437,62 +451,64 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                             }}
                                         />
 
-                                        <Stack gap="xs">
-                                            <MultiSelect
-                                                variant="subtle"
-                                                label={
-                                                    <Group gap="xs">
-                                                        <Text fz="sm" fw={500}>
-                                                            Group Access
-                                                        </Text>
-                                                        <Tooltip
-                                                            label="Select groups that can access this agent. If no groups are selected, the agent will be visible to all users in the organization."
-                                                            withArrow
-                                                            withinPortal
-                                                            multiline
-                                                            maw="250px"
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconInfoCircle
-                                                                }
-                                                            />
-                                                        </Tooltip>
-                                                    </Group>
-                                                }
-                                                placeholder={
-                                                    isLoadingGroups
-                                                        ? 'Loading groups...'
-                                                        : groupOptions.length ===
-                                                          0
-                                                        ? 'No groups available'
-                                                        : 'Select groups or leave empty for all users'
-                                                }
-                                                data={groupOptions}
-                                                disabled={
-                                                    isLoadingGroups ||
-                                                    groupOptions.length === 0
-                                                }
-                                                clearable
-                                                {...form.getInputProps(
-                                                    'groupAccess',
-                                                )}
-                                                value={
-                                                    form.getInputProps(
+                                        {isGroupsEnabled && (
+                                            <Stack gap="xs">
+                                                <MultiSelect
+                                                    variant="subtle"
+                                                    label={
+                                                        <Group gap="xs">
+                                                            <Text fz="sm" fw={500}>
+                                                                Group Access
+                                                            </Text>
+                                                            <Tooltip
+                                                                label="Select groups that can access this agent. If no groups are selected, the agent will be visible to all users in the organization."
+                                                                withArrow
+                                                                withinPortal
+                                                                multiline
+                                                                maw="250px"
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconInfoCircle
+                                                                    }
+                                                                />
+                                                            </Tooltip>
+                                                        </Group>
+                                                    }
+                                                    placeholder={
+                                                        isLoadingGroups
+                                                            ? 'Loading groups...'
+                                                            : groupOptions.length ===
+                                                              0
+                                                            ? 'No groups available'
+                                                            : 'Select groups or leave empty for all users'
+                                                    }
+                                                    data={groupOptions}
+                                                    disabled={
+                                                        isLoadingGroups ||
+                                                        groupOptions.length === 0
+                                                    }
+                                                    clearable
+                                                    {...form.getInputProps(
                                                         'groupAccess',
-                                                    ).value ?? []
-                                                }
-                                                onChange={(value) => {
-                                                    form.setFieldValue(
-                                                        'groupAccess',
-                                                        value.length > 0
-                                                            ? value
-                                                            : [],
-                                                    );
-                                                }}
-                                            />
-                                            {/*  Add message + link to orgfanization settings if no groups are available and if this is enabled */}
-                                        </Stack>
+                                                    )}
+                                                    value={
+                                                        form.getInputProps(
+                                                            'groupAccess',
+                                                        ).value ?? []
+                                                    }
+                                                    onChange={(value) => {
+                                                        form.setFieldValue(
+                                                            'groupAccess',
+                                                            value.length > 0
+                                                                ? value
+                                                                : [],
+                                                        );
+                                                    }}
+                                                />
+                                                {/*  Add message + link to orgfanization settings if no groups are available and if this is enabled */}
+                                            </Stack>
+                                        )}
                                     </Stack>
                                 </Paper>
 
