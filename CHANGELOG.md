@@ -1,3 +1,10 @@
+# [0.1830.0](https://github.com/lightdash/lightdash/compare/0.1829.1...0.1830.0) (2025-07-23)
+
+
+### Features
+
+* add JWT header to all UI network requests if present ([#15914](https://github.com/lightdash/lightdash/issues/15914)) ([f9326a4](https://github.com/lightdash/lightdash/commit/f9326a4db1e0e654f2c2dc0c2a536ad2ad854b8b))
+
 ## [0.1829.1](https://github.com/lightdash/lightdash/compare/0.1829.0...0.1829.1) (2025-07-23)
 
 
