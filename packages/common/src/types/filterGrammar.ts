@@ -56,14 +56,14 @@ DATE_OPERATOR = 'inThePast' / 'inTheNext'
 DATE_INTERVAL = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'years'
 
 NUMBER
-  = FLOAT ([Ee] [+-]? INTEGER)?
+  = '-'? FLOAT ([Ee] [+-]? INTEGER)?
     { return Number(text()) }
 
 FLOAT
   = INTEGER '.'? INTEGER?
 
 INTEGER
-  = '-'?[0-9]+
+  = [0-9]+
 
 LIST
 = left:TERM COMMA right:EXPRESSION {

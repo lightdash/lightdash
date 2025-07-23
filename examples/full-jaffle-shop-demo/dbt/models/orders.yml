@@ -22,8 +22,8 @@ models:
             sql: ${total_completed_order_amount}/${total_order_amount}
             format: percent
             ai_hint: |
-              Completion percentage of orders
               Ratio of completed orders to total orders
+              Completion percentage of orders.
         default_time_dimension:
           field: order_date
           interval: MONTH

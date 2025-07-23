@@ -140,6 +140,39 @@ describe('Parse grammar', () => {
         });
     });
 
+    it('Positive and negative floats', async () => {
+        // Positive floats
+        expect(parser.parse('> 3.14')).toEqual({ type: '>', values: [3.14] });
+        expect(parser.parse('< 0.5')).toEqual({ type: '<', values: [0.5] });
+        expect(parser.parse('>= 100.001')).toEqual({ type: '>=', values: [100.001] });
+        expect(parser.parse('<= 2.718')).toEqual({ type: '<=', values: [2.718] });
+        
+        // Negative floats  
+        expect(parser.parse('< -3.14')).toEqual({ type: '<', values: [-3.14] });
+        expect(parser.parse('> -0.5')).toEqual({ type: '>', values: [-0.5] });
+        expect(parser.parse('<= -100.001')).toEqual({ type: '<=', values: [-100.001] });
+        expect(parser.parse('>= -2.718')).toEqual({ type: '>=', values: [-2.718] });
+        
+        // Edge cases with zero
+        expect(parser.parse('> 0.0')).toEqual({ type: '>', values: [0] });
+        expect(parser.parse('< -0.0')).toEqual({ type: '<', values: [-0] });
+    });
+
+    it('Should reject invalid negative float expressions', async () => {
+        // This test ensures that expressions like "-10.-5" are not valid
+        // The grammar should not parse these as valid numbers
+        expect(() => parser.parse('> -10.-5')).toThrow();
+        expect(() => parser.parse('< -3.-14')).toThrow();
+    });
+
+    it('Negative integers work correctly', async () => {
+        // Test that negative integers still work after moving negative sign to NUMBER
+        expect(parser.parse('> -42')).toEqual({ type: '>', values: [-42] });
+        expect(parser.parse('< -1')).toEqual({ type: '<', values: [-1] });
+        expect(parser.parse('>= -100')).toEqual({ type: '>=', values: [-100] });
+        expect(parser.parse('<= -999')).toEqual({ type: '<=', values: [-999] });
+    });
+
     it('Numerical operator < grammar with spaces', async () => {
         const expected = { type: '<', values: [25] };
 
