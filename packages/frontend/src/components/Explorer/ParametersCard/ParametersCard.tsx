@@ -34,7 +34,7 @@ const ParametersCard = memo(
         });
 
         const parameterValues = useExplorerContext(
-            (context) => context.state.parameters,
+            (context) => context.state.unsavedChartVersion.parameters || {},
         );
 
         const setParameter = useExplorerContext(
