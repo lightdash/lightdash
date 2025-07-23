@@ -282,7 +282,7 @@ describe('with custom dimensions', () => {
                 customDimensions: [CUSTOM_SQL_DIMENSION],
             }),
         ).toStrictEqual({
-            selects: ['  ("table1".dim1 < 18) AS `is_adult`'],
+            selects: { is_adult: '  ("table1".dim1 < 18) AS `is_adult`' },
             tables: ['table1'],
         });
     });
@@ -312,16 +312,15 @@ describe('with custom dimensions', () => {
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
-            selects: [
-                `CASE
-                        WHEN "table1".dim1 IS NULL THEN NULL
+            selects: {
+                age_range: `CASE
+                    WHEN "table1".dim1 IS NULL THEN NULL
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
 ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
-                        END
-                        AS \`age_range\`
-                    `,
-            ],
+                    END
+                    AS \`age_range\``,
+            },
             tables: ['table1'],
         });
     });
@@ -358,9 +357,9 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
-            selects: [
-                `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
-            ],
+            selects: {
+                age_range: `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
+            },
             tables: ['table1'],
         });
     });
@@ -389,22 +388,22 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
-            selects: [
-                `CASE
-                            WHEN "table1".dim1 IS NULL THEN NULL
+            selects: {
+                age_range: `CASE
+                    WHEN "table1".dim1 IS NULL THEN NULL
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
 ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
-                            END
-                            AS \`age_range\``,
-                `CASE
-                            WHEN "table1".dim1 IS NULL THEN 3
+                    END
+                    AS \`age_range\``,
+                age_range_order: `CASE
+                        WHEN "table1".dim1 IS NULL THEN 3
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN 0
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN 1
 ELSE 2
-                            END
-                            AS \`age_range_order\``,
-            ],
+                        END
+                        AS \`age_range_order\``,
+            },
             tables: ['table1'],
         });
     });
