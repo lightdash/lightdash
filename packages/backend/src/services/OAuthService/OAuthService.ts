@@ -54,6 +54,10 @@ export class OAuthService extends BaseService {
         });
     }
 
+    public getSiteUrl() {
+        return `${this.lightdashConfig.siteUrl}`;
+    }
+
     public async authorize(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
