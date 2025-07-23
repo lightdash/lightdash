@@ -195,6 +195,8 @@ export type Filters = {
     tableCalculations?: FilterGroup;
 };
 
+export type ParametersValuesMap = Record<string, string | string[]>;
+
 export type DashboardFilters = {
     dimensions: DashboardFilterRule[];
     metrics: DashboardFilterRule[];

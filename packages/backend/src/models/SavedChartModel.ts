@@ -86,6 +86,7 @@ type DbSavedChartDetails = {
     chart_type: ChartConfig['type'];
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
+    parameters: AnyType | null;
     created_at: Date;
     organization_uuid: string;
     user_uuid: string;
@@ -188,6 +189,7 @@ const createSavedChartVersion = async (
         chartConfig,
         tableConfig,
         pivotConfig,
+        parameters,
         updatedByUser,
     }: CreateSavedChartVersion,
 ): Promise<void> => {
@@ -208,6 +210,7 @@ const createSavedChartVersion = async (
                 pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
                 chart_type: chartConfig.type,
                 chart_config: chartConfig.config,
+                parameters: parameters ? JSON.stringify(parameters) : null,
                 updated_by_user_uuid: updatedByUser?.userUuid || null,
                 timezone: timezone || null,
             })
@@ -337,6 +340,7 @@ export const createSavedChart = async (
         chartConfig,
         tableConfig,
         pivotConfig,
+        parameters,
         updatedByUser,
         spaceUuid,
         dashboardUuid,
@@ -409,6 +413,7 @@ export const createSavedChart = async (
             chartConfig,
             tableConfig,
             pivotConfig,
+            parameters,
             updatedByUser,
         });
         return newSavedChart.saved_query_uuid;
@@ -1071,6 +1076,7 @@ export class SavedChartModel {
                         ],
                         timezone: savedQuery.timezone || undefined,
                     },
+                    parameters: savedQuery.parameters || undefined,
                     chartConfig,
                     tableConfig: {
                         columnOrder,
@@ -1248,6 +1254,7 @@ export class SavedChartModel {
                 dashboardUuid: `${cteName}.dashboard_uuid`,
                 tableName: 'saved_queries_versions.explore_name',
                 filters: 'saved_queries_versions.filters',
+                parameters: 'saved_queries_versions.parameters',
                 dimensions: this.database.raw(
                     "COALESCE(ARRAY_AGG(DISTINCT svf.name) FILTER (WHERE svf.field_type = 'dimension'), '{}')",
                 ),

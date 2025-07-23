@@ -3,6 +3,7 @@ import { type ViewStatistics } from './analytics';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
 import { type CompactOrAlias, type FieldId } from './field';
+import { type ParametersValuesMap } from './filter';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceShare } from './space';
@@ -389,6 +390,7 @@ export type SavedChart = {
     tableConfig: {
         columnOrder: string[];
     };
+    parameters?: ParametersValuesMap;
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
     organizationUuid: string;
@@ -413,7 +415,9 @@ type CreateChartBase = Pick<
     | 'pivotConfig'
     | 'chartConfig'
     | 'tableConfig'
->;
+> & {
+    parameters?: ParametersValuesMap;
+};
 
 export type CreateChartInSpace = CreateChartBase & {
     spaceUuid?: string;
