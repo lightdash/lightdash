@@ -3,7 +3,7 @@ Add a CLAUDE.md context file in the directory $ARGUMENTS
 <format>
 Use XML tags for sections instead of markdown headers
 Allowed tags: <summary>, <howToUse>, <codeExample>, <links>, <importantToKnow>
-eode blocks can use triple backticks with the language specified.
+code blocks can use triple backticks with the language specified.
 Keep the total length under 100 lines.
 For diagrams use mermaid syntax in a code block.
 For links to files use @/path/to/file.extension
