@@ -30,3 +30,7 @@ A diagram is not always necessary but if it helps explain a complex flow, includ
 Link to external documentation and specs or files rather than duplicating them here. If it covers complex engineering
 concepts, link to tutorials for engineers to learn more.
 </content>
+
+<linting>
+After writing the CLAUDE.md file, run `pnpm format` on that single file to ensure proper formatting.
+</linting>
