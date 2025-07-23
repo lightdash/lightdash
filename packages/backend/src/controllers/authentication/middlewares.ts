@@ -79,7 +79,9 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
         .catch((error) => {
             // This middleware might be trying to authenticate with a non Oauth token
             // in that case, we will not throw an error, and we will continue with the next middleware
-            console.warn('OAuth authentication failed', error);
+            Logger.warn(
+                `OAuth authentication failed: ${JSON.stringify(error)}`,
+            );
             next();
         });
 };
