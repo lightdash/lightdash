@@ -1,3 +1,10 @@
+## [0.1830.2](https://github.com/lightdash/lightdash/compare/0.1830.1...0.1830.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* rename migration ([#15973](https://github.com/lightdash/lightdash/issues/15973)) ([73501df](https://github.com/lightdash/lightdash/commit/73501dfc8b97706a913ca2d2c8f2d144f176b7f7)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.1830.1](https://github.com/lightdash/lightdash/compare/0.1830.0...0.1830.1) (2025-07-23)
 
 
