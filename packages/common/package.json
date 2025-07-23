@@ -9,6 +9,7 @@
     ],
     "license": "MIT",
     "devDependencies": {
+        "@types/handlebars": "^4.1.0",
         "@types/js-yaml": "^4.0.9",
         "@types/pegjs": "^0.10.3",
         "@types/sanitize-html": "^2.11.0",
@@ -20,6 +21,7 @@
         "ajv": "^8.3.0",
         "ajv-formats": "^2.1.0",
         "better-ajv-errors": "^1.2.0",
+        "handlebars": "^4.7.8",
         "cronstrue": "^2.23.0",
         "dayjs": "^1.11.9",
         "dependency-graph": "^0.11.0",

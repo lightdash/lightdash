@@ -45,7 +45,10 @@ describe('OAuthService', () => {
                 organizationUuid: 'org-uuid',
             },
         });
-        mockLightdashConfig = { siteUrl: 'https://lightdash.com' } as AnyType;
+        mockLightdashConfig = {
+            siteUrl: 'https://lightdash.com',
+            auth: {},
+        } as AnyType;
         oauthService = new TestOAuthService({
             userModel: mockUserModel,
             oauthModel: mockOAuthModel,
@@ -58,50 +61,6 @@ describe('OAuthService', () => {
         const result = await oauthService.revokeToken('token');
         expect(result).toBe(true);
         expect(mockOAuthModel.revokeToken).toHaveBeenCalled();
-    });
-
-    it('calls getAccessToken in authenticateWithOauthToken', async () => {
-        const req = {
-            headers: { authorization: 'Bearer OAUTH_TOKEN' },
-        } as AnyType;
-        const next = jest.fn();
-        mockOAuthModel.getAccessToken.mockResolvedValue({
-            accessToken: 'token',
-            accessTokenExpiresAt: new Date(),
-            client: { id: 'lightdash-cli', grants: ['authorization_code'] },
-            user: { userUuid: 'u', organizationUuid: 'o' },
-            scope: ['read'],
-        });
-        mockUserModel.getSessionUserFromCacheOrDB.mockResolvedValue({
-            sessionUser: {
-                userUuid: 'u',
-                organizationUuid: 'o',
-                firstName: 'Test',
-                lastName: 'User',
-                ability: {} as AnyType,
-                abilityRules: [],
-                userId: 1,
-                isTrackingAnonymized: false,
-                isSetupComplete: true,
-                isMarketingOptedIn: false,
-                isActive: true,
-                email: 'test@example.com',
-                organizationName: 'TestOrg',
-                role: 'admin' as AnyType,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            },
-            cacheHit: true,
-        });
-        await oauthService.authenticateWithOauthToken(req, next);
-        expect(mockOAuthModel.getAccessToken).toHaveBeenCalled();
-        expect(req.user).toMatchObject({
-            userUuid: 'u',
-            organizationUuid: 'o',
-            firstName: 'Test',
-            lastName: 'User',
-        });
-        expect(next).toHaveBeenCalled();
     });
 
     it('calls authorize', async () => {
@@ -153,7 +112,10 @@ describe('OAuthService edge cases', () => {
             revokeToken: jest.fn(),
             revokeRefreshToken: jest.fn(),
         } as AnyType;
-        mockLightdashConfig = { siteUrl: 'https://lightdash.com' } as AnyType;
+        mockLightdashConfig = {
+            siteUrl: 'https://lightdash.com',
+            auth: {},
+        } as AnyType;
         oauthService = new TestOAuthService({
             userModel: mockUserModel,
             oauthModel: mockOAuthModel,

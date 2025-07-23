@@ -1,14 +1,7 @@
-import {
-    AnyType,
-    AuthTokenPrefix,
-    ForbiddenError,
-    NotFoundError,
-    UserWithOrganizationUuid,
-} from '@lightdash/common';
+import { UserWithOrganizationUuid } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import { NextFunction, Request, Response } from 'express';
 import { LightdashConfig } from '../../config/parseConfig';
-import { DEFAULT_OAUTH_CLIENT_ID, OAuth2Model } from '../../models/OAuth2Model';
+import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 
@@ -42,10 +35,20 @@ export class OAuthService extends BaseService {
     private initializeOAuthServer(): void {
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
-            accessTokenLifetime: 60 * 60,
-            refreshTokenLifetime: 60 * 60 * 24 * 30,
             allowBearerTokensInQueryString: true,
+            accessTokenLifetime:
+                this.lightdashConfig.auth.oauthServer?.accessTokenLifetime,
+            refreshTokenLifetime:
+                this.lightdashConfig.auth.oauthServer?.refreshTokenLifetime,
+            // Allow public clients (no client authentication required for refresh tokens)
+            requireClientAuthentication: {
+                refresh_token: false, // Don't require for refresh token (public client)
+            },
         });
+    }
+
+    public getSiteUrl() {
+        return `${this.lightdashConfig.siteUrl}`;
     }
 
     public async authorize(
@@ -79,48 +82,5 @@ export class OAuthService extends BaseService {
         const refreshToken = await this.oauthModel.getRefreshToken(token);
         if (refreshToken) return this.oauthModel.revokeToken(refreshToken);
         return false;
-    }
-
-    public async authenticateWithOauthToken(
-        req: Request,
-        next: NextFunction,
-    ): Promise<void> {
-        try {
-            const token = req.headers.authorization;
-            if (!token || typeof token !== 'string' || token.length === 0) {
-                next();
-                return;
-            }
-            const tokenParts = token.split(' ');
-            const oauthToken = tokenParts[1];
-            const isValidOauthToken =
-                !oauthToken ||
-                typeof oauthToken !== 'string' ||
-                oauthToken.length === 0 ||
-                !oauthToken.startsWith(AuthTokenPrefix.OAUTH_APP);
-            if (tokenParts[0] !== 'Bearer' && !isValidOauthToken) {
-                next();
-                return;
-            }
-
-            const accessToken = await this.oauthModel.getAccessToken(
-                oauthToken,
-            );
-            if (!accessToken) {
-                throw new ForbiddenError('Invalid OAuth token');
-            }
-            const { sessionUser } =
-                await this.userModel.getSessionUserFromCacheOrDB(
-                    accessToken.user.userUuid,
-                    accessToken.user.organizationUuid, // use from token
-                );
-            if (!sessionUser) {
-                throw new NotFoundError('User not found');
-            }
-            req.user = sessionUser;
-            next();
-        } catch (error) {
-            next(error);
-        }
     }
 }
