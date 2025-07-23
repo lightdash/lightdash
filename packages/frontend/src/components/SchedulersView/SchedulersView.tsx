@@ -27,6 +27,7 @@ import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useSchedu
 import { useGetSlack, useSlackChannels } from '../../hooks/slack/useSlack';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useProject } from '../../hooks/useProject';
+import MantineIcon from '../common/MantineIcon';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import {
@@ -381,52 +382,52 @@ const Schedulers: FC<SchedulersProps> = ({ projectUuid }) => {
                             )
                         }
                     >
-                        <IconRefresh size={16} />
+                        <MantineIcon icon={IconRefresh} size={16} />
                     </ActionIcon>
                 </Group>
             </Paper>
 
             <Table className={classes.root} highlightOnHover>
                 <thead>
-                <tr>
-                    {columns.map((column) => (
-                        <Box
-                            component="th"
-                            key={column.id}
-                            style={column?.meta?.style}
-                        >
-                            {column?.label}
-                        </Box>
-                    ))}
-                </tr>
+                    <tr>
+                        {columns.map((column) => (
+                            <Box
+                                component="th"
+                                key={column.id}
+                                style={column?.meta?.style}
+                            >
+                                {column?.label}
+                            </Box>
+                        ))}
+                    </tr>
                 </thead>
 
                 <tbody style={{ position: 'relative' }}>
-                {isLoadingSchedulers ? (
-                    <tr>
-                        <td colSpan={columns.length}>
-                            <Text align="center" p="md">
-                                Loading schedulers...
-                            </Text>
-                        </td>
-                    </tr>
-                ) : schedulers.length > 0 ? (
-                    schedulers.map((item) => (
-                        <tr key={item.schedulerUuid}>
-                            {columns.map((column) => (
-                                <td key={column.id}>{column.cell(item)}</td>
-                            ))}
+                    {isLoadingSchedulers ? (
+                        <tr>
+                            <td colSpan={columns.length}>
+                                <Text align="center" p="md">
+                                    Loading schedulers...
+                                </Text>
+                            </td>
                         </tr>
-                    ))
-                ) : (
-                    <tr>
-                        <td colSpan={columns.length}>
-                            <Text align="center" p="md">
-                                No schedulers found
-                            </Text>
-                        </td>
-                    </tr>
-                )}
+                    ) : schedulers.length > 0 ? (
+                        schedulers.map((item) => (
+                            <tr key={item.schedulerUuid}>
+                                {columns.map((column) => (
+                                    <td key={column.id}>{column.cell(item)}</td>
+                                ))}
+                            </tr>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan={columns.length}>
+                                <Text align="center" p="md">
+                                    No schedulers found
+                                </Text>
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </Table>
 

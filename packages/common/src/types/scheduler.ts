@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type PivotIndexColum } from '../visualizations/types';
 import { type AnyType } from './any';
+import { type ApiSuccess } from './api/success';
 import { type Explore, type ExploreError } from './explore';
 import { type ItemsMap } from './field';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
@@ -347,10 +348,9 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
-export type ApiSchedulersResponse = {
-    status: 'ok';
-    results: KnexPaginatedData<SchedulerAndTargets[]>;
-};
+export type ApiSchedulersResponse = ApiSuccess<
+    KnexPaginatedData<SchedulerAndTargets[]>
+>;
 
 export type ScheduledJobs = {
     date: Date;
