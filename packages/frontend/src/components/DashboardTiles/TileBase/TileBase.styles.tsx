@@ -1,5 +1,4 @@
 import styled, { css } from 'styled-components';
-import { TILE_HEADER_HEIGHT, TILE_HEADER_MARGIN_BOTTOM } from './constants';
 
 interface HeaderContainerProps {
     $isEditMode: boolean;
@@ -13,8 +12,7 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
     justify-content: flex-start;
     align-items: center;
     gap: 8px;
-    height: ${TILE_HEADER_HEIGHT}px;
-    margin-bottom: ${TILE_HEADER_MARGIN_BOTTOM}px;
+    margin-bottom: 12px;
 
     ${(props) =>
         props.$isEditMode
