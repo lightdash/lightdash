@@ -83,47 +83,7 @@ oauthRouter.get('/authorize', async (req, res, next) => {
 });
 
 oauthRouter.post('/authorize', async (req, res, next) => {
-    if (!req.user) {
-        return res.status(401).send('Unauthorized');
-    }
-    if (!req.user.userId || !req.user.organizationUuid) {
-        return res.status(400).send('Missing userUuid or organizationUuid');
-    }
-    if (req.body.approve === 'true') {
-        const oauthService = getOAuthService(req);
-        const oauthReq = new OAuth2Server.Request(req);
-        const oauthRes = new OAuth2Server.Response(res);
-        try {
-            const authorizationCode = await oauthService.authorize(
-                oauthReq,
-                oauthRes,
-                {
-                    userId: req.user.userId,
-                    organizationUuid: req.user.organizationUuid,
-                },
-            );
-            const redirectUri = req.body.redirect_uri;
-            if (!redirectUri) {
-                return res.status(400).json({
-                    error: 'invalid_request',
-                    error_description: 'Missing redirect_uri',
-                });
-            }
-            const url = new URL(redirectUri);
-            url.searchParams.set('code', authorizationCode.authorizationCode);
-            if (req.body.state) {
-                url.searchParams.set('state', req.body.state);
-            }
-            return res.redirect(url.toString());
-        } catch (error) {
-            console.error('Authorization error:', error);
-            const redirectUrl = new URL(req.body.redirect_uri);
-            redirectUrl.searchParams.set('error', 'server_error');
-            if (req.body.state)
-                redirectUrl.searchParams.set('state', req.body.state);
-            return res.redirect(redirectUrl.toString());
-        }
-    } else {
+    if (req.body.approve === 'false') {
         // Denied
         res.set('Content-Type', 'text/html');
         const redirectUri = req.body.redirect_uri;
@@ -139,6 +99,45 @@ oauthRouter.post('/authorize', async (req, res, next) => {
             url.searchParams.set('state', req.body.state);
         }
         return res.redirect(url.toString());
+    }
+    if (!req.user) {
+        return res.status(401).send('Unauthorized');
+    }
+    if (!req.user.userId || !req.user.organizationUuid) {
+        return res.status(400).send('Missing userUuid or organizationUuid');
+    }
+    const oauthService = getOAuthService(req);
+    const oauthReq = new OAuth2Server.Request(req);
+    const oauthRes = new OAuth2Server.Response(res);
+    try {
+        const authorizationCode = await oauthService.authorize(
+            oauthReq,
+            oauthRes,
+            {
+                userId: req.user.userId,
+                organizationUuid: req.user.organizationUuid,
+            },
+        );
+        const redirectUri = req.body.redirect_uri;
+        if (!redirectUri) {
+            return res.status(400).json({
+                error: 'invalid_request',
+                error_description: 'Missing redirect_uri',
+            });
+        }
+        const url = new URL(redirectUri);
+        url.searchParams.set('code', authorizationCode.authorizationCode);
+        if (req.body.state) {
+            url.searchParams.set('state', req.body.state);
+        }
+        return res.redirect(url.toString());
+    } catch (error) {
+        console.error('Authorization error:', error);
+        const redirectUrl = new URL(req.body.redirect_uri);
+        redirectUrl.searchParams.set('error', 'server_error');
+        if (req.body.state)
+            redirectUrl.searchParams.set('state', req.body.state);
+        return res.redirect(redirectUrl.toString());
     }
 });
 
