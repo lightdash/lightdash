@@ -16,7 +16,7 @@ The file should be easy to understand and useful, but not complete.
 
 Provide the minimum viable context for an engineer to use the functions.
 
-Provide a quick of the module's purpose and its value.
+Provide a quick summary of the module's purpose and its value.
 It shouldn't get into technical implementation details.
 
 Explain the key interfaces, the entry points, and the exported functions with brief usage examples.
