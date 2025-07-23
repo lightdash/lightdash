@@ -1346,7 +1346,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
-        'user' | 'metricQuery' | 'dateZoom' | 'parameters'
+        'account' | 'metricQuery' | 'dateZoom' | 'parameters'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -1639,6 +1639,7 @@ export class AsyncQueryService extends ProjectService {
                                     ', ',
                                 )}`,
                             },
+                            account,
                         );
 
                         return {
@@ -1753,9 +1754,9 @@ export class AsyncQueryService extends ProjectService {
         };
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             explore_name: metricQuery.exploreName,
             query_context: context,
         };
@@ -1900,9 +1901,9 @@ export class AsyncQueryService extends ProjectService {
                 : metricQuery;
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: savedChartOrganizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             chart_uuid: chartUuid,
             explore_name: savedChartTableName,
             query_context: context,
@@ -2110,9 +2111,9 @@ export class AsyncQueryService extends ProjectService {
         };
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
             explore_name: explore.name,
@@ -2270,9 +2271,9 @@ export class AsyncQueryService extends ProjectService {
         };
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             explore_name: exploreName,
             query_context: context,
         };
@@ -2455,9 +2456,9 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             query_context: context,
         };
 

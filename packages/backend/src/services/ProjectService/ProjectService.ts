@@ -1922,9 +1922,9 @@ export class ProjectService extends BaseService {
         }
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             explore_name: exploreName,
             query_context: context,
         };
@@ -2001,9 +2001,9 @@ export class ProjectService extends BaseService {
         const { metricQuery } = savedChart;
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             chart_uuid: chartUuid,
             explore_name: savedChart.tableName,
             query_context: context,
@@ -2127,9 +2127,9 @@ export class ProjectService extends BaseService {
         };
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             chart_uuid: chartUuid,
             dashboard_uuid: dashboardUuid,
             explore_name: explore.name,
@@ -2230,9 +2230,9 @@ export class ProjectService extends BaseService {
         }
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             explore_name: exploreName,
             query_context: context,
         };
@@ -2424,8 +2424,8 @@ export class ProjectService extends BaseService {
                 const { metricQuery } = chart;
                 const exploreId = chart.tableName;
                 const queryTags: RunQueryTags = {
+                    ...this.getUserQueryTags(account),
                     project_uuid: chart.projectUuid,
-                    user_uuid: account.user.id,
                     chart_uuid: chartUuid,
                     explore_name: exploreId,
                     query_context: context,
@@ -5211,9 +5211,9 @@ export class ProjectService extends BaseService {
         );
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: account.organization.organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             explore_name: exploreName,
             query_context: QueryExecutionContext.CALCULATE_TOTAL,
         };
@@ -5256,9 +5256,9 @@ export class ProjectService extends BaseService {
         );
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             explore_name: explore.name,
             query_context: QueryExecutionContext.CALCULATE_TOTAL,
         };
@@ -5443,9 +5443,9 @@ export class ProjectService extends BaseService {
         });
 
         const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
             organization_uuid: account.organization.organizationUuid,
             project_uuid: projectUuid,
-            user_uuid: account.user.id,
             explore_name: exploreName,
             query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
         };
@@ -6403,5 +6403,18 @@ export class ProjectService extends BaseService {
             }
             throw new UnexpectedServerError('Failed to get datasets');
         }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    getUserQueryTags(account: Account) {
+        if (account.isJwtUser()) {
+            return {
+                embed: 'true',
+                external_id: account.user.id,
+            };
+        }
+        return {
+            user_uuid: account.user.id,
+        };
     }
 }
