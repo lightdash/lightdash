@@ -1,3 +1,10 @@
+# [0.1833.0](https://github.com/lightdash/lightdash/compare/0.1832.0...0.1833.0) (2025-07-23)
+
+
+### Features
+
+* implement /calculate-subtotals for embedded dashboards ([#15947](https://github.com/lightdash/lightdash/issues/15947)) ([92e33b2](https://github.com/lightdash/lightdash/commit/92e33b2ea79542e0d11abd22f9aa94234b71e854))
+
 # [0.1832.0](https://github.com/lightdash/lightdash/compare/0.1831.1...0.1832.0) (2025-07-23)
 
 
