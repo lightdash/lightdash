@@ -382,6 +382,7 @@ export const createArgs =
                 updatedAt: new Date(),
                 instruction: null,
                 imageUrl: null,
+                groupAccess: [],
                 ...agentSettings,
             },
             messageHistory: messageHistory ?? [],
