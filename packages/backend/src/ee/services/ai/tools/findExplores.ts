@@ -1,4 +1,7 @@
-import { toolFindExploresArgsSchema } from '@lightdash/common';
+import {
+    convertToAiHints,
+    toolFindExploresArgsSchema,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { GetExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -24,7 +27,13 @@ ${explores
     .map(
         (explore) => `Explore/Model id: ${explore.name}
 Name/Label: ${explore.label}
-${explore.aiHint ? `Hint: ${explore.aiHint}` : ''}
+${
+    explore.aiHint
+        ? `Hints:\n${convertToAiHints(explore.aiHint)
+              ?.map((hint) => `- ${hint}`)
+              .join('\n')}`
+        : ''
+}
 Description: ${explore.description ?? 'No description'}
 ${
     explore.joinedTables.length > 0
