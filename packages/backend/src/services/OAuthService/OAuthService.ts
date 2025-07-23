@@ -90,47 +90,4 @@ export class OAuthService extends BaseService {
         if (refreshToken) return this.oauthModel.revokeToken(refreshToken);
         return false;
     }
-
-    public async authenticateWithOauthToken(
-        req: Request,
-        next: NextFunction,
-    ): Promise<void> {
-        try {
-            const token = req.headers.authorization;
-            if (!token || typeof token !== 'string' || token.length === 0) {
-                next();
-                return;
-            }
-            const tokenParts = token.split(' ');
-            const oauthToken = tokenParts[1];
-            const isValidOauthToken =
-                !oauthToken ||
-                typeof oauthToken !== 'string' ||
-                oauthToken.length === 0 ||
-                !oauthToken.startsWith(AuthTokenPrefix.OAUTH_APP);
-            if (tokenParts[0] !== 'Bearer' && !isValidOauthToken) {
-                next();
-                return;
-            }
-
-            const accessToken = await this.oauthModel.getAccessToken(
-                oauthToken,
-            );
-            if (!accessToken) {
-                throw new ForbiddenError('Invalid OAuth token');
-            }
-            const { sessionUser } =
-                await this.userModel.getSessionUserFromCacheOrDB(
-                    accessToken.user.userUuid,
-                    accessToken.user.organizationUuid, // use from token
-                );
-            if (!sessionUser) {
-                throw new NotFoundError('User not found');
-            }
-            req.user = sessionUser;
-            next();
-        } catch (error) {
-            next(error);
-        }
-    }
 }
