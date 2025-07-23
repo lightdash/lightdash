@@ -8,19 +8,24 @@ Provides authentication strategies, middleware, and utilities for Lightdash's mu
 The module exports authentication strategies, middleware functions, and utilities that work together:
 
 **Authentication Middleware:**
+
 ```typescript
 import { isAuthenticated, allowApiKeyAuthentication } from './authentication';
 
 // Require session-based authentication
 app.get('/protected-route', isAuthenticated, handler);
 
-// Allow both session and API key authentication  
+// Allow both session and API key authentication
 app.get('/api-route', allowApiKeyAuthentication, handler);
 ```
 
 **Authentication Strategies:**
+
 ```typescript
-import { localPassportStrategy, googlePassportStrategy } from './authentication';
+import {
+    localPassportStrategy,
+    googlePassportStrategy,
+} from './authentication';
 
 // Register strategies with passport
 passport.use('local', localPassportStrategy({ userService }));
@@ -28,18 +33,24 @@ passport.use('google', googlePassportStrategy);
 ```
 
 **OAuth Flow Helpers:**
+
 ```typescript
 import { storeOIDCRedirect, getOidcRedirectURL } from './authentication';
 
 // Store redirect info before OAuth
-app.get('/oauth/google/login', storeOIDCRedirect, passport.authenticate('google'));
+app.get(
+    '/oauth/google/login',
+    storeOIDCRedirect,
+    passport.authenticate('google'),
+);
 
 // Get redirect URL after OAuth
 app.get('/oauth/google/callback', (req, res) => {
-  const redirectUrl = getOidcRedirectURL(true)(req);
-  res.redirect(redirectUrl);
+    const redirectUrl = getOidcRedirectURL(true)(req);
+    res.redirect(redirectUrl);
 });
 ```
+
 </howToUse>
 
 <codeExample>
@@ -61,19 +72,20 @@ passport.use('headerapikey', apiKeyPassportStrategy({ userService }));
 
 // Session-only routes
 app.post('/login', passport.authenticate('local'), (req, res) => {
-  res.json({ user: req.user });
+res.json({ user: req.user });
 });
 
 // API routes supporting both session and API keys
 app.get('/api/v1/user', allowApiKeyAuthentication, (req, res) => {
-  res.json(req.user);
+res.json(req.user);
 });
 
 // OAuth login with redirect handling
-app.get('/oauth/google/login', 
-  storeOIDCRedirect, 
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+app.get('/oauth/google/login',
+storeOIDCRedirect,
+passport.authenticate('google', { scope: ['profile', 'email'] })
 );
+
 ```
 </codeExample>
 
@@ -106,3 +118,4 @@ Middleware functions: @/packages/backend/src/controllers/authentication/middlewa
 Strategy implementations: @/packages/backend/src/controllers/authentication/strategies/
 User service: @/packages/backend/src/services/UserService.ts
 </links>
+```

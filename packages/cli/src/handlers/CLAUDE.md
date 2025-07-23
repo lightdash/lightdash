@@ -21,11 +21,11 @@ Most handlers require authentication and project context. The compile/deploy wor
 import { compile, CompileHandlerOptions } from './compile';
 
 const options: CompileHandlerOptions = {
-  projectDir: './dbt-project',
-  profilesDir: './profiles',
-  target: 'dev',
-  verbose: true,
-  skipWarehouseCatalog: false
+projectDir: './dbt-project',
+profilesDir: './profiles',
+target: 'dev',
+verbose: true,
+skipWarehouseCatalog: false
 };
 
 const explores = await compile(options);
@@ -35,25 +35,26 @@ console.info(`Compiled ${explores.length} explores`);
 import { deployHandler } from './deploy';
 
 await deployHandler({
-  ...options,
-  create: true, // Create new project
-  ignoreErrors: false
+...options,
+create: true, // Create new project
+ignoreErrors: false
 });
 
 // Login with different methods
 import { login } from './login';
 
 // OAuth login
-await login('https://app.lightdash.cloud', { 
-  oauth: true, 
-  verbose: false 
+await login('https://app.lightdash.cloud', {
+oauth: true,
+verbose: false
 });
 
 // Token-based login
-await login('https://app.lightdash.cloud', { 
-  token: 'your-api-token',
-  verbose: false 
+await login('https://app.lightdash.cloud', {
+token: 'your-api-token',
+verbose: false
 });
+
 ```
 </codeExample>
 
@@ -73,9 +74,10 @@ await login('https://app.lightdash.cloud', {
 
 <links>
 - Main CLI entry point: @/../../index.ts
-- Configuration management: @/../../config.ts  
+- Configuration management: @/../../config.ts
 - dbt integration utilities: @/dbt/
 - Authentication helpers: @/login/ subdirectory
 - Global state and logging: @/../../globalState.ts
 - Warehouse client management: @/../../warehouse/
 </links>
+```

@@ -4,6 +4,7 @@
 Express.js routers that define the REST API endpoints for the Lightdash backend. Each router handles a specific domain (projects, users, dashboards, etc.) and implements authentication, authorization, and request handling patterns. All routers are mounted under the `/api/v1` prefix.
 
 Most routers are deprecated, since we have migrated to using controllers in TSOA.
+
 </summary>
 
 <howToUse>
@@ -26,32 +27,33 @@ import { isAuthenticated, allowApiKeyAuthentication } from '../controllers/authe
 export const myRouter = express.Router({ mergeParams: true });
 
 // GET endpoint with authentication
-myRouter.get('/', 
-  allowApiKeyAuthentication,
-  isAuthenticated,
-  async (req, res, next) => {
-    req.services.getMyService()
-      .getAllItems(req.user!)
-      .then(results => res.json({ status: 'ok', results }))
-      .catch(next);
-  }
+myRouter.get('/',
+allowApiKeyAuthentication,
+isAuthenticated,
+async (req, res, next) => {
+req.services.getMyService()
+.getAllItems(req.user!)
+.then(results => res.json({ status: 'ok', results }))
+.catch(next);
+}
 );
 
 // POST endpoint with demo protection
 myRouter.post('/',
-  allowApiKeyAuthentication,
-  isAuthenticated,
-  unauthorisedInDemo,
-  async (req, res, next) => {
-    req.services.getMyService()
-      .createItem(req.user!, req.body)
-      .then(results => res.json({ status: 'ok', results }))
-      .catch(next);
-  }
+allowApiKeyAuthentication,
+isAuthenticated,
+unauthorisedInDemo,
+async (req, res, next) => {
+req.services.getMyService()
+.createItem(req.user!, req.body)
+.then(results => res.json({ status: 'ok', results }))
+.catch(next);
+}
 );
 
 // Router mounting in apiV1Router.ts
 apiV1Router.use('/my-resource', myRouter);
+
 ```
 </codeExample>
 
@@ -69,7 +71,7 @@ apiV1Router.use('/my-resource', myRouter);
 
 **Route Parameters**: Project-scoped routers use `{ mergeParams: true }` to access parent route params like `:projectUuid`.
 
-**OAuth implementation**: the oauthRouter.ts implements the necesary endpoint to let Lightdash work as a oauth server. We mainly use this to authenticate with the CLI. 
+**OAuth implementation**: the oauthRouter.ts implements the necesary endpoint to let Lightdash work as a oauth server. We mainly use this to authenticate with the CLI.
 
 **API Versioning**: All routes are under `/api/v1` prefix. Future versions would create new router modules.
 </importantToKnow>
@@ -83,3 +85,4 @@ apiV1Router.use('/my-resource', myRouter);
 - OAuth implementation: @/oauthRouter.ts
 - New controllers: @/../controllers
 </links>
+```
