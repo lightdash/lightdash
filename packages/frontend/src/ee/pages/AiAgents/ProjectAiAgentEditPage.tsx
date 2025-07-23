@@ -24,6 +24,7 @@ import {
     IconArrowLeft,
     IconBook2,
     IconCheck,
+    IconInfoCircle,
     IconPlug,
     IconPointFilled,
     IconRefresh,
