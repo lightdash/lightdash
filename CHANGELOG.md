@@ -1,3 +1,10 @@
+# [0.1832.0](https://github.com/lightdash/lightdash/compare/0.1831.1...0.1832.0) (2025-07-23)
+
+
+### Features
+
+* add yaml_tags to catalog search for AI visibility filtering ([#15948](https://github.com/lightdash/lightdash/issues/15948)) ([2fd5c48](https://github.com/lightdash/lightdash/commit/2fd5c4853bfa3a145bf2f86c480c656389823308))
+
 ## [0.1831.1](https://github.com/lightdash/lightdash/compare/0.1831.0...0.1831.1) (2025-07-23)
 
 
