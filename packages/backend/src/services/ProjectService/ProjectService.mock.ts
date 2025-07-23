@@ -278,6 +278,7 @@ export const defaultProject: OrganizationProject = {
     name: 'name',
     type: ProjectType.DEFAULT,
     createdByUserUuid: user.userUuid,
+    createdAt: new Date(),
     upstreamProjectUuid: null,
     warehouseType: WarehouseTypes.POSTGRES,
     requireUserCredentials: false,
