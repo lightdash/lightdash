@@ -2,12 +2,16 @@ import {
     type ApiCalculateSubtotalsResponse,
     type ApiError,
     type CalculateSubtotalsFromQuery,
+    type DashboardFilters,
     type MetricQuery,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
-import { convertDateFilters } from '../utils/dateFilter';
+import {
+    convertDateDashboardFilters,
+    convertDateFilters,
+} from '../utils/dateFilter';
 
 const calculateSubtotalsFromQuery = async (
     projectUuid: string,
@@ -32,33 +36,81 @@ const calculateSubtotalsFromQuery = async (
     });
 };
 
+const postCalculateSubtotalsForEmbed = async (
+    embedToken: string,
+    projectUuid: string,
+    savedChartUuid: string,
+    columnOrder: string[],
+    pivotDimensions?: string[],
+    dashboardFilters?: DashboardFilters,
+    invalidateCache?: boolean,
+): Promise<ApiCalculateSubtotalsResponse['results']> => {
+    const timezoneFixFilters =
+        dashboardFilters && convertDateDashboardFilters(dashboardFilters);
+
+    return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
+        url: `/embed/${projectUuid}/chart/${savedChartUuid}/calculate-subtotals`,
+        method: 'POST',
+        headers: {
+            'Lightdash-Embed-Token': embedToken,
+        },
+        body: JSON.stringify({
+            dashboardFilters: timezoneFixFilters,
+            columnOrder,
+            pivotDimensions,
+            invalidateCache,
+        }),
+    });
+};
+
 export const useCalculateSubtotals = ({
     metricQuery,
     explore,
     showSubtotals,
     columnOrder,
     pivotDimensions,
+    savedChartUuid,
+    dashboardFilters,
+    invalidateCache,
+    embedToken,
 }: {
     metricQuery?: MetricQuery;
     explore?: string;
     showSubtotals?: boolean;
     columnOrder?: string[];
     pivotDimensions?: string[];
+    savedChartUuid?: string;
+    dashboardFilters?: DashboardFilters;
+    invalidateCache?: boolean;
+    embedToken?: string;
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    return useQuery<ApiCalculateSubtotalsResponse['results'], ApiError>({
-        queryKey: [
+    return useQuery<ApiCalculateSubtotalsResponse['results'], ApiError>(
+        [
             'calculate_subtotals',
             projectUuid,
-            metricQuery,
+            savedChartUuid || metricQuery,
             explore,
             columnOrder,
             showSubtotals,
             pivotDimensions,
+            dashboardFilters,
+            invalidateCache,
+            embedToken,
         ],
-        queryFn: () =>
-            projectUuid && metricQuery && explore && columnOrder
+        () =>
+            embedToken && projectUuid && savedChartUuid && columnOrder
+                ? postCalculateSubtotalsForEmbed(
+                      embedToken,
+                      projectUuid,
+                      savedChartUuid,
+                      columnOrder,
+                      pivotDimensions,
+                      dashboardFilters,
+                      invalidateCache,
+                  )
+                : projectUuid && metricQuery && explore && columnOrder
                 ? calculateSubtotalsFromQuery(
                       projectUuid,
                       explore,
@@ -67,19 +119,23 @@ export const useCalculateSubtotals = ({
                       pivotDimensions,
                   )
                 : Promise.reject(),
-        retry: false,
-        enabled:
-            !window.location.pathname.startsWith('/embed/') &&
-            showSubtotals === true &&
-            metricQuery !== undefined &&
-            metricQuery.metrics.length > 0 &&
-            columnOrder !== undefined &&
-            explore !== undefined,
-        onError: (result) =>
-            console.error(
-                `Unable to calculate subtotals from query: ${
-                    result?.error?.message || result
-                }`,
-            ),
-    });
+        {
+            retry: false,
+            enabled:
+                showSubtotals &&
+                Boolean(columnOrder) &&
+                (Boolean(embedToken && savedChartUuid) ||
+                    Boolean(
+                        metricQuery &&
+                            explore &&
+                            (metricQuery.metrics.length ?? 0) > 0,
+                    )),
+            onError: (result: ApiError) =>
+                console.error(
+                    `Unable to calculate subtotals from query: ${
+                        result?.error?.message || result
+                    }`,
+                ),
+        },
+    );
 };

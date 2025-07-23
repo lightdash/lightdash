@@ -224,13 +224,26 @@ const useTableConfig = (
               },
     );
 
-    const { data: groupedSubtotals } = useCalculateSubtotals({
-        metricQuery: resultsData?.metricQuery,
-        explore: resultsData?.metricQuery?.exploreName,
-        showSubtotals,
-        columnOrder,
-        pivotDimensions,
-    });
+    const { data: groupedSubtotals } = useCalculateSubtotals(
+        embedToken && savedChartUuid
+            ? {
+                  savedChartUuid,
+                  dashboardFilters,
+                  invalidateCache,
+                  showSubtotals,
+                  columnOrder,
+                  pivotDimensions,
+                  embedToken,
+              }
+            : {
+                  metricQuery: resultsData?.metricQuery,
+                  explore: resultsData?.metricQuery?.exploreName,
+                  showSubtotals,
+                  columnOrder,
+                  pivotDimensions,
+                  embedToken: undefined,
+              },
+    );
 
     const columns = useMemo(() => {
         if (!selectedItemIds || !itemsMap) {
