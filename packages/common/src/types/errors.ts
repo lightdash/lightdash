@@ -562,3 +562,17 @@ export class CustomSqlQueryForbiddenError extends LightdashError {
         });
     }
 }
+
+export class OauthAuthenticationError extends LightdashError {
+    constructor(
+        message = 'OAuth authentication error',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'OauthAuthenticationError',
+            statusCode: 401,
+            data,
+        });
+    }
+}
