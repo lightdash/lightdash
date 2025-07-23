@@ -1,3 +1,15 @@
+# [0.1828.0](https://github.com/lightdash/lightdash/compare/0.1827.2...0.1828.0) (2025-07-23)
+
+
+### Bug Fixes
+
+* Markdown tile image obscured by comment icon on hover ([#15900](https://github.com/lightdash/lightdash/issues/15900)) ([d56d604](https://github.com/lightdash/lightdash/commit/d56d604e403c38f93d9e682d7a8fca2f3da22579)), closes [#15898](https://github.com/lightdash/lightdash/issues/15898)
+
+
+### Features
+
+* support array format for AI hints ([#15897](https://github.com/lightdash/lightdash/issues/15897)) ([9e9b0b2](https://github.com/lightdash/lightdash/commit/9e9b0b295184359ec1a464b724f52056fac4b66e))
+
 ## [0.1827.2](https://github.com/lightdash/lightdash/compare/0.1827.1...0.1827.2) (2025-07-23)
 
 
