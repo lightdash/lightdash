@@ -1,25 +1,20 @@
-import { AuthorizationError, oauthPageStyles } from '@lightdash/common';
+import {
+    AuthorizationError,
+    generateOAuthErrorResponse,
+    generateOAuthSuccessResponse,
+} from '@lightdash/common';
 import { exec } from 'child_process';
-import * as crypto from 'crypto';
 import * as http from 'http';
 import { createServer } from 'net';
 import fetch from 'node-fetch';
+import { generators, Issuer } from 'openid-client';
 import { URL } from 'url';
 import { promisify } from 'util';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { generatePersonalAccessToken } from './login/pat';
 
-// Shared CSS styles for OAuth response pages - matching Lightdash login design
-
 const execAsync = promisify(exec);
-
-// PKCE helper functions
-const generateCodeVerifier = (): string =>
-    crypto.randomBytes(32).toString('base64url');
-
-const generateCodeChallenge = (verifier: string): string =>
-    crypto.createHash('sha256').update(verifier).digest('base64url');
 
 // Helper function to find an available port
 const findAvailablePort = async (
@@ -79,14 +74,30 @@ const openBrowser = async (url: string): Promise<void> => {
 export const loginWithOauth = async (
     url: string,
 ): Promise<{ userUuid: string; organizationUuid: string; token: string }> => {
-    // Generate PKCE values
-    const codeVerifier = generateCodeVerifier();
-    const codeChallenge = generateCodeChallenge(codeVerifier);
-    const state = crypto.randomBytes(16).toString('hex');
-
     // Find an available port
     const port = await findAvailablePort(8100, 8110);
     const redirectUri = `http://localhost:${port}/callback`;
+
+    // Create OAuth2 issuer and client using openid-client
+    const issuerUrl = new URL('/api/v1/oauth', url).href;
+    const issuer = new Issuer({
+        issuer: issuerUrl,
+        authorization_endpoint: new URL('/api/v1/oauth/authorize', url).href,
+        token_endpoint: new URL('/api/v1/oauth/token', url).href,
+    });
+
+    const client = new issuer.Client({
+        client_id: 'lightdash-cli',
+        redirect_uris: [redirectUri],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none', // Public client (no client secret)
+        id_token_signed_response_alg: 'none', // Disable ID token validation for OAuth2
+    });
+
+    // Generate PKCE values using openid-client generators
+    const codeVerifier = generators.codeVerifier();
+    const codeChallenge = generators.codeChallenge(codeVerifier);
+    const state = generators.state();
 
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
@@ -106,30 +117,26 @@ export const loginWithOauth = async (
             const returnedState = callbackUrl.searchParams.get('state');
             const error = callbackUrl.searchParams.get('error');
 
+            res.setHeader('Content-Type', 'text/html');
+
+            if (error === 'access_denied') {
+                rejectAuth(new AuthorizationError(`OAuth error: ${error}`));
+                res.writeHead(400);
+                res.end(
+                    generateOAuthErrorResponse('Authentication Failed', [
+                        `Access denied from the Lightdash page.`,
+                    ]),
+                );
+                return;
+            }
             if (error) {
                 rejectAuth(new AuthorizationError(`OAuth error: ${error}`));
-                res.writeHead(400, { 'Content-Type': 'text/html' });
-                res.end(`
-                    <html>
-                        <head>
-                            <style>${oauthPageStyles}</style>
-                        </head>
-                        <body>
-                            <div class="stack">
-                                
-                                <div class="container error">
-                                    <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                        <path d="M15 9l-6 6M9 9l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                    <h1>Authentication Failed</h1>
-                                    <p>Error: ${error}</p>
-                                    <p>You can close this window and try again.</p>
-                                </div>
-                            </div>
-                        </body>
-                    </html>
-                `);
+                res.writeHead(400);
+                res.end(
+                    generateOAuthErrorResponse('Authentication Failed', [
+                        `Error: ${error}`,
+                    ]),
+                );
                 return;
             }
 
@@ -139,28 +146,12 @@ export const loginWithOauth = async (
                         'Missing authorization code or state',
                     ),
                 );
-                res.writeHead(400, { 'Content-Type': 'text/html' });
-                res.end(`
-                    <html>
-                        <head>
-                            <style>${oauthPageStyles}</style>
-                        </head>
-                        <body>
-                            <div class="stack">
-                               
-                                <div class="container error">
-                                    <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                        <path d="M15 9l-6 6M9 9l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                    <h1>Authentication Failed</h1>
-                                    <p>Missing authorization code or state parameter.</p>
-                                    <p>You can close this window and try again.</p>
-                                </div>
-                            </div>
-                        </body>
-                    </html>
-                `);
+                res.writeHead(400);
+                res.end(
+                    generateOAuthErrorResponse('Authentication Failed', [
+                        'Missing authorization code or state parameter.',
+                    ]),
+                );
                 return;
             }
 
@@ -170,57 +161,26 @@ export const loginWithOauth = async (
                         'Authentication session expired or invalid',
                     ),
                 );
-                res.writeHead(400, { 'Content-Type': 'text/html' });
-                res.end(`
-                    <html>
-                        <head>
-                            <style>${oauthPageStyles}</style>
-                        </head>
-                        <body>
-                            <div class="stack">
-                               
-                                <div class="container error">
-                                    <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                        <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                    <h1>Authentication Failed</h1>
-                                    <p>Your authentication session has expired or is invalid.</p>
-                                    <p>This can happen if you used an old link.</p>
-                                    <p>Please close this window and try logging in again.</p>
-                                </div>
-                            </div>
-                        </body>
-                    </html>
-                `);
+                res.writeHead(400);
+                res.end(
+                    generateOAuthErrorResponse(
+                        'Authentication Failed',
+                        [
+                            'Your authentication session has expired or is invalid.',
+                            'This can happen if you used an old link.',
+                            'Please close this window and try logging in again.',
+                        ],
+                        'sessionExpired',
+                    ),
+                );
                 return;
             }
 
             // Success - resolve the promise
             resolveAuth({ code, state: returnedState });
 
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(`
-                <html>
-                    <head>
-                        <style>${oauthPageStyles}</style>
-                    </head>
-                    <body>
-                        <div class="stack">
-                           
-                            <div class="container success">
-                                <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                                    <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                                <h1>Authentication Successful!</h1>
-                                <p>You have been successfully authenticated with Lightdash.</p>
-                                <p>You can close this window and return to the CLI.</p>
-                            </div>
-                        </div>
-                    </body>
-                </html>
-            `);
+            res.writeHead(200);
+            res.end(generateOAuthSuccessResponse());
         } else {
             res.writeHead(404, { 'Content-Type': 'text/plain' });
             res.end('Not Found');
@@ -238,25 +198,23 @@ export const loginWithOauth = async (
     });
 
     try {
-        // Construct the authorization URL
-        const authUrl = new URL('/api/v1/oauth/authorize', url);
-        authUrl.searchParams.set('response_type', 'code');
-        authUrl.searchParams.set('client_id', 'lightdash-cli');
-        authUrl.searchParams.set('redirect_uri', redirectUri);
-        authUrl.searchParams.set('scope', 'read write');
-        authUrl.searchParams.set('state', state);
-        authUrl.searchParams.set('code_challenge', codeChallenge);
-        authUrl.searchParams.set('code_challenge_method', 'S256');
+        // Generate the authorization URL using openid-client
+        const authUrl = client.authorizationUrl({
+            scope: 'read write',
+            state,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256',
+        });
 
         console.error(`\n${styles.title('🔐 OAuth Authentication')}`);
         console.error(`Opening browser for authentication...`);
         console.error(
             `If the browser doesn't open automatically, please visit:`,
         );
-        console.error(`${styles.secondary(authUrl.href)}\n`);
+        console.error(`${styles.secondary(authUrl)}\n`);
 
         // Try to open the browser
-        await openBrowser(authUrl.href);
+        await openBrowser(authUrl);
 
         // Wait for the authorization code
         const { code } = await authPromise;
@@ -265,9 +223,9 @@ export const loginWithOauth = async (
             `> Got authorization code ${code.substring(0, 10)}...`,
         );
 
-        GlobalState.debug(`> Getting token for authorization code `);
+        GlobalState.debug(`> Getting token for authorization code`);
 
-        // Exchange the authorization code for an access token
+        // Exchange the authorization code for an access token manually (pure OAuth2)
         const tokenUrl = new URL('/api/v1/oauth/token', url);
         const tokenResponse = await fetch(tokenUrl.href, {
             method: 'POST',
@@ -297,8 +255,9 @@ export const loginWithOauth = async (
                 'No access token received from OAuth server',
             );
         }
+
         GlobalState.debug(
-            `> Oauth access token: ${accessToken.substring(0, 10)}...`,
+            `> OAuth access token: ${accessToken.substring(0, 10)}...`,
         );
         GlobalState.debug(`> Creating PAT for user`);
 
@@ -312,7 +271,7 @@ export const loginWithOauth = async (
         );
         GlobalState.debug(`> PAT: ${pat.substring(0, 10)}...`);
 
-        // Get user information using the access token
+        // Get user information using the PAT
         const userInfoUrl = new URL('/api/v1/user', url);
         const userResponse = await fetch(userInfoUrl.href, {
             method: 'GET',
