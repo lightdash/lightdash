@@ -16,7 +16,7 @@ export const useEmbedDashboard = (
 ) => {
     return useQuery<Dashboard & InteractivityOptions, ApiError>({
         queryKey: ['embed-dashboard'],
-        queryFn: () => postEmbedDashboard(projectUuid!, embedToken!),
+        queryFn: () => postEmbedDashboard(projectUuid!),
         enabled: !!embedToken && !!projectUuid,
         retry: false,
     });
@@ -45,7 +45,6 @@ export const useEmbedChartAndResults = (
         queryFn: async () =>
             postEmbedChartAndResults(
                 projectUuid,
-                embedToken!,
                 tileUuid,
                 dashboardFilters,
                 dateZoomGranularity,

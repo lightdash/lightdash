@@ -1,3 +1,17 @@
+## [0.1830.1](https://github.com/lightdash/lightdash/compare/0.1830.0...0.1830.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* authentication/CLAUDE.md formatting ([#15960](https://github.com/lightdash/lightdash/issues/15960)) ([983fd58](https://github.com/lightdash/lightdash/commit/983fd588c1cf9c947456132c1faf5f2c0233d3d5))
+
+# [0.1830.0](https://github.com/lightdash/lightdash/compare/0.1829.1...0.1830.0) (2025-07-23)
+
+
+### Features
+
+* add JWT header to all UI network requests if present ([#15914](https://github.com/lightdash/lightdash/issues/15914)) ([f9326a4](https://github.com/lightdash/lightdash/commit/f9326a4db1e0e654f2c2dc0c2a536ad2ad854b8b))
+
 ## [0.1829.1](https://github.com/lightdash/lightdash/compare/0.1829.0...0.1829.1) (2025-07-23)
 
 
