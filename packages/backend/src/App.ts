@@ -229,6 +229,9 @@ export default class App {
             }),
             models: this.models,
         });
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -239,13 +242,11 @@ export default class App {
             clients: this.clients,
             models: this.models,
             utils: this.utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
         this.slackClientFactory = args.slackClientFactory || slackClientFactory;
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
     }
 
