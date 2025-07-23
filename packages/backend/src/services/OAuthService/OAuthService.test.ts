@@ -63,50 +63,6 @@ describe('OAuthService', () => {
         expect(mockOAuthModel.revokeToken).toHaveBeenCalled();
     });
 
-    it('calls getAccessToken in authenticateWithOauthToken', async () => {
-        const req = {
-            headers: { authorization: 'Bearer OAUTH_TOKEN' },
-        } as AnyType;
-        const next = jest.fn();
-        mockOAuthModel.getAccessToken.mockResolvedValue({
-            accessToken: 'token',
-            accessTokenExpiresAt: new Date(),
-            client: { id: 'lightdash-cli', grants: ['authorization_code'] },
-            user: { userUuid: 'u', organizationUuid: 'o' },
-            scope: ['read'],
-        });
-        mockUserModel.getSessionUserFromCacheOrDB.mockResolvedValue({
-            sessionUser: {
-                userUuid: 'u',
-                organizationUuid: 'o',
-                firstName: 'Test',
-                lastName: 'User',
-                ability: {} as AnyType,
-                abilityRules: [],
-                userId: 1,
-                isTrackingAnonymized: false,
-                isSetupComplete: true,
-                isMarketingOptedIn: false,
-                isActive: true,
-                email: 'test@example.com',
-                organizationName: 'TestOrg',
-                role: 'admin' as AnyType,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            },
-            cacheHit: true,
-        });
-        await oauthService.authenticateWithOauthToken(req, next);
-        expect(mockOAuthModel.getAccessToken).toHaveBeenCalled();
-        expect(req.user).toMatchObject({
-            userUuid: 'u',
-            organizationUuid: 'o',
-            firstName: 'Test',
-            lastName: 'User',
-        });
-        expect(next).toHaveBeenCalled();
-    });
-
     it('calls authorize', async () => {
         const request = {} as OAuth2Server.Request;
         const response = {} as OAuth2Server.Response;

@@ -179,7 +179,7 @@ oauthRouter.post('/token', async (req, res, next) => {
 
 // Token introspection endpoint
 oauthRouter.post('/introspect', async (req, res) => {
-    const { token, token_type_hint: tokenTypeHint } = req.body;
+    const { token } = req.body;
 
     if (!req.user) {
         return res.status(401).json({ error: 'invalid_request' });
@@ -227,7 +227,7 @@ oauthRouter.post('/introspect', async (req, res) => {
 
 // Token revocation endpoint
 oauthRouter.post('/revoke', async (req, res) => {
-    const { token, token_type_hint: tokenTypeHint } = req.body;
+    const { token } = req.body;
 
     if (!token) {
         return res.status(400).json({ error: 'invalid_request' });
@@ -244,7 +244,7 @@ oauthRouter.post('/revoke', async (req, res) => {
 
 // OAuth2 Discovery endpoint
 oauthRouter.get('/.well-known/oauth-authorization-server', (req, res) => {
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = getOAuthService(req).getSiteUrl();
 
     res.json({
         issuer: baseUrl,

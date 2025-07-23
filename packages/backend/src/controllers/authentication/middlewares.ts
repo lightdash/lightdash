@@ -3,18 +3,18 @@
 import {
     ApiError,
     AuthorizationError,
-    AuthTokenPrefix,
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
-    SessionUser,
 } from '@lightdash/common';
+import OAuth2Server from '@node-oauth/oauth2-server';
 import {
     ErrorRequestHandler,
     NextFunction,
     Request,
     RequestHandler,
 } from 'express';
+
 import passport from 'passport';
 import { URL } from 'url';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -53,8 +53,35 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
         next();
         return;
     }
+    const oauthReq = new OAuth2Server.Request(req);
+    const oauthRes = new OAuth2Server.Response(res);
 
-    void req.services.getOauthService().authenticateWithOauthToken(req, next);
+    req.services
+        .getOauthService()
+        .authenticate(oauthReq, oauthRes)
+        .then((token) => {
+            req.services
+                .getUserService()
+                .findSessionUser({
+                    id: token.user.userUuid,
+                    organization: token.user.organizationUuid,
+                })
+                .then((user) => {
+                    req.user = user;
+                    next();
+                })
+                .catch((userError) => {
+                    // This was a valid oauth token, but the user was not found in the database
+                    // in this case, we will throw an error
+                    next(userError);
+                });
+        })
+        .catch((error) => {
+            // This middleware might be trying to authenticate with a non Oauth token
+            // in that case, we will not throw an error, and we will continue with the next middleware
+            console.warn('OAuth authentication failed', error);
+            next();
+        });
 };
 /*
 This middleware is used to enable Api tokens and service accounts
