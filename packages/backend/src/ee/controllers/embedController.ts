@@ -280,7 +280,7 @@ export class EmbedController extends BaseController {
         @Path() savedChartUuid: string,
         @Body()
         body: {
-            dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
+            dashboardFilters?: DashboardFilters;
             columnOrder: string[];
             pivotDimensions?: string[];
             invalidateCache?: boolean;

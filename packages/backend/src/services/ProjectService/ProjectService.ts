@@ -5417,39 +5417,37 @@ export class ProjectService extends BaseService {
             return formatRawRows(rows, fields);
         };
 
-        const subtotalsPromises = dimensionGroupsToSubtotal.map(
-            async (subtotalDimensions) => {
-                let subtotals: Record<string, unknown>[] = [];
+        const subtotalsPromises = dimensionGroupsToSubtotal.map<
+            Promise<[string, Record<string, unknown>[]]>
+        >(async (subtotalDimensions) => {
+            let subtotals: Record<string, unknown>[] = [];
 
-                try {
-                    // Use utility to create properly configured subtotal query
-                    const { metricQuery: subtotalMetricQuery } =
-                        SubtotalsCalculator.createSubtotalQueryConfig(
-                            metricQuery,
-                            subtotalDimensions,
-                            pivotDimensions,
-                        );
-
-                    subtotals = await runQueryAndFormatRaw(subtotalMetricQuery);
-                } catch (e) {
-                    this.logger.error(
-                        `Error running subtotal query for dimensions ${subtotalDimensions.join(
-                            ',',
-                        )}`,
+            try {
+                // Use utility to create properly configured subtotal query
+                const { metricQuery: subtotalMetricQuery } =
+                    SubtotalsCalculator.createSubtotalQueryConfig(
+                        metricQuery,
+                        subtotalDimensions,
+                        pivotDimensions,
                     );
-                }
 
-                return [
-                    SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
-                    subtotals,
-                ];
-            },
-        );
+                subtotals = await runQueryAndFormatRaw(subtotalMetricQuery);
+            } catch (e) {
+                this.logger.error(
+                    `Error running subtotal query for dimensions ${subtotalDimensions.join(
+                        ',',
+                    )}`,
+                );
+            }
+
+            return [
+                SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
+                subtotals,
+            ] satisfies [string, Record<string, unknown>[]];
+        });
 
         const subtotalsEntries = await Promise.all(subtotalsPromises);
-        return SubtotalsCalculator.formatSubtotalEntries(
-            subtotalsEntries as Array<[string, Record<string, unknown>[]]>,
-        );
+        return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
     }
 
     async calculateSubtotalsFromQuery(
