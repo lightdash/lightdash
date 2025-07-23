@@ -19,8 +19,6 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 
-export const JWT_HEADER_NAME = 'lightdash-embed-token';
-
 /**
  * Encodes JWT data into a token
  */

@@ -63,7 +63,6 @@ const calculateTotalFromSavedChart = async (
 };
 
 const postCalculateTotalForEmbed = async (
-    embedToken: string,
     projectUuid: string,
     savedChartUuid: string,
     dashboardFilters?: DashboardFilters,
@@ -75,9 +74,6 @@ const postCalculateTotalForEmbed = async (
     return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/embed/${projectUuid}/chart/${savedChartUuid}/calculate-total`,
         method: 'POST',
-        headers: {
-            'Lightdash-Embed-Token': embedToken,
-        },
         body: JSON.stringify({
             dashboardFilters: timezoneFixFilters,
             invalidateCache,
@@ -146,7 +142,6 @@ export const useCalculateTotal = ({
         queryFn: () =>
             embedToken && projectUuid && savedChartUuid
                 ? postCalculateTotalForEmbed(
-                      embedToken,
                       projectUuid,
                       savedChartUuid,
                       dashboardFilters,
