@@ -1,3 +1,10 @@
+## [0.1831.1](https://github.com/lightdash/lightdash/compare/0.1831.0...0.1831.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* dimension alias on fanouts CTEs ([#15939](https://github.com/lightdash/lightdash/issues/15939)) ([fdde1ad](https://github.com/lightdash/lightdash/commit/fdde1ad6d83122e1f9f1e2278a5dd7863efb8d43))
+
 # [0.1831.0](https://github.com/lightdash/lightdash/compare/0.1830.2...0.1831.0) (2025-07-23)
 
 
