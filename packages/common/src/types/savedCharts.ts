@@ -415,9 +415,8 @@ type CreateChartBase = Pick<
     | 'pivotConfig'
     | 'chartConfig'
     | 'tableConfig'
-> & {
-    parameters?: ParametersValuesMap;
-};
+    | 'parameters'
+>;
 
 export type CreateChartInSpace = CreateChartBase & {
     spaceUuid?: string;
