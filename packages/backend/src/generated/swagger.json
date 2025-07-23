@@ -6875,6 +6875,134 @@
                     }
                 ]
             },
+            "Partial_Pick_Organization.name-or-createdAt-or-organizationUuid__": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the organization"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "organizationUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the organization",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "SessionAuth": {
+                "properties": {
+                    "source": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["session"],
+                        "nullable": false
+                    }
+                },
+                "required": ["source", "type"],
+                "type": "object"
+            },
+            "JwtAuth": {
+                "properties": {
+                    "source": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/CreateEmbedJwt"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["jwt"],
+                        "nullable": false
+                    }
+                },
+                "required": ["source", "data", "type"],
+                "type": "object"
+            },
+            "Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__": {
+                "properties": {
+                    "organization": {
+                        "$ref": "#/components/schemas/Partial_Pick_Organization.name-or-createdAt-or-organizationUuid__"
+                    },
+                    "authentication": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SessionAuth"
+                            },
+                            {
+                                "$ref": "#/components/schemas/JwtAuth"
+                            }
+                        ]
+                    }
+                },
+                "required": ["organization", "authentication"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Account.user-or-keyofAccountHelpers_": {
+                "$ref": "#/components/schemas/Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Pick_Account-at-user.Exclude_keyofAccount-at-user.ability-or-abilityRules__": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["registered", "anonymous"]
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["id", "type", "isActive"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Account-at-user.ability-or-abilityRules_": {
+                "$ref": "#/components/schemas/Pick_Account-at-user.Exclude_keyofAccount-at-user.ability-or-abilityRules__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "SerializedAccount": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_Account.user-or-keyofAccountHelpers_"
+                    },
+                    {
+                        "properties": {
+                            "user": {
+                                "$ref": "#/components/schemas/Omit_Account-at-user.ability-or-abilityRules_"
+                            }
+                        },
+                        "required": ["user"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiGetAccountResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SerializedAccount"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "UserAttributeValue": {
                 "properties": {
                     "value": {
@@ -8589,6 +8717,12 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "access": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "isPrivate": {
                         "type": "boolean"
                     },
@@ -8611,12 +8745,6 @@
                     "path": {
                         "type": "string"
                     },
-                    "access": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "chartCount": {
                         "type": "number",
                         "format": "double"
@@ -8631,13 +8759,13 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
+                    "access",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
                     "parentSpaceUuid",
                     "path",
-                    "access",
                     "chartCount",
                     "dashboardCount"
                 ],
@@ -12461,22 +12589,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -18547,6 +18675,37 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/user/account": {
+            "get": {
+                "operationId": "GetAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetAccountResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get account information",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org/attributes": {
