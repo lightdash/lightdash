@@ -2,12 +2,13 @@
 // This rule is failing in CI but passes locally
 import {
     ForbiddenError,
+    JWT_HEADER_NAME,
     NotFoundError,
     ParameterError,
 } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
 import * as Account from '../../auth/account';
-import { decodeLightdashJwt, JWT_HEADER_NAME } from '../../auth/lightdashJwt';
+import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
 import Logger from '../../logging/logger';
 
@@ -15,8 +16,12 @@ import Logger from '../../logging/logger';
  * We don't have the parsed routes yet, so we get the path params in a
  * cheap and dirty way. Long-term, we'll use org-level JWTs rather than project-level.
  */
-const parseProjectUuid = (path: string) => {
-    const pathParts = path.split('/');
+const parseProjectUuid = (req: Pick<Request, 'query' | 'path'>) => {
+    if (req.query.projectUuid) {
+        return req.query.projectUuid as string;
+    }
+
+    const pathParts = req.path.split('/');
     const projectParams = ['embed', 'projects'];
     const projectUuidIndex =
         pathParts.findIndex((part) => projectParams.includes(part)) + 1;
@@ -40,7 +45,9 @@ export async function jwtAuthMiddleware(
     next: NextFunction,
 ): Promise<void> {
     try {
-        if (req.account) {
+        // There are some situations where we'll already have a user and need to still create a
+        // JWT account. One example is when an admin is previewing an embed URL.
+        if (req.account?.isAuthenticated()) {
             next();
             return;
         }
@@ -49,7 +56,7 @@ export async function jwtAuthMiddleware(
         // The path will be like /api/v1/embed/{projectUuid}/dashboard
         // TODO: This is a hack to get the project UUID because JWT secrets are bound to the project rather than the organization.
         //       https://github.com/lightdash/lightdash/issues/15661
-        const projectUuid = parseProjectUuid(req.path);
+        const projectUuid = parseProjectUuid(req);
 
         if (!projectUuid) {
             next();
