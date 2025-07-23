@@ -1,10 +1,8 @@
 import { z } from 'zod';
-import fieldIdSchema from './fieldId';
+import { getFieldIdSchema } from './fieldId';
 
 const sortFieldSchema = z.object({
-    fieldId: fieldIdSchema.describe(
-        '"fieldId" must come from the selected Metrics or Dimensions; otherwise, it will throw an error.',
-    ),
+    fieldId: getFieldIdSchema({ additionalDescription: null }),
     descending: z
         .boolean()
         .describe(

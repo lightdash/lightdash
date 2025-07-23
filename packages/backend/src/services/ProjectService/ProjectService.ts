@@ -91,6 +91,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    LightdashProjectConfig,
     MAX_PIVOT_COLUMN_LIMIT,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
@@ -102,6 +103,7 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
+    type ParametersValuesMap,
     PivotChartData,
     PivotValuesColumn,
     Project,
@@ -184,6 +186,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -249,6 +252,7 @@ export type ProjectServiceArguments = {
     encryptionUtil: EncryptionUtil;
     userModel: UserModel;
     featureFlagModel: FeatureFlagModel;
+    projectParametersModel: ProjectParametersModel;
 };
 
 export class ProjectService extends BaseService {
@@ -306,6 +310,8 @@ export class ProjectService extends BaseService {
 
     featureFlagModel: FeatureFlagModel;
 
+    projectParametersModel: ProjectParametersModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -333,6 +339,7 @@ export class ProjectService extends BaseService {
         encryptionUtil,
         userModel,
         featureFlagModel,
+        projectParametersModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -362,6 +369,7 @@ export class ProjectService extends BaseService {
         this.encryptionUtil = encryptionUtil;
         this.userModel = userModel;
         this.featureFlagModel = featureFlagModel;
+        this.projectParametersModel = projectParametersModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -598,10 +606,18 @@ export class ProjectService extends BaseService {
             args.authenticationType === 'sso'
         ) {
             try {
-                const token = await this.userModel.getRefreshToken(
-                    userUuid,
-                    OpenIdIdentityIssuerType.SNOWFLAKE,
-                );
+                let { token } = args;
+
+                // We pass the refresh token for snowflake on args
+                // This is used on user warehouse credentials.
+                // If this is provided, use this instead of getting the refresh token from the openid table
+                if (token === undefined) {
+                    token = await this.userModel.getRefreshToken(
+                        userUuid,
+                        OpenIdIdentityIssuerType.SNOWFLAKE,
+                    );
+                }
+
                 this.logger.debug(
                     `Refreshing snowflake token for user ${userUuid}`,
                 );
@@ -1168,6 +1184,11 @@ export class ProjectService extends BaseService {
                             color: category.color ?? 'gray',
                         })),
                     );
+                    await this.replaceProjectParameters({
+                        user,
+                        projectUuid: newProjectUuid,
+                        parameters: lightdashProjectConfig.parameters,
+                    });
                     await this.saveExploresToCacheAndIndexCatalog(
                         user.userUuid,
                         newProjectUuid,
@@ -1458,6 +1479,11 @@ export class ProjectService extends BaseService {
                                     color: category.color ?? 'gray',
                                 })),
                             );
+                            await this.replaceProjectParameters({
+                                user,
+                                projectUuid,
+                                parameters: lightdashProjectConfig.parameters,
+                            });
                             await this.saveExploresToCacheAndIndexCatalog(
                                 user.userUuid,
                                 projectUuid,
@@ -1669,6 +1695,7 @@ export class ProjectService extends BaseService {
         timezone: string,
         dateZoom?: DateZoom,
         useExperimentalMetricCtes?: boolean,
+        parameters?: ParametersValuesMap,
     ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
@@ -1690,6 +1717,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone,
+            parameters,
         });
 
         return wrapSentryTransactionSync(
@@ -1702,11 +1730,16 @@ export class ProjectService extends BaseService {
     async compileQuery(
         args: {
             user: SessionUser;
-            metricQuery: MetricQuery;
+            // ! TODO: we need to fix this type
+            body: MetricQuery & { parameters?: ParametersValuesMap };
             projectUuid: string;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
-        const { user, metricQuery, projectUuid } = args;
+        const {
+            user,
+            body: { parameters, ...metricQuery },
+            projectUuid,
+        } = args;
 
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1762,9 +1795,15 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.query.timezone || 'UTC',
             undefined,
             useExperimentalMetricCtes,
+            parameters,
         );
         await sshTunnel.disconnect();
-        return compiledQuery;
+
+        return {
+            ...compiledQuery,
+            // Convert to array so TSOA can serialize it when using in controllers
+            parameterReferences: Array.from(compiledQuery.parameterReferences),
+        };
     }
 
     private metricQueryWithLimit(
@@ -3256,6 +3295,7 @@ export class ProjectService extends BaseService {
         limit: number,
         filters: AndFilterGroup | undefined,
         forceRefresh: boolean = false,
+        parameters?: ParametersValuesMap,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3298,7 +3338,11 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            undefined,
+            undefined,
+            parameters,
         );
+
         // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
         const queryHashKey = metricQuery.timezone
             ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
@@ -3722,6 +3766,11 @@ export class ProjectService extends BaseService {
                                 color: category.color ?? 'gray',
                             })),
                         );
+                        await this.replaceProjectParameters({
+                            user,
+                            projectUuid,
+                            parameters: lightdashProjectConfig.parameters,
+                        });
                         return this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
                             projectUuid,
@@ -5962,6 +6011,37 @@ export class ProjectService extends BaseService {
         }
 
         return this.tagsModel.list(projectUuid);
+    }
+
+    async replaceProjectParameters({
+        user,
+        projectUuid,
+        parameters,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        parameters: LightdashProjectConfig['parameters'];
+    }) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectParametersModel.replace(
+            projectUuid,
+            parameters ?? {},
+        );
     }
 
     async replaceYamlTags(

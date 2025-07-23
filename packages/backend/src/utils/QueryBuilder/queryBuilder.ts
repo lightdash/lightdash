@@ -12,7 +12,6 @@ import {
     FilterRule,
     getCustomMetricDimensionId,
     getDimensions,
-    getFieldQuoteChar,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
@@ -33,11 +32,16 @@ import {
     SupportedDbtAdapter,
     TimeFrames,
     UserAttributeValueMap,
-    WarehouseClient,
     WeekDay,
+    type ParametersValuesMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import {
+    replaceParameters,
+    replaceParametersAsRaw,
+    replaceParametersAsString,
+} from './parameters';
 import {
     assertValidDimensionRequiredAttribute,
     findMetricInflationWarnings,
@@ -60,6 +64,8 @@ export type CompiledQuery = {
     query: string;
     fields: ItemsMap;
     warnings: QueryWarning[];
+    parameterReferences: Set<string>;
+    missingParameterReferences: Set<string>;
 };
 
 export type BuildQueryProps = {
@@ -67,6 +73,7 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     userAttributes?: UserAttributeValueMap;
+    parameters?: ParametersValuesMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
 };
@@ -238,6 +245,7 @@ export class MetricQueryBuilder {
                     dimension,
                 )}${fieldQuoteChar}`,
         );
+
         if (customBinDimensionSql?.selects) {
             selects.push(...customBinDimensionSql.selects);
         }
@@ -491,12 +499,31 @@ export class MetricQueryBuilder {
             warehouseSqlBuilder.getEscapeStringQuoteChar();
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
+        // Replace parameter reference values with their actual values as raw sql
+        // This is safe as raw because they will get quoted internally by the filter compiler
+        const filterRuleWithParamReplacedValues: FilterRule = {
+            ...filter,
+            values: filter.values?.map((value) => {
+                if (typeof value === 'string') {
+                    const { replacedSql } = replaceParametersAsRaw(
+                        value,
+                        this.args.parameters ?? {},
+                    );
+
+                    return replacedSql;
+                }
+                return value;
+            }),
+        };
+
         if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
-                (tc) => getItemId(tc) === filter.target.fieldId,
+                (tc) =>
+                    getItemId(tc) ===
+                    filterRuleWithParamReplacedValues.target.fieldId,
             );
             return renderTableCalculationFilterRuleSql(
-                filter,
+                filterRuleWithParamReplacedValues,
                 field,
                 fieldQuoteChar,
                 stringQuoteChar,
@@ -514,20 +541,24 @@ export class MetricQueryBuilder {
                       ...compiledCustomDimensions.filter(
                           isCompiledCustomSqlDimension,
                       ),
-                  ].find((d) => getItemId(d) === filter.target.fieldId)
+                  ].find(
+                      (d) =>
+                          getItemId(d) ===
+                          filterRuleWithParamReplacedValues.target.fieldId,
+                  )
                 : getMetricFromId(
-                      filter.target.fieldId,
+                      filterRuleWithParamReplacedValues.target.fieldId,
                       explore,
                       compiledMetricQuery,
                   );
         if (!field) {
             throw new FieldReferenceError(
-                `Filter has a reference to an unknown ${fieldType}: ${filter.target.fieldId}`,
+                `Filter has a reference to an unknown ${fieldType}: ${filterRuleWithParamReplacedValues.target.fieldId}`,
             );
         }
 
         return renderFilterRuleSqlFromField(
-            filter,
+            filterRuleWithParamReplacedValues,
             field,
             fieldQuoteChar,
             stringQuoteChar,
@@ -696,6 +727,7 @@ export class MetricQueryBuilder {
                     userAttributes,
                     warehouseSqlBuilder,
                 );
+
                 return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
             .join('\n');
@@ -1119,15 +1151,37 @@ export class MetricQueryBuilder {
             }
         }
 
+        const query = MetricQueryBuilder.assembleSqlParts([
+            MetricQueryBuilder.buildCtesSQL(ctes),
+            ...finalSelectParts,
+            sqlOrderBy,
+            sqlLimit,
+        ]);
+
+        const {
+            replacedSql,
+            references: parameterReferences,
+            missingReferences: missingParameterReferences,
+        } = replaceParametersAsString(
+            query,
+            this.args.parameters ?? {},
+            this.args.warehouseSqlBuilder,
+        );
+
+        if (missingParameterReferences.size > 0) {
+            warnings.push({
+                message: `Missing parameters: ${Array.from(
+                    missingParameterReferences,
+                ).join(', ')}`,
+            });
+        }
+
         return {
-            query: MetricQueryBuilder.assembleSqlParts([
-                MetricQueryBuilder.buildCtesSQL(ctes),
-                ...finalSelectParts,
-                sqlOrderBy,
-                sqlLimit,
-            ]),
+            query: replacedSql,
             fields,
             warnings,
+            parameterReferences,
+            missingParameterReferences,
         };
     }
 }
@@ -1147,12 +1201,18 @@ export class QueryBuilder {
 
     private readonly filters: FilterGroup | undefined;
 
+    private readonly parameters?: ParametersValuesMap;
+
+    private readonly limit: number | undefined;
+
     constructor(
         args: {
             referenceMap: ReferenceMap;
             select: string[];
             from: From;
             filters?: FilterGroup;
+            parameters?: ParametersValuesMap;
+            limit: number | undefined;
         },
         private config: {
             fieldQuoteChar: string;
@@ -1167,6 +1227,8 @@ export class QueryBuilder {
         this.from = args.from;
         this.filters = args.filters;
         this.referenceMap = args.referenceMap;
+        this.parameters = args.parameters;
+        this.limit = args.limit;
     }
 
     private quotedName(value: string) {
@@ -1255,10 +1317,39 @@ export class QueryBuilder {
         return undefined;
     }
 
-    toSql(): string {
+    private limitToSql() {
+        if (this.limit) {
+            return `LIMIT ${this.limit}`;
+        }
+        return undefined;
+    }
+
+    getSqlAndReferences() {
         // Combine all parts of the query
-        return [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
+        const sql = [
+            this.selectsToSql(),
+            this.fromToSql(),
+            this.filtersToSql(),
+            this.limitToSql(),
+        ]
             .filter((l) => l !== undefined)
             .join('\n');
+
+        const { replacedSql, references, missingReferences } =
+            replaceParameters(
+                sql,
+                this.parameters ?? {},
+                this.config.stringQuoteChar,
+            );
+
+        return {
+            sql: replacedSql,
+            parameterReferences: references,
+            missingParameterReferences: missingReferences,
+        };
+    }
+
+    toSql(): string {
+        return this.getSqlAndReferences().sql;
     }
 }

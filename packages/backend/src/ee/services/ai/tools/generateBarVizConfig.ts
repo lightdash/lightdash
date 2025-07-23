@@ -15,7 +15,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { validateFilterRules } from '../utils/validators';
+import {
+    validateFilterRules,
+    validateSelectedFieldsExistence,
+} from '../utils/validators';
 import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
 
 type Dependencies = {
@@ -54,6 +57,15 @@ export const getGenerateBarVizConfig = ({
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
+                const fieldsToValidate = [
+                    vizTool.vizConfig.xDimension,
+                    vizTool.vizConfig.breakdownByDimension,
+                    ...vizTool.vizConfig.yMetrics,
+                    ...vizTool.vizConfig.sorts.map(
+                        (sortField) => sortField.fieldId,
+                    ),
+                ].filter((x) => typeof x === 'string');
+                validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
                 // end of TODO
 

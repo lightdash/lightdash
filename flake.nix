@@ -199,11 +199,23 @@
               libpq
               libpq.pg_config
               openssl
+
+              # for @databricks/sql
+              lz4
+
+              # for node-canvas
+              pixman
+              cairo
+              pango
+              libjpeg
+              libpng
+              librsvg
+              giflib
             ];
 
             buildInputs = with pkgs; [
-              nodejs_22
-              pnpm
+              nodejs_20
+              corepack
 
               # for dbt
               python312

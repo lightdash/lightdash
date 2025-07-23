@@ -21,7 +21,9 @@ const replaceEmbedConfig = (
         },
         ...requestOptions,
     });
-const updateEmbedConfigDashboards = (
+
+/* eslint-disable-next-line import/prefer-default-export */
+export const updateEmbedConfigDashboards = (
     dashboardUuids: string[],
     requestOptions?: Partial<Cypress.RequestOptions>,
 ) =>
@@ -35,6 +37,7 @@ const updateEmbedConfigDashboards = (
         },
         ...requestOptions,
     });
+
 const getEmbedUrl = (
     body: CreateEmbedJwt,
     requestOptions?: Partial<Cypress.RequestOptions>,

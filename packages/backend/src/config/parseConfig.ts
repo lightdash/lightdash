@@ -1,5 +1,7 @@
 import {
     ALL_TASK_NAMES,
+    AllowedEmailDomainsRole,
+    AllowedEmailDomainsRoles,
     AnyType,
     AuthTokenPrefix,
     cleanColorArray,
@@ -336,9 +338,9 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                 },
                 emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN,
                 defaultRole:
-                    parseEnum<OrganizationMemberRole>(
+                    parseEnum<AllowedEmailDomainsRole>(
                         process.env.LD_SETUP_ORGANIZATION_DEFAULT_ROLE,
-                        OrganizationMemberRole,
+                        AllowedEmailDomainsRoles,
                     ) || OrganizationMemberRole.VIEWER,
                 name: process.env.LD_SETUP_ORGANIZATION_NAME!,
             },
@@ -428,6 +430,11 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
             admin: {
                 email: process.env.LD_SETUP_ADMIN_EMAIL,
             },
+            emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN,
+            defaultRole: parseEnum<AllowedEmailDomainsRole>(
+                process.env.LD_SETUP_ORGANIZATION_DEFAULT_ROLE,
+                AllowedEmailDomainsRoles,
+            ),
         },
         apiKey: {
             token: process.env.LD_SETUP_ADMIN_API_KEY,
@@ -738,7 +745,7 @@ export type LightdashConfig = {
             };
             emailDomain?: string;
             name: string;
-            defaultRole: OrganizationMemberRole;
+            defaultRole: AllowedEmailDomainsRole;
         };
         apiKey?: {
             token: string;
@@ -755,10 +762,12 @@ export type LightdashConfig = {
         dbt: DbtGithubProjectConfig;
     };
     updateSetup?: {
-        organization: {
+        organization?: {
             admin: {
                 email?: string;
             };
+            emailDomain?: string;
+            defaultRole?: AllowedEmailDomainsRole;
         };
         apiKey: {
             token?: string;
@@ -1008,8 +1017,6 @@ export const parseConfig = (): LightdashConfig => {
         telemetryEnabled: process.env.AI_COPILOT_TELEMETRY_ENABLED === 'true',
         requiresFeatureFlag:
             process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
-        embeddingSearchEnabled:
-            process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
         defaultProvider:
             process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
         providers: {

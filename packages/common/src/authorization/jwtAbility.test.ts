@@ -1,6 +1,6 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type CreateEmbedJwt } from '../ee';
-import { applyEmbeddedAbility } from './scopeAbility';
+import { applyEmbeddedAbility } from './jwtAbility';
 import { type MemberAbility } from './types';
 
 const createEmbedJwt = (overrides?: {

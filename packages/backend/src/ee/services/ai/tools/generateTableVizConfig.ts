@@ -18,7 +18,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { validateFilterRules } from '../utils/validators';
+import {
+    validateFilterRules,
+    validateSelectedFieldsExistence,
+} from '../utils/validators';
 import { renderTableViz } from '../visualizations/vizTable';
 
 type Dependencies = {
@@ -57,6 +60,14 @@ export const getGenerateTableVizConfig = ({
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
+                const fieldsToValidate = [
+                    ...vizTool.vizConfig.dimensions,
+                    ...vizTool.vizConfig.metrics,
+                    ...vizTool.vizConfig.sorts.map(
+                        (sortField) => sortField.fieldId,
+                    ),
+                ].filter((x) => typeof x === 'string');
+                validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
                 // end of TODO
 

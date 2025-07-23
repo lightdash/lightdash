@@ -99,7 +99,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) => context.state.isVisualizationConfigOpen,
     );
 
-    const { data: explore, status } = useExplore(activeTableName);
+    const { data: explore, status, error } = useExplore(activeTableName);
 
     useEffect(() => {
         if (
@@ -225,8 +225,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     if (!explore) return null;
 
-    if (status === 'error') {
-        if (onBack) onBack();
+    // Only call `onBack` for 4XX errors, otherwise we lose URL state when there's a Network error or backend is down
+    if (status === 'error' && error.error.statusCode < 500) {
+        onBack?.();
         return null;
     }
 

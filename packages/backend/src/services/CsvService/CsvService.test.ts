@@ -16,6 +16,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -27,6 +28,7 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
@@ -67,6 +69,7 @@ describe('Csv service', () => {
             encryptionUtil: {} as EncryptionUtil,
             userModel: {} as UserModel,
             featureFlagModel: {} as FeatureFlagModel,
+            projectParametersModel: {} as ProjectParametersModel,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,
@@ -75,6 +78,11 @@ describe('Csv service', () => {
         schedulerClient: {} as SchedulerClient,
         projectModel: {} as ProjectModel,
         savedSqlModel: {} as SavedSqlModel,
+        pivotTableService: new PivotTableService({
+            lightdashConfig,
+            s3Client: {} as S3Client,
+            downloadFileModel: {} as DownloadFileModel,
+        }),
     });
 
     it('Should convert rows to CSV with format', async () => {

@@ -194,7 +194,6 @@ export const lightdashConfigMock: LightdashConfig = {
                     modelName: 'mock_model_name',
                 },
             },
-            embeddingSearchEnabled: false,
         },
     },
     embedding: {

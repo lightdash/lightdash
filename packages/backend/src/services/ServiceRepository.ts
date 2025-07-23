@@ -27,6 +27,8 @@ import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
+import { PivotTableService } from './PivotTableService/PivotTableService';
+import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
@@ -65,6 +67,7 @@ interface ServiceManifest {
     organizationService: OrganizationService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
+    pivotTableService: PivotTableService;
     projectService: ProjectService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -88,6 +91,7 @@ interface ServiceManifest {
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
+    projectParametersService: ProjectParametersService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -276,6 +280,7 @@ export class ServiceRepository
                     downloadFileModel: this.models.getDownloadFileModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     projectModel: this.models.getProjectModel(),
+                    pivotTableService: this.getPivotTableService(),
                 }),
         );
     }
@@ -453,6 +458,18 @@ export class ServiceRepository
         );
     }
 
+    public getPivotTableService(): PivotTableService {
+        return this.getService(
+            'pivotTableService',
+            () =>
+                new PivotTableService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    s3Client: this.clients.getS3Client(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
+                }),
+        );
+    }
+
     public getProjectService(): ProjectService {
         return this.getService(
             'projectService',
@@ -486,6 +503,8 @@ export class ServiceRepository
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.models.getUserModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
                 }),
         );
     }
@@ -525,8 +544,10 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
-                    csvService: this.getCsvService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
+                    pivotTableService: this.getPivotTableService(),
                 }),
         );
     }
@@ -888,6 +909,19 @@ export class ServiceRepository
         InstanceConfigurationServiceImplT,
     >(): InstanceConfigurationServiceImplT {
         return this.getService('instanceConfigurationService');
+    }
+
+    public getProjectParametersService(): ProjectParametersService {
+        return this.getService(
+            'projectParametersService',
+            () =>
+                new ProjectParametersService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
+                }),
+        );
     }
 
     /**

@@ -83,6 +83,7 @@ const SavedExplorer = () => {
                                   isOpen: false,
                               },
                           },
+                          parameters: {},
                       }
                     : undefined
             }

@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    AccountAccessControls,
     addDashboardFiltersToMetricQuery,
     AndFilterGroup,
+    AnonymousAccount,
     CommercialFeatureFlags,
     CompiledDimension,
     CreateEmbedJwt,
@@ -17,7 +17,6 @@ import {
     EmbedUrl,
     Explore,
     ExploreError,
-    ExternalAccount,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -43,6 +42,7 @@ import {
     SessionUser,
     SortField,
     UpdateEmbed,
+    UserAccessControls,
     UserAttributeValueMap,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
@@ -319,7 +319,7 @@ export class EmbedService extends BaseService {
 
     async getDashboard(
         projectUuid: string,
-        account: ExternalAccount,
+        account: AnonymousAccount,
         // TODO: WHY IS THIS OPTIONAL??
         checkPermissions: boolean = true,
     ): Promise<Dashboard & InteractivityOptions> {
@@ -398,7 +398,7 @@ export class EmbedService extends BaseService {
 
     async getAvailableFiltersForSavedQueries(
         projectUuid: string,
-        account: ExternalAccount,
+        account: AnonymousAccount,
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
@@ -521,7 +521,7 @@ export class EmbedService extends BaseService {
     async getEmbedUserAttributes(
         organizationUuid: string,
         embedJwt: CreateEmbedJwt,
-    ): Promise<AccountAccessControls> {
+    ): Promise<UserAccessControls> {
         const orgUserAttributes = await this.userAttributesModel.find({
             organizationUuid,
         });
@@ -610,7 +610,7 @@ export class EmbedService extends BaseService {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    private getAccessControls(account: ExternalAccount): AccountAccessControls {
+    private getAccessControls(account: AnonymousAccount): UserAccessControls {
         const { userAttributes, intrinsicUserAttributes } =
             account.access.controls ?? {};
         if (!userAttributes || !intrinsicUserAttributes) {
@@ -637,7 +637,7 @@ export class EmbedService extends BaseService {
             external_id: string;
             chart_uuid?: string; // optional because query for filter autocomplete doesn't have chart uuid
         };
-        account: ExternalAccount;
+        account: AnonymousAccount;
         dateZoomGranularity?: DateGranularity;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -705,7 +705,7 @@ export class EmbedService extends BaseService {
 
     // eslint-disable-next-line class-methods-use-this
     private async _getAppliedDashboardFilters(
-        account: ExternalAccount,
+        account: AnonymousAccount,
         explore: Explore,
         dashboard: DashboardDAO,
         tileUuid: string,
@@ -734,7 +734,7 @@ export class EmbedService extends BaseService {
 
     async getChartAndResults(
         projectUuid: string,
-        account: ExternalAccount,
+        account: AnonymousAccount,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
@@ -846,7 +846,7 @@ export class EmbedService extends BaseService {
     }
 
     async calculateTotalFromSavedChart(
-        account: ExternalAccount,
+        account: AnonymousAccount,
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
@@ -956,7 +956,7 @@ export class EmbedService extends BaseService {
         filters,
         forceRefresh,
     }: {
-        account: ExternalAccount;
+        account: AnonymousAccount;
         projectUuid: string;
         filterUuid: string;
         search: string;

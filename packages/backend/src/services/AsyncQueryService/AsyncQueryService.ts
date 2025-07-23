@@ -11,6 +11,7 @@ import {
     type ApiGetAsyncQueryResults,
     assertUnreachable,
     CompiledDimension,
+    CompileError,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
@@ -56,6 +57,8 @@ import {
     MetricQuery,
     NotFoundError,
     type Organization,
+    ParameterError,
+    type ParametersValuesMap,
     PivotConfig,
     PivotIndexColum,
     type PivotValuesColumn,
@@ -96,6 +99,7 @@ import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { replaceParametersAsString } from '../../utils/QueryBuilder/parameters';
 import {
     QueryBuilder,
     ReferenceMap,
@@ -105,6 +109,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
+import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -138,7 +143,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     savedSqlModel: SavedSqlModel;
     featureFlagModel: FeatureFlagModel;
     storageClient: S3ResultsFileStorageClient;
-    csvService: CsvService;
+    pivotTableService: PivotTableService;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -152,7 +157,7 @@ export class AsyncQueryService extends ProjectService {
 
     storageClient: S3ResultsFileStorageClient;
 
-    csvService: CsvService;
+    pivotTableService: PivotTableService;
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
@@ -161,7 +166,7 @@ export class AsyncQueryService extends ProjectService {
         this.savedSqlModel = args.savedSqlModel;
         this.featureFlagModel = args.featureFlagModel;
         this.storageClient = args.storageClient;
-        this.csvService = args.csvService;
+        this.pivotTableService = args.pivotTableService;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -826,7 +831,7 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
                 if (pivotConfig && queryHistory.metricQuery) {
-                    return this.csvService.downloadAsyncPivotTableCsv({
+                    return this.pivotTableService.downloadAsyncPivotTableCsv({
                         resultsFileName,
                         fields,
                         metricQuery: queryHistory.metricQuery,
@@ -1323,9 +1328,10 @@ export class AsyncQueryService extends ProjectService {
         dateZoom,
         explore,
         warehouseSqlBuilder,
+        parameters,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
-        'user' | 'metricQuery' | 'dateZoom'
+        'user' | 'metricQuery' | 'dateZoom' | 'parameters'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -1361,6 +1367,8 @@ export class AsyncQueryService extends ProjectService {
             this.lightdashConfig.query.timezone || 'UTC',
             dateZoom,
             useExperimentalMetricCtes,
+            // ! TODO: Should validate the parameters to make sure they are valid from the options
+            parameters,
         );
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
@@ -1391,6 +1399,10 @@ export class AsyncQueryService extends ProjectService {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
             warnings: fullQuery.warnings,
+            parameterReferences: Array.from(fullQuery.parameterReferences),
+            missingParameterReferences: Array.from(
+                fullQuery.missingParameterReferences,
+            ),
         };
     }
 
@@ -1402,6 +1414,7 @@ export class AsyncQueryService extends ProjectService {
             fields: ItemsMap;
             sql: string; // SQL generated from metric query or provided by user
             originalColumns?: ResultColumns;
+            missingParameterReferences: string[];
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
         pivotConfiguration?: {
@@ -1426,6 +1439,7 @@ export class AsyncQueryService extends ProjectService {
                     metricQuery,
                     fields: fieldsMap,
                     originalColumns,
+                    missingParameterReferences,
                 } = args;
 
                 try {
@@ -1600,6 +1614,26 @@ export class AsyncQueryService extends ProjectService {
                             false, // default value
                         );
 
+                    if (missingParameterReferences.length > 0) {
+                        await this.queryHistoryModel.update(
+                            queryHistoryUuid,
+                            projectUuid,
+                            {
+                                status: QueryHistoryStatus.ERROR,
+                                error: `Missing parameters: ${missingParameterReferences.join(
+                                    ', ',
+                                )}`,
+                            },
+                        );
+
+                        return {
+                            queryUuid: queryHistoryUuid,
+                            cacheMetadata: {
+                                cacheHit: false,
+                            },
+                        } satisfies ExecuteAsyncQueryReturn;
+                    }
+
                     if (isWorkerQueryExecutionEnabled) {
                         this.logger.info(
                             `Queuing query ${queryHistoryUuid} for execution in a worker`,
@@ -1666,6 +1700,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         metricQuery,
         invalidateCache,
+        parameters,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1722,14 +1757,20 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings } =
-            await this.prepareMetricQueryAsyncQueryArgs({
-                user,
-                metricQuery,
-                dateZoom,
-                explore,
-                warehouseSqlBuilder,
-            });
+        const {
+            sql,
+            fields,
+            warnings,
+            parameterReferences,
+            missingParameterReferences,
+        } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery,
+            dateZoom,
+            explore,
+            warehouseSqlBuilder,
+            parameters,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1744,6 +1785,7 @@ export class AsyncQueryService extends ProjectService {
                 fields,
                 sql,
                 originalColumns: undefined,
+                missingParameterReferences,
             },
             requestParameters,
         );
@@ -1754,6 +1796,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             fields,
             warnings,
+            parameterReferences,
         };
     }
 
@@ -1765,6 +1808,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         invalidateCache,
         limit,
+        parameters,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
@@ -1862,13 +1906,19 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings } =
-            await this.prepareMetricQueryAsyncQueryArgs({
-                user,
-                metricQuery: metricQueryWithLimit,
-                explore,
-                warehouseSqlBuilder,
-            });
+        const {
+            sql,
+            fields,
+            warnings,
+            parameterReferences,
+            missingParameterReferences,
+        } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery: metricQueryWithLimit,
+            explore,
+            warehouseSqlBuilder,
+            parameters,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1882,6 +1932,7 @@ export class AsyncQueryService extends ProjectService {
                 fields,
                 sql,
                 originalColumns: undefined,
+                missingParameterReferences,
             },
             requestParameters,
         );
@@ -1892,6 +1943,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             fields,
             warnings,
+            parameterReferences,
         };
     }
 
@@ -1906,6 +1958,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         invalidateCache,
         limit,
+        parameters,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2058,13 +2111,15 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
-            metricQuery: metricQueryWithLimit,
-            explore,
-            dateZoom,
-            warehouseSqlBuilder,
-        });
+        const { sql, fields, parameterReferences, missingParameterReferences } =
+            await this.prepareMetricQueryAsyncQueryArgs({
+                user,
+                metricQuery: metricQueryWithLimit,
+                explore,
+                dateZoom,
+                warehouseSqlBuilder,
+                parameters,
+            });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -2079,6 +2134,7 @@ export class AsyncQueryService extends ProjectService {
                 fields,
                 sql,
                 originalColumns: undefined,
+                missingParameterReferences,
             },
             requestParameters,
         );
@@ -2089,6 +2145,7 @@ export class AsyncQueryService extends ProjectService {
             appliedDashboardFilters,
             metricQuery: metricQueryWithLimit,
             fields,
+            parameterReferences,
         };
     }
 
@@ -2102,6 +2159,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         dateZoom,
         limit,
+        parameters,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2226,14 +2284,20 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, warnings } =
-            await this.prepareMetricQueryAsyncQueryArgs({
-                user,
-                metricQuery: underlyingDataMetricQuery,
-                explore,
-                dateZoom,
-                warehouseSqlBuilder,
-            });
+        const {
+            sql,
+            fields,
+            warnings,
+            parameterReferences,
+            missingParameterReferences,
+        } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery: underlyingDataMetricQuery,
+            explore,
+            dateZoom,
+            warehouseSqlBuilder,
+            parameters,
+        });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
@@ -2249,6 +2313,7 @@ export class AsyncQueryService extends ProjectService {
                     fields,
                     sql,
                     originalColumns: undefined,
+                    missingParameterReferences,
                 },
                 requestParameters,
             );
@@ -2259,6 +2324,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: underlyingDataMetricQuery,
             fields,
             warnings,
+            parameterReferences,
         };
     }
 
@@ -2270,6 +2336,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         pivotConfiguration,
         limit,
+        parameters,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2290,7 +2357,6 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
-
         const {
             warehouseConnection,
             queryTags,
@@ -2298,6 +2364,8 @@ export class AsyncQueryService extends ProjectService {
             virtualView,
             sql: sqlWithParams,
             originalColumns,
+            parameterReferences,
+            missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2305,6 +2373,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             sql,
             limit,
+            parameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2321,6 +2390,7 @@ export class AsyncQueryService extends ProjectService {
                 fields: getItemMap(virtualView),
                 sql: sqlWithParams,
                 originalColumns,
+                missingParameterReferences,
             },
             {
                 query: metricQuery,
@@ -2332,6 +2402,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
+            parameterReferences,
         };
     }
 
@@ -2346,6 +2417,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardSorts,
         limit,
         tileUuid,
+        parameters,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -2357,6 +2429,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardSorts?: ExecuteAsyncDashboardSqlChartArgs['dashboardSorts'];
         limit?: number;
         tileUuid?: string;
+        parameters?: ParametersValuesMap;
     }) {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
@@ -2372,8 +2445,16 @@ export class AsyncQueryService extends ProjectService {
 
         // Get one row to get the column definitions
         const columns: { name: string; type: DimensionType }[] = [];
+
+        // Replace parameters in SQL before running column discovery query
+        const { replacedSql: columnDiscoverySql } = replaceParametersAsString(
+            sql,
+            parameters ?? {},
+            warehouseConnection.warehouseClient,
+        );
+
         await warehouseConnection.warehouseClient.streamQuery(
-            applyLimitToSqlQuery({ sqlQuery: sql, limit: 1 }),
+            applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
             (row) => {
                 if (row.fields) {
                     Object.keys(row.fields).forEach((key) => {
@@ -2398,11 +2479,6 @@ export class AsyncQueryService extends ProjectService {
             return acc;
         }, {} as ResultColumns);
 
-        const sqlWithLimit = applyLimitToSqlQuery({
-            sqlQuery: sql,
-            limit,
-        });
-
         // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
         // ! We keep them here for backwards compatibility until we remove them as a required argument
         const vizColumns = columns.map((col) => ({
@@ -2412,7 +2488,7 @@ export class AsyncQueryService extends ProjectService {
 
         const virtualView = createVirtualViewObject(
             SQL_QUERY_MOCK_EXPLORER_NAME,
-            sqlWithLimit,
+            sql,
             vizColumns,
             warehouseConnection.warehouseClient,
         );
@@ -2494,13 +2570,15 @@ export class AsyncQueryService extends ProjectService {
             {
                 referenceMap,
                 select: selectColumns,
-                from: { name: 'sql_query', sql: sqlWithLimit },
+                from: { name: 'sql_query', sql },
                 filters: appliedDashboardFilters
                     ? {
                           id: uuidv4(),
                           and: appliedDashboardFilters.dimensions,
                       }
                     : undefined,
+                parameters,
+                limit,
             },
             {
                 fieldQuoteChar,
@@ -2514,13 +2592,22 @@ export class AsyncQueryService extends ProjectService {
                     warehouseConnection.warehouseClient.getAdapterType(),
             },
         );
+
+        const {
+            sql: replacedSql,
+            parameterReferences,
+            missingParameterReferences,
+        } = queryBuilder.getSqlAndReferences();
+
         return {
             metricQuery,
             pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
-            sql: queryBuilder.toSql(),
+            sql: replacedSql,
+            parameterReferences: Array.from(parameterReferences),
+            missingParameterReferences: Array.from(missingParameterReferences),
             appliedDashboardFilters,
             originalColumns,
         };
@@ -2559,6 +2646,8 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             sql,
             originalColumns,
+            parameterReferences,
+            missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2567,6 +2656,7 @@ export class AsyncQueryService extends ProjectService {
             sql: sqlChart.sql,
             config: sqlChart.config,
             limit: limit ?? sqlChart.limit,
+            parameters: args.parameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2583,6 +2673,7 @@ export class AsyncQueryService extends ProjectService {
                 fields: getItemMap(virtualView),
                 sql,
                 originalColumns,
+                missingParameterReferences,
             },
             {
                 query: metricQuery,
@@ -2594,6 +2685,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
+            parameterReferences,
         };
     }
 
@@ -2640,6 +2732,8 @@ export class AsyncQueryService extends ProjectService {
             sql,
             appliedDashboardFilters,
             originalColumns,
+            parameterReferences,
+            missingParameterReferences,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2651,6 +2745,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             dashboardSorts,
             limit: limit ?? savedChart.limit,
+            parameters: args.parameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2667,6 +2762,7 @@ export class AsyncQueryService extends ProjectService {
                 fields: getItemMap(virtualView),
                 sql,
                 originalColumns,
+                missingParameterReferences,
             },
             {
                 query: metricQuery,
@@ -2683,6 +2779,7 @@ export class AsyncQueryService extends ProjectService {
                 dimensions: [],
                 tableCalculations: [],
             },
+            parameterReferences,
         };
     }
 }

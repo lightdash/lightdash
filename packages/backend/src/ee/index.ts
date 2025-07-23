@@ -11,7 +11,6 @@ import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AiAgentModel } from './models/AiAgentModel';
-import { CommercialCatalogModel } from './models/CommercialCatalogModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
@@ -22,7 +21,6 @@ import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { AiAgentService } from './services/AiAgentService';
 import { AiService } from './services/AiService/AiService';
 import { CommercialCacheService } from './services/CommercialCacheService';
-import { CommercialCatalogService } from './services/CommercialCatalogService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -75,18 +73,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationModel: models.getOrganizationModel(),
                 }),
-            catalogService: ({ context, models }) =>
-                new CommercialCatalogService({
-                    lightdashConfig: context.lightdashConfig,
-                    analytics: context.lightdashAnalytics,
-                    projectModel: models.getProjectModel(),
-                    userAttributesModel: models.getUserAttributesModel(),
-                    savedChartModel: models.getSavedChartModel(),
-                    spaceModel: models.getSpaceModel(),
-                    catalogModel:
-                        models.getCatalogModel() as CommercialCatalogModel,
-                    tagsModel: models.getTagsModel(),
-                }),
             aiService: ({ repository, context, models }) =>
                 new AiService({
                     lightdashConfig: context.lightdashConfig,
@@ -102,11 +88,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),
                     aiAgentModel: models.getAiAgentModel(),
+                    groupsModel: models.getGroupsModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
                     projectService: repository.getProjectService(),
-                    catalogService:
-                        repository.getCatalogService() as CommercialCatalogService,
+                    catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                 }),
             scimService: ({ models, context }) =>
@@ -181,6 +167,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    projectParametersModel: models.getProjectParametersModel(),
                 }),
             instanceConfigurationService: ({ models, context, repository }) =>
                 new InstanceConfigurationService({
@@ -236,8 +223,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
                     storageClient: clients.getResultsFileStorageClient(),
-                    csvService: repository.getCsvService(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    projectParametersModel: models.getProjectParametersModel(),
+                    pivotTableService: repository.getPivotTableService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
@@ -251,12 +239,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             embedModel: ({ database }) => new EmbedModel({ database }),
             dashboardSummaryModel: ({ database }) =>
                 new DashboardSummaryModel({ database }),
-            catalogModel: ({ database }) =>
-                new CommercialCatalogModel({
-                    database,
-                    lightdashConfig,
-                    openAi: new OpenAi(), // TODO This should go in client repository as soon as it is available
-                }),
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>

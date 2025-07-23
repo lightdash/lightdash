@@ -150,7 +150,6 @@ export const loginWithOauth = async (
     });
     const redirectUri = `http://localhost:${port}/callback`;
     GlobalState.debug(`> Starting CLI callback server on URI: ${redirectUri}`);
-    // TODO: This is a temporary solution to get the OAuth2 issuer and client using openid-client.
     // Create OAuth2 issuer and client using openid-client
     const issuerUrl = new URL('/api/v1/oauth', url).href;
     const issuer = new Issuer({
