@@ -81,6 +81,9 @@ services:
             - RESULTS_S3_BUCKET=${RESULTS_S3_BUCKET:-${RESULTS_CACHE_S3_BUCKET}}
             - RESULTS_S3_SECRET_KEY=${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
             - RESULTS_S3_ACCESS_KEY=${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
+            - LIGHTDASH_PROMETHEUS_ENABLED=${LIGHTDASH_PROMETHEUS_ENABLED}
+            - LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
+            - LIGHTDASH_PROMETHEUS_PATH=${LIGHTDASH_PROMETHEUS_PATH}
         volumes:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
@@ -93,6 +96,7 @@ services:
             - '6006:6006'
         command: ''
         entrypoint: ['/bin/sh', '-c', 'sleep infinity']
+
     db-dev:
         image: pgvector/pgvector:pg16
         restart: always
@@ -118,10 +122,25 @@ services:
         ports:
             - '2222:2222'
         volumes:
-            - ./ssh-server-configs/sshd_config:/config/sshd/sshd_config
+            - ./dev-configs/sshd_config:/config/sshd/sshd_config
 
     headless-browser:
         image: ghcr.io/browserless/chromium:v2.24.3
         restart: always
         ports:
             - '3001:3000'
+
+    prometheus:
+        image: prom/prometheus:latest
+        restart: always
+        ports:
+            - '9091:9090'
+        volumes:
+            - ./dev-configs/prometheus.dev.yml:/etc/prometheus/prometheus.yml
+        command:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus'
+            - '--web.console.libraries=/etc/prometheus/console_libraries'
+            - '--web.console.templates=/etc/prometheus/consoles'
+            - '--storage.tsdb.retention.time=200h'
+            - '--web.enable-lifecycle'
