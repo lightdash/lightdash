@@ -10,3 +10,49 @@ spotlight:
     sales:
       label: "Sales"
       color: green
+parameters:
+  subscription_status:
+    label: "Subscription Status"
+    description: "Filter subscriptions by their current status"
+    default: "all"
+    options:
+      - "all"
+      - "Current"
+      - "Expired"
+      - "Cancelled"
+  min_duration_months:
+    label: "Minimum Duration (Months)"
+    description: "Filter subscriptions by minimum duration in months"
+    default: "0"
+    options:
+      - "0"
+      - "1"
+      - "3"
+      - "6"
+      - "12"
+  plan_type:
+    label: "Plan Type"
+    description: "Filter by subscription plan"
+    default: "all"
+    options:
+      - "all"
+      - "free"
+      - "silver"
+      - "gold"
+      - "platinum"
+      - "diamond"
+  time_zoom:
+    label: "Time Zoom"
+    description: "Select time period for MRR calculations"
+    default: "monthly"
+    options:
+      - "weekly"
+      - "monthly"
+      - "quarterly"
+  metric_type:
+    label: "Metric Type"
+    description: "Switch between counting subscriptions or calculating MRR"
+    default: "count"
+    options:
+      - "count"
+      - "mrr"
