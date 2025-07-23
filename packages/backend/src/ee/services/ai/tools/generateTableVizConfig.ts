@@ -61,7 +61,7 @@ export const getGenerateTableVizConfig = ({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
                 const fieldsToValidate = [
-                    ...(vizTool.vizConfig.dimensions ?? []),
+                    ...vizTool.vizConfig.dimensions,
                     ...vizTool.vizConfig.metrics,
                     ...vizTool.vizConfig.sorts.map(
                         (sortField) => sortField.fieldId,
