@@ -1,6 +1,7 @@
 import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
+    ApiGetAccountResponse,
     ApiGetAuthenticatedUserResponse,
     ApiGetLoginOptionsResponse,
     ApiRegisterUserResponse,
@@ -9,6 +10,7 @@ import {
     CreatePersonalAccessToken,
     getRequestMethod,
     LightdashRequestMethodHeader,
+    NotFoundError,
     ParameterError,
     PersonalAccessToken,
     PersonalAccessTokenWithToken,
@@ -442,6 +444,32 @@ export class UserController extends BaseController {
                     personalAccessTokenUuid,
                     body,
                 ),
+        };
+    }
+
+    /**
+     * Get account information
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/account')
+    @OperationId('GetAccount')
+    async getAccount(
+        @Request() req: express.Request,
+    ): Promise<ApiGetAccountResponse> {
+        if (!req.account) {
+            throw new NotFoundError('Account not found');
+        }
+
+        const { ability, ...userWithoutAbility } = req.account.user;
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                ...req.account,
+                user: userWithoutAbility,
+            },
         };
     }
 }
