@@ -91,6 +91,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     useInfiniteQueryResults,
     type InfiniteQueryResults,
@@ -98,6 +99,7 @@ import {
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { Can } from '../../providers/Ability';
+import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -1350,7 +1352,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         explore,
         executeQueryResponse: { fields },
     } = dashboardChartReadyQuery;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
+    const ability = useAbilityContext();
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
     >();
@@ -1366,8 +1369,16 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         }
     }, [onExplore, chart]);
 
-    // FIXME: This is just a stub for CASL permissions in the next PR.
-    const isEmbeddedExploreEnabled = typeof onExplore === 'function';
+    const canExplore = ability.can(
+        'view',
+        subject('Explore', {
+            organizationUuid: chart.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const isEmbeddedExploreEnabled =
+        canExplore && typeof onExplore === 'function';
 
     return (
         <TileBase

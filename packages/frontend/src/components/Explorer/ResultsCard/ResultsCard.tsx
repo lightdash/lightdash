@@ -100,7 +100,15 @@ const ResultsCard: FC = memo(() => {
                 resultsIsOpen &&
                 tableName && (
                     <>
-                        {isEditMode && <AddColumnButton />}
+                        <Can
+                            I="manage"
+                            this={subject('Explore', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: projectUuid,
+                            })}
+                        >
+                            {isEditMode && <AddColumnButton />}
+                        </Can>
 
                         <Can
                             I="manage"
