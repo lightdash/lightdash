@@ -1,95 +1,105 @@
 <summary>
-Authentication system providing JWT token handling and account creation for both registered users and anonymous embed users. Supports two authentication types: session-based and JWT-based with encrypted secrets.
+Authentication module that handles both session-based authentication for registered users and JWT-based authentication for embedded dashboards. Provides a unified Account interface with appropriate permissions and access controls for each authentication type.
 </summary>
 
 <howToUse>
-The auth module provides two main functions: JWT token handling and account creation. Use JWT functions for embed authentication and account creation functions to build Account objects with helper methods.
+The auth module exports two main functions for creating accounts:
 
 ```typescript
-import { encodeLightdashJwt, decodeLightdashJwt } from './lightdashJwt';
-import { fromSession, fromJwt } from './account';
+import { fromSession, fromJwt } from '@lightdash/backend/src/auth/account';
 
-// Create JWT for embed dashboard
-const token = encodeLightdashJwt(
-    {
-        content: { dashboardUuid: 'dash-123' },
-        user: { email: 'user@example.com' },
-    },
-    encryptedSecret,
-    '1h',
+// For registered users with session authentication
+const sessionAccount = fromSession(sessionUser);
+
+// For anonymous users with JWT authentication (embedded dashboards)
+const jwtAccount = fromJwt(
+    decodedToken, // Decoded JWT payload
+    organization, // Organization details
+    dashboardUuid, // Dashboard being accessed
+    userAttributes, // Optional user attributes for filtering
+);
+```
+
+For JWT token handling:
+
+```typescript
+import {
+    encodeLightdashJwt,
+    decodeLightdashJwt,
+} from '@lightdash/backend/src/auth/lightdashJwt';
+
+// Encode a JWT token
+const token = await encodeLightdashJwt(
+    jwtData, // CreateEmbedJwt payload
+    encryptedSecret, // Encrypted JWT secret
+    expiresIn, // Token expiration (e.g., '1h', '7d')
 );
 
-// Decode and validate JWT
-const decodedToken = decodeLightdashJwt(token, encryptedSecret);
+// Decode and validate a JWT token
+const decoded = await decodeLightdashJwt(token, encryptedSecret);
+```
 
-// Create account from session user
-const sessionAccount = fromSession(sessionUser, 'web-app');
+All accounts include helper methods for type checking:
 
-// Create anonymous account from JWT
-const anonymousAccount = fromJwt({
-    decodedToken,
-    organization,
-    source: token,
-    dashboardUuid: 'dash-123',
-    userAttributes,
-});
+```typescript
+if (account.isSessionUser()) {
+    // Handle registered user logic
+}
+
+if (account.isJwtUser()) {
+    // Handle embedded dashboard logic
+}
 ```
 
 </howToUse>
 
 <codeExample>
-
 ```typescript
-// Example: Create embed token for dashboard
-const embedJwt = encodeLightdashJwt(
-    {
-        content: {
-            dashboardUuid: dashboard.uuid,
-            dashboardFiltersInteractivity: 'enabled',
-        },
-        user: {
-            email: 'embed-user@client.com',
-            externalId: 'client-user-123',
-        },
-    },
-    organization.jwtSecret,
-    '24h',
-);
-
-// Example: Validate and create anonymous account
-try {
-    const decodedToken = decodeLightdashJwt(embedToken, organization.jwtSecret);
-    const account = fromJwt({
-        decodedToken,
-        organization: { organizationUuid: org.uuid, name: org.name },
-        source: embedToken,
-        dashboardUuid: dashboard.uuid,
-        userAttributes: { attributes: [] },
-    });
-
-    // Use account helper methods
-    if (account.isAnonymousUser()) {
-        console.log('Anonymous embed user');
-    }
-} catch (error) {
-    // Handle token validation errors
+// Example: Creating an account from an Express request with session
+async function handleAuthenticatedRequest(req: Request) {
+  const sessionUser = req.user; // From session middleware
+  const account = fromSession(sessionUser);
+  
+  // Use account for authorization checks
+  if (account.ability.can('view', 'Dashboard')) {
+    // User has permission
+  }
 }
-```
 
+// Example: Handling embedded dashboard with JWT
+async function handleEmbeddedDashboard(jwtToken: string, encryptedSecret: string) {
+try {
+const decoded = await decodeLightdashJwt(jwtToken, encryptedSecret);
+
+    const account = fromJwt(
+      decoded,
+      { organizationUuid: decoded.organizationUuid, name: 'Org Name' },
+      decoded.dashboardUuid,
+      decoded.userAttributes
+    );
+
+    // Account will have restricted access to only the specified dashboard
+    return account;
+
+} catch (error) {
+// Handle JWT errors (expired, invalid, etc.)
+}
+}
+
+```
 </codeExample>
 
-<importantToKnow>
-- JWT secrets must be encrypted using EncryptionUtil before storage/use
-- The `decodeLightdashJwt` function logs schema validation errors but doesn't fail for backward compatibility
-- Account helper methods include `isAuthenticated()`, `isRegisteredUser()`, `isAnonymousUser()`, `isSessionUser()`, `isJwtUser()`
-- Anonymous accounts are created for JWT-based embed users with external IDs
-- Session accounts are for registered users authenticated via session cookies
-- All accounts require ability rules for CASL-based authorization
-- Token expiration and invalid tokens throw appropriate ForbiddenError/ParameterError
-</importantToKnow>
-
 <links>
-@/packages/backend/src/utils/EncryptionUtil/EncryptionUtil.ts - Encryption utilities for JWT secrets
-@/packages/common/src/types/account.ts - Account type definitions
-@/packages/common/src/authorization/ability.ts - CASL ability definitions
+- Account types and interfaces: @packages/common/src/types/auth.ts
+- Permission handling: @packages/common/src/authorization/index.ts
+- Account helper functions: @packages/common/src/authorization/buildAccountHelpers.ts
 </links>
+
+<importantToKnow>
+- JWT accounts are always considered "anonymous" even if they have user attributes
+- JWT accounts get a generated external user ID prefixed with "external::"
+- JWT tokens should be validated with the Zod schema but validation errors are logged, not thrown
+- Session accounts derive permissions from the database user, while JWT accounts get permissions from the token payload
+- The auth module uses CASL for permission management - abilities are attached to all account objects
+</importantToKnow>
+```
