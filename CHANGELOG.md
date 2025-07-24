@@ -1,3 +1,10 @@
+# [0.1835.0](https://github.com/lightdash/lightdash/compare/0.1834.4...0.1835.0) (2025-07-24)
+
+
+### Features
+
+* add canExplore to JWT scope permissions ([#15904](https://github.com/lightdash/lightdash/issues/15904)) ([cdd9a29](https://github.com/lightdash/lightdash/commit/cdd9a29a63d3b8756d7d4586b67f6325dd410942))
+
 ## [0.1834.4](https://github.com/lightdash/lightdash/compare/0.1834.3...0.1834.4) (2025-07-24)
 
 
