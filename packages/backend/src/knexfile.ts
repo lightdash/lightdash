@@ -10,6 +10,8 @@ const CONNECTION = lightdashConfig.database.connectionUri
     ? parse(lightdashConfig.database.connectionUri)
     : {};
 
+export const DEFAULT_DB_MAX_CONNECTIONS = 10;
+
 // Condition to be removed once we require Postgres vector extension
 const hasEnterpriseLicense = !!lightdashConfig.license.licenseKey;
 
@@ -18,7 +20,9 @@ const development: Knex.Config<Knex.PgConnectionConfig> = {
     connection: CONNECTION,
     pool: {
         min: lightdashConfig.database.minConnections || 0,
-        max: lightdashConfig.database.maxConnections || 10,
+        max:
+            lightdashConfig.database.maxConnections ||
+            DEFAULT_DB_MAX_CONNECTIONS,
         acquireTimeoutMillis: 30000, // (default) 30 seconds - max time the application will wait for a connection from the pool before failing (awaited connect will reject)
         createTimeoutMillis: 30000, // (default) 30 seconds - max time that the knex pool will wait for a connection to the postgres database to be created before failing (create operation is cancelled)
         destroyTimeoutMillis: 5000, // (default) 5 seconds - max time that the knex pool will wait for a connection to be destroyed before failing (new resources are created after timeout)
