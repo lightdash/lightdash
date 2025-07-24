@@ -140,6 +140,7 @@
         "slackify-markdown": "^4.4.0",
         "sshpk": "^1.17.0",
         "uuid": "^8.3.2",
+        "vitest": "^3.2.4",
         "winston": "^3.3.3",
         "yaml": "^2.7.0",
         "zod": "^3.25.55"
@@ -161,6 +162,7 @@
         "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch --selectProjects main",
         "test:ai": "TZ=UTC jest --config jest.config.js --selectProjects ai",
         "test:ai:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch --selectProjects ai",
+        "test:integration": "vitest run --config vitest.config.integration.ts",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",
