@@ -144,15 +144,27 @@ describe('Parse grammar', () => {
         // Positive floats
         expect(parser.parse('> 3.14')).toEqual({ type: '>', values: [3.14] });
         expect(parser.parse('< 0.5')).toEqual({ type: '<', values: [0.5] });
-        expect(parser.parse('>= 100.001')).toEqual({ type: '>=', values: [100.001] });
-        expect(parser.parse('<= 2.718')).toEqual({ type: '<=', values: [2.718] });
-        
-        // Negative floats  
+        expect(parser.parse('>= 100.001')).toEqual({
+            type: '>=',
+            values: [100.001],
+        });
+        expect(parser.parse('<= 2.718')).toEqual({
+            type: '<=',
+            values: [2.718],
+        });
+
+        // Negative floats
         expect(parser.parse('< -3.14')).toEqual({ type: '<', values: [-3.14] });
         expect(parser.parse('> -0.5')).toEqual({ type: '>', values: [-0.5] });
-        expect(parser.parse('<= -100.001')).toEqual({ type: '<=', values: [-100.001] });
-        expect(parser.parse('>= -2.718')).toEqual({ type: '>=', values: [-2.718] });
-        
+        expect(parser.parse('<= -100.001')).toEqual({
+            type: '<=',
+            values: [-100.001],
+        });
+        expect(parser.parse('>= -2.718')).toEqual({
+            type: '>=',
+            values: [-2.718],
+        });
+
         // Edge cases with zero
         expect(parser.parse('> 0.0')).toEqual({ type: '>', values: [0] });
         expect(parser.parse('< -0.0')).toEqual({ type: '<', values: [-0] });
