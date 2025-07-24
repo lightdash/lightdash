@@ -1,3 +1,10 @@
+## [0.1834.3](https://github.com/lightdash/lightdash/compare/0.1834.2...0.1834.3) (2025-07-24)
+
+
+### Bug Fixes
+
+* Rename service should use existing explore name if needed ([#15988](https://github.com/lightdash/lightdash/issues/15988)) ([441b6c4](https://github.com/lightdash/lightdash/commit/441b6c474c95cb654bff812ca9f6c7949959d9a0))
+
 ## [0.1834.2](https://github.com/lightdash/lightdash/compare/0.1834.1...0.1834.2) (2025-07-24)
 
 
