@@ -38,10 +38,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import Page from '../../../components/common/Page/Page';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import {
     InstructionsGuidelines,
@@ -457,7 +457,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                     variant="subtle"
                                                     label={
                                                         <Group gap="xs">
-                                                            <Text fz="sm" fw={500}>
+                                                            <Text
+                                                                fz="sm"
+                                                                fw={500}
+                                                            >
                                                                 Group Access
                                                             </Text>
                                                             <Tooltip
@@ -486,7 +489,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                     data={groupOptions}
                                                     disabled={
                                                         isLoadingGroups ||
-                                                        groupOptions.length === 0
+                                                        groupOptions.length ===
+                                                            0
                                                     }
                                                     clearable
                                                     {...form.getInputProps(
