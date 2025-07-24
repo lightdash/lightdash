@@ -160,7 +160,7 @@
         "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch --selectProjects main",
         "test:ai": "TZ=UTC jest --config jest.config.js --selectProjects ai",
         "test:ai:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch --selectProjects ai",
-        "test:integration": "TZ=UTC vitest run --config vitest.config.integration.ts",
+        "test:integration": "vitest run --config vitest.config.integration.ts",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",
