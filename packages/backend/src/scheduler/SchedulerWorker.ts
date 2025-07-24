@@ -49,12 +49,20 @@ export class SchedulerWorker extends SchedulerTask {
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
 
+        // According to docs, this defaults to the node-postgres default (10)
+        // So we're keeping the setting the same when concurrency is less than 10
+        const maxPoolSize =
+            this.lightdashConfig.scheduler.concurrency > 10
+                ? this.lightdashConfig.scheduler.concurrency
+                : 10;
+
         this.runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
             concurrency: this.lightdashConfig.scheduler.concurrency,
             noHandleSignals: true,
             pollInterval: 1000,
+            maxPoolSize,
             parsedCronItems: parseCronItems([
                 {
                     task: 'generateDailyJobs',
