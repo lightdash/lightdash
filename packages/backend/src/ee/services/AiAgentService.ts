@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AiAgent,
     AiAgentThread,
     AiAgentThreadSummary,
@@ -56,6 +57,7 @@ import {
     AiAgentUpdatedEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -211,13 +213,13 @@ export class AiAgentService {
 
     // from AiService getToolUtilities
     private async getExplore(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         availableTags: string[] | null,
         exploreName: string,
     ) {
         const explore = await this.projectService.getExplore(
-            user,
+            account,
             projectUuid,
             exploreName,
         );
@@ -240,8 +242,9 @@ export class AiAgentService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
     ) {
+        const account = fromSession(user);
         const explore = await this.getExplore(
-            user,
+            account,
             projectUuid,
             null,
             metricQuery.exploreName,
@@ -255,7 +258,7 @@ export class AiAgentService {
         validateSelectedFieldsExistence(explore, metricQueryFields);
 
         return this.projectService.runExploreQuery(
-            user,
+            account,
             {
                 ...metricQuery,
                 // TODO: add tableCalculations
@@ -274,8 +277,9 @@ export class AiAgentService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
     ) {
+        const account = fromSession(user);
         const explore = await this.getExplore(
-            user,
+            account,
             projectUuid,
             null,
             metricQuery.exploreName,
@@ -290,7 +294,7 @@ export class AiAgentService {
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
-                user,
+                account,
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
@@ -1279,8 +1283,9 @@ export class AiAgentService {
                 false,
             );
 
+        const account = fromSession(user);
         const explores = await this.projectService.findExplores({
-            user,
+            account,
             projectUuid,
             exploreNames: exploreSummaries.map((s) => s.name),
         });
@@ -1432,8 +1437,9 @@ export class AiAgentService {
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
+            const account = fromSession(user);
             const explore = await this.projectService.getExplore(
-                user,
+                account,
                 projectUuid,
                 exploreName,
             );
@@ -1480,8 +1486,9 @@ export class AiAgentService {
 
             validateSelectedFieldsExistence(explore, metricQueryFields);
 
+            const account = fromSession(user);
             return this.projectService.runMetricQuery({
-                user,
+                account,
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
