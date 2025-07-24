@@ -383,7 +383,7 @@ export const sortDayOfWeekName = (
     )${descending ? ' DESC' : ''}`;
 };
 // Remove comments and limit clauses from SQL
-const removeComments = (sql: string): string => {
+export const removeComments = (sql: string): string => {
     let s = sql.trim();
     // remove single-line comments
     s = s.replace(/--.*$/gm, '');
@@ -391,6 +391,9 @@ const removeComments = (sql: string): string => {
     s = s.replace(/\/\*[\s\S]*?\*\//g, '');
     return s;
 };
+// Remove trailing semicolon
+export const removeTrailingSemicolon = (sql: string): string =>
+    sql.trim().replace(/;+$/g, '').trim();
 
 // Replace strings with placeholders and return the placeholders
 const replaceStringsWithPlaceholders = (

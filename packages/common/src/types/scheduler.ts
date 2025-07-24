@@ -1,9 +1,11 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type PivotIndexColum } from '../visualizations/types';
 import { type AnyType } from './any';
+import { type ApiSuccess } from './api/success';
 import { type Explore, type ExploreError } from './explore';
 import { type ItemsMap } from './field';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
+import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type PivotConfig } from './pivot';
 import { type ResultColumns } from './results';
@@ -346,6 +348,10 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
+export type ApiSchedulersResponse = ApiSuccess<
+    KnexPaginatedData<SchedulerAndTargets[]>
+>;
+
 export type ScheduledJobs = {
     date: Date;
     id: string;
@@ -528,7 +534,11 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
 
 // ! Type defined here because it's used in both AsyncQueryService and SchedulerTask
 export type RunAsyncWarehouseQueryArgs = {
-    userUuid: string;
+    userId: string;
+    // Can the user have credentials?
+    isSessionUser: boolean;
+    // Is the user in the database?
+    isRegisteredUser: boolean;
     projectUuid: string;
     queryTags: RunQueryTags;
     query: string;

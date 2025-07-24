@@ -433,6 +433,7 @@ export class RenameService extends BaseService {
                         // When filtering explores, we need to check if the explore exists on from, or to
                         // since people might be running this rename method before or after dbt is updated
 
+                        let useFromExplore = true;
                         try {
                             await this.projectModel.getExploreFromCache(
                                 projectUuid,
@@ -444,13 +445,14 @@ export class RenameService extends BaseService {
                                     projectUuid,
                                     to,
                                 );
+                                useFromExplore = false;
                             } catch (err) {
                                 throw new NotFoundError(
                                     `Neither "${from}" nor "${to}" explores exist in the project.`,
                                 );
                             }
                         }
-                        exploreName = from;
+                        exploreName = useFromExplore ? from : to;
 
                         nameChanges = {
                             from, // this is just the  table prefix

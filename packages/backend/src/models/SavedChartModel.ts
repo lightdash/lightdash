@@ -1319,7 +1319,7 @@ export class SavedChartModel {
                 'saved_queries_versions.saved_queries_version_id',
                 'sqvs.saved_queries_version_id',
             )
-            .groupBy(1, 2, 3, 4, 5);
+            .groupBy(1, 2, 3, 4, 5, 6);
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
         const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(

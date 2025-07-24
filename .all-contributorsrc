@@ -1689,6 +1689,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "jesshitchcock",
+      "name": "Jess Hitchcock",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13378707?v=4",
+      "profile": "https://github.com/jesshitchcock",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

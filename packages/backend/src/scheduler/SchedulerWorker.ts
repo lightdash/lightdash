@@ -13,6 +13,7 @@ import {
     Runner,
 } from 'graphile-worker';
 import moment from 'moment';
+import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
@@ -49,12 +50,27 @@ export class SchedulerWorker extends SchedulerTask {
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
 
+        const dbMaxConnections =
+            this.lightdashConfig.database.maxConnections ||
+            DEFAULT_DB_MAX_CONNECTIONS;
+
+        // According to Graphile TS docs, this defaults to the node-postgres default (10)
+        // So we're keeping the setting the same when concurrency is less than 10
+        const desiredPoolSize =
+            this.lightdashConfig.scheduler.concurrency > 10
+                ? this.lightdashConfig.scheduler.concurrency
+                : 10;
+
+        // We don't want to exceed the max number of connections to the database
+        const maxPoolSize = Math.min(desiredPoolSize, dbMaxConnections);
+
         this.runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
             concurrency: this.lightdashConfig.scheduler.concurrency,
             noHandleSignals: true,
             pollInterval: 1000,
+            maxPoolSize,
             parsedCronItems: parseCronItems([
                 {
                     task: 'generateDailyJobs',

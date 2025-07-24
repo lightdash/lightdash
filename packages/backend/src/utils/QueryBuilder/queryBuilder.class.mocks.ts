@@ -63,6 +63,9 @@ export const QUERY_WITH_TWO_FILTERS_SQL =
 export const QUERY_WITH_SUBQUERY_SQL =
     'SELECT\n"test_field" AS "test_field"\nFROM (\nSELECT test_field FROM source_table WHERE test_field IS NOT NULL\n) AS "subquery"';
 
+export const QUERY_WITH_SUBQUERY_SEMICOLON_COMMENTS_SQL =
+    'SELECT\n"test_field" AS "test_field"\nFROM (\nSELECT test_field FROM source_table WHERE test_field IS NOT NULL\n) AS "subquery"';
+
 export const QUERY_WITH_NESTED_FILTERS_SQL =
     'SELECT\n"table"."field1" AS "field1",\n"table"."field2" AS "field2",\n"table"."field3" AS "field3"\nFROM "table"\nWHERE ((\n("table"."field1") IN (\'value1\')\n) AND ((\n("table"."field2") > (10)\n) OR (\n("table"."field3") = true\n)))';
 
