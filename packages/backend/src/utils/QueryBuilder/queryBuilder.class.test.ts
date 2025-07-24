@@ -10,6 +10,7 @@ import {
     QUERY_WITH_EMPTY_SELECT_SQL,
     QUERY_WITH_FILTER_SQL,
     QUERY_WITH_NESTED_FILTERS_SQL,
+    QUERY_WITH_SUBQUERY_SEMICOLON_COMMENTS_SQL,
     QUERY_WITH_SUBQUERY_SQL,
     QUERY_WITH_TWO_FILTERS_SQL,
     SECOND_FILTER_RULE,
@@ -120,6 +121,29 @@ describe('QueryBuilder class', () => {
                 DEFAULT_CONFIG,
             );
             expect(queryBuilder.toSql()).toBe(QUERY_WITH_SUBQUERY_SQL);
+        });
+
+        it('should handle SQL with semicolons and comments in FROM', () => {
+            const queryBuilder = new QueryBuilder(
+                {
+                    referenceMap: {
+                        test_field: {
+                            type: DimensionType.STRING,
+                            sql: '"test_field"',
+                        },
+                    },
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT test_field FROM source_table WHERE test_field IS NOT NULL; -- This is a comment\n/* This is a\n   multi-line comment */',
+                    },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+            expect(queryBuilder.toSql()).toBe(
+                QUERY_WITH_SUBQUERY_SEMICOLON_COMMENTS_SQL,
+            );
         });
     });
 
