@@ -10,25 +10,13 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import path from 'path';
 import { parse } from 'pg-connection-string';
 import { afterAll, beforeAll } from 'vitest';
 import App from './App';
 import { parseConfig } from './config/parseConfig';
 import { getEnterpriseAppArguments } from './ee';
 import { AiAgentModel } from './ee/models/AiAgentModel';
-// Register ts-node for knex migration loading with ES module support
-import { register } from 'ts-node';
-
-// Configure ts-node to handle ES modules properly
-register({
-    transpileOnly: true,
-    compilerOptions: {
-        module: 'CommonJS',
-        esModuleInterop: true,
-        allowSyntheticDefaultImports: true,
-    },
-});
-
 import knexConfig from './knexfile';
 
 export interface IntegrationTestContext {
@@ -57,35 +45,21 @@ export const setupIntegrationTest =
 
         console.log('🏗️  Creating App instance...');
 
-        // TODO: FIX THIS
         // Get base connection from PGCONNECTIONURI but modify database name for tests
-        const getTestConnectionUri = (): string => {
-            const baseConnectionUri = process.env.PGCONNECTIONURI;
-            if (!baseConnectionUri) {
+        const getTestConnection = () => {
+            const baseUri = process.env.PGCONNECTIONURI;
+            if (!baseUri) {
                 throw new Error(
                     'PGCONNECTIONURI environment variable is required for tests',
                 );
             }
 
-            const connectionConfig = parse(baseConnectionUri);
-            const testDatabaseName = `${
-                connectionConfig.database || 'lightdash'
-            }_test`;
+            const connection = parse(baseUri);
+            connection.database = `${connection.database || 'lightdash'}_test`;
 
-            // Construct test database URI
-            const testConnectionUri = `postgresql://${connectionConfig.user}:${
-                connectionConfig.password
-            }@${connectionConfig.host}:${
-                connectionConfig.port || 5432
-            }/${testDatabaseName}`;
-
-            console.log(`Using test database: ${testDatabaseName}`);
-            console.log(`Test connection URI: ${testConnectionUri}`);
-            return testConnectionUri;
+            console.log('Using test database:', connection.database);
+            return connection;
         };
-
-        const CONNECTION = parse(getTestConnectionUri());
-        console.log('CONNECTION', CONNECTION);
 
         const app = new App({
             lightdashConfig,
@@ -96,7 +70,42 @@ export const setupIntegrationTest =
                 development: {
                     ...knexConfig.development,
                     // @ts-expect-error - TODO: fix this
-                    connection: CONNECTION,
+                    connection: getTestConnection(),
+                    migrations: {
+                        ...knexConfig.development.migrations,
+                        // For vitest environment, use compiled JS files instead of TS
+                        loadExtensions: ['.js'],
+                        directory: [
+                            path.join(__dirname, '../dist/database/migrations'),
+                            ...(lightdashConfig.license.licenseKey
+                                ? [
+                                      path.join(
+                                          __dirname,
+                                          '../dist/ee/database/migrations',
+                                      ),
+                                  ]
+                                : []),
+                        ],
+                    },
+                    seeds: {
+                        ...knexConfig.development.seeds,
+                        // For vitest environment, use compiled JS files instead of TS
+                        loadExtensions: ['.js'],
+                        directory: [
+                            path.join(
+                                __dirname,
+                                '../dist/database/seeds/development',
+                            ),
+                            ...(lightdashConfig.license.licenseKey
+                                ? [
+                                      path.join(
+                                          __dirname,
+                                          '../dist/ee/database/seeds/development',
+                                      ),
+                                  ]
+                                : []),
+                        ],
+                    },
                 },
             },
             ...enterpriseArgs,
