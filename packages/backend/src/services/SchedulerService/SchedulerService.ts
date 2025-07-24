@@ -15,6 +15,8 @@ import {
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotExistsError,
     ParameterError,
     ScheduledJobs,
@@ -24,10 +26,8 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SessionUser,
-    UnexpectedServerError,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
-import { arrayToString, stringToArray } from 'cron-converter';
 import cronstrue from 'cronstrue';
 import {
     LightdashAnalytics,
@@ -216,6 +216,38 @@ export class SchedulerService extends BaseService {
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
         return this.schedulerModel.getAllSchedulers();
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        // Only allow editors to view all schedulers
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.schedulerModel.getSchedulers({
+            projectUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+        });
     }
 
     async getScheduler(
