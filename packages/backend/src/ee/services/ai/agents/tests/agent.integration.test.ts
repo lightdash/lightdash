@@ -7,6 +7,8 @@ import {
 } from '../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { AiAgentService } from '../../../AiAgentService';
+import { getOpenaiGptmodel } from '../../models/openai-gpt';
+import { llmAsAJudge } from './utils/llmAsAJudge';
 
 // Skip if no OpenAI API key
 const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -35,12 +37,13 @@ describeOrSkip('agent integration tests', () => {
                 context.testAgent,
             );
 
+            const promptQueryText = 'What data models are available?';
             // Create a test thread
             const thread = await services.aiAgentService.createAgentThread(
                 context.testUser,
                 agent.uuid,
                 {
-                    prompt: 'What data models are available?',
+                    prompt: promptQueryText,
                 },
             );
 
@@ -82,8 +85,20 @@ describeOrSkip('agent integration tests', () => {
             expect(toolCalls[0].tool_name).toBe('findExplores');
 
             expect(typeof response).toBe('string');
-            // TODO: check if response contains the expected data
-            // TODO: add evaluation
+
+            const model = getOpenaiGptmodel({
+                apiKey: process.env.OPENAI_API_KEY!,
+                modelName: 'gpt-4o-mini',
+            });
+            const evaluation = await llmAsAJudge(
+                promptQueryText,
+                response,
+                model,
+            );
+
+            expect(evaluation.relevance).toBeGreaterThanOrEqual(4);
+            expect(evaluation.accuracy).toBeGreaterThanOrEqual(4);
+            expect(evaluation.completeness).toBeGreaterThanOrEqual(4);
         },
         TIMEOUT,
     );
