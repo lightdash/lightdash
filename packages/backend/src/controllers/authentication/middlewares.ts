@@ -17,6 +17,7 @@ import {
 
 import passport from 'passport';
 import { URL } from 'url';
+import { fromSession } from '../../auth/account';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
