@@ -30,16 +30,19 @@ describeOrSkip('agent integration tests', () => {
             const models = getModels(context.app);
 
             // Create a test agent
-            const agent = await (
-                services.aiAgentService as AiAgentService
-            ).createAgent(context.testUser, context.testAgent);
+            const agent = await services.aiAgentService.createAgent(
+                context.testUser,
+                context.testAgent,
+            );
 
             // Create a test thread
-            const thread = await (
-                services.aiAgentService as AiAgentService
-            ).createAgentThread(context.testUser, agent.uuid, {
-                prompt: 'What data models are available?',
-            });
+            const thread = await services.aiAgentService.createAgentThread(
+                context.testUser,
+                agent.uuid,
+                {
+                    prompt: 'What data models are available?',
+                },
+            );
 
             if (!thread) {
                 throw new Error('Failed to create test thread');
@@ -55,20 +58,20 @@ describeOrSkip('agent integration tests', () => {
                 threadMessages.at(-1)!.ai_prompt_uuid,
             );
 
-            const chatHistoryMessages = await (
-                services.aiAgentService as AiAgentService
-            ).getChatHistoryFromThreadMessages(threadMessages);
+            const chatHistoryMessages =
+                await services.aiAgentService.getChatHistoryFromThreadMessages(
+                    threadMessages,
+                );
 
-            const response = await (
-                services.aiAgentService as AiAgentService
-            ).generateOrStreamAgentResponse(
-                context.testUser,
-                chatHistoryMessages,
-                {
-                    prompt: prompt!,
-                    stream: false,
-                },
-            );
+            const response =
+                await services.aiAgentService.generateOrStreamAgentResponse(
+                    context.testUser,
+                    chatHistoryMessages,
+                    {
+                        prompt: prompt!,
+                        stream: false,
+                    },
+                );
 
             const toolCalls = await context
                 .db<DbAiAgentToolCall>('ai_agent_tool_call')

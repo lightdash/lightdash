@@ -17,6 +17,7 @@ import App from './App';
 import { parseConfig } from './config/parseConfig';
 import { getEnterpriseAppArguments } from './ee';
 import { AiAgentModel } from './ee/models/AiAgentModel';
+import { AiAgentService } from './ee/services/AiAgentService';
 import knexConfig from './knexfile';
 
 export interface IntegrationTestContext {
@@ -31,7 +32,7 @@ let globalTestContext: IntegrationTestContext | null = null;
 
 export const setupIntegrationTest =
     async (): Promise<IntegrationTestContext> => {
-        console.log('🚀 Starting integration test setup...');
+        console.info('🚀 Starting integration test setup...');
 
         if (!process.env.LIGHTDASH_LICENSE_KEY) {
             throw new Error(
@@ -43,7 +44,7 @@ export const setupIntegrationTest =
 
         const enterpriseArgs = await getEnterpriseAppArguments();
 
-        console.log('🏗️  Creating App instance...');
+        console.info('🏗️  Creating App instance...');
 
         // Get base connection from PGCONNECTIONURI but modify database name for tests
         const getTestConnection = () => {
@@ -57,7 +58,7 @@ export const setupIntegrationTest =
             const connection = parse(baseUri);
             connection.database = `${connection.database || 'lightdash'}_test`;
 
-            console.log('Using test database:', connection.database);
+            console.info('Using test database:', connection.database);
             return connection;
         };
 
@@ -114,14 +115,14 @@ export const setupIntegrationTest =
         const db = app.getDatabase();
 
         // Run migrations to ensure database schema is up to date
-        console.log('🔧 Running database migrations...');
+        console.info('🔧 Running database migrations...');
         await db.migrate.latest();
-        console.log('✅ Database migrations completed');
+        console.info('✅ Database migrations completed');
 
         // Run seeds to populate test data
-        console.log('🌱 Running database seeds...');
+        console.info('🌱 Running database seeds...');
         await db.seed.run();
-        console.log('✅ Database seeds completed');
+        console.info('✅ Database seeds completed');
 
         // TODO: get first user from db that is an admin and active
         // Create a test user with appropriate permissions
@@ -162,14 +163,14 @@ export const setupIntegrationTest =
         };
 
         const cleanup = async () => {
-            console.log('🧹 Cleaning up test environment...');
+            console.info('🧹 Cleaning up test environment...');
 
             // Clean up test data - rollback migrations to ensure clean state
-            console.log('↶ Rolling back migrations...');
+            console.info('↶ Rolling back migrations...');
             await db.migrate.rollback({}, true); // rollback all migrations
 
             await app.stop();
-            console.log('✅ Cleanup completed');
+            console.info('✅ Cleanup completed');
         };
 
         return {
@@ -185,16 +186,14 @@ export const setupIntegrationTest =
  * Get services from the App's factory system
  */
 export const getServices = (app: App) => {
-    console.log('🔧 Getting services from App factory...');
+    console.info('🔧 Getting services from App factory...');
     const serviceRepository = app.getServiceRepository();
 
     const services = {
-        aiAgentService: serviceRepository.getAiAgentService(),
-        projectService: serviceRepository.getProjectService(),
-        catalogService: serviceRepository.getCatalogService(),
+        aiAgentService: serviceRepository.getAiAgentService<AiAgentService>(),
     };
 
-    console.log('✅ Services retrieved:', Object.keys(services).join(', '));
+    console.info('✅ Services retrieved:', Object.keys(services).join(', '));
     return services;
 };
 
@@ -202,7 +201,7 @@ export const getServices = (app: App) => {
  * Get models from the App's factory system
  */
 export const getModels = (app: App) => {
-    console.log('📊 Getting models from App factory...');
+    console.info('📊 Getting models from App factory...');
 
     const models = {
         aiAgentModel: app.getModels().getAiAgentModel() as AiAgentModel,
@@ -210,7 +209,7 @@ export const getModels = (app: App) => {
         userModel: app.getModels().getUserModel(),
     };
 
-    console.log('✅ Models retrieved:', Object.keys(models).join(', '));
+    console.info('✅ Models retrieved:', Object.keys(models).join(', '));
     return models;
 };
 
@@ -235,5 +234,5 @@ afterAll(async () => {
         await globalTestContext.cleanup();
         globalTestContext = null;
     }
-    console.log('✅ Vitest integration tests completed');
+    console.info('✅ Vitest integration tests completed');
 });
