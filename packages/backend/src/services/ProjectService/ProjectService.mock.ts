@@ -1,7 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    Account,
-    AccountUser,
     ApiQueryResults,
     ChartKind,
     ChartType,
@@ -18,7 +16,6 @@ import {
     JobStepStatusType,
     JobStepType,
     JobType,
-    LightdashSessionUser,
     MetricQuery,
     MetricType,
     OrganizationMemberRole,
@@ -40,13 +37,14 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 
-const userId = 'userId';
-
 export const user: SessionUser = {
-    userUuid: userId,
+    userUuid: 'userUuid',
     email: 'email',
     firstName: 'firstName',
     lastName: 'lastName',
+    organizationUuid: 'organizationUuid',
+    organizationName: 'organizationName',
+    organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
     isSetupComplete: true,
@@ -63,33 +61,6 @@ export const user: SessionUser = {
     createdAt: new Date(),
     updatedAt: new Date(),
 };
-
-export const buildAccount = ({
-    accountType = 'session',
-    userType = 'registered',
-}: {
-    accountType?: Account['authentication']['type'];
-    userType?: AccountUser['type'];
-} = {}) =>
-    ({
-        user: {
-            ...user,
-            id: userId,
-            type: userType,
-        },
-        organization: {
-            organizationUuid: 'organizationUuid',
-            createdAt: new Date(),
-            name: 'organizationName',
-        },
-        authentication: {
-            type: accountType,
-        },
-        isSessionUser: () => accountType === 'session',
-        isRegisteredUser: () => userType === 'registered',
-        isJwtUser: () => accountType === 'jwt',
-        isAnonymousUser: () => userType === 'anonymous',
-    } as unknown as Account);
 
 export const validExplore: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
@@ -281,10 +252,8 @@ export const expectedCatalog = {
     },
 };
 
-export const sessionAccount = buildAccount();
-
 export const projectWithSensitiveFields: Project = {
-    organizationUuid: sessionAccount.organization.organizationUuid!,
+    organizationUuid: user.organizationUuid!,
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
@@ -295,11 +264,11 @@ export const projectWithSensitiveFields: Project = {
         environment_id: 'environment_id',
     },
     schedulerTimezone: 'UTC',
-    createdByUserUuid: sessionAccount.user.id,
+    createdByUserUuid: user.userUuid,
 };
 
 export const projectSummary: ProjectSummary = {
-    organizationUuid: sessionAccount.organization.organizationUuid!,
+    organizationUuid: user.organizationUuid!,
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
@@ -308,7 +277,7 @@ export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
-    createdByUserUuid: sessionAccount.user.id,
+    createdByUserUuid: user.userUuid,
     upstreamProjectUuid: null,
     warehouseType: WarehouseTypes.POSTGRES,
     requireUserCredentials: false,
@@ -316,7 +285,7 @@ export const defaultProject: OrganizationProject = {
 
 export const spacesWithSavedCharts: Space[] = [
     {
-        organizationUuid: sessionAccount.organization.organizationUuid!,
+        organizationUuid: user.organizationUuid!,
         name: 'space',
         slug: 'space',
         parentSpaceUuid: null,
@@ -356,7 +325,7 @@ export const spacesWithSavedCharts: Space[] = [
 
 export const spacesWithNoSavedCharts: Space[] = [
     {
-        organizationUuid: sessionAccount.organization.organizationUuid!,
+        organizationUuid: user.organizationUuid!,
         name: 'space',
         slug: 'space',
         parentSpaceUuid: null,
@@ -378,7 +347,7 @@ export const spacesWithNoSavedCharts: Space[] = [
 export const job: Job = {
     jobUuid: 'jobUuid',
     projectUuid: 'projectUuid',
-    userUuid: sessionAccount.user.id,
+    userUuid: user.userUuid,
     createdAt: new Date(),
     updatedAt: new Date(),
     jobStatus: JobStatusType.DONE,
@@ -401,7 +370,7 @@ export const job: Job = {
 export const jobError: Job = {
     jobUuid: 'jobUuid',
     projectUuid: 'projectUuid',
-    userUuid: sessionAccount.user.id,
+    userUuid: user.userUuid,
     createdAt: new Date(),
     updatedAt: new Date(),
     jobStatus: JobStatusType.ERROR,

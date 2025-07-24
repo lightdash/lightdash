@@ -534,11 +534,7 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
 
 // ! Type defined here because it's used in both AsyncQueryService and SchedulerTask
 export type RunAsyncWarehouseQueryArgs = {
-    userId: string;
-    // Can the user have credentials?
-    isSessionUser: boolean;
-    // Is the user in the database?
-    isRegisteredUser: boolean;
+    userUuid: string;
     projectUuid: string;
     queryTags: RunQueryTags;
     query: string;

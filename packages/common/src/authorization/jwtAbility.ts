@@ -25,7 +25,6 @@ const addBaseAbilities: EmbeddedAbilityBuilder = ({
         dashboardUuid,
         organizationUuid: organization.organizationUuid,
     });
-
     return { embedUser, dashboardUuid, organization, builder };
 };
 

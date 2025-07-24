@@ -55,7 +55,7 @@ savedChartRouter.get(
         req.services
             .getProjectService()
             .getAvailableFiltersForSavedQuery(
-                req.account!,
+                req.user!,
                 getObjectValue(req.params, 'savedQueryUuid'),
             )
             .then((results) => {
