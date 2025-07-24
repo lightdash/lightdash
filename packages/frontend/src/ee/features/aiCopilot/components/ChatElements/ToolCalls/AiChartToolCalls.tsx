@@ -15,6 +15,7 @@ import {
     Collapse,
     Group,
     Paper,
+    rem,
     Stack,
     Text,
     Timeline,
@@ -114,14 +115,38 @@ const ToolCallDescription: FC<{
 
     switch (toolArgs.type) {
         case 'find_explores':
-            return null;
-        case 'find_fields':
-            const { exploreName } = toolArgs;
-
             return (
-                <>
+                <Text c="dimmed" size="xs">
+                    Searched relevant explores
+                </Text>
+            );
+        case 'find_fields':
+            if ('fieldSearchQueries' in toolArgs) {
+                return (
                     <Text c="dimmed" size="xs">
-                        Found relevant fields in{' '}
+                        Searched for fields{' '}
+                        {toolArgs.fieldSearchQueries.map((query) => (
+                            <Badge
+                                key={query.name}
+                                color="gray"
+                                variant="light"
+                                size="xs"
+                                mx={rem(2)}
+                                radius="sm"
+                                style={{
+                                    textTransform: 'none',
+                                    fontWeight: 400,
+                                }}
+                            >
+                                {query.name}
+                            </Badge>
+                        ))}
+                    </Text>
+                );
+            } else {
+                return (
+                    <Text c="dimmed" size="xs">
+                        Searched for fields in explore{' '}
                         <Badge
                             color="gray"
                             variant="light"
@@ -132,11 +157,11 @@ const ToolCallDescription: FC<{
                                 fontWeight: 400,
                             }}
                         >
-                            {exploreName}
+                            {toolArgs.exploreName}
                         </Badge>
                     </Text>
-                </>
-            );
+                );
+            }
         case AiResultType.VERTICAL_BAR_RESULT:
             const barVizConfigToolArgs = toolArgs;
 
