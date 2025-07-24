@@ -278,7 +278,6 @@ export interface ExplorerReduceState {
             items?: CustomDimension[] | AdditionalMetric[];
         };
     };
-    parameters: Record<string, string | string[]>;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
