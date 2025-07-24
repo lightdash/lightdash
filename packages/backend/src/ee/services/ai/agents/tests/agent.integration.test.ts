@@ -88,7 +88,7 @@ describeOrSkip('agent integration tests', () => {
 
             const model = getOpenaiGptmodel({
                 apiKey: process.env.OPENAI_API_KEY!,
-                modelName: 'gpt-4o-mini',
+                modelName: 'gpt-4.1',
             });
             const evaluation = await llmAsAJudge(
                 promptQueryText,
