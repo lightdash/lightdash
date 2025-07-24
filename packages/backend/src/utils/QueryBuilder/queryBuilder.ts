@@ -1205,6 +1205,8 @@ export class QueryBuilder {
 
     private readonly parameters?: ParametersValuesMap;
 
+    private readonly limit: number | undefined;
+
     constructor(
         args: {
             referenceMap: ReferenceMap;
@@ -1212,6 +1214,7 @@ export class QueryBuilder {
             from: From;
             filters?: FilterGroup;
             parameters?: ParametersValuesMap;
+            limit: number | undefined;
         },
         private config: {
             fieldQuoteChar: string;
@@ -1227,6 +1230,7 @@ export class QueryBuilder {
         this.filters = args.filters;
         this.referenceMap = args.referenceMap;
         this.parameters = args.parameters;
+        this.limit = args.limit;
     }
 
     private quotedName(value: string) {
@@ -1315,9 +1319,21 @@ export class QueryBuilder {
         return undefined;
     }
 
+    private limitToSql() {
+        if (this.limit) {
+            return `LIMIT ${this.limit}`;
+        }
+        return undefined;
+    }
+
     getSqlAndReferences() {
         // Combine all parts of the query
-        const sql = [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
+        const sql = [
+            this.selectsToSql(),
+            this.fromToSql(),
+            this.filtersToSql(),
+            this.limitToSql(),
+        ]
             .filter((l) => l !== undefined)
             .join('\n');
 
