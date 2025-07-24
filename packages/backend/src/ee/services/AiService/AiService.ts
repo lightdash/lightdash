@@ -13,7 +13,6 @@ import {
     isField,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { isFeatureFlagEnabled } from '../../../postHog';
@@ -107,7 +106,7 @@ export class AiService {
         const chartResultPromises = chartUuids.map(async (chartUuid) => {
             const chartAndResults =
                 await this.projectService.getChartAndResults({
-                    account: fromSession(user),
+                    user,
                     dashboardUuid: dashboard.uuid,
                     chartUuid,
                     dashboardFilters: dashboard.filters,

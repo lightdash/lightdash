@@ -150,7 +150,7 @@ dashboardRouter.post(
         try {
             const results = await req.services
                 .getProjectService()
-                .getAvailableFiltersForSavedQueries(req.account!, req.body);
+                .getAvailableFiltersForSavedQueries(req.user!, req.body);
 
             res.json({
                 status: 'ok',

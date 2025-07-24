@@ -373,7 +373,7 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         const totalResult = await this.services
             .getProjectService()
-            .calculateTotalFromQuery(req.account!, projectUuid, body);
+            .calculateTotalFromQuery(req.user!, projectUuid, body);
         return {
             status: 'ok',
             results: totalResult,
@@ -392,7 +392,7 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         const subtotalsResult = await this.services
             .getProjectService()
-            .calculateSubtotalsFromQuery(req.account!, projectUuid, body);
+            .calculateSubtotalsFromQuery(req.user!, projectUuid, body);
         return {
             status: 'ok',
             results: subtotalsResult,
