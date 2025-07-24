@@ -1,3 +1,10 @@
+# [0.1837.0](https://github.com/lightdash/lightdash/compare/0.1836.0...0.1837.0) (2025-07-24)
+
+
+### Features
+
+* disable ai agent group access if disabled ([#15978](https://github.com/lightdash/lightdash/issues/15978)) ([6b96b10](https://github.com/lightdash/lightdash/commit/6b96b10cf9487a5a944751d463c9b4bb1c085780))
+
 # [0.1836.0](https://github.com/lightdash/lightdash/compare/0.1835.0...0.1836.0) (2025-07-24)
 
 
