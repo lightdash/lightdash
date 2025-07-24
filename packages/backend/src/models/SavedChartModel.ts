@@ -857,6 +857,7 @@ export class SavedChartModel {
                         'saved_queries_versions.chart_config',
                         'saved_queries_versions.pivot_dimensions',
                         'saved_queries_versions.timezone',
+                        'saved_queries_versions.parameters',
                         `${OrganizationTableName}.organization_uuid`,
                         `${OrganizationColorPaletteTableName}.colors as color_palette`,
                         `${UserTableName}.user_uuid`,

@@ -775,5 +775,48 @@ describe('Query builder', () => {
                 '("table1".shared) = ("table2".shared) AND \'active\' = \'active\'',
             );
         });
+
+        test('Should correctly identify usedParameters in query', () => {
+            // Create a QueryBuilder instance directly to test getSqlAndReferences
+            const queryBuilder = new MetricQueryBuilder({
+                explore: {
+                    ...EXPLORE,
+                    tables: {
+                        ...EXPLORE.tables,
+                        table1: {
+                            ...EXPLORE.tables.table1,
+                            dimensions: {
+                                ...EXPLORE.tables.table1.dimensions,
+                                dim1: {
+                                    ...EXPLORE.tables.table1.dimensions.dim1,
+                                    compiledSql:
+                                        'CASE WHEN ${lightdash.parameters.status} = \'active\' THEN "table1".dim1 WHEN ${lightdash.parameters.region} = \'EU\' THEN "table1".dim2 ELSE NULL END',
+                                },
+                            },
+                        },
+                    },
+                },
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                parameters: {
+                    status: 'active',
+                    region: 'EU',
+                    unused: 'parameter',
+                },
+            });
+
+            const compiledQuery = queryBuilder.compileQuery();
+
+            // Check that usedParameters only includes parameters that are actually used in the query
+            expect(compiledQuery.usedParameters).toEqual({
+                status: 'active',
+                region: 'EU',
+            });
+
+            // Verify that unused parameter is not included
+            expect(compiledQuery.usedParameters).not.toHaveProperty('unused');
+        });
     });
 });
