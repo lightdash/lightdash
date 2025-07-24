@@ -1,3 +1,10 @@
+## [0.1834.1](https://github.com/lightdash/lightdash/compare/0.1834.0...0.1834.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* Revert "fix(sql-runner): apply limit in final query ([#15887](https://github.com/lightdash/lightdash/issues/15887))" ([#15984](https://github.com/lightdash/lightdash/issues/15984)) ([78599a5](https://github.com/lightdash/lightdash/commit/78599a5f84b06ef8b20cc71804ad40e9bf82ce47))
+
 # [0.1834.0](https://github.com/lightdash/lightdash/compare/0.1833.0...0.1834.0) (2025-07-23)
 
 
