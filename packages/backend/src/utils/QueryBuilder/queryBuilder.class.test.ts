@@ -26,7 +26,6 @@ describe('QueryBuilder class', () => {
                     referenceMap: {},
                     select: [],
                     from: { name: 'test_table' },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -44,7 +43,6 @@ describe('QueryBuilder class', () => {
                         id: 'filter_group_1',
                         and: [SIMPLE_FILTER_RULE, SECOND_FILTER_RULE],
                     },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -60,7 +58,6 @@ describe('QueryBuilder class', () => {
                     referenceMap: SIMPLE_REFERENCE_MAP,
                     select: ['test_field'],
                     from: { name: 'test_table' },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -77,7 +74,6 @@ describe('QueryBuilder class', () => {
                         id: 'filter_group_1',
                         and: [SIMPLE_FILTER_RULE],
                     },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -94,7 +90,6 @@ describe('QueryBuilder class', () => {
                         id: 'filter_group_1',
                         and: [SIMPLE_FILTER_RULE, SECOND_FILTER_RULE],
                     },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -115,7 +110,6 @@ describe('QueryBuilder class', () => {
                         name: 'subquery',
                         sql: 'SELECT test_field FROM source_table WHERE test_field IS NOT NULL',
                     },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -166,7 +160,6 @@ describe('QueryBuilder class', () => {
                             },
                         ],
                     },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -179,7 +172,6 @@ describe('QueryBuilder class', () => {
                     referenceMap: {},
                     select: [],
                     from: { name: 'test_table' },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -194,7 +186,6 @@ describe('QueryBuilder class', () => {
                     referenceMap: {},
                     select: ['unknown_field'],
                     from: { name: 'test_table' },
-                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
