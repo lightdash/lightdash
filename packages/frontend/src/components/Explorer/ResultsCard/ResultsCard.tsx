@@ -100,13 +100,21 @@ const ResultsCard: FC = memo(() => {
                 resultsIsOpen &&
                 tableName && (
                     <>
-                        {isEditMode && <AddColumnButton />}
+                        <Can
+                            I="manage"
+                            this={subject('Explore', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            {isEditMode && <AddColumnButton />}
+                        </Can>
 
                         <Can
                             I="manage"
                             this={subject('ExportCsv', {
                                 organizationUuid: user.data?.organizationUuid,
-                                projectUuid: projectUuid,
+                                projectUuid,
                             })}
                         >
                             <Popover
