@@ -1,3 +1,10 @@
+## [0.1837.1](https://github.com/lightdash/lightdash/compare/0.1837.0...0.1837.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* worker max pool size warning when concurrency is over 10 ([#15990](https://github.com/lightdash/lightdash/issues/15990)) ([c3fbb14](https://github.com/lightdash/lightdash/commit/c3fbb14b6dccb049d1c5b838bee6de8f84bfea4b))
+
 # [0.1837.0](https://github.com/lightdash/lightdash/compare/0.1836.0...0.1837.0) (2025-07-24)
 
 
