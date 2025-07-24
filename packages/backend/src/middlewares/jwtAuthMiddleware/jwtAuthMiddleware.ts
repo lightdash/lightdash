@@ -7,7 +7,7 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
-import * as Account from '../../auth/account';
+import { fromJwt } from '../../auth/account';
 import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
 import Logger from '../../logging/logger';
@@ -102,13 +102,20 @@ export async function jwtAuthMiddleware(
             return;
         }
 
-        req.account = Account.fromJwt({
+        req.account = fromJwt({
             decodedToken,
             source: embedToken,
             organization,
             dashboardUuid,
             userAttributes,
         });
+
+        // Not the greatest, but passport expects this to return a typeguard: this is AuthenticatedRequest.
+        // AuthenticatedRequest is not defined and TS won't let us use `this` in a typeguard outside of a class.
+        // @ts-expect-error - Passport type here is overly restrictive and doesn't allow overriding.
+        req.isAuthenticated = function isAuthenticated() {
+            return this.account?.isAuthenticated() || false;
+        };
 
         next();
     } catch (error) {
