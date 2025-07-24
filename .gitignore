@@ -94,3 +94,6 @@ data/
 .env*
 
 .local/*
+
+# pnpm
+.pnpm-store
