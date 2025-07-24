@@ -28,6 +28,29 @@ const addBaseAbilities: EmbeddedAbilityBuilder = ({
     return { embedUser, dashboardUuid, organization, builder };
 };
 
+const exploreAbilities: EmbeddedAbilityBuilder = ({
+    embedUser,
+    dashboardUuid,
+    organization,
+    builder,
+}) => {
+    const { content } = embedUser;
+    const { can } = builder;
+
+    if (content.canExplore) {
+        can('view', 'Explore', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embedUser.content.projectUuid,
+        });
+        can('view', 'Project', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embedUser.content.projectUuid,
+        });
+    }
+
+    return { embedUser, dashboardUuid, organization, builder };
+};
+
 const exportAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
@@ -81,6 +104,7 @@ const applyAbilities = flow(
     addBaseAbilities,
     exportAbilities,
     dashboardAbilities,
+    exploreAbilities,
 );
 
 export function applyEmbeddedAbility(
