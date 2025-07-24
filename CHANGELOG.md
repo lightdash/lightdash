@@ -1,3 +1,10 @@
+# [0.1838.0](https://github.com/lightdash/lightdash/compare/0.1837.3...0.1838.0) (2025-07-24)
+
+
+### Features
+
+* refactor AsyncQuery and Project service to use account where needed for Embedded Explores ([#15893](https://github.com/lightdash/lightdash/issues/15893)) ([74a26ec](https://github.com/lightdash/lightdash/commit/74a26ec0a3554c6ae3b8e6f6d42234f1b067cf40))
+
 ## [0.1837.3](https://github.com/lightdash/lightdash/compare/0.1837.2...0.1837.3) (2025-07-24)
 
 
