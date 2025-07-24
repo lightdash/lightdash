@@ -10,26 +10,19 @@ import { lightdashConfig } from '../config/lightdashConfig';
 const SITE_URL = process.env.SITE_URL; // e.g. 'https://shopify-gdpr-webhooks-969022814225.us-central1.run.app'
 type ShopServiceArgs = {
     database: Knex;
-    emailClient: EmailClient;
 };
 
 export class ShopService {
     private readonly database: Knex;
 
-    constructor({ database, emailClient }: ShopServiceArgs) {
+    constructor({ database }: ShopServiceArgs) {
         this.database = database;
     }
 
     async createOrUpdate(data: Partial<DbShop>): Promise<{ shop_: DbShop, isNew: boolean }> {
         const existing = await this.getByUrl(data.shop_url!);
 
-        const emailClient = new EmailClient({ lightdashConfig });
-        await emailClient.sendGenericNotificationEmail(
-                ['matt@gosolucia.com'],
-                `🛍️ New Shopify Shop Connected ${data.shop_url}`,
-                'A new shop just signed up !',
-                `Shop URL: ${data.shop_url}`,
-            );
+
 
         if (existing) {
             const [updated] = await this.database<DbShop>(ShopTableName)
@@ -54,6 +47,13 @@ export class ShopService {
                 .returning('*');
             await this._registerOrdersWebhook(data.shop_url!, created.access_token!);
             await this._createScriptTag(data.shop_url!, created.access_token!);
+            const emailClient = new EmailClient({ lightdashConfig });
+            await emailClient.sendGenericNotificationEmail(
+                ['matt@gosolucia.com'],
+                `🛍️ New Shopify Shop Connected ${data.shop_url}`,
+                'A new shop just signed up !',
+                `Shop URL: ${data.shop_url}`,
+            );
             return { shop_: created, isNew: true };
         }
     }
