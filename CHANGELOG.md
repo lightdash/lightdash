@@ -1,3 +1,10 @@
+# [0.1836.0](https://github.com/lightdash/lightdash/compare/0.1835.0...0.1836.0) (2025-07-24)
+
+
+### Features
+
+* add paginated scheduler list endpoint with search and sorting ([#15792](https://github.com/lightdash/lightdash/issues/15792)) ([61818d1](https://github.com/lightdash/lightdash/commit/61818d1af1d0488c4f4df9712f6db5150d2f3aa9))
+
 # [0.1835.0](https://github.com/lightdash/lightdash/compare/0.1834.4...0.1835.0) (2025-07-24)
 
 
