@@ -1,3 +1,10 @@
+## [0.1834.2](https://github.com/lightdash/lightdash/compare/0.1834.1...0.1834.2) (2025-07-24)
+
+
+### Bug Fixes
+
+* make spotlight required and merge with default config ([#15980](https://github.com/lightdash/lightdash/issues/15980)) ([c601e48](https://github.com/lightdash/lightdash/commit/c601e483052482f8ebd6719602dbd99e2ce5e86a))
+
 ## [0.1834.1](https://github.com/lightdash/lightdash/compare/0.1834.0...0.1834.1) (2025-07-24)
 
 
