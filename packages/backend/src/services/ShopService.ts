@@ -3,22 +3,33 @@ import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { DbShop, ShopTableName } from '../database/entities/shopifyShop';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
+import EmailClient from '../clients/EmailClient/EmailClient';
+import { lightdashConfig } from '../config/lightdashConfig';
 
 
 const SITE_URL = process.env.SITE_URL; // e.g. 'https://shopify-gdpr-webhooks-969022814225.us-central1.run.app'
 type ShopServiceArgs = {
     database: Knex;
+    emailClient: EmailClient;
 };
 
 export class ShopService {
     private readonly database: Knex;
 
-    constructor({ database }: ShopServiceArgs) {
+    constructor({ database, emailClient }: ShopServiceArgs) {
         this.database = database;
     }
 
     async createOrUpdate(data: Partial<DbShop>): Promise<{ shop_: DbShop, isNew: boolean }> {
         const existing = await this.getByUrl(data.shop_url!);
+
+        const emailClient = new EmailClient({ lightdashConfig });
+        await emailClient.sendGenericNotificationEmail(
+                ['matt@gosolucia.com'],
+                `🛍️ New Shopify Shop Connected ${data.shop_url}`,
+                'A new shop just signed up !',
+                `Shop URL: ${data.shop_url}`,
+            );
 
         if (existing) {
             const [updated] = await this.database<DbShop>(ShopTableName)
@@ -214,7 +225,7 @@ export class ShopService {
 
         const { script_tags } = await getRes.json();
 
-        const path = 'https://storage.googleapis.com/storefront89752334/posthog-snippet.js?v=1'
+        const path = 'https://storage.googleapis.com/storefront89752334/posthog-snippet.js'
 
         const alreadyExists = script_tags.some((tag: any) =>
             tag.src.includes(path),
