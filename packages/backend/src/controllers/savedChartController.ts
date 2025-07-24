@@ -91,7 +91,7 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
-                account: req.account!,
+                user: req.user!,
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
@@ -124,7 +124,7 @@ export class SavedChartController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .getChartAndResults({
-                    account: req.account!,
+                    user: req.user!,
                     chartUuid,
                     dashboardFilters: body.dashboardFilters,
                     invalidateCache: body.invalidateCache,
@@ -225,7 +225,7 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
-                account: req.account!,
+                user: req.user!,
                 chartUuid,
                 versionUuid,
                 context,
@@ -284,7 +284,7 @@ export class SavedChartController extends BaseController {
         const totalResult = await this.services
             .getProjectService()
             .calculateTotalFromSavedChart(
-                req.account!,
+                req.user!,
                 chartUuid,
                 body.dashboardFilters,
                 body.invalidateCache,

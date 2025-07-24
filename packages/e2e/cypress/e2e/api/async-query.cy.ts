@@ -306,20 +306,5 @@ describe('Async Query API', () => {
                 });
             });
         });
-
-        it('should execute async query and get all results paged using JWT authentication', () => {
-            cy.getJwtToken(projectUuid, { canExplore: true }).then((jwt) => {
-                runAsyncQueryTest(SEED_PROJECT.project_uuid, jwt);
-            });
-        });
-
-        it('should execute async query and get all results paged using JWT authentication empty external ID', () => {
-            cy.getJwtToken(projectUuid, {
-                userExternalId: null,
-                canExplore: true,
-            }).then((jwt) => {
-                runAsyncQueryTest(SEED_PROJECT.project_uuid, jwt);
-            });
-        });
     });
 });

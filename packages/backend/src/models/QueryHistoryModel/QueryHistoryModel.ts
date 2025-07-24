@@ -1,6 +1,4 @@
 import {
-    Account,
-    ForbiddenError,
     NotFoundError,
     QueryHistory,
     QueryHistoryStatus,
@@ -39,9 +37,6 @@ function convertDbQueryHistoryToQueryHistory(
     return {
         queryUuid: queryHistory.query_uuid,
         createdAt: queryHistory.created_at,
-        createdBy:
-            queryHistory.created_by_user_uuid ??
-            queryHistory.created_by_account,
         createdByUserUuid: queryHistory.created_by_user_uuid,
         createdByAccount: queryHistory.created_by_account,
         organizationUuid: queryHistory.organization_uuid,
@@ -98,7 +93,6 @@ export class QueryHistoryModel {
     }
 
     async create(
-        account: Account,
         queryHistory: Omit<
             QueryHistory,
             | 'status'
@@ -119,19 +113,15 @@ export class QueryHistoryModel {
             | 'columns'
             | 'originalColumns'
             | 'createdByAccount'
-            | 'createdByUserUuid'
-            | 'createdBy'
-        >,
+        > & {
+            createdByAccount?: string | null;
+        },
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
                 status: QueryHistoryStatus.PENDING,
-                created_by_user_uuid: account.isRegisteredUser()
-                    ? account.user.id
-                    : null,
-                created_by_account: account.isAnonymousUser()
-                    ? account.user.id
-                    : null,
+                created_by_user_uuid: queryHistory?.createdByUserUuid ?? null,
+                created_by_account: queryHistory?.createdByAccount ?? null,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
                 compiled_sql: queryHistory.compiledSql,
@@ -167,19 +157,19 @@ export class QueryHistoryModel {
         queryUuid: string,
         projectUuid: string,
         update: DbQueryHistoryUpdate,
-        account: Pick<Account, 'isRegisteredUser'> & {
-            user: Pick<Account['user'], 'id'>;
-        },
+        userUuid?: string,
+        accountId?: string,
     ) {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
             .update(update);
 
-        const createdByColumn = account.isRegisteredUser()
-            ? 'created_by_user_uuid'
-            : 'created_by_account';
-        void query.andWhere(createdByColumn, account.user.id);
+        if (userUuid) {
+            void query.andWhere('created_by_user_uuid', userUuid);
+        } else if (accountId) {
+            void query.andWhere('created_by_account', accountId);
+        }
 
         // only update pending queries to ready
         if (update.status === QueryHistoryStatus.READY) {
@@ -188,16 +178,31 @@ export class QueryHistoryModel {
         return query;
     }
 
-    async get(queryUuid: string, projectUuid: string, account: Account) {
+    async get(
+        queryUuid: string,
+        projectUuid: string,
+        userUuid?: string,
+        accountId?: string,
+    ) {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid);
 
-        const createdByColumn = account.isRegisteredUser()
-            ? 'created_by_user_uuid'
-            : 'created_by_account';
+        if (userUuid && accountId) {
+            throw new Error('Cannot filter by both userUuid and account');
+        }
 
-        void query.andWhere(createdByColumn, account.user.id);
+        if (!userUuid && !accountId) {
+            throw new Error(
+                'Queries must be identified by either userUuid or account',
+            );
+        }
+
+        if (userUuid) {
+            void query.andWhere('created_by_user_uuid', userUuid);
+        } else if (accountId) {
+            void query.andWhere('created_by_account', accountId);
+        }
 
         const result = await query.first();
 
@@ -207,15 +212,7 @@ export class QueryHistoryModel {
             );
         }
 
-        const queryHistory = convertDbQueryHistoryToQueryHistory(result);
-
-        if (queryHistory.createdBy !== account.user.id) {
-            throw new ForbiddenError(
-                'User is not authorized to access this query',
-            );
-        }
-
-        return queryHistory;
+        return convertDbQueryHistoryToQueryHistory(result);
     }
 
     async findMostRecentByCacheKey(cacheKey: string, projectUuid: string) {
