@@ -1,60 +1,113 @@
+import { assertUnreachable } from '@lightdash/common';
 import { generateObject } from 'ai';
+import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
 import { getOpenaiGptmodel } from '../../../models/openai-gpt';
 
-const ResponseEvaluationSchema = z.object({
-    relevance: z
-        .number()
-        .min(1)
-        .max(5)
-        .describe(
-            'How relevant is the response to the query? 1=not relevant, 5=perfectly relevant',
-        ),
-    accuracy: z
-        .number()
-        .min(1)
-        .max(5)
-        .describe(
-            'How accurate is the information provided? 1=inaccurate, 5=completely accurate',
-        ),
-    completeness: z
-        .number()
-        .min(1)
-        .max(5)
-        .describe(
-            'How complete is the response? 1=missing key info, 5=comprehensive',
-        ),
-    reasoning: z.string().describe('Brief explanation of the scores'),
-});
+export const factualityScores = {
+    A: 0.4,
+    B: 0.6,
+    C: 1,
+    D: 0,
+    E: 1,
+} as const;
 
-export type ResponseEvaluation = z.infer<typeof ResponseEvaluationSchema>;
+export type FactualityResponse = {
+    answer: 'A' | 'B' | 'C' | 'D' | 'E';
+    rationale: string;
+};
+
+export type JsonDiffResponse = Score;
+
+type BaseLlmAsJudgeParams = {
+    query: string;
+    response: string;
+    expectedAnswer: string;
+    model: ReturnType<typeof getOpenaiGptmodel>;
+};
+
+// Function overloads for type safety
+export async function llmAsAJudge(
+    params: BaseLlmAsJudgeParams & { scorerType: 'factuality' },
+): Promise<FactualityResponse>;
+
+export async function llmAsAJudge(
+    params: BaseLlmAsJudgeParams & { scorerType: 'jsonDiff' },
+): Promise<JsonDiffResponse>;
 
 /**
  * Use LLM-as-judge to evaluate agent responses
  * @param query The user's original query
  * @param response The agent's response
+ * @param expectedAnswer The expected/reference answer
  * @param model Your configured AI model (e.g., openai('gpt-4'))
+ * @param scorerType The type of evaluation to perform
  */
-export async function llmAsAJudge(
-    query: string,
-    response: string,
-    model: ReturnType<typeof getOpenaiGptmodel>,
-): Promise<ResponseEvaluation> {
-    const { object } = await generateObject({
-        model,
-        schema: ResponseEvaluationSchema,
-        prompt: `You are evaluating an AI assistant's response about data analytics/BI in Lightdash.
-                User Query: "${query}"
+export async function llmAsAJudge({
+    query,
+    response,
+    expectedAnswer,
+    model,
+    scorerType,
+}: BaseLlmAsJudgeParams & { scorerType: 'factuality' | 'jsonDiff' }): Promise<
+    FactualityResponse | JsonDiffResponse
+> {
+    switch (scorerType) {
+        case 'jsonDiff': {
+            const diff = await JSONDiff({
+                output: response,
+                expected: expectedAnswer,
+            });
+            return diff;
+        }
 
-                Assistant Response: "${response}"
+        case 'factuality': {
+            const { object } = await generateObject({
+                model,
+                schema: z.object({
+                    answer: z
+                        .enum(['A', 'B', 'C', 'D', 'E'])
+                        .describe('Your selection.'),
+                    rationale: z
+                        .string()
+                        .describe(
+                            'Why you chose this answer. Be very detailed.',
+                        ),
+                }),
+                /**
+                 * Prompt taken from autoevals:
+                 *
+                 * {@link https://github.com/braintrustdata/autoevals/blob/5aa20a0a9eb8fc9e07e9e5722ebf71c68d082f32/templates/factuality.yaml}
+                 */
+                prompt: `
+      You are comparing a submitted answer to an expert answer on a given question. Here is the data:
+      [BEGIN DATA]
+      ************
+      [Question]: ${query}
+      ************
+      [Expert]: ${expectedAnswer}
+      ************
+      [Submission]: ${response}
+      ************
+      [END DATA]
 
-                Evaluate the response on three dimensions:
-                1. Relevance - Does it answer what was asked?
-                2. Accuracy - Is the information correct and trustworthy?
-                3. Completeness - Does it cover all aspects of the query?
+      Compare the factual content of the submitted answer with the expert answer. Ignore any differences in style, grammar, or punctuation.
+      The submitted answer may either be a subset or superset of the expert answer, or it may conflict with it. Determine which case applies. Answer the question by selecting one of the following options:
+      (A) The submitted answer is a subset of the expert answer and is fully consistent with it.
+      (B) The submitted answer is a superset of the expert answer and is fully consistent with it.
+      (C) The submitted answer contains all the same details as the expert answer.
+      (D) There is a disagreement between the submitted answer and the expert answer.
+      (E) The answers differ, but these differences don't matter from the perspective of factuality.
+      `,
+            });
 
-                Be strict but fair in your evaluation.`,
-    });
+            return {
+                answer: object.answer,
+                rationale: object.rationale,
+            };
+        }
 
-    return object;
+        default:
+            return assertUnreachable(scorerType, 'Unsupported scorer type');
+    }
 }
