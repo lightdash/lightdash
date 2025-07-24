@@ -10,6 +10,7 @@ import {
     QUERY_WITH_EMPTY_SELECT_SQL,
     QUERY_WITH_FILTER_SQL,
     QUERY_WITH_NESTED_FILTERS_SQL,
+    QUERY_WITH_SUBQUERY_SEMICOLON_COMMENTS_SQL,
     QUERY_WITH_SUBQUERY_SQL,
     QUERY_WITH_TWO_FILTERS_SQL,
     SECOND_FILTER_RULE,
@@ -26,6 +27,7 @@ describe('QueryBuilder class', () => {
                     referenceMap: {},
                     select: [],
                     from: { name: 'test_table' },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -43,6 +45,7 @@ describe('QueryBuilder class', () => {
                         id: 'filter_group_1',
                         and: [SIMPLE_FILTER_RULE, SECOND_FILTER_RULE],
                     },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -58,6 +61,7 @@ describe('QueryBuilder class', () => {
                     referenceMap: SIMPLE_REFERENCE_MAP,
                     select: ['test_field'],
                     from: { name: 'test_table' },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -74,6 +78,7 @@ describe('QueryBuilder class', () => {
                         id: 'filter_group_1',
                         and: [SIMPLE_FILTER_RULE],
                     },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -90,6 +95,7 @@ describe('QueryBuilder class', () => {
                         id: 'filter_group_1',
                         and: [SIMPLE_FILTER_RULE, SECOND_FILTER_RULE],
                     },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -110,10 +116,34 @@ describe('QueryBuilder class', () => {
                         name: 'subquery',
                         sql: 'SELECT test_field FROM source_table WHERE test_field IS NOT NULL',
                     },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
             expect(queryBuilder.toSql()).toBe(QUERY_WITH_SUBQUERY_SQL);
+        });
+
+        it('should handle SQL with semicolons and comments in FROM', () => {
+            const queryBuilder = new QueryBuilder(
+                {
+                    referenceMap: {
+                        test_field: {
+                            type: DimensionType.STRING,
+                            sql: '"test_field"',
+                        },
+                    },
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT test_field FROM source_table WHERE test_field IS NOT NULL; -- This is a comment\n/* This is a\n   multi-line comment */',
+                    },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+            expect(queryBuilder.toSql()).toBe(
+                QUERY_WITH_SUBQUERY_SEMICOLON_COMMENTS_SQL,
+            );
         });
     });
 
@@ -160,6 +190,7 @@ describe('QueryBuilder class', () => {
                             },
                         ],
                     },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -172,6 +203,7 @@ describe('QueryBuilder class', () => {
                     referenceMap: {},
                     select: [],
                     from: { name: 'test_table' },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
@@ -186,6 +218,7 @@ describe('QueryBuilder class', () => {
                     referenceMap: {},
                     select: ['unknown_field'],
                     from: { name: 'test_table' },
+                    limit: undefined,
                 },
                 DEFAULT_CONFIG,
             );
