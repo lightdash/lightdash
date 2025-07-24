@@ -3,11 +3,12 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     Account,
-    AccountHelpers,
     AccountOrganization,
+    AccountWithoutHelpers,
     AnonymousAccount,
     ApiKeyAccount,
     applyEmbeddedAbility,
+    buildAccountHelpers,
     CreateEmbedJwt,
     Embed,
     ForbiddenError,
@@ -33,39 +34,20 @@ const getExternalId = (
     return `external::${baseId}`.slice(0, 254);
 };
 
-type WithoutHelpers<T extends Account> = Omit<T, keyof AccountHelpers>;
-
-function createAccount(account: WithoutHelpers<SessionAccount>): SessionAccount;
-function createAccount(
-    account: WithoutHelpers<AnonymousAccount>,
-): AnonymousAccount;
-function createAccount(account: WithoutHelpers<ApiKeyAccount>): ApiKeyAccount;
-function createAccount(
-    account: WithoutHelpers<ServiceAcctAccount>,
-): ServiceAcctAccount;
-function createAccount(account: WithoutHelpers<Account>): Account {
+const createAccount = <T extends Account>(
+    account: AccountWithoutHelpers<T>,
+): T => {
     if (!account.user?.ability || !account.user?.abilityRules) {
         throw new ForbiddenError(
             'User ability and abilityRules are required for permissions',
         );
     }
 
-    const helpers: AccountHelpers = {
-        isAuthenticated: () => !!account.authentication && !!account.user?.id,
-        isRegisteredUser: () => account.user?.type === 'registered',
-        isAnonymousUser: () => account.user?.type === 'anonymous',
-        isSessionUser: () => account.authentication?.type === 'session',
-        isJwtUser: () => account.authentication?.type === 'jwt',
-        isServiceAccount: () =>
-            account.authentication?.type === 'service-account',
-        isPatUser: () => account.authentication?.type === 'pat',
-    };
-
     return {
         ...account,
-        ...helpers,
-    } as Account;
-}
+        ...buildAccountHelpers(account),
+    } as T;
+};
 
 /**
  * Shared helper function to extract organization data and user data from SessionUser

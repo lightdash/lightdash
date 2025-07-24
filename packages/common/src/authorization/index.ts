@@ -16,7 +16,9 @@ type UserAbilityBuilderArgs = {
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
 };
 
+export * from './buildAccountHelpers';
 export * from './jwtAbility';
+export * from './parseAccount';
 export * from './serviceAccountAbility';
 
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
