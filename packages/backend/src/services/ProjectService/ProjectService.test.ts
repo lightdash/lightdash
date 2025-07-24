@@ -56,7 +56,6 @@ import {
     projectWithSensitiveFields,
     resultsWith1Row,
     resultsWith501Rows,
-    sessionAccount,
     spacesWithSavedCharts,
     tablesConfiguration,
     tablesConfigurationWithNames,
@@ -194,7 +193,7 @@ describe('ProjectService', () => {
     describe('runExploreQuery', () => {
         test('should get results with 1 row', async () => {
             const result = await service.runExploreQuery(
-                sessionAccount,
+                user,
                 metricQueryMock,
                 projectUuid,
                 'valid_explore',
@@ -213,7 +212,7 @@ describe('ProjectService', () => {
             }));
 
             const result = await service.runExploreQuery(
-                sessionAccount,
+                user,
                 metricQueryMock,
                 projectUuid,
                 'valid_explore',

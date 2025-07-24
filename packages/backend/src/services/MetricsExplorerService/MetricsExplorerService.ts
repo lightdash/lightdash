@@ -33,7 +33,6 @@ import {
     type TimeDimensionConfig,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
-import { fromSession } from '../../auth/account';
 import type { LightdashConfig } from '../../config/parseConfig';
 import { measureTime } from '../../logging/measureTime';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -118,7 +117,7 @@ export class MetricsExplorerService<
 
         const { rows, fields } =
             await this.projectService.runMetricExplorerQuery(
-                fromSession(user),
+                user,
                 projectUuid,
                 exploreName,
                 adjustedMetricQuery,
@@ -214,7 +213,7 @@ export class MetricsExplorerService<
 
         const { rows, fields } =
             await this.projectService.runMetricExplorerQuery(
-                fromSession(user),
+                user,
                 projectUuid,
                 sourceMetricExploreName,
                 metricQuery,
@@ -291,7 +290,7 @@ export class MetricsExplorerService<
         };
 
         const { rows } = await this.projectService.runMetricExplorerQuery(
-            fromSession(user),
+            user,
             projectUuid,
             exploreName,
             getSegmentsMetricQuery,
@@ -413,7 +412,7 @@ export class MetricsExplorerService<
 
         const { rows: currentResults, fields } =
             await this.projectService.runMetricExplorerQuery(
-                fromSession(user),
+                user,
                 projectUuid,
                 exploreName,
                 metricQuery,
@@ -643,7 +642,7 @@ export class MetricsExplorerService<
 
         const { rows: currentRows } =
             await this.projectService.runMetricExplorerQuery(
-                fromSession(user),
+                user,
                 projectUuid,
                 exploreName,
                 metricQuery,
@@ -673,7 +672,7 @@ export class MetricsExplorerService<
 
             compareRows = (
                 await this.projectService.runMetricExplorerQuery(
-                    fromSession(user),
+                    user,
                     projectUuid,
                     exploreName,
                     compareMetricQuery,

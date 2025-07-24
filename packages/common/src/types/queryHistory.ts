@@ -29,7 +29,6 @@ export enum QueryHistoryStatus {
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
-    createdBy: string | null;
     createdByUserUuid: string | null;
     createdByAccount: string | null;
     organizationUuid: string;
