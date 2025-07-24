@@ -1,3 +1,10 @@
+## [0.1838.1](https://github.com/lightdash/lightdash/compare/0.1838.0...0.1838.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* correct compile for greater or less than filters with negative numbers ([#15942](https://github.com/lightdash/lightdash/issues/15942)) ([73235af](https://github.com/lightdash/lightdash/commit/73235af42533a104c33a4ae728f24e88bd9272e5))
+
 # [0.1838.0](https://github.com/lightdash/lightdash/compare/0.1837.3...0.1838.0) (2025-07-24)
 
 
