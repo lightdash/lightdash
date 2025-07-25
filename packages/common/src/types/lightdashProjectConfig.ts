@@ -13,10 +13,12 @@ type SpotlightConfig = {
 export type LightdashProjectParameter = {
     label: string;
     description?: string;
-    options?: string[];
     default?: string | string[];
     multiple?: boolean; // the parameter input will be a multi select
+    allow_custom_values?: boolean; // allows users to input custom values beyond predefined options
+    options?: string[]; // hardcoded options
     options_from_dimension?: {
+        // options will be populated from dimension values
         model: string;
         dimension: string;
     };
