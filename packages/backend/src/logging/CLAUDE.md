@@ -30,7 +30,6 @@ auditLog({
     resource: { type: 'dashboard', uuid: dashboard.uuid },
     status: 'allowed',
 });
-```
 
 </howToUse>
 
@@ -96,7 +95,6 @@ url: req.originalUrl
 }
 });
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -117,4 +115,3 @@ url: req.originalUrl
 @/packages/backend/src/middlewares/sentry.ts - Sentry middleware integration
 @/packages/common/src/authorization/ability.ts - CASL authorization system
 </links>
-```

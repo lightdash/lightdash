@@ -21,7 +21,6 @@ export class MyController extends BaseController {
         };
     }
 }
-```
 
 Key patterns:
 
@@ -74,7 +73,6 @@ export class ProjectController extends BaseController {
 
 }
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -114,4 +112,3 @@ export class ProjectController extends BaseController {
 @packages/backend/src/controllers/projectController.ts - Complex resource controller
 @packages/backend/src/controllers/v2/ - V2 API controllers with async patterns
 </links>
-```
