@@ -1,3 +1,5 @@
+import { SEED_PROJECT } from '@lightdash/common';
+
 describe('CLI', () => {
     const lightdashUrl = Cypress.config('baseUrl');
     const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
@@ -345,6 +347,27 @@ describe('CLI', () => {
                     'contain',
                     `Successfully deleted preview project named ${previewName}`,
                 );
+        });
+    });
+
+    it('Should test validate', () => {
+        cy.login();
+        cy.getApiToken().then((apiToken) => {
+            cy.exec(
+                `${cliCommand} validate --project-dir ${projectDir} --profiles-dir ${profilesDir} --project ${SEED_PROJECT.project_uuid}`,
+                {
+                    failOnNonZeroExit: false,
+                    env: {
+                        NODE_ENV: 'development',
+                        LIGHTDASH_API_KEY: apiToken,
+                        LIGHTDASH_URL: lightdashUrl,
+                        ...databaseEnvVars,
+                    },
+                },
+            )
+                .its('stderr')
+                .should('not.contain', 'Validation failed') // This is an internal backend error, this should not happen
+                .should('contain', 'Validation finished'); // It can be without or without validation errors
         });
     });
 });
