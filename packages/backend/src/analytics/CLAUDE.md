@@ -58,13 +58,13 @@ analytics.track({
 
 // Example: Track user creation
 analytics.track({
-event: 'user.created',
-properties: {
-context: 'registration',
-createdUserId: newUser.userUuid,
-organizationId: organization?.organizationUuid,
-userConnectionType: 'password'
-}
+    event: 'user.created',
+    properties: {
+        context: 'registration',
+        createdUserId: newUser.userUuid,
+        organizationId: organization?.organizationUuid,
+        userConnectionType: 'password'
+    }
 });
 
 ```
@@ -84,4 +84,3 @@ userConnectionType: 'password'
 @/packages/backend/src/config/lightdashConfig.ts - Configuration for analytics settings
 @/packages/common/src/types/analytics.ts - Shared analytics type definitions
 </links>
-```
