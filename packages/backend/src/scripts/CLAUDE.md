@@ -15,7 +15,6 @@ pnpm create-migration add_user_permissions
 # For EE migrations, ensure license key is set
 export LIGHTDASH_LICENSE_KEY="your-ee-license-key"
 pnpm create-migration add_enterprise_feature
-```
 
 The script uses the Knex CLI under the hood to create properly timestamped migration files in the correct directory.
 </howToUse>
@@ -47,7 +46,6 @@ table.dropColumn('permissions');
 // pnpm create-migration add_sso_config
 // Creates migration in: src/ee/database/migrations/
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -69,4 +67,3 @@ table.dropColumn('permissions');
 @/packages/backend/src/knexfile.ts - Knex configuration for migrations
 @/packages/backend/package.json - NPM scripts that use these utilities
 </links>
-```
