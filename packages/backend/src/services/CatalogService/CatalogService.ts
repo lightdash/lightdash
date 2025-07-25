@@ -227,40 +227,44 @@ export class CatalogService<
         }, []);
     }
 
-    private async searchCatalog(
-        projectUuid: string,
-        userAttributes: UserAttributeValueMap,
-        catalogSearch: ApiCatalogSearch,
-        context: CatalogSearchContext,
-        paginateArgs?: KnexPaginateArgs,
-        sortArgs?: ApiSort,
-    ): Promise<KnexPaginatedData<CatalogItem[]>> {
-        const tablesConfiguration =
-            await this.projectModel.getTablesConfiguration(projectUuid);
-
+    public async searchCatalog(args: {
+        projectUuid: string;
+        userAttributes: UserAttributeValueMap;
+        catalogSearch: ApiCatalogSearch;
+        context: CatalogSearchContext;
+        yamlTags: string[] | null;
+        paginateArgs?: KnexPaginateArgs;
+        sortArgs?: ApiSort;
+    }): Promise<KnexPaginatedData<CatalogItem[]>> {
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
             {
-                projectUuid,
-                userAttributesSize: Object.keys(userAttributes).length,
-                searchQuery: catalogSearch.searchQuery,
+                projectUuid: args.projectUuid,
+                userAttributesSize: Object.keys(args.userAttributes).length,
+                searchQuery: args.catalogSearch.searchQuery,
             },
-            async () =>
-                wrapSentryTransaction(
+            async () => {
+                const tablesConfiguration =
+                    await this.projectModel.getTablesConfiguration(
+                        args.projectUuid,
+                    );
+
+                return wrapSentryTransaction(
                     'CatalogService.searchCatalog.modelSearch',
                     {},
-                    async () =>
+                    () =>
                         this.catalogModel.search({
-                            projectUuid,
-                            catalogSearch,
-                            paginateArgs,
+                            projectUuid: args.projectUuid,
+                            catalogSearch: args.catalogSearch,
+                            paginateArgs: args.paginateArgs,
+                            userAttributes: args.userAttributes,
+                            sortArgs: args.sortArgs,
+                            context: args.context,
+                            yamlTags: args.yamlTags,
                             tablesConfiguration,
-                            userAttributes,
-                            sortArgs,
-                            context,
-                            yamlTags: null,
                         }),
-                ),
+                );
+            },
         );
     }
 
@@ -571,12 +575,13 @@ export class CatalogService<
 
         if (catalogSearch.searchQuery) {
             // On search we don't show explore errors, because they are not indexed
-            return this.searchCatalog(
+            return this.searchCatalog({
                 projectUuid,
                 userAttributes,
                 catalogSearch,
                 context,
-            );
+                yamlTags: null,
+            });
         }
 
         if (catalogSearch.type === CatalogType.Field) {
@@ -780,10 +785,10 @@ export class CatalogService<
                 userUuid: user.userUuid,
             });
 
-        const paginatedCatalog = await this.searchCatalog(
+        const paginatedCatalog = await this.searchCatalog({
             projectUuid,
             userAttributes,
-            {
+            catalogSearch: {
                 searchQuery,
                 type: CatalogType.Field,
                 filter: CatalogFilter.Metrics,
@@ -792,7 +797,8 @@ export class CatalogService<
             context,
             paginateArgs,
             sortArgs,
-        );
+            yamlTags: null,
+        });
 
         const { data: catalogMetrics, pagination } = paginatedCatalog;
 

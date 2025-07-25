@@ -8,4 +8,5 @@ export const toolFindFieldsArgsSchema = z.object({
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
 
 export const toolFindFieldsArgsSchemaTransformed = toolFindFieldsArgsSchema;
+
 export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;

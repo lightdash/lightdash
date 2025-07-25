@@ -1,3 +1,17 @@
+# [0.1840.0](https://github.com/lightdash/lightdash/compare/0.1839.0...0.1840.0) (2025-07-25)
+
+
+### Features
+
+* save chart parameter values ([#15979](https://github.com/lightdash/lightdash/issues/15979)) ([7ed0dd2](https://github.com/lightdash/lightdash/commit/7ed0dd28e7c2a514a7863509eb9e07ce18f9e64b))
+
+# [0.1839.0](https://github.com/lightdash/lightdash/compare/0.1838.2...0.1839.0) (2025-07-25)
+
+
+### Features
+
+* implement field search for AI agent with user attributes and ai tags ([#15912](https://github.com/lightdash/lightdash/issues/15912)) ([49fadeb](https://github.com/lightdash/lightdash/commit/49fadebf849450e9131dddc4835c4906f62a44ff))
+
 ## [0.1838.2](https://github.com/lightdash/lightdash/compare/0.1838.1...0.1838.2) (2025-07-24)
 
 
