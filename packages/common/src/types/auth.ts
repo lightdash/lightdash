@@ -23,13 +23,12 @@ export enum AuthTokenPrefix {
     OAUTH_REFRESH = 'ldref_',
 }
 
-export type AuthType =
-    | 'session'
-    | 'pat'
-    | 'service-account'
-    | 'jwt'
-    | 'browserless'
-    | 'scim';
+export type AuthType = 'session' | 'pat' | 'service-account' | 'jwt';
+
+export type PersonalAccessTokenAuth = {
+    type: 'pat';
+    source: string; // The api key
+};
 
 export type SessionAuth = {
     type: 'session';
@@ -47,7 +46,11 @@ export type ServiceAccountAuth = {
     source: string; // The service account token
 };
 
-export type Authentication = SessionAuth | JwtAuth | ServiceAccountAuth;
+export type Authentication =
+    | SessionAuth
+    | JwtAuth
+    | ServiceAccountAuth
+    | PersonalAccessTokenAuth;
 
 export type UserAccessControls = {
     userAttributes: UserAttributeValueMap;
@@ -74,6 +77,10 @@ export type AccountHelpers = {
     isSessionUser: () => boolean;
     /** Is this account for a JWT user? */
     isJwtUser: () => boolean;
+    /** Is this account for a service account? */
+    isServiceAccount: () => boolean;
+    /** Is this account for a personal access token? */
+    isPatUser: () => boolean;
 };
 
 export type AccountOrganization = Partial<
@@ -109,7 +116,21 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     access: DashboardAccess;
 };
 
-export type Account = SessionAccount | AnonymousAccount;
+export type ApiKeyAccount = BaseAccountWithHelpers & {
+    authentication: PersonalAccessTokenAuth;
+    user: LightdashSessionUser;
+};
+
+export type ServiceAcctAccount = BaseAccountWithHelpers & {
+    authentication: ServiceAccountAuth;
+    user: LightdashSessionUser;
+};
+
+export type Account =
+    | SessionAccount
+    | AnonymousAccount
+    | ApiKeyAccount
+    | ServiceAcctAccount;
 
 export function assertEmbeddedAuth(
     account: Account | undefined,
