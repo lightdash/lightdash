@@ -6,12 +6,14 @@ import {
     AccountHelpers,
     AccountOrganization,
     AnonymousAccount,
+    ApiKeyAccount,
     applyEmbeddedAbility,
     CreateEmbedJwt,
     Embed,
     ForbiddenError,
     MemberAbility,
     Organization,
+    ServiceAcctAccount,
     SessionAccount,
     SessionUser,
     UserAccessControls,
@@ -27,37 +29,59 @@ const getExternalId = (
 
 type WithoutHelpers<T extends Account> = Omit<T, keyof AccountHelpers>;
 
-/**
- * Creates a SessionAccount with helper methods
- */
 function createAccount(account: WithoutHelpers<SessionAccount>): SessionAccount;
-/**
- * Creates an AnonymousAccount with helper methods
- */
 function createAccount(
     account: WithoutHelpers<AnonymousAccount>,
 ): AnonymousAccount;
-/**
- * Creates an account with helper methods based on the input type
- */
+function createAccount(account: WithoutHelpers<ApiKeyAccount>): ApiKeyAccount;
 function createAccount(
-    account: WithoutHelpers<SessionAccount | AnonymousAccount>,
-): SessionAccount | AnonymousAccount {
+    account: WithoutHelpers<ServiceAcctAccount>,
+): ServiceAcctAccount;
+function createAccount(account: WithoutHelpers<Account>): Account {
     if (!account.user?.ability || !account.user?.abilityRules) {
         throw new ForbiddenError(
             'User ability and abilityRules are required for permissions',
         );
     }
 
-    return {
-        ...account,
+    const helpers: AccountHelpers = {
         isAuthenticated: () => !!account.authentication && !!account.user?.id,
         isRegisteredUser: () => account.user?.type === 'registered',
         isAnonymousUser: () => account.user?.type === 'anonymous',
         isSessionUser: () => account.authentication?.type === 'session',
         isJwtUser: () => account.authentication?.type === 'jwt',
-    } as SessionAccount | AnonymousAccount;
+        isServiceAccount: () =>
+            account.authentication?.type === 'service-account',
+        isPatUser: () => account.authentication?.type === 'pat',
+    };
+
+    return {
+        ...account,
+        ...helpers,
+    } as Account;
 }
+
+/**
+ * Shared helper function to extract organization data and user data from SessionUser
+ */
+const extractOrganizationFromUser = (
+    sessionUser: SessionUser,
+): [AccountOrganization, SessionUser] => {
+    const {
+        organizationCreatedAt,
+        organizationName,
+        organizationUuid,
+        ...user
+    } = sessionUser;
+    return [
+        {
+            organizationUuid,
+            name: organizationName,
+            createdAt: organizationCreatedAt,
+        },
+        user,
+    ];
+};
 
 export const fromJwt = ({
     decodedToken,
@@ -100,21 +124,54 @@ export const fromJwt = ({
     });
 };
 
+// TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
+// service-account/principle-user unrelated to a real admin-user.
+// @see https://github.com/lightdash/lightdash/issues/15466
+export const fromServiceAccount = (
+    sessionUser: SessionUser,
+    source: string,
+): ServiceAcctAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+
+    return createAccount({
+        authentication: {
+            type: 'service-account',
+            source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
+export const fromApiKey = (
+    sessionUser: SessionUser,
+    source: string,
+): ApiKeyAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+
+    return createAccount({
+        authentication: {
+            type: 'pat',
+            source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
 export const fromSession = (
     sessionUser: SessionUser,
     source: string = '',
 ): SessionAccount => {
-    const {
-        organizationCreatedAt,
-        organizationName,
-        organizationUuid,
-        ...user
-    } = sessionUser;
-
-    const organization: AccountOrganization = {
-        organizationUuid,
-        name: organizationName,
-    };
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
 
     return createAccount({
         authentication: {
