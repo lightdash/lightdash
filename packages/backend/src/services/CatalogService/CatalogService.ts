@@ -27,6 +27,7 @@ import {
     TablesConfiguration,
     TimeFrames,
     UserAttributeValueMap,
+    convertToAiHints,
     getAvailableCompareMetrics,
     getAvailableSegmentDimensions,
     getAvailableTimeDimensionsFromTables,
@@ -166,6 +167,7 @@ export class CatalogService<
     ): Promise<CatalogTable[]> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
+
         return explores.reduce<CatalogTable[]>((acc, explore) => {
             if (isExploreError(explore)) {
                 // If no dimensions found, we don't show the explore error
@@ -194,7 +196,8 @@ export class CatalogService<
                         catalogSearchUuid: '',
                         categories: [],
                         icon: null,
-                    },
+                        aiHints: convertToAiHints(explore.aiHint) ?? null,
+                    } satisfies CatalogTable,
                 ];
             }
 
@@ -220,7 +223,8 @@ export class CatalogService<
                         catalogSearchUuid: '',
                         categories: [],
                         icon: null,
-                    },
+                        aiHints: convertToAiHints(explore.aiHint) ?? null,
+                    } satisfies CatalogTable,
                 ];
             }
             return acc;
