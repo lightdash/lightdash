@@ -31,7 +31,6 @@ await schedulerClient.addJob('compileProject', {
     organizationUuid: org.uuid,
     projectUuid: project.uuid,
 });
-```
 
 </howToUse>
 
@@ -75,7 +74,6 @@ targets: [
 
 await schedulerClient.addJob('handleScheduledDelivery', deliveryWithMultipleTargets);
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -99,4 +97,3 @@ await schedulerClient.addJob('handleScheduledDelivery', deliveryWithMultipleTarg
 @/packages/common/src/types/scheduler.ts - Scheduler type definitions and payloads
 @/packages/backend/src/config/lightdashConfig.ts - Scheduler configuration settings
 </links>
-```
