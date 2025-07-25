@@ -61,7 +61,10 @@ myRouter.post(
 
 // Router mounting in apiV1Router.ts
 apiV1Router.use('/my-resource', myRouter);
+
 ```
+
+
 
 </codeExample>
 
