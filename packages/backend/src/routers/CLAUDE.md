@@ -54,7 +54,6 @@ req.services.getMyService()
 // Router mounting in apiV1Router.ts
 apiV1Router.use('/my-resource', myRouter);
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -85,4 +84,3 @@ apiV1Router.use('/my-resource', myRouter);
 - OAuth implementation: @/oauthRouter.ts
 - New controllers: @/../controllers
 </links>
-```
