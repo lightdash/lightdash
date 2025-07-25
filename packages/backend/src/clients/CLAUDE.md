@@ -48,20 +48,20 @@ await emailClient.sendScheduledDeliveryEmail({
 // Example: Upload results to S3 and get pre-signed URL
 const s3Client = clientRepository.getS3Client();
 const uploadResult = await s3Client.uploadFile({
-body: csvContent,
-filename: 'results.csv',
-encoding: 'utf-8'
+    body: csvContent,
+    filename: 'results.csv',
+    encoding: 'utf-8'
 });
 const downloadUrl = await s3Client.getDownloadUrl(uploadResult.path);
 
 // Example: Create GitHub repository file
 const gitClient = clientRepository.getGithubClient();
 await gitClient.createFile({
-owner: 'myorg',
-repo: 'analytics',
-path: 'dashboards/sales.yml',
-content: yamlContent,
-message: 'Add sales dashboard config'
+    owner: 'myorg',
+    repo: 'analytics',
+    path: 'dashboards/sales.yml',
+    content: yamlContent,
+    message: 'Add sales dashboard config'
 });
 
 ```
@@ -84,4 +84,3 @@ message: 'Add sales dashboard config'
 @/packages/backend/src/clients/EmailClient/templates/ - Email template directory
 @/packages/backend/src/clients/Slack/SlackMessageBlocks.ts - Slack message formatting
 </links>
-```
