@@ -107,6 +107,7 @@ services:
             - '9090:9090'
             - '3000:3000'
             - '6006:6006'
+            - '9229:9229'
         command: ''
         entrypoint: ['/bin/sh', '-c', 'sleep infinity']
 

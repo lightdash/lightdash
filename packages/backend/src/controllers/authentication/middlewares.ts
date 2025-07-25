@@ -8,15 +8,11 @@ import {
     LightdashMode,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import {
-    ErrorRequestHandler,
-    NextFunction,
-    Request,
-    RequestHandler,
-} from 'express';
+import { ErrorRequestHandler, Request, RequestHandler } from 'express';
 
 import passport from 'passport';
 import { URL } from 'url';
+import { fromApiKey } from '../../auth/account/account';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
@@ -107,7 +103,15 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         passport.authenticate('headerapikey', { session: false })(
             req,
             res,
-            next,
+            () => {
+                if (req.user) {
+                    req.account = fromApiKey(
+                        req.user!,
+                        req.headers.authorization || '',
+                    );
+                }
+                next();
+            },
         );
     };
     try {

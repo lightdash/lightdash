@@ -9,6 +9,7 @@ import {
     type MemberAbility,
 } from '@lightdash/common';
 import { RequestHandler } from 'express';
+import { fromServiceAccount } from '../../auth/account/account';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 const getRoleForScopes = (scopes: ServiceAccountScope[]) => {
@@ -131,6 +132,9 @@ export const authenticateServiceAccount: RequestHandler = async (
                 serviceAccount.organizationUuid,
             );
 
+        // TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
+        // service-account/principle-user unrelated to a real admin-user.
+        // @see https://github.com/lightdash/lightdash/issues/15466
         req.user = {
             userUuid: adminUser.userUuid,
             email: 'service-account@lightdash.com',
@@ -150,6 +154,7 @@ export const authenticateServiceAccount: RequestHandler = async (
             createdAt: serviceAccount.createdAt,
             updatedAt: serviceAccount.createdAt,
         };
+        req.account = fromServiceAccount(req.user!, token);
         next();
     } catch (error) {
         next(new AuthorizationError(getErrorMessage(error)));
