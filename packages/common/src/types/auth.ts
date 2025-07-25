@@ -147,3 +147,31 @@ export function assertSessionAuth(
         throw new ForbiddenError('Account is not a session account');
     }
 }
+
+export const assertIsAccountWithOrg = (
+    account: Account,
+): asserts account is Account & {
+    organization: {
+        organizationUuid: string;
+        name: string;
+        createdAt: Date;
+    };
+} => {
+    const { organization } = account;
+    const isValidOrg =
+        typeof organization.organizationUuid === 'string' &&
+        typeof organization.name === 'string' &&
+        organization.createdAt instanceof Date;
+
+    if (!isValidOrg) {
+        throw new ForbiddenError('Account is not part of an organization');
+    }
+
+    if (account.isSessionUser()) {
+        const sessionAccount = account as SessionAccount;
+        if (typeof sessionAccount.user.role !== 'string')
+            throw new ForbiddenError(
+                'Session user does not have a role in an organization',
+            );
+    }
+};
