@@ -1,5 +1,6 @@
 import {
     CatalogType,
+    convertToAiHints,
     DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     FieldType,
@@ -62,6 +63,7 @@ export const convertExploresToCatalog = (
                     Array.isArray(explore.tags) && explore.tags.length > 0
                         ? explore.tags
                         : null,
+                ai_hints: convertToAiHints(explore.aiHint) ?? null,
             };
 
             const dimensionsAndMetrics = [
@@ -118,6 +120,7 @@ export const convertExploresToCatalog = (
                             Array.isArray(field.tags) && field.tags.length > 0
                                 ? field.tags
                                 : null,
+                        ai_hints: convertToAiHints(field.aiHint) ?? null,
                     };
                 },
             );
