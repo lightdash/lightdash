@@ -142,11 +142,16 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     const validation = await getValidation(projectUuid, jobId);
 
     if (validation.length === 0) {
-        spinner?.succeed(`  Validation finished without errors`);
+        const timeInSeconds = new Date().getTime() - timeStart.getTime();
+        spinner?.succeed(
+            `  Validation finished without errors in ${Math.trunc(
+                timeInSeconds / 1000,
+            )}s`,
+        );
     } else {
         const timeInSeconds = new Date().getTime() - timeStart.getTime();
         spinner?.fail(
-            `  Successfully validated in ${Math.trunc(
+            `  Validation finished in ${Math.trunc(
                 timeInSeconds / 1000,
             )}s with ${validation.length} errors`,
         );
