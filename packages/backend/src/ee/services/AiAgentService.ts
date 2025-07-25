@@ -1725,14 +1725,16 @@ export class AiAgentService {
 
     // TODO: user permissions
     async updateHumanScoreForSlackPrompt(
+        userId: string,
+        organizationUuid: string | undefined,
         promptUuid: string,
         humanScore: number,
     ) {
         this.analytics.track<AiAgentPromptFeedbackEvent>({
             event: 'ai_agent_prompt.feedback',
-            userId: undefined,
+            userId,
             properties: {
-                organizationId: undefined,
+                organizationId: organizationUuid ?? '',
                 humanScore,
                 messageId: promptUuid,
                 context: 'slack',
