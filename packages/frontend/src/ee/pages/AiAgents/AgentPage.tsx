@@ -61,7 +61,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         })}
         label={
             <Text truncate="end" size="sm" c="gray.7">
-                {thread.firstMessage}
+                {thread.firstMessage.message}
             </Text>
         }
         active={isActive}
@@ -83,7 +83,10 @@ const AgentPage = () => {
         projectUuid,
     });
 
-    const { data: agentsList } = useProjectAiAgents(projectUuid!);
+    const { data: agentsList } = useProjectAiAgents({
+        projectUuid: projectUuid!,
+        redirectOnUnauthorized: true,
+    });
 
     const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid);
 

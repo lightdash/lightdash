@@ -8,6 +8,7 @@ import { KnownBlock } from '@slack/web-api';
 import { IncomingHttpHeaders } from 'http';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import { S3Client } from '../../../clients/Aws/S3Client';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -114,8 +115,8 @@ export class SupportService extends BaseService {
         );
 
         const query = await this.projectService.compileQuery({
-            user,
-            metricQuery: savedChart.metricQuery,
+            account: fromSession(user),
+            body: savedChart.metricQuery,
             projectUuid,
             exploreName: savedChart.tableName,
         });

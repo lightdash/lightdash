@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.1788.3",
+    "version": "0.1842.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -68,6 +68,7 @@
         "backend-fix-lint": "pnpm -F backend fix-lint",
         "backend-fix-format": "pnpm -F backend fix-format",
         "backend-test": "pnpm -F backend test",
+        "backend-test-integration": "pnpm -F backend test:integration",
         "backend-test-sequential": "pnpm -F backend test-sequential",
         "backend-typecheck": "pnpm -F backend typecheck",
         "frontend-dev": "pnpm -F frontend dev",
@@ -82,6 +83,7 @@
         "sdk-typecheck": "pnpm -F frontend typecheck-sdk",
         "sdk-build": "pnpm common-build && pnpm frontend-build-sdk",
         "e2e-open": "pnpm -F e2e cypress:open",
+        "e2e-open-native": "pnpm -F e2e cypress:open:native",
         "e2e-run": "pnpm -F e2e cypress:run",
         "e2e-lint": "pnpm -F e2e lint",
         "e2e-format": "pnpm -F e2e format",

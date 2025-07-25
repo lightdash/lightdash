@@ -11,29 +11,45 @@ import {
     LIGHTDASH_TABLE_SQL_WHERE,
     LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
     LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS,
+    LIGHTDASH_TABLE_WITH_AI_HINT,
+    LIGHTDASH_TABLE_WITH_AI_HINT_ARRAY,
+    LIGHTDASH_TABLE_WITH_AI_HINT_FROM_CONFIG,
     LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DBT_METRICS,
     LIGHTDASH_TABLE_WITH_DBT_V9_METRICS,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
+    LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT,
+    LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT_ARRAY,
     LIGHTDASH_TABLE_WITH_GROUP_BLOCK,
     LIGHTDASH_TABLE_WITH_GROUP_LABEL,
     LIGHTDASH_TABLE_WITH_METRICS,
+    LIGHTDASH_TABLE_WITH_METRIC_AI_HINT,
+    LIGHTDASH_TABLE_WITH_METRIC_AI_HINT_ARRAY,
     LIGHTDASH_TABLE_WITH_METRIC_LEVEL_CATEGORIES,
     LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES,
+    LIGHTDASH_TABLE_WITH_MODEL_METRIC_AI_HINT,
     LIGHTDASH_TABLE_WITH_NO_CATEGORIES,
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_SINGLE_PRIMARY_KEY,
     MODEL_WITH_ADDITIONAL_DIMENSIONS,
+    MODEL_WITH_AI_HINT,
+    MODEL_WITH_AI_HINT_ARRAY,
+    MODEL_WITH_AI_HINT_IN_CONFIG,
     MODEL_WITH_COMPOSITE_PRIMARY_KEY,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_DIMENSION_AI_HINT,
+    MODEL_WITH_DIMENSION_AI_HINT_ARRAY,
     MODEL_WITH_GROUPS_BLOCK,
     MODEL_WITH_GROUP_LABEL,
     MODEL_WITH_METRIC,
+    MODEL_WITH_METRIC_AI_HINT,
+    MODEL_WITH_METRIC_AI_HINT_ARRAY,
     MODEL_WITH_METRIC_LEVEL_CATEGORIES,
     MODEL_WITH_MODEL_LEVEL_CATEGORIES,
+    MODEL_WITH_MODEL_METRIC_AI_HINT,
     MODEL_WITH_NO_CATEGORIES,
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
@@ -343,6 +359,94 @@ describe('convert tables from dbt models', () => {
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY);
+    });
+
+    it('should convert dbt model with dimension ai.hint', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_DIMENSION_AI_HINT,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT);
+    });
+
+    it('should convert dbt model with metric ai.hint', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_METRIC_AI_HINT,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_AI_HINT);
+    });
+
+    it('should convert dbt model with model-level metric ai.hint', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_MODEL_METRIC_AI_HINT,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_MODEL_METRIC_AI_HINT);
+    });
+
+    it('should convert dbt model with table ai.hint in meta', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_AI_HINT,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_AI_HINT);
+    });
+
+    it('should convert dbt model with table ai.hint in config.meta', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_AI_HINT_IN_CONFIG,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_AI_HINT_FROM_CONFIG);
+    });
+
+    it('should convert dbt model with table ai.hint as array', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_AI_HINT_ARRAY,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_AI_HINT_ARRAY);
+    });
+
+    it('should convert dbt model with dimension ai.hint as array', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_DIMENSION_AI_HINT_ARRAY,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT_ARRAY);
+    });
+
+    it('should convert dbt model with metric ai.hint as array', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_METRIC_AI_HINT_ARRAY,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_AI_HINT_ARRAY);
     });
 });
 

@@ -104,6 +104,7 @@ import { type ResultColumns, type ResultRow } from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
+    type ApiSchedulersResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './types/scheduler';
@@ -133,7 +134,9 @@ import type {
     EmbedUrl,
 } from './ee';
 import { type AnyType } from './types/any';
+import { type ApiGetProjectParametersResults } from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
+import { type Account } from './types/auth';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -155,6 +158,7 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
 import type { ResultsPaginationMetadata } from './types/paginateResults';
+import { type ParametersValuesMap } from './types/parameters';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import type { QueryHistoryStatus } from './types/queryHistory';
 import { type ApiRenameFieldsResponse } from './types/rename';
@@ -186,6 +190,7 @@ export * from './authorization/index';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
+export * from './compiler/parameters';
 export * from './compiler/translator';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
@@ -195,6 +200,7 @@ export * from './pivotTable/pivotQueryResults';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
+export * from './types/account';
 export * from './types/analytics';
 export * from './types/any';
 export * from './types/api';
@@ -202,6 +208,7 @@ export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
 export * from './types/api/paginatedQuery';
+export * from './types/api/parameters';
 export * from './types/api/share';
 export * from './types/api/sort';
 export * from './types/api/spotlight';
@@ -234,10 +241,12 @@ export * from './types/lightdashProjectConfig';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
+export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/paginateResults';
+export * from './types/parameters';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
@@ -286,6 +295,7 @@ export * from './utils/customDimensions';
 export * from './utils/dashboard';
 export * from './utils/dbt';
 export * from './utils/email';
+export * from './utils/explore';
 export * from './utils/fields';
 export * from './utils/filters';
 export * from './utils/formatting';
@@ -294,6 +304,7 @@ export * from './utils/i18n';
 export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
+export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
@@ -535,6 +546,8 @@ export type ApiQueryResults = {
 type ApiExecuteAsyncQueryResultsCommon = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    parameterReferences: string[]; // params needed for query to run
+    usedParametersValues: ParametersValuesMap; // params values used
 };
 
 export type ApiExecuteAsyncMetricQueryResults =
@@ -663,7 +676,10 @@ export type UpdateProjectMember = {
 export type UpdateMetadata = {
     upstreamProjectUuid?: string | null; // null means we unset this value
 };
-export type ApiCompiledQueryResults = string;
+export type ApiCompiledQueryResults = {
+    query: string;
+    parameterReferences: string[];
+};
 
 export type ApiExploresResults = SummaryExplore[];
 
@@ -909,6 +925,7 @@ type ApiResults =
     | ApiExecuteAsyncMetricQueryResults
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
+    | ApiSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults
@@ -918,8 +935,10 @@ type ApiResults =
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
+    | ApiGetProjectParametersResults
     | ApiAiAgentThreadCreateResponse['results']
-    | ApiAiAgentThreadMessageCreateResponse['results'];
+    | ApiAiAgentThreadMessageCreateResponse['results']
+    | Account;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

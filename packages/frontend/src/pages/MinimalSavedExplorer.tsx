@@ -93,6 +93,7 @@ const MinimalSavedExplorer: FC = () => {
 
     return (
         <ExplorerProvider
+            minimal={true}
             viewModeQueryArgs={
                 savedQueryUuid
                     ? { chartUuid: savedQueryUuid, context }
@@ -111,6 +112,7 @@ const MinimalSavedExplorer: FC = () => {
                               metricQuery: data.metricQuery,
                               tableConfig: data.tableConfig,
                               pivotConfig: data.pivotConfig,
+                              parameters: data.parameters,
                           },
                           modals: {
                               format: {

@@ -360,6 +360,28 @@ export function reducer(
                 draft.unsavedChartVersion.metricQuery.filters = action.payload;
             });
         }
+        case ActionType.SET_PARAMETER: {
+            return produce(state, (draft) => {
+                if (!draft.unsavedChartVersion.parameters) {
+                    draft.unsavedChartVersion.parameters = {};
+                }
+                if (action.payload.value === null) {
+                    delete draft.unsavedChartVersion.parameters[
+                        action.payload.key
+                    ];
+                } else {
+                    draft.unsavedChartVersion.parameters = {
+                        ...draft.unsavedChartVersion.parameters,
+                        [action.payload.key]: action.payload.value,
+                    };
+                }
+            });
+        }
+        case ActionType.CLEAR_ALL_PARAMETERS: {
+            return produce(state, (draft) => {
+                draft.unsavedChartVersion.parameters = {};
+            });
+        }
         case ActionType.ADD_ADDITIONAL_METRIC: {
             return produce(state, (draft) => {
                 const isMetricAlreadyInList = (
@@ -797,6 +819,16 @@ export function reducer(
             }
             return state;
         }
+        case ActionType.OPEN_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = true;
+            });
+        }
+        case ActionType.CLOSE_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = false;
+            });
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -808,6 +840,7 @@ export function reducer(
 
 const ExplorerProvider: FC<
     React.PropsWithChildren<{
+        minimal?: boolean;
         isEditMode?: boolean;
         initialState?: ExplorerReduceState;
         savedChart?: SavedChart;
@@ -818,6 +851,7 @@ const ExplorerProvider: FC<
         dateZoomGranularity?: DateGranularity;
     }>
 > = ({
+    minimal = false,
     isEditMode = false,
     initialState,
     savedChart,
@@ -1001,6 +1035,27 @@ const ExplorerProvider: FC<
         },
         [],
     );
+
+    const setParameter = useCallback(
+        (key: string, value: string | string[] | null) => {
+            if (value === null) {
+                dispatch({
+                    type: ActionType.SET_PARAMETER,
+                    payload: { key, value: null },
+                });
+            } else {
+                dispatch({
+                    type: ActionType.SET_PARAMETER,
+                    payload: { key, value },
+                });
+            }
+        },
+        [],
+    );
+
+    const clearAllParameters = useCallback(() => {
+        dispatch({ type: ActionType.CLEAR_ALL_PARAMETERS });
+    }, []);
 
     const setPivotFields = useCallback((fields: FieldId[] = []) => {
         dispatch({
@@ -1306,6 +1361,7 @@ const ExplorerProvider: FC<
                     ? {
                           ...validQueryArgs,
                           csvLimit: limit,
+                          invalidateCache: minimal,
                       }
                     : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
@@ -1318,7 +1374,12 @@ const ExplorerProvider: FC<
             }
             return queryUuid;
         },
-        [queryResults.queryUuid, queryResults.totalResults, validQueryArgs],
+        [
+            queryResults.queryUuid,
+            queryResults.totalResults,
+            validQueryArgs,
+            minimal,
+        ],
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { remove: clearQueryResults } = query;
@@ -1344,6 +1405,8 @@ const ExplorerProvider: FC<
                 query: unsavedChartVersion.metricQuery,
                 ...(isEditMode ? {} : viewModeQueryArgs),
                 dateZoomGranularity,
+                invalidateCache: minimal,
+                parameters: unsavedChartVersion.parameters || {},
             });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
@@ -1360,10 +1423,12 @@ const ExplorerProvider: FC<
     }, [
         unsavedChartVersion.metricQuery,
         unsavedChartVersion.tableName,
+        unsavedChartVersion.parameters,
         projectUuid,
         isEditMode,
         viewModeQueryArgs,
         dateZoomGranularity,
+        minimal,
     ]);
 
     useEffect(() => {
@@ -1457,6 +1522,13 @@ const ExplorerProvider: FC<
         }
     }, [queryClient, validQueryArgs, query.data, cancelQueryMutation]);
 
+    const openVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
+    }, []);
+    const closeVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
+    }, []);
+
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1471,6 +1543,8 @@ const ExplorerProvider: FC<
             removeSortField,
             moveSortFields,
             setFilters,
+            setParameter,
+            clearAllParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1496,6 +1570,8 @@ const ExplorerProvider: FC<
             updateMetricFormat,
             replaceFields,
             getDownloadQueryUuid,
+            openVisualizationConfig,
+            closeVisualizationConfig,
         }),
         [
             clearExplore,
@@ -1510,6 +1586,8 @@ const ExplorerProvider: FC<
             removeSortField,
             moveSortFields,
             setFilters,
+            setParameter,
+            clearAllParameters,
             setRowLimit,
             setTimeZone,
             setColumnOrder,
@@ -1535,6 +1613,8 @@ const ExplorerProvider: FC<
             toggleWriteBackModal,
             replaceFields,
             getDownloadQueryUuid,
+            openVisualizationConfig,
+            closeVisualizationConfig,
         ],
     );
 

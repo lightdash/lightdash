@@ -1,4 +1,5 @@
-import { Anchor, Center, Text } from '@mantine/core';
+import { Anchor, Text } from '@mantine/core';
+import { useResizeObserver } from '@mantine/hooks';
 import { IconChartBarOff } from '@tabler/icons-react';
 import { Suspense, lazy, useEffect, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
@@ -20,17 +21,19 @@ const CustomVisualization: FC<Props> = (props) => {
     const { isLoading, visualizationConfig, resultsData } =
         useVisualizationContext();
 
+    const [ref, rect] = useResizeObserver();
+
     useEffect(() => {
         // Load all the rows
         resultsData?.setFetchAll(true);
     }, [resultsData]);
 
+    if (!isCustomVisualizationConfig(visualizationConfig)) return null;
+    const spec = visualizationConfig.chartConfig.validConfig.spec;
+
     if (isLoading) {
         return <LoadingChart />;
     }
-
-    if (!isCustomVisualizationConfig(visualizationConfig)) return null;
-    const spec = visualizationConfig.chartConfig.validConfig.spec;
 
     if (
         !visualizationConfig ||
@@ -75,20 +78,15 @@ const CustomVisualization: FC<Props> = (props) => {
                 minHeight: 'inherit',
                 height: '100%',
                 width: '100%',
+                overflow: 'hidden',
             }}
+            ref={ref}
         >
-            <Suspense
-                fallback={
-                    <Center>
-                        <LoadingChart />
-                    </Center>
-                }
-            >
+            <Suspense fallback={<LoadingChart />}>
                 <VegaLite
                     style={{
-                        width: 'inherit',
-                        height: 'inherit',
-                        minHeight: 'inherit',
+                        width: rect.width,
+                        height: rect.height,
                     }}
                     config={{
                         autosize: {
@@ -108,7 +106,6 @@ const CustomVisualization: FC<Props> = (props) => {
                         width: 'container',
                         // @ts-ignore, see above
                         height: 'container',
-
                         data: { name: 'values' },
                     }}
                     data={data}

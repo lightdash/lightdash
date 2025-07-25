@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AiAgent,
     AiAgentThread,
     AiAgentThreadSummary,
@@ -11,7 +12,6 @@ import {
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
-    AnyType,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -25,7 +25,9 @@ import {
     CommercialFeatureFlags,
     Explore,
     filterExploreByTags,
+    findFieldInExplores,
     ForbiddenError,
+    getItemId,
     isExploreError,
     isSlackPrompt,
     LightdashUser,
@@ -33,6 +35,7 @@ import {
     parseVizConfig,
     QueryExecutionContext,
     SlackPrompt,
+    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     type SessionUser,
@@ -57,22 +60,26 @@ import {
     AiAgentUpdatedEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
+import { GroupsModel } from '../../models/GroupsModel';
+import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
+import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
-import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
 import { getModel } from './ai/models';
 import {
+    FindFieldFn,
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
-    SearchFieldsFn,
     SendFileFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -89,18 +96,19 @@ import { validateSelectedFieldsExistence } from './ai/utils/validators';
 import { renderTableViz } from './ai/visualizations/vizTable';
 import { renderTimeSeriesViz } from './ai/visualizations/vizTimeSeries';
 import { renderVerticalBarViz } from './ai/visualizations/vizVerticalBar';
-import { CommercialCatalogService } from './CommercialCatalogService';
 
 type AiAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     userModel: UserModel;
     aiAgentModel: AiAgentModel;
+    groupsModel: GroupsModel;
     featureFlagService: FeatureFlagService;
     projectService: ProjectService;
-    catalogService: CommercialCatalogService;
     slackClient: SlackClient;
     asyncQueryService: AsyncQueryService;
+    userAttributesModel: UserAttributesModel;
+    catalogService: CatalogService;
 };
 
 export class AiAgentService {
@@ -112,37 +120,126 @@ export class AiAgentService {
 
     private readonly aiAgentModel: AiAgentModel;
 
+    private readonly groupsModel: GroupsModel;
+
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly projectService: ProjectService;
 
-    private readonly catalogService: CommercialCatalogService;
+    private readonly catalogService: CatalogService;
 
     private readonly slackClient: SlackClient;
 
     private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly userAttributesModel: UserAttributesModel;
 
     constructor(dependencies: AiAgentServiceDependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.analytics = dependencies.analytics;
         this.userModel = dependencies.userModel;
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.groupsModel = dependencies.groupsModel;
         this.featureFlagService = dependencies.featureFlagService;
-        this.catalogService = dependencies.catalogService;
         this.projectService = dependencies.projectService;
         this.slackClient = dependencies.slackClient;
         this.asyncQueryService = dependencies.asyncQueryService;
+        this.userAttributesModel = dependencies.userAttributesModel;
+        this.catalogService = dependencies.catalogService;
+    }
+
+    private async getIsCopilotEnabled(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ) {
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        return aiCopilotFlag.enabled;
+    }
+
+    /**
+     * Checks if a user has group access to an AI agent
+     * Returns true if:
+     * 1. The user can manage the AiAgent (admin access)
+     * 2. The agent has no group access defined (open access - users that can view AiAgent)
+     * 3. The user is a member of at least one of the agent's groups
+     */
+    private async checkAgentAccess(
+        user: SessionUser,
+        agent: AiAgent,
+    ): Promise<boolean> {
+        if (
+            user.ability.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: agent.organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            return true;
+        }
+
+        if (!agent.groupAccess || agent.groupAccess.length === 0) {
+            return true;
+        }
+
+        const groupUuids = agent.groupAccess;
+        const userGroups = await this.groupsModel.findUserInGroups({
+            userUuid: user.userUuid,
+            organizationUuid: agent.organizationUuid,
+            groupUuids,
+        });
+
+        return userGroups.length > 0;
+    }
+
+    /**
+     * Checks if user has access to view/interact with agent threads
+     * Returns true if:
+     * 1. The user has group access to the agent
+     * 2. The user is the thread owner
+     * 3. The user has manage permissions for the agent
+     */
+    private async checkAgentThreadAccess(
+        user: SessionUser,
+        agent: AiAgent,
+        threadUserUuid: string,
+    ): Promise<boolean> {
+        const hasAccess = await this.checkAgentAccess(user, agent);
+        if (!hasAccess) {
+            return false;
+        }
+
+        if (threadUserUuid === user.userUuid) {
+            return true;
+        }
+
+        if (
+            user.ability.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: agent.organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     // from AiService getToolUtilities
     private async getExplore(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         availableTags: string[] | null,
         exploreName: string,
     ) {
         const explore = await this.projectService.getExplore(
-            user,
+            account,
             projectUuid,
             exploreName,
         );
@@ -165,8 +262,9 @@ export class AiAgentService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
     ) {
+        const account = fromSession(user);
         const explore = await this.getExplore(
-            user,
+            account,
             projectUuid,
             null,
             metricQuery.exploreName,
@@ -180,7 +278,7 @@ export class AiAgentService {
         validateSelectedFieldsExistence(explore, metricQueryFields);
 
         return this.projectService.runExploreQuery(
-            user,
+            account,
             {
                 ...metricQuery,
                 // TODO: add tableCalculations
@@ -199,8 +297,9 @@ export class AiAgentService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
     ) {
+        const account = fromSession(user);
         const explore = await this.getExplore(
-            user,
+            account,
             projectUuid,
             null,
             metricQuery.exploreName,
@@ -215,7 +314,7 @@ export class AiAgentService {
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
-                user,
+                account,
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
@@ -227,16 +326,6 @@ export class AiAgentService {
         );
 
         return asyncQuery;
-    }
-
-    private async getIsCopilotEnabled(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
-    ) {
-        const aiCopilotFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-        return aiCopilotFlag.enabled;
     }
 
     public async getAgent(
@@ -254,14 +343,23 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        // TODO:
-        // permissions
-
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid,
             agentUuid,
             projectUuid,
         });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        // Check group access
+        const hasAccess = await this.checkAgentAccess(user, agent);
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this agent',
+            );
+        }
 
         return agent;
     }
@@ -282,7 +380,16 @@ export class AiAgentService {
             projectUuid,
         });
 
-        return agents;
+        const agentsWithAccess = (
+            await Promise.all(
+                agents.map(async (agent) => {
+                    const hasAccess = await this.checkAgentAccess(user, agent);
+                    return hasAccess ? agent : null;
+                }),
+            )
+        ).filter((agent): agent is NonNullable<typeof agent> => agent !== null);
+
+        return agentsWithAccess;
     }
 
     async listAgentThreads(
@@ -307,6 +414,14 @@ export class AiAgentService {
 
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentAccess(user, agent);
+
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this agent',
+            );
         }
 
         // Check if user has admin permissions to view all threads
@@ -401,17 +516,15 @@ export class AiAgentService {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
 
-        if (
-            user.ability.cannot(
-                'view',
-                subject('AiAgentThread', {
-                    projectUuid: agent.projectUuid,
-                    userUuid: thread.user.uuid,
-                    organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view this thread',
+            );
         }
 
         const messages = await this.aiAgentModel.findThreadMessages({
@@ -487,16 +600,11 @@ export class AiAgentService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
-        if (
-            user.ability.cannot(
-                'create',
-                subject('AiAgentThread', {
-                    organizationUuid,
-                    projectUuid: agent.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        const hasAccess = await this.checkAgentAccess(user, agent);
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to create threads for this agent',
+            );
         }
 
         const threadUuid = await this.aiAgentModel.createWebAppThread({
@@ -569,6 +677,18 @@ export class AiAgentService {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
 
+        // Check if user has access to create messages for this agent's thread
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to create messages for this thread',
+            );
+        }
+
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
@@ -624,6 +744,7 @@ export class AiAgentService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
+            groupAccess: body.groupAccess,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -677,6 +798,7 @@ export class AiAgentService {
             integrations: body.integrations,
             instruction: body.instruction,
             imageUrl: body.imageUrl,
+            groupAccess: body.groupAccess,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -758,20 +880,39 @@ export class AiAgentService {
             throw new ForbiddenError();
         }
 
-        const thread = await this.aiAgentModel.findThread(threadUuid);
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
 
-        const { organizationUuid, projectUuid } = thread;
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: user.organizationUuid,
+            agentUuid: thread.agentUuid,
+        });
 
-        if (thread.organizationUuid !== user.organizationUuid) {
-            throw new ForbiddenError();
+        if (!agent) {
+            throw new NotFoundError(`Agent not found`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to stream response for this agent',
+            );
         }
 
         const threadMessages = await this.aiAgentModel.getThreadMessages(
-            organizationUuid,
-            projectUuid,
+            user.organizationUuid,
+            agent.projectUuid,
             threadUuid,
         );
 
@@ -843,6 +984,28 @@ export class AiAgentService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        // Check if user has access to this agent/thread
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this thread',
+            );
+        }
+
         const { projectUuid } = agent;
 
         const message = await this.aiAgentModel.findThreadMessage('assistant', {
@@ -901,10 +1064,6 @@ export class AiAgentService {
                     vizTool: parsedVizConfig.vizTool,
                     maxLimit: this.lightdashConfig.query.maxLimit,
                 });
-            case AiResultType.ONE_LINE_RESULT:
-                throw new ForbiddenError(
-                    'One line result does not have a visualization',
-                );
             default:
                 return assertUnreachable(parsedVizConfig, 'Invalid viz type');
         }
@@ -939,6 +1098,28 @@ export class AiAgentService {
 
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        // Check if user has access to this agent/thread
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this thread',
+            );
         }
 
         const { projectUuid } = agent;
@@ -1049,23 +1230,36 @@ export class AiAgentService {
             agentUuid,
         });
 
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
         const message = await this.aiAgentModel.findThreadMessage('assistant', {
             organizationUuid,
             threadUuid,
             messageUuid,
         });
 
-        if (
-            user.ability.cannot(
-                'update',
-                subject('AiAgentThread', {
-                    projectUuid: agent.projectUuid,
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        // Check if user has access to update this thread
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to update this thread',
+            );
         }
 
         await this.aiAgentModel.updateMessageSavedQuery({
@@ -1099,8 +1293,9 @@ export class AiAgentService {
                 false,
             );
 
+        const account = fromSession(user);
         const explores = await this.projectService.findExplores({
-            user,
+            account,
             projectUuid,
             exploreNames: exploreSummaries.map((s) => s.name),
         });
@@ -1120,14 +1315,17 @@ export class AiAgentService {
             .map((explore, index) => ({
                 ...explore,
                 description: exploreSummaries[index]?.description,
+                aiHint: exploreSummaries[index]?.aiHint,
             }));
 
-        const minimalExploreInformation = exploresWithDescriptions.map((s) => ({
-            ...pick(s, ['name', 'label', 'description', 'baseTable']),
-            joinedTables: Object.keys(s.tables).filter(
-                (table) => table !== s.baseTable,
-            ),
-        }));
+        const minimalExploreInformation: AiAgentExploreSummary[] =
+            exploresWithDescriptions.map((s) => ({
+                ...pick(s, ['name', 'label', 'description', 'baseTable']),
+                joinedTables: Object.keys(s.tables).filter(
+                    (table) => table !== s.baseTable,
+                ),
+                ...(s.aiHint ? { aiHint: s.aiHint } : {}),
+            }));
 
         return minimalExploreInformation;
     }
@@ -1154,7 +1352,7 @@ export class AiAgentService {
         return agentSettings;
     }
 
-    private async getChatHistoryFromThreadMessages(
+    async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
         threadMessages: Awaited<
@@ -1175,31 +1373,33 @@ export class AiAgentService {
                         message.ai_prompt_uuid,
                     );
 
-                messages.push({
-                    role: 'assistant',
-                    content: toolCallsAndResults.map(
-                        (toolCallAndResult) =>
-                            ({
-                                type: 'tool-call',
-                                toolCallId: toolCallAndResult.tool_call_id,
-                                toolName: toolCallAndResult.tool_name,
-                                args: toolCallAndResult.tool_args,
-                            } satisfies ToolCallPart),
-                    ),
-                } satisfies CoreAssistantMessage);
+                if (toolCallsAndResults.length > 0) {
+                    messages.push({
+                        role: 'assistant',
+                        content: toolCallsAndResults.map(
+                            (toolCallAndResult) =>
+                                ({
+                                    type: 'tool-call',
+                                    toolCallId: toolCallAndResult.tool_call_id,
+                                    toolName: toolCallAndResult.tool_name,
+                                    args: toolCallAndResult.tool_args,
+                                } satisfies ToolCallPart),
+                        ),
+                    } satisfies CoreAssistantMessage);
 
-                messages.push({
-                    role: 'tool',
-                    content: toolCallsAndResults.map(
-                        (toolCallAndResult) =>
-                            ({
-                                type: 'tool-result',
-                                toolCallId: toolCallAndResult.tool_call_id,
-                                toolName: toolCallAndResult.tool_name,
-                                result: toolCallAndResult.result,
-                            } satisfies ToolResultPart),
-                    ),
-                } satisfies CoreToolMessage);
+                    messages.push({
+                        role: 'tool',
+                        content: toolCallsAndResults.map(
+                            (toolCallAndResult) =>
+                                ({
+                                    type: 'tool-result',
+                                    toolCallId: toolCallAndResult.tool_call_id,
+                                    toolName: toolCallAndResult.tool_name,
+                                    result: toolCallAndResult.result,
+                                } satisfies ToolResultPart),
+                        ),
+                    } satisfies CoreToolMessage);
+                }
 
                 if (message.response) {
                     messages.push({
@@ -1247,8 +1447,9 @@ export class AiAgentService {
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
+            const account = fromSession(user);
             const explore = await this.projectService.getExplore(
-                user,
+                account,
                 projectUuid,
                 exploreName,
             );
@@ -1265,38 +1466,62 @@ export class AiAgentService {
             return filteredExplore;
         };
 
-        const searchFields: SearchFieldsFn = async ({
-            exploreName,
-            embeddingSearchQueries,
-        }: {
-            exploreName: string;
-            embeddingSearchQueries: Array<{
-                name: string;
-                description: string;
-            }>;
-        }) => {
-            if (!this.lightdashConfig.ai.copilot.providers?.openai?.apiKey) {
-                throw new Error(
-                    'Embedding search needs OpenAI API key to be set',
-                );
-            }
+        const findFields: FindFieldFn = async ({ fieldSearchQuery }) => {
+            const userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                });
 
-            const embedQueries = await generateEmbeddingsNameAndDescription({
-                apiKey: this.lightdashConfig.ai.copilot.providers?.openai
-                    ?.apiKey,
-                values: embeddingSearchQueries,
-            });
+            const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const catalogItems = await this.catalogService.hybridSearch({
-                user,
+            const catalogItems = await this.catalogService.searchCatalog({
                 projectUuid,
-                embedQueries,
-                exploreName,
-                type: CatalogType.Field,
-                limit: 30,
+                catalogSearch: {
+                    type: CatalogType.Field,
+                    searchQuery: fieldSearchQuery.name,
+                },
+                context: CatalogSearchContext.AI_AGENT,
+                // TODO: make this paginated
+                paginateArgs: {
+                    page: 1,
+                    pageSize: 5,
+                },
+                userAttributes,
+                yamlTags: agentSettings.tags,
             });
 
-            return catalogItems.data.map((item) => item.name);
+            // TODO: we should not filter here, we should return all the fields
+            const catalogFields = catalogItems.data.filter(
+                (item) => item.type === CatalogType.Field,
+            );
+
+            const explores = await this.projectService.findExplores({
+                account: fromSession(user),
+                projectUuid,
+                exploreNames: catalogFields.map((s) => s.tableName),
+            });
+
+            const filteredExplores = Object.values(explores).filter(
+                (e): e is Explore => !isExploreError(e),
+            );
+
+            const fields = catalogFields.map((catalogField) => {
+                const exploreField = findFieldInExplores(
+                    filteredExplores,
+                    catalogField.tableName,
+                    catalogField.name,
+                );
+                if (!exploreField)
+                    throw new UnexpectedServerError('Field not found');
+
+                return {
+                    catalogField,
+                    exploreField,
+                };
+            });
+
+            return fields;
         };
 
         const updateProgress: UpdateProgressFn = (progress) =>
@@ -1329,8 +1554,9 @@ export class AiAgentService {
 
             validateSelectedFieldsExistence(explore, metricQueryFields);
 
+            const account = fromSession(user);
             return this.projectService.runMetricQuery({
-                user,
+                account,
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
@@ -1375,11 +1601,9 @@ export class AiAgentService {
         };
 
         return {
+            findFields,
             getExplores,
             getExplore,
-            searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
-                ? searchFields
-                : undefined,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -1441,9 +1665,9 @@ export class AiAgentService {
         const { prompt, stream } = options;
 
         const {
+            findFields,
             getExplores,
             getExplore,
-            searchFields,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -1464,12 +1688,16 @@ export class AiAgentService {
             maxLimit: this.lightdashConfig.query.maxLimit,
             organizationId: user.organizationUuid,
             userId: user.userUuid,
+            debugLoggingEnabled:
+                this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+            __experimental__toolFindFields:
+                this.lightdashConfig.ai.copilot.__experimental__toolFindFields,
         };
 
         const dependencies = {
+            findFields,
             getExplores,
             getExplore,
-            searchFields,
             runMiniMetricQuery,
             getPrompt,
             sendFile,
@@ -1795,6 +2023,7 @@ export class AiAgentService {
         }
     }
 
+    // TODO: This is to get conversations for the "old" page - remove
     async getConversations(
         user: SessionUser,
         projectUuid: string,
@@ -1806,12 +2035,6 @@ export class AiAgentService {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
-
-        // TODO: this is a temporary solution to check project permissions...
-        const projectSummary = await this.projectService.getProject(
-            projectUuid,
-            user,
-        );
 
         const threads = await this.aiAgentModel.getThreads(
             user.organizationUuid,
@@ -1830,6 +2053,7 @@ export class AiAgentService {
         }));
     }
 
+    // TODO: this is to get messages for the "old" page - remove
     async getConversationMessages(
         user: SessionUser,
         projectUuid: string,

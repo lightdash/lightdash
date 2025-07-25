@@ -1,8 +1,18 @@
+import { JWT_HEADER_NAME } from '@lightdash/common';
 import nock from 'nock';
 import { describe, expect, it } from 'vitest';
 import { BASE_API_URL, lightdashApi } from './api';
+import { EMBED_KEY } from './ee/providers/Embed/types';
+import {
+    clearInMemoryStorage,
+    setToInMemoryStorage,
+} from './utils/inMemoryStorage';
 
 describe('api', () => {
+    beforeEach(() => {
+        clearInMemoryStorage();
+    });
+
     it('should handle success response', async () => {
         const scope = nock(BASE_API_URL)
             .matchHeader('Content-Type', 'application/json')
@@ -49,5 +59,36 @@ describe('api', () => {
 
         expect(scope.isDone()).toBe(true);
         expect(result).toEqual('another test');
+    });
+
+    it('prevents duplicate embed token headers', async () => {
+        setToInMemoryStorage(EMBED_KEY, { token: 'system token' });
+        const scope = nock(BASE_API_URL)
+            .matchHeader(
+                JWT_HEADER_NAME.toUpperCase(),
+                'explicit token, same as system',
+            )
+            .get('/api/v1/test')
+            .reply(200, {
+                status: 'ok',
+                results: 'token headers',
+            });
+
+        const result = await lightdashApi({
+            method: 'GET',
+            url: '/test',
+            body: null,
+            headers: {
+                [JWT_HEADER_NAME.toUpperCase()]:
+                    'explicit token, same as system',
+            },
+        });
+
+        scope.done();
+
+        expect(scope.isDone()).toBe(true);
+        expect(result).toEqual('token headers');
+
+        clearInMemoryStorage();
     });
 });

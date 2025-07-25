@@ -34,6 +34,7 @@ import {
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { intersection, isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
@@ -148,33 +149,58 @@ const getWrapChars = (wrapChar: string): [string, string] => {
     }
 };
 
-const replaceAttributes = (
+export const replaceLightdashValues = (
     regex: RegExp,
     sql: string,
-    userAttributes: Record<string, string | string[]>,
+    valuesMap: Record<string, string | string[]>,
     quoteChar: string | '',
     wrapChar: string | '',
-): string => {
+    {
+        // Default to true since that's the current behavior for user attributes
+        throwOnMissing = true,
+        // ! This is only for error messages so we can reuse the same function for user attributes and parameters
+        replacementName = 'user attribute',
+    }: {
+        throwOnMissing?: boolean;
+        replacementName?: 'user attribute' | 'parameter';
+    } = {},
+): {
+    replacedSql: string;
+    references: Set<string>;
+    missingReferences: Set<string>;
+} => {
     const sqlAttributes = sql.match(regex);
     const [leftWrap, rightWrap] = getWrapChars(wrapChar);
+    const references = new Set<string>();
+    const missingReferences = new Set<string>();
 
     if (sqlAttributes === null || sqlAttributes.length === 0) {
-        return sql;
+        return {
+            replacedSql: sql,
+            references,
+            missingReferences,
+        };
     }
 
     const replacedUserAttributesSql = sqlAttributes.reduce<string>(
         (acc, sqlAttribute) => {
             const attribute = sqlAttribute.replace(regex, '$1');
-            const attributeValues = userAttributes[attribute];
+            const attributeValues = valuesMap[attribute];
+            references.add(attribute);
 
             if (attributeValues === undefined) {
+                missingReferences.add(attribute);
+                if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
-                    `Missing user attribute "${attribute}": "${sql}"`,
+                    `Missing ${replacementName} "${attribute}": "${sql}"`,
                 );
             }
+
             if (attributeValues.length === 0) {
+                missingReferences.add(attribute);
+                if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
-                    `Invalid or missing user attribute "${attribute}": "${sql}"`,
+                    `Invalid or missing ${replacementName} "${attribute}": "${sql}"`,
                 );
             }
 
@@ -192,8 +218,12 @@ const replaceAttributes = (
         sql,
     );
 
-    // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
-    return `${leftWrap}${replacedUserAttributesSql}${rightWrap}`;
+    return {
+        // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
+        replacedSql: `${leftWrap}${replacedUserAttributesSql}${rightWrap}`,
+        references,
+        missingReferences,
+    };
 };
 
 export const replaceUserAttributes = (
@@ -209,7 +239,7 @@ export const replaceUserAttributes = (
         /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
 
     // Replace user attributes in the SQL filter
-    const replacedSqlFilter = replaceAttributes(
+    const { replacedSql: replacedSqlFilter } = replaceLightdashValues(
         userAttributeRegex,
         sql,
         userAttributes,
@@ -218,26 +248,28 @@ export const replaceUserAttributes = (
     );
 
     // Replace intrinsic user attributes in the SQL filter
-    return replaceAttributes(
+    const { replacedSql } = replaceLightdashValues(
         intrinsicUserAttributeRegex,
         replacedSqlFilter,
         intrinsicUserAttributes,
         quoteChar,
         wrapChar,
     );
+
+    return replacedSql;
 };
 
 export const replaceUserAttributesAsStrings = (
     sql: string,
     intrinsicUserAttributes: IntrinsicUserAttributes,
     userAtttributes: UserAttributeValueMap,
-    warehouseClient: WarehouseClient,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
 ) =>
     replaceUserAttributes(
         sql,
         intrinsicUserAttributes,
         userAtttributes,
-        warehouseClient.getStringQuoteChar(),
+        warehouseSqlBuilder.getStringQuoteChar(),
         '(',
     );
 
@@ -351,7 +383,7 @@ export const sortDayOfWeekName = (
     )${descending ? ' DESC' : ''}`;
 };
 // Remove comments and limit clauses from SQL
-const removeComments = (sql: string): string => {
+export const removeComments = (sql: string): string => {
     let s = sql.trim();
     // remove single-line comments
     s = s.replace(/--.*$/gm, '');
@@ -359,6 +391,9 @@ const removeComments = (sql: string): string => {
     s = s.replace(/\/\*[\s\S]*?\*\//g, '');
     return s;
 };
+// Remove trailing semicolon
+export const removeTrailingSemicolon = (sql: string): string =>
+    sql.trim().replace(/;+$/g, '').trim();
 
 // Replace strings with placeholders and return the placeholders
 const replaceStringsWithPlaceholders = (
@@ -483,20 +518,22 @@ export const applyLimitToSqlQuery = ({
 };
 
 export const getCustomSqlDimensionSql = ({
-    warehouseClient,
+    warehouseSqlBuilder,
     customDimensions,
 }: {
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     customDimensions: CompiledCustomSqlDimension[] | undefined;
-}): { selects: string[]; tables: string[] } | undefined => {
+}): { selects: Record<string, string>; tables: string[] } | undefined => {
     if (customDimensions === undefined || customDimensions.length === 0) {
         return undefined;
     }
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
-    const selects = customDimensions.map<string>(
-        (customDimension) =>
-            `  (${customDimension.compiledSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`,
-    );
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+    const selects: Record<string, string> = {};
+
+    customDimensions.forEach(({ id, compiledSql }) => {
+        const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
+        selects[id] = `  (${compiledSql}) AS ${quotedAlias}`;
+    });
 
     return {
         selects,
@@ -505,14 +542,14 @@ export const getCustomSqlDimensionSql = ({
 };
 
 export const getCustomBinDimensionSql = ({
-    warehouseClient,
+    warehouseSqlBuilder,
     explore,
     customDimensions,
     intrinsicUserAttributes,
     userAttributes = {},
     sorts = [],
 }: {
-    warehouseClient: WarehouseClient;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
     explore: Explore;
     customDimensions: CustomBinDimension[] | undefined;
     intrinsicUserAttributes: IntrinsicUserAttributes;
@@ -523,19 +560,20 @@ export const getCustomBinDimensionSql = ({
           ctes: string[];
           join: string | undefined;
           tables: string[];
-          selects: string[];
+          selects: Record<string, string>;
       }
     | undefined => {
-    const startOfWeek = warehouseClient.getStartOfWeek();
+    const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
     const getCteReference = (customDimension: CustomDimension) =>
         `${getItemId(customDimension)}_cte`;
 
-    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
+    const adapterType: SupportedDbtAdapter =
+        warehouseSqlBuilder.getAdapterType();
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
@@ -597,90 +635,119 @@ export const getCustomBinDimensionSql = ({
         (customDimension) => customDimension.table,
     );
 
-    const selects = customDimensions.reduce<string[]>(
-        (acc, customDimension) => {
-            const dimension = getDimensionFromId(
-                customDimension.dimensionId,
-                explore,
-                adapterType,
-                startOfWeek,
+    const selects: Record<string, string> = {};
+
+    customDimensions.forEach((customDimension) => {
+        const dimension = getDimensionFromId(
+            customDimension.dimensionId,
+            explore,
+            adapterType,
+            startOfWeek,
+        );
+        // Check required attribute permission for parent dimension
+        assertValidDimensionRequiredAttribute(
+            dimension,
+            userAttributes,
+            `custom dimension: "${customDimension.name}"`,
+        );
+
+        const dimensionId = getItemId(customDimension);
+        const orderDimensionId = `${dimensionId}_order`;
+        const quotedDimensionName = `${fieldQuoteChar}${dimensionId}${fieldQuoteChar}`;
+        const quotedDimensionOrder = `${fieldQuoteChar}${orderDimensionId}${fieldQuoteChar}`;
+        const cte = `${getCteReference(customDimension)}`;
+
+        // If a custom dimension is sorted, we need to generate a special SQL select that returns a number
+        // and not the range as a string
+        const isSorted =
+            sorts.length > 0 &&
+            sorts.find(
+                (sortField) => getItemId(customDimension) === sortField.fieldId,
             );
-            // Check required attribute permission for parent dimension
-            assertValidDimensionRequiredAttribute(
-                dimension,
-                userAttributes,
-                `custom dimension: "${customDimension.name}"`,
-            );
+        const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
+        const dash = `${quoteChar} - ${quoteChar}`;
 
-            const customDimensionName = `${fieldQuoteChar}${getItemId(
-                customDimension,
-            )}${fieldQuoteChar}`;
-            const customDimensionOrder = `${fieldQuoteChar}${getItemId(
-                customDimension,
-            )}_order${fieldQuoteChar}`;
-            const cte = `${getCteReference(customDimension)}`;
+        switch (customDimension.binType) {
+            case BinType.FIXED_WIDTH:
+                if (!customDimension.binWidth) {
+                    throw new Error(
+                        `Undefined binWidth for custom dimension ${BinType.FIXED_WIDTH} `,
+                    );
+                }
 
-            // If a custom dimension is sorted, we need to generate a special SQL select that returns a number
-            // and not the range as a string
-            const isSorted =
-                sorts.length > 0 &&
-                sorts.find(
-                    (sortField) =>
-                        getItemId(customDimension) === sortField.fieldId,
-                );
-            const quoteChar = warehouseClient.getStringQuoteChar();
-            const dash = `${quoteChar} - ${quoteChar}`;
+                const width = customDimension.binWidth;
+                const widthSql = `${getFixedWidthBinSelectSql({
+                    binWidth: customDimension.binWidth || 1,
+                    baseDimensionSql: dimension.compiledSql,
+                    warehouseSqlBuilder,
+                })} AS ${quotedDimensionName}`;
 
-            switch (customDimension.binType) {
-                case BinType.FIXED_WIDTH:
-                    if (!customDimension.binWidth) {
-                        throw new Error(
-                            `Undefined binWidth for custom dimension ${BinType.FIXED_WIDTH} `,
-                        );
+                selects[dimensionId] = widthSql;
+
+                if (isSorted) {
+                    selects[
+                        orderDimensionId
+                    ] = `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${quotedDimensionOrder}`;
+                }
+                break;
+            case BinType.FIXED_NUMBER:
+                if (!customDimension.binNumber) {
+                    throw new Error(
+                        `Undefined binNumber for custom dimension ${BinType.FIXED_NUMBER} `,
+                    );
+                }
+
+                if (customDimension.binNumber <= 1) {
+                    // Edge case, bin number with only one bucket does not need a CASE statement
+                    selects[dimensionId] = `${warehouseSqlBuilder.concatString(
+                        `${cte}.min_id`,
+                        dash,
+                        `${cte}.max_id`,
+                    )} AS ${quotedDimensionName}`;
+                    break;
+                }
+
+                const binWidth = `${cte}.bin_width`;
+
+                const from = (i: number) =>
+                    `${cte}.min_id + ${binWidth} * ${i}`;
+                const to = (i: number) =>
+                    `${cte}.min_id + ${binWidth} * ${i + 1}`;
+
+                const binWhens = Array.from(
+                    Array(customDimension.binNumber).keys(),
+                ).map((i) => {
+                    if (i !== customDimension.binNumber! - 1) {
+                        return `WHEN ${dimension.compiledSql} >= ${from(
+                            i,
+                        )} AND ${dimension.compiledSql} < ${to(
+                            i,
+                        )} THEN ${warehouseSqlBuilder.concatString(
+                            from(i),
+                            dash,
+                            to(i),
+                        )}`;
                     }
+                    return `ELSE ${warehouseSqlBuilder.concatString(
+                        from(i),
+                        dash,
+                        `${cte}.max_id`,
+                    )}`;
+                });
 
-                    const width = customDimension.binWidth;
-                    const widthSql = `${getFixedWidthBinSelectSql({
-                        binWidth: customDimension.binWidth || 1,
-                        baseDimensionSql: dimension.compiledSql,
-                        warehouseClient,
-                    })} AS ${customDimensionName}`;
+                // Add a NULL case for when the dimension is NULL, returning null as the value so it get's correctly formated with the symbol ∅
+                const whens = [
+                    `WHEN ${dimension.compiledSql} IS NULL THEN NULL`,
+                    ...binWhens,
+                ];
 
-                    if (isSorted) {
-                        return [
-                            ...acc,
-                            widthSql,
-                            `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${customDimensionOrder}`,
-                        ];
-                    }
-                    return [...acc, widthSql];
-                case BinType.FIXED_NUMBER:
-                    if (!customDimension.binNumber) {
-                        throw new Error(
-                            `Undefined binNumber for custom dimension ${BinType.FIXED_NUMBER} `,
-                        );
-                    }
+                selects[dimensionId] = `CASE
+                    ${whens.join('\n')}
+                    END
+                    AS ${quotedDimensionName}`;
 
-                    if (customDimension.binNumber <= 1) {
-                        // Edge case, bin number with only one bucket does not need a CASE statement
-                        return [
-                            ...acc,
-                            `${warehouseClient.concatString(
-                                `${cte}.min_id`,
-                                dash,
-                                `${cte}.max_id`,
-                            )} AS ${customDimensionName}`,
-                        ];
-                    }
-
-                    const binWidth = `${cte}.bin_width`;
-
-                    const from = (i: number) =>
-                        `${cte}.min_id + ${binWidth} * ${i}`;
-                    const to = (i: number) =>
-                        `${cte}.min_id + ${binWidth} * ${i + 1}`;
-
-                    const binWhens = Array.from(
+                if (isSorted) {
+                    const sortBinWhens = Array.from(
                         Array(customDimension.binNumber).keys(),
                     ).map((i) => {
                         if (i !== customDimension.binNumber! - 1) {
@@ -688,118 +755,70 @@ export const getCustomBinDimensionSql = ({
                                 i,
                             )} AND ${dimension.compiledSql} < ${to(
                                 i,
-                            )} THEN ${warehouseClient.concatString(
-                                from(i),
-                                dash,
-                                to(i),
-                            )}`;
+                            )} THEN ${i}`;
                         }
-                        return `ELSE ${warehouseClient.concatString(
-                            from(i),
-                            dash,
-                            `${cte}.max_id`,
-                        )}`;
+                        return `ELSE ${i}`;
                     });
 
-                    // Add a NULL case for when the dimension is NULL, returning null as the value so it get's correctly formated with the symbol ∅
-                    const whens = [
-                        `WHEN ${dimension.compiledSql} IS NULL THEN NULL`,
-                        ...binWhens,
+                    const sortWhens = [
+                        `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.binNumber}`,
+                        ...sortBinWhens,
                     ];
 
-                    if (isSorted) {
-                        const sortBinWhens = Array.from(
-                            Array(customDimension.binNumber).keys(),
-                        ).map((i) => {
-                            if (i !== customDimension.binNumber! - 1) {
-                                return `WHEN ${dimension.compiledSql} >= ${from(
-                                    i,
-                                )} AND ${dimension.compiledSql} < ${to(
-                                    i,
-                                )} THEN ${i}`;
-                            }
-                            return `ELSE ${i}`;
-                        });
-
-                        const sortWhens = [
-                            `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.binNumber}`,
-                            ...sortBinWhens,
-                        ];
-
-                        return [
-                            ...acc,
-                            `CASE
-                            ${whens.join('\n')}
-                            END
-                            AS ${customDimensionName}`,
-                            `CASE
-                            ${sortWhens.join('\n')}
-                            END
-                            AS ${customDimensionOrder}`,
-                        ];
-                    }
-
-                    return [
-                        ...acc,
-                        `CASE
-                        ${whens.join('\n')}
+                    selects[orderDimensionId] = `CASE
+                        ${sortWhens.join('\n')}
                         END
-                        AS ${customDimensionName}
-                    `,
-                    ];
-                case BinType.CUSTOM_RANGE:
-                    if (!customDimension.customRange) {
-                        throw new Error(
-                            `Undefined customRange for custom dimension ${BinType.CUSTOM_RANGE} `,
-                        );
-                    }
-
-                    const customRangeSql = `${getCustomRangeSelectSql({
-                        binRanges: customDimension.customRange || [],
-                        baseDimensionSql: dimension.compiledSql,
-                        warehouseClient,
-                    })} AS ${customDimensionName}`;
-
-                    if (isSorted) {
-                        const sortedRangeWhens =
-                            customDimension.customRange.map((range, i) => {
-                                if (range.from === undefined) {
-                                    return `WHEN ${dimension.compiledSql} < ${range.to} THEN ${i}`;
-                                }
-                                if (range.to === undefined) {
-                                    return `ELSE ${i}`;
-                                }
-
-                                return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN ${i}`;
-                            });
-
-                        const sortedWhens = [
-                            `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.customRange.length}`,
-                            ...sortedRangeWhens,
-                        ];
-
-                        return [
-                            ...acc,
-                            customRangeSql,
-                            `CASE
-                        ${sortedWhens.join('\n')}
-                        END
-                        AS ${customDimensionOrder}`,
-                        ];
-                    }
-
-                    return [...acc, customRangeSql];
-
-                default:
-                    assertUnreachable(
-                        customDimension.binType,
-                        `Unknown bin type on sql: ${customDimension.binType}`,
+                        AS ${quotedDimensionOrder}`;
+                }
+                break;
+            case BinType.CUSTOM_RANGE:
+                if (!customDimension.customRange) {
+                    throw new Error(
+                        `Undefined customRange for custom dimension ${BinType.CUSTOM_RANGE} `,
                     );
-            }
-            return acc;
-        },
-        [],
-    );
+                }
+
+                const customRangeSql = `${getCustomRangeSelectSql({
+                    binRanges: customDimension.customRange || [],
+                    baseDimensionSql: dimension.compiledSql,
+                    warehouseSqlBuilder,
+                })} AS ${quotedDimensionName}`;
+
+                selects[dimensionId] = customRangeSql;
+
+                if (isSorted) {
+                    const sortedRangeWhens = customDimension.customRange.map(
+                        (range, i) => {
+                            if (range.from === undefined) {
+                                return `WHEN ${dimension.compiledSql} < ${range.to} THEN ${i}`;
+                            }
+                            if (range.to === undefined) {
+                                return `ELSE ${i}`;
+                            }
+
+                            return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN ${i}`;
+                        },
+                    );
+
+                    const sortedWhens = [
+                        `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.customRange.length}`,
+                        ...sortedRangeWhens,
+                    ];
+
+                    selects[orderDimensionId] = `CASE
+                    ${sortedWhens.join('\n')}
+                    END
+                    AS ${quotedDimensionOrder}`;
+                }
+                break;
+
+            default:
+                assertUnreachable(
+                    customDimension.binType,
+                    `Unknown bin type on select: ${customDimension.binType}`,
+                );
+        }
+    });
 
     return {
         ctes,
@@ -928,65 +947,85 @@ export const findTablesWithMetricInflation = ({
     const joinWithoutRelationship = new Set<string>();
     const tablesWithoutPrimaryKey = new Set<string>();
 
-    joinedTables.forEach((joinedTable) => {
-        if (!tables[joinedTable]?.primaryKey) {
-            // Warn the user about missing primary key so we can detect possible metric inflation
-            tablesWithoutPrimaryKey.add(joinedTable);
-        }
-
-        if (joinedTable === baseTable) {
-            // skip base table
-            return;
-        }
+    // Check if any join has a many-to-many relationship
+    const hasManyToManyJoin = Array.from(joinedTables).some((joinedTable) => {
+        if (joinedTable === baseTable) return false;
 
         const join = possibleJoins.find(
             (possibleJoin) => possibleJoin.table === joinedTable,
         );
-        if (!join) {
-            throw new Error(`Join ${joinedTable} not found`);
-        }
-        if (!join.tablesReferences) {
-            // Skip, as we can't detect inflation without knowing table references in join SQL
-            return;
-        }
-        if (!join.relationship) {
-            // Warn the user about missing relationship so we can detect possible metric inflation
-            joinWithoutRelationship.add(joinedTable);
-        } else {
-            // Finds tables with inflation in this join
-            const tablesWithInflationFromJoin =
-                findTablesWithInflationFromJoin(join);
-            // Finds chained joins with one-to-one relationship
-            const chainedTablesWithInflation = findChainedOneToOneTableJoins({
-                tables: tablesWithInflationFromJoin,
-                possibleJoins,
-            });
-            const newTablesWithInflation = new Set([
-                ...tablesWithInflationFromJoin,
-                ...chainedTablesWithInflation,
-            ]);
-            if (
-                intersection(
-                    Array.from(tablesWithMetricInflation),
-                    Array.from(newTablesWithInflation),
-                ).length > 0
-            ) {
-                // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
-                joinedTables.forEach(
-                    tablesWithMetricInflation.add.bind(
-                        tablesWithMetricInflation,
-                    ),
-                );
-            } else {
-                // otherwise, add tables with inflation related to this join
-                newTablesWithInflation.forEach(
-                    tablesWithMetricInflation.add.bind(
-                        tablesWithMetricInflation,
-                    ),
-                );
-            }
-        }
+        return join?.relationship === JoinRelationship.MANY_TO_MANY;
     });
+
+    // If there's a many-to-many join, all tables (including base table) have inflation
+    if (hasManyToManyJoin) {
+        joinedTables.forEach(
+            tablesWithMetricInflation.add.bind(tablesWithMetricInflation),
+        );
+        // Also add the base table
+        tablesWithMetricInflation.add(baseTable);
+    } else {
+        joinedTables.forEach((joinedTable) => {
+            if (!tables[joinedTable]?.primaryKey) {
+                // Warn the user about missing primary key so we can detect possible metric inflation
+                tablesWithoutPrimaryKey.add(joinedTable);
+            }
+
+            if (joinedTable === baseTable) {
+                // skip base table
+                return;
+            }
+
+            const join = possibleJoins.find(
+                (possibleJoin) => possibleJoin.table === joinedTable,
+            );
+            if (!join) {
+                throw new Error(`Join ${joinedTable} not found`);
+            }
+            if (!join.tablesReferences) {
+                // Skip, as we can't detect inflation without knowing table references in join SQL
+                return;
+            }
+            if (!join.relationship) {
+                // Warn the user about missing relationship so we can detect possible metric inflation
+                joinWithoutRelationship.add(joinedTable);
+            } else {
+                // Finds tables with inflation in this join
+                const tablesWithInflationFromJoin =
+                    findTablesWithInflationFromJoin(join);
+                // Finds chained joins with one-to-one relationship
+                const chainedTablesWithInflation =
+                    findChainedOneToOneTableJoins({
+                        tables: tablesWithInflationFromJoin,
+                        possibleJoins,
+                    });
+                const newTablesWithInflation = new Set([
+                    ...tablesWithInflationFromJoin,
+                    ...chainedTablesWithInflation,
+                ]);
+                if (
+                    intersection(
+                        Array.from(tablesWithMetricInflation),
+                        Array.from(newTablesWithInflation),
+                    ).length > 0
+                ) {
+                    // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
+                    joinedTables.forEach(
+                        tablesWithMetricInflation.add.bind(
+                            tablesWithMetricInflation,
+                        ),
+                    );
+                } else {
+                    // otherwise, add tables with inflation related to this join
+                    newTablesWithInflation.forEach(
+                        tablesWithMetricInflation.add.bind(
+                            tablesWithMetricInflation,
+                        ),
+                    );
+                }
+            }
+        });
+    }
 
     return {
         tablesWithMetricInflation,

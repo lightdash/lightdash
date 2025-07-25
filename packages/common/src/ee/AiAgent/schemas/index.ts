@@ -1,23 +1,26 @@
 import { z } from 'zod';
+import {
+    toolFindExploresArgsSchema,
+    toolFindFieldsArgsSchema,
+    toolNewFindFieldsArgsSchema,
+    toolTableVizArgsSchema,
+    toolTimeSeriesArgsSchema,
+    toolVerticalBarArgsSchema,
+} from './tools';
 
-import { toolFindExploresArgsSchema } from './tools/toolFindExploresArgs';
-import { toolFindFieldsArgsSchema } from './tools/toolFindFieldsArgs';
-import { toolOneLineArgsSchema } from './tools/toolOneLineArgs';
-import { toolTableVizArgsSchema } from './tools/toolTableVizArgs';
-import { toolTimeSeriesArgsSchema } from './tools/toolTimeSeriesArgs';
-import { toolVerticalBarArgsSchema } from './tools/toolVerticalBarArgs';
-
+export * from './fieldSearchQuery';
 export * from './filters';
 export * from './tools';
 export * from './visualizations';
 
-export const AgentToolCallArgsSchema = z.discriminatedUnion('type', [
+// TODO: use `discriminatedUnion` after removing old find fields tool
+export const AgentToolCallArgsSchema = z.union([
     toolFindFieldsArgsSchema,
+    toolNewFindFieldsArgsSchema,
     toolVerticalBarArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
     toolFindExploresArgsSchema,
-    toolOneLineArgsSchema,
 ]);
 
 export type AgentToolCallArgs = z.infer<typeof AgentToolCallArgsSchema>;

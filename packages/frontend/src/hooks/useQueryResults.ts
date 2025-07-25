@@ -14,6 +14,7 @@ import {
     MAX_SAFE_INTEGER,
     type MetricQuery,
     ParameterError,
+    type ParametersValuesMap,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ReadyQueryResultsPage,
@@ -36,6 +37,8 @@ export type QueryResultsProps = {
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity;
     context?: string;
+    invalidateCache?: boolean;
+    parameters?: ParametersValuesMap;
 };
 
 /**
@@ -106,6 +109,8 @@ const executeAsyncQuery = (
                 chartUuid: data.chartUuid,
                 versionUuid: data.chartVersionUuid,
                 limit: data.csvLimit,
+                invalidateCache: data.invalidateCache,
+                parameters: data.parameters,
             },
             { signal },
         );
@@ -116,6 +121,8 @@ const executeAsyncQuery = (
                 context: QueryExecutionContext.CHART,
                 chartUuid: data.chartUuid,
                 limit: data.csvLimit,
+                invalidateCache: data.invalidateCache,
+                parameters: data.parameters,
             },
             { signal },
         );
@@ -147,6 +154,7 @@ const executeAsyncQuery = (
                         : undefined,
                 },
                 invalidateCache: true, // Note: do not cache explore queries
+                parameters: data.parameters,
             },
             { signal },
         );

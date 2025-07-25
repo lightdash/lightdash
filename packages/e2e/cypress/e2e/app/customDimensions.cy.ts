@@ -85,19 +85,21 @@ describe('Custom dimensions', () => {
         });
     });
 
-    it('I can create a custom SQL dimension string', () => {
+    it.only('I can create a custom SQL dimension string', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
         cy.contains('Add').click();
 
         cy.findByPlaceholderText('Enter custom dimension label').type(
             'payment method',
         );
-        cy.get('#ace-editor').type(
-            `'payment_' || \${payments.payment_method}`,
-            { parseSpecialCharSequences: false },
-        );
+        cy.get('#ace-editor')
+            .as('editor')
+            .type(`'payment_' || \${payments.payment_method}`, {
+                parseSpecialCharSequences: false,
+            });
         // Defaults to string
         cy.findByText('Create').click();
+        cy.get('@editor').should('not.exist');
 
         cy.get('.mantine-ScrollArea-root').within(() => {
             // Select metric

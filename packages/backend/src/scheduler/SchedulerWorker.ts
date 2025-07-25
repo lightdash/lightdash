@@ -1,8 +1,10 @@
 import {
     getErrorMessage,
     getSchedulerUuid,
+    isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    type SchedulerTaskName,
 } from '@lightdash/common';
 import {
     Logger as GraphileLogger,
@@ -11,10 +13,11 @@ import {
     Runner,
 } from 'graphile-worker';
 import moment from 'moment';
+import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
-import SchedulerTask from './SchedulerTask';
+import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 import { TypedTaskList } from './types';
@@ -34,18 +37,40 @@ export class SchedulerWorker extends SchedulerTask {
 
     isRunning: boolean = false;
 
+    enabledTasks: Array<SchedulerTaskName>;
+
+    constructor(schedulerTaskArgs: SchedulerTaskArguments & {}) {
+        super(schedulerTaskArgs);
+        this.enabledTasks = this.lightdashConfig.scheduler.tasks;
+    }
+
     async run() {
         // Wait for graphile utils to finish migration and prevent race conditions
         await this.schedulerClient.graphileUtils;
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
 
+        const dbMaxConnections =
+            this.lightdashConfig.database.maxConnections ||
+            DEFAULT_DB_MAX_CONNECTIONS;
+
+        // According to Graphile TS docs, this defaults to the node-postgres default (10)
+        // So we're keeping the setting the same when concurrency is less than 10
+        const desiredPoolSize =
+            this.lightdashConfig.scheduler.concurrency > 10
+                ? this.lightdashConfig.scheduler.concurrency
+                : 10;
+
+        // We don't want to exceed the max number of connections to the database
+        const maxPoolSize = Math.min(desiredPoolSize, dbMaxConnections);
+
         this.runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
-            concurrency: this.lightdashConfig.scheduler?.concurrency,
+            concurrency: this.lightdashConfig.scheduler.concurrency,
             noHandleSignals: true,
             pollInterval: 1000,
+            maxPoolSize,
             parsedCronItems: parseCronItems([
                 {
                     task: 'generateDailyJobs',
@@ -67,7 +92,17 @@ export class SchedulerWorker extends SchedulerTask {
         });
     }
 
-    protected getTaskList(): TypedTaskList {
+    protected getTaskList(): Partial<TypedTaskList> {
+        return Object.fromEntries(
+            Object.entries(this.getFullTaskList()).filter(
+                ([taskKey]) =>
+                    isSchedulerTaskName(taskKey) &&
+                    this.enabledTasks.includes(taskKey),
+            ),
+        );
+    }
+
+    protected getFullTaskList(): TypedTaskList {
         return {
             [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: async () => {
                 const currentDateStartOfDay = moment()
@@ -624,6 +659,42 @@ export class SchedulerWorker extends SchedulerTask {
                                 organizationUuid: payload.organizationUuid,
                                 error: getErrorMessage(e),
                                 createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.runAsyncWarehouseQuery(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                queryHistoryUuid: payload.queryHistoryUuid,
                             },
                         });
                     },

@@ -833,6 +833,57 @@ describe('Formatting', () => {
                 ),
             ).toEqual('1K');
         });
+
+        describe('formatItemValue timestamp handling', () => {
+            const mockTimestampField = {
+                type: DimensionType.TIMESTAMP,
+                name: 'test_timestamp',
+                table: 'test',
+                fieldType: FieldType.DIMENSION,
+                label: 'Test Timestamp',
+                sql: 'test.timestamp',
+                tableLabel: 'Test',
+                hidden: false,
+            };
+
+            test('should handle valid timestamp formats', () => {
+                const validTimestamps = [
+                    '2020-08-11T16:44:00Z',
+                    '2020-08-11 16:44:00',
+                    '2020-08-11T16:44:00.123Z',
+                    new Date('2020-08-11T16:44:00Z'),
+                    moment('2020-08-11T16:44:00Z'),
+                ];
+
+                validTimestamps.forEach((timestamp) => {
+                    const result = formatItemValue(
+                        mockTimestampField,
+                        timestamp,
+                    );
+                    expect(result).not.toBe('NaT');
+                    expect(result).not.toContain('Invalid');
+                });
+            });
+
+            test('should return NaT for invalid formats', () => {
+                const invalidTimestamps = [
+                    'invalid-date-string',
+                    '2020-13-45',
+                    '2020-08-11T25:00:00',
+                    '',
+                    'not-a-date',
+                    '2025-07-08 23:59:58.656000 Asia/Bangkok',
+                ];
+
+                invalidTimestamps.forEach((timestamp) => {
+                    const result = formatItemValue(
+                        mockTimestampField,
+                        timestamp,
+                    );
+                    expect(result).toBe('NaT');
+                });
+            });
+        });
     });
     describe('additional metric formatting', () => {
         test('format additional metric with custom format DATE', () => {

@@ -174,9 +174,6 @@ const BigQueryForm: FC<{
         (e: ChangeEvent<HTMLInputElement>) => {
             onChange(e.target.value === '' ? undefined : e.target.value);
         };
-    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
-        FeatureFlags.PassthroughLogin,
-    );
     const authenticationTypes = [
         {
             value: BigqueryAuthenticationType.PRIVATE_KEY,
@@ -432,7 +429,7 @@ const BigQueryForm: FC<{
                 )}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
-                        {isSsoEnabled && isPassthroughLoginFeatureEnabled && (
+                        {isSsoEnabled && (
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 {...form.getInputProps(

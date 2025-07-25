@@ -18,10 +18,12 @@ import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -54,6 +56,7 @@ import {
     projectWithSensitiveFields,
     resultsWith1Row,
     resultsWith501Rows,
+    sessionAccount,
     spacesWithSavedCharts,
     tablesConfiguration,
     tablesConfigurationWithNames,
@@ -141,6 +144,8 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
+        featureFlagModel: {} as FeatureFlagModel,
+        projectParametersModel: {} as ProjectParametersModel,
     });
 
 describe('ProjectService', () => {
@@ -189,7 +194,7 @@ describe('ProjectService', () => {
     describe('runExploreQuery', () => {
         test('should get results with 1 row', async () => {
             const result = await service.runExploreQuery(
-                user,
+                sessionAccount,
                 metricQueryMock,
                 projectUuid,
                 'valid_explore',
@@ -208,7 +213,7 @@ describe('ProjectService', () => {
             }));
 
             const result = await service.runExploreQuery(
-                user,
+                sessionAccount,
                 metricQueryMock,
                 projectUuid,
                 'valid_explore',

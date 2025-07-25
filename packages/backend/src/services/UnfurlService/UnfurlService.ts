@@ -940,7 +940,9 @@ export class UnfurlService extends BaseService {
                     }
 
                     const fullPage = await page.locator(finalSelector);
-                    const fullPageSize = await fullPage?.boundingBox();
+                    const fullPageSize = await fullPage?.boundingBox({
+                        timeout: RESPONSE_TIMEOUT_MS,
+                    });
 
                     if (
                         chartType !== ChartType.BIG_NUMBER &&

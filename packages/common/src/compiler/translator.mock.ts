@@ -508,6 +508,27 @@ export const MODEL_WITH_SQL_FILTER: DbtModelNode & {
         sql_filter: '${payment_method} IS NOT NULL',
     },
 };
+
+export const MODEL_WITH_AI_HINT: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        ai_hint: 'This is a customers table.',
+    },
+};
+
+export const MODEL_WITH_AI_HINT_IN_CONFIG: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    config: {
+        meta: {
+            ai_hint: 'This is a customers table from config.',
+        },
+    },
+    meta: {},
+};
 export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
     ...model,
     columns: {
@@ -1729,4 +1750,341 @@ export const LIGHTDASH_TABLE_WITH_METRIC_LEVEL_CATEGORIES: Omit<
             ],
         ),
     ),
+};
+
+export const LIGHTDASH_TABLE_WITH_AI_HINT: Omit<Table, 'lineageGraph'> = {
+    ...BASE_LIGHTDASH_TABLE,
+    aiHint: ['This is a customers table.'],
+};
+
+export const LIGHTDASH_TABLE_WITH_AI_HINT_FROM_CONFIG: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    aiHint: ['This is a customers table from config.'],
+};
+
+export const MODEL_WITH_DIMENSION_AI_HINT: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_name: {
+            name: 'user_name',
+            data_type: DimensionType.STRING,
+            meta: {
+                dimension: {
+                    ai_hint: 'User name dimension with AI hint.',
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_METRIC_AI_HINT: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_id: {
+            name: 'user_id',
+            data_type: DimensionType.STRING,
+            meta: {
+                metrics: {
+                    user_count_with_ai: {
+                        type: MetricType.COUNT_DISTINCT,
+                        ai_hint: 'Count of unique users with AI hint.',
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    dimensions: {
+        user_name: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.user_name',
+            name: 'user_name',
+            label: 'User name',
+            table: 'myTable',
+            tableLabel: 'My table',
+            source: undefined,
+            timeInterval: undefined,
+            timeIntervalBaseDimensionName: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groups: [],
+            colors: undefined,
+            index: 0,
+            isIntervalBase: false,
+            aiHint: ['User name dimension with AI hint.'],
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_METRIC_AI_HINT: Omit<Table, 'lineageGraph'> =
+    {
+        ...BASE_LIGHTDASH_TABLE,
+        dimensions: {
+            user_id: {
+                fieldType: FieldType.DIMENSION,
+                requiredAttributes: undefined,
+                description: undefined,
+                type: DimensionType.STRING,
+                sql: '${TABLE}.user_id',
+                name: 'user_id',
+                label: 'User id',
+                table: 'myTable',
+                tableLabel: 'My table',
+                source: undefined,
+                timeInterval: undefined,
+                timeIntervalBaseDimensionName: undefined,
+                hidden: false,
+                format: undefined,
+                round: undefined,
+                compact: undefined,
+                groups: [],
+                colors: undefined,
+                index: 0,
+                isIntervalBase: false,
+            },
+        },
+        metrics: {
+            user_count_with_ai: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.COUNT_DISTINCT,
+                sql: '${TABLE}.user_id',
+                name: 'user_count_with_ai',
+                label: 'User count with ai',
+                table: 'myTable',
+                tableLabel: 'My table',
+                description: 'Count distinct of User id',
+                source: undefined,
+                hidden: false,
+                format: undefined,
+                round: undefined,
+                percentile: undefined,
+                compact: undefined,
+                showUnderlyingValues: undefined,
+                groups: [],
+                filters: [],
+                index: 0,
+                dimensionReference: 'myTable_user_id',
+                requiredAttributes: undefined,
+                spotlight: {
+                    visibility: 'show',
+                    categories: [],
+                },
+                aiHint: ['Count of unique users with AI hint.'],
+            },
+        },
+    };
+
+export const MODEL_WITH_MODEL_METRIC_AI_HINT: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        metrics: {
+            completion_percentage: {
+                type: MetricType.NUMBER,
+                sql: '${total_completed}/${total_orders}',
+                ai_hint: 'Completion percentage of orders.',
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_AI_HINT_ARRAY: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        ai_hint: ['This is a customers table.', 'Contains customer data.'],
+    },
+};
+
+export const MODEL_WITH_DIMENSION_AI_HINT_ARRAY: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_name: {
+            name: 'user_name',
+            data_type: DimensionType.STRING,
+            meta: {
+                dimension: {
+                    ai_hint: ['User name dimension.', 'Contains PII data.'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_METRIC_AI_HINT_ARRAY: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_id: {
+            name: 'user_id',
+            data_type: DimensionType.STRING,
+            meta: {
+                metrics: {
+                    user_count_with_ai: {
+                        type: MetricType.COUNT_DISTINCT,
+                        ai_hint: [
+                            'Count of unique users.',
+                            'Excludes null values.',
+                        ],
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_MODEL_METRIC_AI_HINT: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    metrics: {
+        completion_percentage: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.NUMBER,
+            sql: '${total_completed}/${total_orders}',
+            name: 'completion_percentage',
+            label: 'Completion percentage',
+            table: 'myTable',
+            tableLabel: 'My table',
+            description: undefined,
+            source: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            percentile: undefined,
+            compact: undefined,
+            showUnderlyingValues: undefined,
+            groups: [],
+            filters: [],
+            index: 0,
+            dimensionReference: undefined,
+            requiredAttributes: undefined,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
+            aiHint: ['Completion percentage of orders.'],
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_AI_HINT_ARRAY: Omit<Table, 'lineageGraph'> = {
+    ...BASE_LIGHTDASH_TABLE,
+    aiHint: ['This is a customers table.', 'Contains customer data.'],
+};
+
+export const LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT_ARRAY: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    dimensions: {
+        user_name: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.user_name',
+            name: 'user_name',
+            label: 'User name',
+            table: 'myTable',
+            tableLabel: 'My table',
+            source: undefined,
+            timeInterval: undefined,
+            timeIntervalBaseDimensionName: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groups: [],
+            colors: undefined,
+            index: 0,
+            isIntervalBase: false,
+            aiHint: ['User name dimension.', 'Contains PII data.'],
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_METRIC_AI_HINT_ARRAY: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    dimensions: {
+        user_id: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.user_id',
+            name: 'user_id',
+            label: 'User id',
+            table: 'myTable',
+            tableLabel: 'My table',
+            source: undefined,
+            timeInterval: undefined,
+            timeIntervalBaseDimensionName: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groups: [],
+            colors: undefined,
+            index: 0,
+            isIntervalBase: false,
+        },
+    },
+    metrics: {
+        user_count_with_ai: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.COUNT_DISTINCT,
+            sql: '${TABLE}.user_id',
+            name: 'user_count_with_ai',
+            label: 'User count with ai',
+            table: 'myTable',
+            tableLabel: 'My table',
+            description: 'Count distinct of User id',
+            source: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            percentile: undefined,
+            compact: undefined,
+            showUnderlyingValues: undefined,
+            groups: [],
+            filters: [],
+            index: 0,
+            dimensionReference: 'myTable_user_id',
+            requiredAttributes: undefined,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
+            aiHint: ['Count of unique users.', 'Excludes null values.'],
+        },
+    },
 };

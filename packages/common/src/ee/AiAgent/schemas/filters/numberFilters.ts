@@ -18,7 +18,9 @@ const numberFilterSchema = z.union([
     z.object({
         operator: z.union([
             z.literal(FilterOperator.LESS_THAN),
+            z.literal(FilterOperator.LESS_THAN_OR_EQUAL),
             z.literal(FilterOperator.GREATER_THAN),
+            z.literal(FilterOperator.GREATER_THAN_OR_EQUAL),
         ]),
         values: z.array(z.number()).length(1),
     }),

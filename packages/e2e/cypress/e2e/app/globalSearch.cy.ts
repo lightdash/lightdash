@@ -43,7 +43,8 @@ describe('Global search', () => {
         // search and select dashboard
         search('jaffle');
         cy.findByRole('dialog')
-            .findByRole('menuitem', { name: /Jaffle dashboard/ })
+            .findAllByRole('menuitem', { name: /Jaffle dashboard/ })
+            .first()
             .scrollIntoView()
             .click();
         cy.url().should(

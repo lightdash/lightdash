@@ -4,4 +4,5 @@ export type AiAgentExploreSummary = {
     label: string;
     description: string | undefined;
     baseTable: string;
+    aiHint?: string | string[];
 };

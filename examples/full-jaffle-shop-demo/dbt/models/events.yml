@@ -14,12 +14,18 @@ models:
           label: nested group
         another_nested_group: 
           label: another nested group
+      ai_hint: 
+        - This is an events table
+        - Contains user activity and engagement data
     columns:
       - name: timestamp_tz
         description: ""
         meta:
           dimension:
             label: 'Timestamp (with timezone)'
+            ai_hint: 
+              - Timestamp with timezone
+              - Includes timezone information
             type: timestamp
             time_intervals:
               - RAW

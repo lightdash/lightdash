@@ -2,6 +2,85 @@ version: '3.8'
 volumes:
     node_modules:
 
+# Common configuration for Lightdash services
+x-lightdash-build: &lightdash-build
+    context: ..
+    dockerfile: dockerfile
+    target: dev
+
+x-lightdash-volumes: &lightdash-volumes
+    - '../:/usr/app'
+    - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
+    - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+    # - ${HOME}/.config/gcloud:/root/.config/gcloud # Uncomment this line if you want to use your credential as gcloud ADC in dev container
+
+x-lightdash-environment: &lightdash-environment
+    PGHOST: ${PGHOST}
+    PGPORT: ${PGPORT}
+    PGUSER: ${PGUSER}
+    PGPASSWORD: ${PGPASSWORD}
+    PGDATABASE: ${PGDATABASE}
+    RUDDERSTACK_WRITE_KEY: ${RUDDERSTACK_WRITE_KEY}
+    RUDDERSTACK_DATA_PLANE_URL: ${RUDDERSTACK_DATA_PLANE_URL}
+    SECURE_COOKIES: ${SECURE_COOKIES}
+    LIGHTDASH_SECRET: ${LIGHTDASH_SECRET}
+    LIGHTDASH_LOG_LEVEL: ${LIGHTDASH_LOG_LEVEL}
+    LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
+    NODE_ENV: ${NODE_ENV}
+    DBT_DEMO_DIR: ${DBT_DEMO_DIR}
+    AUTH_DISABLE_PASSWORD_AUTHENTICATION: ${AUTH_DISABLE_PASSWORD_AUTHENTICATION}
+    AUTH_ENABLE_GROUP_SYNC: ${AUTH_ENABLE_GROUP_SYNC}
+    SITE_URL: ${SITE_URL}
+    EXPOSED_SITE_URL: ${EXPOSED_SITE_URL}
+    ALLOW_MULTIPLE_ORGS: ${ALLOW_MULTIPLE_ORGS}
+    LIGHTDASH_QUERY_MAX_LIMIT: ${LIGHTDASH_QUERY_MAX_LIMIT}
+    HEADLESS_BROWSER_HOST: ${HEADLESS_BROWSER_HOST}
+    HEADLESS_BROWSER_PORT: ${HEADLESS_BROWSER_PORT}
+    INTERNAL_LIGHTDASH_HOST: ${INTERNAL_LIGHTDASH_HOST}
+    USE_SECURE_BROWSER: ${USE_SECURE_BROWSER}
+    GROUPS_ENABLED: ${GROUPS_ENABLED}
+    POSTHOG_PROJECT_API_KEY: ${POSTHOG_PROJECT_API_KEY}
+    OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    AI_COPILOT_ENABLED: ${AI_COPILOT_ENABLED}
+    POSTHOG_FE_API_HOST: ${POSTHOG_FE_API_HOST}
+    POSTHOG_BE_API_HOST: ${POSTHOG_BE_API_HOST}
+    SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+    SLACK_CLIENT_ID: ${SLACK_CLIENT_ID}
+    SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
+    SLACK_STATE_SECRET: ${SLACK_STATE_SECRET}
+    GITHUB_PRIVATE_KEY: ${GITHUB_PRIVATE_KEY}
+    GITHUB_APP_ID: ${GITHUB_APP_ID}
+    GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+    GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+    GITHUB_APP_NAME: ${GITHUB_APP_NAME}
+    GITHUB_REDIRECT_DOMAIN: ${GITHUB_REDIRECT_DOMAIN}
+    GOOGLE_DRIVE_API_KEY: ${GOOGLE_DRIVE_API_KEY}
+    AUTH_ENABLE_GCLOUD_ADC: ${AUTH_ENABLE_GCLOUD_ADC}
+    AUTH_GOOGLE_OAUTH2_CLIENT_ID: ${AUTH_GOOGLE_OAUTH2_CLIENT_ID}
+    AUTH_GOOGLE_OAUTH2_CLIENT_SECRET: ${AUTH_GOOGLE_OAUTH2_CLIENT_SECRET}
+    S3_ENDPOINT: ${S3_ENDPOINT}
+    S3_REGION: ${S3_REGION}
+    S3_BUCKET: ${S3_BUCKET}
+    S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+    S3_SECRET_KEY: ${S3_SECRET_KEY}
+    S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
+    S3_EXPIRATION_TIME: ${S3_EXPIRATION_TIME}
+    RESULTS_S3_REGION: ${RESULTS_S3_REGION:-${RESULTS_CACHE_S3_REGION}}
+    RESULTS_S3_BUCKET: ${RESULTS_S3_BUCKET:-${RESULTS_CACHE_S3_BUCKET}}
+    RESULTS_S3_SECRET_KEY: ${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
+    RESULTS_S3_ACCESS_KEY: ${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
+    LIGHTDASH_PROMETHEUS_ENABLED: ${LIGHTDASH_PROMETHEUS_ENABLED}
+
+x-lightdash-base: &lightdash-base
+    build: *lightdash-build
+    depends_on:
+        - minio
+        - db-dev
+    volumes: *lightdash-volumes
+    environment:
+        <<: *lightdash-environment
+
 services:
     minio:
         image: bitnami/minio:latest
@@ -15,83 +94,37 @@ services:
             - MINIO_BROWSER=${MINIO_BROWSER:-off}
 
     lightdash-dev:
-        build:
-            context: ..
-            dockerfile: dockerfile
-            target: dev
-        depends_on:
-            - minio
-            - db-dev
+        <<: *lightdash-base
         environment:
-            - PGHOST=${PGHOST}
-            - PGPORT=${PGPORT}
-            - PGUSER=${PGUSER}
-            - PGPASSWORD=${PGPASSWORD}
-            - PGDATABASE=${PGDATABASE}
-            - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
-            - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
-            - SECURE_COOKIES=${SECURE_COOKIES}
-            - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
-            - LIGHTDASH_LOG_LEVEL=${LIGHTDASH_LOG_LEVEL}
-            - LIGHTDASH_LICENSE_KEY=${LIGHTDASH_LICENSE_KEY}
-            - NODE_ENV=${NODE_ENV}
-            - DBT_DEMO_DIR=${DBT_DEMO_DIR}
-            - AUTH_DISABLE_PASSWORD_AUTHENTICATION=${AUTH_DISABLE_PASSWORD_AUTHENTICATION}
-            - AUTH_ENABLE_GROUP_SYNC=${AUTH_ENABLE_GROUP_SYNC}
-            - SITE_URL=${SITE_URL}
-            - EXPOSED_SITE_URL=${EXPOSED_SITE_URL}
-            - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
-            - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
-            - HEADLESS_BROWSER_HOST=${HEADLESS_BROWSER_HOST}
-            - HEADLESS_BROWSER_PORT=${HEADLESS_BROWSER_PORT}
-            - INTERNAL_LIGHTDASH_HOST=${INTERNAL_LIGHTDASH_HOST}
-            - USE_SECURE_BROWSER=${USE_SECURE_BROWSER}
-            - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
-            - GROUPS_ENABLED=${GROUPS_ENABLED}
-            - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
-            - OPENAI_API_KEY=${OPENAI_API_KEY}
-            - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-            - AI_COPILOT_ENABLED=${AI_COPILOT_ENABLED}
-            - AI_COPILOT_EMBEDDING_SEARCH_ENABLED=${AI_COPILOT_EMBEDDING_SEARCH_ENABLED}
-            - POSTHOG_FE_API_HOST=${POSTHOG_FE_API_HOST}
-            - POSTHOG_BE_API_HOST=${POSTHOG_BE_API_HOST}
-            - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
-            - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
-            - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
-            - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
-            - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
-            - GITHUB_APP_ID=${GITHUB_APP_ID}
-            - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-            - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-            - GITHUB_APP_NAME=${GITHUB_APP_NAME}
-            - GITHUB_REDIRECT_DOMAIN=${GITHUB_REDIRECT_DOMAIN}
-            - GOOGLE_DRIVE_API_KEY=${GOOGLE_DRIVE_API_KEY}
-            - AUTH_ENABLE_GCLOUD_ADC=${AUTH_ENABLE_GCLOUD_ADC}
-            - AUTH_GOOGLE_OAUTH2_CLIENT_ID=${AUTH_GOOGLE_OAUTH2_CLIENT_ID}
-            - AUTH_GOOGLE_OAUTH2_CLIENT_SECRET=${AUTH_GOOGLE_OAUTH2_CLIENT_SECRET}
-            - S3_ENDPOINT=${S3_ENDPOINT}
-            - S3_REGION=${S3_REGION}
-            - S3_BUCKET=${S3_BUCKET}
-            - S3_ACCESS_KEY=${S3_ACCESS_KEY}
-            - S3_SECRET_KEY=${S3_SECRET_KEY}
-            - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE}
-            - S3_EXPIRATION_TIME=${S3_EXPIRATION_TIME}
-            - RESULTS_S3_REGION=${RESULTS_S3_REGION:-${RESULTS_CACHE_S3_REGION}}
-            - RESULTS_S3_BUCKET=${RESULTS_S3_BUCKET:-${RESULTS_CACHE_S3_BUCKET}}
-            - RESULTS_S3_SECRET_KEY=${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
-            - RESULTS_S3_ACCESS_KEY=${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
-        volumes:
-            - '../:/usr/app'
-            - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
-            - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
-            # - ${HOME}/.config/gcloud:/root/.config/gcloud # Uncomment this line if you want to use your credential as gcloud ADC in dev container
+            <<: *lightdash-environment
+            SCHEDULER_ENABLED: ${SCHEDULER_ENABLED}
+            SCHEDULER_INCLUDE_TASKS: ${SCHEDULER_INCLUDE_TASKS}
+            SCHEDULER_EXCLUDE_TASKS: ${SCHEDULER_EXCLUDE_TASKS:-runAsyncWarehouseQuery}
+            LIGHTDASH_PROMETHEUS_PORT: ${LIGHTDASH_PROMETHEUS_PORT}
+            LIGHTDASH_PROMETHEUS_PATH: ${LIGHTDASH_PROMETHEUS_PATH}
         ports:
             - '8080:8080'
             - '9090:9090'
             - '3000:3000'
             - '6006:6006'
+            - '9229:9229'
         command: ''
         entrypoint: ['/bin/sh', '-c', 'sleep infinity']
+
+    lightdash-query-worker:
+        <<: *lightdash-base
+        depends_on:
+            - minio
+            - db-dev
+            - lightdash-dev
+        restart: unless-stopped
+        environment:
+            <<: *lightdash-environment
+            SCHEDULER_ENABLED: true
+            SCHEDULER_INCLUDE_TASKS: runAsyncWarehouseQuery
+        command: ''
+        entrypoint: ['/bin/sh', '-c', 'pnpm -F backend scheduler-dev']
+
     db-dev:
         image: pgvector/pgvector:pg16
         restart: always
@@ -100,8 +133,42 @@ services:
         ports:
             - '5432:5432'
 
+    ssh-server:
+        image: linuxserver/openssh-server:latest
+        restart: always
+        depends_on:
+            - db-dev
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=UTC
+            - PUBLIC_KEY=${DEV_SSH_PUBLIC_KEY:-}
+            - USER_NAME=sshuser
+            - SUDO_ACCESS=true
+            - PASSWORD_ACCESS=false
+            - LOG_STDOUT=true
+        ports:
+            - '2222:2222'
+        volumes:
+            - ./dev-configs/sshd_config:/config/sshd/sshd_config
+
     headless-browser:
         image: ghcr.io/browserless/chromium:v2.24.3
         restart: always
         ports:
             - '3001:3000'
+
+    prometheus:
+        image: prom/prometheus:latest
+        restart: always
+        ports:
+            - '9091:9090'
+        volumes:
+            - ./dev-configs/prometheus.dev.yml:/etc/prometheus/prometheus.yml
+        command:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus'
+            - '--web.console.libraries=/etc/prometheus/console_libraries'
+            - '--web.console.templates=/etc/prometheus/consoles'
+            - '--storage.tsdb.retention.time=200h'
+            - '--web.enable-lifecycle'

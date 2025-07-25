@@ -8,16 +8,25 @@ import {
     type LightdashProjectConfig,
 } from '../types/lightdashProjectConfig';
 
+const defaultConfig: LightdashProjectConfig = {
+    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+};
 export const loadLightdashProjectConfig = async (
     yamlFileContents: string,
     onLoaded?: (config: LightdashProjectConfig) => Promise<void>,
 ): Promise<LightdashProjectConfig> => {
     if (yamlFileContents.trim() === '') {
-        return {
-            spotlight: DEFAULT_SPOTLIGHT_CONFIG,
-        };
+        return defaultConfig;
     }
-    const configFile = yaml.load(yamlFileContents);
+    // Type assertion for the loaded YAML config
+    const loadedConfig = yaml.load(
+        yamlFileContents,
+    ) as Partial<LightdashProjectConfig>;
+    // Merge the loaded config with the default config
+    const configFile: LightdashProjectConfig = {
+        ...defaultConfig,
+        ...loadedConfig,
+    };
     const ajv = new Ajv({ coerceTypes: true });
     const validate = ajv.compile<LightdashProjectConfig>(
         lightdashProjectConfigSchema,
@@ -33,6 +42,10 @@ export const loadLightdashProjectConfig = async (
         throw new ParseError(
             `Invalid lightdash.config.yml with errors:\n${errors}`,
         );
+    }
+
+    if (configFile.parameters == null) {
+        configFile.parameters = undefined;
     }
 
     if (onLoaded) {

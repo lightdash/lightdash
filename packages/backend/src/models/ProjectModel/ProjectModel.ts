@@ -201,6 +201,19 @@ export class ProjectModel {
         };
     }
 
+    async getSingleProjectUuidInInstance(): Promise<string> {
+        const projects = await this.database('projects').select('*');
+        if (projects.length === 0) {
+            throw new NotExistsError('Cannot find project');
+        }
+        if (projects.length > 1) {
+            throw new ParameterError(
+                'There are multiple projects in the instance',
+            );
+        }
+        return projects[0].project_uuid;
+    }
+
     async getAllByOrganizationUuid(
         organizationUuid: string,
     ): Promise<OrganizationProject[]> {
@@ -363,6 +376,13 @@ export class ProjectModel {
             .count('project_uuid as count')
             .first<{ count: string }>();
         return parseInt(results.count, 10) > 0;
+    }
+
+    async getDefaultProjectUuids(): Promise<string[]> {
+        const projects = await this.database('projects')
+            .where('project_type', ProjectType.DEFAULT)
+            .select('project_uuid');
+        return projects.map((project) => project.project_uuid);
     }
 
     async hasProjects(organizationUuid: string): Promise<boolean> {
@@ -923,6 +943,23 @@ export class ProjectModel {
                 );
                 return finalExplores;
             },
+        );
+    }
+
+    async findVirtualViewsFromCache(
+        projectUuid: string,
+    ): Promise<Record<string, Explore | ExploreError>> {
+        const virtualViews = await this.database(CachedExploreTableName)
+            .select('explore')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
+
+        return virtualViews.reduce<Record<string, Explore | ExploreError>>(
+            (acc, { explore }) => {
+                acc[explore.name] = explore;
+                return acc;
+            },
+            {},
         );
     }
 

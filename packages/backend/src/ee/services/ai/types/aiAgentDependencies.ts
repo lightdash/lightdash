@@ -3,7 +3,11 @@ import {
     AiWebAppPrompt,
     AnyType,
     CacheMetadata,
+    CatalogField,
+    CompiledDimension,
+    CompiledMetric,
     Explore,
+    FieldSearchQuery,
     ItemsMap,
     SlackPrompt,
     UpdateSlackResponse,
@@ -15,15 +19,16 @@ import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
 export type GetExploresFn = () => Promise<AiAgentExploreSummary[]>;
 
-export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
+export type FindFieldFn = (args: {
+    fieldSearchQuery: FieldSearchQuery;
+}) => Promise<
+    {
+        catalogField: CatalogField;
+        exploreField: CompiledDimension | CompiledMetric;
+    }[]
+>;
 
-export type SearchFieldsFn = (args: {
-    exploreName: string;
-    embeddingSearchQueries: Array<{
-        name: string;
-        description: string;
-    }>;
-}) => Promise<string[]>;
+export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
 
 export type UpdateProgressFn = (progress: string) => Promise<void>;
 

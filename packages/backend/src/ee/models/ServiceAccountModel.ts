@@ -59,14 +59,14 @@ export class ServiceAccountModel {
     }
 
     async save(
-        user: SessionUser,
+        user: SessionUser | undefined,
         data: CreateServiceAccount,
         token: string,
     ): Promise<ServiceAccountWithToken> {
         const tokenHash = ServiceAccountModel._hash(token);
         const [row] = await this.database('service_accounts')
             .insert({
-                created_by_user_uuid: user.userUuid,
+                created_by_user_uuid: user?.userUuid || null,
                 organization_uuid: data.organizationUuid,
                 expires_at: data.expiresAt,
                 description: data.description,

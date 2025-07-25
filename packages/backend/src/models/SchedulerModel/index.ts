@@ -1,6 +1,8 @@
 import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
@@ -40,6 +42,14 @@ import {
 } from '../../database/entities/scheduler';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
+import { getColumnMatchRegexQuery } from '../SearchModel/utils/search';
+
+type SelectScheduler = SchedulerDb & {
+    created_by_name: string | null;
+    saved_chart_name: string | null;
+    dashboard_name: string | null;
+};
 
 type SchedulerModelArguments = {
     database: Knex;
@@ -59,7 +69,7 @@ export class SchedulerModel {
         this.database = args.database;
     }
 
-    static convertScheduler(scheduler: SchedulerDb): Scheduler {
+    static convertScheduler(scheduler: SelectScheduler): Scheduler {
         return {
             schedulerUuid: scheduler.scheduler_uuid,
             name: scheduler.name,
@@ -67,10 +77,13 @@ export class SchedulerModel {
             createdAt: scheduler.created_at,
             updatedAt: scheduler.updated_at,
             createdBy: scheduler.created_by,
+            createdByName: scheduler.created_by_name,
             cron: scheduler.cron,
             timezone: scheduler.timezone ?? undefined,
             savedChartUuid: scheduler.saved_chart_uuid,
+            savedChartName: scheduler.saved_chart_name,
             dashboardUuid: scheduler.dashboard_uuid,
+            dashboardName: scheduler.dashboard_name,
             format: scheduler.format,
             options: scheduler.options,
             filters: scheduler.filters,
@@ -134,8 +147,35 @@ export class SchedulerModel {
         }, []);
     }
 
+    static getBaseSchedulerQuery(db: Knex) {
+        return db(SchedulerTableName)
+            .select<SelectScheduler[]>(
+                `${SchedulerTableName}.*`,
+                db.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+                ),
+                `${SavedChartsTableName}.name as saved_chart_name`,
+                `${DashboardsTableName}.name as dashboard_name`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            );
+    }
+
     private async getSchedulersWithTargets(
-        schedulers: SchedulerDb[],
+        schedulers: SelectScheduler[],
     ): Promise<SchedulerAndTargets[]> {
         const slackTargets = await this.database(SchedulerSlackTargetTableName)
             .select()
@@ -172,23 +212,99 @@ export class SchedulerModel {
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
-        const schedulers = this.database(SchedulerTableName)
-            .select()
-            .join(
-                UserTableName,
-                `${UserTableName}.user_uuid`,
-                `${SchedulerTableName}.created_by`,
-            )
+        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.enabled`, true)
             .where(`${UserTableName}.is_active`, true);
         return this.getSchedulersWithTargets(await schedulers);
     }
 
+    async getSchedulers({
+        projectUuid,
+        paginateArgs,
+        searchQuery,
+        sort,
+    }: {
+        projectUuid?: string;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+    }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        let baseQuery = SchedulerModel.getBaseSchedulerQuery(this.database);
+
+        // Apply search query if present
+        if (searchQuery) {
+            baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
+                `${SchedulerTableName}.name`,
+            ]);
+        }
+        // Create a union of two queries: one for saved charts and one for dashboards
+        const schedulerCharts = baseQuery
+            .clone()
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNotNull(`${SavedChartsTableName}.space_id`);
+            })
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
+
+        const schedulerDashboards = baseQuery
+            .clone()
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
+
+        // Use union to combine both queries
+        let query = schedulerCharts.unionAll(schedulerDashboards);
+
+        // Apply sorting if present, default to name asc
+        if (sort && sort.column && sort.direction) {
+            query = query.orderBy(sort.column, sort.direction);
+        } else {
+            query = query.orderBy([
+                {
+                    column: `name`,
+                    order: 'asc',
+                },
+                {
+                    column: `created_at`,
+                    order: 'asc',
+                },
+            ]);
+        }
+
+        // Paginate the results
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: await this.getSchedulersWithTargets(data),
+        };
+    }
+
     async getChartSchedulers(
         savedChartUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        const schedulers = this.database(SchedulerTableName)
-            .select()
+        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid)
             .orderBy([
                 {
@@ -206,8 +322,7 @@ export class SchedulerModel {
     async getDashboardSchedulers(
         dashboardUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        const schedulers = this.database(SchedulerTableName)
-            .select()
+        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy([
                 {
@@ -223,9 +338,9 @@ export class SchedulerModel {
     }
 
     async getScheduler(schedulerUuid: string): Promise<Scheduler> {
-        const [scheduler] = await this.database(SchedulerTableName)
-            .select()
-            .where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);
+        const [scheduler] = await SchedulerModel.getBaseSchedulerQuery(
+            this.database,
+        ).where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);
         if (!scheduler) {
             throw new NotFoundError('Scheduler not found');
         }
@@ -235,9 +350,9 @@ export class SchedulerModel {
     async getSchedulerAndTargets(
         schedulerUuid: string,
     ): Promise<SchedulerAndTargets> {
-        const [scheduler] = await this.database(SchedulerTableName)
-            .select()
-            .where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);
+        const [scheduler] = await SchedulerModel.getBaseSchedulerQuery(
+            this.database,
+        ).where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);
         if (!scheduler) {
             throw new NotFoundError('Scheduler not found');
         }
@@ -536,7 +651,19 @@ export class SchedulerModel {
         projectUuid: string,
     ): Promise<SchedulerAndTargets[]> {
         const schedulerCharts = this.database(SchedulerTableName)
-            .select('scheduler.*')
+            .select<SelectScheduler[]>(
+                `${SchedulerTableName}.*`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+                ),
+                `${SavedChartsTableName}.name as saved_chart_name`,
+                `${DashboardsTableName}.name as dashboard_name`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
             .leftJoin(
                 SavedChartsTableName,
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -569,7 +696,19 @@ export class SchedulerModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
         const schedulerDashboards = this.database(SchedulerTableName)
-            .select('scheduler.*')
+            .select<SelectScheduler[]>(
+                `${SchedulerTableName}.*`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+                ),
+                this.database.raw(`NULL as saved_chart_name`),
+                `${DashboardsTableName}.name as dashboard_name`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
             .leftJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,

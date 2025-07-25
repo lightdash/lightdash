@@ -1,17 +1,19 @@
 import { getErrorMessage } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import Logger from '../../../../logging/logger';
+import { serializeData } from './serializeData';
 
 export const toolErrorHandler = (error: unknown, message: string) => {
     Sentry.captureException(error);
-    Logger.debug({ message, error });
 
-    return `${message}
+    const errorMessage = `${message}
 
-\`\`\`
-${getErrorMessage(error)}
-\`\`\`
+${serializeData(getErrorMessage(error), 'raw')}
 
 Try again if you believe the error can be resolved.
 `;
+
+    Logger.error(`[AiAgent][Tool Error Handler] ${errorMessage}`);
+
+    return errorMessage;
 };

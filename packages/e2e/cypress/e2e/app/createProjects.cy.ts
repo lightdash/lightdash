@@ -8,7 +8,7 @@ const warehouseConfig = {
     postgresSQL: {
         name: 'Jaffle PostgreSQL test',
         host: Cypress.env('PGHOST') || 'db-dev',
-        user: 'postgres',
+        user: Cypress.env('PGUSER') || 'postgres',
         password: Cypress.env('PGPASSWORD') || 'password',
         database: 'postgres',
         port: '5432',
@@ -169,7 +169,7 @@ const testCompile = (): Cypress.Chainable<string> => {
     cy.contains('Step 2/3', { timeout: 60000 });
     cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
-    cy.contains('selected 20 models');
+    cy.contains('selected 21 models');
     // Configure
     cy.contains('button', 'Save changes').click();
     cy.url().should('include', '/home', { timeout: 30000 });
@@ -337,7 +337,7 @@ const testTimeIntervalsResults = (
 
 const apiUrl = '/api/v1';
 
-const createCustomDimensionChart = (projectUuid) => {
+const createCustomDimensionChart = (projectUuid: string) => {
     // This is used by create project to quickly create a custom dimension chart
     // because we don't have charts on new projects created by the e2e tests
 
@@ -412,7 +412,7 @@ const createCustomDimensionChart = (projectUuid) => {
     });
 };
 
-const testCustomDimensions = (projectUuid) => {
+const testCustomDimensions = (projectUuid: string) => {
     // Test custom dimension by going into an existing chart with custom dimensions and running the query
     // This is also used in createProject.cy.ts to test custom dimensions against all warehouses
     cy.visit(`/projects/${projectUuid}/saved`);

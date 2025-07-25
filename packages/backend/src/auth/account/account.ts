@@ -1,0 +1,194 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
+// This rule is failing in CI but passes locally
+import { Ability, AbilityBuilder } from '@casl/ability';
+import {
+    Account,
+    AccountHelpers,
+    AccountOrganization,
+    AnonymousAccount,
+    ApiKeyAccount,
+    applyEmbeddedAbility,
+    CreateEmbedJwt,
+    Embed,
+    ForbiddenError,
+    MemberAbility,
+    Organization,
+    ServiceAcctAccount,
+    SessionAccount,
+    SessionUser,
+    UserAccessControls,
+} from '@lightdash/common';
+
+/**
+ * Creates an ID for the external user. We prefix the ID to prevent hijacking a real user ID.
+ * For the default ID, we limit the length to under 255 characters as that's the varchar limit for Postgres.
+ */
+const getExternalId = (
+    decodedToken: CreateEmbedJwt,
+    embedToken: string,
+    organization: Pick<Organization, 'organizationUuid' | 'name'>,
+): string => {
+    const defaultBase = `${organization.organizationUuid}_${embedToken}`;
+    const baseId = decodedToken.user?.externalId || defaultBase;
+    return `external::${baseId}`.slice(0, 254);
+};
+
+type WithoutHelpers<T extends Account> = Omit<T, keyof AccountHelpers>;
+
+function createAccount(account: WithoutHelpers<SessionAccount>): SessionAccount;
+function createAccount(
+    account: WithoutHelpers<AnonymousAccount>,
+): AnonymousAccount;
+function createAccount(account: WithoutHelpers<ApiKeyAccount>): ApiKeyAccount;
+function createAccount(
+    account: WithoutHelpers<ServiceAcctAccount>,
+): ServiceAcctAccount;
+function createAccount(account: WithoutHelpers<Account>): Account {
+    if (!account.user?.ability || !account.user?.abilityRules) {
+        throw new ForbiddenError(
+            'User ability and abilityRules are required for permissions',
+        );
+    }
+
+    const helpers: AccountHelpers = {
+        isAuthenticated: () => !!account.authentication && !!account.user?.id,
+        isRegisteredUser: () => account.user?.type === 'registered',
+        isAnonymousUser: () => account.user?.type === 'anonymous',
+        isSessionUser: () => account.authentication?.type === 'session',
+        isJwtUser: () => account.authentication?.type === 'jwt',
+        isServiceAccount: () =>
+            account.authentication?.type === 'service-account',
+        isPatUser: () => account.authentication?.type === 'pat',
+    };
+
+    return {
+        ...account,
+        ...helpers,
+    } as Account;
+}
+
+/**
+ * Shared helper function to extract organization data and user data from SessionUser
+ */
+const extractOrganizationFromUser = (
+    sessionUser: SessionUser,
+): [AccountOrganization, SessionUser] => {
+    const {
+        organizationCreatedAt,
+        organizationName,
+        organizationUuid,
+        ...user
+    } = sessionUser;
+    return [
+        {
+            organizationUuid,
+            name: organizationName,
+            createdAt: organizationCreatedAt,
+        },
+        user,
+    ];
+};
+
+export const fromJwt = ({
+    decodedToken,
+    organization,
+    source,
+    dashboardUuid,
+    userAttributes,
+}: {
+    decodedToken: CreateEmbedJwt;
+    organization: Embed['organization'];
+    source: string;
+    dashboardUuid: string;
+    userAttributes: UserAccessControls;
+}): AnonymousAccount => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyEmbeddedAbility(decodedToken, dashboardUuid, organization, builder);
+    const abilities = builder.build();
+
+    return createAccount({
+        authentication: {
+            type: 'jwt',
+            data: decodedToken,
+            source,
+        },
+        organization,
+        access: {
+            dashboardId: dashboardUuid,
+            filtering: decodedToken.content.dashboardFiltersInteractivity,
+            controls: userAttributes,
+        },
+        // Create the fields we're able to set from the JWT
+        user: {
+            id: getExternalId(decodedToken, source, organization),
+            type: 'anonymous',
+            ability: abilities,
+            abilityRules: abilities.rules,
+            email: decodedToken.user?.email,
+            isActive: true,
+        },
+    });
+};
+
+// TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
+// service-account/principle-user unrelated to a real admin-user.
+// @see https://github.com/lightdash/lightdash/issues/15466
+export const fromServiceAccount = (
+    sessionUser: SessionUser,
+    source: string,
+): ServiceAcctAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+
+    return createAccount({
+        authentication: {
+            type: 'service-account',
+            source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
+export const fromApiKey = (
+    sessionUser: SessionUser,
+    source: string,
+): ApiKeyAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+
+    return createAccount({
+        authentication: {
+            type: 'pat',
+            source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
+export const fromSession = (
+    sessionUser: SessionUser,
+    source: string = '',
+): SessionAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+
+    return createAccount({
+        authentication: {
+            type: 'session',
+            source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};

@@ -1,4 +1,5 @@
 import {
+    MAX_SAFE_INTEGER,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -18,6 +19,7 @@ export const useDashboardChartDownload = (
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
+    const parameters = useDashboardContext((c) => c.parameters);
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
@@ -47,8 +49,9 @@ export const useDashboardChartDownload = (
                         dateZoom: dateZoomGranularity
                             ? { granularity: dateZoomGranularity }
                             : undefined,
-                        limit: limit ?? Number.MAX_SAFE_INTEGER,
+                        limit: limit ?? MAX_SAFE_INTEGER,
                         invalidateCache: false,
+                        parameters,
                     }),
                 });
 
@@ -75,6 +78,7 @@ export const useDashboardChartDownload = (
             dashboardFilters,
             dashboardSorts,
             dateZoomGranularity,
+            parameters,
         ],
     );
 

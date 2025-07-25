@@ -15,7 +15,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { validateFilterRules } from '../utils/validators';
+import {
+    validateFilterRules,
+    validateSelectedFieldsExistence,
+} from '../utils/validators';
 import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
 
 type Dependencies = {
@@ -40,11 +43,7 @@ export const getGenerateBarVizConfig = ({
     const schema = toolVerticalBarArgsSchema;
 
     return tool({
-        description: `Generate Bar Chart Visualization and show it to the user.
-
-Rules for generating the bar chart visualization:
-- The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
-- If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
+        description: `Use this tool to generate a Bar Chart Visualization.`,
         parameters: schema,
         execute: async (toolArgs) => {
             try {
@@ -58,6 +57,15 @@ Rules for generating the bar chart visualization:
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
+                const fieldsToValidate = [
+                    vizTool.vizConfig.xDimension,
+                    vizTool.vizConfig.breakdownByDimension,
+                    ...vizTool.vizConfig.yMetrics,
+                    ...vizTool.vizConfig.sorts.map(
+                        (sortField) => sortField.fieldId,
+                    ),
+                ].filter((x) => typeof x === 'string');
+                validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
                 // end of TODO
 

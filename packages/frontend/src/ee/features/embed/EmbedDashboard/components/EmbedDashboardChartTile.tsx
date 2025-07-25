@@ -82,6 +82,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 cacheMetadata: translatedChartData.cacheMetadata,
                 metricQuery: translatedChartData?.metricQuery,
                 fields: translatedChartData?.fields,
+                parameterReferences: [],
+                usedParametersValues: {},
             },
             chart: translatedChartData.chart,
             explore: translatedChartData.explore,

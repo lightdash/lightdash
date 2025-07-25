@@ -56,7 +56,7 @@ DATE_OPERATOR = 'inThePast' / 'inTheNext'
 DATE_INTERVAL = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'years'
 
 NUMBER
-  = FLOAT ([Ee] [+-]? INTEGER)?
+  = '-'? FLOAT ([Ee] [+-]? INTEGER)?
     { return Number(text()) }
 
 FLOAT
@@ -335,6 +335,7 @@ export const parseModelRequiredFilters = ({
         const [key, value] = Object.entries(filterRule)[0];
 
         if (acc.map((a) => a.target.fieldRef).includes(key)) {
+            // eslint-disable-next-line no-console
             console.warn(`Duplicate filter key "${key}" in default filters`);
             return acc;
         }

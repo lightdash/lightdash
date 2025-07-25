@@ -1,33 +1,33 @@
 import {
+    Account,
     DownloadFileType,
     GroupByColumn,
-    ItemsMap,
     MetricQuery,
     PivotConfig,
     SortBy,
     ValuesColumn,
     type CacheMetadata,
     type DashboardFilters,
-    type DateGranularity,
     type DateZoom,
     type Filters,
+    type ParametersValuesMap,
     type PivotIndexColum,
     type QueryExecutionContext,
     type ResultsPaginationArgs,
-    type SessionUser,
     type SortField,
 } from '@lightdash/common';
 
 export type CommonAsyncQueryArgs = {
-    user: SessionUser;
+    account: Account;
     projectUuid: string;
     invalidateCache?: boolean;
     context: QueryExecutionContext;
+    parameters?: ParametersValuesMap;
 };
 
 export type GetAsyncQueryResultsArgs = Omit<
     CommonAsyncQueryArgs,
-    'context' | 'invalidateCache'
+    'context' | 'invalidateCache' | 'parameters'
 > &
     ResultsPaginationArgs & {
         queryUuid: string;
@@ -35,7 +35,7 @@ export type GetAsyncQueryResultsArgs = Omit<
 
 export type DownloadAsyncQueryResultsArgs = Omit<
     CommonAsyncQueryArgs,
-    'invalidateCache' | 'context'
+    'invalidateCache' | 'context' | 'parameters'
 > & {
     queryUuid: string;
     type?: DownloadFileType;

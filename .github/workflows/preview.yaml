@@ -65,3 +65,14 @@ jobs:
               repo: context.repo.repo,
               body: `Preview environment logs can be accessed at: https://console.cloud.google.com/logs/query;query=resource.labels.namespace_name%3D%22pr-${context.issue.number}%22;duration=PT30M?project=lightdash-previews`
             })
+
+      - name: Comment PR with SSH instructions
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `You can ssh into the preview environment by running: \`./scripts/okteto-ssh.sh ${context.issue.number}\``
+            })

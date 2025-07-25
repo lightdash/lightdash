@@ -1,4 +1,6 @@
 import {
+    Account,
+    ForbiddenError,
     NotFoundError,
     QueryHistory,
     QueryHistoryStatus,
@@ -37,7 +39,11 @@ function convertDbQueryHistoryToQueryHistory(
     return {
         queryUuid: queryHistory.query_uuid,
         createdAt: queryHistory.created_at,
+        createdBy:
+            queryHistory.created_by_user_uuid ??
+            queryHistory.created_by_account,
         createdByUserUuid: queryHistory.created_by_user_uuid,
+        createdByAccount: queryHistory.created_by_account,
         organizationUuid: queryHistory.organization_uuid,
         projectUuid: queryHistory.project_uuid,
         compiledSql: queryHistory.compiled_sql,
@@ -92,6 +98,7 @@ export class QueryHistoryModel {
     }
 
     async create(
+        account: Account,
         queryHistory: Omit<
             QueryHistory,
             | 'status'
@@ -111,12 +118,20 @@ export class QueryHistoryModel {
             | 'resultsExpiresAt'
             | 'columns'
             | 'originalColumns'
+            | 'createdByAccount'
+            | 'createdByUserUuid'
+            | 'createdBy'
         >,
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
                 status: QueryHistoryStatus.PENDING,
-                created_by_user_uuid: queryHistory.createdByUserUuid,
+                created_by_user_uuid: account.isRegisteredUser()
+                    ? account.user.id
+                    : null,
+                created_by_account: account.isAnonymousUser()
+                    ? account.user.id
+                    : null,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
                 compiled_sql: queryHistory.compiledSql,
@@ -151,14 +166,21 @@ export class QueryHistoryModel {
     async update(
         queryUuid: string,
         projectUuid: string,
-        userUuid: string,
         update: DbQueryHistoryUpdate,
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        },
     ) {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
-            .andWhere('created_by_user_uuid', userUuid)
             .update(update);
+
+        const createdByColumn = account.isRegisteredUser()
+            ? 'created_by_user_uuid'
+            : 'created_by_account';
+        void query.andWhere(createdByColumn, account.user.id);
+
         // only update pending queries to ready
         if (update.status === QueryHistoryStatus.READY) {
             void query.andWhere('status', QueryHistoryStatus.PENDING);
@@ -166,12 +188,18 @@ export class QueryHistoryModel {
         return query;
     }
 
-    async get(queryUuid: string, projectUuid: string, userUuid: string) {
-        const result = await this.database(QueryHistoryTableName)
+    async get(queryUuid: string, projectUuid: string, account: Account) {
+        const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere('created_by_user_uuid', userUuid)
-            .first();
+            .andWhere('project_uuid', projectUuid);
+
+        const createdByColumn = account.isRegisteredUser()
+            ? 'created_by_user_uuid'
+            : 'created_by_account';
+
+        void query.andWhere(createdByColumn, account.user.id);
+
+        const result = await query.first();
 
         if (!result) {
             throw new NotFoundError(
@@ -179,7 +207,15 @@ export class QueryHistoryModel {
             );
         }
 
-        return convertDbQueryHistoryToQueryHistory(result);
+        const queryHistory = convertDbQueryHistoryToQueryHistory(result);
+
+        if (queryHistory.createdBy !== account.user.id) {
+            throw new ForbiddenError(
+                'User is not authorized to access this query',
+            );
+        }
+
+        return queryHistory;
     }
 
     async findMostRecentByCacheKey(cacheKey: string, projectUuid: string) {

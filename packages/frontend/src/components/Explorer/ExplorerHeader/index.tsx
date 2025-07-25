@@ -6,6 +6,7 @@ import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -95,7 +96,8 @@ const ExplorerHeader: FC = memo(() => {
         'manage',
         'CompileProject',
     );
-    const showQueryWarningsEnabled = useFeatureFlagEnabled(
+
+    const { data: showQueryWarningsEnabled } = useFeatureFlag(
         FeatureFlags.ShowQueryWarnings,
     );
 
@@ -131,7 +133,7 @@ const ExplorerHeader: FC = memo(() => {
                 )}
 
                 {userCanManageCompileProject &&
-                    showQueryWarningsEnabled &&
+                    showQueryWarningsEnabled?.enabled &&
                     queryWarnings &&
                     queryWarnings.length > 0 && (
                         <QueryWarnings queryWarnings={queryWarnings} />

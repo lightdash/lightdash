@@ -4,6 +4,7 @@ import {
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncSqlQueryRequestParams,
+    type ParametersValuesMap,
     QueryHistoryStatus,
     type RawResultRow,
 } from '@lightdash/common';
@@ -37,12 +38,13 @@ export const executeSqlQuery = async (
     projectUuid: string,
     sql: string,
     limit?: number,
+    parameterValues?: ParametersValuesMap,
 ): Promise<ResultsAndColumns> => {
     const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
         url: `/projects/${projectUuid}/query/sql`,
         version: 'v2',
         method: 'POST',
-        body: JSON.stringify({ sql, limit }),
+        body: JSON.stringify({ sql, limit, parameters: parameterValues }),
     });
 
     const query = await pollForResults(projectUuid, response.queryUuid);

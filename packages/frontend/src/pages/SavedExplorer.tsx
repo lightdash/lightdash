@@ -68,6 +68,7 @@ const SavedExplorer = () => {
                               metricQuery: data.metricQuery,
                               tableConfig: data.tableConfig,
                               pivotConfig: data.pivotConfig,
+                              parameters: data.parameters,
                           },
                           modals: {
                               format: {

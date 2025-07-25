@@ -56,6 +56,8 @@ describe('Dashboard List', () => {
         cy.findByRole('menuitem', { name: 'Delete dashboard' }).click();
         // click on delete in the popup
         cy.findByRole('button', { name: 'Delete' }).click();
-        cy.findByText('Jaffle dashboard'); // still exists
+        // We technically should look for one, but we don't reset the DB before tests
+        // It looks like we have multiple Jaffle Dashboards in CI
+        cy.findAllByText('Jaffle dashboard'); // still exists
     });
 });

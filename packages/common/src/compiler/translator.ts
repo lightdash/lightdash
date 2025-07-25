@@ -3,6 +3,7 @@ import {
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
+    convertToAiHints,
     convertToGroups,
     isV9MetricRef,
     type DbtColumnLightdashDimension,
@@ -191,6 +192,9 @@ const convertDimension = (
                       ? meta.dimension.tags
                       : [meta.dimension.tags],
               }
+            : {}),
+        ...(meta.dimension?.ai_hint
+            ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
             : {}),
     };
 };
@@ -607,6 +611,7 @@ export const convertTable = (
                   },
               }
             : {}),
+        ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
     };
 };
 
@@ -801,6 +806,9 @@ export const convertExplores = async (
                     ymlPath: model.patch_path?.split('://')?.[1],
                     sqlPath: model.path,
                     spotlightConfig: lightdashProjectConfig.spotlight,
+                    ...(meta.ai_hint
+                        ? { aiHint: convertToAiHints(meta.ai_hint) }
+                        : {}),
                     meta: {
                         ...meta,
                         // Override description for additional explores

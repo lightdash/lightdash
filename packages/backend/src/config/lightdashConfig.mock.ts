@@ -1,4 +1,8 @@
-import { LightdashMode, OrganizationMemberRole } from '@lightdash/common';
+import {
+    ALL_TASK_NAMES,
+    LightdashMode,
+    OrganizationMemberRole,
+} from '@lightdash/common';
 import { LightdashConfig } from './parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
@@ -137,7 +141,12 @@ export const lightdashConfigMock: LightdashConfig = {
         writeKey: '',
         dataPlaneUrl: '',
     },
-    scheduler: { concurrency: 0, enabled: false, jobTimeout: 0 },
+    scheduler: {
+        concurrency: 0,
+        enabled: false,
+        jobTimeout: 0,
+        tasks: ALL_TASK_NAMES,
+    },
     secureCookies: false,
     sentry: {
         backend: {
@@ -176,10 +185,12 @@ export const lightdashConfigMock: LightdashConfig = {
         defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
+        showQueryWarnings: false,
     },
     ai: {
         copilot: {
             enabled: false,
+            debugLoggingEnabled: false,
             telemetryEnabled: false,
             requiresFeatureFlag: false,
             defaultProvider: 'openai',
@@ -189,7 +200,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     modelName: 'mock_model_name',
                 },
             },
-            embeddingSearchEnabled: false,
+            __experimental__toolFindFields: false,
         },
     },
     embedding: {

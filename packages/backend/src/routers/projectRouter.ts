@@ -116,6 +116,7 @@ projectRouter.post(
                     req.body.limit,
                     req.body.filters,
                     req.body.forceRefresh,
+                    req.body.parameters,
                 );
 
             res.json({
