@@ -27,7 +27,6 @@ const packages = await adapter.getDbtPackages();
 
 // Clean up resources when done
 await adapter.destroy();
-```
 
 </howToUse>
 
@@ -82,7 +81,6 @@ warehouseClient,
 context
 );
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -105,4 +103,3 @@ context
 @/packages/backend/src/clients/github/Github.ts - GitHub API client
 @/packages/common/src/types/dbt.ts - dbt project configuration types
 </links>
-```
