@@ -30,7 +30,6 @@ const cloudClient = new DbtMetadataApiClient({
 });
 
 const cloudManifest = await cloudClient.getDbtManifest();
-```
 
 </howToUse>
 
@@ -62,7 +61,6 @@ console.log(`Found ${Object.keys(manifest.nodes).length} dbt models`);
 const profiles = generateProfiles(warehouseCredentials, '/tmp/profiles');
 await fs.writeFile('/tmp/profiles/profiles.yml', profiles.profiles);
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -82,4 +80,3 @@ await fs.writeFile('/tmp/profiles/profiles.yml', profiles.profiles);
 @/packages/backend/src/types.ts - DbtClient interface definition
 @/packages/common/src/types/warehouse.ts - Warehouse credential types
 </links>
-```
