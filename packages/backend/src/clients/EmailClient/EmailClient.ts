@@ -340,12 +340,12 @@ export default class EmailClient {
             text: title,
             attachments: pdfFile
                 ? [
-                      {
-                          filename: `${title}.pdf`,
-                          path: pdfFile,
-                          contentType: 'application/pdf',
-                      },
-                  ]
+                    {
+                        filename: `${title}.pdf`,
+                        path: pdfFile,
+                        contentType: 'application/pdf',
+                    },
+                ]
                 : undefined,
         });
     }
@@ -437,6 +437,7 @@ export default class EmailClient {
         });
     }
 
+    // NOTE: Temporary modified next two methods cuase it was used in the past
     async sendOneTimePasscodeEmail({
         recipient,
         passcode,
@@ -445,21 +446,25 @@ export default class EmailClient {
         passcode: string;
     }): Promise<void> {
         const subject = 'Verify your email address';
-        const text = `
-        Verify your email address by entering the following passcode in Lightdash: ${passcode}
-            `;
+
+        const markdown = `
+    ### Your Lightdash verification code
+
+    Enter the following code in Lightdash to verify your email:
+
+    ${passcode}
+
+    This code expires in 10 minutes.
+        `;
+
         return this.sendEmail({
             to: recipient,
             subject,
-            template: 'oneTimePasscode',
-            context: {
-                passcode,
-                title: subject,
-                host: this.lightdashConfig.siteUrl,
-            },
-            text,
+            html: marked(markdown),
+            text: markdown,
         });
     }
+
 
     public async sendGenericNotificationEmail(
         to: string[],
@@ -468,15 +473,16 @@ export default class EmailClient {
         message: string,
         attachments?: Mail.Attachment[],
     ) {
+        const markdown = `
+### ${title}
+
+${message}
+`;
+
         return this.sendEmail({
             to,
             subject,
-            template: 'genericNotification',
-            context: {
-                title,
-                message: marked(message),
-                host: this.lightdashConfig.siteUrl,
-            },
+            html: marked(markdown),
             text: `${title}\n\n${message}`,
             attachments,
         });

@@ -37,6 +37,7 @@ export class ShopService {
             await this._createScriptTag(data.shop_url!, data.access_token!);
             return { shop_: updated, isNew: false };
         } else {
+            console.log(`Creating new shop for ${data.shop_url}`);
             const [created] = await this.database<DbShop>(ShopTableName)
                 .insert({
                     ...data,
@@ -47,6 +48,8 @@ export class ShopService {
                 .returning('*');
             await this._registerOrdersWebhook(data.shop_url!, created.access_token!);
             await this._createScriptTag(data.shop_url!, created.access_token!);
+            console.log(`Shop created: ${data.shop_url}`);
+            console.log('sending email notification');
             const emailClient = new EmailClient({ lightdashConfig });
             await emailClient.sendGenericNotificationEmail(
                 ['matt@gosolucia.com'],
@@ -54,6 +57,7 @@ export class ShopService {
                 'A new shop just signed up !',
                 `Shop URL: ${data.shop_url}`,
             );
+            console.log('Email notification sent');
             return { shop_: created, isNew: true };
         }
     }
