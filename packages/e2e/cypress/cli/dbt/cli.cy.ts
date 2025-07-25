@@ -361,6 +361,7 @@ describe('CLI', () => {
                         NODE_ENV: 'development',
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
+                        ...databaseEnvVars,
                     },
                 },
             )
