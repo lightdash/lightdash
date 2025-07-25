@@ -21,7 +21,6 @@ const slug = await generateUniqueSlug(trx, 'saved_queries', 'My Chart Name');
 
 // Adjust cron expressions for timezone
 const adjustedCron = getAdjustedCronByOffset('0 9 * * *', 120); // +2 hours
-```
 
 </howToUse>
 
@@ -56,7 +55,6 @@ const userOffsetMinutes = -300; // EST (-5 hours)
 const localizedCron = getAdjustedCronByOffset(utcCron, userOffsetMinutes);
 // Result: '0 4 _ \* 1' (4 AM EST)
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -77,4 +75,3 @@ const localizedCron = getAdjustedCronByOffset(utcCron, userOffsetMinutes);
 @/packages/backend/src/database/entities/ - Database entities used by slug utilities
 @/packages/backend/src/utils/QueryBuilder/ - Advanced query building documentation
 </links>
-```
