@@ -21,7 +21,6 @@ export class MyController extends BaseController {
         };
     }
 }
-```
 
 Key patterns:
 
