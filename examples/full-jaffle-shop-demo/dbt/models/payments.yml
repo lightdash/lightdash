@@ -3,6 +3,7 @@ models:
   - name: payments
     description: This table has information about individual payments
     config:
+      tags: ['ai']
       meta:
         primary_key: payment_id
         joins:

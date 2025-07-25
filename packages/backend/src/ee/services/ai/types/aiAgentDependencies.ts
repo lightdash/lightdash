@@ -4,20 +4,32 @@ import {
     AnyType,
     CacheMetadata,
     CatalogField,
+    CatalogItem,
+    CatalogTable,
     CompiledDimension,
     CompiledMetric,
     Explore,
     FieldSearchQuery,
     ItemsMap,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     SlackPrompt,
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
 import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
-import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
-export type GetExploresFn = () => Promise<AiAgentExploreSummary[]>;
+export type GetExploresFn = () => Promise<{
+    tables: CatalogTable[];
+    fields: CatalogField[];
+    pagination:
+        | (KnexPaginateArgs & {
+              totalPageCount: number;
+              totalResults: number;
+          })
+        | undefined;
+}>;
 
 export type FindFieldFn = (args: {
     fieldSearchQuery: FieldSearchQuery;

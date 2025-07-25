@@ -1,6 +1,8 @@
 version: 2
 models:
   - name: plan
+    config:
+      tags: ['ai']
     meta:
       primary_key: id
       required_attributes:

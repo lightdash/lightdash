@@ -312,10 +312,17 @@ export class CatalogService<
                 ) {
                     return acc;
                 }
+
                 const filteredExplore = getFilteredExplore(
                     explore,
                     userAttributes,
                 );
+                if (!filteredExplore) {
+                    throw new ForbiddenError(
+                        "You don't have authorization to access this explore",
+                    );
+                }
+
                 return [...acc, filteredExplore];
             },
             [],
@@ -1025,6 +1032,12 @@ export class CatalogService<
                     explore,
                     userAttributesForOrgMember,
                 );
+                if (!filteredExplore) {
+                    throw new ForbiddenError(
+                        "You don't have authorization to access this explore",
+                    );
+                }
+
                 return [tableName, filteredExplore];
             }),
         );
