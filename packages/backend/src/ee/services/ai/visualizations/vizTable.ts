@@ -1,6 +1,7 @@
 import {
     AiMetricQueryWithFilters,
     AiResultType,
+    getItemLabelWithoutTableName,
     metricQueryTableViz,
     ToolTableVizArgsTransformed,
 } from '@lightdash/common';
@@ -33,15 +34,24 @@ export const renderTableViz = async ({
     );
     const results = await runMetricQuery(query);
 
-    const fields = results.rows[0] ? Object.keys(results.rows[0]) : [];
+    const fieldIds = results.rows[0] ? Object.keys(results.rows[0]) : [];
+
+    const csvHeaders = fieldIds.map((fieldId) => {
+        const item = results.fields[fieldId];
+        if (!item) {
+            return fieldId;
+        }
+        return getItemLabelWithoutTableName(item);
+    });
+
     const rows = results.rows.map((row) =>
-        CsvService.convertRowToCsv(row, results.fields, true, fields),
+        CsvService.convertRowToCsv(row, results.fields, true, fieldIds),
     );
 
     return {
         type: AiResultType.TABLE_RESULT,
         metricQuery: query,
         results,
-        csv: stringify(rows, { header: true, columns: fields }),
+        csv: stringify(rows, { header: true, columns: csvHeaders }),
     };
 };
