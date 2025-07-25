@@ -391,6 +391,7 @@ export const createArgs =
             maxLimit: 5_000,
             organizationId: 'org-uuid',
             userId: 'user-uuid',
+            __experimental__toolFindFields: false,
             ...options,
         } satisfies AiAgentArgs;
     };
@@ -408,7 +409,7 @@ const getExplore = jest.fn().mockImplementation(async ({ exploreName }) => {
     return data;
 });
 
-const searchFields = jest.fn().mockImplementation(async ({ exploreName }) => {
+const findFields = jest.fn().mockImplementation(async ({ exploreName }) => {
     const explore = mockExploresSummary.find((e) => e.name === exploreName);
     if (!explore) {
         throw new Error(`Explore '${exploreName}' not found`);
@@ -492,7 +493,7 @@ export const createMockDepsFactory = () => {
         dependencies: {
             getExplores,
             getExplore,
-            searchFields,
+            findFields,
             runMiniMetricQuery,
 
             getPrompt: jest.fn().mockImplementation(async () => ({
