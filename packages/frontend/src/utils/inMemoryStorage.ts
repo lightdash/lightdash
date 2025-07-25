@@ -11,3 +11,7 @@ export const getFromInMemoryStorage = <T>(key: string): T | undefined => {
 export const setToInMemoryStorage = <T>(key: string, value: T): void => {
     inMemoryStore.set(key, value);
 };
+
+export const clearInMemoryStorage = (): void => {
+    inMemoryStore.clear();
+};
