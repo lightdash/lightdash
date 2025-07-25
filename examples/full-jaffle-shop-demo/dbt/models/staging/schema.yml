@@ -1,7 +1,7 @@
 version: 2
 models:
   - name: stg_customers
-    meta: 
+    meta:
       group_label: "staging"
     columns:
       - name: customer_id
@@ -16,7 +16,7 @@ models:
       - name: created
         description: ""
   - name: stg_orders
-    meta: 
+    meta:
       group_label: "staging"
     columns:
       - name: order_id
@@ -24,6 +24,9 @@ models:
           - unique
           - not_null
         description: ""
+        meta:
+          dimension:
+            type: number
       - name: status
         tests:
           - accepted_values:
@@ -34,12 +37,21 @@ models:
                 - return_pending
                 - returned
         description: ""
+        meta:
+          dimension:
+            type: string
       - name: customer_id
         description: ""
+        meta:
+          dimension:
+            type: number
       - name: order_date
         description: ""
+        meta:
+          dimension:
+            type: date
   - name: stg_payments
-    meta: 
+    meta:
       group_label: "staging"
     columns:
       - name: payment_id

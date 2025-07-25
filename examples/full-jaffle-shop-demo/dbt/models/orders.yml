@@ -51,6 +51,9 @@ models:
                   - status:
                       - completed
                       - shipped
+        meta:
+          dimension:
+            type: number
 
       - name: is_completed
         description: Boolean indicating if status is completed
@@ -72,6 +75,9 @@ models:
                 show_underlying_values:
                   - amount
                   - customers.first_name
+        meta:
+          dimension:
+            type: boolean
       - name: customer_id
         description: Foreign key to the customers table
         tests:
@@ -79,18 +85,24 @@ models:
           - relationships:
               to: ref('customers')
               field: customer_id
+        meta:
+          dimension:
+            type: number
       - name: order_date
         description: Date (UTC) that the order was placed
         config:
           meta:
             dimension:
               type: date
-              time_intervals: ["DAY", "WEEK", "MONTH", "YEAR"]
+              time_intervals: [ "DAY", "WEEK", "MONTH", "YEAR" ]
             metrics:
               date_of_first_order:
                 type: min
               date_of_most_recent_order:
                 type: max
+        meta:
+          dimension:
+            type: date
       - name: status
         description: '{{ doc("orders_status") }}'
         config:
@@ -112,6 +124,9 @@ models:
                 - completed
                 - return_pending
                 - returned
+        meta:
+          dimension:
+            type: string
       - name: amount
         description: Total amount (USD) of the order
         tests:
@@ -147,6 +162,9 @@ models:
                 sql: ${total_order_amount}-${total_completed_order_amount}
             dimension:
               hidden: true
+        meta:
+          dimension:
+            type: number
       - name: credit_card_amount
         description: Amount of the order (AUD) paid for by credit card
         tests:
@@ -155,6 +173,9 @@ models:
           meta:
             dimension:
               hidden: true
+        meta:
+          dimension:
+            type: number
       - name: coupon_amount
         description: Amount of the order (AUD) paid for by coupon
         tests:
@@ -163,6 +184,9 @@ models:
           meta:
             dimension:
               hidden: true
+        meta:
+          dimension:
+            type: number
       - name: bank_transfer_amount
         description: Amount of the order (AUD) paid for by bank transfer
         tests:
@@ -171,6 +195,9 @@ models:
           meta:
             dimension:
               hidden: true
+        meta:
+          dimension:
+            type: number
       - name: gift_card_amount
         description: Amount of the order (AUD) paid for by gift card
         tests:
@@ -179,3 +206,6 @@ models:
           meta:
             dimension:
               hidden: true
+        meta:
+          dimension:
+            type: number
