@@ -21,7 +21,6 @@ const summary = await aiService.generateDashboardSummary(dashboardUuid);
 
 const embedService = serviceRepository.getEmbedService();
 const embedUrl = await embedService.createEmbedUrl(dashboard, options);
-```
 
 </howToUse>
 
@@ -64,7 +63,6 @@ organizationUuid: 'org-456',
 scopes: ['read:dashboards', 'write:charts']
 });
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -87,4 +85,3 @@ scopes: ['read:dashboards', 'write:charts']
 @/packages/backend/src/ee/services/AiService/ - AI-powered analytics and insights
 @/packages/backend/src/ee/services/EmbedService/ - Dashboard embedding functionality
 </links>
-```
