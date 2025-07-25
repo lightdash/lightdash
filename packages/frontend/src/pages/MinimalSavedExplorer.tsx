@@ -112,6 +112,7 @@ const MinimalSavedExplorer: FC = () => {
                               metricQuery: data.metricQuery,
                               tableConfig: data.tableConfig,
                               pivotConfig: data.pivotConfig,
+                              parameters: data.parameters,
                           },
                           modals: {
                               format: {
@@ -127,7 +128,6 @@ const MinimalSavedExplorer: FC = () => {
                                   isOpen: false,
                               },
                           },
-                          parameters: {},
                       }
                     : undefined
             }

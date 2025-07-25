@@ -51,7 +51,7 @@ export const useCompiledSql = (
     );
 
     const queryParameters = useExplorerContext(
-        (context) => context.state.parameters,
+        (context) => context.state.unsavedChartVersion.parameters || {},
     );
 
     const setErrorResponse = useQueryError();

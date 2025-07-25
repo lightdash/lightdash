@@ -230,6 +230,39 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    /**
+     * Combines parameter values from multiple sources in order of priority:
+     * 1. Request parameters (highest priority)
+     * 2. Saved chart parameters
+     * 3. Default parameter values (lowest priority)
+     */
+    private async combineParameters(
+        projectUuid: string,
+        requestParameters?: ParametersValuesMap,
+        savedChartParameters?: ParametersValuesMap,
+    ): Promise<ParametersValuesMap> {
+        // Get default values for parameters
+        const defaultParameters: ParametersValuesMap = {};
+        // Fetch all parameters
+        const parameterConfigs = await this.projectParametersModel.find(
+            projectUuid,
+        );
+
+        for (const paramConfig of parameterConfigs) {
+            if (paramConfig.config.default !== undefined) {
+                defaultParameters[paramConfig.name] =
+                    paramConfig.config.default;
+            }
+        }
+
+        // Combine in order of priority: defaults < saved chart < request
+        return {
+            ...defaultParameters,
+            ...(savedChartParameters || {}),
+            ...(requestParameters || {}),
+        };
+    }
+
     async findResultsCache(
         projectUuid: string,
         cacheKey: string,
@@ -1429,6 +1462,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: Array.from(
                 fullQuery.missingParameterReferences,
             ),
+            usedParameters: fullQuery.usedParameters,
         };
     }
 
@@ -1790,19 +1824,26 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
+        // Combine default parameter values with request parameters first
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            parameters,
+        );
+
         const {
             sql,
             fields,
             warnings,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             user,
             metricQuery,
             dateZoom,
             explore,
             warehouseSqlBuilder,
-            parameters,
+            parameters: combinedParameters,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -1830,6 +1871,7 @@ export class AsyncQueryService extends ProjectService {
             fields,
             warnings,
             parameterReferences,
+            usedParametersValues: usedParameters,
         };
     }
 
@@ -1855,6 +1897,7 @@ export class AsyncQueryService extends ProjectService {
             spaceUuid: savedChartSpaceUuid,
             tableName: savedChartTableName,
             metricQuery,
+            parameters: savedChartParameters,
         } = await this.savedChartModel.get(chartUuid, versionUuid);
 
         // Check chart belongs to project
@@ -1939,18 +1982,26 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
+        // Combine default parameter values, saved chart parameters, and request parameters first
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            parameters,
+            savedChartParameters,
+        );
+
         const {
             sql,
             fields,
             warnings,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             user,
             metricQuery: metricQueryWithLimit,
             explore,
             warehouseSqlBuilder,
-            parameters,
+            parameters: combinedParameters,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -1977,6 +2028,7 @@ export class AsyncQueryService extends ProjectService {
             fields,
             warnings,
             parameterReferences,
+            usedParametersValues: usedParameters,
         };
     }
 
@@ -1998,8 +2050,11 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const savedChart = await this.savedChartModel.get(chartUuid);
-        const { organizationUuid, projectUuid: savedChartProjectUuid } =
-            savedChart;
+        const {
+            organizationUuid,
+            projectUuid: savedChartProjectUuid,
+            parameters: savedChartParameters,
+        } = savedChart;
 
         if (savedChartProjectUuid !== projectUuid) {
             throw new ForbiddenError('Dashboard does not belong to project');
@@ -2144,15 +2199,27 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
-        const { sql, fields, parameterReferences, missingParameterReferences } =
-            await this.prepareMetricQueryAsyncQueryArgs({
-                user,
-                metricQuery: metricQueryWithLimit,
-                explore,
-                dateZoom,
-                warehouseSqlBuilder,
-                parameters,
-            });
+        // Combine default parameter values, saved chart parameters, and request parameters first
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            parameters,
+            savedChartParameters,
+        );
+
+        const {
+            sql,
+            fields,
+            parameterReferences,
+            missingParameterReferences,
+            usedParameters,
+        } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery: metricQueryWithLimit,
+            explore,
+            dateZoom,
+            warehouseSqlBuilder,
+            parameters: combinedParameters,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -2179,6 +2246,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             fields,
             parameterReferences,
+            usedParametersValues: usedParameters,
         };
     }
 
@@ -2317,19 +2385,26 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.type,
         );
 
+        // Combine default parameter values with request parameters first
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            parameters,
+        );
+
         const {
             sql,
             fields,
             warnings,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             user,
             metricQuery: underlyingDataMetricQuery,
             explore,
             dateZoom,
             warehouseSqlBuilder,
-            parameters,
+            parameters: combinedParameters,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
@@ -2358,6 +2433,7 @@ export class AsyncQueryService extends ProjectService {
             fields,
             warnings,
             parameterReferences,
+            usedParametersValues: usedParameters,
         };
     }
 
@@ -2390,6 +2466,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+        // Combine default parameter values with request parameters first
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            parameters,
+        );
+
         const {
             warehouseConnection,
             queryTags,
@@ -2399,6 +2481,7 @@ export class AsyncQueryService extends ProjectService {
             originalColumns,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2406,7 +2489,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             sql,
             limit,
-            parameters,
+            parameters: combinedParameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2436,6 +2519,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata,
             parameterReferences,
+            usedParametersValues: usedParameters,
         };
     }
 
@@ -2630,6 +2714,7 @@ export class AsyncQueryService extends ProjectService {
             sql: replacedSql,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         } = queryBuilder.getSqlAndReferences();
 
         return {
@@ -2643,6 +2728,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: Array.from(missingParameterReferences),
             appliedDashboardFilters,
             originalColumns,
+            usedParameters,
         };
     }
 
@@ -2671,6 +2757,12 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError("You don't have access to this chart");
         }
 
+        // Combine default parameter values with request parameters first
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            args.parameters,
+        );
+
         const {
             warehouseConnection,
             queryTags,
@@ -2681,6 +2773,7 @@ export class AsyncQueryService extends ProjectService {
             originalColumns,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2689,7 +2782,7 @@ export class AsyncQueryService extends ProjectService {
             sql: sqlChart.sql,
             config: sqlChart.config,
             limit: limit ?? sqlChart.limit,
-            parameters: args.parameters,
+            parameters: combinedParameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2719,6 +2812,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata,
             parameterReferences,
+            usedParametersValues: usedParameters,
         };
     }
 
@@ -2756,6 +2850,12 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError("You don't have access to this chart");
         }
 
+        // Combine default parameter values with request parameters first
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            args.parameters,
+        );
+
         const {
             warehouseConnection,
             queryTags,
@@ -2767,6 +2867,7 @@ export class AsyncQueryService extends ProjectService {
             originalColumns,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2778,7 +2879,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             dashboardSorts,
             limit: limit ?? savedChart.limit,
-            parameters: args.parameters,
+            parameters: combinedParameters,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -2813,6 +2914,7 @@ export class AsyncQueryService extends ProjectService {
                 tableCalculations: [],
             },
             parameterReferences,
+            usedParametersValues: usedParameters,
         };
     }
 }

@@ -68,6 +68,7 @@ export type CompiledQuery = {
     warnings: QueryWarning[];
     parameterReferences: Set<string>;
     missingParameterReferences: Set<string>;
+    usedParameters: ParametersValuesMap;
 };
 
 export type BuildQueryProps = {
@@ -1180,12 +1181,20 @@ export class MetricQueryBuilder {
             });
         }
 
+        // Filter parameters to only include those that are referenced in the query
+        const usedParameters: ParametersValuesMap = Object.fromEntries(
+            Object.entries(this.args.parameters ?? {}).filter(([key]) =>
+                parameterReferences.has(key),
+            ),
+        );
+
         return {
             query: replacedSql,
             fields,
             warnings,
             parameterReferences,
             missingParameterReferences,
+            usedParameters,
         };
     }
 }
@@ -1352,10 +1361,18 @@ export class QueryBuilder {
                 this.config.stringQuoteChar,
             );
 
+        // Filter parameters to only include those that are referenced in the query
+        const usedParameters: ParametersValuesMap = Object.fromEntries(
+            Object.entries(this.parameters ?? {}).filter(([key]) =>
+                references.has(key),
+            ),
+        );
+
         return {
             sql: replacedSql,
             parameterReferences: references,
             missingParameterReferences: missingReferences,
+            usedParameters,
         };
     }
 
