@@ -1,4 +1,4 @@
-import { type LanguageMap } from '@lightdash/common';
+import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import { get } from 'lodash';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useAccount } from '../../../hooks/user/useAccount';
@@ -16,6 +16,8 @@ type Props = {
     filters?: SdkFilter[];
     projectUuid?: string;
     contentOverrides?: LanguageMap;
+    embedHeaders?: Record<string, string>;
+    onExplore?: (options: { chart: SavedChart }) => void;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -24,6 +26,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     filters,
     projectUuid,
     contentOverrides,
+    onExplore,
 }) => {
     const [isInitialized, setIsInitialized] = useState(false);
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
@@ -55,6 +58,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             t: (input: string) => get(contentOverrides, input),
             projectUuid: embed?.projectUuid || projectUuid,
             languageMap: contentOverrides,
+            onExplore,
         };
     }, [
         embed?.projectUuid,
@@ -63,6 +67,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         filters,
         projectUuid,
         contentOverrides,
+        onExplore,
     ]);
 
     return (
