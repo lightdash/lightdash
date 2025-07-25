@@ -132,6 +132,11 @@ export type Account =
     | ApiKeyAccount
     | ServiceAcctAccount;
 
+export type AccountWithoutHelpers<T extends Account> = Omit<
+    T,
+    keyof AccountHelpers
+>;
+
 export function assertEmbeddedAuth(
     account: Account | undefined,
 ): asserts account is AnonymousAccount {
