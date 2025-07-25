@@ -64,7 +64,7 @@ describe('account', () => {
             );
             expect(result.access.controls).toBe(mockUserAttributes);
 
-            expect(result.user.id).toBe('external-user-123');
+            expect(result.user.id).toBe('external::external-user-123');
             expect(result.user.type).toBe('anonymous');
             expect(result.user.email).toBe('external@example.com');
             expect(result.user.isActive).toBe(true);
@@ -101,7 +101,7 @@ describe('account', () => {
             });
 
             expect(result.user.id).toBe(
-                `anonymous-jwt::${mockOrganization.organizationUuid}_anonymous-jwt-token`,
+                `external::${mockOrganization.organizationUuid}_anonymous-jwt-token`,
             );
             expect(result.user.email).toBe('anonymous@example.com');
             expect(result.isAuthenticated()).toBe(true);
@@ -128,7 +128,7 @@ describe('account', () => {
             });
 
             expect(result.user.id).toBe(
-                `anonymous-jwt::${mockOrganization.organizationUuid}_no-user-jwt-token`,
+                `external::${mockOrganization.organizationUuid}_no-user-jwt-token`,
             );
             expect(result.user.email).toBeUndefined();
             expect(result.isAuthenticated()).toBe(true);

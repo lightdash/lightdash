@@ -27,6 +27,16 @@ const defaultHeaders = {
     [LightdashVersionHeader]: __APP_VERSION__,
 };
 
+const isSafeToAddEmbedHeader = (
+    headers: Record<string, string> | undefined,
+) => {
+    if (!headers) return true;
+
+    const isEmbedHeader = (header: string) =>
+        header.toLowerCase() === JWT_HEADER_NAME.toLowerCase();
+    return !Object.keys(headers).some(isEmbedHeader);
+};
+
 const finalizeHeaders = (
     headers: Record<string, string> | undefined,
     embed: InMemoryEmbed | undefined,
@@ -37,7 +47,7 @@ const finalizeHeaders = (
         ...headers,
     };
 
-    if (embed?.token) {
+    if (embed?.token && isSafeToAddEmbedHeader(headers)) {
         requestHeaders[JWT_HEADER_NAME] = embed.token;
     }
 
