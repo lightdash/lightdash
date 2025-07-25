@@ -22,7 +22,6 @@ const paginatedResults = await KnexPaginate.paginate(
 
 // Migration execution
 await database.migrate.latest();
-```
 
 </howToUse>
 
@@ -54,7 +53,6 @@ database('catalog_search')
 
 console.log(`Found ${searchResults.pagination.totalResults} results`);
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -75,4 +73,3 @@ console.log(`Found ${searchResults.pagination.totalResults} results`);
 @/packages/backend/knexfile.ts - Database configuration and connection settings
 @/packages/backend/src/database/seeds/development/ - Development seed data
 </links>
-```
