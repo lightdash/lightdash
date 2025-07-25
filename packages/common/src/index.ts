@@ -158,6 +158,7 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
 import type { ResultsPaginationMetadata } from './types/paginateResults';
+import { type ParametersValuesMap } from './types/parameters';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import type { QueryHistoryStatus } from './types/queryHistory';
 import { type ApiRenameFieldsResponse } from './types/rename';
@@ -545,7 +546,8 @@ export type ApiQueryResults = {
 type ApiExecuteAsyncQueryResultsCommon = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
-    parameterReferences: string[];
+    parameterReferences: string[]; // params needed for query to run
+    usedParametersValues: ParametersValuesMap; // params values used
 };
 
 export type ApiExecuteAsyncMetricQueryResults =
