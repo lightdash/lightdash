@@ -30,7 +30,6 @@ app.get('/api/v1/projects', (req, res) => {
         const userId = req.account.user.id;
     }
 });
-```
 
 </howToUse>
 
@@ -76,7 +75,6 @@ deprecatedDownloadCsvRoute, // Warns about deprecation
 legacyController.handleOldEndpoint
 );
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -98,4 +96,3 @@ legacyController.handleOldEndpoint
 @/packages/backend/src/controllers/authentication/ - Authentication controller utilities
 @/packages/backend/src/middlewares/sentry.ts - Sentry error tracking middleware
 </links>
-```
