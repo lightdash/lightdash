@@ -30,7 +30,8 @@ const VALID_CONFIG: LightdashProjectConfig = {
     },
 };
 
-const INVALID_CONFIG_CONTENTS = 'I am invalid';
+const INVALID_CONFIG_CONTENTS =
+    'spotlight:\n  default_visibility: invalid_value';
 
 const readFileSpy = jest.spyOn(fs, 'readFile');
 

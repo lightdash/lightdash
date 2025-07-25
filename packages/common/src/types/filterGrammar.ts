@@ -56,7 +56,7 @@ DATE_OPERATOR = 'inThePast' / 'inTheNext'
 DATE_INTERVAL = 'milliseconds' / 'seconds' / 'minutes' / 'hours' / 'days' / 'weeks' / 'months' / 'years'
 
 NUMBER
-  = FLOAT ([Ee] [+-]? INTEGER)?
+  = '-'? FLOAT ([Ee] [+-]? INTEGER)?
     { return Number(text()) }
 
 FLOAT

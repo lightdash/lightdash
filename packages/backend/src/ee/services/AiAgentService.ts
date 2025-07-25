@@ -1337,7 +1337,7 @@ export class AiAgentService {
         return agentSettings;
     }
 
-    private async getChatHistoryFromThreadMessages(
+    async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
         threadMessages: Awaited<

@@ -19,7 +19,9 @@ module.exports = {
         {
             ...common,
             displayName: 'ai',
-            testMatch: ['<rootDir>/src/ee/services/ai/**/*.test.ts'],
+            testMatch: [
+                '<rootDir>/src/ee/services/ai/**/!(*.integration).test.ts', // only non-integration tests
+            ],
             testPathIgnorePatterns: ['/node_modules/', '/dist/'],
         },
     ],

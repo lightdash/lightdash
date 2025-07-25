@@ -104,6 +104,7 @@ import { type ResultColumns, type ResultRow } from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
+    type ApiSchedulersResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './types/scheduler';
@@ -920,6 +921,7 @@ type ApiResults =
     | ApiExecuteAsyncMetricQueryResults
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
+    | ApiSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults

@@ -44,8 +44,8 @@ describe('Global search', () => {
         search('jaffle');
         cy.findByRole('dialog')
             .findAllByRole('menuitem', { name: /Jaffle dashboard/ })
-            .scrollIntoView()
             .first()
+            .scrollIntoView()
             .click();
         cy.url().should(
             'include',

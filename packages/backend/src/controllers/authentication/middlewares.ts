@@ -22,8 +22,8 @@ import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
-    if (req.user?.userUuid) {
-        if (req.user.isActive) {
+    if (req.account?.isAuthenticated() || req.user?.userUuid) {
+        if (req.account?.user?.isActive || req.user?.isActive) {
             next();
         } else {
             // Destroy session if user is deactivated and return error

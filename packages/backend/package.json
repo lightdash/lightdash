@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1834.0",
+    "version": "0.1838.2",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -73,6 +73,7 @@
         "ajv-formats": "^2.1.0",
         "apache-arrow": "^16.1.0",
         "archiver": "^7.0.1",
+        "autoevals": "^0.0.130",
         "bcrypt": "^5.1.1",
         "canvas": "^2.11.2",
         "chokidar": "^4.0.2",
@@ -140,6 +141,7 @@
         "slackify-markdown": "^4.4.0",
         "sshpk": "^1.17.0",
         "uuid": "^8.3.2",
+        "vitest": "^3.2.4",
         "winston": "^3.3.3",
         "yaml": "^2.7.0",
         "zod": "^3.25.55"
@@ -161,6 +163,7 @@
         "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch --selectProjects main",
         "test:ai": "TZ=UTC jest --config jest.config.js --selectProjects ai",
         "test:ai:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch --selectProjects ai",
+        "test:integration": "vitest run --config vitest.config.integration.ts",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",

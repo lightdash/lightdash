@@ -54,6 +54,8 @@ import {
     getJoinType,
     getMetricFromId,
     isInflationProofMetric,
+    removeComments,
+    removeTrailingSemicolon,
     replaceUserAttributesAsStrings,
     replaceUserAttributesRaw,
     sortDayOfWeekName,
@@ -1261,9 +1263,15 @@ export class QueryBuilder {
     }
 
     private fromToSql(): string {
-        return `FROM ${
-            this.from.sql ? `(\n${this.from.sql}\n) AS ` : ''
-        }${this.quotedName(this.from.name)}`;
+        if (this.from.sql) {
+            // strip any trailing semicolons and comments
+            let sanitizedSql = removeComments(this.from.sql);
+            sanitizedSql = removeTrailingSemicolon(sanitizedSql);
+            return `FROM (\n${sanitizedSql}\n) AS ${this.quotedName(
+                this.from.name,
+            )}`;
+        }
+        return `FROM ${this.quotedName(this.from.name)}`;
     }
 
     private filtersToSql() {

@@ -1,3 +1,94 @@
+## [0.1838.2](https://github.com/lightdash/lightdash/compare/0.1838.1...0.1838.2) (2025-07-24)
+
+
+### Bug Fixes
+
+* Revert "feat: refactor AsyncQuery and Project service to use account where needed for Embedded Explores ([#15893](https://github.com/lightdash/lightdash/issues/15893))" ([#16007](https://github.com/lightdash/lightdash/issues/16007)) ([9356f4e](https://github.com/lightdash/lightdash/commit/9356f4e354880d168139cc63e57ed2b3475580eb))
+
+## [0.1838.1](https://github.com/lightdash/lightdash/compare/0.1838.0...0.1838.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* correct compile for greater or less than filters with negative numbers ([#15942](https://github.com/lightdash/lightdash/issues/15942)) ([73235af](https://github.com/lightdash/lightdash/commit/73235af42533a104c33a4ae728f24e88bd9272e5))
+
+# [0.1838.0](https://github.com/lightdash/lightdash/compare/0.1837.3...0.1838.0) (2025-07-24)
+
+
+### Features
+
+* refactor AsyncQuery and Project service to use account where needed for Embedded Explores ([#15893](https://github.com/lightdash/lightdash/issues/15893)) ([74a26ec](https://github.com/lightdash/lightdash/commit/74a26ec0a3554c6ae3b8e6f6d42234f1b067cf40))
+
+## [0.1837.3](https://github.com/lightdash/lightdash/compare/0.1837.2...0.1837.3) (2025-07-24)
+
+
+### Bug Fixes
+
+* worker poolSize and concurrency going over db max connections ([#15998](https://github.com/lightdash/lightdash/issues/15998)) ([af68f3d](https://github.com/lightdash/lightdash/commit/af68f3d382925bb82116139ee9dec540d3ebb99a))
+
+## [0.1837.2](https://github.com/lightdash/lightdash/compare/0.1837.1...0.1837.2) (2025-07-24)
+
+
+### Bug Fixes
+
+* add missing parameters field to GROUP BY clause ([#15997](https://github.com/lightdash/lightdash/issues/15997)) ([e7b3bc0](https://github.com/lightdash/lightdash/commit/e7b3bc09812aa3286250ccb3a389650730a5e9b9))
+
+## [0.1837.1](https://github.com/lightdash/lightdash/compare/0.1837.0...0.1837.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* worker max pool size warning when concurrency is over 10 ([#15990](https://github.com/lightdash/lightdash/issues/15990)) ([c3fbb14](https://github.com/lightdash/lightdash/commit/c3fbb14b6dccb049d1c5b838bee6de8f84bfea4b))
+
+# [0.1837.0](https://github.com/lightdash/lightdash/compare/0.1836.0...0.1837.0) (2025-07-24)
+
+
+### Features
+
+* disable ai agent group access if disabled ([#15978](https://github.com/lightdash/lightdash/issues/15978)) ([6b96b10](https://github.com/lightdash/lightdash/commit/6b96b10cf9487a5a944751d463c9b4bb1c085780))
+
+# [0.1836.0](https://github.com/lightdash/lightdash/compare/0.1835.0...0.1836.0) (2025-07-24)
+
+
+### Features
+
+* add paginated scheduler list endpoint with search and sorting ([#15792](https://github.com/lightdash/lightdash/issues/15792)) ([61818d1](https://github.com/lightdash/lightdash/commit/61818d1af1d0488c4f4df9712f6db5150d2f3aa9))
+
+# [0.1835.0](https://github.com/lightdash/lightdash/compare/0.1834.4...0.1835.0) (2025-07-24)
+
+
+### Features
+
+* add canExplore to JWT scope permissions ([#15904](https://github.com/lightdash/lightdash/issues/15904)) ([cdd9a29](https://github.com/lightdash/lightdash/commit/cdd9a29a63d3b8756d7d4586b67f6325dd410942))
+
+## [0.1834.4](https://github.com/lightdash/lightdash/compare/0.1834.3...0.1834.4) (2025-07-24)
+
+
+### Bug Fixes
+
+* **sql-runner:** apply limit in final query ([#15986](https://github.com/lightdash/lightdash/issues/15986)) ([71a626e](https://github.com/lightdash/lightdash/commit/71a626e600cc557eea934f424a4bdbb8343ec4ab)), closes [#15887](https://github.com/lightdash/lightdash/issues/15887)
+
+## [0.1834.3](https://github.com/lightdash/lightdash/compare/0.1834.2...0.1834.3) (2025-07-24)
+
+
+### Bug Fixes
+
+* Rename service should use existing explore name if needed ([#15988](https://github.com/lightdash/lightdash/issues/15988)) ([441b6c4](https://github.com/lightdash/lightdash/commit/441b6c474c95cb654bff812ca9f6c7949959d9a0))
+
+## [0.1834.2](https://github.com/lightdash/lightdash/compare/0.1834.1...0.1834.2) (2025-07-24)
+
+
+### Bug Fixes
+
+* make spotlight required and merge with default config ([#15980](https://github.com/lightdash/lightdash/issues/15980)) ([c601e48](https://github.com/lightdash/lightdash/commit/c601e483052482f8ebd6719602dbd99e2ce5e86a))
+
+## [0.1834.1](https://github.com/lightdash/lightdash/compare/0.1834.0...0.1834.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* Revert "fix(sql-runner): apply limit in final query ([#15887](https://github.com/lightdash/lightdash/issues/15887))" ([#15984](https://github.com/lightdash/lightdash/issues/15984)) ([78599a5](https://github.com/lightdash/lightdash/commit/78599a5f84b06ef8b20cc71804ad40e9bf82ce47))
+
 # [0.1834.0](https://github.com/lightdash/lightdash/compare/0.1833.0...0.1834.0) (2025-07-23)
 
 
