@@ -58,9 +58,9 @@ active: true
 // Example: Service account for API access
 const serviceAccountService = serviceRepository.getServiceAccountService();
 const serviceAccount = await serviceAccountService.createServiceAccount({
-name: 'Analytics API',
-organizationUuid: 'org-456',
-scopes: ['read:dashboards', 'write:charts']
+    name: 'Analytics API',
+    organizationUuid: 'org-456',
+    scopes: ['read:dashboards', 'write:charts']
 });
 
 </codeExample>
