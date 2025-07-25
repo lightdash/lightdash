@@ -19,13 +19,19 @@ import {
     UserAccessControls,
 } from '@lightdash/common';
 
+/**
+ * Creates an ID for the external user. We prefix the ID to prevent hijacking a real user ID.
+ * For the default ID, we limit the length to under 255 characters as that's the varchar limit for Postgres.
+ */
 const getExternalId = (
     decodedToken: CreateEmbedJwt,
     embedToken: string,
     organization: Pick<Organization, 'organizationUuid' | 'name'>,
-): string =>
-    decodedToken.user?.externalId ||
-    `anonymous-jwt::${organization.organizationUuid}_${embedToken}`;
+): string => {
+    const defaultBase = `${organization.organizationUuid}_${embedToken}`;
+    const baseId = decodedToken.user?.externalId || defaultBase;
+    return `external::${baseId}`.slice(0, 254);
+};
 
 type WithoutHelpers<T extends Account> = Omit<T, keyof AccountHelpers>;
 

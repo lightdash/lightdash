@@ -80,7 +80,7 @@ declare global {
                 projectPermissions: ProjectPermission[],
             ): Chainable<Element>;
 
-            loginWithEmail: (email: string) => Chainable<Element>;
+            loginWithEmail(email: string): Chainable<Element>;
 
             getApiToken(): Chainable<string>;
 
@@ -110,7 +110,7 @@ declare global {
                 projectUuid: string,
                 options?: {
                     userEmail?: string;
-                    userExternalId?: string;
+                    userExternalId?: string | null;
                     canExportCsv?: boolean;
                     canExportImages?: boolean;
                     canExportPagePdf?: boolean;
@@ -661,7 +661,7 @@ Cypress.Commands.add(
         projectUuid: string,
         options: {
             userEmail?: string;
-            userExternalId?: string;
+            userExternalId?: string | null;
             canExportCsv?: boolean;
             canExportImages?: boolean;
             canExportPagePdf?: boolean;
@@ -716,11 +716,11 @@ Cypress.Commands.add(
                     },
                     userAttributes: {
                         email: userEmail,
-                        externalId: userExternalId,
+                        externalId: userExternalId || '',
                     },
                     user: {
                         email: userEmail,
-                        externalId: userExternalId,
+                        externalId: userExternalId || undefined,
                     },
                     expiresIn: '1h',
                 };
