@@ -1,3 +1,10 @@
+## [0.1840.1](https://github.com/lightdash/lightdash/compare/0.1840.0...0.1840.1) (2025-07-25)
+
+
+### Bug Fixes
+
+* fix snowflake old oauth tokens ([#16020](https://github.com/lightdash/lightdash/issues/16020)) ([9757a54](https://github.com/lightdash/lightdash/commit/9757a549563998f856dc7071c11861eca3897e8e))
+
 # [0.1840.0](https://github.com/lightdash/lightdash/compare/0.1839.0...0.1840.0) (2025-07-25)
 
 
