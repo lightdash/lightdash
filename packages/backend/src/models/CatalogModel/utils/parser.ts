@@ -6,6 +6,7 @@ import {
     CompiledDimension,
     CompiledMetric,
     CompiledTable,
+    convertToAiHints,
     Explore,
     getBasicType,
     type Tag,
@@ -46,6 +47,7 @@ const parseFieldFromMetricOrDimension = (
     chartUsage,
     catalogSearchUuid,
     icon,
+    aiHints: convertToAiHints(field.aiHint) ?? null,
 });
 
 export const parseFieldsFromCompiledTable = (
@@ -93,6 +95,7 @@ export const parseCatalog = (
             categories: dbCatalog.catalog_tags,
             chartUsage: dbCatalog.chart_usage ?? undefined,
             icon: dbCatalog.icon ?? null,
+            aiHints: convertToAiHints(dbCatalog.explore.aiHint) ?? null,
         };
     }
 
