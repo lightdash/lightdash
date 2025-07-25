@@ -1,3 +1,10 @@
+# [0.1842.0](https://github.com/lightdash/lightdash/compare/0.1841.0...0.1842.0) (2025-07-25)
+
+
+### Features
+
+* do not duplicate embed headers ([#16026](https://github.com/lightdash/lightdash/issues/16026)) ([4f4b1be](https://github.com/lightdash/lightdash/commit/4f4b1be946c1914f92f32034e0994e8bb43f4783))
+
 # [0.1841.0](https://github.com/lightdash/lightdash/compare/0.1840.1...0.1841.0) (2025-07-25)
 
 
