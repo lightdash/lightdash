@@ -84,6 +84,10 @@
                             "description": "Whether the parameter input will be a multi select",
                             "type": "boolean"
                         },
+                        "allow_custom_values": {
+                            "description": "Whether users can input custom values beyond predefined options",
+                            "type": "boolean"
+                        },
                         "options_from_dimension": {
                             "description": "Get parameter options from a dimension in a model",
                             "type": "object",
