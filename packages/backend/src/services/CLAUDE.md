@@ -6,6 +6,7 @@ The services directory contains the core business logic of the Lightdash backend
 Services follow a dependency injection pattern and are accessed through the ServiceRepository:
 
 1. Services are typically not instantiated directly but accessed through the ServiceRepository:
+
 ```typescript
 // In a controller
 const userService = serviceRepository.getUserService();
@@ -13,16 +14,18 @@ const projectService = serviceRepository.getProjectService();
 ```
 
 2. All services extend the BaseService class which provides common functionality like logging:
+
 ```typescript
 export class MyCustomService extends BaseService {
-  constructor(dependencies) {
-    super({ serviceName: 'MyCustomService' });
-    // Initialize dependencies
-  }
+    constructor(dependencies) {
+        super({ serviceName: 'MyCustomService' });
+        // Initialize dependencies
+    }
 }
 ```
 
 3. Services typically accept their dependencies through the constructor:
+
 ```typescript
 constructor({
   lightdashConfig,
@@ -38,6 +41,7 @@ constructor({
   this.projectModel = projectModel;
 }
 ```
+
 </howToUse>
 
 <codeExample>
@@ -49,10 +53,13 @@ const userService = serviceRepository.getUserService();
 
 // Use the service to perform an operation
 try {
-  const user = await userService.loginWithPassword('user@example.com', 'password123');
-  // Handle successful login
+    const user = await userService.loginWithPassword(
+        'user@example.com',
+        'password123',
+    );
+    // Handle successful login
 } catch (error) {
-  // Handle authentication error
+    // Handle authentication error
 }
 ```
 
@@ -60,30 +67,31 @@ Example of creating a new service:
 
 ```typescript
 export class MyNewService extends BaseService {
-  private userModel: UserModel;
-  private config: LightdashConfig;
+    private userModel: UserModel;
+    private config: LightdashConfig;
 
-  constructor({
-    userModel,
-    lightdashConfig,
-  }: {
-    userModel: UserModel;
-    lightdashConfig: LightdashConfig;
-  }) {
-    super({ serviceName: 'MyNewService' });
-    this.userModel = userModel;
-    this.config = lightdashConfig;
-  }
+    constructor({
+        userModel,
+        lightdashConfig,
+    }: {
+        userModel: UserModel;
+        lightdashConfig: LightdashConfig;
+    }) {
+        super({ serviceName: 'MyNewService' });
+        this.userModel = userModel;
+        this.config = lightdashConfig;
+    }
 
-  async performOperation(user: SessionUser, data: any): Promise<Result> {
-    this.logger.info(`User ${user.userUuid} performing operation`);
-    // Implement business logic
-    // Call models to persist data
-    const result = { success: true };
-    return result;
-  }
+    async performOperation(user: SessionUser, data: any): Promise<Result> {
+        this.logger.info(`User ${user.userUuid} performing operation`);
+        // Implement business logic
+        // Call models to persist data
+        const result = { success: true };
+        return result;
+    }
 }
 ```
+
 </codeExample>
 
 <importantToKnow>
@@ -96,11 +104,12 @@ export class MyNewService extends BaseService {
 - When adding a new service, you must register it in ServiceRepository.ts.
 
 Common service dependencies:
-- Models: For data persistence (UserModel, ProjectModel, etc.)
-- Config: Application configuration (lightdashConfig)
-- Analytics: For tracking events (analytics)
-- Other services: For complex operations that span multiple domains
-</importantToKnow>
+
+-   Models: For data persistence (UserModel, ProjectModel, etc.)
+-   Config: Application configuration (lightdashConfig)
+-   Analytics: For tracking events (analytics)
+-   Other services: For complex operations that span multiple domains
+    </importantToKnow>
 
 <links>
 - Service architecture overview: @/packages/backend/src/services/ServiceRepository.ts
