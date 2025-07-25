@@ -993,7 +993,8 @@
                     "table",
                     "big_number",
                     "funnel",
-                    "custom"
+                    "custom",
+                    "treemap"
                 ],
                 "type": "string"
             },
@@ -3537,6 +3538,67 @@
                 "required": ["type"],
                 "type": "object"
             },
+            "ChartType.TREEMAP": {
+                "enum": ["treemap"],
+                "type": "string"
+            },
+            "TreemapChart": {
+                "properties": {
+                    "endColorThreshold": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startColorThreshold": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "useDynamicColors": {
+                        "type": "boolean"
+                    },
+                    "endColor": {
+                        "type": "string"
+                    },
+                    "startColor": {
+                        "type": "string"
+                    },
+                    "colorMetricId": {
+                        "type": "string"
+                    },
+                    "autoAggregateMetrics": {
+                        "type": "boolean"
+                    },
+                    "sizeMetricId": {
+                        "type": "string"
+                    },
+                    "groupFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "leafDepth": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "visibleMin": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object"
+            },
+            "TreemapChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/TreemapChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.TREEMAP"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "ChartConfig": {
                 "anyOf": [
                     {
@@ -3556,6 +3618,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/TableChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TreemapChartConfig"
                     }
                 ]
             },
@@ -8566,6 +8631,7 @@
                     "big_number",
                     "pie",
                     "funnel",
+                    "treemap",
                     "custom"
                 ],
                 "type": "string"
