@@ -57,22 +57,21 @@ const embedJwt = encodeLightdashJwt(
 
 // Example: Validate and create anonymous account
 try {
-const decodedToken = decodeLightdashJwt(embedToken, organization.jwtSecret);
-const account = fromJwt({
-decodedToken,
-organization: { organizationUuid: org.uuid, name: org.name },
-source: embedToken,
-dashboardUuid: dashboard.uuid,
-userAttributes: { attributes: [] }
-});
+    const decodedToken = decodeLightdashJwt(embedToken, organization.jwtSecret);
+    const account = fromJwt({
+        decodedToken,
+        organization: { organizationUuid: org.uuid, name: org.name },
+        source: embedToken,
+        dashboardUuid: dashboard.uuid,
+        userAttributes: { attributes: [] }
+    });
 
     // Use account helper methods
     if (account.isAnonymousUser()) {
         console.log('Anonymous embed user');
     }
-
 } catch (error) {
-// Handle token validation errors
+    // Handle token validation errors
 }
 
 ```
@@ -93,4 +92,3 @@ userAttributes: { attributes: [] }
 @/packages/common/src/types/account.ts - Account type definitions
 @/packages/common/src/authorization/ability.ts - CASL ability definitions
 </links>
-```
