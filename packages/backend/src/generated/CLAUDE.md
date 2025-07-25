@@ -11,7 +11,6 @@ pnpm generate-api
 
 # The generated files are automatically imported by the Express app
 import { RegisterRoutes } from './generated/routes';
-```
 
 The generated routes are registered in the main Express application and provide type-safe API endpoints based on TSOA decorators in controller files.
 </howToUse>
@@ -33,7 +32,6 @@ RegisterRoutes(app);
 // SavedChartController.getCharts
 // );
 
-```
 </codeExample>
 
 <importantToKnow>
@@ -53,4 +51,3 @@ RegisterRoutes(app);
 @/packages/backend/package.json - Contains generate-api script definition
 @/packages/backend/tsoa.json - TSOA configuration for route generation
 </links>
-```
