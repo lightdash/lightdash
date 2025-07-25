@@ -40,6 +40,7 @@ import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
 import VisualizationPieConfig from './VisualizationConfigPie';
 import VisualizationTableConfig from './VisualizationConfigTable';
+import VisualizationTreemapConfig from './VisualizationConfigTreemap';
 import VisualizationCustomConfig from './VisualizationCustomConfig';
 import Context from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
@@ -384,6 +385,23 @@ const VisualizationProvider: FC<
                         </Context.Provider>
                     )}
                 </VisualizationBigNumberConfig>
+            );
+        case ChartType.TREEMAP:
+            return (
+                <VisualizationTreemapConfig
+                    itemsMap={itemsMap}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    onChartConfigChange={handleChartConfigChange}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationTreemapConfig>
             );
         case ChartType.TABLE:
             return (

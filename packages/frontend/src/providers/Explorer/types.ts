@@ -22,6 +22,7 @@ import {
     type TableCalculationMetadata,
     type TableChartConfig,
     type TimeZone,
+    type TreemapChartConfig,
 } from '@lightdash/common';
 import {
     type useGetReadyQueryResults,
@@ -90,6 +91,7 @@ export type ConfigCacheMap = {
     [ChartType.BIG_NUMBER]: BigNumberConfig['config'];
     [ChartType.TABLE]: TableChartConfig['config'];
     [ChartType.CARTESIAN]: CartesianChartConfig['config'];
+    [ChartType.TREEMAP]: TreemapChartConfig['config'];
     [ChartType.CUSTOM]: CustomVisConfig['config'];
 };
 
