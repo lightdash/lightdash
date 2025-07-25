@@ -701,8 +701,12 @@ export class ProjectService extends BaseService {
             args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
             args.warehouseConnection.authenticationType === 'sso'
         ) {
+            const refreshToken = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.SNOWFLAKE,
+            );
             const credentials = await this.refreshCredentials(
-                args.warehouseConnection,
+                { ...args.warehouseConnection, token: refreshToken },
                 userUuid,
             );
             return {
