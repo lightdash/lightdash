@@ -494,7 +494,7 @@ export class UnfurlService extends BaseService {
                     dashboard.projectUuid
                 }/dashboards/${dashboardUuid}${queryFilters}${
                     selectedTabsParams.toString()
-                        ? `${selectedTabsParams.toString()}`
+                        ? `&${selectedTabsParams.toString()}`
                         : ''
                 }`,
                 this.lightdashConfig.headlessBrowser.internalLightdashHost,
