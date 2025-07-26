@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes, type ParametersValuesMap } from '@lightdash/common';
 import { Center, Loader } from '@mantine/core';
 import Editor, {
     useMonaco,
@@ -18,6 +18,7 @@ import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useParameters } from '../../../hooks/parameters/useParameters';
 import '../../../styles/monaco.css';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import {
@@ -135,6 +136,45 @@ const LIGHTDASH_THEME = {
     },
 };
 
+// Helper function to check if cursor is inside parameter syntax
+const checkParameterContext = (
+    textUntilPosition: string,
+    currentColumn: number,
+) => {
+    // Look for the nearest parameter syntax before the cursor
+    const parameterRegex = /\$\{(lightdash|ld)\.parameters\.(\w*)$/;
+    const match = textUntilPosition.match(parameterRegex);
+
+    if (match) {
+        // We're inside parameter syntax
+        const typedParameterName = match[2] || '';
+        // const parameterStartIndex = textUntilPosition.lastIndexOf('${');
+        const dotIndex = textUntilPosition.lastIndexOf('.') + 1; // +1 to position after the dot
+
+        return {
+            isInsideParameterSyntax: true,
+            typedParameterName,
+            replaceStartColumn: dotIndex + 1, // Monaco uses 1-based indexing
+        };
+    }
+
+    // Check if we're in the middle of typing parameter syntax (incomplete)
+    const incompleteParameterRegex = /\$\{(lightdash|ld)\.param/;
+    if (incompleteParameterRegex.test(textUntilPosition)) {
+        return {
+            isInsideParameterSyntax: false,
+            typedParameterName: '',
+            replaceStartColumn: currentColumn,
+        };
+    }
+
+    return {
+        isInsideParameterSyntax: false,
+        typedParameterName: '',
+        replaceStartColumn: currentColumn,
+    };
+};
+
 const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
@@ -142,6 +182,11 @@ const registerCustomCompletionProvider = (
     tables: string[],
     fields?: WarehouseTableFieldWithContext[],
     settings?: SqlEditorPreferences,
+    availableParameters?: Record<
+        string,
+        { label: string; description?: string; default?: string | string[] }
+    >,
+    parameterValues?: ParametersValuesMap,
 ) => {
     return monaco.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: (model, position) => {
@@ -161,6 +206,122 @@ const registerCustomCompletionProvider = (
             });
 
             const suggestions: languages.CompletionItem[] = [];
+
+            // Check if we're inside parameter syntax
+            const parameterContext = checkParameterContext(
+                textUntilPosition,
+                position.column,
+            );
+
+            if (
+                parameterContext.isInsideParameterSyntax &&
+                availableParameters
+            ) {
+                // We're inside ${ld.parameters.} or ${lightdash.parameters.}
+                // Only show parameter suggestions
+                Object.keys(availableParameters).forEach((paramName) => {
+                    const paramConfig = availableParameters[paramName];
+                    const hasValue =
+                        parameterValues &&
+                        parameterValues[paramName] !== undefined;
+                    const value = hasValue
+                        ? parameterValues[paramName]
+                        : undefined;
+                    const valuePreview = Array.isArray(value)
+                        ? value.join(', ')
+                        : value;
+
+                    // Filter parameters based on what user has typed after the dot
+                    if (
+                        parameterContext.typedParameterName === '' ||
+                        paramName
+                            .toLowerCase()
+                            .includes(
+                                parameterContext.typedParameterName.toLowerCase(),
+                            )
+                    ) {
+                        suggestions.push({
+                            label: {
+                                label: paramName,
+                                detail: hasValue
+                                    ? ` = ${valuePreview}`
+                                    : paramConfig.description
+                                    ? ` - ${paramConfig.description}`
+                                    : '',
+                            },
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            insertText: paramName,
+                            range: {
+                                startLineNumber: position.lineNumber,
+                                endLineNumber: position.lineNumber,
+                                startColumn:
+                                    parameterContext.replaceStartColumn,
+                                endColumn: position.column,
+                            },
+                            sortText: `param_${paramName}`,
+                            detail: hasValue
+                                ? `Parameter: ${
+                                      paramConfig.label || paramName
+                                  } = ${valuePreview}`
+                                : `Parameter: ${
+                                      paramConfig.label || paramName
+                                  }${
+                                      paramConfig.description
+                                          ? ` - ${paramConfig.description}`
+                                          : ''
+                                  }`,
+                            documentation:
+                                paramConfig.description ||
+                                'Lightdash parameter',
+                        });
+                    }
+                });
+
+                return { suggestions };
+            }
+
+            // Not inside parameter syntax - show general autocomplete including parameters
+            if (availableParameters) {
+                // Create parameter suggestions from available project parameters
+                Object.keys(availableParameters).forEach((paramName) => {
+                    const paramConfig = availableParameters[paramName];
+                    const hasValue =
+                        parameterValues &&
+                        parameterValues[paramName] !== undefined;
+                    const value = hasValue
+                        ? parameterValues[paramName]
+                        : undefined;
+                    const valuePreview = Array.isArray(value)
+                        ? value.join(', ')
+                        : value;
+
+                    suggestions.push({
+                        label: {
+                            label: `\${ld.parameters.${paramName}}`,
+                            detail: hasValue
+                                ? ` = ${valuePreview}`
+                                : paramConfig.description
+                                ? ` - ${paramConfig.description}`
+                                : ' (no value)',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Variable,
+                        insertText: `\${ld.parameters.${paramName}}`,
+                        range,
+                        sortText: `param_${paramName}`, // High priority with 'param_' prefix
+                        detail: hasValue
+                            ? `Parameter: ${
+                                  paramConfig.label || paramName
+                              } = ${valuePreview}`
+                            : `Parameter: ${paramConfig.label || paramName}${
+                                  paramConfig.description
+                                      ? ` - ${paramConfig.description}`
+                                      : ''
+                              }`,
+                        documentation:
+                            paramConfig.description || 'Lightdash parameter',
+                    });
+                });
+            }
 
             const formatFieldName = (fieldName: string): string => {
                 let formattedName = fieldName;
@@ -253,6 +414,7 @@ const registerCustomCompletionProvider = (
 
             return { suggestions };
         },
+        triggerCharacters: ['.', '$', '{', 'l', 'd'],
     });
 };
 
@@ -313,7 +475,8 @@ export const SqlEditor: FC<{
     onSubmit?: (sql: string) => void;
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
-}> = ({ onSubmit, highlightText, resetHighlightError }) => {
+    parameterValues?: ParametersValuesMap;
+}> = ({ onSubmit, highlightText, resetHighlightError, parameterValues }) => {
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
@@ -323,6 +486,9 @@ export const SqlEditor: FC<{
     );
 
     const [settings] = useSqlEditorPreferences(warehouseConnectionType);
+
+    // Fetch all available parameters for the project
+    const { data: availableParameters } = useParameters(projectUuid, undefined);
 
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
@@ -447,6 +613,8 @@ export const SqlEditor: FC<{
                     tablesList,
                     allFieldsData.length > 0 ? allFieldsData : undefined,
                     settings,
+                    availableParameters,
+                    parameterValues,
                 );
                 completionProviderRef.current = provider;
             }
@@ -469,6 +637,8 @@ export const SqlEditor: FC<{
         currentSchema,
         warehouseConnectionType,
         settings,
+        availableParameters,
+        parameterValues,
     ]);
 
     useEffect(() => {
