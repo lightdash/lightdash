@@ -462,6 +462,8 @@ export default class EmailClient {
             subject,
             html: marked(markdown),
             text: markdown,
+            template: '',        // 👈 required
+    context: {},         // 👈 required
         });
     }
 
@@ -485,6 +487,8 @@ ${message}
             html: marked(markdown),
             text: `${title}\n\n${message}`,
             attachments,
+            template: '',        // 👈 required
+    context: {},         // 👈 required
         });
     }
 }
