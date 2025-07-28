@@ -1,3 +1,15 @@
+# [0.1844.0](https://github.com/lightdash/lightdash/compare/0.1843.0...0.1844.0) (2025-07-28)
+
+
+### Bug Fixes
+
+* handle empty analytics track of slack vote ([#16008](https://github.com/lightdash/lightdash/issues/16008)) ([f34d956](https://github.com/lightdash/lightdash/commit/f34d9569122e9ae00153dcbb7a9fd85e90ee29ad))
+
+
+### Features
+
+* use labels instead of field id on slack ai csv ([#16009](https://github.com/lightdash/lightdash/issues/16009)) ([ab8047e](https://github.com/lightdash/lightdash/commit/ab8047ed5b3cea128c41002eb7b2616174f428d2))
+
 # [0.1843.0](https://github.com/lightdash/lightdash/compare/0.1842.1...0.1843.0) (2025-07-28)
 
 
