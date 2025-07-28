@@ -6,6 +6,7 @@ import {
     Button,
     Code,
     Group,
+    HoverCard,
     LoadingOverlay,
     MultiSelect,
     Paper,
@@ -434,7 +435,45 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                         />
                                         <TagsInput
                                             variant="subtle"
-                                            label="Tags"
+                                            label={
+                                                <Group gap="xs">
+                                                    <Text fz="sm" fw={500}>
+                                                        Tags
+                                                    </Text>
+                                                    <HoverCard
+                                                        position="right"
+                                                        withArrow
+                                                    >
+                                                        <HoverCard.Target>
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconInfoCircle
+                                                                }
+                                                            />
+                                                        </HoverCard.Target>
+                                                        <HoverCard.Dropdown maw="250px">
+                                                            <Text fz="xs">
+                                                                Add tags to
+                                                                control which
+                                                                metrics and
+                                                                dimensions your
+                                                                AI agent can
+                                                                access. See more
+                                                                in our{' '}
+                                                                <Anchor
+                                                                    fz="xs"
+                                                                    c="dimmed"
+                                                                    underline="always"
+                                                                    href="https://docs.lightdash.com/guides/ai-agents#limiting-access-to-specific-explores-and-fields"
+                                                                    target="_blank"
+                                                                >
+                                                                    docs
+                                                                </Anchor>
+                                                            </Text>
+                                                        </HoverCard.Dropdown>
+                                                    </HoverCard>
+                                                </Group>
+                                            }
                                             placeholder="Select tags"
                                             {...form.getInputProps('tags')}
                                             value={
