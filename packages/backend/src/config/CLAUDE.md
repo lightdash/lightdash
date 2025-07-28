@@ -7,7 +7,7 @@ Centralized configuration management system that transforms environment variable
 <howToUse>
 The configuration is primarily accessed via dependency injection - avoid direct imports when possible:
 
-````typescript
+```typescript
 // Preferred: Dependency injection in services
 class MyService extends BaseService {
     constructor(args: { lightdashConfig: LightdashConfig }) {
@@ -25,6 +25,7 @@ class PrometheusMetrics {
 
 // Avoid: Direct import (use only when dependency injection isn't feasible)
 import { lightdashConfig } from './lightdashConfig';
+```
 
 Key configuration sections:
 
@@ -37,14 +38,6 @@ Key configuration sections:
     </howToUse>
 
 <codeExample>
-
-
-
-
-
-
-
-
 
 ```typescript
 // Service with injected configuration
@@ -80,6 +73,7 @@ const testConfig = parseConfig({
     LIGHTDASH_SECRET: 'test-secret',
     DATABASE_CONNECTION_URI: 'postgres://localhost/test',
 });
+```
 
 </codeExample>
 
@@ -110,4 +104,3 @@ const testConfig = parseConfig({
 - @aiConfigSchema.ts - Zod validation schema for AI features
 - @lightdashConfig.mock.ts - Mock configuration for testing
 </links>
-````
