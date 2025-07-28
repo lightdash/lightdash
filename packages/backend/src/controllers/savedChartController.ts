@@ -10,6 +10,7 @@ import {
     DateZoom,
     QueryExecutionContext,
     SortField,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import {
     Body,
@@ -277,6 +278,7 @@ export class SavedChartController extends BaseController {
         body: {
             dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
+            parameters?: ParametersValuesMap;
         },
         @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
@@ -288,6 +290,7 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 body.dashboardFilters,
                 body.invalidateCache,
+                body.parameters,
             );
         return {
             status: 'ok',
