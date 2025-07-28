@@ -1,6 +1,8 @@
 import { type LanguageMap } from '@lightdash/common';
 import { get } from 'lodash';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
+import { useAccount } from '../../../hooks/user/useAccount';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import {
     getFromInMemoryStorage,
     setToInMemoryStorage,
@@ -25,6 +27,16 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
 }) => {
     const [isInitialized, setIsInitialized] = useState(false);
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    const { data: account, isLoading } = useAccount();
+    const ability = useAbilityContext();
+
+    // Set ability rules for the embedded user. We should only get abilities from abilityContext
+    // rather than directly on the user or account.
+    useEffect(() => {
+        if (!isLoading && account?.user) {
+            ability.update(account.user.abilityRules);
+        }
+    }, [ability, account, isLoading]);
 
     // There is method to this madness:
     // When we get an embedded URL, the JWT token is added as a hash to the URL location.
