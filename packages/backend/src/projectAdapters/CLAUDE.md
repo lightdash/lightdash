@@ -5,7 +5,7 @@ Project adapter system implementing the adapter pattern to provide unified acces
 <howToUse>
 Project adapters are created through the factory function based on project configuration. The adapter provides a consistent interface regardless of the underlying dbt project type or Git provider.
 
-```typescript
+````typescript
 import { projectAdapterFromConfig } from './projectAdapters/projectAdapter';
 
 // Create adapter from project configuration
@@ -103,3 +103,4 @@ context
 @/packages/backend/src/clients/github/Github.ts - GitHub API client
 @/packages/common/src/types/dbt.ts - dbt project configuration types
 </links>
+````
