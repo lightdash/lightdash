@@ -21,6 +21,7 @@ export class MyController extends BaseController {
         };
     }
 }
+```
 
 Key patterns:
 
@@ -31,6 +32,7 @@ Key patterns:
     </howToUse>
 
 <codeExample>
+
 ```typescript
 // Basic CRUD controller
 @Route('/api/v1/projects')
@@ -40,9 +42,9 @@ export class ProjectController extends BaseController {
     @Get('/{projectUuid}/charts')
     @OperationId('listCharts')
     async getCharts(
+        @Request() req: express.Request,
         @Path() projectUuid: string,
         @Query() includePrivate?: boolean,
-        @Request() req: express.Request,
     ): Promise<ApiGetCharts> {
         const charts = await this.services
             .getSavedChartService()
@@ -70,8 +72,8 @@ export class ProjectController extends BaseController {
             results: chart,
         };
     }
-
 }
+```
 
 </codeExample>
 
@@ -82,28 +84,32 @@ export class ProjectController extends BaseController {
 - `unauthorisedInDemo` - Blocks actions in demo mode
 
 **Controller Organization:**
-- V1 controllers: `/api/v1/` routes with existing patterns
-- V2 controllers: `/api/v2/` routes with async/streaming support
-- Authentication logic in `@authentication/` subdirectory
+
+-   V1 controllers: `/api/v1/` routes with existing patterns
+-   V2 controllers: `/api/v2/` routes with async/streaming support
+-   Authentication logic in `@authentication/` subdirectory
 
 **Key Conventions:**
-- All controllers extend `BaseController` for service injection
-- Use TSOA decorators for OpenAPI generation and routing
-- Services accessed via `this.services.get{Service}Service()`
-- Consistent response format: `{status: 'ok', results: T}`
-- User object available as `req.user!` in authenticated endpoints
+
+-   All controllers extend `BaseController` for service injection
+-   Use TSOA decorators for OpenAPI generation and routing
+-   Services accessed via `this.services.get{Service}Service()`
+-   Consistent response format: `{status: 'ok', results: T}`
+-   User object available as `req.user!` in authenticated endpoints
 
 **V2 Differences:**
-- Focus on async operations and result streaming
-- Cleaner RESTful API design
-- Enhanced error handling patterns
+
+-   Focus on async operations and result streaming
+-   Cleaner RESTful API design
+-   Enhanced error handling patterns
 
 **Critical Business Logic:**
-- Project permissions enforced through service layer
-- Organization membership required for most operations
-- Demo mode restrictions applied via middleware
-- API keys and sessions both supported for authentication
-</importantToKnow>
+
+-   Project permissions enforced through service layer
+-   Organization membership required for most operations
+-   Demo mode restrictions applied via middleware
+-   API keys and sessions both supported for authentication
+    </importantToKnow>
 
 <links>
 @packages/backend/src/controllers/baseController.ts - Base controller implementation

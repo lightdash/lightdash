@@ -22,36 +22,39 @@ const paginatedResults = await KnexPaginate.paginate(
 
 // Migration execution
 await database.migrate.latest();
+```
 
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Create a new saved chart with proper entity types
 import { SavedChartTable } from './entities/savedCharts';
 
-const newChart: Omit<SavedChartTable['\_']['insert'], 'saved_query_id'> = {
-saved_query_uuid: uuidv4(),
-name: 'Sales Dashboard',
-description: 'Monthly sales metrics',
-project_id: project.project_id,
-space_id: space.space_id,
-created_by_user_uuid: user.user_uuid,
-// ... other required fields
+const newChart: Omit<SavedChartTable['_']['insert'], 'saved_query_id'> = {
+    saved_query_uuid: uuidv4(),
+    name: 'Sales Dashboard',
+    description: 'Monthly sales metrics',
+    project_id: project.project_id,
+    space_id: space.space_id,
+    created_by_user_uuid: user.user_uuid,
+    // ... other required fields
 };
 
 const [chartId] = await database('saved_charts').insert(newChart);
 
 // Example: Paginated query with search
 const searchResults = await KnexPaginate.paginate(
-database('catalog_search')
-.where('project_uuid', projectUuid)
-.whereILike('name', `%${searchTerm}%`)
-.orderBy('relevance_score', 'desc'),
-{ page: 1, pageSize: 50 }
+    database('catalog_search')
+        .where('project_uuid', projectUuid)
+        .whereILike('name', `%${searchTerm}%`)
+        .orderBy('relevance_score', 'desc'),
+    { page: 1, pageSize: 50 },
 );
 
 console.log(`Found ${searchResults.pagination.totalResults} results`);
+```
 
 </codeExample>
 

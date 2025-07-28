@@ -11,6 +11,7 @@ The configuration is primarily accessed via dependency injection - avoid direct 
 // Preferred: Dependency injection in services
 class MyService extends BaseService {
     constructor(args: { lightdashConfig: LightdashConfig }) {
+        super();
         this.lightdashConfig = args.lightdashConfig;
     }
 }
@@ -24,6 +25,7 @@ class PrometheusMetrics {
 
 // Avoid: Direct import (use only when dependency injection isn't feasible)
 import { lightdashConfig } from './lightdashConfig';
+```
 
 Key configuration sections:
 
@@ -71,6 +73,7 @@ const testConfig = parseConfig({
     LIGHTDASH_SECRET: 'test-secret',
     DATABASE_CONNECTION_URI: 'postgres://localhost/test',
 });
+```
 
 </codeExample>
 
