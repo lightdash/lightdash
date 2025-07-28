@@ -1,3 +1,10 @@
+# [0.1847.0](https://github.com/lightdash/lightdash/compare/0.1846.0...0.1847.0) (2025-07-28)
+
+
+### Features
+
+* improve UX for unavailable filters in dashboards ([#16068](https://github.com/lightdash/lightdash/issues/16068)) ([837f5ee](https://github.com/lightdash/lightdash/commit/837f5ee8548d1319fd5b2a86e5ecb3ee18d6962b)), closes [#16000](https://github.com/lightdash/lightdash/issues/16000)
+
 # [0.1846.0](https://github.com/lightdash/lightdash/compare/0.1845.0...0.1846.0) (2025-07-28)
 
 
