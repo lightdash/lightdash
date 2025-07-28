@@ -1,3 +1,10 @@
+# [0.1845.0](https://github.com/lightdash/lightdash/compare/0.1844.1...0.1845.0) (2025-07-28)
+
+
+### Features
+
+* add useAccount hook ([#15999](https://github.com/lightdash/lightdash/issues/15999)) ([0b878c0](https://github.com/lightdash/lightdash/commit/0b878c017c7cf188fff3b15edd4af72fb40ba601))
+
 ## [0.1844.1](https://github.com/lightdash/lightdash/compare/0.1844.0...0.1844.1) (2025-07-28)
 
 
