@@ -5,7 +5,7 @@ Express middleware collection for authentication, account management, deprecatio
 <howToUse>
 Middlewares are typically registered in Express routes or globally in the application. Import specific middleware functions and apply them to routes that require authentication or special handling.
 
-```typescript
+````typescript
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { deprecatedDownloadCsvRoute } from './middlewares/deprecation';
@@ -36,16 +36,16 @@ app.get('/api/v1/projects', (req, res) => {
 <codeExample>
 ```typescript
 // Example: Route with session authentication
-app.get('/api/v1/projects/:projectUuid/charts', 
+app.get('/api/v1/projects/:projectUuid/charts',
     sessionAccountMiddleware,  // Creates account from session
     async (req, res) => {
         // req.account is now populated with user info and abilities
         const userCanView = req.account.user.ability.can('view', 'SavedChart');
-        
+
         if (!userCanView) {
             return res.status(403).json({ error: 'Forbidden' });
         }
-        
+
         const charts = await getCharts(req.params.projectUuid);
         res.json(charts);
     }
@@ -96,3 +96,4 @@ legacyController.handleOldEndpoint
 @/packages/backend/src/controllers/authentication/ - Authentication controller utilities
 @/packages/backend/src/middlewares/sentry.ts - Sentry error tracking middleware
 </links>
+````
