@@ -15,6 +15,7 @@ import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
+import DataIngestion from './pages/DataIngestion';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
@@ -54,6 +55,20 @@ const DashboardPageWrapper: FC = () => {
         </>
     );
 };
+
+const SOLUCIA_PROJECT_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/data-ingestion',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name="DATA_INGESTION">
+                    <DataIngestion />
+                </TrackPage>
+            </>
+        ),
+    },
+];
 
 const FALLBACK_ROUTE: RouteObject = {
     path: '*',
@@ -357,6 +372,7 @@ const APP_ROUTES: RouteObject[] = [
                     ...DASHBOARD_ROUTES,
                     ...SPACES_ROUTES,
                     ...METRICS_ROUTES,
+                    ...SOLUCIA_PROJECT_ROUTES,
                     {
                         path: '/projects/:projectUuid/home',
                         element: (
@@ -482,6 +498,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
         ],
     },
 ];
+
 
 const WebAppRoutes = [...PUBLIC_ROUTES, ...PRIVATE_ROUTES, FALLBACK_ROUTE];
 export default WebAppRoutes;

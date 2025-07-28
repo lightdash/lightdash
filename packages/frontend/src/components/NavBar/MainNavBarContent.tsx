@@ -6,6 +6,7 @@ import Omnibar from '../../features/omnibar';
 import Logo from '../../svgs/logo-icon.svg?react';
 import { AiAgentsButton } from './AiAgentsButton';
 import BrowseMenu from './BrowseMenu';
+import DataIngestionMenu from './DataIngestionMenu';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
@@ -52,11 +53,8 @@ export const MainNavBarContent: FC<Props> = ({
                         <Button.Group>
                             <ExploreMenu projectUuid={activeProjectUuid} />
                             <BrowseMenu projectUuid={activeProjectUuid} />
-                            <div style={{ color: 'white', fontWeight: 'bold', border: '1px solid black', padding: '4px' }}>
-                                <a href={frontendUrl} target="_blank" rel="noopener noreferrer">
-                                    Data Ingestion
-                                </a>
-                            </div>
+                            <DataIngestionMenu projectUuid={activeProjectUuid} />
+    
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
