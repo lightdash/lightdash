@@ -15,11 +15,13 @@ pnpm create-migration add_user_permissions
 # For EE migrations, ensure license key is set
 export LIGHTDASH_LICENSE_KEY="your-ee-license-key"
 pnpm create-migration add_enterprise_feature
+```
 
 The script uses the Knex CLI under the hood to create properly timestamped migration files in the correct directory.
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Running the migration creation script
 // Input: pnpm create-migration add_chart_permissions
@@ -30,21 +32,22 @@ The script uses the Knex CLI under the hood to create properly timestamped migra
 import { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
-await knex.schema.alterTable('saved_charts', (table) => {
-table.jsonb('permissions').nullable();
-});
+    await knex.schema.alterTable('saved_charts', (table) => {
+        table.jsonb('permissions').nullable();
+    });
 }
 
 export async function down(knex: Knex): Promise<void> {
-await knex.schema.alterTable('saved_charts', (table) => {
-table.dropColumn('permissions');
-});
+    await knex.schema.alterTable('saved_charts', (table) => {
+        table.dropColumn('permissions');
+    });
 }
 
 // For EE migrations with license validation:
 // export LIGHTDASH_LICENSE_KEY="ee-license-key"
 // pnpm create-migration add_sso_config
 // Creates migration in: src/ee/database/migrations/
+```
 
 </codeExample>
 
