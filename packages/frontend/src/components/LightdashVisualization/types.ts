@@ -171,6 +171,7 @@ export type VisualizationConfigTreemapProps =
     VisualizationConfigCommon<VisualizationConfigTreemap> & {
         itemsMap: ItemsMap | undefined;
         tableCalculationsMetadata?: TableCalculationMetadata[];
+        parameters?: ParametersValuesMap;
     };
 
 // Custom
