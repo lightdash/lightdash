@@ -15,7 +15,6 @@ import { CaslAuditWrapper } from './logging/caslAuditWrapper';
 // Standard logging
 Logger.info('User logged in', { userId: 'user-123' });
 Logger.error('Database connection failed', { error: err.message });
-
 ```
 
 </howToUse>
@@ -42,7 +41,6 @@ const { result, durationMs } = await measureTime(
     Logger,
     { projectId: 'proj-123' },
 );
-
 ```
 
 </codeExample>
