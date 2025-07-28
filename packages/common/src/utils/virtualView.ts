@@ -118,6 +118,7 @@ export const createTemporaryVirtualView = (
         getFields: async () => ({}),
         parseWarehouseCatalog: () => ({}),
         parseError: (error) => error,
+        escapeString: (value) => value,
     };
 
     return createVirtualView(
