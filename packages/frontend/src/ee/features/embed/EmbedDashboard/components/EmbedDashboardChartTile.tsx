@@ -80,7 +80,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 metricQuery: translatedChartData?.metricQuery,
                 fields: translatedChartData?.fields,
                 parameterReferences: [],
-                usedParametersValues: {},
+                usedParametersValues: {}, // This is never used in embed endpoints/results, it's calculated in the backend from the saved parameters of the charts
             },
             chart: translatedChartData.chart,
             explore: translatedChartData.explore,
