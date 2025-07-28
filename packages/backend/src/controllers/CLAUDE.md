@@ -21,6 +21,7 @@ export class MyController extends BaseController {
         };
     }
 }
+```
 
 Key patterns:
 
@@ -72,10 +73,7 @@ export class ProjectController extends BaseController {
         };
     }
 }
-
 ```
-
-
 
 </codeExample>
 

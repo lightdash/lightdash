@@ -30,10 +30,12 @@ const cloudClient = new DbtMetadataApiClient({
 });
 
 const cloudManifest = await cloudClient.getDbtManifest();
+```
 
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Compile dbt project and get models
 const dbtClient = new DbtCliClient({
@@ -42,11 +44,11 @@ const dbtClient = new DbtCliClient({
     environment: {
         LIGHTDASH_DBT_PROFILE_VAR_HOST: warehouse.host,
         LIGHTDASH_DBT_PROFILE_VAR_USER: warehouse.user,
-        LIGHTDASH_DBT_PROFILE_VAR_PASSWORD: warehouse.password
+        LIGHTDASH_DBT_PROFILE_VAR_PASSWORD: warehouse.password,
     },
     profileName: 'lightdash_profile',
     target: 'prod',
-    dbtVersion: 'v1.8'
+    dbtVersion: 'v1.8',
 });
 
 // Install dependencies and compile
@@ -60,6 +62,7 @@ console.log(`Found ${Object.keys(manifest.nodes).length} dbt models`);
 // Example: Generate profiles.yml for warehouse connection
 const profiles = generateProfiles(warehouseCredentials, '/tmp/profiles');
 await fs.writeFile('/tmp/profiles/profiles.yml', profiles.profiles);
+```
 
 </codeExample>
 
