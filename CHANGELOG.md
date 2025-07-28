@@ -1,3 +1,10 @@
+# [0.1843.0](https://github.com/lightdash/lightdash/compare/0.1842.1...0.1843.0) (2025-07-28)
+
+
+### Features
+
+* adding a new treemap chart type ([#15407](https://github.com/lightdash/lightdash/issues/15407)) ([597fc57](https://github.com/lightdash/lightdash/commit/597fc573a7396c82545bf560c9c006297885edee))
+
 ## [0.1842.1](https://github.com/lightdash/lightdash/compare/0.1842.0...0.1842.1) (2025-07-25)
 
 
