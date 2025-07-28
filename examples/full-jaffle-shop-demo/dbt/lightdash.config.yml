@@ -15,7 +15,6 @@ parameters:
     label: "Subscription Status"
     description: "Filter subscriptions by their current status"
     default: "all"
-    allow_custom_values: true
     options:
       - "all"
       - "Current"

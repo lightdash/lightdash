@@ -362,7 +362,6 @@ export function reducer(
         }
         case ActionType.SET_PARAMETER: {
             return produce(state, (draft) => {
-                console.log('action.payload.value', action.payload.value);
                 if (!draft.unsavedChartVersion.parameters) {
                     draft.unsavedChartVersion.parameters = {};
                 }
@@ -376,10 +375,6 @@ export function reducer(
                         [action.payload.key]: action.payload.value,
                     };
                 }
-                console.log(
-                    'draft',
-                    draft.unsavedChartVersion.parameters[action.payload.key],
-                );
             });
         }
         case ActionType.CLEAR_ALL_PARAMETERS: {
@@ -1043,7 +1038,6 @@ const ExplorerProvider: FC<
 
     const setParameter = useCallback(
         (key: string, value: string | string[] | null) => {
-            console.log('set parameter', key, value);
             if (value === null) {
                 dispatch({
                     type: ActionType.SET_PARAMETER,
