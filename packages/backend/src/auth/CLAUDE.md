@@ -38,21 +38,22 @@ const anonymousAccount = fromJwt({
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Create embed token for dashboard
 const embedJwt = encodeLightdashJwt(
     {
         content: {
             dashboardUuid: dashboard.uuid,
-            dashboardFiltersInteractivity: 'enabled'
+            dashboardFiltersInteractivity: 'enabled',
         },
         user: {
             email: 'embed-user@client.com',
-            externalId: 'client-user-123'
-        }
+            externalId: 'client-user-123',
+        },
     },
     organization.jwtSecret,
-    '24h'
+    '24h',
 );
 
 // Example: Validate and create anonymous account
@@ -63,7 +64,7 @@ try {
         organization: { organizationUuid: org.uuid, name: org.name },
         source: embedToken,
         dashboardUuid: dashboard.uuid,
-        userAttributes: { attributes: [] }
+        userAttributes: { attributes: [] },
     });
 
     // Use account helper methods
@@ -73,8 +74,8 @@ try {
 } catch (error) {
     // Handle token validation errors
 }
-
 ```
+
 </codeExample>
 
 <importantToKnow>
