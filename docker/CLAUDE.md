@@ -24,14 +24,6 @@ Key services:
 
 <codeExample>
 
-
-
-
-
-
-
-
-
 ```yaml
 # Service architecture with shared configuration
 x-lightdash-base: &lightdash-base

@@ -22,14 +22,6 @@ docker-compose -f docker/docker-compose.dev.yml restart
 </howToUse>
 
 <codeExample>
-
-
-
-
-
-
-
-
 ```yaml
 # prometheus.dev.yml - Configure Prometheus scraping
 scrape_configs:

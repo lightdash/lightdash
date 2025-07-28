@@ -5,7 +5,7 @@ Enterprise Edition module providing commercial features including AI-powered ana
 <howToUse>
 Enterprise features are automatically loaded when a valid license key is configured. The module extends the base application with additional services, models, and controllers while maintaining backward compatibility.
 
-````typescript
+```typescript
 // Enterprise features are initialized in index.ts
 import { lightdashConfig } from '../config/lightdashConfig';
 
@@ -21,17 +21,11 @@ const summary = await aiService.generateDashboardSummary(dashboardUuid);
 
 const embedService = serviceRepository.getEmbedService();
 const embedUrl = await embedService.createEmbedUrl(dashboard, options);
+```
 
 </howToUse>
 
 <codeExample>
-
-
-
-
-
-
-
 
 ```typescript
 // Example: AI-powered dashboard summary
@@ -39,28 +33,28 @@ const aiService = serviceRepository.getAiService();
 const summary = await aiService.generateDashboardSummary({
     dashboardUuid: 'dash-123',
     organizationUuid: 'org-456',
-    userUuid: 'user-789'
+    userUuid: 'user-789',
 });
 
 // Example: Dashboard embedding with JWT
 const embedService = serviceRepository.getEmbedService();
 const embedToken = await embedService.createEmbedToken({
-content: {
-dashboardUuid: 'dash-123',
-dashboardFiltersInteractivity: 'enabled'
-},
-user: {
-email: 'embed-user@client.com',
-externalId: 'external-123'
-}
+    content: {
+        dashboardUuid: 'dash-123',
+        dashboardFiltersInteractivity: 'enabled',
+    },
+    user: {
+        email: 'embed-user@client.com',
+        externalId: 'external-123',
+    },
 });
 
 // Example: SCIM user provisioning
 const scimService = serviceRepository.getScimService();
 await scimService.createUser({
-userName: 'new.user@company.com',
-emails: [{ value: 'new.user@company.com', primary: true }],
-active: true
+    userName: 'new.user@company.com',
+    emails: [{ value: 'new.user@company.com', primary: true }],
+    active: true,
 });
 
 // Example: Service account for API access
@@ -68,8 +62,9 @@ const serviceAccountService = serviceRepository.getServiceAccountService();
 const serviceAccount = await serviceAccountService.createServiceAccount({
     name: 'Analytics API',
     organizationUuid: 'org-456',
-    scopes: ['read:dashboards', 'write:charts']
+    scopes: ['read:dashboards', 'write:charts'],
 });
+```
 
 </codeExample>
 
@@ -93,4 +88,3 @@ const serviceAccount = await serviceAccountService.createServiceAccount({
 @/packages/backend/src/ee/services/AiService/ - AI-powered analytics and insights
 @/packages/backend/src/ee/services/EmbedService/ - Dashboard embedding functionality
 </links>
-````

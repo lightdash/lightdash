@@ -45,7 +45,6 @@ constructor({
 </howToUse>
 
 <codeExample>
-
 Example of using a service to perform a business operation:
 
 ```typescript
