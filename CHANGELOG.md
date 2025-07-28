@@ -1,3 +1,10 @@
+## [0.1848.2](https://github.com/lightdash/lightdash/compare/0.1848.1...0.1848.2) (2025-07-28)
+
+
+### Bug Fixes
+
+* parameter default ([#16064](https://github.com/lightdash/lightdash/issues/16064)) ([b101d57](https://github.com/lightdash/lightdash/commit/b101d57dafd4cd09f2a879245489b1317be2bb02))
+
 ## [0.1848.1](https://github.com/lightdash/lightdash/compare/0.1848.0...0.1848.1) (2025-07-28)
 
 
