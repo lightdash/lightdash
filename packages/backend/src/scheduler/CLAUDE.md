@@ -39,46 +39,35 @@ await schedulerClient.addJob('compileProject', {
 <codeExample>
 
 ```typescript
-// Example: Set up scheduled delivery for dashboard
-const schedulerPayload = {
-    scheduledDeliveryId: 'delivery-789',
-    schedulerId: 'scheduler-123',
-    jobId: 'job-456',
-};
 
-// Queue the main scheduled delivery task
-await schedulerClient.addJob('handleScheduledDelivery', schedulerPayload);
-
-// The task will automatically:
-// 1. Load dashboard data and apply filters
-// 2. Generate PDF/CSV exports as needed
-// 3. Queue notification subtasks for each target
-// 4. Track analytics and log results
-
-// Example: Custom task with timeout handling
-const result = await tryJobOrTimeout(
-    async () => {
-        return await longRunningOperation();
-    },
-    'custom_operation',
-    300000, // 5 minute timeout
+// Example: Queue the main scheduled delivery task
+await schedulerClient.scheduleTask(
+    SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+    schedulerPayload,
+    JobPriority.NORMAL,
+    3
 );
 
-// Example: Queue multiple notification types
-const deliveryWithMultipleTargets = {
-    scheduledDeliveryId: 'multi-123',
-    schedulerId: 'scheduler-456',
-    targets: [
-        { type: 'email', recipient: 'user@example.com' },
-        { type: 'slack', channel: '#analytics' },
-        { type: 'gsheets', spreadsheetId: 'sheet-789' },
-    ],
-};
-
-await schedulerClient.addJob(
-    'handleScheduledDelivery',
-    deliveryWithMultipleTargets,
+// Example: Queue multiple notification types with real targets
+await schedulerClient.generateJobsForSchedulerTargets(
+    scheduledTime,
+    scheduler,
+    page,
+    parentJobId,
+    traceProperties
 );
+
+// Example: Compile a project
+await schedulerClient.compileProject({
+    organizationUuid,
+    projectUuid,
+    userUuid,
+    schedulerUuid,
+    createdByUserUuid,
+    requestMethod,
+    jobUuid,
+    isPreview,
+});
 ```
 
 </codeExample>
