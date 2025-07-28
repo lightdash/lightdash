@@ -109,7 +109,8 @@ export class ProjectController extends BaseController {
 -   Organization membership required for most operations
 -   Demo mode restrictions applied via middleware
 -   API keys and sessions both supported for authentication
-    </importantToKnow>
+
+</importantToKnow>
 
 <links>
 @packages/backend/src/controllers/baseController.ts - Base controller implementation
