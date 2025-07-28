@@ -11,11 +11,13 @@ pnpm generate-api
 
 # The generated files are automatically imported by the Express app
 import { RegisterRoutes } from './generated/routes';
+```
 
 The generated routes are registered in the main Express application and provide type-safe API endpoints based on TSOA decorators in controller files.
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: How generated routes are used in Express app
 import { RegisterRoutes } from './generated/routes';
@@ -27,10 +29,12 @@ const app = express();
 RegisterRoutes(app);
 
 // The routes.ts file contains mappings like:
-// app.get('/api/v1/projects/:projectUuid/charts',
-// ...middlewares,
-// SavedChartController.getCharts
-// );
+app.get(
+    '/api/v1/projects/:projectUuid/charts',
+    ...middlewares,
+    SavedChartController.getCharts,
+);
+```
 
 </codeExample>
 
