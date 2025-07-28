@@ -21,10 +21,12 @@ const slug = await generateUniqueSlug(trx, 'saved_queries', 'My Chart Name');
 
 // Adjust cron expressions for timezone
 const adjustedCron = getAdjustedCronByOffset('0 9 * * *', 120); // +2 hours
+```
 
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Encrypt JWT secret for storage
 const encryptionUtil = new EncryptionUtil({ lightdashConfig });
@@ -33,27 +35,25 @@ await database('organizations').update({ jwt_secret: encryptedSecret });
 
 // Example: Generate unique chart slug within project scope
 const chartSlug = await generateUniqueSlugScopedToProject(
-trx,
-projectUuid,
-'saved_queries',
-'Weekly Sales Report'
+    trx,
+    projectUuid,
+    'saved_queries',
+    'Weekly Sales Report',
 );
 
 // Example: Build parameterized query
-const queryBuilder = new QueryBuilder(
-explore,
-{
-parameters: { date_filter: '2023-01-01' },
-userAttributes: { role: 'manager' }
-}
-);
+const queryBuilder = new QueryBuilder(explore, {
+    parameters: { date_filter: '2023-01-01' },
+    userAttributes: { role: 'manager' },
+});
 const compiledQuery = queryBuilder.getCompiledQuery();
 
 // Example: Adjust scheduler cron for user timezone
-const utcCron = '0 9 \* _ 1'; // 9 AM UTC every Monday
+const utcCron = '0 9 * _ 1'; // 9 AM UTC every Monday
 const userOffsetMinutes = -300; // EST (-5 hours)
 const localizedCron = getAdjustedCronByOffset(utcCron, userOffsetMinutes);
 // Result: '0 4 _ \* 1' (4 AM EST)
+```
 
 </codeExample>
 
