@@ -1,3 +1,64 @@
+## [0.1848.1](https://github.com/lightdash/lightdash/compare/0.1848.0...0.1848.1) (2025-07-28)
+
+
+### Bug Fixes
+
+* **test:** make model number assertions generic ([#16072](https://github.com/lightdash/lightdash/issues/16072)) ([50f29a7](https://github.com/lightdash/lightdash/commit/50f29a7d4d5c7e34cbd2d518f5fb7e9e572fbf39))
+
+# [0.1848.0](https://github.com/lightdash/lightdash/compare/0.1847.0...0.1848.0) (2025-07-28)
+
+
+### Features
+
+* add unauthorised ai agent page ([#16071](https://github.com/lightdash/lightdash/issues/16071)) ([a642cd2](https://github.com/lightdash/lightdash/commit/a642cd2e7d413ba9dbb6785d33349ad1ac7e2225))
+
+# [0.1847.0](https://github.com/lightdash/lightdash/compare/0.1846.0...0.1847.0) (2025-07-28)
+
+
+### Features
+
+* improve UX for unavailable filters in dashboards ([#16068](https://github.com/lightdash/lightdash/issues/16068)) ([837f5ee](https://github.com/lightdash/lightdash/commit/837f5ee8548d1319fd5b2a86e5ecb3ee18d6962b)), closes [#16000](https://github.com/lightdash/lightdash/issues/16000)
+
+# [0.1846.0](https://github.com/lightdash/lightdash/compare/0.1845.0...0.1846.0) (2025-07-28)
+
+
+### Features
+
+* use JWT token in explores for React SDK ([#15787](https://github.com/lightdash/lightdash/issues/15787)) ([68bb335](https://github.com/lightdash/lightdash/commit/68bb33560b8d64c5174df5ef600b18f646be91bb))
+
+# [0.1845.0](https://github.com/lightdash/lightdash/compare/0.1844.1...0.1845.0) (2025-07-28)
+
+
+### Features
+
+* add useAccount hook ([#15999](https://github.com/lightdash/lightdash/issues/15999)) ([0b878c0](https://github.com/lightdash/lightdash/commit/0b878c017c7cf188fff3b15edd4af72fb40ba601))
+
+## [0.1844.1](https://github.com/lightdash/lightdash/compare/0.1844.0...0.1844.1) (2025-07-28)
+
+
+### Bug Fixes
+
+* implement missing LESS_THAN_OR_EQUAL and GREATER_THAN_OR_EQUAL operators for conditional formatting ([#16048](https://github.com/lightdash/lightdash/issues/16048)) ([1d27d4e](https://github.com/lightdash/lightdash/commit/1d27d4e834758a962052fb98111cfe923bbb6b03))
+
+# [0.1844.0](https://github.com/lightdash/lightdash/compare/0.1843.0...0.1844.0) (2025-07-28)
+
+
+### Bug Fixes
+
+* handle empty analytics track of slack vote ([#16008](https://github.com/lightdash/lightdash/issues/16008)) ([f34d956](https://github.com/lightdash/lightdash/commit/f34d9569122e9ae00153dcbb7a9fd85e90ee29ad))
+
+
+### Features
+
+* use labels instead of field id on slack ai csv ([#16009](https://github.com/lightdash/lightdash/issues/16009)) ([ab8047e](https://github.com/lightdash/lightdash/commit/ab8047ed5b3cea128c41002eb7b2616174f428d2))
+
+# [0.1843.0](https://github.com/lightdash/lightdash/compare/0.1842.1...0.1843.0) (2025-07-28)
+
+
+### Features
+
+* adding a new treemap chart type ([#15407](https://github.com/lightdash/lightdash/issues/15407)) ([597fc57](https://github.com/lightdash/lightdash/commit/597fc573a7396c82545bf560c9c006297885edee))
+
 ## [0.1842.1](https://github.com/lightdash/lightdash/compare/0.1842.0...0.1842.1) (2025-07-25)
 
 

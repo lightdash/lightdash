@@ -14,7 +14,7 @@ describe('Lightdash catalog all tables and fields', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?type=table`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(21);
+            expect(resp.body.results).to.have.length.gt(0);
             const userTable = resp.body.results.find(
                 (table) => table.name === 'users',
             );

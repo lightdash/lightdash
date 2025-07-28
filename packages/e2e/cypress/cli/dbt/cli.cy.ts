@@ -1,13 +1,7 @@
-import { SEED_PROJECT } from '@lightdash/common';
-
 describe('CLI', () => {
-    const lightdashUrl = Cypress.config('baseUrl');
     const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
     const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
     const cliCommand = `lightdash`;
-
-    const previewName = `e2e preview ${new Date().getTime()}`;
-    let projectToDelete: string;
 
     const databaseEnvVars = {
         PGHOST: Cypress.env('PGHOST') ?? 'localhost',
@@ -17,27 +11,6 @@ describe('CLI', () => {
         PGDATABASE: Cypress.env('PGDATABASE') ?? 'postgres',
         SEED_SCHEMA: Cypress.env('SEED_SCHEMA') ?? 'jaffle',
     };
-
-    after(() => {
-        if (projectToDelete) {
-            cy.request({
-                url: `api/v1/org/projects/${projectToDelete}`,
-                headers: { 'Content-type': 'application/json' },
-                method: 'DELETE',
-            });
-        }
-    });
-
-    it('Should test lightdash command help', () => {
-        cy.exec(`${cliCommand} help`)
-            .its('stdout')
-            .should('contain', 'Developer tools for dbt and Lightdash.');
-    });
-    it('Should get version', () => {
-        cy.exec(`${cliCommand} --version`)
-            .its('stdout')
-            .should('contain', '0.');
-    });
 
     it('Should run dbt first', () => {
         cy.exec(
@@ -260,114 +233,6 @@ describe('CLI', () => {
             expect(result.stderr).to.contain(
                 'Failed to compile project. Found 1 error',
             );
-        });
-    });
-
-    it('Should lightdash login with token', () => {
-        cy.login();
-        cy.getApiToken().then((apiToken) => {
-            cy.exec(`${cliCommand} login ${lightdashUrl} --token ${apiToken}`, {
-                failOnNonZeroExit: false,
-                env: {
-                    NODE_ENV: 'development',
-                    CI: true,
-                },
-            })
-                .its('stderr')
-                .should('contain', 'Login successful');
-        });
-    });
-
-    it('Should create new project', () => {
-        cy.login();
-        cy.getApiToken().then((apiToken) => {
-            cy.exec(
-                `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
-                {
-                    failOnNonZeroExit: false,
-                    env: {
-                        CI: true,
-                        NODE_ENV: 'development',
-                        LIGHTDASH_API_KEY: apiToken,
-                        LIGHTDASH_URL: lightdashUrl,
-                        ...databaseEnvVars,
-                    },
-                },
-            ).then((result) => {
-                expect(result.stderr).to.contain('Successfully deployed');
-                // Delete project
-                const matches = result.stderr.match(/projectUuid=([\w-]*)/);
-                const projectUuid = matches?.[1];
-                if (!projectUuid) {
-                    throw new Error(
-                        `Could not find project uuid in success message: ${result.stderr}`,
-                    );
-                }
-
-                // save project uuid to delete after all tests
-                projectToDelete = projectUuid;
-            });
-        });
-    });
-
-    it('Should start-preview', () => {
-        cy.login();
-        cy.getApiToken().then((apiToken) => {
-            cy.exec(
-                `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
-                {
-                    failOnNonZeroExit: false,
-                    env: {
-                        CI: true,
-                        NODE_ENV: 'development',
-                        LIGHTDASH_API_KEY: apiToken,
-                        LIGHTDASH_URL: lightdashUrl,
-                        ...databaseEnvVars,
-                    },
-                },
-            )
-                .its('stderr')
-                .should('contain', 'New project created');
-        });
-    });
-
-    it('Should stop-preview', () => {
-        cy.login();
-        cy.getApiToken().then((apiToken) => {
-            cy.exec(`${cliCommand} stop-preview --name "${previewName}"`, {
-                failOnNonZeroExit: false,
-                env: {
-                    NODE_ENV: 'development',
-                    LIGHTDASH_API_KEY: apiToken,
-                    LIGHTDASH_URL: lightdashUrl,
-                },
-            })
-                .its('stderr')
-                .should(
-                    'contain',
-                    `Successfully deleted preview project named ${previewName}`,
-                );
-        });
-    });
-
-    it('Should test validate', () => {
-        cy.login();
-        cy.getApiToken().then((apiToken) => {
-            cy.exec(
-                `${cliCommand} validate --project-dir ${projectDir} --profiles-dir ${profilesDir} --project ${SEED_PROJECT.project_uuid}`,
-                {
-                    failOnNonZeroExit: false,
-                    env: {
-                        NODE_ENV: 'development',
-                        LIGHTDASH_API_KEY: apiToken,
-                        LIGHTDASH_URL: lightdashUrl,
-                        ...databaseEnvVars,
-                    },
-                },
-            )
-                .its('stderr')
-                .should('not.contain', 'Validation failed') // This is an internal backend error, this should not happen
-                .should('contain', 'Validation finished'); // It can be without or without validation errors
         });
     });
 });

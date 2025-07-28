@@ -89,8 +89,8 @@ export class CommercialSlackClient extends SlackClient {
             app.event('app_mention', (m) =>
                 this.handleAppMention(m, aiAgentService),
             );
-            CommercialSlackClient.handlePromptUpvote(app, aiAgentService);
-            CommercialSlackClient.handlePromptDownvote(app, aiAgentService);
+            this.handlePromptUpvote(app, aiAgentService);
+            this.handlePromptDownvote(app, aiAgentService);
             CommercialSlackClient.handleClickExploreButton(app);
             CommercialSlackClient.handleClickOAuthButton(app);
             this.handleExecuteFollowUpTool(app, aiAgentService);
@@ -145,10 +145,10 @@ export class CommercialSlackClient extends SlackClient {
         );
     }
 
-    static handlePromptUpvote(app: App, aiAgentService: AiAgentService) {
+    private handlePromptUpvote(app: App, aiAgentService: AiAgentService) {
         app.action(
             'prompt_human_score.upvote',
-            async ({ ack, body, respond }) => {
+            async ({ ack, body, respond, context }) => {
                 await ack();
                 const { user } = body;
                 const newBlock = {
@@ -167,7 +167,15 @@ export class CommercialSlackClient extends SlackClient {
                         if (!promptUuid) {
                             return;
                         }
+                        const { teamId } = context;
+                        const organizationUuid = teamId
+                            ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                                  teamId,
+                              )
+                            : undefined;
                         await aiAgentService.updateHumanScoreForSlackPrompt(
+                            user.id,
+                            organizationUuid,
                             promptUuid,
                             1,
                         );
@@ -190,10 +198,10 @@ export class CommercialSlackClient extends SlackClient {
         );
     }
 
-    static handlePromptDownvote(app: App, aiAgentService: AiAgentService) {
+    private handlePromptDownvote(app: App, aiAgentService: AiAgentService) {
         app.action(
             'prompt_human_score.downvote',
-            async ({ ack, body, respond }) => {
+            async ({ ack, body, respond, context }) => {
                 await ack();
                 const { user } = body;
                 const newBlock = {
@@ -212,7 +220,16 @@ export class CommercialSlackClient extends SlackClient {
                         if (!promptUuid) {
                             return;
                         }
+                        const { teamId } = context;
+
+                        const organizationUuid = teamId
+                            ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                                  teamId,
+                              )
+                            : undefined;
                         await aiAgentService.updateHumanScoreForSlackPrompt(
+                            user.id,
+                            organizationUuid,
                             promptUuid,
                             -1,
                         );
@@ -245,7 +262,7 @@ export class CommercialSlackClient extends SlackClient {
                 async ({ ack, body, context, say }) => {
                     await ack();
 
-                    const { type, user, channel } = body;
+                    const { type, channel } = body;
 
                     if (type === 'block_actions') {
                         const action = body.actions[0];

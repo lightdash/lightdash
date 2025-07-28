@@ -11,6 +11,7 @@ import AgentsRedirect from './pages/AiAgents/AgentsRedirect';
 import AgentsWelcome from './pages/AiAgents/AgentsWelcome';
 import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
+import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPage';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
@@ -95,6 +96,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
             {
                 index: true,
                 element: <AgentsWelcome />,
+            },
+            {
+                path: 'not-authorized',
+                element: <AiAgentsNotAuthorizedPage />,
             },
             {
                 path: 'new',
