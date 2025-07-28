@@ -240,6 +240,7 @@ export class CatalogModel {
         tablesConfiguration,
         userAttributes,
         yamlTags,
+        tables,
         paginateArgs,
         sortArgs,
         context,
@@ -252,6 +253,7 @@ export class CatalogModel {
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
         yamlTags: string[] | null;
+        tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
         context: CatalogSearchContext;
@@ -522,6 +524,30 @@ export class CatalogModel {
                                     );
                             });
                         });
+                },
+            );
+        }
+
+        if (tables) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                function joinedTablesFiltering() {
+                    // Condition 1: The item's own table is in the list.
+                    // This includes the table itself, and any fields belonging to it.
+                    void this.whereIn(`${CatalogTableName}.table_name`, tables);
+
+                    // Condition 2: The item belongs to a table whose joined_tables array
+                    // contains any of the specified tables
+                    void this.orWhereExists(function tableJoinsToSelected() {
+                        void this.select('name')
+                            .from(`${CatalogTableName} as parent_table`)
+                            .whereRaw(
+                                `parent_table.table_name = ANY(?::text[])`,
+                                [tables],
+                            )
+                            .andWhereRaw(
+                                `parent_table.joined_tables @> ARRAY[${CatalogTableName}.table_name]::text[]`,
+                            );
+                    });
                 },
             );
         }
