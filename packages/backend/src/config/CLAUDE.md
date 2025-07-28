@@ -7,7 +7,7 @@ Centralized configuration management system that transforms environment variable
 <howToUse>
 The configuration is primarily accessed via dependency injection - avoid direct imports when possible:
 
-```typescript
+````typescript
 // Preferred: Dependency injection in services
 class MyService extends BaseService {
     constructor(args: { lightdashConfig: LightdashConfig }) {
@@ -102,3 +102,4 @@ const testConfig = parseConfig({
 - @aiConfigSchema.ts - Zod validation schema for AI features
 - @lightdashConfig.mock.ts - Mock configuration for testing
 </links>
+````
