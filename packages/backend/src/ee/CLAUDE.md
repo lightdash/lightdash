@@ -5,7 +5,7 @@ Enterprise Edition module providing commercial features including AI-powered ana
 <howToUse>
 Enterprise features are automatically loaded when a valid license key is configured. The module extends the base application with additional services, models, and controllers while maintaining backward compatibility.
 
-```typescript
+````typescript
 // Enterprise features are initialized in index.ts
 import { lightdashConfig } from '../config/lightdashConfig';
 
@@ -25,6 +25,14 @@ const embedUrl = await embedService.createEmbedUrl(dashboard, options);
 </howToUse>
 
 <codeExample>
+
+
+
+
+
+
+
+
 ```typescript
 // Example: AI-powered dashboard summary
 const aiService = serviceRepository.getAiService();
@@ -85,3 +93,4 @@ const serviceAccount = await serviceAccountService.createServiceAccount({
 @/packages/backend/src/ee/services/AiService/ - AI-powered analytics and insights
 @/packages/backend/src/ee/services/EmbedService/ - Dashboard embedding functionality
 </links>
+````

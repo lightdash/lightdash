@@ -16,6 +16,14 @@ Most handlers require authentication and project context. The compile/deploy wor
 </howToUse>
 
 <codeExample>
+
+
+
+
+
+
+
+
 ```typescript
 // Compile dbt models and validate explores
 import { compile, CompileHandlerOptions } from './compile';

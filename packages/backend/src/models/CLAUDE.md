@@ -31,6 +31,7 @@ const newOrg = await organizationModel.createOrganization({
 </howToUse>
 
 <codeExample>
+
 Example: Using UserModel to create and retrieve users
 
 ```typescript
