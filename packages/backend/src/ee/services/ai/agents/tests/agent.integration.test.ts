@@ -1,4 +1,9 @@
-import { AiAgent, AiWebAppPrompt } from '@lightdash/common';
+import {
+    AiAgent,
+    AiWebAppPrompt,
+    isDateItem,
+    SessionAccount,
+} from '@lightdash/common';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
     getModels,
@@ -8,7 +13,7 @@ import {
 } from '../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
-import { factualityScores, llmAsAJudge } from './utils/llmAsAJudge';
+import { llmAsAJudge } from './utils/llmAsAJudge';
 
 // Skip if no OpenAI API key
 const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -18,6 +23,10 @@ describeOrSkip('agent integration tests', () => {
     let context: IntegrationTestContext;
     const TIMEOUT = 60_000;
     let createdAgent: AiAgent | null = null;
+    const model = getOpenaiGptmodel({
+        apiKey: process.env.OPENAI_API_KEY!,
+        modelName: 'gpt-4.1',
+    });
 
     beforeAll(async () => {
         if (!process.env.OPENAI_API_KEY) {
@@ -110,10 +119,7 @@ describeOrSkip('agent integration tests', () => {
                 response,
                 expectedAnswer:
                     'You can explore data models such as Orders, Customers, Payments, Events, Subscriptions, Tracks',
-                model: getOpenaiGptmodel({
-                    apiKey: process.env.OPENAI_API_KEY!,
-                    modelName: 'gpt-4.1',
-                }),
+                model,
                 scorerType: 'factuality',
             });
 
@@ -121,9 +127,7 @@ describeOrSkip('agent integration tests', () => {
                 throw new Error('Factuality evaluation not found');
             }
 
-            expect(
-                factualityScores[factualityEvaluation.answer],
-            ).toBeGreaterThan(0.4);
+            expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
             expect(factualityEvaluation.rationale).toBeDefined();
         },
         TIMEOUT,
@@ -152,19 +156,14 @@ describeOrSkip('agent integration tests', () => {
             response,
             expectedAnswer: '1989.37',
             scorerType: 'factuality',
-            model: getOpenaiGptmodel({
-                apiKey: process.env.OPENAI_API_KEY!,
-                modelName: 'gpt-4.1',
-            }),
+            model,
         });
 
         if (!factualityEvaluation) {
             throw new Error('Factuality evaluation not found');
         }
 
-        expect(factualityScores[factualityEvaluation.answer]).toBeGreaterThan(
-            0.4,
-        );
+        expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
         expect(factualityEvaluation.rationale).toBeDefined();
     });
 
@@ -201,19 +200,14 @@ describeOrSkip('agent integration tests', () => {
             expectedAnswer:
                 "I've been able to generate a time-series chart of revenue over time monthly on the orders explore",
             scorerType: 'factuality',
-            model: getOpenaiGptmodel({
-                apiKey: process.env.OPENAI_API_KEY!,
-                modelName: 'gpt-4.1',
-            }),
+            model,
         });
 
         if (!factualityEvaluation) {
             throw new Error('Factuality evaluation not found');
         }
 
-        expect(factualityScores[factualityEvaluation.answer]).toBeGreaterThan(
-            0.4,
-        );
+        expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
         expect(factualityEvaluation.rationale).toBeDefined();
 
         const jsonExpected = JSON.stringify({
@@ -240,10 +234,7 @@ describeOrSkip('agent integration tests', () => {
         });
 
         const jsonDiffEvaluation = await llmAsAJudge({
-            model: getOpenaiGptmodel({
-                apiKey: process.env.OPENAI_API_KEY!,
-                modelName: 'gpt-4.1',
-            }),
+            model,
             query: promptQueryText,
             response: vizConfig,
             expectedAnswer: jsonExpected,
@@ -256,4 +247,74 @@ describeOrSkip('agent integration tests', () => {
 
         expect(jsonDiffEvaluation.score).toBeGreaterThanOrEqual(0.5);
     });
+
+    it(
+        'should retrieve relevant context for a time-based query',
+        async () => {
+            if (!createdAgent) {
+                throw new Error('Agent not created');
+            }
+
+            const promptQueryText =
+                'Show me revenue by month from the orders data';
+
+            const { response, prompt } = await promptAgent(promptQueryText);
+
+            const toolCalls = await context
+                .db<DbAiAgentToolCall>('ai_agent_tool_call')
+                .leftJoin(
+                    'ai_agent_tool_result',
+                    'ai_agent_tool_call.tool_call_id',
+                    'ai_agent_tool_result.tool_call_id',
+                )
+                .where('ai_agent_tool_call.ai_prompt_uuid', prompt!.promptUuid)
+                .select('*');
+
+            const findFieldsToolCall = toolCalls.find(
+                (call) => call.tool_name === 'findFields',
+            );
+            expect(findFieldsToolCall).toBeDefined();
+
+            if (!findFieldsToolCall?.result) {
+                throw new Error('findFields tool call did not have a response');
+            }
+
+            const ordersExplore = await getServices(
+                context.app,
+            ).projectService.getExplore(
+                context.testUserSessionAccount,
+                createdAgent.projectUuid!,
+                'orders',
+            );
+
+            // TODO: Check if we should get the fields from the tool call result or from the explore
+            const exploreDateFields: string[] = Object.values(
+                ordersExplore.tables.orders.dimensions,
+            ).reduce((acc: string[], field) => {
+                if (isDateItem(field)) {
+                    acc.push(
+                        `Field: ${field.name}, Label: ${field.label}, Description: ${field.description}`,
+                    );
+                }
+                return acc;
+            }, []);
+
+            const contextForEval = [...exploreDateFields, 'Explore: orders'];
+
+            const contextRelevancyEvaluation = await llmAsAJudge({
+                query: promptQueryText,
+                response,
+                context: contextForEval,
+                model,
+                scorerType: 'contextRelevancy',
+            });
+
+            // The retrieved fields should be highly relevant to the query
+            expect(contextRelevancyEvaluation.score).toBeGreaterThanOrEqual(
+                0.7,
+            );
+            expect(contextRelevancyEvaluation.reason).toBeDefined();
+        },
+        TIMEOUT,
+    );
 });

@@ -1,4 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
+import { ContextRelevancyMetric } from '@mastra/evals/llm';
 import { generateObject } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
@@ -19,10 +20,16 @@ export type FactualityResponse = {
 
 export type JsonDiffResponse = Score;
 
+export type ContextRelevancyResponse = {
+    score: number;
+    reason: string;
+};
+
 type BaseLlmAsJudgeParams = {
     query: string;
     response: string;
-    expectedAnswer: string;
+    expectedAnswer?: string;
+    context?: string[];
     model: ReturnType<typeof getOpenaiGptmodel>;
 };
 
@@ -34,6 +41,10 @@ export async function llmAsAJudge(
 export async function llmAsAJudge(
     params: BaseLlmAsJudgeParams & { scorerType: 'jsonDiff' },
 ): Promise<JsonDiffResponse>;
+
+export async function llmAsAJudge(
+    params: BaseLlmAsJudgeParams & { scorerType: 'contextRelevancy' },
+): Promise<ContextRelevancyResponse>;
 
 /**
  * Use LLM-as-judge to evaluate agent responses
@@ -47,13 +58,19 @@ export async function llmAsAJudge({
     query,
     response,
     expectedAnswer,
+    context,
     model,
     scorerType,
-}: BaseLlmAsJudgeParams & { scorerType: 'factuality' | 'jsonDiff' }): Promise<
-    FactualityResponse | JsonDiffResponse
-> {
+}: BaseLlmAsJudgeParams & {
+    scorerType: 'factuality' | 'jsonDiff' | 'contextRelevancy';
+}): Promise<FactualityResponse | JsonDiffResponse | ContextRelevancyResponse> {
     switch (scorerType) {
         case 'jsonDiff': {
+            if (!expectedAnswer) {
+                throw new Error(
+                    'expectedAnswer is required for jsonDiff scorer',
+                );
+            }
             const diff = await JSONDiff({
                 output: response,
                 expected: expectedAnswer,
@@ -62,6 +79,11 @@ export async function llmAsAJudge({
         }
 
         case 'factuality': {
+            if (!expectedAnswer) {
+                throw new Error(
+                    'expectedAnswer is required for factuality scorer',
+                );
+            }
             const { object } = await generateObject({
                 model,
                 schema: z.object({
@@ -104,6 +126,21 @@ export async function llmAsAJudge({
             return {
                 answer: object.answer,
                 rationale: object.rationale,
+            };
+        }
+
+        case 'contextRelevancy': {
+            if (!context) {
+                throw new Error('context is required for contextRelevancy');
+            }
+            const metric = new ContextRelevancyMetric(model, {
+                context,
+            });
+            const result = await metric.measure(query, response);
+
+            return {
+                score: result.score,
+                reason: result.info.reason,
             };
         }
 
