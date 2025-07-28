@@ -434,6 +434,7 @@ export const hasMatchingConditionalRules = (
                     }
 
                     throw new NotImplementedError();
+
                 case FilterOperator.GREATER_THAN_OR_EQUAL:
                     if (shouldCompareFieldToValue) {
                         return rule.values.some(
@@ -466,6 +467,7 @@ export const hasMatchingConditionalRules = (
                     }
 
                     throw new NotImplementedError();
+
                 case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.IN_THE_PAST:
                 case FilterOperator.NOT_IN_THE_PAST:
