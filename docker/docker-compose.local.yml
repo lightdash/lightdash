@@ -106,6 +106,7 @@ services:
             - EMAIL_SMTP_ALLOW_INVALID_CERT=${EMAIL_SMTP_ALLOW_INVALID_CERT}   # unless
             - EMAIL_SMTP_SENDER_NAME=${EMAIL_SMTP_SENDER_NAME}
             - EMAIL_SMTP_SENDER_EMAIL=${EMAIL_SMTP_SENDER_EMAIL}
+            - VITE_CUSTOM_FRONTEND_URL=${VITE_CUSTOM_FRONTEND_URL}
         volumes:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'

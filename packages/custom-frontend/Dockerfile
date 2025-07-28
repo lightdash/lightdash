@@ -28,6 +28,9 @@ COPY --from=builder /app/.next/standalone ./
 # Copy static assets (needed for _next/static)
 COPY --from=builder /app/.next/static ./.next/static
 
+# Copy public assets if you have any (like favicon, etc.)
+COPY --from=builder /app/public ./public
+
 # Expose default Next.js port
 EXPOSE 8080
 

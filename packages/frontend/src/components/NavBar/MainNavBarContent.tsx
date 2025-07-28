@@ -32,6 +32,9 @@ export const MainNavBarContent: FC<Props> = ({
         projectUuid: activeProjectUuid,
     });
 
+    const frontendUrl = import.meta.env.VITE_CUSTOM_FRONTEND_URL;
+
+
     return (
         <>
             <Group align="center" sx={{ flexShrink: 0 }}>
@@ -49,6 +52,11 @@ export const MainNavBarContent: FC<Props> = ({
                         <Button.Group>
                             <ExploreMenu projectUuid={activeProjectUuid} />
                             <BrowseMenu projectUuid={activeProjectUuid} />
+                            <div style={{ color: 'white', fontWeight: 'bold', border: '1px solid black', padding: '4px' }}>
+                                <a href={frontendUrl} target="_blank" rel="noopener noreferrer">
+                                    Data Ingestion
+                                </a>
+                            </div>
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
