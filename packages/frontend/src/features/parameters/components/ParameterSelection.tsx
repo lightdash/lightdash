@@ -31,6 +31,7 @@ type ParameterSelectionProps = {
     cols?: number;
     projectUuid?: string;
     loadingMessage?: string;
+    disabled?: boolean;
 };
 
 export const ParameterSelection: FC<ParameterSelectionProps> = ({
@@ -44,6 +45,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     onClearAll,
     cols = 1,
     projectUuid,
+    disabled = false,
 }) => {
     const parameterKeys = parameters ? Object.keys(parameters) : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
@@ -138,6 +140,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                 size={size}
                                 projectUuid={projectUuid}
                                 parameterValues={parameterValues}
+                                disabled={disabled}
                             />
                         </Box>
                     );
@@ -154,6 +157,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                         color="gray"
                         onClick={onClearAll}
                         style={{ alignSelf: 'flex-end' }}
+                        disabled={disabled}
                     >
                         Clear all
                     </Button>
