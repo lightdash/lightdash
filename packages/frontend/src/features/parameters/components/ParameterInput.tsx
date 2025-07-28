@@ -378,6 +378,21 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     projectUuid,
     parameterValues,
 }) => {
+    const placeholder = useMemo(() => {
+        const defaultValues = parameter.default
+            ? Array.isArray(parameter.default)
+                ? parameter.default
+                : [parameter.default]
+            : undefined;
+        return defaultValues
+            ? `${
+                  parameter.multiple
+                      ? defaultValues.join(', ')
+                      : defaultValues[0]
+              } (default)`
+            : 'Choose value...';
+    }, [parameter]);
+
     if (parameter.options_from_dimension && projectUuid) {
         // Create a FilterableItem from parameter.options_from_dimension
         const field: FilterableItem = {
@@ -397,7 +412,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 projectUuid={projectUuid}
                 field={field}
                 autoFocus={false}
-                placeholder="Choose value..."
+                placeholder={placeholder}
                 suggestions={[]}
                 values={value ? (Array.isArray(value) ? value : [value]) : []}
                 singleValue={!parameter.multiple}
@@ -413,7 +428,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 data={parameter.options ?? []}
                 value={value ? (Array.isArray(value) ? value : [value]) : []}
                 onChange={(newValue) => onParameterChange(paramKey, newValue)}
-                placeholder="Choose value..."
+                placeholder={placeholder}
                 size={size}
                 searchable
                 clearable
@@ -423,7 +438,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
     return (
         <Select
-            placeholder="Choose value..."
+            placeholder={placeholder}
             value={Array.isArray(value) ? value[0] || null : value || null}
             onChange={(newValue) => onParameterChange(paramKey, newValue)}
             data={parameter.options ?? []}
