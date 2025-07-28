@@ -14,9 +14,9 @@ import {
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -26,7 +26,7 @@ import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const FiltersCard: FC = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,

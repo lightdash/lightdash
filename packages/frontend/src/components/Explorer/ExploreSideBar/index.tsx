@@ -15,8 +15,9 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useExplores } from '../../../hooks/useExplores';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -44,7 +45,7 @@ const LoadingSkeleton = () => (
 
 const BasePanel = () => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
@@ -220,7 +221,7 @@ const BasePanel = () => {
 };
 
 const ExploreSideBar = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
