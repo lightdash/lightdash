@@ -1,3 +1,10 @@
+## [0.1848.1](https://github.com/lightdash/lightdash/compare/0.1848.0...0.1848.1) (2025-07-28)
+
+
+### Bug Fixes
+
+* **test:** make model number assertions generic ([#16072](https://github.com/lightdash/lightdash/issues/16072)) ([50f29a7](https://github.com/lightdash/lightdash/commit/50f29a7d4d5c7e34cbd2d518f5fb7e9e572fbf39))
+
 # [0.1848.0](https://github.com/lightdash/lightdash/compare/0.1847.0...0.1848.0) (2025-07-28)
 
 
