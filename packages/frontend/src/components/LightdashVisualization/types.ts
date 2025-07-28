@@ -6,6 +6,7 @@ import {
     type ItemsMap,
     type Metric,
     type MetricQuery,
+    type ParametersValuesMap,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
@@ -148,6 +149,7 @@ export type VisualizationTableConfigProps =
         savedChartUuid: string | undefined;
         dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;
+        parameters?: ParametersValuesMap;
     };
 
 // Treemap
