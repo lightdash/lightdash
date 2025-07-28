@@ -7,29 +7,15 @@ The logging module provides the main Logger instance and various logging utiliti
 
 ```typescript
 import Logger from './logging/logger';
-import { auditLog } from './logging/auditLog';
+import { createAuditLogEvent } from './logging/auditLog';
+import { logAuditEvent } from './logging/winston';
 import { measureTime } from './logging/measureTime';
-import { wrapCaslAuthorization } from './logging/caslAuditWrapper';
+import { CaslAuditWrapper } from './logging/caslAuditWrapper';
 
 // Standard logging
 Logger.info('User logged in', { userId: 'user-123' });
 Logger.error('Database connection failed', { error: err.message });
 
-// Performance measurement
-const { result, durationMs } = await measureTime(
-    () => database.query('SELECT * FROM projects'),
-    'projects_query',
-    Logger,
-    { projectId: 'proj-123' },
-);
-
-// Audit logging for security events
-auditLog({
-    actor: { uuid: user.uuid, email: user.email },
-    action: 'view',
-    resource: { type: 'dashboard', uuid: dashboard.uuid },
-    status: 'allowed',
-});
 ```
 
 </howToUse>
@@ -37,65 +23,26 @@ auditLog({
 <codeExample>
 
 ```typescript
-// Example: Wrap CASL authorization with audit logging
-const authorizedService = wrapCaslAuthorization(
-    myService,
-    'MyService',
-    (args) => ({
-        actor: args.user,
-        resource: { type: 'project', uuid: args.projectUuid },
-    }),
-);
+// Example: Use CASL authorization with audit logging (as in DashboardService)
+const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+    auditLogger: logAuditEvent,
+});
 
-// Calls will be automatically audited
-await authorizedService.updateProject(user, projectUuid, updates);
-
-// Example: Measure and log database operation performance
-const { result: charts, durationMs } = await measureTime(
-    async () => {
-        return await database('saved_charts')
-            .where('project_id', projectId)
-            .select('*');
-    },
-    'fetch_project_charts',
-    Logger,
-    { projectId, userId: user.uuid },
-);
-
-if (durationMs > 1000) {
-    Logger.warn('Slow chart query detected', {
-        projectId,
-        durationMs,
-        chartsCount: charts.length,
-    });
+// Permissions will be automatically audited
+if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+    throw new ForbiddenError(
+        "You don't have access to the space this dashboard belongs to",
+    );
 }
 
-// Example: Structured audit log with full context
-auditLog({
-    id: uuidv4(),
-    timestamp: new Date().toISOString(),
-    actor: {
-        uuid: user.userUuid,
-        email: user.email,
-        organizationUuid: user.organizationUuid,
-        organizationRole: user.role,
-    },
-    action: 'delete',
-    resource: {
-        type: 'saved_chart',
-        uuid: chartUuid,
-        name: chart.name,
-        organizationUuid: user.organizationUuid,
-        projectUuid: chart.projectUuid,
-    },
-    status: 'allowed',
-    context: {
-        userAgent: req.headers['user-agent'],
-        ipAddress: req.ip,
-        method: req.method,
-        url: req.originalUrl,
-    },
-});
+// Example: Performance measurement
+const { result, durationMs } = await measureTime(
+    () => database.query('SELECT * FROM projects'),
+    'projects_query',
+    Logger,
+    { projectId: 'proj-123' },
+);
+
 ```
 
 </codeExample>
