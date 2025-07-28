@@ -44,9 +44,10 @@ jobs:
                   exit 1
 
     # CLI tests without dbt
-    # This is used to test the CLI commands and content as code
+    # This is used to test the CLI commands that only use Lightdash API
+    # like login, content as code, etc.
     # We don't need to install dbt dependencies for this.
-    cli-tests: 
+    cli-tests-without-dbt: 
         timeout-minutes: 30
         runs-on: ubuntu-latest
         needs: prepare-preview
@@ -76,9 +77,85 @@ jobs:
               with:
                   install: false
                   working-directory: packages/e2e
-                  spec: cypress/cli/*
+                  spec: cypress/cli/api
                   config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
 
+    # CLI tests with a single dbt version
+    # They require simple dbt interaction, for building manifest
+    # But in these tests we are more interested about the integration wiht Lightdash
+    # For commands like preview, validate, etc. 
+    cli-tests:
+        timeout-minutes: 30
+        runs-on: ubuntu-latest
+        needs: prepare-preview
+        name: CLI tests
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Setup Node, PNPM, and Cypress
+              uses: ./.github/workflows/_setup_node_pnpm_cypress
+
+            ## Install pip
+            - uses: actions/setup-python@v4
+              with:
+                  python-version: '3.9.x'
+            - run: pip install dbt-core~=1.9.0 dbt-postgres~=1.9.0 
+
+            ## DBT seed
+            - name: Seed DBT
+              run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+              env:
+                  PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+                  PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+                  PGHOST: ${{secrets.PGHOST}}
+                  PGPASSWORD: ${{secrets.PGPASSWORD}}
+                  PGPORT: 5432
+                  PGUSER: postgres
+                  PGDATABASE: postgres
+                  SEED_SCHEMA: jaffle-cli-tests
+
+            ## DBT run
+            - name: Run DBT
+              run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+              env:
+                  PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+                  PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+                  PGHOST: ${{secrets.PGHOST}}
+                  PGPASSWORD: ${{secrets.PGPASSWORD}}
+                  PGPORT: 5432
+                  PGUSER: postgres
+                  PGDATABASE: postgres
+                  SEED_SCHEMA: jaffle-cli-tests
+
+            # Build packages
+            - name: Build packages/common module
+              run: pnpm common-build
+            - name: Build packages/warehouses module
+              run: pnpm warehouses-build
+            - name: Build and install packages/cli module
+              run: cd packages/cli && pnpm build && npm install -g
+            - name: Test lightdash version
+              run: |
+                  lightdash_version=$(lightdash --version)
+                  package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
+                  if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+
+            # Run Cypress
+            - name: Run Cypress
+              uses: cypress-io/github-action@v6
+              with:
+                  install: false
+                  working-directory: packages/e2e
+                  spec: cypress/cli/integration/*
+                  config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
+              env:
+                  CYPRESS_PGHOST: ${{secrets.PGHOST}}
+                  CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+                  CYPRESS_SEED_SCHEMA: jaffle-${{strategy.job-index}}
+
+    # CLI tests with multiple dbt versions
+    # These tests are testing more complex interaction with dbt
+    # like the --select flag, or dbt generate
     cli-dbt-tests:
         timeout-minutes: 30
         runs-on: ubuntu-latest
