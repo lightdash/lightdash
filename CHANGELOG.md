@@ -1,3 +1,10 @@
+# [0.1846.0](https://github.com/lightdash/lightdash/compare/0.1845.0...0.1846.0) (2025-07-28)
+
+
+### Features
+
+* use JWT token in explores for React SDK ([#15787](https://github.com/lightdash/lightdash/issues/15787)) ([68bb335](https://github.com/lightdash/lightdash/commit/68bb33560b8d64c5174df5ef600b18f646be91bb))
+
 # [0.1845.0](https://github.com/lightdash/lightdash/compare/0.1844.1...0.1845.0) (2025-07-28)
 
 
