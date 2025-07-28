@@ -1329,6 +1329,39 @@
                 "required": ["tableCalculations", "metrics", "dimensions"],
                 "type": "object"
             },
+            "DashboardParameterValue": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "parameterName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "parameterName"],
+                "type": "object"
+            },
+            "Record_string.DashboardParameterValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardParameterValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardParameters": {
+                "$ref": "#/components/schemas/Record_string.DashboardParameterValue_"
+            },
             "UpdatedByUser": {
                 "properties": {
                     "userUuid": {
@@ -1506,6 +1539,9 @@
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/DashboardParameters"
                     },
                     "filters": {
                         "$ref": "#/components/schemas/DashboardFilters"
@@ -10528,6 +10564,9 @@
                         ],
                         "nullable": true
                     },
+                    "parameters": {
+                        "$ref": "#/components/schemas/DashboardParameters"
+                    },
                     "dashboardVersionId": {
                         "type": "number",
                         "format": "double"
@@ -12195,6 +12234,9 @@
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/Pick_UpdatedByUser.userUuid_"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/DashboardParameters"
                     },
                     "filters": {
                         "$ref": "#/components/schemas/DashboardFilters"
@@ -18055,7 +18097,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1853.0",
+        "version": "0.1855.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
