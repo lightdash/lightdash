@@ -121,47 +121,27 @@ const ToolCallDescription: FC<{
                 </Text>
             );
         case 'find_fields':
-            if ('fieldSearchQueries' in toolArgs) {
-                return (
-                    <Text c="dimmed" size="xs">
-                        Searched for fields{' '}
-                        {toolArgs.fieldSearchQueries.map((query) => (
-                            <Badge
-                                key={query.name}
-                                color="gray"
-                                variant="light"
-                                size="xs"
-                                mx={rem(2)}
-                                radius="sm"
-                                style={{
-                                    textTransform: 'none',
-                                    fontWeight: 400,
-                                }}
-                            >
-                                {query.name}
-                            </Badge>
-                        ))}
-                    </Text>
-                );
-            } else {
-                return (
-                    <Text c="dimmed" size="xs">
-                        Searched for fields in explore{' '}
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for fields{' '}
+                    {toolArgs.fieldSearchQueries.map((query) => (
                         <Badge
+                            key={query.label}
                             color="gray"
                             variant="light"
                             size="xs"
+                            mx={rem(2)}
                             radius="sm"
                             style={{
                                 textTransform: 'none',
                                 fontWeight: 400,
                             }}
                         >
-                            {toolArgs.exploreName}
+                            {query.label}
                         </Badge>
-                    </Text>
-                );
-            }
+                    ))}
+                </Text>
+            );
         case AiResultType.VERTICAL_BAR_RESULT:
             const barVizConfigToolArgs = toolArgs;
 

@@ -11,11 +11,10 @@ import type { ZodType } from 'zod';
 import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
 import { getFindExplores } from '../tools/findExplores';
-import { getFindFields as getFindFieldsOld } from '../tools/findFields';
+import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
 import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
-import { getFindFields as getFindFieldsNew } from '../tools/newFindFields';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -63,14 +62,9 @@ const getAgentTools = (
         findExplores: dependencies.findExplores,
     });
 
-    const findFields = args.__experimental__toolFindFields
-        ? getFindFieldsNew({
-              findFields: dependencies.findFields,
-              getExplore: dependencies.getExplore,
-          })
-        : getFindFieldsOld({
-              getExplore: dependencies.getExplore,
-          });
+    const findFields = getFindFields({
+        findFields: dependencies.findFields,
+    });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
         getExplore: dependencies.getExplore,
