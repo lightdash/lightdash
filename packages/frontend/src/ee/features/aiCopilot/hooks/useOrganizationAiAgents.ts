@@ -89,7 +89,9 @@ export const useAiAgent = (agentUuid: string | undefined) => {
         queryFn: () => getAgent(agentUuid!),
         onError: (error) => {
             if (error.error?.statusCode === 403) {
-                void navigate(`/projects/${activeProjectUuid}/home`);
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: `Failed to fetch AI agent details`,
@@ -171,7 +173,9 @@ export const useAiAgentThreads = (
         queryFn: () => listAgentThreads(agentUuid!, allUsers),
         onError: (error) => {
             if (error.error?.statusCode === 403) {
-                void navigate(`/projects/${activeProjectUuid}/home`);
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
             }
             // Don't show error toast for permission errors - let the UI handle it gracefully
             if (error.error?.statusCode !== 403) {
@@ -198,7 +202,9 @@ export const useAiAgentThread = (
         queryFn: () => getAgentThread(agentUuid!, threadUuid!),
         onError: (error) => {
             if (error.error?.statusCode === 403) {
-                void navigate(`/projects/${activeProjectUuid}/home`);
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: 'Failed to fetch AI agent thread',
@@ -335,7 +341,9 @@ export const useCreateAgentThreadMutation = (
         },
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
-                void navigate(`/projects/${projectUuid}/home`);
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: 'Failed to create AI agent',
@@ -453,7 +461,9 @@ export const useCreateAgentThreadMessageMutation = (
         },
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
-                void navigate(`/projects/${projectUuid}/home`);
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: 'Failed to generate AI agent thread response',
@@ -508,7 +518,9 @@ export const useAiAgentThreadMessageVizQuery = (
         },
         onError: (error: ApiError) => {
             if (error.error?.statusCode === 403) {
-                void navigate(`/projects/${activeProjectUuid}/home`);
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: 'Failed to fetch visualization',
@@ -570,7 +582,9 @@ export const useUpdatePromptFeedbackMutation = (
         },
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
-                void navigate(`/projects/${activeProjectUuid}/home`);
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: 'Failed to submit feedback',
@@ -629,7 +643,9 @@ export const useSavePromptQuery = (
         },
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
-                void navigate(`/projects/${activeProjectUuid}/home`);
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: 'Failed to save prompt query',
