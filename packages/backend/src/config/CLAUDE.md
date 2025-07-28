@@ -11,6 +11,7 @@ The configuration is primarily accessed via dependency injection - avoid direct 
 // Preferred: Dependency injection in services
 class MyService extends BaseService {
     constructor(args: { lightdashConfig: LightdashConfig }) {
+        super();
         this.lightdashConfig = args.lightdashConfig;
     }
 }

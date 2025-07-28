@@ -19,51 +19,60 @@ Each router exports a configured Express router that can be mounted on specific 
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Basic router structure
 import express from 'express';
-import { isAuthenticated, allowApiKeyAuthentication } from '../controllers/authentication';
+import {
+    isAuthenticated,
+    allowApiKeyAuthentication,
+} from '../controllers/authentication';
 
 export const myRouter = express.Router({ mergeParams: true });
 
 // GET endpoint with authentication
-myRouter.get('/',
-allowApiKeyAuthentication,
-isAuthenticated,
-async (req, res, next) => {
-req.services.getMyService()
-.getAllItems(req.user!)
-.then(results => res.json({ status: 'ok', results }))
-.catch(next);
-}
+myRouter.get(
+    '/',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        req.services
+            .getMyService()
+            .getAllItems(req.user!)
+            .then((results) => res.json({ status: 'ok', results }))
+            .catch(next);
+    },
 );
 
 // POST endpoint with demo protection
-myRouter.post('/',
-allowApiKeyAuthentication,
-isAuthenticated,
-unauthorisedInDemo,
-async (req, res, next) => {
-req.services.getMyService()
-.createItem(req.user!, req.body)
-.then(results => res.json({ status: 'ok', results }))
-.catch(next);
-}
+myRouter.post(
+    '/',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        req.services
+            .getMyService()
+            .createItem(req.user!, req.body)
+            .then((results) => res.json({ status: 'ok', results }))
+            .catch(next);
+    },
 );
 
 // Router mounting in apiV1Router.ts
 apiV1Router.use('/my-resource', myRouter);
-
 ```
+
 </codeExample>
 
 <importantToKnow>
 **Most endpoints are build in controllers**: We normally build endpoints in controllers using TSOA. Endpoints built in controllers are either old and we didn't migrate them to controllers, or they require an special integration with raw express parameters, like oauthRouter.ts
 
 **Authentication Middleware**: All routers use consistent middleware patterns:
-- `isAuthenticated`: Requires valid session or API key
-- `allowApiKeyAuthentication`: Enables API key auth for CLI/integrations
-- `unauthorisedInDemo`: Blocks write operations in demo environments
+
+-   `isAuthenticated`: Requires valid session or API key
+-   `allowApiKeyAuthentication`: Enables API key auth for CLI/integrations
+-   `unauthorisedInDemo`: Blocks write operations in demo environments
 
 **Service Layer Access**: Routers access business logic via `req.services` dependency injection container. Never implement business logic directly in routers.
 
@@ -85,4 +94,3 @@ apiV1Router.use('/my-resource', myRouter);
 - OAuth implementation: @/oauthRouter.ts
 - New controllers: @/../controllers
 </links>
-```
