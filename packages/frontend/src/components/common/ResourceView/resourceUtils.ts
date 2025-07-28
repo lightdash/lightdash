@@ -33,6 +33,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Pie chart';
                 case ChartKind.FUNNEL:
                     return 'Funnel chart';
+                case ChartKind.TREEMAP:
+                    return 'Treemap';
                 case ChartKind.TABLE:
                     return 'Table';
                 case ChartKind.BIG_NUMBER:

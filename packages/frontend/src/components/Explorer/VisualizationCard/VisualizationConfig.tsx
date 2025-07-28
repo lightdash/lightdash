@@ -16,6 +16,7 @@ import { ConfigTabs as CustomVisConfigTabs } from '../../VisualizationConfigs/Ch
 import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/FunnelChartConfig/FunnelChartConfigTabs';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
+import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 
 type Props = {
@@ -36,6 +37,8 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 return PieChartConfigTabs;
             case ChartType.FUNNEL:
                 return FunnelChartConfigTabs;
+            case ChartType.TREEMAP:
+                return TreemapConfigTabs;
             case ChartType.CUSTOM:
                 return CustomVisConfigTabs;
             default:

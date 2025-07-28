@@ -18,6 +18,7 @@ import type useCustomVisualizationConfig from '../../hooks/useCustomVisualizatio
 import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
 import type { InfiniteQueryResults } from '../../hooks/useQueryResults';
+import type useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
     resultsData:
@@ -149,6 +150,27 @@ export type VisualizationTableConfigProps =
         invalidateCache: boolean | undefined;
     };
 
+// Treemap
+
+export type VisualizationConfigTreemap = {
+    chartType: ChartType.TREEMAP;
+    chartConfig: ReturnType<typeof useTreemapChartConfig>;
+    dimensions: Record<string, CustomDimension | Dimension>;
+    numericMetrics: Record<string, Metric | TableCalculation>;
+};
+
+export const isTreemapVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigTreemap => {
+    return visualizationConfig?.chartType === ChartType.TREEMAP;
+};
+
+export type VisualizationConfigTreemapProps =
+    VisualizationConfigCommon<VisualizationConfigTreemap> & {
+        itemsMap: ItemsMap | undefined;
+        tableCalculationsMetadata?: TableCalculationMetadata[];
+    };
+
 // Custom
 
 export type VisualizationCustomConfigType = {
@@ -176,4 +198,5 @@ export type VisualizationConfig =
     | VisualizationConfigPie
     | VisualizationConfigFunnelType
     | VisualizationConfigTable
+    | VisualizationConfigTreemap
     | VisualizationCustomConfigType;
