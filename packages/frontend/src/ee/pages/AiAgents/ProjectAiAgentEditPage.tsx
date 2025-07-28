@@ -464,10 +464,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                                 Group Access
                                                             </Text>
                                                             <Tooltip
-                                                                label="Select groups that can access this agent. If no groups are selected, the agent will be visible to all users in the organization."
+                                                                label="Admins and developers will always have access to this agent."
                                                                 withArrow
                                                                 withinPortal
                                                                 multiline
+                                                                position="right"
                                                                 maw="250px"
                                                             >
                                                                 <MantineIcon
@@ -478,6 +479,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                             </Tooltip>
                                                         </Group>
                                                     }
+                                                    description="Select groups that can access this agent. If no groups are selected, the agent will be visible to all users in the org"
                                                     placeholder={
                                                         isLoadingGroups
                                                             ? 'Loading groups...'
