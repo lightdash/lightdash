@@ -1,6 +1,7 @@
 import {
     BinType,
     CustomDimensionType,
+    FilterOperator,
     ForbiddenError,
     JoinRelationship,
     TimeFrames,
@@ -817,6 +818,132 @@ describe('Query builder', () => {
 
             // Verify that unused parameter is not included
             expect(compiledQuery.usedParameters).not.toHaveProperty('unused');
+        });
+    });
+
+    describe('SQL Injection Prevention', () => {
+        it('should prevent SQL injection in filter parameters', () => {
+            const maliciousParameterValue = "'; DROP TABLE users; --";
+
+            const queryWithMaliciousParameter = {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: {
+                        id: '123',
+                        and: [
+                            {
+                                id: '456',
+                                target: {
+                                    fieldId: 'table1_dim1',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['${lightdash.parameters.malicious}'],
+                            },
+                        ],
+                    },
+                    metrics: { id: '789', and: [] },
+                    tableCalculations: { id: '101112', and: [] },
+                },
+            };
+
+            const queryBuilder = new MetricQueryBuilder({
+                explore: EXPLORE,
+                compiledMetricQuery: queryWithMaliciousParameter,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                parameters: {
+                    malicious: maliciousParameterValue,
+                },
+            });
+
+            // This should throw an error because the parameter contains dangerous SQL patterns
+            expect(() => {
+                queryBuilder.compileQuery();
+            }).toThrow(
+                'Invalid parameter (malicious) value contains potentially dangerous SQL',
+            );
+        });
+
+        it('should properly escape single quotes in parameters', () => {
+            const parameterWithQuotes = "O'Brien";
+
+            const queryWithQuotesParameter = {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: {
+                        id: '123',
+                        and: [
+                            {
+                                id: '456',
+                                target: {
+                                    fieldId: 'table1_dim1',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['${lightdash.parameters.name}'],
+                            },
+                        ],
+                    },
+                    metrics: { id: '789', and: [] },
+                    tableCalculations: { id: '101112', and: [] },
+                },
+            };
+
+            const queryBuilder = new MetricQueryBuilder({
+                explore: EXPLORE,
+                compiledMetricQuery: queryWithQuotesParameter,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                parameters: {
+                    name: parameterWithQuotes,
+                },
+            });
+
+            const compiledQuery = queryBuilder.compileQuery();
+
+            // The compiled query should contain the parameter value (escaped by filter renderer)
+            expect(compiledQuery.query).toContain("O'Brien");
+        });
+
+        it('should allow safe parameter values', () => {
+            const safeParameterValue = 'safe_value_123';
+
+            const queryWithSafeParameter = {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: {
+                        id: '123',
+                        and: [
+                            {
+                                id: '456',
+                                target: {
+                                    fieldId: 'table1_dim1',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['${lightdash.parameters.safe}'],
+                            },
+                        ],
+                    },
+                    metrics: { id: '789', and: [] },
+                    tableCalculations: { id: '101112', and: [] },
+                },
+            };
+
+            const queryBuilder = new MetricQueryBuilder({
+                explore: EXPLORE,
+                compiledMetricQuery: queryWithSafeParameter,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                parameters: {
+                    safe: safeParameterValue,
+                },
+            });
+
+            // This should compile successfully
+            const compiledQuery = queryBuilder.compileQuery();
+            expect(compiledQuery.query).toContain(safeParameterValue);
         });
     });
 });

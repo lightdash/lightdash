@@ -149,11 +149,52 @@ const getWrapChars = (wrapChar: string): [string, string] => {
     }
 };
 
+/**
+ * Validates that a parameter value is safe for SQL injection
+ * @param value - The parameter value to validate
+ * @returns True if the value is safe, false otherwise
+ */
+export const validateParameterValue = (value: string | string[]): boolean => {
+    if (Array.isArray(value)) {
+        return value.every((v) => validateParameterValue(v));
+    }
+
+    if (typeof value !== 'string') {
+        return true; // Non-string values are generally safe
+    }
+
+    // Check for dangerous SQL patterns
+    const dangerousPatterns = [
+        // Detect semicolon followed by SQL commands
+        /;\s*(drop|delete|insert|update|create|alter|exec|execute)\s+/i,
+        // Detect UNION-based SQL injection attacks that can extract data from other tables
+        /union\s+select/i,
+        // Detect comment-based SQL injection that can disable parts of queries
+        /--\s*$/,
+        // Detect multi-line comment injection that can break query logic
+        /\/\*.*\*\//,
+    ];
+
+    return !dangerousPatterns.some((pattern) => pattern.test(value));
+};
+
+function escapeSQL(
+    attributeValue: string,
+    quoteChar: string | '',
+    escapeChar: string | '',
+) {
+    return String(attributeValue).replace(
+        new RegExp(quoteChar, 'g'),
+        escapeChar + quoteChar,
+    );
+}
+
 export const replaceLightdashValues = (
     regex: RegExp,
     sql: string,
     valuesMap: Record<string, string | string[]>,
     quoteChar: string | '',
+    escapeChar: string | '',
     wrapChar: string | '',
     {
         // Default to true since that's the current behavior for user attributes
@@ -204,14 +245,36 @@ export const replaceLightdashValues = (
                 );
             }
 
+            // For parameters (not user attributes), validate for SQL injection
+            if (!validateParameterValue(attributeValues)) {
+                throw new ForbiddenError(
+                    `Invalid ${replacementName} (${attribute}) value contains potentially dangerous SQL: "${attributeValues}"`,
+                );
+            }
+
             const valueString = isArray(attributeValues)
                 ? attributeValues
-                      .map(
-                          (attributeValue) =>
-                              `${quoteChar}${attributeValue}${quoteChar}`,
-                      )
+                      .map((attributeValue) => {
+                          const escaped = escapeSQL(
+                              attributeValue,
+                              quoteChar,
+                              escapeChar,
+                          );
+                          return quoteChar
+                              ? `${quoteChar}${escaped}${quoteChar}`
+                              : escaped;
+                      })
                       .join(', ')
-                : `${quoteChar}${attributeValues}${quoteChar}`;
+                : (() => {
+                      const escaped = escapeSQL(
+                          attributeValues,
+                          quoteChar,
+                          escapeChar,
+                      );
+                      return quoteChar
+                          ? `${quoteChar}${escaped}${quoteChar}`
+                          : escaped;
+                  })();
 
             return acc.replace(sqlAttribute, valueString);
         },
@@ -231,6 +294,7 @@ export const replaceUserAttributes = (
     intrinsicUserAttributes: IntrinsicUserAttributes,
     userAttributes: UserAttributeValueMap,
     quoteChar: string,
+    escapeChar: string,
     wrapChar: string,
 ): string => {
     const userAttributeRegex =
@@ -244,6 +308,7 @@ export const replaceUserAttributes = (
         sql,
         userAttributes,
         quoteChar,
+        escapeChar,
         wrapChar,
     );
 
@@ -253,6 +318,7 @@ export const replaceUserAttributes = (
         replacedSqlFilter,
         intrinsicUserAttributes,
         quoteChar,
+        escapeChar,
         wrapChar,
     );
 
@@ -270,6 +336,7 @@ export const replaceUserAttributesAsStrings = (
         intrinsicUserAttributes,
         userAtttributes,
         warehouseSqlBuilder.getStringQuoteChar(),
+        warehouseSqlBuilder.getEscapeStringQuoteChar(),
         '(',
     );
 
@@ -282,6 +349,7 @@ export const replaceUserAttributesRaw = (
         sql,
         intrinsicUserAttributes,
         userAtttributes,
+        '',
         '',
         '',
     );

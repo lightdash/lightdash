@@ -10,6 +10,7 @@ export const replaceParameters = (
     sql: string,
     parameters: ParametersValuesMap,
     quoteChar: string,
+    escapeChar: string,
     wrapChar: string = '', // ! Default to non-wrapped sql
 ) =>
     replaceLightdashValues(
@@ -17,6 +18,7 @@ export const replaceParameters = (
         sql,
         parameters,
         quoteChar,
+        escapeChar,
         wrapChar,
         {
             replacementName: 'parameter',
@@ -28,9 +30,21 @@ export const replaceParametersAsString = (
     sql: string,
     parameters: ParametersValuesMap,
     sqlBuilder: WarehouseSqlBuilder,
-) => replaceParameters(sql, parameters, sqlBuilder.getStringQuoteChar(), '');
+) =>
+    replaceLightdashValues(
+        parameterRegex,
+        sql,
+        parameters,
+        sqlBuilder.getStringQuoteChar(),
+        sqlBuilder.getEscapeStringQuoteChar(),
+        '',
+        {
+            replacementName: 'parameter',
+            throwOnMissing: false,
+        },
+    );
 
 export const replaceParametersAsRaw = (
     sql: string,
     parameters: ParametersValuesMap,
-) => replaceParameters(sql, parameters, '', '');
+) => replaceParameters(sql, parameters, '', '', '');

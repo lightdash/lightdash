@@ -506,7 +506,7 @@ export class MetricQueryBuilder {
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
 
         // Replace parameter reference values with their actual values as raw sql
-        // This is safe as raw because they will get quoted internally by the filter compiler
+        // Now uses secure replacement to prevent SQL injection
         const filterRuleWithParamReplacedValues: FilterRule = {
             ...filter,
             values: filter.values?.map((value) => {
@@ -1359,6 +1359,7 @@ export class QueryBuilder {
                 sql,
                 this.parameters ?? {},
                 this.config.stringQuoteChar,
+                this.config.escapeStringQuoteChar,
             );
 
         // Filter parameters to only include those that are referenced in the query
