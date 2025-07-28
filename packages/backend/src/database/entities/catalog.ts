@@ -24,6 +24,7 @@ export type DbCatalog = {
     spotlight_show: boolean;
     yaml_tags: string[] | null;
     ai_hints: string[] | null;
+    joined_tables: string[] | null;
 };
 
 export type DbCatalogIn = Pick<
@@ -41,6 +42,7 @@ export type DbCatalogIn = Pick<
     | 'spotlight_show'
     | 'yaml_tags'
     | 'ai_hints'
+    | 'joined_tables'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate =
