@@ -277,33 +277,42 @@ export class DashboardModel {
                     {},
                 );
 
+        const updateData: {
+            filters: DashboardFilters;
+            parameters?: DashboardParameters;
+        } = {
+            filters: {
+                dimensions:
+                    version.filters?.dimensions.map((filter) => ({
+                        ...filter,
+                        tileTargets: filter.tileTargets
+                            ? pick(filter.tileTargets, tileUuids)
+                            : undefined,
+                    })) ?? [],
+                metrics:
+                    version.filters?.metrics.map((filter) => ({
+                        ...filter,
+                        tileTargets: filter.tileTargets
+                            ? pick(filter.tileTargets, tileUuids)
+                            : undefined,
+                    })) ?? [],
+                tableCalculations:
+                    version.filters?.tableCalculations.map((filter) => ({
+                        ...filter,
+                        tileTargets: filter.tileTargets
+                            ? pick(filter.tileTargets, tileUuids)
+                            : undefined,
+                    })) ?? [],
+            },
+        };
+
+        // Only update parameters if they were provided in the version
+        if (version.parameters !== undefined) {
+            updateData.parameters = version.parameters;
+        }
+
         await trx(DashboardViewsTableName)
-            .update({
-                filters: {
-                    dimensions:
-                        version.filters?.dimensions.map((filter) => ({
-                            ...filter,
-                            tileTargets: filter.tileTargets
-                                ? pick(filter.tileTargets, tileUuids)
-                                : undefined,
-                        })) ?? [],
-                    metrics:
-                        version.filters?.metrics.map((filter) => ({
-                            ...filter,
-                            tileTargets: filter.tileTargets
-                                ? pick(filter.tileTargets, tileUuids)
-                                : undefined,
-                        })) ?? [],
-                    tableCalculations:
-                        version.filters?.tableCalculations.map((filter) => ({
-                            ...filter,
-                            tileTargets: filter.tileTargets
-                                ? pick(filter.tileTargets, tileUuids)
-                                : undefined,
-                        })) ?? [],
-                },
-                parameters: version.parameters || null,
-            })
+            .update(updateData)
             .where({ dashboard_version_id: versionId.dashboard_version_id });
     }
 
