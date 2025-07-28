@@ -12,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from './ParameterInput';
 
@@ -49,20 +49,6 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     const selectedParametersCount = Object.values(parameterValues).filter(
         (value) => value !== null && value !== '',
     ).length;
-
-    // Apply parameter defaults
-    useEffect(() => {
-        if (parameters) {
-            Object.entries(parameters).forEach(([key, param]) => {
-                if (
-                    param.default &&
-                    (!parameterValues || !parameterValues[key])
-                ) {
-                    onParameterChange(key, param.default);
-                }
-            });
-        }
-    }, [parameterValues, parameters, onParameterChange]);
 
     if (isLoading) {
         return (
