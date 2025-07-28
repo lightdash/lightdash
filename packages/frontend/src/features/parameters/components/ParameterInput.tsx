@@ -378,6 +378,11 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     projectUuid,
     parameterValues,
 }) => {
+    const defaultValues = parameter.default
+        ? Array.isArray(parameter.default)
+            ? parameter.default
+            : [parameter.default]
+        : undefined;
     if (parameter.options_from_dimension && projectUuid) {
         // Create a FilterableItem from parameter.options_from_dimension
         const field: FilterableItem = {
@@ -400,6 +405,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 placeholder="Choose value..."
                 suggestions={[]}
                 values={value ? (Array.isArray(value) ? value : [value]) : []}
+                defaultValue={defaultValues}
                 singleValue={!parameter.multiple}
                 onChange={(newValue) => onParameterChange(paramKey, newValue)}
                 parameterValues={parameterValues}
@@ -412,6 +418,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             <MultiSelect
                 data={parameter.options ?? []}
                 value={value ? (Array.isArray(value) ? value : [value]) : []}
+                defaultValue={defaultValues}
                 onChange={(newValue) => onParameterChange(paramKey, newValue)}
                 placeholder="Choose value..."
                 size={size}
@@ -425,6 +432,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         <Select
             placeholder="Choose value..."
             value={Array.isArray(value) ? value[0] || null : value || null}
+            defaultValue={parameter.default?.[0]}
             onChange={(newValue) => onParameterChange(paramKey, newValue)}
             data={parameter.options ?? []}
             size={size}
