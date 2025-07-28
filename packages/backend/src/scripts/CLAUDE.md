@@ -7,14 +7,14 @@ Scripts in this folder are typically run via npm/pnpm scripts during development
 
 ```bash
 # Create a new database migration
-pnpm create-migration add_user_permissions
+pnpm -F backend create-migration add_user_permissions
 
 # The script will prompt you to choose OSS or EE
 # Create migration in (1) OSS or (2) EE? [1/2]: 1
 
 # For EE migrations, ensure license key is set
 export LIGHTDASH_LICENSE_KEY="your-ee-license-key"
-pnpm create-migration add_enterprise_feature
+pnpm -F backend create-migration add_enterprise_feature
 ```
 
 The script uses the Knex CLI under the hood to create properly timestamped migration files in the correct directory.
