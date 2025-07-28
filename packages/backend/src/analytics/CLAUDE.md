@@ -41,6 +41,7 @@ analytics.trackAccount(account, {
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Track query execution with metrics
 analytics.track({
@@ -52,8 +53,8 @@ analytics.track({
         projectId: project.projectUuid,
         metricsCount: query.metrics.length,
         dimensionsCount: query.dimensions.length,
-        chartId: chart.uuid
-    }
+        chartId: chart.uuid,
+    },
 });
 
 // Example: Track user creation
@@ -63,11 +64,11 @@ analytics.track({
         context: 'registration',
         createdUserId: newUser.userUuid,
         organizationId: organization?.organizationUuid,
-        userConnectionType: 'password'
-    }
+        userConnectionType: 'password',
+    },
 });
-
 ```
+
 </codeExample>
 
 <importantToKnow>
