@@ -5,7 +5,7 @@ Express middleware collection for authentication, account management, deprecatio
 <howToUse>
 Middlewares are typically registered in Express routes or globally in the application. Import specific middleware functions and apply them to routes that require authentication or special handling.
 
-````typescript
+```typescript
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { deprecatedDownloadCsvRoute } from './middlewares/deprecation';
@@ -30,14 +30,17 @@ app.get('/api/v1/projects', (req, res) => {
         const userId = req.account.user.id;
     }
 });
+```
 
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Route with session authentication
-app.get('/api/v1/projects/:projectUuid/charts',
-    sessionAccountMiddleware,  // Creates account from session
+app.get(
+    '/api/v1/projects/:projectUuid/charts',
+    sessionAccountMiddleware, // Creates account from session
     async (req, res) => {
         // req.account is now populated with user info and abilities
         const userCanView = req.account.user.ability.can('view', 'SavedChart');
@@ -48,32 +51,36 @@ app.get('/api/v1/projects/:projectUuid/charts',
 
         const charts = await getCharts(req.params.projectUuid);
         res.json(charts);
-    }
+    },
 );
 
 // Example: Embed route with JWT authentication
-app.get('/embed/projects/:projectUuid/dashboards/:dashboardUuid',
-jwtAuthMiddleware, // Validates JWT and creates anonymous account
-async (req, res) => {
-// JWT middleware populates req.account for anonymous users
-const dashboardId = req.account.access?.dashboardId;
-const canInteractWithFilters = req.account.access?.filtering;
+app.get(
+    '/embed/projects/:projectUuid/dashboards/:dashboardUuid',
+    jwtAuthMiddleware, // Validates JWT and creates anonymous account
+    async (req, res) => {
+        // JWT middleware populates req.account for anonymous users
+        const dashboardId = req.account.access?.dashboardId;
+        const canInteractWithFilters = req.account.access?.filtering;
 
         if (dashboardId !== req.params.dashboardUuid) {
-            return res.status(403).json({ error: 'Token not valid for this dashboard' });
+            return res
+                .status(403)
+                .json({ error: 'Token not valid for this dashboard' });
         }
 
         const dashboard = await getDashboard(dashboardId);
         res.json(dashboard);
-    }
-
+    },
 );
 
 // Example: Deprecation middleware usage
-app.get('/api/v1/old-endpoint',
-deprecatedDownloadCsvRoute, // Warns about deprecation
-legacyController.handleOldEndpoint
+app.get(
+    '/api/v1/old-endpoint',
+    deprecatedDownloadCsvRoute, // Warns about deprecation
+    legacyController.handleOldEndpoint,
 );
+```
 
 </codeExample>
 
@@ -96,4 +103,3 @@ legacyController.handleOldEndpoint
 @/packages/backend/src/controllers/authentication/ - Authentication controller utilities
 @/packages/backend/src/middlewares/sentry.ts - Sentry error tracking middleware
 </links>
-````
