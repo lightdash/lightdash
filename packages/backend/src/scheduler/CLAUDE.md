@@ -5,7 +5,7 @@ Background job processing system built on Graphile Worker for scheduled deliveri
 <howToUse>
 The scheduler system consists of SchedulerWorker (job runner) and SchedulerTask (job logic). Jobs are queued through SchedulerClient and processed asynchronously with proper timeout handling.
 
-````typescript
+```typescript
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { SchedulerClient } from './scheduler/SchedulerClient';
 
@@ -31,10 +31,12 @@ await schedulerClient.addJob('compileProject', {
     organizationUuid: org.uuid,
     projectUuid: project.uuid,
 });
+```
 
 </howToUse>
 
 <codeExample>
+    
 ```typescript
 // Example: Set up scheduled delivery for dashboard
 const schedulerPayload = {
@@ -74,6 +76,7 @@ targets: [
 
 await schedulerClient.addJob('handleScheduledDelivery', deliveryWithMultipleTargets);
 
+```
 </codeExample>
 
 <importantToKnow>
@@ -97,4 +100,4 @@ await schedulerClient.addJob('handleScheduledDelivery', deliveryWithMultipleTarg
 @/packages/common/src/types/scheduler.ts - Scheduler type definitions and payloads
 @/packages/backend/src/config/lightdashConfig.ts - Scheduler configuration settings
 </links>
-````
+```

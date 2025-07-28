@@ -5,7 +5,7 @@ Backend API controllers built with TSOA that handle HTTP requests and generate O
 <howToUse>
 Controllers are automatically registered by TSOA and accessible at their defined routes. All controllers extend BaseController and use dependency injection:
 
-````typescript
+```typescript
 export class MyController extends BaseController {
     @Route('/api/v1/my-resource')
     @Tags('MyResource')
@@ -21,6 +21,7 @@ export class MyController extends BaseController {
         };
     }
 }
+```
 
 Key patterns:
 
@@ -72,7 +73,7 @@ export class ProjectController extends BaseController {
         };
     }
 }
-````
+```
 
 </codeExample>
 
