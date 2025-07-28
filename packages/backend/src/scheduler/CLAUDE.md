@@ -39,13 +39,12 @@ await schedulerClient.addJob('compileProject', {
 <codeExample>
 
 ```typescript
-
 // Example: Queue the main scheduled delivery task
 await schedulerClient.scheduleTask(
     SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
     schedulerPayload,
     JobPriority.NORMAL,
-    3
+    3,
 );
 
 // Example: Queue multiple notification types with real targets
@@ -54,7 +53,7 @@ await schedulerClient.generateJobsForSchedulerTargets(
     scheduler,
     page,
     parentJobId,
-    traceProperties
+    traceProperties,
 );
 
 // Example: Compile a project
