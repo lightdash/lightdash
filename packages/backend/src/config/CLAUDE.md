@@ -25,6 +25,7 @@ class PrometheusMetrics {
 
 // Avoid: Direct import (use only when dependency injection isn't feasible)
 import { lightdashConfig } from './lightdashConfig';
+```
 
 Key configuration sections:
 
@@ -72,6 +73,7 @@ const testConfig = parseConfig({
     LIGHTDASH_SECRET: 'test-secret',
     DATABASE_CONNECTION_URI: 'postgres://localhost/test',
 });
+```
 
 </codeExample>
 
