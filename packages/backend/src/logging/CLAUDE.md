@@ -30,10 +30,12 @@ auditLog({
     resource: { type: 'dashboard', uuid: dashboard.uuid },
     status: 'allowed',
 });
+```
 
 </howToUse>
 
 <codeExample>
+
 ```typescript
 // Example: Wrap CASL authorization with audit logging
 const authorizedService = wrapCaslAuthorization(
@@ -41,8 +43,8 @@ const authorizedService = wrapCaslAuthorization(
     'MyService',
     (args) => ({
         actor: args.user,
-        resource: { type: 'project', uuid: args.projectUuid }
-    })
+        resource: { type: 'project', uuid: args.projectUuid },
+    }),
 );
 
 // Calls will be automatically audited
@@ -50,50 +52,51 @@ await authorizedService.updateProject(user, projectUuid, updates);
 
 // Example: Measure and log database operation performance
 const { result: charts, durationMs } = await measureTime(
-async () => {
-return await database('saved_charts')
-.where('project_id', projectId)
-.select('\*');
-},
-'fetch_project_charts',
-Logger,
-{ projectId, userId: user.uuid }
+    async () => {
+        return await database('saved_charts')
+            .where('project_id', projectId)
+            .select('*');
+    },
+    'fetch_project_charts',
+    Logger,
+    { projectId, userId: user.uuid },
 );
 
 if (durationMs > 1000) {
-Logger.warn('Slow chart query detected', {
-projectId,
-durationMs,
-chartsCount: charts.length
-});
+    Logger.warn('Slow chart query detected', {
+        projectId,
+        durationMs,
+        chartsCount: charts.length,
+    });
 }
 
 // Example: Structured audit log with full context
 auditLog({
-id: uuidv4(),
-timestamp: new Date().toISOString(),
-actor: {
-uuid: user.userUuid,
-email: user.email,
-organizationUuid: user.organizationUuid,
-organizationRole: user.role
-},
-action: 'delete',
-resource: {
-type: 'saved_chart',
-uuid: chartUuid,
-name: chart.name,
-organizationUuid: user.organizationUuid,
-projectUuid: chart.projectUuid
-},
-status: 'allowed',
-context: {
-userAgent: req.headers['user-agent'],
-ipAddress: req.ip,
-method: req.method,
-url: req.originalUrl
-}
+    id: uuidv4(),
+    timestamp: new Date().toISOString(),
+    actor: {
+        uuid: user.userUuid,
+        email: user.email,
+        organizationUuid: user.organizationUuid,
+        organizationRole: user.role,
+    },
+    action: 'delete',
+    resource: {
+        type: 'saved_chart',
+        uuid: chartUuid,
+        name: chart.name,
+        organizationUuid: user.organizationUuid,
+        projectUuid: chart.projectUuid,
+    },
+    status: 'allowed',
+    context: {
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+        method: req.method,
+        url: req.originalUrl,
+    },
 });
+```
 
 </codeExample>
 
