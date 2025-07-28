@@ -1,3 +1,10 @@
+## [0.1844.1](https://github.com/lightdash/lightdash/compare/0.1844.0...0.1844.1) (2025-07-28)
+
+
+### Bug Fixes
+
+* implement missing LESS_THAN_OR_EQUAL and GREATER_THAN_OR_EQUAL operators for conditional formatting ([#16048](https://github.com/lightdash/lightdash/issues/16048)) ([1d27d4e](https://github.com/lightdash/lightdash/commit/1d27d4e834758a962052fb98111cfe923bbb6b03))
+
 # [0.1844.0](https://github.com/lightdash/lightdash/compare/0.1843.0...0.1844.0) (2025-07-28)
 
 
