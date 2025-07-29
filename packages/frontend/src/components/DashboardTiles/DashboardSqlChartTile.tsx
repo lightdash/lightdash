@@ -76,7 +76,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const updateSqlChartTilesMetadata = useDashboardContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
-    const parameters = useDashboardContext((c) => c.parameters);
+    const parameters = useDashboardContext((c) => c.parameterValues);
     const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
 
     const {

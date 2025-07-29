@@ -1,16 +1,18 @@
 import {
-    DashboardTileTypes,
-    DateGranularity,
     applyDimensionOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
+    DashboardTileTypes,
+    DateGranularity,
     getItemId,
     isDashboardChartTileType,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameters,
     type FilterableDimension,
+    type ParametersValuesMap,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerFilterRule,
     type SortField,
@@ -150,13 +152,16 @@ const DashboardProvider: React.FC<
         }
     }, [dashboard]);
 
-    const [parameters, setParameters] = useState<
-        Record<string, string | string[]>
-    >({});
+    const [parameters, setParameters] = useState<DashboardParameters>({});
 
     const setParameter = useCallback(
         (key: string, value: string | string[] | null) => {
-            if (value === null) {
+            if (
+                value === null ||
+                value === undefined ||
+                value === '' ||
+                (Array.isArray(value) && value.length === 0)
+            ) {
                 setParameters((prev) => {
                     const newParams = { ...prev };
                     delete newParams[key];
@@ -165,12 +170,38 @@ const DashboardProvider: React.FC<
             } else {
                 setParameters((prev) => ({
                     ...prev,
-                    [key]: value,
+                    [key]: {
+                        parameterName: key,
+                        value,
+                    },
                 }));
             }
         },
         [],
     );
+
+    const clearAllParameters = useCallback(() => {
+        setParameters({});
+    }, []);
+
+    const parameterValues = useMemo(() => {
+        return Object.entries(parameters).reduce((acc, [key, parameter]) => {
+            if (
+                parameter.value !== null &&
+                parameter.value !== undefined &&
+                parameter.value !== ''
+            ) {
+                acc[key] = parameter.value;
+            }
+            return acc;
+        }, {} as ParametersValuesMap);
+    }, [parameters]);
+
+    const selectedParametersCount = useMemo(() => {
+        return Object.values(parameterValues).filter(
+            (value) => value !== null && value !== '' && value !== undefined,
+        ).length;
+    }, [parameterValues]);
 
     // Track parameter references from each tile
     const [tileParameterReferences, setTileParameterReferences] = useState<
@@ -737,8 +768,11 @@ const DashboardProvider: React.FC<
         requiredDashboardFilters,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
-        parameters,
+        dashboardParameters: parameters,
+        parameterValues,
+        selectedParametersCount,
         setParameter,
+        clearAllParameters,
         dashboardParameterReferences,
         addParameterReferences,
         areAllChartsLoaded,

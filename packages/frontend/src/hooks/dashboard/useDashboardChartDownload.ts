@@ -19,7 +19,7 @@ export const useDashboardChartDownload = (
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameters = useDashboardContext((c) => c.parameters);
+    const parameters = useDashboardContext((c) => c.parameterValues);
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
