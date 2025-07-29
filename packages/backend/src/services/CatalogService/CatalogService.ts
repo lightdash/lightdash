@@ -27,6 +27,7 @@ import {
     TablesConfiguration,
     TimeFrames,
     UserAttributeValueMap,
+    convertToAiHints,
     getAvailableCompareMetrics,
     getAvailableSegmentDimensions,
     getAvailableTimeDimensionsFromTables,
@@ -166,6 +167,7 @@ export class CatalogService<
     ): Promise<CatalogTable[]> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
+
         return explores.reduce<CatalogTable[]>((acc, explore) => {
             if (isExploreError(explore)) {
                 // If no dimensions found, we don't show the explore error
@@ -194,7 +196,8 @@ export class CatalogService<
                         catalogSearchUuid: '',
                         categories: [],
                         icon: null,
-                    },
+                        aiHints: convertToAiHints(explore.aiHint) ?? null,
+                    } satisfies CatalogTable,
                 ];
             }
 
@@ -220,7 +223,8 @@ export class CatalogService<
                         catalogSearchUuid: '',
                         categories: [],
                         icon: null,
-                    },
+                        aiHints: convertToAiHints(explore.aiHint) ?? null,
+                    } satisfies CatalogTable,
                 ];
             }
             return acc;
@@ -233,6 +237,7 @@ export class CatalogService<
         catalogSearch: ApiCatalogSearch;
         context: CatalogSearchContext;
         yamlTags: string[] | null;
+        tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
@@ -261,6 +266,7 @@ export class CatalogService<
                             sortArgs: args.sortArgs,
                             context: args.context,
                             yamlTags: args.yamlTags,
+                            tables: args.tables,
                             tablesConfiguration,
                         }),
                 );
@@ -581,6 +587,7 @@ export class CatalogService<
                 catalogSearch,
                 context,
                 yamlTags: null,
+                tables: null,
             });
         }
 
@@ -798,6 +805,7 @@ export class CatalogService<
             paginateArgs,
             sortArgs,
             yamlTags: null,
+            tables: null,
         });
 
         const { data: catalogMetrics, pagination } = paginatedCatalog;
@@ -1259,6 +1267,7 @@ export class CatalogService<
                 projectUuid,
             ),
             yamlTags: null,
+            tables: null,
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1322,6 +1331,7 @@ export class CatalogService<
                 projectUuid,
             ),
             yamlTags: null,
+            tables: null,
         });
 
         const allDimensions = catalogDimensions.data

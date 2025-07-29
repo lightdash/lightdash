@@ -1,3 +1,24 @@
+## [0.1858.1](https://github.com/lightdash/lightdash/compare/0.1858.0...0.1858.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* upgrade invitesmodel.tsx to mantine 8 ([#16094](https://github.com/lightdash/lightdash/issues/16094)) ([ad5b53d](https://github.com/lightdash/lightdash/commit/ad5b53d05fd9c3036bd425ce42470e090de326a4))
+
+# [0.1858.0](https://github.com/lightdash/lightdash/compare/0.1857.0...0.1858.0) (2025-07-29)
+
+
+### Features
+
+* add joined_tables to catalog search for table relationships ([#16046](https://github.com/lightdash/lightdash/issues/16046)) ([d6a9ad9](https://github.com/lightdash/lightdash/commit/d6a9ad95e877c10d43811342be4f8bb59a98baae))
+
+# [0.1857.0](https://github.com/lightdash/lightdash/compare/0.1856.3...0.1857.0) (2025-07-29)
+
+
+### Features
+
+* add ai_hints to catalog search ([#16025](https://github.com/lightdash/lightdash/issues/16025)) ([69d2f19](https://github.com/lightdash/lightdash/commit/69d2f195e584debe25da3d809a566c8df4cd742a))
+
 ## [0.1856.3](https://github.com/lightdash/lightdash/compare/0.1856.2...0.1856.3) (2025-07-29)
 
 
