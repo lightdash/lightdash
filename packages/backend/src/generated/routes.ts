@@ -1351,6 +1351,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardParameterValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'array', array: { dataType: 'string' } },
+                    ],
+                    required: true,
+                },
+                parameterName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DashboardParameterValue_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DashboardParameterValue' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardParameters: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.DashboardParameterValue_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpdatedByUser: {
         dataType: 'refObject',
         properties: {
@@ -1511,6 +1545,7 @@ const models: TsoaRoute.Models = {
                 spaceName: { dataType: 'string', required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 updatedByUser: { ref: 'UpdatedByUser' },
+                parameters: { ref: 'DashboardParameters' },
                 filters: { ref: 'DashboardFilters', required: true },
                 tiles: {
                     dataType: 'array',
@@ -9676,6 +9711,13 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                parameters: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DashboardParameters' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 dashboardVersionId: { dataType: 'double', required: true },
                 tiles: {
                     dataType: 'array',
@@ -11328,6 +11370,7 @@ const models: TsoaRoute.Models = {
                 },
                 spaceUuid: { dataType: 'string' },
                 updatedByUser: { ref: 'Pick_UpdatedByUser.userUuid_' },
+                parameters: { ref: 'DashboardParameters' },
                 filters: { ref: 'DashboardFilters' },
                 tiles: {
                     dataType: 'array',

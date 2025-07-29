@@ -186,6 +186,7 @@ export const dashboardViewEntry: DashboardViewTable['base'] = {
         metrics: [],
         tableCalculations: [],
     },
+    parameters: {},
 };
 
 export const dashboardWithVersionEntry: GetDashboardQuery = {
@@ -303,6 +304,7 @@ export const expectedDashboard: DashboardDAO = {
         metrics: [],
         tableCalculations: [],
     },
+    parameters: {},
     spaceUuid: 'spaceUuid',
     spaceName: 'space name',
     updatedByUser: {
