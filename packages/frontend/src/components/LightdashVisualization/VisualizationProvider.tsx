@@ -396,6 +396,7 @@ const VisualizationProvider: FC<
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
