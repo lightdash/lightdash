@@ -2660,6 +2660,10 @@ export class AsyncQueryService extends ProjectService {
                     warehouseConnection.warehouseClient.getStartOfWeek(),
                 adapterType:
                     warehouseConnection.warehouseClient.getAdapterType(),
+                escapeString:
+                    warehouseConnection.warehouseClient.escapeString.bind(
+                        warehouseConnection.warehouseClient,
+                    ),
             },
         );
 

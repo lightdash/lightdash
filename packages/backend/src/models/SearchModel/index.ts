@@ -230,7 +230,11 @@ export class SearchModel {
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .andWhere(`${DashboardTabsTableName}.name`, 'ilike', `%${query}%`)
+            .andWhere(
+                `${DashboardTabsTableName}.name`,
+                'ilike',
+                this.database.raw('?', [`%${query}%`]),
+            )
             .distinctOn(`${DashboardTabsTableName}.uuid`);
 
         return dashboardTabs;

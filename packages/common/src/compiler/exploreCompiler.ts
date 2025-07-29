@@ -477,7 +477,9 @@ export class ExploreCompiler {
                     compiledDimension,
                     this.warehouseClient.getFieldQuoteChar(),
                     this.warehouseClient.getStringQuoteChar(),
-                    this.warehouseClient.getEscapeStringQuoteChar(),
+                    this.warehouseClient.escapeString.bind(
+                        this.warehouseClient,
+                    ),
                     this.warehouseClient.getStartOfWeek(),
                     this.warehouseClient.getAdapterType(),
                 );

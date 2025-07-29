@@ -37,6 +37,7 @@ import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
+import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -152,6 +153,32 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
 
     getFieldQuoteChar(): string {
         return '`';
+    }
+
+    escapeString(value: string): string {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return (
+            normalizeUnicode(value)
+                // BigQuery uses backslash escaping for single quotes
+                .replaceAll('\\', '\\\\')
+                .replaceAll("'", "\\'")
+                .replaceAll('"', '\\"')
+                .replaceAll('\n', '\\n')
+                .replaceAll('\r', '\\r')
+                .replaceAll('\t', '\\t')
+                // Escape LIKE pattern wildcards
+                .replaceAll('%', '\\%')
+                .replaceAll('_', '\\_')
+                // Remove SQL comments (BigQuery supports --, /* */, and # comments)
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .replace(/#.*$/gm, '') // BigQuery also supports # comments
+                // Remove null bytes
+                .replaceAll('\0', '')
+        );
     }
 }
 

@@ -492,7 +492,7 @@ export const disabledFilterMock: {
     field: RenderFilterRuleSqlParams[1];
     fieldQuoteChar: RenderFilterRuleSqlParams[2];
     stringQuoteChar: RenderFilterRuleSqlParams[3];
-    escapeStringQuoteChar: RenderFilterRuleSqlParams[4];
+    escapeString: RenderFilterRuleSqlParams[4];
     startOfWeek: RenderFilterRuleSqlParams[5];
     adapterType: RenderFilterRuleSqlParams[6];
     timezone: RenderFilterRuleSqlParams[7];
@@ -520,7 +520,7 @@ export const disabledFilterMock: {
     },
     fieldQuoteChar: '"',
     stringQuoteChar: "'",
-    escapeStringQuoteChar: "'",
+    escapeString: (string: string) => string.replaceAll("'", "''"),
     startOfWeek: null,
     adapterType: SupportedDbtAdapter.POSTGRES,
     timezone: 'UTC',

@@ -658,7 +658,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithSingleVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithSingleValSQL);
     });
@@ -668,7 +667,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithMultiVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithMultiValSQL);
@@ -680,7 +678,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithNoVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithNoValSQL);
     });
@@ -690,7 +687,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithSingleVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithSingleValSQL);
@@ -702,7 +698,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithMultiVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithMultiValSQL);
     });
@@ -712,7 +707,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithNoVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithNoValSQL);
@@ -724,7 +718,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithSingleVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithSingleValSQL);
     });
@@ -734,7 +727,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithMultiVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithMultiValSQL);
@@ -746,7 +738,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithNoVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
@@ -756,7 +747,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithSingleVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithSingleValSQL);
@@ -768,7 +758,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithMultiVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithMultiValSQL);
     });
@@ -779,31 +768,8 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithNoVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
-    });
-
-    test('should return escaped query for unescaped single filter value', () => {
-        expect(
-            renderStringFilterSql(
-                stringFilterDimension,
-                stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
-                "'",
-                "'",
-            ),
-        ).toBe(stringFilterRuleMocks.equalsFilterWithSingleUnescapedValueSQL);
-    });
-
-    test('should return escaped query for unescaped multi filter values', () => {
-        expect(
-            renderStringFilterSql(
-                stringFilterDimension,
-                stringFilterRuleMocks.equalsFilterWithMultiUnescapedValue,
-                "'",
-                "'",
-            ),
-        ).toBe(stringFilterRuleMocks.equalsFilterWithMultiUnescapedValueSQL);
     });
 
     test('should return 1=1 if filter is disabled', () => {
@@ -813,12 +779,55 @@ describe('Filter SQL', () => {
                 disabledFilterMock.field,
                 disabledFilterMock.fieldQuoteChar,
                 disabledFilterMock.stringQuoteChar,
-                disabledFilterMock.escapeStringQuoteChar,
+                disabledFilterMock.escapeString,
                 disabledFilterMock.startOfWeek,
                 disabledFilterMock.adapterType,
                 disabledFilterMock.timezone,
             ),
         ).toBe('1=1');
+    });
+});
+
+describe('escape string values', () => {
+    test('should not escape on the string filter method', () => {
+        // Escape happens now on the parent method, not on the string filter
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
+                "'",
+            ),
+        ).toBe(`("customers".first_name) IN ('Bob's')`);
+    });
+
+    test('should return escaped query for unescaped single filter value', () => {
+        expect(
+            renderFilterRuleSqlFromField(
+                stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
+                disabledFilterMock.field,
+                disabledFilterMock.fieldQuoteChar,
+                disabledFilterMock.stringQuoteChar,
+                (v) => v.replaceAll("'", "''"),
+                disabledFilterMock.startOfWeek,
+                disabledFilterMock.adapterType,
+                disabledFilterMock.timezone,
+            ),
+        ).toBe(`("payments".payment_method) IN ('Bob''s')`);
+    });
+
+    test('should return escaped query for unescaped multi filter values', () => {
+        expect(
+            renderFilterRuleSqlFromField(
+                stringFilterRuleMocks.equalsFilterWithMultiUnescapedValue,
+                disabledFilterMock.field,
+                disabledFilterMock.fieldQuoteChar,
+                disabledFilterMock.stringQuoteChar,
+                (v) => v.replaceAll("'", "''"),
+                disabledFilterMock.startOfWeek,
+                disabledFilterMock.adapterType,
+                disabledFilterMock.timezone,
+            ),
+        ).toBe(`("payments".payment_method) IN ('Bob''s','Tom''s')`);
     });
 });
 

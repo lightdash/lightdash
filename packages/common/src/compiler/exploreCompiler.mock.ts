@@ -89,6 +89,7 @@ export const warehouseClientMock: WarehouseClient = {
     parseError(): Error {
         throw new Error('Function not implemented.');
     },
+    escapeString: (value) => value,
 };
 
 const sourceMock: Source = {
