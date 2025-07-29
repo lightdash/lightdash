@@ -1,3 +1,10 @@
+# [0.1849.0](https://github.com/lightdash/lightdash/compare/0.1848.2...0.1849.0) (2025-07-29)
+
+
+### Features
+
+* support parameters for totals calculation in the backend ([#16056](https://github.com/lightdash/lightdash/issues/16056)) ([07e1e71](https://github.com/lightdash/lightdash/commit/07e1e7110202cae6d4b1821dbbe1cc8acf825f07)), closes [#15996](https://github.com/lightdash/lightdash/issues/15996)
+
 ## [0.1848.2](https://github.com/lightdash/lightdash/compare/0.1848.1...0.1848.2) (2025-07-28)
 
 
