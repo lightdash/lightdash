@@ -231,7 +231,6 @@ export class AiAgentService {
         return false;
     }
 
-    // from AiService getToolUtilities
     private async getExplore(
         account: Account,
         projectUuid: string,
@@ -256,7 +255,6 @@ export class AiAgentService {
         return filteredExplore;
     }
 
-    // from AiService getToolUtilities
     private async runAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
@@ -1448,22 +1446,14 @@ export class AiAgentService {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
             const account = fromSession(user);
-            const explore = await this.projectService.getExplore(
+            const explore = await this.getExplore(
                 account,
                 projectUuid,
+                agentSettings.tags,
                 exploreName,
             );
 
-            const filteredExplore = filterExploreByTags({
-                explore,
-                availableTags: agentSettings?.tags ?? null,
-            });
-
-            if (!filteredExplore) {
-                throw new NotFoundError('Explore not found');
-            }
-
-            return filteredExplore;
+            return explore;
         };
 
         const findFields: FindFieldFn = async ({ fieldSearchQuery }) => {
