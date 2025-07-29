@@ -103,7 +103,7 @@ const ParameterStringAutoComplete: FC<ParameterStringAutoCompleteProps> = ({
     singleValue,
     parameterValues,
     size,
-                                                                               creatable = false,
+    creatable = false,
     ...rest
 }) => {
     const multiSelectRef = useRef<HTMLInputElement>(null);
