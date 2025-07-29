@@ -1,8 +1,9 @@
 import {
     CatalogField,
     CatalogTable,
-    CatalogType,
+    FieldType,
     getItemId,
+    toolFindExploresArgsSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -13,26 +14,21 @@ type Dependencies = {
     findExplores: FindExploresFn;
 };
 
-const DESCRIPTION_MAX_LENGTH = 300;
 const PAGE_SIZE = 15;
 
 const generateExploreResponse = (
     table: CatalogTable,
     fields: CatalogField[],
-    descriptionMaxLength: number = DESCRIPTION_MAX_LENGTH,
 ) => {
-    const allTableNames = [
-        table.name,
-        ...(table.joinedTables?.map((t) => t.table) ?? []),
-    ];
+    const allTableNames = [table.name, ...(table.joinedTables ?? [])];
 
     const dimensions = fields
-        .filter((field) => field.type === CatalogType.Field)
+        .filter((field) => field.fieldType === FieldType.DIMENSION)
         .filter((field) => allTableNames.includes(field.tableName))
         .sort((a, b) => (b.chartUsage ?? 0) - (a.chartUsage ?? 0));
 
     const metrics = fields
-        .filter((field) => field.type === CatalogType.Field)
+        .filter((field) => field.fieldType === FieldType.METRIC)
         .filter((field) => allTableNames.includes(field.tableName))
         .sort((a, b) => (b.chartUsage ?? 0) - (a.chartUsage ?? 0));
 
@@ -63,7 +59,7 @@ const generateExploreResponse = (
         ${table.joinedTables
             .map(
                 (joinedTable) =>
-                    `<JoinedTable id="${joinedTable.table}">${joinedTable.table}</JoinedTable>`,
+                    `<JoinedTable id="${joinedTable}">${joinedTable}</JoinedTable>`,
             )
             .join('\n\n')}
     </JoinedTables>
