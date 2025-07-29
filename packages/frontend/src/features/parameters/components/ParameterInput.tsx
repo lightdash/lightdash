@@ -49,6 +49,7 @@ type ParameterInputProps = {
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     projectUuid?: string;
     parameterValues?: ParametersValuesMap;
+    disabled?: boolean;
 };
 
 // Single value component that mimics a single select behavior - maxSelectedValues={1} behaves weirdly so we don't use it.
@@ -377,6 +378,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     size,
     projectUuid,
     parameterValues,
+    disabled,
 }) => {
     const placeholder = useMemo(() => {
         const defaultValues = parameter.default
@@ -432,6 +434,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 size={size}
                 searchable
                 clearable
+                disabled={disabled}
             />
         );
     }
@@ -445,6 +448,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             size={size}
             searchable
             clearable
+            disabled={disabled}
         />
     );
 };

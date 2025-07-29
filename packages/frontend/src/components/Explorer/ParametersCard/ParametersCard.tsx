@@ -16,6 +16,10 @@ const ParametersCard = memo(
             (context) => context.state.expandedSections,
         );
 
+        const isEditMode = useExplorerContext(
+            (context) => context.state.isEditMode,
+        );
+
         const tableName = useExplorerContext(
             (context) => context.state.unsavedChartVersion.tableName,
         );
@@ -78,6 +82,7 @@ const ParametersCard = memo(
                         onClearAll={clearAllParameters}
                         cols={2}
                         projectUuid={projectUuid}
+                        disabled={!isEditMode}
                     />
                 </Box>
             </CollapsableCard>
