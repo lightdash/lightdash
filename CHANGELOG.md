@@ -1,3 +1,10 @@
+# [0.1850.0](https://github.com/lightdash/lightdash/compare/0.1849.0...0.1850.0) (2025-07-29)
+
+
+### Features
+
+* support subtotals with parameters in backend ([#16057](https://github.com/lightdash/lightdash/issues/16057)) ([36f60ef](https://github.com/lightdash/lightdash/commit/36f60ef701210d92b70380978eed81dcd004598d)), closes [#15996](https://github.com/lightdash/lightdash/issues/15996)
+
 # [0.1849.0](https://github.com/lightdash/lightdash/compare/0.1848.2...0.1849.0) (2025-07-29)
 
 
