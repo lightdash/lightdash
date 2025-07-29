@@ -15,7 +15,13 @@ describe('replaceParameters', () => {
         const quoteChar = "'";
         const wrapChar = '(';
 
-        const result = replaceParameters(sql, parameters, quoteChar, wrapChar);
+        const result = replaceParameters(
+            sql,
+            parameters,
+            mockSqlBuilder.escapeString,
+            quoteChar,
+            wrapChar,
+        );
 
         expect(result.replacedSql).toBe(
             "(SELECT * FROM users WHERE status = 'active', 'pending')",
@@ -29,7 +35,13 @@ describe('replaceParameters', () => {
         const quoteChar = '"';
         const wrapChar = '';
 
-        const result = replaceParameters(sql, parameters, quoteChar, wrapChar);
+        const result = replaceParameters(
+            sql,
+            parameters,
+            mockSqlBuilder.escapeString,
+            quoteChar,
+            wrapChar,
+        );
 
         expect(result.replacedSql).toBe(
             'SELECT * FROM orders WHERE region = "US", "EU"',
@@ -43,7 +55,13 @@ describe('replaceParameters', () => {
         const quoteChar = "'";
         const wrapChar = '(';
 
-        const result = replaceParameters(sql, parameters, quoteChar, wrapChar);
+        const result = replaceParameters(
+            sql,
+            parameters,
+            mockSqlBuilder.escapeString,
+            quoteChar,
+            wrapChar,
+        );
 
         expect(result.missingReferences.has('status')).toBe(true);
         expect(result.replacedSql).toBe(
@@ -57,10 +75,37 @@ describe('replaceParameters', () => {
         const parameters = { status: ['active', 'pending'] };
         const wrapChar = '(';
 
-        const result = replaceParameters(sql, parameters, '', wrapChar);
+        const result = replaceParameters(
+            sql,
+            parameters,
+            mockSqlBuilder.escapeString,
+            '',
+            wrapChar,
+        );
 
         expect(result.replacedSql).toBe(
             '(SELECT * FROM users WHERE status = active, pending)',
+        );
+    });
+
+    it('should use sqlBuilder to escape parameters when provided', () => {
+        const sql =
+            'SELECT * FROM users WHERE name = ${lightdash.parameters.name}';
+        const parameters = { name: "O'Reilly" };
+        const quoteChar = "'";
+        const wrapChar = '';
+
+        const result = replaceParameters(
+            sql,
+            parameters,
+            mockSqlBuilder.escapeString,
+            quoteChar,
+            wrapChar,
+        );
+
+        // SnowflakeSqlBuilder doubles single quotes
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM users WHERE name = 'O''Reilly'",
         );
     });
 });

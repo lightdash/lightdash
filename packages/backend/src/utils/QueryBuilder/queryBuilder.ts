@@ -1359,6 +1359,7 @@ export class QueryBuilder {
             replaceParameters(
                 sql,
                 this.parameters ?? {},
+                this.config.escapeString,
                 this.config.stringQuoteChar,
             );
 

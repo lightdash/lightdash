@@ -7,19 +7,17 @@ import { replaceLightdashValues } from './utils';
 
 const escapeParameterValues = (
     parameters: ParametersValuesMap,
-    sqlBuilder: WarehouseSqlBuilder,
+    escapeString: (value: string) => string,
 ): ParametersValuesMap => {
     const escapedParameters: ParametersValuesMap = {};
 
     Object.entries(parameters).forEach(([key, value]) => {
         if (Array.isArray(value)) {
             // Handle array of strings
-            escapedParameters[key] = value.map((item) =>
-                sqlBuilder.escapeString(item),
-            );
+            escapedParameters[key] = value.map((item) => escapeString(item));
         } else {
             // Handle single string
-            escapedParameters[key] = sqlBuilder.escapeString(value);
+            escapedParameters[key] = escapeString(value);
         }
     });
 
@@ -30,13 +28,14 @@ const escapeParameterValues = (
 export const replaceParameters = (
     sql: string,
     parameters: ParametersValuesMap,
+    escapeString: (value: string) => string,
     quoteChar: string,
     wrapChar: string = '', // ! Default to non-wrapped sql
 ) =>
     replaceLightdashValues(
         parameterRegex,
         sql,
-        parameters,
+        escapeParameterValues(parameters, escapeString),
         quoteChar,
         wrapChar,
         {
@@ -52,7 +51,8 @@ export const replaceParametersAsString = (
 ) =>
     replaceParameters(
         sql,
-        escapeParameterValues(parameters, sqlBuilder),
+        parameters,
+        sqlBuilder.escapeString,
         sqlBuilder.getStringQuoteChar(),
         '',
     );
@@ -61,10 +61,4 @@ export const replaceParametersAsRaw = (
     sql: string,
     parameters: ParametersValuesMap,
     sqlBuilder: WarehouseSqlBuilder,
-) =>
-    replaceParameters(
-        sql,
-        escapeParameterValues(parameters, sqlBuilder),
-        '',
-        '',
-    );
+) => replaceParameters(sql, parameters, sqlBuilder.escapeString, '', '');
