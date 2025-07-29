@@ -1,3 +1,10 @@
+## [0.1853.1](https://github.com/lightdash/lightdash/compare/0.1853.0...0.1853.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* reload parameters after refresh dbt ([#16085](https://github.com/lightdash/lightdash/issues/16085)) ([38e3fde](https://github.com/lightdash/lightdash/commit/38e3fde662eeb98c1542447b36cb94e83e69fb86))
+
 # [0.1853.0](https://github.com/lightdash/lightdash/compare/0.1852.0...0.1853.0) (2025-07-29)
 
 
