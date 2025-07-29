@@ -5139,6 +5139,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
         useExperimentalMetricCtes?: boolean,
+        parameters?: ParametersValuesMap,
     ) {
         const totalQuery: MetricQuery = {
             ...metricQuery,
@@ -5160,6 +5161,7 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.query.timezone || 'UTC',
             undefined,
             useExperimentalMetricCtes,
+            parameters,
         );
 
         return { query, totalQuery };
@@ -5171,6 +5173,7 @@ export class ProjectService extends BaseService {
         exploreName: string,
         metricQuery: MetricQuery,
         organizationUuid: string,
+        parameters?: ParametersValuesMap,
     ) {
         const explore = await this.getExplore(
             account,
@@ -5212,6 +5215,7 @@ export class ProjectService extends BaseService {
             metricQuery,
             warehouseClient,
             useExperimentalMetricCtes,
+            parameters,
         );
 
         const queryTags: RunQueryTags = {
@@ -5234,6 +5238,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         invalidateCache: boolean,
         organizationUuid: string,
+        parameters?: ParametersValuesMap,
     ) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -5257,6 +5262,8 @@ export class ProjectService extends BaseService {
             explore,
             metricQuery,
             warehouseClient,
+            undefined,
+            parameters,
         );
 
         const queryTags: RunQueryTags = {
@@ -5286,6 +5293,7 @@ export class ProjectService extends BaseService {
         chartUuid: string,
         dashboardFilters?: DashboardFilters,
         invalidateCache: boolean = false,
+        parameters?: ParametersValuesMap,
     ) {
         assertIsAccountWithOrg(account);
 
@@ -5356,6 +5364,12 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            parameters,
+            savedChart.parameters,
+        );
+
         const results = await this._calculateTotalFromCacheOrWarehouse(
             account,
             projectUuid,
@@ -5363,6 +5377,7 @@ export class ProjectService extends BaseService {
             metricQuery,
             invalidateCache,
             savedChart.organizationUuid,
+            combinedParameters,
         );
         return results.row;
     }
@@ -5397,12 +5412,18 @@ export class ProjectService extends BaseService {
             throw new CustomSqlQueryForbiddenError();
         }
 
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            data.parameters,
+        );
+
         const results = await this._calculateTotal(
             account,
             projectUuid,
             data.explore,
             data.metricQuery,
             organizationUuid,
+            combinedParameters,
         );
         return results.row;
     }
@@ -6419,6 +6440,39 @@ export class ProjectService extends BaseService {
         }
         return {
             user_uuid: account.user.id,
+        };
+    }
+
+    /**
+     * Combines parameter values from multiple sources in order of priority:
+     * 1. Request parameters (highest priority)
+     * 2. Saved chart parameters
+     * 3. Default parameter values (lowest priority)
+     */
+    protected async combineParameters(
+        projectUuid: string,
+        requestParameters?: ParametersValuesMap,
+        savedChartParameters?: ParametersValuesMap,
+    ): Promise<ParametersValuesMap> {
+        // Get default values for parameters
+        const defaultParameters: ParametersValuesMap = {};
+        // Fetch all parameters
+        const parameterConfigs = await this.projectParametersModel.find(
+            projectUuid,
+        );
+
+        for (const paramConfig of parameterConfigs) {
+            if (paramConfig.config.default !== undefined) {
+                defaultParameters[paramConfig.name] =
+                    paramConfig.config.default;
+            }
+        }
+
+        // Combine in order of priority: defaults < saved chart < request
+        return {
+            ...defaultParameters,
+            ...(savedChartParameters || {}),
+            ...(requestParameters || {}),
         };
     }
 }
