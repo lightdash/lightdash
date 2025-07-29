@@ -2606,6 +2606,7 @@ export class ProjectService extends BaseService {
         explore: loadedExplore,
         dateZoom,
         chartUuid,
+        parameters,
     }: {
         account: Account;
         metricQuery: MetricQuery;
@@ -2618,6 +2619,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         dateZoom?: DateZoom;
         chartUuid: string | undefined; // for analytics
+        parameters?: ParametersValuesMap;
     }): Promise<{
         rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
@@ -2685,6 +2687,8 @@ export class ProjectService extends BaseService {
                         userAttributes,
                         this.lightdashConfig.query.timezone || 'UTC',
                         dateZoom,
+                        undefined,
+                        parameters,
                     );
 
                     const { query } = fullQuery;
@@ -5433,6 +5437,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: CalculateSubtotalsFromQuery,
         organizationUuid: string,
+        parameters?: ParametersValuesMap,
     ) {
         const {
             explore: exploreName,
@@ -5489,6 +5494,7 @@ export class ProjectService extends BaseService {
                 context: QueryExecutionContext.CALCULATE_SUBTOTAL,
                 csvLimit: null,
                 chartUuid: undefined,
+                parameters,
             });
 
             return formatRawRows(rows, fields);
@@ -5557,12 +5563,18 @@ export class ProjectService extends BaseService {
             throw new CustomSqlQueryForbiddenError();
         }
 
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            data.parameters,
+        );
+
         // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid
         return this._calculateSubtotals(
             account,
             projectUuid,
             data,
             organizationUuid,
+            combinedParameters,
         );
     }
 

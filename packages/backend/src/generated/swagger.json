@@ -11943,6 +11943,9 @@
                     },
                     {
                         "properties": {
+                            "parameters": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
                             "pivotDimensions": {
                                 "items": {
                                     "type": "string"
