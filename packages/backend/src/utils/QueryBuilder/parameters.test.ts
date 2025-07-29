@@ -1,4 +1,11 @@
-import { replaceParameters } from './parameters';
+import { SnowflakeSqlBuilder } from '@lightdash/warehouses';
+import {
+    replaceParameters,
+    replaceParametersAsRaw,
+    replaceParametersAsString,
+} from './parameters';
+
+const mockSqlBuilder = new SnowflakeSqlBuilder();
 
 describe('replaceParameters', () => {
     it('should replace lightdash parameter placeholders with values', () => {
@@ -54,6 +61,58 @@ describe('replaceParameters', () => {
 
         expect(result.replacedSql).toBe(
             '(SELECT * FROM users WHERE status = active, pending)',
+        );
+    });
+});
+
+describe('replaceParametersAsString', () => {
+    it('should escape single quote in string parameter to prevent SQL injection', () => {
+        const sql =
+            'SELECT * FROM users WHERE name = ${lightdash.parameters.name}';
+        const parameters = { name: "O'Reilly" };
+
+        const result = replaceParametersAsString(
+            sql,
+            parameters,
+            mockSqlBuilder,
+        );
+
+        // SnowflakeSqlBuilder doubles single quotes
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM users WHERE name = 'O''Reilly'",
+        );
+    });
+
+    it('should escape SQL injection attempt in array parameter', () => {
+        const sql =
+            'SELECT * FROM users WHERE status IN (${lightdash.parameters.status})';
+        const parameters = {
+            status: ['active', "pending'; DROP TABLE users; --"],
+        };
+
+        const result = replaceParametersAsString(
+            sql,
+            parameters,
+            mockSqlBuilder,
+        );
+
+        // SnowflakeSqlBuilder doubles single quotes and removes SQL comments
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM users WHERE status IN ('active', 'pending''; DROP TABLE users; ')",
+        );
+    });
+});
+
+describe('replaceParametersAsRaw', () => {
+    it('should properly escape parameters when using replaceParametersAsRaw', () => {
+        const sql = 'SELECT * FROM users WHERE id = ${lightdash.parameters.id}';
+        const parameters = { id: '1; DROP TABLE users; --' };
+
+        const result = replaceParametersAsRaw(sql, parameters, mockSqlBuilder);
+
+        // SnowflakeSqlBuilder removes SQL comments even when not using quotes
+        expect(result.replacedSql).toBe(
+            'SELECT * FROM users WHERE id = 1; DROP TABLE users; ',
         );
     });
 });

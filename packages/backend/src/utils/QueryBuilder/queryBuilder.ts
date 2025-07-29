@@ -513,6 +513,7 @@ export class MetricQueryBuilder {
                     const { replacedSql } = replaceParametersAsRaw(
                         value,
                         this.args.parameters ?? {},
+                        this.args.warehouseSqlBuilder,
                     );
 
                     return replacedSql;
