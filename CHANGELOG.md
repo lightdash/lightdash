@@ -1,3 +1,10 @@
+# [0.1856.0](https://github.com/lightdash/lightdash/compare/0.1855.1...0.1856.0) (2025-07-29)
+
+
+### Features
+
+* seed project parameters in development data ([#16084](https://github.com/lightdash/lightdash/issues/16084)) ([bcf2461](https://github.com/lightdash/lightdash/commit/bcf246190fcccfe153f2e98e11b6807ac8fd8b28))
+
 ## [0.1855.1](https://github.com/lightdash/lightdash/compare/0.1855.0...0.1855.1) (2025-07-29)
 
 
