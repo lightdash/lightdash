@@ -3,7 +3,7 @@ import { Box, Button, Menu, Text, useMantineTheme } from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronUp,
-    IconSettings,
+    IconVariable,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -121,7 +121,7 @@ export const Parameters: FC<Props> = ({
                                 ? theme.colors.blue['6']
                                 : 'default',
                     }}
-                    leftIcon={<MantineIcon icon={IconSettings} />}
+                    leftIcon={<MantineIcon icon={IconVariable} />}
                     rightIcon={
                         <MantineIcon
                             icon={
