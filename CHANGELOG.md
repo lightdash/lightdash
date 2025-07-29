@@ -1,3 +1,10 @@
+# [0.1855.0](https://github.com/lightdash/lightdash/compare/0.1854.0...0.1855.0) (2025-07-29)
+
+
+### Features
+
+* hide embed explore UI elements via CASL ([#16002](https://github.com/lightdash/lightdash/issues/16002)) ([09be178](https://github.com/lightdash/lightdash/commit/09be178a081997d0370aa4f374361a984b3fd6f3))
+
 # [0.1854.0](https://github.com/lightdash/lightdash/compare/0.1853.1...0.1854.0) (2025-07-29)
 
 
