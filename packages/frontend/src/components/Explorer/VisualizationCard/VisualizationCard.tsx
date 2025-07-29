@@ -194,6 +194,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 onPivotDimensionsChange={setPivotFields}
                 colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
                 tableCalculationsMetadata={tableCalculationsMetadata}
+                parameters={query.data?.usedParametersValues}
             >
                 <CollapsableCard
                     title="Chart"

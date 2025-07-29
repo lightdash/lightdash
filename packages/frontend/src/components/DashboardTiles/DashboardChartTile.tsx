@@ -286,6 +286,10 @@ const ValidDashboardChartTile: FC<{
             colorPalette={chart.colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
+            parameters={
+                dashboardChartReadyQuery.executeQueryResponse
+                    .usedParametersValues
+            }
         >
             <LightdashVisualization
                 isDashboard
@@ -361,6 +365,10 @@ const ValidDashboardChartTileMinimal: FC<{
             colorPalette={chart.colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
+            parameters={
+                dashboardChartReadyQuery.executeQueryResponse
+                    .usedParametersValues
+            }
         >
             <LightdashVisualization
                 isDashboard
