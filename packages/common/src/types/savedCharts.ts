@@ -758,6 +758,7 @@ export type ApiCalculateTotalResponse = {
 export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
     columnOrder: string[];
     pivotDimensions?: string[];
+    parameters?: ParametersValuesMap;
 };
 
 export type ApiCalculateSubtotalsResponse = {
