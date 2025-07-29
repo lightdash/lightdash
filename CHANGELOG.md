@@ -1,3 +1,10 @@
+# [0.1852.0](https://github.com/lightdash/lightdash/compare/0.1851.0...0.1852.0) (2025-07-29)
+
+
+### Features
+
+* support subtotals with parameters on the FE ([#16059](https://github.com/lightdash/lightdash/issues/16059)) ([dbecae0](https://github.com/lightdash/lightdash/commit/dbecae0d90c936e7d228827baea88210830943a6)), closes [#15996](https://github.com/lightdash/lightdash/issues/15996)
+
 # [0.1851.0](https://github.com/lightdash/lightdash/compare/0.1850.0...0.1851.0) (2025-07-29)
 
 
