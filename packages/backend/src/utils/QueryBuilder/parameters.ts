@@ -57,7 +57,11 @@ export const replaceParametersAsString = (
         '',
     );
 
-export const replaceParametersAsRaw = (
+/**
+ * **Warning:** this function does not escape the parameters.
+ * Use it only when you are sure that the parameters are safe. E.g. when in used in filter string compiler it get's wrapped in quotes.
+ */
+export const unsafeReplaceParametersAsRaw = (
     sql: string,
     parameters: ParametersValuesMap,
     sqlBuilder: WarehouseSqlBuilder,

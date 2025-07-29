@@ -1,8 +1,8 @@
 import { SnowflakeSqlBuilder } from '@lightdash/warehouses';
 import {
     replaceParameters,
-    replaceParametersAsRaw,
     replaceParametersAsString,
+    unsafeReplaceParametersAsRaw,
 } from './parameters';
 
 const mockSqlBuilder = new SnowflakeSqlBuilder();
@@ -148,12 +148,16 @@ describe('replaceParametersAsString', () => {
     });
 });
 
-describe('replaceParametersAsRaw', () => {
-    it('should properly escape parameters when using replaceParametersAsRaw', () => {
+describe('unsafeReplaceParametersAsRaw', () => {
+    it('should properly escape parameters when using unsafeReplaceParametersAsRaw', () => {
         const sql = 'SELECT * FROM users WHERE id = ${lightdash.parameters.id}';
         const parameters = { id: '1; DROP TABLE users; --' };
 
-        const result = replaceParametersAsRaw(sql, parameters, mockSqlBuilder);
+        const result = unsafeReplaceParametersAsRaw(
+            sql,
+            parameters,
+            mockSqlBuilder,
+        );
 
         // SnowflakeSqlBuilder removes SQL comments even when not using quotes
         expect(result.replacedSql).toBe(
