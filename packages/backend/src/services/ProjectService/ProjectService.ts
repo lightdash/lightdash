@@ -6461,7 +6461,7 @@ export class ProjectService extends BaseService {
      * 2. Saved chart parameters
      * 3. Default parameter values (lowest priority)
      */
-    protected async combineParameters(
+    public async combineParameters(
         projectUuid: string,
         requestParameters?: ParametersValuesMap,
         savedChartParameters?: ParametersValuesMap,
