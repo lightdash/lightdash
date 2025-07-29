@@ -1,3 +1,10 @@
+## [0.1858.1](https://github.com/lightdash/lightdash/compare/0.1858.0...0.1858.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* upgrade invitesmodel.tsx to mantine 8 ([#16094](https://github.com/lightdash/lightdash/issues/16094)) ([ad5b53d](https://github.com/lightdash/lightdash/commit/ad5b53d05fd9c3036bd425ce42470e090de326a4))
+
 # [0.1858.0](https://github.com/lightdash/lightdash/compare/0.1857.0...0.1858.0) (2025-07-29)
 
 
