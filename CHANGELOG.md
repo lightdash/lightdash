@@ -1,3 +1,10 @@
+## [0.1855.1](https://github.com/lightdash/lightdash/compare/0.1855.0...0.1855.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* use useProjectUuid for subtotals ([#16089](https://github.com/lightdash/lightdash/issues/16089)) ([63269e9](https://github.com/lightdash/lightdash/commit/63269e922b6d7865319e8fed568380f5ffd8b55c))
+
 # [0.1855.0](https://github.com/lightdash/lightdash/compare/0.1854.0...0.1855.0) (2025-07-29)
 
 
