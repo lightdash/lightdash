@@ -322,4 +322,111 @@ describe('Async Query API', () => {
             });
         });
     });
+
+    describe('Invalid query filters', () => {
+        const runMetricQueryAndValidateResponse = (
+            queryBody: any,
+            projectUuid: string,
+        ) => {
+            const wrappedRequest = wrapRequest();
+
+            cy.log(
+                'Check that fetching the query before having a valid query id returns 404',
+            );
+            wrappedRequest({
+                // Dummy queryUuid
+                url: `${apiUrl}/projects/${projectUuid}/query/13a00154-d590-40f2-bb27-d541f70aa8c6`,
+                method: 'GET',
+                failOnStatusCode: false,
+            }).then((resultsResp) => {
+                expect(resultsResp.status).to.eq(404);
+                expect(resultsResp.body).to.have.property('status', 'error');
+                expect(resultsResp.body).to.have.property('error');
+                expect(resultsResp.body.error.name).to.eq('NotFoundError');
+            });
+
+            wrappedRequest({
+                url: `${apiUrl}/projects/${projectUuid}/query/metric-query`,
+                method: 'POST',
+                body: queryBody,
+            }).then((executeResp) => {
+                expect(executeResp.status).to.eq(200);
+                expect(executeResp.body).to.have.property('status', 'ok');
+                expect(executeResp.body.results).to.have.property('queryUuid');
+
+                const { queryUuid } = executeResp.body.results;
+
+                // Poll for results until ready
+                const checkResults = (): any =>
+                    wrappedRequest({
+                        url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}`,
+                        method: 'GET',
+                    }).then((resultsResp: any) => {
+                        if (
+                            resultsResp.status !== 200 ||
+                            resultsResp.body.results.error !== undefined
+                        ) {
+                            cy.log(`Error: ${resultsResp.body.results.error}`);
+                            throw new Error(
+                                `Error: ${resultsResp.body.results.error}`,
+                            );
+                        }
+                        if (resultsResp.body.results.status !== 'ready') {
+                            // If not ready, wait 200ms and try again
+                            cy.wait(200);
+                            return checkResults();
+                        }
+                        return resultsResp;
+                    });
+
+                // default results
+                checkResults().then((resultsResp: any) => {
+                    expect(resultsResp.status).to.eq(200);
+                    expect(resultsResp.body).to.have.property('status', 'ok');
+                    expect(resultsResp.body.results).to.have.property('rows');
+                    expect(resultsResp.body.results.rows).to.be.an('array');
+                    expect(resultsResp.body.results.rows.length).to.be.not.eq(
+                        50,
+                    );
+                });
+            });
+        };
+
+        it('should not return invalid string filter metric query', () => {
+            const projectUuid = SEED_PROJECT.project_uuid;
+
+            const runQueryBodyInvalidFilters = {
+                context: 'exploreView',
+                query: {
+                    exploreName: 'events',
+                    dimensions: ['events_event_tier', 'events_event_id'],
+                    metrics: ['events_count', 'events_in_dkk'],
+                    filters: {
+                        dimensions: {
+                            id: '7e750e7c-8098-4a90-b364-4e935ad7a7e9',
+                            and: [
+                                {
+                                    id: 'd69d3ba0-6ff5-4437-9ef3-4ed69006ea2e',
+                                    target: {
+                                        fieldId: 'events_event_tier',
+                                    },
+                                    operator: 'equals',
+                                    values: ["\\') OR (1=1) --"],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'events_count', descending: true }],
+                    limit: 50,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    metricOverrides: {},
+                },
+            };
+            runMetricQueryAndValidateResponse(
+                runQueryBodyInvalidFilters,
+                projectUuid,
+            );
+        });
+    });
 });
