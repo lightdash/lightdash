@@ -1,3 +1,10 @@
+# [0.1854.0](https://github.com/lightdash/lightdash/compare/0.1853.1...0.1854.0) (2025-07-29)
+
+
+### Features
+
+* add custom values support for parameter inputs ([#16039](https://github.com/lightdash/lightdash/issues/16039)) ([fdbd00c](https://github.com/lightdash/lightdash/commit/fdbd00cf949dea3590bacc970f1f4ffca3ca3b67))
+
 ## [0.1853.1](https://github.com/lightdash/lightdash/compare/0.1853.0...0.1853.1) (2025-07-29)
 
 
