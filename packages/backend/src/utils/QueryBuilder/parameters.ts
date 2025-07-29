@@ -52,7 +52,7 @@ export const replaceParametersAsString = (
     replaceParameters(
         sql,
         parameters,
-        sqlBuilder.escapeString,
+        sqlBuilder.escapeString.bind(sqlBuilder),
         sqlBuilder.getStringQuoteChar(),
         '',
     );
@@ -61,4 +61,11 @@ export const replaceParametersAsRaw = (
     sql: string,
     parameters: ParametersValuesMap,
     sqlBuilder: WarehouseSqlBuilder,
-) => replaceParameters(sql, parameters, sqlBuilder.escapeString, '', '');
+) =>
+    replaceParameters(
+        sql,
+        parameters,
+        sqlBuilder.escapeString.bind(sqlBuilder),
+        '',
+        '',
+    );
