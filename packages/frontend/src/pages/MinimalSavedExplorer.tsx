@@ -56,6 +56,7 @@ const MinimalExplorer: FC = () => {
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={savedChart.uuid}
             colorPalette={savedChart.colorPalette}
+            parameters={query.data?.usedParametersValues}
         >
             <MantineProvider inherit theme={themeOverride}>
                 <Box mih="inherit" h="100%">
