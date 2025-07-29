@@ -7140,6 +7140,40 @@
                 "required": ["source", "type"],
                 "type": "object"
             },
+            "url.URL": {
+                "type": "string",
+                "description": "The URL interface represents an object providing static methods used for creating object URLs.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
+            },
+            "OauthAuth": {
+                "properties": {
+                    "resource": {
+                        "$ref": "#/components/schemas/url.URL"
+                    },
+                    "expiresAt": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "scopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "clientId": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["oauth"],
+                        "nullable": false
+                    }
+                },
+                "required": ["scopes", "clientId", "token", "type"],
+                "type": "object"
+            },
             "Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__": {
                 "properties": {
                     "organization": {
@@ -7158,6 +7192,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/PersonalAccessTokenAuth"
+                            },
+                            {
+                                "$ref": "#/components/schemas/OauthAuth"
                             }
                         ]
                     }

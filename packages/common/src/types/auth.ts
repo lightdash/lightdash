@@ -23,7 +23,7 @@ export enum AuthTokenPrefix {
     OAUTH_REFRESH = 'ldref_',
 }
 
-export type AuthType = 'session' | 'pat' | 'service-account' | 'jwt';
+export type AuthType = 'session' | 'pat' | 'service-account' | 'jwt' | 'oauth';
 
 export type PersonalAccessTokenAuth = {
     type: 'pat';
@@ -46,11 +46,22 @@ export type ServiceAccountAuth = {
     source: string; // The service account token
 };
 
+export type OauthAuth = {
+    type: 'oauth';
+    source: string; // The oauth token
+    token: string;
+    clientId: string;
+    scopes: string[];
+    expiresAt?: number;
+    resource?: URL;
+};
+
 export type Authentication =
     | SessionAuth
     | JwtAuth
     | ServiceAccountAuth
-    | PersonalAccessTokenAuth;
+    | PersonalAccessTokenAuth
+    | OauthAuth;
 
 export type UserAccessControls = {
     userAttributes: UserAttributeValueMap;
@@ -81,6 +92,8 @@ export type AccountHelpers = {
     isServiceAccount: () => boolean;
     /** Is this account for a personal access token? */
     isPatUser: () => boolean;
+    /** Is this account for a oauth user? */
+    isOauthUser: () => boolean;
 };
 
 export type AccountOrganization = Partial<
@@ -126,11 +139,17 @@ export type ServiceAcctAccount = BaseAccountWithHelpers & {
     user: LightdashSessionUser;
 };
 
+export type OauthAccount = BaseAccountWithHelpers & {
+    authentication: OauthAuth;
+    user: LightdashSessionUser;
+};
+
 export type Account =
     | SessionAccount
     | AnonymousAccount
     | ApiKeyAccount
-    | ServiceAcctAccount;
+    | ServiceAcctAccount
+    | OauthAccount;
 
 export type AccountWithoutHelpers<T extends Account> = Omit<
     T,

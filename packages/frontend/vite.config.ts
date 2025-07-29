@@ -121,6 +121,10 @@ export default defineConfig({
                 target: 'http://localhost:8080',
                 changeOrigin: true,
             },
+            '/.well-known': { // MCP inspector requires .well-known to be on the root, but according to RFC 9728 (OAuth 2.0 Protected Resource Metadata) the .well-known endpoint is not required to be at the root level.
+                target: 'http://localhost:8080/api/v1/oauth',
+                changeOrigin: true,
+            },
             '/slack/events': {
                 target: 'http://localhost:8080',
                 changeOrigin: true,

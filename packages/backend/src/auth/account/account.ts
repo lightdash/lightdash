@@ -13,6 +13,7 @@ import {
     Embed,
     ForbiddenError,
     MemberAbility,
+    OauthAccount,
     Organization,
     ServiceAcctAccount,
     SessionAccount,
@@ -165,6 +166,35 @@ export const fromSession = (
         authentication: {
             type: 'session',
             source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
+export const fromOauth = (
+    sessionUser: SessionUser,
+    token: {
+        accessToken: string;
+        accessTokenExpiresAt?: Date;
+        refreshToken?: string;
+        refreshTokenExpiresAt?: Date;
+        scope?: string[];
+        client: { id: string };
+    },
+): OauthAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+    return createAccount({
+        authentication: {
+            type: 'oauth',
+            source: token.accessToken,
+            token: token.accessToken,
+            clientId: token.client.id,
+            scopes: token.scope || [],
         },
         organization,
         user: {
