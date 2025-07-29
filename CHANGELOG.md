@@ -1,3 +1,10 @@
+## [0.1856.1](https://github.com/lightdash/lightdash/compare/0.1856.0...0.1856.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* alignment of invite users modal ([#16087](https://github.com/lightdash/lightdash/issues/16087)) ([67bbca4](https://github.com/lightdash/lightdash/commit/67bbca4861108d87439f8c24fbc69d3d39d9de89))
+
 # [0.1856.0](https://github.com/lightdash/lightdash/compare/0.1855.1...0.1856.0) (2025-07-29)
 
 
