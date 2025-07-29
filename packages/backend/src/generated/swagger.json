@@ -5050,7 +5050,7 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
-            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_": {
+            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5109,6 +5109,12 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -5122,13 +5128,14 @@
                     "updatedAt",
                     "instruction",
                     "imageUrl",
-                    "groupAccess"
+                    "groupAccess",
+                    "userAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -5147,7 +5154,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5206,6 +5213,12 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -5219,13 +5232,14 @@
                     "updatedAt",
                     "instruction",
                     "imageUrl",
-                    "groupAccess"
+                    "groupAccess",
+                    "userAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -5255,7 +5269,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5296,6 +5310,12 @@
                         "nullable": true
                     },
                     "groupAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "userAccess": {
                         "items": {
                             "type": "string"
                         },
@@ -5309,15 +5329,16 @@
                     "tags",
                     "instruction",
                     "imageUrl",
-                    "groupAccess"
+                    "groupAccess",
+                    "userAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5362,6 +5383,12 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "type": "object",
@@ -5370,7 +5397,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess__"
                     },
                     {
                         "properties": {
@@ -8152,11 +8179,11 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "userAccess": {
                         "$ref": "#/components/schemas/SpaceShare"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["name", "uuid", "isPrivate"],

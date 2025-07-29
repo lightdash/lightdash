@@ -1,7 +1,15 @@
-import { FeatureFlags, type BaseAiAgent } from '@lightdash/common';
+import {
+    FeatureFlags,
+    getHighestProjectRole,
+    ProjectMemberRole,
+    ProjectMemberRoleLabels,
+    ProjectRoleOrder,
+    type BaseAiAgent,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Badge,
     Box,
     Button,
     Code,
@@ -18,6 +26,8 @@ import {
     TextInput,
     Title,
     Tooltip,
+    type ComboboxItem,
+    type ComboboxLikeRenderOptionInput,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
@@ -42,6 +52,7 @@ import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUsersWithRoles } from '../../../hooks/useProjectUsersWithRoles';
 import useApp from '../../../providers/App/useApp';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import {
@@ -66,6 +77,7 @@ const formSchema: z.ZodType<
         | 'instruction'
         | 'imageUrl'
         | 'groupAccess'
+        | 'userAccess'
     >
 > = z.object({
     name: z.string().min(1),
@@ -79,6 +91,7 @@ const formSchema: z.ZodType<
     instruction: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
+    userAccess: z.array(z.string()),
 });
 
 type Props = {
@@ -140,6 +153,12 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     );
 
     const {
+        usersWithProjectRole,
+        usersDictionary,
+        isLoading: isLoadingProjectUsers,
+    } = useProjectUsersWithRoles(projectUuid!);
+
+    const {
         data: slackChannels,
         refresh: refreshChannels,
         isRefreshing,
@@ -176,6 +195,88 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         [groups],
     );
 
+    const userOptions = useMemo(
+        () =>
+            usersWithProjectRole
+                // Filter out users who cannot view/interact with ai agents
+                // Filter out users that have default access to the ai agent - admins and developers
+                ?.filter((u) => {
+                    const userFromDictionary = usersDictionary[u.userUuid];
+                    const highestRole = userFromDictionary.inheritedRole
+                        ? getHighestProjectRole(
+                              userFromDictionary.inheritedRole,
+                          )
+                        : undefined;
+
+                    const canCreateAiAgents =
+                        highestRole &&
+                        (highestRole.role === ProjectMemberRole.ADMIN ||
+                            highestRole.role === ProjectMemberRole.DEVELOPER);
+                    const canInteractWithAiAgents =
+                        highestRole &&
+                        ProjectRoleOrder[highestRole.role] >=
+                            ProjectRoleOrder[
+                                ProjectMemberRole.INTERACTIVE_VIEWER
+                            ] &&
+                        !canCreateAiAgents;
+                    return canInteractWithAiAgents;
+                })
+                ?.map((userOption) => ({
+                    value: userOption.userUuid,
+                    label:
+                        `${userOption.firstName} ${userOption.lastName}`.trim() ||
+                        userOption.email,
+                })) ?? [],
+        [usersWithProjectRole, usersDictionary],
+    );
+
+    const renderMultiSelectOption: (
+        item: ComboboxLikeRenderOptionInput<ComboboxItem>,
+    ) => React.ReactNode = ({ option }) => {
+        const userFromDictionary = usersDictionary[option.value];
+        if (!userFromDictionary) return null;
+
+        const highestRole = userFromDictionary.inheritedRole
+            ? getHighestProjectRole(userFromDictionary.inheritedRole)
+            : undefined;
+
+        if (!highestRole) return null;
+
+        return (
+            <Group gap="sm">
+                <LightdashUserAvatar
+                    name={
+                        userFromDictionary.firstName +
+                        ' ' +
+                        userFromDictionary.lastName
+                    }
+                    size="sm"
+                    radius="xl"
+                />
+                <Stack gap="two">
+                    <Group gap="xs">
+                        <Text size="sm" fw={500}>
+                            {option.label}
+                        </Text>
+                        <Badge
+                            size="xs"
+                            p="2px 4px"
+                            radius="sm"
+                            variant="outline"
+                            color="gray.6"
+                            fz="8px"
+                        >
+                            {ProjectMemberRoleLabels[highestRole.role]}
+                        </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" fw={400}>
+                        {userFromDictionary.email}
+                    </Text>
+                </Stack>
+            </Group>
+        );
+    };
+
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
             name: '',
@@ -184,6 +285,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             instruction: null,
             imageUrl: null,
             groupAccess: [],
+            userAccess: [],
         },
         validate: zodResolver(formSchema),
     });
@@ -201,6 +303,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 instruction: agent.instruction,
                 imageUrl: agent.imageUrl,
                 groupAccess: agent.groupAccess ?? [],
+                userAccess: agent.userAccess ?? [],
             };
             form.setValues(values);
             form.resetDirty(values);
@@ -490,6 +593,75 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                             }}
                                         />
 
+                                        <MultiSelect
+                                            variant="subtle"
+                                            renderOption={
+                                                renderMultiSelectOption
+                                            }
+                                            hidePickedOptions
+                                            label={
+                                                <Group gap="xs">
+                                                    <Text fz="sm" fw={500}>
+                                                        User Access
+                                                    </Text>
+                                                    <Tooltip
+                                                        label="Admins and developers will always have access."
+                                                        withArrow
+                                                        withinPortal
+                                                        multiline
+                                                        position="right"
+                                                        maw="250px"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                </Group>
+                                            }
+                                            description={`Select specific users from this project who can access this agent. ${
+                                                isGroupsEnabled
+                                                    ? 'If no users are selected, access will be determined by group settings.'
+                                                    : ''
+                                            }`}
+                                            placeholder={
+                                                isLoadingProjectUsers
+                                                    ? 'Loading users...'
+                                                    : userOptions.length === 0
+                                                      ? 'No users available'
+                                                      : 'Select users'
+                                            }
+                                            data={userOptions}
+                                            disabled={
+                                                isLoadingProjectUsers ||
+                                                userOptions.length === 0
+                                            }
+                                            clearable
+                                            searchable
+                                            comboboxProps={{
+                                                transitionProps: {
+                                                    transition: 'pop',
+                                                    duration: 200,
+                                                },
+                                            }}
+                                            {...form.getInputProps(
+                                                'userAccess',
+                                            )}
+                                            value={
+                                                form.getInputProps('userAccess')
+                                                    .value ?? []
+                                            }
+                                            onChange={(value) => {
+                                                form.setFieldValue(
+                                                    'userAccess',
+                                                    value.length > 0
+                                                        ? value
+                                                        : [],
+                                                );
+                                            }}
+                                        />
+
                                         {isGroupsEnabled && (
                                             <Stack gap="xs">
                                                 <MultiSelect
@@ -518,14 +690,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                             </Tooltip>
                                                         </Group>
                                                     }
-                                                    description="Select groups that can access this agent. If no groups are selected, the agent will be visible to all users in the org"
+                                                    description="Select groups that can access this agent."
                                                     placeholder={
                                                         isLoadingGroups
                                                             ? 'Loading groups...'
                                                             : groupOptions.length ===
-                                                              0
-                                                            ? 'No groups available'
-                                                            : 'Select groups or leave empty for all users'
+                                                                0
+                                                              ? 'No groups available'
+                                                              : 'Select groups or leave empty for all users'
                                                     }
                                                     data={groupOptions}
                                                     disabled={
@@ -533,6 +705,12 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                         groupOptions.length ===
                                                             0
                                                     }
+                                                    comboboxProps={{
+                                                        transitionProps: {
+                                                            transition: 'pop',
+                                                            duration: 200,
+                                                        },
+                                                    }}
                                                     clearable
                                                     {...form.getInputProps(
                                                         'groupAccess',
@@ -551,7 +729,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                         );
                                                     }}
                                                 />
-                                                {/*  Add message + link to orgfanization settings if no groups are available and if this is enabled */}
                                             </Stack>
                                         )}
                                     </Stack>
@@ -694,8 +871,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                     {!slackInstallation?.organizationUuid
                                                         ? 'Disabled'
                                                         : !slackChannelsConfigured
-                                                        ? 'Channels not configured'
-                                                        : 'Enabled'}
+                                                          ? 'Channels not configured'
+                                                          : 'Enabled'}
                                                 </Text>
                                             </Group>
                                         </Group>
@@ -809,7 +986,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                                             type: 'slack',
                                                                             channelId:
                                                                                 v,
-                                                                        } as const),
+                                                                        }) as const,
                                                                 ),
                                                             );
                                                         }}
