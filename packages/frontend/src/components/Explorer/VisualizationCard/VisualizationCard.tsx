@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
@@ -23,6 +24,7 @@ import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianCon
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -247,16 +249,24 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                         )!,
                                     )}
 
-                                {!!projectUuid && (
-                                    <ChartDownloadMenu
-                                        getDownloadQueryUuid={
-                                            getDownloadQueryUuid
-                                        }
-                                        projectUuid={projectUuid}
-                                        chartName={savedChart?.name}
-                                        getGsheetLink={getGsheetLink}
-                                    />
-                                )}
+                                <Can
+                                    I="manage"
+                                    this={subject('Explore', {
+                                        organizationUuid: org?.organizationUuid,
+                                        projectUuid,
+                                    })}
+                                >
+                                    {!!projectUuid && (
+                                        <ChartDownloadMenu
+                                            getDownloadQueryUuid={
+                                                getDownloadQueryUuid
+                                            }
+                                            projectUuid={projectUuid}
+                                            chartName={savedChart?.name}
+                                            getGsheetLink={getGsheetLink}
+                                        />
+                                    )}
+                                </Can>
                             </>
                         )
                     }
