@@ -64,6 +64,7 @@ export const convertExploresToCatalog = (
                         ? explore.tags
                         : null,
                 ai_hints: convertToAiHints(explore.aiHint) ?? null,
+                joined_tables: explore.joinedTables.map((t) => t.table),
             };
 
             const dimensionsAndMetrics = [
@@ -121,6 +122,7 @@ export const convertExploresToCatalog = (
                                 ? field.tags
                                 : null,
                         ai_hints: convertToAiHints(field.aiHint) ?? null,
+                        joined_tables: null,
                     };
                 },
             );
