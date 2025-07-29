@@ -829,6 +829,11 @@ export function reducer(
                 draft.isVisualizationConfigOpen = false;
             });
         }
+        case ActionType.SET_AUTO_FETCH_ENABLED: {
+            return produce(state, (draft) => {
+                draft.autoFetchEnabled = action.payload;
+            });
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -1437,10 +1442,10 @@ const ExplorerProvider: FC<
     ]);
 
     useEffect(() => {
-        if (!state.shouldFetchResults) return;
+        if (!state.shouldFetchResults || !reducerState.autoFetchEnabled) return;
         runQuery();
         dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
-    }, [runQuery, state.shouldFetchResults]);
+    }, [runQuery, state.shouldFetchResults, reducerState.autoFetchEnabled]);
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
@@ -1530,8 +1535,16 @@ const ExplorerProvider: FC<
     const openVisualizationConfig = useCallback(() => {
         dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
     }, []);
+
     const closeVisualizationConfig = useCallback(() => {
         dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
+    }, []);
+
+    const setAutoFetchEnabled = useCallback((autoFetchEnabled: boolean) => {
+        dispatch({
+            type: ActionType.SET_AUTO_FETCH_ENABLED,
+            payload: autoFetchEnabled,
+        });
     }, []);
 
     const actions = useMemo(
@@ -1577,6 +1590,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
+            setAutoFetchEnabled,
         }),
         [
             clearExplore,
@@ -1620,6 +1634,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
+            setAutoFetchEnabled,
         ],
     );
 

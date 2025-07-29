@@ -60,6 +60,7 @@ const SavedExplorer = () => {
             initialState={
                 data
                     ? {
+                          autoFetchEnabled: true,
                           shouldFetchResults: true,
                           expandedSections: [ExplorerSection.VISUALIZATION],
                           unsavedChartVersion: {

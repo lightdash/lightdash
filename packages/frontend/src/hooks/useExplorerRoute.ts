@@ -226,6 +226,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 };
 
                 return {
+                    autoFetchEnabled: true,
                     shouldFetchResults: true,
                     expandedSections: unsavedChartVersion
                         ? [

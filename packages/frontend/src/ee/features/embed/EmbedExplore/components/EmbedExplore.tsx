@@ -21,6 +21,7 @@ const themeOverride: MantineThemeOverride = {
 
 const getInitialState = (exploreId: string, savedChart: SavedChart) => ({
     parameters: {},
+    autoFetchEnabled: true,
     shouldFetchResults: true,
     expandedSections: [
         ExplorerSection.FILTERS,
