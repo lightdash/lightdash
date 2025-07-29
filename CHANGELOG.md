@@ -1,3 +1,10 @@
+# [0.1858.0](https://github.com/lightdash/lightdash/compare/0.1857.0...0.1858.0) (2025-07-29)
+
+
+### Features
+
+* add joined_tables to catalog search for table relationships ([#16046](https://github.com/lightdash/lightdash/issues/16046)) ([d6a9ad9](https://github.com/lightdash/lightdash/commit/d6a9ad95e877c10d43811342be4f8bb59a98baae))
+
 # [0.1857.0](https://github.com/lightdash/lightdash/compare/0.1856.3...0.1857.0) (2025-07-29)
 
 
