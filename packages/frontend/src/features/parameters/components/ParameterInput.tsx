@@ -38,6 +38,14 @@ import {
     useFieldValues,
 } from '../../../hooks/useFieldValues';
 
+// Consistent create label component for all parameter inputs
+const CreateParameterLabel: FC<{ query: string }> = ({ query }) => (
+    <Group spacing="xxs">
+        <MantineIcon icon={IconPlus} color="blue" size="sm" />
+        <Text color="blue">Add "{query}"</Text>
+    </Group>
+);
+
 type ParameterInputProps = {
     paramKey: string;
     parameter: LightdashProjectParameter;
@@ -95,6 +103,7 @@ const ParameterStringAutoComplete: FC<ParameterStringAutoCompleteProps> = ({
     singleValue,
     parameterValues,
     size,
+    creatable = false,
     ...rest
 }) => {
     const multiSelectRef = useRef<HTMLInputElement>(null);
@@ -299,20 +308,13 @@ const ParameterStringAutoComplete: FC<ParameterStringAutoCompleteProps> = ({
                     values.length > 0 || disabled ? undefined : placeholder
                 }
                 disabled={disabled}
-                creatable
                 valueComponent={singleValue ? SingleValueComponent : undefined}
-                /**
-                 * Opts out of Mantine's default condition and always allows adding, as long as not
-                 * an empty query.
-                 */
+                creatable={creatable}
                 shouldCreate={(query) =>
                     query.trim().length > 0 && !values.includes(query)
                 }
                 getCreateLabel={(query) => (
-                    <Group spacing="xxs">
-                        <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                        <Text color="blue">Add "{query}"</Text>
-                    </Group>
+                    <CreateParameterLabel query={query} />
                 )}
                 styles={{
                     item: {
@@ -395,6 +397,21 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             : 'Choose value...';
     }, [parameter]);
 
+    const shouldCreate = useCallback(
+        (query: string) => {
+            return (
+                query.trim().length > 0 &&
+                !(Array.isArray(value) ? value : [value]).includes(query)
+            );
+        },
+        [value],
+    );
+
+    const getCreateLabel = useCallback(
+        (query: string) => <CreateParameterLabel query={query} />,
+        [],
+    );
+
     if (parameter.options_from_dimension && projectUuid) {
         // Create a FilterableItem from parameter.options_from_dimension
         const field: FilterableItem = {
@@ -421,20 +438,30 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 onChange={(newValue) => onParameterChange(paramKey, newValue)}
                 parameterValues={parameterValues}
                 size={size}
+                creatable={parameter.allow_custom_values}
             />
         );
     }
+
+    const currentValues = value ? (Array.isArray(value) ? value : [value]) : [];
+    const optionsData = parameter.allow_custom_values
+        ? uniq([...(parameter.options ?? []), ...currentValues])
+        : parameter.options ?? [];
+
     if (parameter.multiple) {
         return (
             <MultiSelect
-                data={parameter.options ?? []}
-                value={value ? (Array.isArray(value) ? value : [value]) : []}
+                data={optionsData}
+                value={currentValues}
                 onChange={(newValue) => onParameterChange(paramKey, newValue)}
                 placeholder={placeholder}
                 size={size}
                 searchable
                 clearable
                 disabled={disabled}
+                creatable={parameter.allow_custom_values}
+                shouldCreate={shouldCreate}
+                getCreateLabel={getCreateLabel}
             />
         );
     }
@@ -442,13 +469,16 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     return (
         <Select
             placeholder={placeholder}
-            value={Array.isArray(value) ? value[0] || null : value || null}
+            value={currentValues[0]}
             onChange={(newValue) => onParameterChange(paramKey, newValue)}
-            data={parameter.options ?? []}
+            data={optionsData}
             size={size}
             searchable
             clearable
             disabled={disabled}
+            creatable={parameter.allow_custom_values}
+            shouldCreate={shouldCreate}
+            getCreateLabel={getCreateLabel}
         />
     );
 };
