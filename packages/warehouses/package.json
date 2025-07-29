@@ -16,12 +16,14 @@
         "pg-cursor": "^2.10.0",
         "snowflake-sdk": "~2.0.4",
         "ssh2": "^1.14.0",
-        "trino-client": "0.2.6"
+        "trino-client": "0.2.6",
+        "uuid": "^9.0.0"
     },
     "devDependencies": {
         "@types/pg": "^8.11.10",
         "@types/pg-cursor": "^2.7.0",
         "@types/ssh2": "^1.11.15",
+        "@types/uuid": "^9.0.0",
         "copyfiles": "^2.4.1"
     },
     "description": "Warehouse connectors for Lightdash",
