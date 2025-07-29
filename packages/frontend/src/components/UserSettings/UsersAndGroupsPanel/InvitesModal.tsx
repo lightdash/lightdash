@@ -76,48 +76,42 @@ const InvitesModal: FC<{
                         handleSubmit(values),
                     )}
                 >
-                    <Group
-                        spacing="xs"
-                        align={form.errors.email ? 'center' : 'end'}
-                    >
+                    <Group spacing="xs" align="start" noWrap>
                         <TextInput
                             name="email"
                             label="Enter user email address"
                             placeholder="example@gmail.com"
                             required
                             disabled={isLoading}
-                            w="43%"
+                            style={{ flex: 1 }}
                             {...form.getInputProps('email')}
                         />
-                        <Group
-                            spacing="xs"
-                            align={form.errors.email ? 'center' : 'end'}
-                        >
-                            {user.data?.ability?.can(
-                                'manage',
-                                'Organization',
-                            ) && (
-                                <Select
-                                    data={Object.values(
-                                        OrganizationMemberRole,
-                                    ).map((orgMemberRole) => ({
+                        {user.data?.ability?.can('manage', 'Organization') && (
+                            <Select
+                                data={Object.values(OrganizationMemberRole).map(
+                                    (orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
-                                    }))}
-                                    disabled={isLoading}
-                                    required
-                                    placeholder="Select role"
-                                    dropdownPosition="bottom"
-                                    withinPortal
-                                    {...form.getInputProps('role')}
-                                />
-                            )}
-                            <Button disabled={isLoading} type="submit">
-                                {health.data?.hasEmailClient
-                                    ? 'Send invite'
-                                    : 'Generate invite'}
-                            </Button>
-                        </Group>
+                                    }),
+                                )}
+                                disabled={isLoading}
+                                required
+                                placeholder="Select role"
+                                dropdownPosition="bottom"
+                                withinPortal
+                                style={{ marginTop: 20 }}
+                                {...form.getInputProps('role')}
+                            />
+                        )}
+                        <Button
+                            disabled={isLoading}
+                            type="submit"
+                            style={{ marginTop: 20 }}
+                        >
+                            {health.data?.hasEmailClient
+                                ? 'Send invite'
+                                : 'Generate invite'}
+                        </Button>
                     </Group>
                 </form>
                 {inviteLink && (
