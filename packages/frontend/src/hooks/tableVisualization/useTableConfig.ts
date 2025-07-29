@@ -246,6 +246,7 @@ const useTableConfig = (
                   columnOrder,
                   pivotDimensions,
                   embedToken: undefined,
+                  parameters,
               },
     );
 
