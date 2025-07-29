@@ -1,9 +1,11 @@
 # Enterprise Edition
 
 ## Summary
+
 Enterprise Edition module providing commercial features including AI-powered analytics, dashboard embedding, SCIM integration, service accounts, and enhanced Slack functionality. License-gated features require valid Enterprise subscription for production use.
 
 ## How To Use
+
 Enterprise features are automatically loaded when a valid license key is configured. The module extends the base application with additional services, models, and controllers while maintaining backward compatibility.
 
 ```typescript
@@ -29,6 +31,7 @@ const embedUrl = await embedService.createEmbedUrl(dashboard, options);
 The Enterprise Edition extends the base application using several patterns to add commercial features while maintaining backward compatibility:
 
 ### Provider Pattern
+
 The core extension mechanism is a provider pattern implemented in `index.ts`. When a valid license is detected, the EE registers providers for services, models, and controllers:
 
 ```typescript
@@ -37,9 +40,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
     if (!lightdashConfig.license.licenseKey) {
         return {};
     }
-    
+
     // License validation...
-    
+
     return {
         serviceProviders: {
             embedService: ({ repository, context, models }) =>
@@ -65,6 +68,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 ```
 
 ### Registration Process
+
 1. On application startup, the EE module checks for a valid license
 2. If valid, it registers enterprise providers for services, models, and controllers
 3. The application uses these providers to create instances when needed
@@ -114,20 +118,22 @@ const serviceAccount = await serviceAccountService.createServiceAccount({
 ```
 
 ## Important To Know
-- Requires valid Enterprise license from Keygen.sh for production use (24-hour cache)
-- License validation happens on startup - invalid licenses prevent enterprise feature loading
-- Source Available License allows development/testing without subscription
-- AI features support multiple LLM providers: OpenAI, Anthropic Claude, Azure OpenAI
-- Dashboard embedding uses JWT authentication with configurable user attributes
-- SCIM integration enables automated user provisioning/deprovisioning for enterprise SSO
-- Service accounts provide API access with fine-grained permission scopes
-- All enterprise features are feature-flagged and can be toggled per organization
-- Commercial Slack integration includes AI agents for interactive data exploration
-- Database schema extensions add numerous tables for enterprise functionality
-- Maintains complete backward compatibility with open-source installation
+
+-   Requires valid Enterprise license from Keygen.sh for production use (24-hour cache)
+-   License validation happens on startup - invalid licenses prevent enterprise feature loading
+-   Source Available License allows development/testing without subscription
+-   AI features support multiple LLM providers: OpenAI, Anthropic Claude, Azure OpenAI
+-   Dashboard embedding uses JWT authentication with configurable user attributes
+-   SCIM integration enables automated user provisioning/deprovisioning for enterprise SSO
+-   Service accounts provide API access with fine-grained permission scopes
+-   All enterprise features are feature-flagged and can be toggled per organization
+-   Commercial Slack integration includes AI agents for interactive data exploration
+-   Database schema extensions add numerous tables for enterprise functionality
+-   Maintains complete backward compatibility with open-source installation
 
 ## Links
-- `/packages/backend/src/ee/LICENSE` - Enterprise license terms and conditions
-- `/packages/backend/src/ee/clients/License/LicenseClient.ts` - License validation implementation
-- `/packages/backend/src/ee/services/AiService/` - AI-powered analytics and insights
-- `/packages/backend/src/ee/services/EmbedService/` - Dashboard embedding functionality
+
+-   `/packages/backend/src/ee/LICENSE` - Enterprise license terms and conditions
+-   `/packages/backend/src/ee/clients/License/LicenseClient.ts` - License validation implementation
+-   `/packages/backend/src/ee/services/AiService/` - AI-powered analytics and insights
+-   `/packages/backend/src/ee/services/EmbedService/` - Dashboard embedding functionality
