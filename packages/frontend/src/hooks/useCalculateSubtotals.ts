@@ -7,12 +7,12 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import {
     convertDateDashboardFilters,
     convertDateFilters,
 } from '../utils/dateFilter';
+import { useProjectUuid } from './useProjectUuid';
 
 const calculateSubtotalsFromQuery = async (
     projectUuid: string,
@@ -89,7 +89,7 @@ export const useCalculateSubtotals = ({
     embedToken?: string;
     parameters?: ParametersValuesMap;
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     return useQuery<ApiCalculateSubtotalsResponse['results'], ApiError>(
         [
