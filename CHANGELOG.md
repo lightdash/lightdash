@@ -1,3 +1,10 @@
+# [0.1857.0](https://github.com/lightdash/lightdash/compare/0.1856.3...0.1857.0) (2025-07-29)
+
+
+### Features
+
+* add ai_hints to catalog search ([#16025](https://github.com/lightdash/lightdash/issues/16025)) ([69d2f19](https://github.com/lightdash/lightdash/commit/69d2f195e584debe25da3d809a566c8df4cd742a))
+
 ## [0.1856.3](https://github.com/lightdash/lightdash/compare/0.1856.2...0.1856.3) (2025-07-29)
 
 
