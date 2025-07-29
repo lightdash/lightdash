@@ -1,3 +1,10 @@
+# [0.1853.0](https://github.com/lightdash/lightdash/compare/0.1852.0...0.1853.0) (2025-07-29)
+
+
+### Features
+
+* use saved parameters in embedded dashboard charts ([#16070](https://github.com/lightdash/lightdash/issues/16070)) ([aad4a35](https://github.com/lightdash/lightdash/commit/aad4a35cdbc5d495e3ea765db24992115b413f0a)), closes [#16061](https://github.com/lightdash/lightdash/issues/16061)
+
 # [0.1852.0](https://github.com/lightdash/lightdash/compare/0.1851.0...0.1852.0) (2025-07-29)
 
 
