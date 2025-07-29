@@ -6,6 +6,7 @@ import type {
     ItemsMap,
     Metric,
     MetricQuery,
+    ParametersValuesMap,
     TableCalculation,
     TableCalculationMetadata,
     TreemapChart,
@@ -75,6 +76,7 @@ export type TreemapChartConfigFn = (
     dimensions: Record<string, CustomDimension | Dimension>,
     numericMetrics: Record<string, Metric | TableCalculation>,
     tableCalculationsMetadata?: TableCalculationMetadata[],
+    parameters?: ParametersValuesMap,
 ) => TreemapChartConfig;
 
 const useTreemapChartConfig: TreemapChartConfigFn = (
@@ -84,6 +86,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     dimensions,
     numericMetrics,
     tableCalculationsMetadata,
+    parameters,
 ) => {
     const [visibleMin, setVisibleMin] = useState(
         treemapConfig?.visibleMin ?? 100,
@@ -216,6 +219,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         showSubtotals: true,
         columnOrder: groupFieldIds,
         pivotDimensions: undefined,
+        parameters,
     });
 
     const data = useMemo(() => {

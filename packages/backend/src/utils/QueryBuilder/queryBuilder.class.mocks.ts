@@ -11,6 +11,7 @@ export const DEFAULT_CONFIG = {
     fieldQuoteChar: '"',
     stringQuoteChar: "'",
     escapeStringQuoteChar: "'",
+    escapeString: (string: string) => string.replaceAll("'", "''"),
     startOfWeek: WeekDay.MONDAY,
     adapterType: SupportedDbtAdapter.POSTGRES,
 };

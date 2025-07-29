@@ -51,7 +51,7 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
             // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw
             '"',
             "'",
-            '\\',
+            (string: string) => string.replaceAll('\\', '\\\\'),
             WeekDay.SUNDAY,
             SupportedDbtAdapter.BIGQUERY,
         );

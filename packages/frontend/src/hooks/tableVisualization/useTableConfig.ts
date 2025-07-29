@@ -15,6 +15,7 @@ import {
     type DashboardFilters,
     type ItemsMap,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotData,
     type TableChart,
 } from '@lightdash/common';
@@ -46,6 +47,7 @@ const useTableConfig = (
     savedChartUuid?: string,
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
+    parameters?: ParametersValuesMap,
 ) => {
     const { embedToken } = useEmbed();
 
@@ -211,6 +213,7 @@ const useTableConfig = (
                   showColumnCalculation:
                       tableChartConfig?.showColumnCalculation,
                   embedToken,
+                  parameters,
               }
             : {
                   metricQuery: resultsData?.metricQuery,
@@ -221,6 +224,7 @@ const useTableConfig = (
                       tableChartConfig?.showColumnCalculation,
                   // embed token is not necessary here because embeds don't use metricQuery for table calculations
                   embedToken: undefined,
+                  parameters,
               },
     );
 
@@ -242,6 +246,7 @@ const useTableConfig = (
                   columnOrder,
                   pivotDimensions,
                   embedToken: undefined,
+                  parameters,
               },
     );
 

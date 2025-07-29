@@ -660,6 +660,7 @@ export class DashboardService
                 {
                     tiles: dashboard.tiles,
                     filters: dashboard.filters,
+                    parameters: dashboard.parameters,
                     tabs: dashboard.tabs || [],
                     config: dashboard.config,
                 },

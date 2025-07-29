@@ -8,6 +8,7 @@ import {
     type DashboardFilters,
     type ItemsMap,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotValue,
     type Series,
     type TableCalculationMetadata,
@@ -53,6 +54,7 @@ export type VisualizationProviderProps = {
         metricQuery?: MetricQuery;
         fields?: ItemsMap;
     };
+    parameters?: ParametersValuesMap;
     isLoading: boolean;
     columnOrder: string[];
     onSeriesContextMenu?: (
@@ -96,6 +98,7 @@ const VisualizationProvider: FC<
     setEchartsRef,
     computedSeries,
     apiErrorDetail,
+    parameters,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -393,6 +396,7 @@ const VisualizationProvider: FC<
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -416,6 +420,7 @@ const VisualizationProvider: FC<
                     savedChartUuid={savedChartUuid}
                     dashboardFilters={dashboardFilters}
                     invalidateCache={invalidateCache}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

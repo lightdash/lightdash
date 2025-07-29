@@ -2,6 +2,7 @@ import {
     DashboardConfig,
     DashboardFilters,
     DashboardTileTypes,
+    type DashboardParameters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -43,6 +44,7 @@ type DbDashboardView = {
     created_at: Date;
     name: string;
     filters: DashboardFilters;
+    parameters: DashboardParameters | null;
 };
 
 type DbCreateDashboardTile = {
@@ -89,7 +91,10 @@ export type DashboardVersionTable = Knex.CompositeTableType<
 
 export type DashboardViewTable = Knex.CompositeTableType<
     DbDashboardView,
-    Pick<DbDashboardView, 'dashboard_version_id' | 'name' | 'filters'>
+    Pick<
+        DbDashboardView,
+        'dashboard_version_id' | 'name' | 'filters' | 'parameters'
+    >
 >;
 
 export type DashboardTileTable = Knex.CompositeTableType<

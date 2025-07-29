@@ -89,6 +89,9 @@ export const useColumns = (): TableColumn[] => {
     const resultsFields = useExplorerContext(
         (context) => context.query.data?.fields,
     );
+    const parameters = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.parameters,
+    );
 
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
@@ -158,6 +161,7 @@ export const useColumns = (): TableColumn[] => {
             : undefined,
         itemsMap: activeItemsMap,
         embedToken,
+        parameters,
     });
 
     return useMemo(() => {

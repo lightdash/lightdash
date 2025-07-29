@@ -747,6 +747,7 @@ export const getHiddenTableFields = (config: ChartConfig) => {
 export type CalculateTotalFromQuery = {
     metricQuery: MetricQueryRequest;
     explore: string;
+    parameters?: ParametersValuesMap;
 };
 
 export type ApiCalculateTotalResponse = {
@@ -757,6 +758,7 @@ export type ApiCalculateTotalResponse = {
 export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
     columnOrder: string[];
     pivotDimensions?: string[];
+    parameters?: ParametersValuesMap;
 };
 
 export type ApiCalculateSubtotalsResponse = {

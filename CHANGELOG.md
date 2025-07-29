@@ -1,3 +1,94 @@
+## [0.1856.3](https://github.com/lightdash/lightdash/compare/0.1856.2...0.1856.3) (2025-07-29)
+
+
+### Bug Fixes
+
+* improve filter search value replacement ([#16073](https://github.com/lightdash/lightdash/issues/16073)) ([9f98c0e](https://github.com/lightdash/lightdash/commit/9f98c0eafc2668db06b9987ced6e748ae2c599b4))
+
+## [0.1856.2](https://github.com/lightdash/lightdash/compare/0.1856.1...0.1856.2) (2025-07-29)
+
+
+### Bug Fixes
+
+* border style on TextInput mantine 8 ([#16093](https://github.com/lightdash/lightdash/issues/16093)) ([7289eac](https://github.com/lightdash/lightdash/commit/7289eac5d96e85b0fe9bad21d51aa0ba2821475e))
+
+## [0.1856.1](https://github.com/lightdash/lightdash/compare/0.1856.0...0.1856.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* alignment of invite users modal ([#16087](https://github.com/lightdash/lightdash/issues/16087)) ([67bbca4](https://github.com/lightdash/lightdash/commit/67bbca4861108d87439f8c24fbc69d3d39d9de89))
+
+# [0.1856.0](https://github.com/lightdash/lightdash/compare/0.1855.1...0.1856.0) (2025-07-29)
+
+
+### Features
+
+* seed project parameters in development data ([#16084](https://github.com/lightdash/lightdash/issues/16084)) ([bcf2461](https://github.com/lightdash/lightdash/commit/bcf246190fcccfe153f2e98e11b6807ac8fd8b28))
+
+## [0.1855.1](https://github.com/lightdash/lightdash/compare/0.1855.0...0.1855.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* use useProjectUuid for subtotals ([#16089](https://github.com/lightdash/lightdash/issues/16089)) ([63269e9](https://github.com/lightdash/lightdash/commit/63269e922b6d7865319e8fed568380f5ffd8b55c))
+
+# [0.1855.0](https://github.com/lightdash/lightdash/compare/0.1854.0...0.1855.0) (2025-07-29)
+
+
+### Features
+
+* hide embed explore UI elements via CASL ([#16002](https://github.com/lightdash/lightdash/issues/16002)) ([09be178](https://github.com/lightdash/lightdash/commit/09be178a081997d0370aa4f374361a984b3fd6f3))
+
+# [0.1854.0](https://github.com/lightdash/lightdash/compare/0.1853.1...0.1854.0) (2025-07-29)
+
+
+### Features
+
+* add custom values support for parameter inputs ([#16039](https://github.com/lightdash/lightdash/issues/16039)) ([fdbd00c](https://github.com/lightdash/lightdash/commit/fdbd00cf949dea3590bacc970f1f4ffca3ca3b67))
+
+## [0.1853.1](https://github.com/lightdash/lightdash/compare/0.1853.0...0.1853.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* reload parameters after refresh dbt ([#16085](https://github.com/lightdash/lightdash/issues/16085)) ([38e3fde](https://github.com/lightdash/lightdash/commit/38e3fde662eeb98c1542447b36cb94e83e69fb86))
+
+# [0.1853.0](https://github.com/lightdash/lightdash/compare/0.1852.0...0.1853.0) (2025-07-29)
+
+
+### Features
+
+* use saved parameters in embedded dashboard charts ([#16070](https://github.com/lightdash/lightdash/issues/16070)) ([aad4a35](https://github.com/lightdash/lightdash/commit/aad4a35cdbc5d495e3ea765db24992115b413f0a)), closes [#16061](https://github.com/lightdash/lightdash/issues/16061)
+
+# [0.1852.0](https://github.com/lightdash/lightdash/compare/0.1851.0...0.1852.0) (2025-07-29)
+
+
+### Features
+
+* support subtotals with parameters on the FE ([#16059](https://github.com/lightdash/lightdash/issues/16059)) ([dbecae0](https://github.com/lightdash/lightdash/commit/dbecae0d90c936e7d228827baea88210830943a6)), closes [#15996](https://github.com/lightdash/lightdash/issues/15996)
+
+# [0.1851.0](https://github.com/lightdash/lightdash/compare/0.1850.0...0.1851.0) (2025-07-29)
+
+
+### Features
+
+* support totals with parameters on the FE ([#16058](https://github.com/lightdash/lightdash/issues/16058)) ([b6e7473](https://github.com/lightdash/lightdash/commit/b6e74734a8b2f04e9a9aea75b6e5e1a6e81d5eee)), closes [#15996](https://github.com/lightdash/lightdash/issues/15996)
+
+# [0.1850.0](https://github.com/lightdash/lightdash/compare/0.1849.0...0.1850.0) (2025-07-29)
+
+
+### Features
+
+* support subtotals with parameters in backend ([#16057](https://github.com/lightdash/lightdash/issues/16057)) ([36f60ef](https://github.com/lightdash/lightdash/commit/36f60ef701210d92b70380978eed81dcd004598d)), closes [#15996](https://github.com/lightdash/lightdash/issues/15996)
+
+# [0.1849.0](https://github.com/lightdash/lightdash/compare/0.1848.2...0.1849.0) (2025-07-29)
+
+
+### Features
+
+* support parameters for totals calculation in the backend ([#16056](https://github.com/lightdash/lightdash/issues/16056)) ([07e1e71](https://github.com/lightdash/lightdash/commit/07e1e7110202cae6d4b1821dbbe1cc8acf825f07)), closes [#15996](https://github.com/lightdash/lightdash/issues/15996)
+
 ## [0.1848.2](https://github.com/lightdash/lightdash/compare/0.1848.1...0.1848.2) (2025-07-28)
 
 
