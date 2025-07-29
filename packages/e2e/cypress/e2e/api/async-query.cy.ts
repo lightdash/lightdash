@@ -323,7 +323,7 @@ describe('Async Query API', () => {
         });
     });
 
-    describe.only('Invalid query filters', () => {
+    describe('Invalid query filters', () => {
         const runMetricQueryAndValidateResponse = (
             queryBody: any,
             projectUuid: string,
