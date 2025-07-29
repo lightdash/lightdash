@@ -1,7 +1,7 @@
 ## 🎨 Frontend Style Guide
 
 **CRITICAL**: Before working on any frontend component, read
-the [Frontend Style Guide](packages/frontend/STYLE_GUIDE.md). Key points:
+the [Frontend Style Guide](STYLE_GUIDE.md). Key points:
 
 - **Use Mantine v8 only** - Migrate any Mantine v6 components you encounter
 - **Provider setup required** - Wrap v8 components with `MantineProvider` using `getMantine8ThemeOverride()`
