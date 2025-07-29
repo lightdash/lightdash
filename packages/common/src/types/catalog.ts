@@ -72,6 +72,7 @@ export type CatalogField = Pick<
         categories: Pick<Tag, 'name' | 'color' | 'tagUuid' | 'yamlReference'>[]; // Tags manually added by the user in the catalog
         chartUsage: number | undefined;
         icon: CatalogItemIcon | null;
+        aiHints: string[] | null;
     };
 
 export type CatalogTable = Pick<
@@ -87,6 +88,7 @@ export type CatalogTable = Pick<
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
     chartUsage: number | undefined;
     icon: CatalogItemIcon | null;
+    aiHints: string[] | null;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;
