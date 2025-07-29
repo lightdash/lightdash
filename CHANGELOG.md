@@ -1,3 +1,10 @@
+## [0.1856.2](https://github.com/lightdash/lightdash/compare/0.1856.1...0.1856.2) (2025-07-29)
+
+
+### Bug Fixes
+
+* border style on TextInput mantine 8 ([#16093](https://github.com/lightdash/lightdash/issues/16093)) ([7289eac](https://github.com/lightdash/lightdash/commit/7289eac5d96e85b0fe9bad21d51aa0ba2821475e))
+
 ## [0.1856.1](https://github.com/lightdash/lightdash/compare/0.1856.0...0.1856.1) (2025-07-29)
 
 
