@@ -2,6 +2,7 @@ import {
     SupportedDbtAdapter,
     buildModelGraph,
     convertColumnMetric,
+    convertModelDimension,
     convertModelMetric,
     convertToAiHints,
     convertToGroups,
@@ -523,6 +524,79 @@ export const convertTable = (
         ]),
     );
 
+    const modelDimensions = Object.fromEntries(
+        Object.entries(meta.dimensions || {}).map(([name, dimension]) => [
+            name,
+            convertModelDimension({
+                modelName: model.name,
+                name,
+                dimension,
+                tableLabel,
+                index: Object.keys(dimensions).length,
+                adapterType,
+                startOfWeek,
+                spotlightConfig: {
+                    ...spotlightConfig,
+                    default_visibility:
+                        meta.spotlight?.visibility ??
+                        spotlightConfig.default_visibility,
+                },
+                modelCategories: meta.spotlight?.categories,
+            }),
+        ]),
+    );
+
+    // Process time intervals for model dimensions
+    const modelDimensionIntervals = Object.values(modelDimensions).reduce(
+        (acc, dim) => {
+            if (dim.isIntervalBase) {
+                let intervals: TimeFrames[] = [];
+                const modelDim = meta.dimensions?.[dim.name];
+
+                if (
+                    modelDim?.time_intervals &&
+                    Array.isArray(modelDim.time_intervals)
+                ) {
+                    intervals = validateTimeFrames(modelDim.time_intervals);
+                } else {
+                    intervals = getDefaultTimeFrames(dim.type);
+                }
+
+                return intervals.reduce(
+                    (intervalAcc, interval) => ({
+                        ...intervalAcc,
+                        [`${dim.name}_${interval.toLowerCase()}`]: {
+                            ...dim,
+                            name: `${dim.name}_${interval.toLowerCase()}`,
+                            label: `${dim.label} ${timeFrameConfigs[interval]
+                                .getLabel()
+                                .toLowerCase()}`,
+                            sql: timeFrameConfigs[interval].getSql(
+                                adapterType,
+                                interval,
+                                dim.sql,
+                                dim.type,
+                                startOfWeek,
+                            ),
+                            type: timeFrameConfigs[interval].getDimensionType(
+                                dim.type,
+                            ),
+                            timeInterval: interval,
+                            timeIntervalBaseDimensionName: dim.name,
+                            index:
+                                Object.keys(dimensions).length +
+                                Object.keys(acc).length +
+                                1,
+                        },
+                    }),
+                    acc,
+                );
+            }
+            return acc;
+        },
+        {} as Record<string, Dimension>,
+    );
+
     const convertedDbtMetrics = Object.fromEntries(
         dbtMetrics.map((metric) => [
             metric.name,
@@ -553,8 +627,14 @@ export const convertTable = (
         {},
     );
 
+    const allDimensions = {
+        ...dimensions,
+        ...modelDimensions,
+        ...modelDimensionIntervals,
+    };
+
     const duplicatedNames = Object.keys(allMetrics).filter((metric) =>
-        Object.keys(dimensions).includes(metric),
+        Object.keys(allDimensions).includes(metric),
     );
     if (duplicatedNames.length > 0) {
         const message =
@@ -585,7 +665,7 @@ export const convertTable = (
         schema: model.schema,
         sqlTable,
         description: model.description || `${model.name} table`,
-        dimensions,
+        dimensions: allDimensions,
         metrics: allMetrics,
         orderFieldsBy:
             meta.order_fields_by &&

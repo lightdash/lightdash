@@ -24,6 +24,52 @@ models:
             ai_hint: |
               Ratio of completed orders to total orders
               Completion percentage of orders.
+        dimensions:
+          days_to_complete:
+            type: number
+            sql: |
+              CASE 
+                WHEN ${status} = 'completed' THEN 
+                  DATE_DIFF(CURRENT_DATE(), ${order_date}, DAY)
+                ELSE NULL
+              END  
+            description: "Number of days between order placement and today (for completed orders only)"
+            label: "Days Since Order Completion"
+            format: "#,##0"
+            groups: [ "business_logic" ]
+            spotlight:
+              categories:
+                - sales
+            ai_hint: "Analyze order aging and customer lifecycle patterns"
+
+          order_size_category:
+            type: string
+            sql: |
+              CASE 
+                WHEN ${amount} > (SELECT PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY amount) FROM ${TABLE}) THEN 'Large Order'
+                WHEN ${amount} > (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY amount) FROM ${TABLE}) THEN 'Medium Order'  
+                WHEN ${amount} > (SELECT PERCENTILE_CONT(0.2) WITHIN GROUP (ORDER BY amount) FROM ${TABLE}) THEN 'Small Order'
+                ELSE 'Micro Order'
+              END
+            description: "Dynamic order size categories based on percentile distribution of all orders"
+            label: "Order Size Category (Percentile-Based)"
+            groups: [ "statistical_analysis" ]
+            spotlight:
+              categories:
+                - sales
+            ai_hint: "Relative order size analysis that adapts to your business scale and order distribution"
+
+          order_created_at:
+            type: timestamp
+            sql: "TIMESTAMP(${order_date})"
+            description: "Order date as timestamp with automatic time interval support"
+            label: "Order Created At"
+            time_intervals: [ "HOUR", "DAY", "WEEK", "MONTH", "QUARTER", "YEAR" ]
+            groups: [ "time_analysis" ]
+            spotlight:
+              categories:
+                - sales
+            ai_hint: "Use for detailed time-based analysis across different granularities"
         default_time_dimension:
           field: order_date
           interval: MONTH
