@@ -95,6 +95,8 @@ export type DashboardContextType = {
     requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
+    setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
+    parametersHaveChanged: boolean;
     dashboardParameters: DashboardParameters;
     parameterValues: ParametersValuesMap;
     clearAllParameters: () => void;
