@@ -199,9 +199,6 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
                 .replaceAll("'", "''")
                 // Escape backslashes first (before LIKE wildcards)
                 .replaceAll('\\', '\\\\')
-                // Escape LIKE pattern wildcards
-                .replaceAll('%', '\\%')
-                .replaceAll('_', '\\_')
                 // Remove SQL comments (-- and /* */)
                 .replace(/--.*$/gm, '')
                 .replace(/\/\*[\s\S]*?\*\//g, '')

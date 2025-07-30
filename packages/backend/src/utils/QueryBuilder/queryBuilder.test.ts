@@ -1007,4 +1007,45 @@ describe('Escaping in postgres', () => {
             ),
         );
     });
+
+    test('Should not escape regular characters in postgres', () => {
+        expect(postgresClientWithReplace.escapeString('%')).toBe('%');
+        expect(postgresClientWithReplace.escapeString('_')).toBe('_');
+        expect(postgresClientWithReplace.escapeString('?')).toBe('?');
+        expect(postgresClientWithReplace.escapeString('!')).toBe('!');
+        expect(postgresClientWithReplace.escapeString('credit_card')).toBe(
+            'credit_card',
+        );
+
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY,
+                        filters: {
+                            dimensions: {
+                                id: '7e750e7c-8098-4a90-b364-4e935ad7a7e9',
+                                and: [
+                                    {
+                                        id: 'd69d3ba0-6ff5-4437-9ef3-4ed69006ea2e',
+                                        target: { fieldId: 'table1_shared' },
+                                        operator: FilterOperator.EQUALS,
+                                        values: ['credit_card'],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    warehouseSqlBuilder: postgresClientWithReplace,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toContain(
+            replaceWhitespace(
+                `WHERE (( ("table1".shared) IN ('credit_card') ))`,
+            ),
+        );
+    });
 });

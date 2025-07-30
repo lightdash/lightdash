@@ -203,12 +203,6 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
                 .replaceAll('\\', '\\\\')
                 .replaceAll("'", "\\'")
                 .replaceAll('"', '\\"')
-                .replaceAll('\n', '\\n')
-                .replaceAll('\r', '\\r')
-                .replaceAll('\t', '\\t')
-                // Escape LIKE pattern wildcards
-                .replaceAll('%', '\\%')
-                .replaceAll('_', '\\_')
                 // Remove SQL comments (Spark SQL supports --, /* */, and # comments)
                 .replace(/--.*$/gm, '')
                 .replace(/\/\*[\s\S]*?\*\//g, '')

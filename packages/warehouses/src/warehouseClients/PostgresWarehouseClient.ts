@@ -160,8 +160,6 @@ export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
                 .replaceAll("'", "''")
                 // PostgreSQL LIKE wildcards need to be escaped with backslashes
                 .replaceAll('\\', '\\\\') // Escape backslashes first
-                .replaceAll('%', '\\%') // Escape % wildcard
-                .replaceAll('_', '\\_') // Escape _ wildcard
                 // Remove SQL comments (-- and /* */)
                 .replace(/--.*$/gm, '')
                 .replace(/\/\*[\s\S]*?\*\//g, '')
