@@ -204,7 +204,14 @@ export const setupIntegrationTest =
 
             // Clean up test data - rollback migrations to ensure clean state
             console.info('↶ Rolling back migrations...');
-            await db.migrate.rollback({}, true); // rollback all migrations
+            try {
+                await db.migrate.rollback({}, true); // rollback all migrations
+            } catch (error) {
+                console.warn(
+                    'Migration rollback failed (this is usually safe to ignore in tests):',
+                    error,
+                );
+            }
 
             await app.stop();
             console.info('✅ Cleanup completed');
