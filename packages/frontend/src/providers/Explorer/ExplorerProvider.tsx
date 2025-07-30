@@ -39,6 +39,7 @@ import {
     type FC,
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
     executeQueryAndWaitForResults,
@@ -820,7 +821,6 @@ export function reducer(
                 draft.isVisualizationConfigOpen = false;
             });
         }
-
         default: {
             return assertUnreachable(
                 action,
@@ -1267,6 +1267,49 @@ const ExplorerProvider: FC<
         return isValidQuery;
     }, [unsavedChartVersion, isValidQuery, savedChart]);
 
+    const [validQueryArgs, setValidQueryArgs] =
+        useState<QueryResultsProps | null>(null);
+
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
+    const projectUuid = propProjectUuid || projectUuidFromParams;
+
+    const { data: parametersData } = useParameters(
+        projectUuid,
+        reducerState.requiredParameters ?? undefined,
+        {
+            enabled: !!reducerState.requiredParameters?.length,
+        },
+    );
+
+    const missingRequiredParameters = useMemo(() => {
+        // If no required parameters are set, return null, this will disable query execution
+        if (reducerState.requiredParameters === null) return null;
+
+        // If parameters are not the same return null, this will disable query execution until validQueryArgs is updated
+        if (
+            !deepEqual(
+                validQueryArgs?.parameters ?? {},
+                unsavedChartVersion.parameters ?? {},
+            )
+        ) {
+            return null;
+        }
+
+        // Missing required parameters are the ones that are not set and don't have a default value
+        return reducerState.requiredParameters.filter(
+            (parameter) =>
+                !unsavedChartVersion.parameters?.[parameter] &&
+                !parametersData?.[parameter]?.default,
+        );
+    }, [
+        parametersData,
+        reducerState.requiredParameters,
+        unsavedChartVersion.parameters,
+        validQueryArgs?.parameters,
+    ]);
+
     const state = useMemo(
         () => ({
             ...reducerState,
@@ -1275,6 +1318,7 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
+            missingRequiredParameters,
         }),
         [
             isEditMode,
@@ -1283,12 +1327,14 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
+            missingRequiredParameters,
         ],
     );
 
-    const [validQueryArgs, setValidQueryArgs] =
-        useState<QueryResultsProps | null>(null);
-    const query = useGetReadyQueryResults(validQueryArgs);
+    const query = useGetReadyQueryResults(
+        validQueryArgs,
+        missingRequiredParameters,
+    );
     const [queryUuidHistory, setQueryUuidHistory] = useState<string[]>([]);
     useEffect(() => {
         if (query.data) {
@@ -1332,10 +1378,7 @@ const ExplorerProvider: FC<
             minimal,
         ],
     );
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuid = propProjectUuid || projectUuidFromParams;
+
     const { remove: clearQueryResults } = query;
     const resetQueryResults = useCallback(() => {
         setValidQueryArgs(null);
@@ -1460,7 +1503,11 @@ const ExplorerProvider: FC<
     const cancelQuery = useCallback(() => {
         // cancel query creation
         void queryClient.cancelQueries({
-            queryKey: ['create-query', validQueryArgs],
+            queryKey: [
+                'create-query',
+                validQueryArgs,
+                missingRequiredParameters,
+            ],
         });
 
         if (query.data?.queryUuid) {
@@ -1473,7 +1520,13 @@ const ExplorerProvider: FC<
             // mark query as cancelled
             cancelQueryMutation();
         }
-    }, [queryClient, validQueryArgs, query.data, cancelQueryMutation]);
+    }, [
+        queryClient,
+        validQueryArgs,
+        missingRequiredParameters,
+        query.data,
+        cancelQueryMutation,
+    ]);
 
     const openVisualizationConfig = useCallback(() => {
         dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
@@ -1483,6 +1536,15 @@ const ExplorerProvider: FC<
         dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
     }, []);
 
+    const setRequiredParameters = useCallback(
+        (requiredParameters: string[] | null) => {
+            dispatch({
+                type: ActionType.SET_REQUIRED_PARAMETERS,
+                payload: requiredParameters,
+            });
+        },
+        [],
+    );
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1526,6 +1588,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
+            setRequiredParameters,
         }),
         [
             clearExplore,
@@ -1569,6 +1632,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
+            setRequiredParameters,
         ],
     );
 

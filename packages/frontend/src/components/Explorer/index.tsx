@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { Stack } from '@mantine/core';
-import { memo, type FC } from 'react';
+import { memo, useEffect, type FC } from 'react';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import { useExplore } from '../../hooks/useExplore';
@@ -38,11 +38,20 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             (context) => context.query?.data?.queryUuid,
         );
 
+        const setRequiredParameters = useExplorerContext(
+            (context) => context.actions.setRequiredParameters,
+        );
+
         const { data: explore } = useExplore(unsavedChartVersionTableName);
 
         const { data: { parameterReferences } = {} } = useCompiledSql({
             enabled: !!unsavedChartVersionTableName,
         });
+
+        useEffect(() => {
+            // While there's no parameter references array the request hasn't run, so we set it explicitly to null
+            setRequiredParameters(parameterReferences ?? null);
+        }, [parameterReferences, setRequiredParameters]);
 
         const { data: org } = useOrganization();
 

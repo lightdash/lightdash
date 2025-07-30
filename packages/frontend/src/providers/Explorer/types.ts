@@ -82,6 +82,7 @@ export enum ActionType {
     REPLACE_FIELDS,
     OPEN_VISUALIZATION_CONFIG,
     CLOSE_VISUALIZATION_CONFIG,
+    SET_REQUIRED_PARAMETERS,
 }
 
 export type ConfigCacheMap = {
@@ -244,6 +245,10 @@ export type Action =
       }
     | {
           type: ActionType.CLOSE_VISUALIZATION_CONFIG;
+      }
+    | {
+          type: ActionType.SET_REQUIRED_PARAMETERS;
+          payload: string[] | null;
       };
 
 export interface ExplorerReduceState {
@@ -255,6 +260,7 @@ export interface ExplorerReduceState {
     isVisualizationConfigOpen?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
+    requiredParameters: string[] | null;
     modals: {
         format: {
             isOpen: boolean;
@@ -285,6 +291,7 @@ export interface ExplorerState extends ExplorerReduceState {
     hasUnsavedChanges: boolean;
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
+    missingRequiredParameters: string[] | null;
 }
 
 export interface ExplorerContextType {
@@ -363,5 +370,6 @@ export interface ExplorerContextType {
         getDownloadQueryUuid: (limit: number | null) => Promise<string>;
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
+        setRequiredParameters: (requiredParameters: string[] | null) => void;
     };
 }

@@ -246,3 +246,29 @@ export const ExploreErrorState = ({
         }
     />
 );
+
+export const MissingRequiredParameters = ({
+    missingRequiredParameters,
+}: {
+    missingRequiredParameters: string[];
+}) => (
+    <EmptyState
+        title="Missing required parameters"
+        description={
+            <>
+                This query requires additional parameters to run.{' '}
+                <Text>
+                    {`Please provide the following ${
+                        missingRequiredParameters.length === 1
+                            ? 'parameter:'
+                            : 'parameters:'
+                    }`}
+                </Text>
+                <br />
+                <Text span fw={500} size="sm">
+                    {missingRequiredParameters.join(', ')}
+                </Text>
+            </>
+        }
+    />
+);
