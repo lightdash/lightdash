@@ -1,3 +1,11 @@
+# [0.1860.0](https://github.com/lightdash/lightdash/compare/0.1859.5...0.1860.0) (2025-07-30)
+
+
+### Features
+
+* improve find explores tool ([#15944](https://github.com/lightdash/lightdash/issues/15944)) ([30b252b](https://github.com/lightdash/lightdash/commit/30b252b8b4fdb7ecabda4d8244c01f494a11034e))
+* simplify AI field search tool and remove experimental flag ([#16063](https://github.com/lightdash/lightdash/issues/16063)) ([edeb874](https://github.com/lightdash/lightdash/commit/edeb87482af52d40c7fcaabf9713cef9997504e6))
+
 ## [0.1859.5](https://github.com/lightdash/lightdash/compare/0.1859.4...0.1859.5) (2025-07-30)
 
 
