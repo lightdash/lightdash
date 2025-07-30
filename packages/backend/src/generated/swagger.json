@@ -15954,6 +15954,10 @@
                     },
                     {
                         "properties": {
+                            "searchRank": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "aiHints": {
                                 "items": {
                                     "type": "string"
@@ -15991,8 +15995,18 @@
                             "tableName": {
                                 "type": "string"
                             },
-                            "basicType": {
+                            "fieldValueType": {
                                 "type": "string"
+                            },
+                            "basicType": {
+                                "type": "string",
+                                "enum": [
+                                    "string",
+                                    "number",
+                                    "date",
+                                    "timestamp",
+                                    "boolean"
+                                ]
                             },
                             "type": {
                                 "$ref": "#/components/schemas/CatalogType.Field"
@@ -16006,6 +16020,8 @@
                             "icon",
                             "categories",
                             "tableName",
+                            "fieldValueType",
+                            "basicType",
                             "type",
                             "catalogSearchUuid"
                         ],
@@ -16046,6 +16062,10 @@
                     },
                     {
                         "properties": {
+                            "searchRank": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "joinedTables": {
                                 "items": {
                                     "type": "string"
