@@ -1,3 +1,10 @@
+# [0.1859.0](https://github.com/lightdash/lightdash/compare/0.1858.1...0.1859.0) (2025-07-30)
+
+
+### Features
+
+* update AI system prompt with improved tool usage and formatting guide ([#16103](https://github.com/lightdash/lightdash/issues/16103)) ([d493577](https://github.com/lightdash/lightdash/commit/d49357711d727f89f92f7db4669547f38925377f))
+
 ## [0.1858.1](https://github.com/lightdash/lightdash/compare/0.1858.0...0.1858.1) (2025-07-29)
 
 
