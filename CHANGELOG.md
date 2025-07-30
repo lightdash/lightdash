@@ -1,3 +1,10 @@
+## [0.1859.2](https://github.com/lightdash/lightdash/compare/0.1859.1...0.1859.2) (2025-07-30)
+
+
+### Bug Fixes
+
+* sanitize number values in filters ([#16098](https://github.com/lightdash/lightdash/issues/16098)) ([80c6706](https://github.com/lightdash/lightdash/commit/80c670662ec91be4d23c4f4f22f408aaad25a55c))
+
 ## [0.1859.1](https://github.com/lightdash/lightdash/compare/0.1859.0...0.1859.1) (2025-07-30)
 
 
