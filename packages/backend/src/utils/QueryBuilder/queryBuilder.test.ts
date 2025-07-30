@@ -865,7 +865,7 @@ describe('Escaping in postgres', () => {
     });
 
     test('Should throw when invalid number is provided', () => {
-        expect(
+        expect(() =>
             replaceWhitespace(
                 buildQuery({
                     explore: EXPLORE,
