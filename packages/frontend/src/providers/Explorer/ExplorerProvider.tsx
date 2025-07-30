@@ -142,13 +142,8 @@ const getTableCalculationsMetadata = (
 // eslint-disable-next-line react-refresh/only-export-components
 export function reducer(
     state: ExplorerReduceState,
-    action: Action & { options?: { shouldFetchResults: boolean } },
+    action: Action,
 ): ExplorerReduceState {
-    state = {
-        ...state,
-        shouldFetchResults:
-            action.options?.shouldFetchResults || state.shouldFetchResults,
-    };
     switch (action.type) {
         case ActionType.RESET: {
             return action.payload;
@@ -158,11 +153,6 @@ export function reducer(
                 draft.unsavedChartVersion.tableName = action.payload;
                 draft.unsavedChartVersion.metricQuery.exploreName =
                     action.payload;
-            });
-        }
-        case ActionType.SET_FETCH_RESULTS_FALSE: {
-            return produce(state, (draft) => {
-                draft.shouldFetchResults = false;
             });
         }
         case ActionType.SET_PREVIOUSLY_FETCHED_STATE: {
@@ -945,9 +935,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.REMOVE_FIELD,
             payload: fieldId,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -955,9 +942,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.TOGGLE_SORT_FIELD,
             payload: fieldId,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -965,9 +949,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.SET_SORT_FIELDS,
             payload: sortFields,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -975,9 +956,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.REMOVE_SORT_FIELD,
             payload: fieldId,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -986,9 +964,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.MOVE_SORT_FIELDS,
                 payload: { sourceIndex, destinationIndex },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [],
@@ -1002,9 +977,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
                 payload: { fieldId, ...options },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [],
@@ -1014,9 +986,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.SET_ROW_LIMIT,
             payload: limit,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -1024,24 +993,15 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.SET_TIME_ZONE,
             payload: timezone,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
-    const setFilters = useCallback(
-        (filters: MetricQuery['filters'], shouldFetchResults: boolean) => {
-            dispatch({
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-                options: {
-                    shouldFetchResults,
-                },
-            });
-        },
-        [],
-    );
+    const setFilters = useCallback((filters: MetricQuery['filters']) => {
+        dispatch({
+            type: ActionType.SET_FILTERS,
+            payload: filters,
+        });
+    }, []);
 
     const setParameter = useCallback(
         (key: string, value: string | string[] | null) => {
@@ -1180,9 +1140,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.ADD_TABLE_CALCULATION,
                 payload: tableCalculation,
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [unsavedChartVersion],
@@ -1202,9 +1159,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.UPDATE_TABLE_CALCULATION,
                 payload: { oldName, tableCalculation },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [unsavedChartVersion],
@@ -1213,9 +1167,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.DELETE_TABLE_CALCULATION,
             payload: name,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -1224,9 +1175,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.ADD_CUSTOM_DIMENSION,
                 payload: customDimension,
-                options: {
-                    shouldFetchResults: true,
-                },
             });
 
             // TODO: add dispatch toggle
@@ -1242,9 +1190,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
                 payload: { customDimension, previousCustomDimensionId },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
             // TODO: add dispatch toggle
         },
@@ -1287,9 +1232,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.UPDATE_METRIC_FORMAT,
                 payload: args,
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [],
@@ -1442,10 +1384,9 @@ const ExplorerProvider: FC<
     ]);
 
     useEffect(() => {
-        if (!state.shouldFetchResults || !reducerState.autoFetchEnabled) return;
+        if (!reducerState.autoFetchEnabled) return;
         runQuery();
-        dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
-    }, [runQuery, state.shouldFetchResults, reducerState.autoFetchEnabled]);
+    }, [runQuery, reducerState.autoFetchEnabled]);
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {

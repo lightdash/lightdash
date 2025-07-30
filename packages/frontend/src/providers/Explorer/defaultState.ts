@@ -5,7 +5,6 @@ import { ExplorerSection, type ExplorerReduceState } from './types';
 export const defaultState: ExplorerReduceState = {
     autoFetchEnabled: true,
     isVisualizationConfigOpen: false,
-    shouldFetchResults: false,
     previouslyFetchedState: undefined,
     expandedSections: [ExplorerSection.RESULTS, ExplorerSection.PARAMETERS],
     unsavedChartVersion: {

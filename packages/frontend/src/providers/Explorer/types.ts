@@ -63,7 +63,6 @@ export enum ActionType {
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
-    SET_FETCH_RESULTS_FALSE,
     SET_PREVIOUSLY_FETCHED_STATE,
     ADD_ADDITIONAL_METRIC,
     EDIT_ADDITIONAL_METRIC,
@@ -98,7 +97,6 @@ export type ConfigCacheMap = {
 
 export type Action =
     | { type: ActionType.RESET; payload: ExplorerReduceState }
-    | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | {
           type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
           payload: MetricQuery;
@@ -255,7 +253,6 @@ export type Action =
 
 export interface ExplorerReduceState {
     autoFetchEnabled: boolean;
-    shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     metadata?: {
         // Temporary state that tracks changes to `table calculations` - keeps track of new name and previous name to ensure these get updated correctly when making changes to the layout & config of a chart
@@ -317,10 +314,7 @@ export interface ExplorerContextType {
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: TimeZone) => void;
-        setFilters: (
-            filters: MetricQuery['filters'],
-            syncPristineState: boolean,
-        ) => void;
+        setFilters: (filters: MetricQuery['filters']) => void;
         setParameter: (key: string, value: string | string[] | null) => void;
         clearAllParameters: () => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
