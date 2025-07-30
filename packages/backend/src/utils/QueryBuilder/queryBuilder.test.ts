@@ -864,8 +864,8 @@ describe('Escaping in postgres', () => {
         ).toContain(replaceWhitespace(`WHERE (( ("table1".dim1) IN (999) ))`));
     });
 
-    test('Should return valid SQL filter with for an invalid number', () => {
-        expect(
+    test('Should throw when invalid number is provided', () => {
+        expect(() =>
             replaceWhitespace(
                 buildQuery({
                     explore: EXPLORE,
@@ -890,8 +890,8 @@ describe('Escaping in postgres', () => {
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
             ),
-        ).toContain(
-            replaceWhitespace(`WHERE (( ("table1".dim1) IN (99) OR (1=1) )`),
+        ).toThrow(
+            'Invalid number value in filter: "99) OR (1=1) ". Expected a valid number.',
         );
     });
 
