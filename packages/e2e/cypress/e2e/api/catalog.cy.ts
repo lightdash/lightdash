@@ -24,7 +24,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 description: 'users table',
                 type: 'table',
                 joinedTables: [],
-                tags: [],
+                tags: ['ai'],
                 categories: [],
                 catalogSearchUuid: '',
                 icon: null,
