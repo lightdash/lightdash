@@ -1,3 +1,45 @@
+## [0.1859.5](https://github.com/lightdash/lightdash/compare/0.1859.4...0.1859.5) (2025-07-30)
+
+
+### Bug Fixes
+
+* meta block overriding completely any meta properties ([#16120](https://github.com/lightdash/lightdash/issues/16120)) ([3afb9d4](https://github.com/lightdash/lightdash/commit/3afb9d403d33e5ce63848ed6961ff22e5961f1a0))
+
+## [0.1859.4](https://github.com/lightdash/lightdash/compare/0.1859.3...0.1859.4) (2025-07-30)
+
+
+### Bug Fixes
+
+* Allow chart model renames before changes are applied ([#16117](https://github.com/lightdash/lightdash/issues/16117)) ([230bc3e](https://github.com/lightdash/lightdash/commit/230bc3e3eabcd453a8fd161f4f186d92073d06fc))
+
+## [0.1859.3](https://github.com/lightdash/lightdash/compare/0.1859.2...0.1859.3) (2025-07-30)
+
+
+### Bug Fixes
+
+* stop escaping SQL LIKE wildcards in string values ([#16113](https://github.com/lightdash/lightdash/issues/16113)) ([c2f1f29](https://github.com/lightdash/lightdash/commit/c2f1f29a9373d96a60837de10a87fd96e7888436))
+
+## [0.1859.2](https://github.com/lightdash/lightdash/compare/0.1859.1...0.1859.2) (2025-07-30)
+
+
+### Bug Fixes
+
+* sanitize number values in filters ([#16098](https://github.com/lightdash/lightdash/issues/16098)) ([80c6706](https://github.com/lightdash/lightdash/commit/80c670662ec91be4d23c4f4f22f408aaad25a55c))
+
+## [0.1859.1](https://github.com/lightdash/lightdash/compare/0.1859.0...0.1859.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* escape parameter values ([#16097](https://github.com/lightdash/lightdash/issues/16097)) ([7718cda](https://github.com/lightdash/lightdash/commit/7718cdab57bae2dc2586c0a00e5a0e07edae0c05))
+
+# [0.1859.0](https://github.com/lightdash/lightdash/compare/0.1858.1...0.1859.0) (2025-07-30)
+
+
+### Features
+
+* update AI system prompt with improved tool usage and formatting guide ([#16103](https://github.com/lightdash/lightdash/issues/16103)) ([d493577](https://github.com/lightdash/lightdash/commit/d49357711d727f89f92f7db4669547f38925377f))
+
 ## [0.1858.1](https://github.com/lightdash/lightdash/compare/0.1858.0...0.1858.1) (2025-07-29)
 
 

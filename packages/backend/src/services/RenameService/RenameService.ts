@@ -12,6 +12,7 @@ import {
     getItemId,
     isExploreError,
     NameChanges,
+    NotExistsError,
     NotFoundError,
     NotImplementedError,
     ParameterError,
@@ -25,6 +26,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 
+import { attempt, isError } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -188,9 +190,18 @@ export class RenameService extends BaseService {
 
         switch (type) {
             case RenameType.MODEL:
-                // Verify the model we want to assign to really exists
-                // This will throw an error if the model does not exist
-                await this.projectModel.getExploreFromCache(projectUuid, to);
+                // Verify the model we want to assign to really exists, or the one we are renaming from
+                const toExists = attempt(() =>
+                    this.projectModel.getExploreFromCache(projectUuid, to),
+                );
+                const fromExists = attempt(() =>
+                    this.projectModel.getExploreFromCache(projectUuid, from),
+                );
+                if (isError(toExists) && isError(fromExists)) {
+                    throw new NotExistsError(
+                        `Neither "${from}" nor "${to}" explores exist in the project.`,
+                    );
+                }
                 break;
             case RenameType.FIELD:
                 // When renaming a field from a chart, we validate that the target field exists
