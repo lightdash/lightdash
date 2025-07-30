@@ -39,8 +39,8 @@ import {
 import Logger from '../../logging/logger';
 import {
     replaceParameters,
-    replaceParametersAsRaw,
     replaceParametersAsString,
+    unsafeReplaceParametersAsRaw,
 } from './parameters';
 import {
     assertValidDimensionRequiredAttribute,
@@ -510,9 +510,10 @@ export class MetricQueryBuilder {
             ...filter,
             values: filter.values?.map((value) => {
                 if (typeof value === 'string') {
-                    const { replacedSql } = replaceParametersAsRaw(
+                    const { replacedSql } = unsafeReplaceParametersAsRaw(
                         value,
                         this.args.parameters ?? {},
+                        this.args.warehouseSqlBuilder,
                     );
 
                     return replacedSql;
@@ -1358,6 +1359,7 @@ export class QueryBuilder {
             replaceParameters(
                 sql,
                 this.parameters ?? {},
+                this.config.escapeString,
                 this.config.stringQuoteChar,
             );
 
