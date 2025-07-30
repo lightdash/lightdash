@@ -1,3 +1,10 @@
+## [0.1859.1](https://github.com/lightdash/lightdash/compare/0.1859.0...0.1859.1) (2025-07-30)
+
+
+### Bug Fixes
+
+* escape parameter values ([#16097](https://github.com/lightdash/lightdash/issues/16097)) ([7718cda](https://github.com/lightdash/lightdash/commit/7718cdab57bae2dc2586c0a00e5a0e07edae0c05))
+
 # [0.1859.0](https://github.com/lightdash/lightdash/compare/0.1858.1...0.1859.0) (2025-07-30)
 
 
