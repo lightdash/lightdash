@@ -295,7 +295,6 @@ export * from './utils/customDimensions';
 export * from './utils/dashboard';
 export * from './utils/dbt';
 export * from './utils/email';
-export * from './utils/explore';
 export * from './utils/fields';
 export * from './utils/filters';
 export * from './utils/formatting';
