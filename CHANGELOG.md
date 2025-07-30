@@ -1,3 +1,10 @@
+## [0.1859.3](https://github.com/lightdash/lightdash/compare/0.1859.2...0.1859.3) (2025-07-30)
+
+
+### Bug Fixes
+
+* stop escaping SQL LIKE wildcards in string values ([#16113](https://github.com/lightdash/lightdash/issues/16113)) ([c2f1f29](https://github.com/lightdash/lightdash/commit/c2f1f29a9373d96a60837de10a87fd96e7888436))
+
 ## [0.1859.2](https://github.com/lightdash/lightdash/compare/0.1859.1...0.1859.2) (2025-07-30)
 
 
