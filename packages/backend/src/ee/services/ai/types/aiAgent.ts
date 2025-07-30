@@ -24,7 +24,6 @@ export type AiAgentArgs = {
     organizationId: string;
     userId: string;
     debugLoggingEnabled: boolean;
-    __experimental__toolFindFields: boolean;
 };
 
 export type AiAgentDependencies = {
