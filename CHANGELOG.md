@@ -1,3 +1,10 @@
+# [0.1861.0](https://github.com/lightdash/lightdash/compare/0.1860.0...0.1861.0) (2025-07-30)
+
+
+### Features
+
+* improve AI field search with table context and field type information ([#16107](https://github.com/lightdash/lightdash/issues/16107)) ([261cb94](https://github.com/lightdash/lightdash/commit/261cb9427854e265d8cd404a0c0e25a364138c60)), closes [#15742](https://github.com/lightdash/lightdash/issues/15742)
+
 # [0.1860.0](https://github.com/lightdash/lightdash/compare/0.1859.5...0.1860.0) (2025-07-30)
 
 
