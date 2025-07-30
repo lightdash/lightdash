@@ -326,16 +326,7 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        userUuid: string | undefined,
-        embedderFn?: (
-            documents: {
-                name: string;
-                description: string;
-            }[],
-        ) => Promise<Array<Array<number>>>,
-    ) {
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
         const cachedExploresMap =
             await this.projectModel.getAllExploresFromCache(projectUuid);
 

@@ -188,6 +188,13 @@ export const setupIntegrationTest =
             imageUrl: null,
         };
 
+        const catalogService = app.getServiceRepository().getCatalogService();
+
+        await catalogService.indexCatalog(
+            SEED_PROJECT.project_uuid,
+            testUser.userUuid,
+        );
+
         const cleanup = async () => {
             console.info('🧹 Cleaning up test environment...');
 
