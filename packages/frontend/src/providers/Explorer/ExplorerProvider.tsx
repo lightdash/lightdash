@@ -25,6 +25,7 @@ import {
     type TableCalculation,
     type TimeZone,
 } from '@lightdash/common';
+import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -819,11 +820,7 @@ export function reducer(
                 draft.isVisualizationConfigOpen = false;
             });
         }
-        case ActionType.SET_AUTO_FETCH_ENABLED: {
-            return produce(state, (draft) => {
-                draft.autoFetchEnabled = action.payload;
-            });
-        }
+
         default: {
             return assertUnreachable(
                 action,
@@ -857,6 +854,11 @@ const ExplorerProvider: FC<
     dateZoomGranularity,
     projectUuid: propProjectUuid,
 }) => {
+    const [autoFetchEnabled] = useLocalStorage({
+        key: 'lightdash-explorer-auto-fetch-enabled',
+        defaultValue: true,
+    });
+
     const defaultStateWithConfig = useMemo(
         () => ({
             ...defaultState,
@@ -1384,9 +1386,9 @@ const ExplorerProvider: FC<
     ]);
 
     useEffect(() => {
-        if (!reducerState.autoFetchEnabled) return;
+        if (!autoFetchEnabled) return;
         runQuery();
-    }, [runQuery, reducerState.autoFetchEnabled]);
+    }, [runQuery, autoFetchEnabled]);
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
@@ -1481,13 +1483,6 @@ const ExplorerProvider: FC<
         dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
     }, []);
 
-    const setAutoFetchEnabled = useCallback((autoFetchEnabled: boolean) => {
-        dispatch({
-            type: ActionType.SET_AUTO_FETCH_ENABLED,
-            payload: autoFetchEnabled,
-        });
-    }, []);
-
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1531,7 +1526,6 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
-            setAutoFetchEnabled,
         }),
         [
             clearExplore,
@@ -1575,7 +1569,6 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
-            setAutoFetchEnabled,
         ],
     );
 

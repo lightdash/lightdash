@@ -82,7 +82,6 @@ export enum ActionType {
     REPLACE_FIELDS,
     OPEN_VISUALIZATION_CONFIG,
     CLOSE_VISUALIZATION_CONFIG,
-    SET_AUTO_FETCH_ENABLED,
 }
 
 export type ConfigCacheMap = {
@@ -245,14 +244,9 @@ export type Action =
       }
     | {
           type: ActionType.CLOSE_VISUALIZATION_CONFIG;
-      }
-    | {
-          type: ActionType.SET_AUTO_FETCH_ENABLED;
-          payload: boolean;
       };
 
 export interface ExplorerReduceState {
-    autoFetchEnabled: boolean;
     expandedSections: ExplorerSection[];
     metadata?: {
         // Temporary state that tracks changes to `table calculations` - keeps track of new name and previous name to ensure these get updated correctly when making changes to the layout & config of a chart
@@ -369,6 +363,5 @@ export interface ExplorerContextType {
         getDownloadQueryUuid: (limit: number | null) => Promise<string>;
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
-        setAutoFetchEnabled: (autoFetchEnabled: boolean) => void;
     };
 }
