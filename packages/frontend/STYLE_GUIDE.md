@@ -43,9 +43,54 @@ When migrating, add TODO comments for any inline styles:
 
 ## Styling Best Practices
 
-### 1. Theme Extensions (Preferred)
+### Mantine 8 Styling Hierarchy
 
-Add reusable styles to `src/mantine8Theme.ts`:
+For Mantine v8 components, follow this order of preference:
+
+1. **Component Props (≤3 simple layout props)** - Use for basic layout properties like margin, padding, width
+2. **CSS Modules** - Default choice for styling
+3. **Theme Extensions** - For reusable component styles across the app
+
+**❌ NEVER use:**
+- `styles` prop 
+- `sx` prop
+
+### 1. Component Props (Maximum 3 Simple Props)
+
+Use built-in component props only for basic layout properties:
+
+```tsx
+// ✅ Good - Simple layout props (≤3)
+<Button mt="md" w={180}>Submit</Button>
+<Box p="xs" mb="lg">Content</Box>
+
+// ❌ Bad - Too many props or complex styling
+<Button mt="md" w={180} bg="red" c="white">Submit</Button>
+<Button styles={{root: {background: 'red'}}}>Submit</Button>
+```
+
+### 2. CSS Modules (Default Choice)
+
+Use CSS modules for any styling beyond simple component props:
+
+```css
+/* Component.module.css */
+.submitButton {
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    border-radius: var(--mantine-radius-md);
+    width: 180px;
+}
+```
+
+```tsx
+import styles from './Component.module.css';
+
+<Button className={styles.submitButton}>Custom</Button>
+```
+
+### 3. Theme Extensions (For Reusable Styles)
+
+Add reusable component styles to `src/mantine8Theme.ts`:
 
 ```tsx
 Select: Select.extend({
@@ -60,30 +105,17 @@ Select: Select.extend({
 }),
 ```
 
-### 2. CSS Modules (For One-offs)
-
-```css
-/* Component.module.css */
-.customButton {
-    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-}
-```
-
-```tsx
-import styles from './Component.module.css';
-
-<Button className={styles.customButton}>Custom</Button>
-```
-
-### 3. Never Use Magic Numbers
+### 4. Never Use Magic Numbers
 
 ```tsx
 // ❌ Bad
-<Box style={{padding: 16}}>
+<Box p={16}>
 
-    // ✅ Good
-    <Box style={{padding: 'var(--mantine-spacing-md)'}}>
+// ✅ Good  
+<Box p="md">
 ```
+
+Use Mantine's theme tokens instead of hard-coded values.
 
 ## Mantine Documentation
 
