@@ -1,3 +1,10 @@
+## [0.1859.4](https://github.com/lightdash/lightdash/compare/0.1859.3...0.1859.4) (2025-07-30)
+
+
+### Bug Fixes
+
+* Allow chart model renames before changes are applied ([#16117](https://github.com/lightdash/lightdash/issues/16117)) ([230bc3e](https://github.com/lightdash/lightdash/commit/230bc3e3eabcd453a8fd161f4f186d92073d06fc))
+
 ## [0.1859.3](https://github.com/lightdash/lightdash/compare/0.1859.2...0.1859.3) (2025-07-30)
 
 
