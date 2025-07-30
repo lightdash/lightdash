@@ -6,6 +6,7 @@ import {
     toolFindFieldsArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
+    toolVerticalBarArgsSchema,
 } from '@lightdash/common';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
@@ -17,6 +18,7 @@ import {
 } from '../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
+import { getGenerateBarVizConfig } from '../../tools/generateBarVizConfig';
 import { llmAsAJudge } from './utils/llmAsAJudge';
 
 // Skip if no OpenAI API key
@@ -48,33 +50,48 @@ describeOrSkip('agent integration tests', () => {
 
     const promptAgent = async (
         prompt: string,
+        threadUuid?: string,
     ): Promise<{
         response: string;
         prompt: AiWebAppPrompt | undefined;
+        threadUuid: string;
     }> => {
         if (!createdAgent) {
             throw new Error('Agent not created');
         }
 
+        let threadUuidToUse = threadUuid;
+
         const services = getServices(context.app);
         const models = getModels(context.app);
 
-        const thread = await services.aiAgentService.createAgentThread(
-            context.testUser,
-            createdAgent.uuid,
-            {
+        if (threadUuidToUse) {
+            // Add message to existing thread
+            await models.aiAgentModel.createWebAppPrompt({
+                threadUuid: threadUuidToUse,
+                createdByUserUuid: context.testUser.userUuid,
                 prompt,
-            },
-        );
+            });
+        } else {
+            // Create new thread
+            const thread = await services.aiAgentService.createAgentThread(
+                context.testUser,
+                createdAgent.uuid,
+                {
+                    prompt,
+                },
+            );
 
-        if (!thread) {
-            throw new Error('Failed to create test thread');
+            if (!thread) {
+                throw new Error('Failed to create test thread');
+            }
+            threadUuidToUse = thread.uuid;
         }
 
         const threadMessages = await models.aiAgentModel.getThreadMessages(
             context.testUser.organizationUuid!,
             createdAgent.projectUuid,
-            thread.uuid,
+            threadUuidToUse,
         );
 
         const promptData = await models.aiAgentModel.findWebAppPrompt(
@@ -96,7 +113,7 @@ describeOrSkip('agent integration tests', () => {
                 },
             );
 
-        return { response, prompt: promptData };
+        return { response, prompt: promptData, threadUuid: threadUuidToUse };
     };
 
     it(
@@ -433,5 +450,107 @@ describeOrSkip('agent integration tests', () => {
             expect(factualityEvaluation.rationale).toBeDefined();
         },
         TIMEOUT,
+    );
+
+    it('gives an intro explanation of what the agent can do', async () => {
+        if (!createdAgent) {
+            throw new Error('Agent not created');
+        }
+
+        const promptQueryText = 'What can you do?';
+
+        const { response } = await promptAgent(promptQueryText);
+
+        const availableExplores = await getServices(
+            context.app,
+        ).catalogService.searchCatalog({
+            projectUuid: createdAgent.projectUuid!,
+            catalogSearch: {
+                type: CatalogType.Table,
+                yamlTags: context.testAgent.tags ?? undefined,
+            },
+            userAttributes: {},
+            context: CatalogSearchContext.AI_AGENT,
+            tables: null,
+        });
+
+        const availableExploresText = availableExplores.data
+            .map((explore) => explore.name)
+            .join(', ');
+
+        const factualityEvaluation = await llmAsAJudge({
+            query: promptQueryText,
+            response,
+            expectedAnswer: `I can help you analyze your data with the following explores: ${availableExploresText}
+                I can give you a summary of the data in each explore, breakdown by categories, show trends over time, and generate charts and tables.
+                Chart types available are bar charts, time series charts, and tables.
+                `,
+            scorerType: 'factuality',
+            model,
+        });
+
+        if (!factualityEvaluation) {
+            throw new Error('Factuality evaluation not found');
+        }
+
+        expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
+        expect(factualityEvaluation.rationale).toBeDefined();
+    });
+
+    it(
+        'should handle multiple consecutive prompts in the same thread maintaining context',
+        async () => {
+            if (!createdAgent) {
+                throw new Error('Agent not created');
+            }
+
+            // Should know on prompt 3 to use the same metric as prompt 2
+            const prompt1 = 'What data models are available to analyze?';
+            const prompt2 = 'Does payments have a metric for total revenue?';
+            const prompt3 =
+                'Then show me a breakdown of that metric by payment method';
+
+            const { threadUuid } = await promptAgent(prompt1);
+            await promptAgent(prompt2, threadUuid);
+
+            const {
+                response: response3,
+                prompt: webPrompt3,
+                threadUuid: threadUuid3,
+            } = await promptAgent(prompt3, threadUuid);
+
+            const toolCalls = await context
+                .db<DbAiAgentToolCall>('ai_agent_tool_call')
+                .where('ai_prompt_uuid', webPrompt3!.promptUuid)
+                .select('*');
+
+            expect(toolCalls.length).toBe(2);
+
+            expect(toolCalls[0].tool_name).toBe('findFields');
+            const findFieldsArgs = toolFindFieldsArgsSchema.safeParse(
+                toolCalls[0].tool_args,
+            );
+            expect(findFieldsArgs.success).toBe(true);
+            expect(findFieldsArgs.data?.table).toBe('payments');
+            expect(
+                findFieldsArgs.data?.fieldSearchQueries.some((q) =>
+                    q.label.toLowerCase().includes('payment method'),
+                ),
+            ).toBe(true);
+            expect(toolCalls[1].tool_name).toBe('generateBarVizConfig');
+            const barVizArgs = toolVerticalBarArgsSchema.safeParse(
+                toolCalls[1].tool_args,
+            );
+            expect(barVizArgs.success).toBe(true);
+            expect(barVizArgs.data?.vizConfig.yMetrics).toContain(
+                'payments_total_revenue',
+            );
+
+            expect(barVizArgs.data?.vizConfig.xDimension).toBe(
+                'payments_payment_method',
+            );
+            expect(barVizArgs.data?.vizConfig.exploreName).toBe('payments');
+        },
+        TIMEOUT * 2, // Double timeout for multiple prompts
     );
 });
