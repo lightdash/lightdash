@@ -60,7 +60,7 @@ const getAgentTools = (
     }
 
     const findExplores = getFindExplores({
-        getExplores: dependencies.getExplores,
+        findExplores: dependencies.findExplores,
     });
 
     const findFields = args.__experimental__toolFindFields

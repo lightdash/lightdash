@@ -96,6 +96,7 @@ export const parseCatalog = (
             chartUsage: dbCatalog.chart_usage ?? undefined,
             icon: dbCatalog.icon ?? null,
             aiHints: convertToAiHints(dbCatalog.explore.aiHint) ?? null,
+            joinedTables: dbCatalog.joined_tables ?? null,
         };
     }
 
