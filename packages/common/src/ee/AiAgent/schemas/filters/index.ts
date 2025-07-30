@@ -3,33 +3,36 @@ import { z } from 'zod';
 import type { FilterRule, Filters } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import { getFieldIdSchema } from '../fieldId';
-import fieldTypeSchema from '../fieldType';
 import booleanFilterSchema from './booleanFilters';
 import dateFilterSchema from './dateFilters';
 import numberFilterSchema from './numberFilters';
 import stringFilterSchema from './stringFilters';
 
-const filterRuleSchema = z.object({
-    type: z.enum(['or', 'and']).describe('Type of filter group operation'),
-    target: z.object({
-        fieldId: getFieldIdSchema({ additionalDescription: null }),
-        type: fieldTypeSchema,
-    }),
-    rule: z.union([
+const filterRuleSchema = z
+    .union([
         booleanFilterSchema.describe('Boolean filter'),
         stringFilterSchema.describe('String filter'),
         numberFilterSchema.describe('Number filter'),
         dateFilterSchema.describe('Date filter'),
-    ]),
-});
+    ])
+    .and(
+        z.object({
+            type: z
+                .enum(['or', 'and'])
+                .describe('Type of filter group operation'),
+            fieldId: getFieldIdSchema({ additionalDescription: null }),
+        }),
+    );
 
 const filterRuleSchemaTransformed = filterRuleSchema.transform(
     (data): FilterRule => ({
         id: uuid(),
-        target: data.target,
-        operator: data.rule.operator,
-        values: 'values' in data.rule ? data.rule.values : [],
-        ...('settings' in data.rule ? { settings: data.rule.settings } : {}),
+        target: {
+            fieldId: data.fieldId,
+        },
+        operator: data.operator,
+        values: 'values' in data ? data.values : [],
+        ...('settings' in data ? { settings: data.settings } : {}),
     }),
 );
 
