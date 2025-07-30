@@ -157,7 +157,7 @@ export const setupIntegrationTest =
         const testUserSessionAccount: SessionAccount = {
             user: {
                 ...testUser,
-                id: '1',
+                id: testUser.userUuid,
                 type: 'registered',
             },
             organization: {

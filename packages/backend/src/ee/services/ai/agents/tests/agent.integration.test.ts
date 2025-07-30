@@ -4,6 +4,11 @@ import {
     isDateItem,
     SessionAccount,
 } from '@lightdash/common';
+import {
+    AnswerRelevancyMetric,
+    ContextRelevancyMetric,
+} from '@mastra/evals/llm';
+import { CompletenessMetric } from '@mastra/evals/nlp';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
     getModels,
@@ -317,4 +322,83 @@ describeOrSkip('agent integration tests', () => {
         },
         TIMEOUT,
     );
+
+    describe('Finding relevant information', () => {
+        const currentYear = new Date().getFullYear();
+
+        [
+            {
+                question:
+                    'what is order amounts this year broken down by order is completed or not month over month',
+                expectedExplore: 'orders',
+                expectedAnswer: `The time-series chart shows data from the Orders explore, with Total order amount as the metric, Order date month on the x-axis, and split by Is completed status, filtered to include only data from ${currentYear}.`,
+            },
+            {
+                question:
+                    'revenue in the last 3 months for `credit_card` payment method as a bar chart',
+                expectedExplore: 'payments',
+                expectedAnswer:
+                    'The bar chart shows data from the Payments explore, with Total revenue as the metric, Order date month as the dimension, and filtered to only include credit_card payments from the last 3 months.',
+            },
+        ].forEach((testCase) => {
+            it(
+                `should get relevant information for question: ${testCase.question}`,
+                async () => {
+                    if (!createdAgent) {
+                        throw new Error('Agent not created');
+                    }
+
+                    const { response, prompt } = await promptAgent(
+                        testCase.question,
+                    );
+
+                    const toolCalls = await context
+                        .db<DbAiAgentToolCall>('ai_agent_tool_call')
+                        .leftJoin(
+                            'ai_agent_tool_result',
+                            'ai_agent_tool_call.tool_call_id',
+                            'ai_agent_tool_result.tool_call_id',
+                        )
+                        .where(
+                            'ai_agent_tool_call.ai_prompt_uuid',
+                            prompt!.promptUuid,
+                        )
+                        .select('*');
+
+                    expect(toolCalls.length).toBeLessThanOrEqual(3);
+
+                    const relevancyEvaluation = await llmAsAJudge({
+                        query: 'Does the tool call result give enough information about the explore and fields to answer the query?',
+                        response: JSON.stringify(toolCalls),
+                        model,
+                        scorerType: 'contextRelevancy',
+                        context: [
+                            JSON.stringify(
+                                await getServices(
+                                    context.app,
+                                ).projectService.getExplore(
+                                    context.testUserSessionAccount,
+                                    createdAgent.projectUuid!,
+                                    testCase.expectedExplore,
+                                ),
+                            ),
+                        ],
+                    });
+
+                    expect(relevancyEvaluation.score).toEqual(1);
+
+                    const factualityEvaluation = await llmAsAJudge({
+                        query: testCase.question,
+                        response,
+                        expectedAnswer: testCase.expectedAnswer,
+                        scorerType: 'factuality',
+                        model,
+                    });
+
+                    expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
+                },
+                TIMEOUT,
+            );
+        });
+    });
 });
