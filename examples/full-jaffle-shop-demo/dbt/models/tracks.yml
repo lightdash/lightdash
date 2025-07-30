@@ -1,6 +1,8 @@
 version: 2
 models:
   - name: tracks
+    config:
+      tags: ['another-ai-tag']
     meta:
       primary_key: id
       required_filters: 
