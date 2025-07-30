@@ -244,6 +244,7 @@ export class CatalogService<
         tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
+        excludeUnmatched?: boolean;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
@@ -272,6 +273,7 @@ export class CatalogService<
                             yamlTags: args.yamlTags,
                             tables: args.tables,
                             tablesConfiguration,
+                            excludeUnmatched: args.excludeUnmatched,
                         }),
                 );
             },

@@ -29,6 +29,7 @@ export type FindExploresFn = (args: KnexPaginateArgs) => Promise<{
 
 export type FindFieldFn = (
     args: KnexPaginateArgs & {
+        table: ToolFindFieldsArgs['table'];
         fieldSearchQuery: ToolFindFieldsArgs['fieldSearchQueries'][number];
     },
 ) => Promise<{

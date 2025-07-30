@@ -6,7 +6,6 @@ import {
     toolFindExploresArgsSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -33,7 +32,7 @@ const generateExploreResponse = (
         .sort((a, b) => (b.chartUsage ?? 0) - (a.chartUsage ?? 0));
 
     return `
-<Explore id="${table.name}">
+<Explore table="${table.name}">
     <Label>${table.label}</Label>
     <BaseTable alt="ID of the base table">${table.name}</BaseTable>
 
@@ -73,25 +72,27 @@ const generateExploreResponse = (
         <Dimensions alt="dimension ids" size="${dimensions.length}">
             ${dimensions
                 .map(
-                    (f) =>
+                    (d) =>
                         `<Dimension fieldId="${getItemId({
-                            name: f.name,
-                            table: f.tableName,
-                        })}">${f.label}</Dimension>`,
+                            name: d.name,
+                            table: d.tableName,
+                        })}" table="${d.tableName}" name="${d.name}" label="${
+                            d.label
+                        }" />`,
                 )
                 .join('\n')}
         </Dimensions>
 
-        <Metrics alt="metric ids" size="${metrics.length}">
+        <Metrics alt="metric ids sorted by popularity" size="${metrics.length}">
             ${metrics
                 .map(
-                    (metric) =>
+                    (m) =>
                         `<Metric fieldId="${getItemId({
-                            name: metric.name,
-                            table: metric.tableName,
-                        })}" popularity="${metric.chartUsage ?? 0}">${
-                            metric.label
-                        }</Metric>`,
+                            name: m.name,
+                            table: m.tableName,
+                        })}" table="${m.tableName}" name="${m.name}" label="${
+                            m.label
+                        }" />`,
                 )
                 .join('\n')}
         </Metrics>

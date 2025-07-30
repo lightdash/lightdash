@@ -65,7 +65,8 @@ export type CatalogField = Pick<
     Pick<Dimension, 'requiredAttributes'> & {
         catalogSearchUuid: string;
         type: CatalogType.Field;
-        basicType?: string; // string, number, timestamp... used in metadata
+        basicType: 'string' | 'number' | 'date' | 'timestamp' | 'boolean';
+        fieldValueType: Field['type'];
         tableName: string;
         tableGroupLabel?: string;
         tags?: string[]; // Tags from table, for filtering
@@ -73,6 +74,7 @@ export type CatalogField = Pick<
         chartUsage: number | undefined;
         icon: CatalogItemIcon | null;
         aiHints: string[] | null;
+        searchRank?: number;
     };
 
 export type CatalogTable = Pick<
@@ -89,6 +91,7 @@ export type CatalogTable = Pick<
     icon: CatalogItemIcon | null;
     aiHints: string[] | null;
     joinedTables: string[] | null;
+    searchRank?: number;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;
@@ -169,15 +172,12 @@ export type CatalogAnalytics = {
 };
 export type ApiCatalogAnalyticsResults = CatalogAnalytics;
 
-export const getBasicType = (
-    field: CompiledDimension | CompiledMetric,
-): string => {
+export const getBasicType = (field: CompiledDimension | CompiledMetric) => {
     const { type } = field;
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
-            return 'string';
-
+            return 'string' as const;
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
         case MetricType.PERCENTILE:
@@ -188,16 +188,16 @@ export const getBasicType = (
         case MetricType.SUM:
         case MetricType.MIN:
         case MetricType.MAX:
-            return 'number';
+            return 'number' as const;
         case DimensionType.DATE:
         case MetricType.DATE:
-            return 'date';
+            return 'date' as const;
         case DimensionType.TIMESTAMP:
         case MetricType.TIMESTAMP:
-            return 'timestamp';
+            return 'timestamp' as const;
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
-            return 'boolean';
+            return 'boolean' as const;
         default:
             return assertUnreachable(type, `Invalid field type ${type}`);
     }
