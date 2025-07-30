@@ -1,3 +1,10 @@
+## [0.1859.5](https://github.com/lightdash/lightdash/compare/0.1859.4...0.1859.5) (2025-07-30)
+
+
+### Bug Fixes
+
+* meta block overriding completely any meta properties ([#16120](https://github.com/lightdash/lightdash/issues/16120)) ([3afb9d4](https://github.com/lightdash/lightdash/commit/3afb9d403d33e5ce63848ed6961ff22e5961f1a0))
+
 ## [0.1859.4](https://github.com/lightdash/lightdash/compare/0.1859.3...0.1859.4) (2025-07-30)
 
 
