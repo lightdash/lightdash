@@ -20,6 +20,7 @@ import {
     type FC,
 } from 'react';
 import { createPortal } from 'react-dom';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -53,6 +54,7 @@ type Props = {
 const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const { health } = useApp();
     const { data: org } = useOrganization();
+    const { embedToken } = useEmbed();
 
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
@@ -213,7 +215,12 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
-                savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
+                // If we're embedded, we want the Explore to be "pseudo-editable" in that
+                // the chart can be changed client-side, but not saved.
+                // In this case, we're in edit mode, but we need the savedChart.
+                savedChartUuid={
+                    isEditMode && !embedToken ? undefined : savedChart?.uuid
+                }
                 onChartConfigChange={setChartConfig}
                 onChartTypeChange={setChartType}
                 onPivotDimensionsChange={setPivotFields}
