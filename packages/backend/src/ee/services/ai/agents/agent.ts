@@ -383,7 +383,6 @@ export const streamAgentResponse = async ({
             model: args.model,
             tools,
             messages,
-
             experimental_repairToolCall: async ({
                 messages: conversationHistory,
                 error,

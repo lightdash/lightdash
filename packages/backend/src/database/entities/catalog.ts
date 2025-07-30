@@ -79,6 +79,7 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'ai_hints';
         case 'icon':
             return 'icon';
+        case 'searchRank':
         case 'categories':
         case 'tags':
             throw new Error(
