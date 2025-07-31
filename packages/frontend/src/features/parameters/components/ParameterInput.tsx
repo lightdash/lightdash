@@ -58,6 +58,7 @@ type ParameterInputProps = {
     projectUuid?: string;
     parameterValues?: ParametersValuesMap;
     disabled?: boolean;
+    isError?: boolean;
 };
 
 // Single value component that mimics a single select behavior - maxSelectedValues={1} behaves weirdly so we don't use it.
@@ -381,6 +382,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     projectUuid,
     parameterValues,
     disabled,
+    isError,
 }) => {
     const placeholder = useMemo(() => {
         const defaultValues = parameter.default
@@ -439,6 +441,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 parameterValues={parameterValues}
                 size={size}
                 creatable={parameter.allow_custom_values}
+                error={isError}
             />
         );
     }
@@ -462,6 +465,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 creatable={parameter.allow_custom_values}
                 shouldCreate={shouldCreate}
                 getCreateLabel={getCreateLabel}
+                error={isError}
             />
         );
     }
@@ -479,6 +483,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             creatable={parameter.allow_custom_values}
             shouldCreate={shouldCreate}
             getCreateLabel={getCreateLabel}
+            error={isError}
         />
     );
 };

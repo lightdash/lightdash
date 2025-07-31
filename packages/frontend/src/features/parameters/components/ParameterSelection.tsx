@@ -18,6 +18,7 @@ import { ParameterInput } from './ParameterInput';
 
 type ParameterSelectionProps = {
     parameters?: Record<string, LightdashProjectParameter>;
+    missingRequiredParameters: string[] | null;
     isLoading?: boolean;
     isError?: boolean;
     parameterValues: ParametersValuesMap;
@@ -46,6 +47,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     cols = 1,
     projectUuid,
     disabled = false,
+    missingRequiredParameters,
 }) => {
     const parameterKeys = parameters ? Object.keys(parameters) : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
@@ -127,6 +129,9 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                 projectUuid={projectUuid}
                                 parameterValues={parameterValues}
                                 disabled={disabled}
+                                isError={missingRequiredParameters?.includes(
+                                    paramKey,
+                                )}
                             />
                         </Box>
                     );
