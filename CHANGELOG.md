@@ -1,3 +1,10 @@
+## [0.1861.1](https://github.com/lightdash/lightdash/compare/0.1861.0...0.1861.1) (2025-07-31)
+
+
+### Bug Fixes
+
+* revert new ai rag prs ([#16133](https://github.com/lightdash/lightdash/issues/16133)) ([58bd287](https://github.com/lightdash/lightdash/commit/58bd28754c962853de12062fe496869829f3eb4f)), closes [#16107](https://github.com/lightdash/lightdash/issues/16107) [#16063](https://github.com/lightdash/lightdash/issues/16063) [#15944](https://github.com/lightdash/lightdash/issues/15944)
+
 # [0.1861.0](https://github.com/lightdash/lightdash/compare/0.1860.0...0.1861.0) (2025-07-30)
 
 
