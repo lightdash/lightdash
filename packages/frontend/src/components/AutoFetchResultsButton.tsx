@@ -24,6 +24,11 @@ export const AutoFetchResultsButton: FC<{ size?: MantineSize }> = memo(
                     size={size}
                     variant="default"
                     onClick={() => setAutoFetchEnabled(!autoFetchEnabled)}
+                    sx={(theme) => ({
+                        color: autoFetchEnabled
+                            ? theme.colors.blue['6']
+                            : 'default',
+                    })}
                 >
                     <MantineIcon
                         icon={autoFetchEnabled ? IconRefresh : IconRefreshOff}
