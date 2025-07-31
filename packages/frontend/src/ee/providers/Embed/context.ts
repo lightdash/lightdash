@@ -9,6 +9,8 @@ const EmbedProviderContext = createContext<EmbedContext>({
     languageMap: undefined,
     t: (_input: string) => undefined,
     onExplore: (_options: { chart: SavedChart }) => {},
+    savedChart: undefined,
+    onBackToDashboard: undefined,
 });
 
 export default EmbedProviderContext;
