@@ -120,13 +120,18 @@ Usage tips:
                     return `Error: Page must be greater than 0.`;
                 }
 
-                const { pagination, fields, tables } = await findExplores({
+                const { pagination, tablesWithFields } = await findExplores({
                     page: args.page ?? 1,
                     pageSize: PAGE_SIZE,
                 });
 
-                const exploreResponses = tables
-                    .map((table) => generateExploreResponse(table, fields))
+                const exploreResponses = tablesWithFields
+                    .map((tableWithFields) =>
+                        generateExploreResponse(
+                            tableWithFields.table,
+                            tableWithFields.fields,
+                        ),
+                    )
                     .join('\n\n');
 
                 return `<Explores page="${pagination?.page}" pageSize="${pagination?.pageSize}" totalPageCount="${pagination?.totalPageCount}" totalResults="${pagination?.totalResults}">
