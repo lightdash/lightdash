@@ -150,14 +150,13 @@ export const setupIntegrationTest =
             ...testUserData,
             ability: defineUserAbility(testUserData, []),
             isTrackingAnonymized: false,
-            userId: 1,
             abilityRules: [],
         };
 
         const testUserSessionAccount: SessionAccount = {
             user: {
                 ...testUser,
-                id: '1',
+                id: testUser.userUuid,
                 type: 'registered',
             },
             organization: {
@@ -189,7 +188,6 @@ export const setupIntegrationTest =
         };
 
         const catalogService = app.getServiceRepository().getCatalogService();
-
         await catalogService.indexCatalog(
             SEED_PROJECT.project_uuid,
             testUser.userUuid,
@@ -226,6 +224,7 @@ export const getServices = (app: App) => {
     const services = {
         aiAgentService: serviceRepository.getAiAgentService<AiAgentService>(),
         projectService: serviceRepository.getProjectService(),
+        catalogService: serviceRepository.getCatalogService(),
     };
 
     console.info('✅ Services retrieved:', Object.keys(services).join(', '));
