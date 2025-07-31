@@ -15,6 +15,7 @@ import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,
     EmptyStateNoTableData,
+    MissingRequiredParameters,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
 
@@ -80,6 +81,9 @@ export const ExplorerResults = memo(() => {
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const missingRequiredParameters = useExplorerContext(
+        (context) => context.state.missingRequiredParameters,
     );
     const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
     const [expandData, setExpandData] = useState<{
@@ -168,6 +172,13 @@ export const ExplorerResults = memo(() => {
     if (columns.length === 0) return <EmptyStateNoColumns />;
 
     if (isExploreLoading) return <EmptyStateExploreLoading />;
+
+    if (missingRequiredParameters && missingRequiredParameters.length > 0)
+        return (
+            <MissingRequiredParameters
+                missingRequiredParameters={missingRequiredParameters}
+            />
+        );
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>

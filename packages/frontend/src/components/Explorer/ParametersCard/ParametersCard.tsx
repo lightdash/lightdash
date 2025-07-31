@@ -60,6 +60,10 @@ const ParametersCard = memo(
             ExplorerSection.PARAMETERS,
         );
 
+        const missingRequiredParameters = useExplorerContext(
+            (context) => context.state.missingRequiredParameters,
+        );
+
         return (
             <CollapsableCard
                 isOpen={paramsIsOpen && isFetched}
@@ -73,6 +77,7 @@ const ParametersCard = memo(
                 <Box m="md">
                     <ParameterSelection
                         parameters={parameters}
+                        missingRequiredParameters={missingRequiredParameters}
                         isLoading={isLoading}
                         isError={isError}
                         parameterValues={parameterValues || {}}
