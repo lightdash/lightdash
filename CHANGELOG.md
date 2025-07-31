@@ -1,3 +1,10 @@
+# [0.1865.0](https://github.com/lightdash/lightdash/compare/0.1864.0...0.1865.0) (2025-07-31)
+
+
+### Features
+
+* add 'ai' tags to models and improve AI field search ([#16136](https://github.com/lightdash/lightdash/issues/16136)) ([08f4076](https://github.com/lightdash/lightdash/commit/08f4076c4d341821efc5e33fc9d60bdb3d58409f))
+
 # [0.1864.0](https://github.com/lightdash/lightdash/compare/0.1863.1...0.1864.0) (2025-07-31)
 
 
