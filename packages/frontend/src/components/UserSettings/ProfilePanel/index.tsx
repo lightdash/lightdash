@@ -148,20 +148,14 @@ const ProfilePanel: FC = () => {
                                     <MantineIcon
                                         size="lg"
                                         icon={IconCircleCheck}
-                                        // TODO: Move inline styles to theme extension
-                                        style={{
-                                            color: 'var(--mantine-color-green-6)',
-                                        }}
+                                        color="green.6"
                                     />
                                 </Tooltip>
                             ) : (
                                 <MantineIcon
                                     size="lg"
                                     icon={IconAlertCircle}
-                                    // TODO: Move inline styles to theme extension
-                                    style={{
-                                        color: 'var(--mantine-color-gray-6)',
-                                    }}
+                                    color="gray.6"
                                 />
                             )
                         }
@@ -198,8 +192,6 @@ const ProfilePanel: FC = () => {
                         )}
                         <Button
                             type="submit"
-                            // TODO: Move inline styles to theme extension
-                            style={{ display: 'block' }}
                             loading={isLoading}
                             disabled={!form.isDirty()}
                         >
