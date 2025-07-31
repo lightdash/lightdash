@@ -99,6 +99,7 @@ Only override styles when there's a clear contextual need:
 5. **Document why**: Always explain the contextual reason for overrides
 
 **❌ NEVER use:**
+
 - `styles` prop
 - `sx` prop
 - `style` prop (inline styles)
@@ -127,9 +128,9 @@ components: {
 
 When you need to override styles for a specific context with clear motivation:
 
-#### Component Props (Always First Choice)
+#### Component Props (for simple overrides)
 
-Use component props when available. Check Mantine docs/TypeScript for available props:
+For simple overrides (1-3 props), use component props when available. Check Mantine docs/TypeScript for available props:
 
 ```tsx
 // ✅ Good - Component props with clear context
@@ -143,6 +144,9 @@ Use component props when available. Check Mantine docs/TypeScript for available 
 
 // ❌ Bad - Using style prop when component props exist
 <Button style={{marginTop: 40, width: 240, color: 'blue'}}>Submit</Button>
+
+// ❌ Bad - Too component props - too complex for inline
+<Button mt={20} mb={20} ml={10} mr={10} w={240} c="blue.6" bg="white">Submit</Button>
 ```
 
 Common component props:
@@ -152,8 +156,7 @@ Common component props:
 - Colors: `c` (color), `bg` (background)
 - Display: `display`, `pos` (position)
 
-
-#### CSS Modules (When Component Props Aren't Available)
+#### CSS Modules (complex styles)
 
 Use CSS modules when component props aren't available or for complex styling:
 
@@ -187,8 +190,8 @@ import styles from './Component.module.css';
 // ❌ Bad - Magic numbers
 <Box p={16} mt={24}>
 
-// ✅ Good - Theme tokens
-<Box p="md" mt="lg">
+    // ✅ Good - Theme tokens
+    <Box p="md" mt="lg">
 ```
 
 #### Document Style Overrides
@@ -197,13 +200,13 @@ Always explain WHY you're overriding default styles:
 
 ```tsx
 // ✅ Good
-<Button 
+<Button
     w="100%"  // Full width needed in mobile view
     mt="xl"   // Extra spacing after error messages
 >
 
-// ❌ Bad - No context
-<Button w="100%" mt="xl">
+    // ❌ Bad - No context
+    <Button w="100%" mt="xl">
 ```
 
 ## Mantine Documentation
@@ -229,8 +232,10 @@ When creating/updating components:
 - [ ] Uses `@mantine-8/core` imports
 - [ ] Wrapped with `MantineProvider` + `getMantine8ThemeOverride()`
 - [ ] No Mantine 6 syntax
-- [ ] Checked Mantine docs/types for available component props before using `style`
-- [ ] Using component props instead of inline styles where available
-- [ ] TODO comments on inline styles when component props aren't available
+- [ ] Checked Mantine docs/types for available component props
+- [ ] Using component props for styling when available
+- [ ] Using CSS modules when component props aren't available
+- [ ] No inline styles (`style` prop)
 - [ ] Theme values instead of magic numbers
+- [ ] Documented WHY any style overrides are needed
 - [ ] TypeScript interfaces are explicit (no duck typing)
