@@ -334,7 +334,17 @@ const SavedChartsHeader: FC = () => {
                                     dashboardUuid={savedChart.dashboardUuid}
                                     dashboardName={savedChart.dashboardName}
                                 />
-                                <Title c="dark.6" order={5} fw={600}>
+                                <Title 
+                                    c="dark.6" 
+                                    order={5} 
+                                    fw={600}
+                                    sx={{
+                                        maxWidth: '300px',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}
+                                >
                                     {savedChart.name}
                                 </Title>
                                 {isEditMode && userCanManageChart && (
