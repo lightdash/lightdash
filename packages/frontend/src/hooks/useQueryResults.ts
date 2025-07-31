@@ -184,12 +184,27 @@ export const executeQueryAndWaitForResults = async (
     return results;
 };
 
-export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
+/**
+ * @param data - The query data to execute
+ * @param missingRequiredParameters - The parameters that are missing for the query to execute. If null, this means we still don't know the missing parameters, so we can't run the query.
+ * @returns The query results
+ */
+export const useGetReadyQueryResults = (
+    data: QueryResultsProps | null,
+    missingRequiredParameters: string[] | null,
+) => {
     const setErrorResponse = useQueryError();
 
+    const isEnabled = useMemo(() => {
+        if (!data || missingRequiredParameters === null) return false;
+
+        // Only run the query if there are no missing required parameters
+        return missingRequiredParameters.length === 0;
+    }, [data, missingRequiredParameters]);
+
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
-        enabled: !!data,
-        queryKey: ['create-query', data],
+        enabled: isEnabled,
+        queryKey: ['create-query', data, missingRequiredParameters],
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
             return executeAsyncQuery(data, signal);

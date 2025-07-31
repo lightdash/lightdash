@@ -82,6 +82,7 @@ export enum ActionType {
     REPLACE_FIELDS,
     OPEN_VISUALIZATION_CONFIG,
     CLOSE_VISUALIZATION_CONFIG,
+    SET_PARAMETER_REFERENCES,
 }
 
 export type ConfigCacheMap = {
@@ -244,6 +245,10 @@ export type Action =
       }
     | {
           type: ActionType.CLOSE_VISUALIZATION_CONFIG;
+      }
+    | {
+          type: ActionType.SET_PARAMETER_REFERENCES;
+          payload: string[] | null;
       };
 
 export interface ExplorerReduceState {
@@ -255,6 +260,12 @@ export interface ExplorerReduceState {
     isVisualizationConfigOpen?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
+    /**
+     * The parameters that are referenced in the query.
+     * If null, this means we can't calculate the missing parameters, so we can't run the query.
+     * If empty array, this means we know the missing parameters, but they are all optional, so we can run the query.
+     */
+    parameterReferences: string[] | null;
     modals: {
         format: {
             isOpen: boolean;
@@ -285,6 +296,7 @@ export interface ExplorerState extends ExplorerReduceState {
     hasUnsavedChanges: boolean;
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
+    missingRequiredParameters: string[] | null;
 }
 
 export interface ExplorerContextType {
@@ -363,5 +375,6 @@ export interface ExplorerContextType {
         getDownloadQueryUuid: (limit: number | null) => Promise<string>;
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
+        setParameterReferences: (parameterReferences: string[] | null) => void;
     };
 }
