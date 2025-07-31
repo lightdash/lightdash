@@ -7,7 +7,6 @@ models:
 
       {{ doc("orders_status") }}
     config:
-      tags: ['ai']
       meta:
         primary_key: order_id
         spotlight:

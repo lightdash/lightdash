@@ -24,7 +24,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 description: 'users table',
                 type: 'table',
                 joinedTables: [],
-                tags: ['ai'],
+                tags: [],
                 categories: [],
                 catalogSearchUuid: '',
                 icon: null,
@@ -60,7 +60,6 @@ describe('Lightdash catalog all tables and fields', () => {
                 catalogSearchUuid: '',
                 icon: null,
                 aiHints: null,
-                fieldValueType: 'string',
             });
 
             const metric = resp.body.results.find(
@@ -82,7 +81,6 @@ describe('Lightdash catalog all tables and fields', () => {
                 catalogSearchUuid: '',
                 icon: null,
                 aiHints: null,
-                fieldValueType: 'sum',
             });
         });
     });

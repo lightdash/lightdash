@@ -4,43 +4,29 @@ import {
     AnyType,
     CacheMetadata,
     CatalogField,
-    CatalogTable,
+    CompiledDimension,
+    CompiledMetric,
     Explore,
+    FieldSearchQuery,
     ItemsMap,
-    KnexPaginateArgs,
     SlackPrompt,
-    ToolFindFieldsArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
 import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
-export type FindExploresFn = (args: KnexPaginateArgs) => Promise<{
-    tables: CatalogTable[];
-    fields: CatalogField[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
-}>;
+export type GetExploresFn = () => Promise<AiAgentExploreSummary[]>;
 
-export type FindFieldFn = (
-    args: KnexPaginateArgs & {
-        table: ToolFindFieldsArgs['table'];
-        fieldSearchQuery: ToolFindFieldsArgs['fieldSearchQueries'][number];
-    },
-) => Promise<{
-    fields: CatalogField[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
-}>;
+export type FindFieldFn = (args: {
+    fieldSearchQuery: FieldSearchQuery;
+}) => Promise<
+    {
+        catalogField: CatalogField;
+        exploreField: CompiledDimension | CompiledMetric;
+    }[]
+>;
 
 export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
 

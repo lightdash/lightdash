@@ -181,7 +181,7 @@ export const setupIntegrationTest =
         const testAgent: ApiCreateAiAgent = {
             name: 'Integration Test Agent',
             projectUuid: SEED_PROJECT.project_uuid,
-            tags: ['ai'],
+            tags: null,
             integrations: [],
             instruction: 'You are a helpful AI assistant for testing purposes.',
             groupAccess: [],
