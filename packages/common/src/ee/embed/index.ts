@@ -58,16 +58,19 @@ export const InteractivityOptionsSchema = z.object({
     canExportPagePdf: z.boolean().optional(),
     canDateZoom: z.boolean().optional(),
     canExplore: z.boolean().optional(),
+    canEdit: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
 
+// This is our enforceable schema for the embed JWT. We use this to validate advanced embed features.
+// In the future we may lean on a combination of this schema and the 'jsonwebtoken' library to validate the JWT.
 export const EmbedJwtSchema = z
     .object({
         userAttributes: z.record(z.unknown()).optional(),
         user: z
             .object({
-                externalId: z.string().optional(),
+                externalId: z.string(),
                 email: z.string().optional(),
             })
             .optional(),
@@ -89,7 +92,7 @@ export const EmbedJwtSchema = z
                 })
                 .merge(InteractivityOptionsSchema),
         ]),
-        iat: z.number().optional(),
+        iat: z.number(),
         exp: z.number(),
     })
     .describe(
@@ -112,6 +115,7 @@ type CommonEmbedJwtContent = {
     canDateZoom?: boolean;
     canExportPagePdf?: boolean;
     canExplore?: boolean;
+    canEdit?: boolean;
 };
 
 type EmbedJwtContentDashboardUuid = CommonEmbedJwtContent & {

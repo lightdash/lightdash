@@ -116,6 +116,7 @@ declare global {
                     canExportPagePdf?: boolean;
                     canDateZoom?: boolean;
                     canExplore?: boolean;
+                    canEdit?: boolean;
                 },
             ): Chainable<string>;
         }
@@ -667,6 +668,7 @@ Cypress.Commands.add(
             canExportPagePdf?: boolean;
             canDateZoom?: boolean;
             canExplore?: boolean;
+            canEdit?: boolean;
         } = {},
     ) => {
         const {
@@ -677,6 +679,7 @@ Cypress.Commands.add(
             canExportPagePdf = false,
             canDateZoom = false,
             canExplore = false,
+            canEdit = false,
         } = options;
 
         // First login to get embed configuration and dashboard UUID
@@ -713,6 +716,7 @@ Cypress.Commands.add(
                         canExportPagePdf,
                         canDateZoom,
                         canExplore,
+                        canEdit,
                     },
                     userAttributes: {
                         email: userEmail,

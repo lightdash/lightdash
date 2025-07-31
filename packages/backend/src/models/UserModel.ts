@@ -14,6 +14,7 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
+    Organization,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
@@ -1063,5 +1064,56 @@ export class UserModel {
             throw new Error('Multiple OpenID identities found');
         }
         return rows[0];
+    }
+
+    /**
+     * Create an embed user with specific parameters
+     * Used by UserService for embed user provisioning
+     */
+    async createEmbedUser({
+        userUuid,
+        firstName,
+        lastName,
+        email,
+        organization,
+    }: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+        email?: string;
+        organization: Organization;
+    }): Promise<DbUser> {
+        return this.database.transaction(async (trx) => {
+            // Create user with specific UUID
+            const [newUser] = await trx<DbUser>(UserTableName)
+                .insert<DbUserIn & { user_uuid: string }>({
+                    user_uuid: userUuid,
+                    first_name: firstName,
+                    last_name: lastName,
+                    is_marketing_opted_in: false,
+                    is_tracking_anonymized: this.canTrackingBeAnonymized(),
+                    is_setup_complete: true,
+                    is_active: true,
+                })
+                .returning('*');
+
+            // Create email if provided
+            if (email) {
+                await createEmail(trx, {
+                    user_id: newUser.user_id,
+                    email,
+                    is_primary: true,
+                });
+            }
+
+            // Add user to organization
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: organization.organizationId,
+                user_id: newUser.user_id,
+                role: OrganizationMemberRole.MEMBER,
+            });
+
+            return newUser;
+        });
     }
 }

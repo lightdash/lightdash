@@ -193,6 +193,7 @@ export class OrganizationModel {
     ): Organization {
         return {
             organizationUuid: data.organization_uuid,
+            organizationId: data.organization_id,
             name: data.organization_name,
             chartColors: palette ?? undefined,
             defaultProjectUuid: data.default_project_uuid

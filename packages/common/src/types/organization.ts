@@ -13,6 +13,11 @@ export type Organization = {
      */
     organizationUuid: string;
     /**
+     * The incrementing id of the organization. Used for joining users to organizations.
+     * @deprecated Use organizationUuid instead if you can.
+     */
+    organizationId: number;
+    /**
      * The name of the organization
      */
     name: string;

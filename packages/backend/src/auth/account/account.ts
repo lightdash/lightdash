@@ -14,6 +14,7 @@ import {
     ForbiddenError,
     MemberAbility,
     Organization,
+    RegisteredEmbedAccount,
     ServiceAcctAccount,
     SessionAccount,
     SessionUser,
@@ -24,7 +25,7 @@ import {
  * Creates an ID for the external user. We prefix the ID to prevent hijacking a real user ID.
  * For the default ID, we limit the length to under 255 characters as that's the varchar limit for Postgres.
  */
-const getExternalId = (
+export const getExternalId = (
     decodedToken: CreateEmbedJwt,
     embedToken: string,
     organization: Pick<Organization, 'organizationUuid' | 'name'>,
@@ -77,17 +78,45 @@ export const fromJwt = ({
     source,
     dashboardUuid,
     userAttributes,
+    registeredUser,
 }: {
     decodedToken: CreateEmbedJwt;
     organization: Embed['organization'];
     source: string;
     dashboardUuid: string;
     userAttributes: UserAccessControls;
-}): AnonymousAccount => {
+    registeredUser?: SessionUser;
+}): AnonymousAccount | RegisteredEmbedAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     applyEmbeddedAbility(decodedToken, dashboardUuid, organization, builder);
     const abilities = builder.build();
 
+    // If we have a sessionUser, create a RegisteredEmbedAccount
+    if (registeredUser) {
+        return createAccount({
+            authentication: {
+                type: 'jwt',
+                data: decodedToken,
+                source,
+            },
+            organization,
+            access: {
+                dashboardId: dashboardUuid,
+                filtering: decodedToken.content.dashboardFiltersInteractivity,
+                controls: userAttributes,
+            },
+            user: {
+                type: 'registered',
+                id: registeredUser.userUuid,
+                ability: abilities,
+                abilityRules: abilities.rules,
+                email: registeredUser.email,
+                isActive: true,
+            },
+        });
+    }
+
+    // Otherwise, create an AnonymousAccount
     return createAccount({
         authentication: {
             type: 'jwt',

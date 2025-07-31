@@ -54,8 +54,9 @@ export interface LightdashSessionUser extends AccountUser {
     isPending?: boolean;
 }
 
-export interface ExternalUser extends AccountUser {
-    type: 'anonymous';
+export interface ExternalUser<T extends 'anonymous' | 'registered'>
+    extends AccountUser {
+    type: T;
 }
 
 export type LightdashUserWithOrg = Required<LightdashUser>;

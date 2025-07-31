@@ -1,13 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 // This rule is failing in CI but passes locally
 import {
-    ForbiddenError,
+    EmbedJwtSchema,
     JWT_HEADER_NAME,
     NotFoundError,
     ParameterError,
+    SessionUser,
 } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
+import { z } from 'zod';
 import { fromJwt } from '../../auth/account';
+import { getExternalId } from '../../auth/account/account';
 import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
 import Logger from '../../logging/logger';
@@ -33,10 +36,6 @@ const parseProjectUuid = (req: Pick<Request, 'query' | 'path'>) => {
     return pathParts[projectUuidIndex];
 };
 
-// This is the only embed endpoint that requires a user to be authenticated.
-// All other embed endpoints run off of the JWT.
-const isEmbedRequiringUser = (path: string) => path.includes('get-embed-url');
-
 /**
  * Middleware to authenticate embed tokens
  * If an embed token is provided, it will be decoded and attached to the request
@@ -56,7 +55,7 @@ export async function jwtAuthMiddleware(
             return;
         }
 
-        if (isEmbedRequiringUser(req.path) && req.isAuthenticated()) {
+        if (!req.path.includes('/embed') && req.isAuthenticated()) {
             next();
             return;
         }
@@ -111,12 +110,34 @@ export async function jwtAuthMiddleware(
             return;
         }
 
+        // Check if the token has canEdit claim and needs provisioning
+        let registeredUser: SessionUser | undefined;
+        if (decodedToken.content.canEdit) {
+            // We use strict parsing for write access to ensure we're not missing any required fields
+            // Read tokens are permissive when decoding the token.
+            const parsedToken = EmbedJwtSchema.parse(decodedToken);
+
+            const userService = req.services?.getUserService();
+            if (!userService) {
+                Logger.error('UserService is not initialized for embed token');
+                next();
+                return;
+            }
+
+            registeredUser = await userService.findOrCreateEmbedUser(
+                getExternalId(decodedToken, embedToken, organization),
+                parsedToken.user?.email,
+                organization.organizationUuid,
+            );
+        }
+
         req.account = fromJwt({
             decodedToken,
             source: embedToken,
             organization,
             dashboardUuid,
             userAttributes,
+            registeredUser,
         });
 
         // Not the greatest, but passport expects this to return a typeguard: this is AuthenticatedRequest.
@@ -128,6 +149,14 @@ export async function jwtAuthMiddleware(
 
         next();
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            const richZodErrors = error.issues
+                .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+                .join(', ');
+            Logger.error(`Token schema validation error: ${richZodErrors}`);
+            next(new ParameterError('Token schema validation error'));
+            return;
+        }
         next(error);
     }
 }

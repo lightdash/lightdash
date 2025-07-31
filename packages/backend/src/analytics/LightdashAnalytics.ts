@@ -99,7 +99,7 @@ export type CreateUserEvent = BaseTrack & {
         context: string; // context on where/why this user was created
         createdUserId: string;
         organizationId: string | undefined; // undefined because they can join an org later
-        userConnectionType: 'password' | OpenIdIdentityIssuerType;
+        userConnectionType: 'password' | 'embed' | OpenIdIdentityIssuerType;
     };
 };
 
