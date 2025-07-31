@@ -1,20 +1,23 @@
 import {
-    DashboardTileTypes,
-    DateGranularity,
     applyDimensionOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
+    DashboardTileTypes,
+    DateGranularity,
     getItemId,
     isDashboardChartTileType,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameters,
     type FilterableDimension,
+    type ParametersValuesMap,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerFilterRule,
     type SortField,
 } from '@lightdash/common';
+import { isEqual } from 'lodash';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -150,13 +153,37 @@ const DashboardProvider: React.FC<
         }
     }, [dashboard]);
 
-    const [parameters, setParameters] = useState<
-        Record<string, string | string[]>
-    >({});
+    // Saved parameters are the parameters that are saved on the server
+    const [savedParameters, setSavedParameters] = useState<DashboardParameters>(
+        {},
+    );
+    // parameters that are currently applied to the dashboard
+    const [parameters, setParameters] = useState<DashboardParameters>({});
+    const [parametersHaveChanged, setParametersHaveChanged] =
+        useState<boolean>(false);
+
+    // Set parameters to saved parameters when they are loaded
+    useEffect(() => {
+        if (savedParameters) {
+            setParameters(savedParameters);
+        }
+    }, [savedParameters]);
+
+    // Set parametersHaveChanged to true if parameters have changed
+    useEffect(() => {
+        if (!isEqual(parameters, savedParameters)) {
+            setParametersHaveChanged(true);
+        }
+    }, [parameters, savedParameters]);
 
     const setParameter = useCallback(
         (key: string, value: string | string[] | null) => {
-            if (value === null) {
+            if (
+                value === null ||
+                value === undefined ||
+                value === '' ||
+                (Array.isArray(value) && value.length === 0)
+            ) {
                 setParameters((prev) => {
                     const newParams = { ...prev };
                     delete newParams[key];
@@ -165,12 +192,38 @@ const DashboardProvider: React.FC<
             } else {
                 setParameters((prev) => ({
                     ...prev,
-                    [key]: value,
+                    [key]: {
+                        parameterName: key,
+                        value,
+                    },
                 }));
             }
         },
         [],
     );
+
+    const clearAllParameters = useCallback(() => {
+        setParameters({});
+    }, []);
+
+    const parameterValues = useMemo(() => {
+        return Object.entries(parameters).reduce((acc, [key, parameter]) => {
+            if (
+                parameter.value !== null &&
+                parameter.value !== undefined &&
+                parameter.value !== ''
+            ) {
+                acc[key] = parameter.value;
+            }
+            return acc;
+        }, {} as ParametersValuesMap);
+    }, [parameters]);
+
+    const selectedParametersCount = useMemo(() => {
+        return Object.values(parameterValues).filter(
+            (value) => value !== null && value !== '' && value !== undefined,
+        ).length;
+    }, [parameterValues]);
 
     // Track parameter references from each tile
     const [tileParameterReferences, setTileParameterReferences] = useState<
@@ -208,11 +261,20 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles]);
 
-    // Reset parameter references and loaded tiles when dashboard tiles change
+    // Remove parameter references for tiles that are no longer in the dashboard
     useEffect(() => {
         if (dashboardTiles) {
-            setTileParameterReferences({});
-            setLoadedTiles(new Set());
+            setTileParameterReferences((old) => {
+                if (!dashboardTiles) return {};
+                const tileIds = new Set(
+                    dashboardTiles.map((tile) => tile.uuid),
+                );
+                return Object.fromEntries(
+                    Object.entries(old).filter(([tileId]) =>
+                        tileIds.has(tileId),
+                    ),
+                );
+            });
         }
     }, [dashboardTiles]);
 
@@ -737,8 +799,13 @@ const DashboardProvider: React.FC<
         requiredDashboardFilters,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
-        parameters,
+        setSavedParameters,
+        parametersHaveChanged,
+        dashboardParameters: parameters,
+        parameterValues,
+        selectedParametersCount,
         setParameter,
+        clearAllParameters,
         dashboardParameterReferences,
         addParameterReferences,
         areAllChartsLoaded,

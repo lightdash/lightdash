@@ -63,7 +63,6 @@ export enum ActionType {
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
-    SET_FETCH_RESULTS_FALSE,
     SET_PREVIOUSLY_FETCHED_STATE,
     ADD_ADDITIONAL_METRIC,
     EDIT_ADDITIONAL_METRIC,
@@ -83,6 +82,7 @@ export enum ActionType {
     REPLACE_FIELDS,
     OPEN_VISUALIZATION_CONFIG,
     CLOSE_VISUALIZATION_CONFIG,
+    SET_PARAMETER_REFERENCES,
 }
 
 export type ConfigCacheMap = {
@@ -97,7 +97,6 @@ export type ConfigCacheMap = {
 
 export type Action =
     | { type: ActionType.RESET; payload: ExplorerReduceState }
-    | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | {
           type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
           payload: MetricQuery;
@@ -246,10 +245,13 @@ export type Action =
       }
     | {
           type: ActionType.CLOSE_VISUALIZATION_CONFIG;
+      }
+    | {
+          type: ActionType.SET_PARAMETER_REFERENCES;
+          payload: string[] | null;
       };
 
 export interface ExplorerReduceState {
-    shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     metadata?: {
         // Temporary state that tracks changes to `table calculations` - keeps track of new name and previous name to ensure these get updated correctly when making changes to the layout & config of a chart
@@ -258,6 +260,12 @@ export interface ExplorerReduceState {
     isVisualizationConfigOpen?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
+    /**
+     * The parameters that are referenced in the query.
+     * If null, this means we can't calculate the missing parameters, so we can't run the query.
+     * If empty array, this means we know the missing parameters, but they are all optional, so we can run the query.
+     */
+    parameterReferences: string[] | null;
     modals: {
         format: {
             isOpen: boolean;
@@ -288,6 +296,7 @@ export interface ExplorerState extends ExplorerReduceState {
     hasUnsavedChanges: boolean;
     isEditMode: boolean;
     savedChart: SavedChart | undefined;
+    missingRequiredParameters: string[] | null;
 }
 
 export interface ExplorerContextType {
@@ -311,10 +320,7 @@ export interface ExplorerContextType {
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: TimeZone) => void;
-        setFilters: (
-            filters: MetricQuery['filters'],
-            syncPristineState: boolean,
-        ) => void;
+        setFilters: (filters: MetricQuery['filters']) => void;
         setParameter: (key: string, value: string | string[] | null) => void;
         clearAllParameters: () => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
@@ -369,5 +375,6 @@ export interface ExplorerContextType {
         getDownloadQueryUuid: (limit: number | null) => Promise<string>;
         openVisualizationConfig: () => void;
         closeVisualizationConfig: () => void;
+        setParameterReferences: (parameterReferences: string[] | null) => void;
     };
 }

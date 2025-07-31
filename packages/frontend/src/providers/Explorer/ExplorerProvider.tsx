@@ -25,6 +25,7 @@ import {
     type TableCalculation,
     type TimeZone,
 } from '@lightdash/common';
+import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -38,6 +39,7 @@ import {
     type FC,
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
     executeQueryAndWaitForResults,
@@ -142,13 +144,8 @@ const getTableCalculationsMetadata = (
 // eslint-disable-next-line react-refresh/only-export-components
 export function reducer(
     state: ExplorerReduceState,
-    action: Action & { options?: { shouldFetchResults: boolean } },
+    action: Action,
 ): ExplorerReduceState {
-    state = {
-        ...state,
-        shouldFetchResults:
-            action.options?.shouldFetchResults || state.shouldFetchResults,
-    };
     switch (action.type) {
         case ActionType.RESET: {
             return action.payload;
@@ -158,11 +155,6 @@ export function reducer(
                 draft.unsavedChartVersion.tableName = action.payload;
                 draft.unsavedChartVersion.metricQuery.exploreName =
                     action.payload;
-            });
-        }
-        case ActionType.SET_FETCH_RESULTS_FALSE: {
-            return produce(state, (draft) => {
-                draft.shouldFetchResults = false;
             });
         }
         case ActionType.SET_PREVIOUSLY_FETCHED_STATE: {
@@ -829,6 +821,11 @@ export function reducer(
                 draft.isVisualizationConfigOpen = false;
             });
         }
+        case ActionType.SET_PARAMETER_REFERENCES: {
+            return produce(state, (draft) => {
+                draft.parameterReferences = action.payload;
+            });
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -862,6 +859,11 @@ const ExplorerProvider: FC<
     dateZoomGranularity,
     projectUuid: propProjectUuid,
 }) => {
+    const [autoFetchEnabled] = useLocalStorage({
+        key: 'lightdash-explorer-auto-fetch-enabled',
+        defaultValue: true,
+    });
+
     const defaultStateWithConfig = useMemo(
         () => ({
             ...defaultState,
@@ -940,9 +942,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.REMOVE_FIELD,
             payload: fieldId,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -950,9 +949,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.TOGGLE_SORT_FIELD,
             payload: fieldId,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -960,9 +956,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.SET_SORT_FIELDS,
             payload: sortFields,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -970,9 +963,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.REMOVE_SORT_FIELD,
             payload: fieldId,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -981,9 +971,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.MOVE_SORT_FIELDS,
                 payload: { sourceIndex, destinationIndex },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [],
@@ -997,9 +984,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
                 payload: { fieldId, ...options },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [],
@@ -1009,9 +993,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.SET_ROW_LIMIT,
             payload: limit,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -1019,24 +1000,15 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.SET_TIME_ZONE,
             payload: timezone,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
-    const setFilters = useCallback(
-        (filters: MetricQuery['filters'], shouldFetchResults: boolean) => {
-            dispatch({
-                type: ActionType.SET_FILTERS,
-                payload: filters,
-                options: {
-                    shouldFetchResults,
-                },
-            });
-        },
-        [],
-    );
+    const setFilters = useCallback((filters: MetricQuery['filters']) => {
+        dispatch({
+            type: ActionType.SET_FILTERS,
+            payload: filters,
+        });
+    }, []);
 
     const setParameter = useCallback(
         (key: string, value: string | string[] | null) => {
@@ -1175,9 +1147,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.ADD_TABLE_CALCULATION,
                 payload: tableCalculation,
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [unsavedChartVersion],
@@ -1197,9 +1166,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.UPDATE_TABLE_CALCULATION,
                 payload: { oldName, tableCalculation },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [unsavedChartVersion],
@@ -1208,9 +1174,6 @@ const ExplorerProvider: FC<
         dispatch({
             type: ActionType.DELETE_TABLE_CALCULATION,
             payload: name,
-            options: {
-                shouldFetchResults: true,
-            },
         });
     }, []);
 
@@ -1219,9 +1182,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.ADD_CUSTOM_DIMENSION,
                 payload: customDimension,
-                options: {
-                    shouldFetchResults: true,
-                },
             });
 
             // TODO: add dispatch toggle
@@ -1237,9 +1197,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
                 payload: { customDimension, previousCustomDimensionId },
-                options: {
-                    shouldFetchResults: true,
-                },
             });
             // TODO: add dispatch toggle
         },
@@ -1282,9 +1239,6 @@ const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.UPDATE_METRIC_FORMAT,
                 payload: args,
-                options: {
-                    shouldFetchResults: true,
-                },
             });
         },
         [],
@@ -1318,6 +1272,49 @@ const ExplorerProvider: FC<
         return isValidQuery;
     }, [unsavedChartVersion, isValidQuery, savedChart]);
 
+    const [validQueryArgs, setValidQueryArgs] =
+        useState<QueryResultsProps | null>(null);
+
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
+    const projectUuid = propProjectUuid || projectUuidFromParams;
+
+    const { data: parametersData } = useParameters(
+        projectUuid,
+        reducerState.parameterReferences ?? undefined,
+        {
+            enabled: !!reducerState.parameterReferences?.length,
+        },
+    );
+
+    const missingRequiredParameters = useMemo(() => {
+        // If no required parameters are set, return null, this will disable query execution
+        if (reducerState.parameterReferences === null) return null;
+
+        // If parameters are not the same return null, this will disable query execution until validQueryArgs is updated
+        if (
+            !deepEqual(
+                validQueryArgs?.parameters ?? {},
+                unsavedChartVersion.parameters ?? {},
+            )
+        ) {
+            return null;
+        }
+
+        // Missing required parameters are the ones that are not set and don't have a default value
+        return reducerState.parameterReferences.filter(
+            (parameter) =>
+                !unsavedChartVersion.parameters?.[parameter] &&
+                !parametersData?.[parameter]?.default,
+        );
+    }, [
+        parametersData,
+        reducerState.parameterReferences,
+        unsavedChartVersion.parameters,
+        validQueryArgs?.parameters,
+    ]);
+
     const state = useMemo(
         () => ({
             ...reducerState,
@@ -1326,6 +1323,7 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
+            missingRequiredParameters,
         }),
         [
             isEditMode,
@@ -1334,12 +1332,14 @@ const ExplorerProvider: FC<
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
+            missingRequiredParameters,
         ],
     );
 
-    const [validQueryArgs, setValidQueryArgs] =
-        useState<QueryResultsProps | null>(null);
-    const query = useGetReadyQueryResults(validQueryArgs);
+    const query = useGetReadyQueryResults(
+        validQueryArgs,
+        missingRequiredParameters,
+    );
     const [queryUuidHistory, setQueryUuidHistory] = useState<string[]>([]);
     useEffect(() => {
         if (query.data) {
@@ -1383,10 +1383,7 @@ const ExplorerProvider: FC<
             minimal,
         ],
     );
-    const { projectUuid: projectUuidFromParams } = useParams<{
-        projectUuid: string;
-    }>();
-    const projectUuid = propProjectUuid || projectUuidFromParams;
+
     const { remove: clearQueryResults } = query;
     const resetQueryResults = useCallback(() => {
         setValidQueryArgs(null);
@@ -1437,10 +1434,9 @@ const ExplorerProvider: FC<
     ]);
 
     useEffect(() => {
-        if (!state.shouldFetchResults) return;
+        if (!autoFetchEnabled) return;
         runQuery();
-        dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
-    }, [runQuery, state.shouldFetchResults]);
+    }, [runQuery, autoFetchEnabled]);
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
@@ -1512,7 +1508,11 @@ const ExplorerProvider: FC<
     const cancelQuery = useCallback(() => {
         // cancel query creation
         void queryClient.cancelQueries({
-            queryKey: ['create-query', validQueryArgs],
+            queryKey: [
+                'create-query',
+                validQueryArgs,
+                missingRequiredParameters,
+            ],
         });
 
         if (query.data?.queryUuid) {
@@ -1525,15 +1525,31 @@ const ExplorerProvider: FC<
             // mark query as cancelled
             cancelQueryMutation();
         }
-    }, [queryClient, validQueryArgs, query.data, cancelQueryMutation]);
+    }, [
+        queryClient,
+        validQueryArgs,
+        missingRequiredParameters,
+        query.data,
+        cancelQueryMutation,
+    ]);
 
     const openVisualizationConfig = useCallback(() => {
         dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
     }, []);
+
     const closeVisualizationConfig = useCallback(() => {
         dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
     }, []);
 
+    const setParameterReferences = useCallback(
+        (parameterReferences: string[] | null) => {
+            dispatch({
+                type: ActionType.SET_PARAMETER_REFERENCES,
+                payload: parameterReferences,
+            });
+        },
+        [],
+    );
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1577,6 +1593,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
+            setParameterReferences,
         }),
         [
             clearExplore,
@@ -1620,6 +1637,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
+            setParameterReferences,
         ],
     );
 

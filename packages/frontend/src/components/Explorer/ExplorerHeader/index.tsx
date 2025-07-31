@@ -12,6 +12,7 @@ import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAc
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { AutoFetchResultsButton } from '../../AutoFetchResultsButton';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import MantineIcon from '../../common/MantineIcon';
@@ -148,6 +149,7 @@ const ExplorerHeader: FC = memo(() => {
                     />
                 )}
 
+                <AutoFetchResultsButton size="md" />
                 <RefreshButton size="xs" />
 
                 {!savedChart && userCanCreateCharts && (

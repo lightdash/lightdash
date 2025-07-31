@@ -1,3 +1,59 @@
+## [0.1865.1](https://github.com/lightdash/lightdash/compare/0.1865.0...0.1865.1) (2025-07-31)
+
+
+### Bug Fixes
+
+* initial state when there are no default parameters ([#16127](https://github.com/lightdash/lightdash/issues/16127)) ([1a30245](https://github.com/lightdash/lightdash/commit/1a302459cb2b96819bb04024cab3183933a2ad06))
+
+# [0.1865.0](https://github.com/lightdash/lightdash/compare/0.1864.0...0.1865.0) (2025-07-31)
+
+
+### Features
+
+* add 'ai' tags to models and improve AI field search ([#16136](https://github.com/lightdash/lightdash/issues/16136)) ([08f4076](https://github.com/lightdash/lightdash/commit/08f4076c4d341821efc5e33fc9d60bdb3d58409f))
+
+# [0.1864.0](https://github.com/lightdash/lightdash/compare/0.1863.1...0.1864.0) (2025-07-31)
+
+
+### Features
+
+* add auto run results setting in explore ([#16086](https://github.com/lightdash/lightdash/issues/16086)) ([5966da7](https://github.com/lightdash/lightdash/commit/5966da717535ee02cb6d6e9e0c4ef6e774d903d2))
+
+## [0.1863.1](https://github.com/lightdash/lightdash/compare/0.1863.0...0.1863.1) (2025-07-31)
+
+
+### Bug Fixes
+
+* error states in explorer ([#16141](https://github.com/lightdash/lightdash/issues/16141)) ([1233095](https://github.com/lightdash/lightdash/commit/123309564e1b9c1055e158e98d5a44fc1566bdfd))
+
+# [0.1863.0](https://github.com/lightdash/lightdash/compare/0.1862.0...0.1863.0) (2025-07-31)
+
+
+### Features
+
+* save and load parameters on dashboards ([#16126](https://github.com/lightdash/lightdash/issues/16126)) ([f2390f0](https://github.com/lightdash/lightdash/commit/f2390f03e85d36c43509e5c2608445574a75591e))
+
+# [0.1862.0](https://github.com/lightdash/lightdash/compare/0.1861.2...0.1862.0) (2025-07-31)
+
+
+### Features
+
+* show parameters affecting a chart tile ([#16128](https://github.com/lightdash/lightdash/issues/16128)) ([ae6a90c](https://github.com/lightdash/lightdash/commit/ae6a90c4b8afd26ca203b44c7807fcfcb2ee276a))
+
+## [0.1861.2](https://github.com/lightdash/lightdash/compare/0.1861.1...0.1861.2) (2025-07-31)
+
+
+### Bug Fixes
+
+* apply style guide to ProfilePanel ([#16115](https://github.com/lightdash/lightdash/issues/16115)) ([31ab6b4](https://github.com/lightdash/lightdash/commit/31ab6b4e267b512d15b6c212dc42bab02c2a8651))
+
+## [0.1861.1](https://github.com/lightdash/lightdash/compare/0.1861.0...0.1861.1) (2025-07-31)
+
+
+### Bug Fixes
+
+* revert new ai rag prs ([#16133](https://github.com/lightdash/lightdash/issues/16133)) ([58bd287](https://github.com/lightdash/lightdash/commit/58bd28754c962853de12062fe496869829f3eb4f)), closes [#16107](https://github.com/lightdash/lightdash/issues/16107) [#16063](https://github.com/lightdash/lightdash/issues/16063) [#15944](https://github.com/lightdash/lightdash/issues/15944)
+
 # [0.1861.0](https://github.com/lightdash/lightdash/compare/0.1860.0...0.1861.0) (2025-07-30)
 
 

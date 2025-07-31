@@ -234,11 +234,16 @@ export class CatalogModel {
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: { catalogTags, filter, searchQuery = '', type },
+        catalogSearch: {
+            catalogTags,
+            filter,
+            searchQuery = '',
+            type,
+            yamlTags,
+        },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
-        yamlTags,
         tables,
         paginateArgs,
         sortArgs,
@@ -250,7 +255,6 @@ export class CatalogModel {
         excludeUnmatched?: boolean;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
-        yamlTags: string[] | null;
         tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
@@ -480,6 +484,10 @@ export class CatalogModel {
                                         .from(
                                             `${CatalogTableName} as explore_table`,
                                         )
+                                        .andWhere(
+                                            'explore_table.project_uuid',
+                                            projectUuid,
+                                        )
                                         .whereRaw(
                                             `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
                                         )
@@ -496,16 +504,19 @@ export class CatalogModel {
                                         .from(
                                             `${CatalogTableName} as any_field_in_explore`,
                                         )
-                                        .whereRaw(
+                                        .andWhereRaw(
                                             `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
                                         )
-                                        .andWhereNot(
-                                            'any_field_in_explore.type',
-                                            'table',
+                                        .andWhere(
+                                            'any_field_in_explore.project_uuid',
+                                            projectUuid,
                                         )
-                                        .andWhereRaw(
-                                            `any_field_in_explore.yaml_tags && ?::text[]`,
-                                            [yamlTags],
+                                        .andWhere(
+                                            'any_field_in_explore.type',
+                                            'field',
+                                        )
+                                        .whereNotNull(
+                                            `any_field_in_explore.yaml_tags`,
                                         );
                                 });
                         })
@@ -520,6 +531,10 @@ export class CatalogModel {
                             ).whereExists(function hasTaggedChild() {
                                 void this.select('name')
                                     .from(`${CatalogTableName} as child_field`)
+                                    .andWhere(
+                                        'child_field.project_uuid',
+                                        projectUuid,
+                                    )
                                     .whereRaw(
                                         `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
                                     )

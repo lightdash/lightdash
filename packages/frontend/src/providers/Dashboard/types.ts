@@ -4,8 +4,10 @@ import {
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameters,
     type DateGranularity,
     type FilterableDimension,
+    type ParametersValuesMap,
     type ResultColumn,
     type SortField,
 } from '@lightdash/common';
@@ -93,7 +95,11 @@ export type DashboardContextType = {
     requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
-    parameters: Record<string, string | string[]>;
+    setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
+    parametersHaveChanged: boolean;
+    dashboardParameters: DashboardParameters;
+    parameterValues: ParametersValuesMap;
+    clearAllParameters: () => void;
     setParameter: (key: string, value: string | string[] | null) => void;
     dashboardParameterReferences: Set<string>;
     addParameterReferences: (tileUuid: string, references: string[]) => void;

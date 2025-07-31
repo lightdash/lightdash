@@ -203,18 +203,15 @@ const FiltersCard: FC = memo(() => {
                     data,
                 );
             setHasDefaultFiltersApplied(true);
-            setFilters(
-                {
-                    metrics: undefined,
-                    tableCalculations: undefined,
-                    dimensions: overrideFilterGroupWithFilterRules(
-                        filters.dimensions,
-                        reducedRules,
-                        undefined,
-                    ),
-                },
-                false,
-            );
+            setFilters({
+                metrics: undefined,
+                tableCalculations: undefined,
+                dimensions: overrideFilterGroupWithFilterRules(
+                    filters.dimensions,
+                    reducedRules,
+                    undefined,
+                ),
+            });
         }
     });
 

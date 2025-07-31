@@ -1397,10 +1397,10 @@ export class AiAgentService {
                     projectUuid,
                     catalogSearch: {
                         type: CatalogType.Table,
+                        yamlTags: agentSettings.tags ?? undefined,
                     },
                     userAttributes,
                     context: CatalogSearchContext.AI_AGENT,
-                    yamlTags: agentSettings.tags,
                     tables: null,
                     paginateArgs: {
                         page: args.page,
@@ -1408,41 +1408,43 @@ export class AiAgentService {
                     },
                 });
 
-            const allTableNames = tables.map((table) => table.name);
+            const tablesWithFields = await Promise.all(
+                tables
+                    .filter((table) => table.type === CatalogType.Table)
+                    .map(async (table) => {
+                        const { data: fields } =
+                            await this.catalogService.searchCatalog({
+                                projectUuid,
+                                catalogSearch: {
+                                    type: CatalogType.Field,
+                                    searchQuery: '',
+                                    yamlTags: agentSettings.tags ?? undefined,
+                                },
+                                userAttributes,
+                                context: CatalogSearchContext.AI_AGENT,
+                                tables: [table.name],
+                                paginateArgs: {
+                                    page: 1,
+                                    // TODO: tweak this
+                                    pageSize: 50,
+                                },
+                                sortArgs: {
+                                    sort: 'chartUsage',
+                                    order: 'desc',
+                                },
+                            });
 
-            const fields =
-                tables.length > 0
-                    ? (
-                          await this.catalogService.searchCatalog({
-                              projectUuid,
-                              catalogSearch: {
-                                  type: CatalogType.Field,
-                                  searchQuery: '',
-                              },
-                              userAttributes,
-                              context: CatalogSearchContext.AI_AGENT,
-                              yamlTags: agentSettings.tags,
-                              tables: allTableNames,
-                              paginateArgs: {
-                                  page: 1,
-                                  // TODO: tweak this
-                                  pageSize: allTableNames.length * 50,
-                              },
-                              sortArgs: {
-                                  sort: 'chartUsage',
-                                  order: 'desc',
-                              },
-                          })
-                      ).data.filter((item) => item.type === CatalogType.Field)
-                    : [];
+                        return {
+                            table,
+                            fields: fields.filter(
+                                (field) => field.type === CatalogType.Field,
+                            ),
+                        };
+                    }),
+            );
 
             return {
-                tables: tables.filter(
-                    (table) => table.type === CatalogType.Table,
-                ),
-                fields: fields.filter(
-                    (field) => field.type === CatalogType.Field,
-                ),
+                tablesWithFields,
                 pagination,
             };
         };
@@ -1476,6 +1478,7 @@ export class AiAgentService {
                     catalogSearch: {
                         type: CatalogType.Field,
                         searchQuery: args.fieldSearchQuery.label,
+                        yamlTags: agentSettings.tags ?? undefined,
                     },
                     context: CatalogSearchContext.AI_AGENT,
                     // TODO: make this paginated
@@ -1484,7 +1487,6 @@ export class AiAgentService {
                         pageSize: args.pageSize,
                     },
                     userAttributes,
-                    yamlTags: agentSettings.tags,
                     tables: [args.table],
                 });
 

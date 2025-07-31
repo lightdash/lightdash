@@ -61,17 +61,6 @@ export const Parameters: FC<Props> = ({
     // Calculate selected parameters count
     const selectedParametersCount = Object.values(parameters ?? {}).length;
 
-    // Filter out null values to match ParametersValuesMap type
-    const filteredParameterValues = Object.entries(parameterValues).reduce(
-        (acc, [key, value]) => {
-            if (value !== null && value !== undefined && value !== '') {
-                acc[key] = value;
-            }
-            return acc;
-        },
-        {} as Record<string, string | string[]>,
-    );
-
     // Apply defaults
     useEffect(() => {
         if (parameters) {
@@ -89,7 +78,7 @@ export const Parameters: FC<Props> = ({
         }
     }, [parameterValues, parameters, onParameterChange]);
 
-    if (isEditMode || !parameters || Object.keys(parameters).length === 0) {
+    if (!parameters || selectedParametersCount === 0) {
         return null;
     }
 
@@ -104,7 +93,7 @@ export const Parameters: FC<Props> = ({
             closeOnClickOutside
             offset={-1}
             position="bottom-end"
-            disabled={isEditMode || isLoadingState}
+            disabled={isLoadingState}
             onOpen={() => setShowOpenIcon(true)}
             onClose={() => setShowOpenIcon(false)}
         >
@@ -114,12 +103,13 @@ export const Parameters: FC<Props> = ({
                     variant="default"
                     loaderPosition="center"
                     loading={isLoadingState}
-                    disabled={isEditMode || isLoadingState}
+                    disabled={isLoadingState}
                     sx={{
                         borderColor:
-                            selectedParametersCount > 0
+                            selectedParametersCount > 0 && !isEditMode
                                 ? theme.colors.blue['6']
                                 : 'default',
+                        marginRight: isEditMode ? 10 : 'auto',
                     }}
                     leftIcon={<MantineIcon icon={IconVariable} />}
                     rightIcon={
@@ -145,7 +135,7 @@ export const Parameters: FC<Props> = ({
                         parameters={parameters}
                         isLoading={isLoading || !areAllChartsLoaded}
                         isError={isError}
-                        parameterValues={filteredParameterValues}
+                        parameterValues={parameterValues}
                         onParameterChange={onParameterChange}
                         size="xs"
                         showClearAll={selectedParametersCount > 0}

@@ -4,6 +4,7 @@ import {
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
+    type ApiErrorDetail,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import {
@@ -11,12 +12,12 @@ import {
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import {
-    type FC,
     memo,
     useCallback,
     useLayoutEffect,
     useMemo,
     useState,
+    type FC,
 } from 'react';
 import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
@@ -146,6 +147,28 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         [unsavedChartVersion],
     );
 
+    const missingRequiredParameters = useExplorerContext(
+        (context) => context.state.missingRequiredParameters,
+    );
+
+    const apiErrorDetail = useMemo(() => {
+        const queryError = query.error?.error ?? queryResults.error?.error;
+
+        return !missingRequiredParameters?.length
+            ? queryError
+            : // Mimicking an API Error Detail so it can be used in the EmptyState component
+              ({
+                  message: 'Missing required parameters',
+                  name: 'Error',
+                  statusCode: 400,
+                  data: {},
+              } satisfies ApiErrorDetail);
+    }, [
+        query.error?.error,
+        queryResults.error?.error,
+        missingRequiredParameters,
+    ]);
+
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;
     }
@@ -185,7 +208,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 resultsData={resultsData}
-                apiErrorDetail={query.error?.error}
+                apiErrorDetail={apiErrorDetail}
                 isLoading={isLoadingQueryResults}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}

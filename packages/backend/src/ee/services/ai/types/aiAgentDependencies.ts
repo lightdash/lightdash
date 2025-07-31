@@ -17,8 +17,10 @@ import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytic
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 
 export type FindExploresFn = (args: KnexPaginateArgs) => Promise<{
-    tables: CatalogTable[];
-    fields: CatalogField[];
+    tablesWithFields: {
+        table: CatalogTable;
+        fields: CatalogField[];
+    }[];
     pagination:
         | (KnexPaginateArgs & {
               totalPageCount: number;
