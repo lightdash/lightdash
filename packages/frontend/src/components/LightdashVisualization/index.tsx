@@ -39,7 +39,17 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
         if (apiErrorDetail) {
             return (
                 <EmptyState
-                    icon={<MantineIcon icon={IconChartBarOff} />}
+                    icon={
+                        // Icon consistent with SuboptimalState in charts
+                        <MantineIcon
+                            color="gray.5"
+                            size="xxl"
+                            icon={IconChartBarOff}
+                        />
+                    }
+                    h="100%"
+                    w="100%"
+                    justify="center"
                     title="Unable to load visualization"
                     description={
                         <Fragment>
