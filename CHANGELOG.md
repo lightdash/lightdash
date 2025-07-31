@@ -1,3 +1,10 @@
+## [0.1861.2](https://github.com/lightdash/lightdash/compare/0.1861.1...0.1861.2) (2025-07-31)
+
+
+### Bug Fixes
+
+* apply style guide to ProfilePanel ([#16115](https://github.com/lightdash/lightdash/issues/16115)) ([31ab6b4](https://github.com/lightdash/lightdash/commit/31ab6b4e267b512d15b6c212dc42bab02c2a8651))
+
 ## [0.1861.1](https://github.com/lightdash/lightdash/compare/0.1861.0...0.1861.1) (2025-07-31)
 
 
