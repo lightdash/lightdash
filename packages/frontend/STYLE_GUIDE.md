@@ -20,7 +20,7 @@ import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 
 <MantineProvider theme={getMantine8ThemeOverride()}>
     <Group gap="xs" wrap="nowrap">
-        <Button style={{marginTop: 20}}>Click</Button>
+        <Button mt={20}>Click</Button>
     </Group>
 </MantineProvider>
 ```
@@ -29,8 +29,8 @@ import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 
 - `spacing` → `gap`
 - `noWrap` → `wrap="nowrap"`
-- `sx` → Use component props or `style` (see styling hierarchy below)
-- Style props: `mt`, `mb`, `mr`, `ml`, `p`, `w`, `h`, `c`, `bg`, etc. are available on most Mantine components
+- `sx` → Component props (e.g., `mt`, `w`, `c`) or CSS modules
+- Style props now available: `mt`, `mb`, `mr`, `ml`, `p`, `w`, `h`, `c`, `bg`, etc.
 
 ### Component Props vs Inline Styles
 
@@ -39,135 +39,186 @@ import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 ```tsx
 // ❌ Bad - Using style prop when component props are available
 <Button style={{marginTop: 20, width: 180, color: 'green'}}>Submit</Button>
-<MantineIcon style={{color: 'green', display: 'block'}} />
+<MantineIcon style={{color: 'green', display: 'block'}}/>
 
 // ✅ Good - Using component props
 <Button mt={20} w={180} c="green">Submit</Button>
-<MantineIcon color="green.6" display="block" />
+<MantineIcon color="green.6" display="block"/>
 ```
 
-When migrating from v6 and component props aren't available, add TODO comments:
+When migrating from v6 and component props aren't available, use CSS modules:
+
+```css
+/* styles.module.css */
+.customComponent {
+    margin-top: 20px;
+}
+```
 
 ```tsx
-// TODO: Move inline styles to theme extension
-<CustomComponent style={{marginTop: 20}}>Content</CustomComponent>
+import styles from './styles.module.css';
+
+<CustomComponent className={styles.customComponent}>Content</CustomComponent>
 ```
 
 ## Styling Best Practices
 
-### Mantine 8 Styling Hierarchy
+### Core Principle: Theme First
 
-For Mantine v8 components, follow this order of preference:
+**The goal is to use theme defaults whenever possible.** Style overrides should be the exception, not the rule.
 
-1. **Component Props** - ALWAYS prefer these when available (check Mantine docs)
-2. **CSS Modules** - For complex styling or when component props aren't available
-3. **Theme Extensions** - For reusable component styles across the app
-4. **Inline `style` prop** - Only when necessary for layout with ≤3 properties
+### Quick Reference
+
+```tsx
+// 1. Best: No custom styles (use theme defaults)
+<Button>Submit</Button>
+
+// 2. Theme extension (for repeated patterns)
+// Add to mantine8Theme.ts if using the same override multiple times
+
+// 3. Context-specific overrides (with documentation):
+// 3a. Component props (when available)
+<Button mt="xl" w={240}> // Extra margin for form spacing
+    Submit
+</Button>
+
+// 3b. CSS modules (when props unavailable or complex styling)
+<Card className={styles.interactiveCard}/>  // Complex hover effects
+```
+
+### When to Override Styles
+
+Only override styles when there's a clear contextual need:
+
+1. **Ask first**: Can I achieve this with theme defaults?
+2. **Check frequency**: Is this override used multiple times? → Theme extension
+3. **Use component props**: When available for the properties you need
+4. **Use CSS modules**: When component props aren't available
+5. **Document why**: Always explain the contextual reason for overrides
 
 **❌ NEVER use:**
-- `styles` prop 
+- `styles` prop
 - `sx` prop
+- `style` prop (inline styles)
 
-### 1. Component Props (Always First Choice)
+### 1. Theme Extensions (For Repeated Patterns)
 
-**ALWAYS check if a Mantine component has a prop for what you need before using inline styles.** Common props include:
+If you find yourself applying the same style override multiple times, add it to the theme:
+
+```tsx
+// In src/mantine8Theme.ts - inside the components object
+components: {
+    Button: Button.extend({
+        styles: {
+            root: {
+                // Common button customization used across the app
+                minWidth: '120px',
+                fontWeight: 600,
+            }
+        }
+    }),
+    // ... other components
+}
+```
+
+### 2. Context-Specific Overrides
+
+When you need to override styles for a specific context with clear motivation:
+
+#### Component Props (Always First Choice)
+
+Use component props when available. Check Mantine docs/TypeScript for available props:
+
+```tsx
+// ✅ Good - Component props with clear context
+<Button
+    mt="xl"     // Extra space needed after error message
+    w={240}     // Match form field width
+    c="blue.6"  // Brand color for primary action
+>
+    Submit
+</Button>
+
+// ❌ Bad - Using style prop when component props exist
+<Button style={{marginTop: 40, width: 240, color: 'blue'}}>Submit</Button>
+```
+
+Common component props:
+
 - Layout: `mt`, `mb`, `ml`, `mr`, `m`, `p`, `pt`, `pb`, `pl`, `pr`
 - Sizing: `w`, `h`, `maw`, `mah`, `miw`, `mih`
 - Colors: `c` (color), `bg` (background)
 - Display: `display`, `pos` (position)
-- And many more component-specific props
 
-```tsx
-// ✅ Good - Using available component props
-<Button mt="md" w={180} c="blue">Submit</Button>
-<MantineIcon color="green.6" size="lg" />
-<Box p="xs" mb="lg" display="flex">Content</Box>
 
-// ❌ Bad - Using style prop when component props exist
-<Button style={{marginTop: 'var(--mantine-spacing-md)', width: 180}}>Submit</Button>
-<MantineIcon style={{color: 'green'}} />
-```
+#### CSS Modules (When Component Props Aren't Available)
 
-**Note**: Layout props are often needed and allowed. There's no strict limit of 3 props - use as many component props as needed.
-
-### 2. CSS Modules (For Complex Styling)
-
-Use CSS modules when component props aren't sufficient or for complex styling:
+Use CSS modules when component props aren't available or for complex styling:
 
 ```css
 /* Component.module.css */
-.submitButton {
-    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-    border-radius: var(--mantine-radius-md);
-    width: 180px;
+.customCard {
+    /* Complex hover state that can't be done inline */
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.customCard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--mantine-shadow-lg);
 }
 ```
 
 ```tsx
 import styles from './Component.module.css';
 
-<Button className={styles.submitButton}>Custom</Button>
+<Card className={styles.customCard}>
+    {/* Card content */}
+</Card>
 ```
 
-### 3. Theme Extensions (For Reusable Styles)
+### 3. Important Guidelines
 
-Add reusable component styles to `src/mantine8Theme.ts`:
+#### Always Use Theme Tokens
 
 ```tsx
-Select: Select.extend({
-    defaultProps: {
-        radius: 'md',
-    },
-    styles: (theme) => ({
-        input: {
-            maxWidth: 200, // Add common widths here
-        },
-    }),
-}),
+// ❌ Bad - Magic numbers
+<Box p={16} mt={24}>
+
+// ✅ Good - Theme tokens
+<Box p="md" mt="lg">
 ```
 
-### 4. Inline Style Prop (Last Resort)
+#### Document Style Overrides
 
-Use the `style` prop only when:
-- Component props aren't available for what you need
-- You need temporary/dynamic styling
-- Layout adjustments with ≤3 properties
+Always explain WHY you're overriding default styles:
 
 ```tsx
-// ✅ Acceptable - No display prop available on this component
-<CustomComponent style={{ display: 'flex' }} />
+// ✅ Good
+<Button 
+    w="100%"  // Full width needed in mobile view
+    mt="xl"   // Extra spacing after error messages
+>
 
-// ✅ Acceptable - Dynamic/calculated values
-<Box style={{ width: `${calculatedWidth}px` }} />
-
-// ❌ Bad - Component props are available
-<Button style={{ marginTop: 20, color: 'blue' }}>Click</Button>
+// ❌ Bad - No context
+<Button w="100%" mt="xl">
 ```
-
-### 5. Never Use Magic Numbers
-
-```tsx
-// ❌ Bad
-<Box p={16}>
-
-// ✅ Good  
-<Box p="md">
-```
-
-Use Mantine's theme tokens instead of hard-coded values.
 
 ## Mantine Documentation
 
-**IMPORTANT**: Always check component documentation or TypeScript types to see available props before using inline styles.
+**IMPORTANT**: Always check component documentation or TypeScript types to see available props before using inline
+styles.
 
 Component props and APIs can be found in the official docs:
-- **Pattern**: `https://mantine.dev/core/[component-name]/`
-- **Examples**: 
-  - Select: https://mantine.dev/core/select/
-  - SegmentedControl: https://mantine.dev/core/segmented-control/
-  - SemiCircleProgress: https://mantine.dev/core/semi-circle-progress/
 
-**Tip**: In your IDE, hover over a component or use Go to Definition to see all available props in the TypeScript interface.
+- **Pattern**: `https://mantine.dev/core/[component-name]/`
+- **Examples**:
+    - Select: https://mantine.dev/core/select/
+    - SegmentedControl: https://mantine.dev/core/segmented-control/
+    - SemiCircleProgress: https://mantine.dev/core/semi-circle-progress/
+
+**Tip**: In your IDE, hover over a component or use Go to Definition to see all available props in the TypeScript
+interface.
 
 ## Component Checklist
 
