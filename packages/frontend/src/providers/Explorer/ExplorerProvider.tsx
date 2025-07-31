@@ -821,6 +821,11 @@ export function reducer(
                 draft.isVisualizationConfigOpen = false;
             });
         }
+        case ActionType.SET_PARAMETER_REFERENCES: {
+            return produce(state, (draft) => {
+                draft.parameterReferences = action.payload;
+            });
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -1277,15 +1282,15 @@ const ExplorerProvider: FC<
 
     const { data: parametersData } = useParameters(
         projectUuid,
-        reducerState.requiredParameters ?? undefined,
+        reducerState.parameterReferences ?? undefined,
         {
-            enabled: !!reducerState.requiredParameters?.length,
+            enabled: !!reducerState.parameterReferences?.length,
         },
     );
 
     const missingRequiredParameters = useMemo(() => {
         // If no required parameters are set, return null, this will disable query execution
-        if (reducerState.requiredParameters === null) return null;
+        if (reducerState.parameterReferences === null) return null;
 
         // If parameters are not the same return null, this will disable query execution until validQueryArgs is updated
         if (
@@ -1298,14 +1303,14 @@ const ExplorerProvider: FC<
         }
 
         // Missing required parameters are the ones that are not set and don't have a default value
-        return reducerState.requiredParameters.filter(
+        return reducerState.parameterReferences.filter(
             (parameter) =>
                 !unsavedChartVersion.parameters?.[parameter] &&
                 !parametersData?.[parameter]?.default,
         );
     }, [
         parametersData,
-        reducerState.requiredParameters,
+        reducerState.parameterReferences,
         unsavedChartVersion.parameters,
         validQueryArgs?.parameters,
     ]);
@@ -1536,11 +1541,11 @@ const ExplorerProvider: FC<
         dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
     }, []);
 
-    const setRequiredParameters = useCallback(
-        (requiredParameters: string[] | null) => {
+    const setParameterReferences = useCallback(
+        (parameterReferences: string[] | null) => {
             dispatch({
-                type: ActionType.SET_REQUIRED_PARAMETERS,
-                payload: requiredParameters,
+                type: ActionType.SET_PARAMETER_REFERENCES,
+                payload: parameterReferences,
             });
         },
         [],
@@ -1588,7 +1593,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
-            setRequiredParameters,
+            setParameterReferences,
         }),
         [
             clearExplore,
@@ -1632,7 +1637,7 @@ const ExplorerProvider: FC<
             getDownloadQueryUuid,
             openVisualizationConfig,
             closeVisualizationConfig,
-            setRequiredParameters,
+            setParameterReferences,
         ],
     );
 

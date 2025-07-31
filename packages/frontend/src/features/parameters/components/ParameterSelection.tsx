@@ -18,7 +18,7 @@ import { ParameterInput } from './ParameterInput';
 
 type ParameterSelectionProps = {
     parameters?: Record<string, LightdashProjectParameter>;
-    missingRequiredParameters: string[] | null;
+    missingRequiredParameters?: string[] | null;
     isLoading?: boolean;
     isError?: boolean;
     parameterValues: ParametersValuesMap;

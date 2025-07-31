@@ -105,6 +105,9 @@ const MinimalSavedExplorer: FC = () => {
             initialState={
                 data
                     ? {
+                          parameterReferences: Object.keys(
+                              data.parameters ?? {},
+                          ),
                           expandedSections: [ExplorerSection.VISUALIZATION],
                           unsavedChartVersion: {
                               tableName: data.tableName,

@@ -38,20 +38,25 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             (context) => context.query?.data?.queryUuid,
         );
 
-        const setRequiredParameters = useExplorerContext(
-            (context) => context.actions.setRequiredParameters,
+        const setParameterReferences = useExplorerContext(
+            (context) => context.actions.setParameterReferences,
         );
 
         const { data: explore } = useExplore(unsavedChartVersionTableName);
 
-        const { data: { parameterReferences } = {} } = useCompiledSql({
+        const { data: { parameterReferences } = {}, isError } = useCompiledSql({
             enabled: !!unsavedChartVersionTableName,
         });
 
         useEffect(() => {
-            // While there's no parameter references array the request hasn't run, so we set it explicitly to null
-            setRequiredParameters(parameterReferences ?? null);
-        }, [parameterReferences, setRequiredParameters]);
+            if (isError) {
+                // If there's an error, we set the parameter references to an empty array
+                setParameterReferences([]);
+            } else {
+                // While there's no parameter references array the request hasn't run, so we set it explicitly to null
+                setParameterReferences(parameterReferences ?? null);
+            }
+        }, [parameterReferences, setParameterReferences, isError]);
 
         const { data: org } = useOrganization();
 
