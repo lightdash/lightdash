@@ -62,7 +62,9 @@ export const ExplorerResults = memo(() => {
         }
     });
 
-    const apiError = useExplorerContext((context) => context.query.error);
+    const apiError = useExplorerContext(
+        (context) => context.query.error ?? context.queryResults.error,
+    );
 
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
