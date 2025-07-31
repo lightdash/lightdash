@@ -2,6 +2,7 @@ version: 2
 models:
   - name: customers
     config:
+      tags: ['ai']
       meta:
         primary_key: customer_id
         spotlight:
@@ -32,6 +33,7 @@ models:
           meta:
             metrics:
               unique_customer_count:
+                tags: ['ai']
                 type: count_distinct
                 label: Unique customer count
                 description: Total number of customers
@@ -95,19 +97,23 @@ models:
           meta:
             metrics:
               date_of_first_created_customer:
+                tags: ['ai']
                 type: min
               date_of_most_recent_created_customer:
+                tags: ['ai']
                 spotlight:
                   visibility: hide
                 type: max
         meta:
           dimension:
+            tags: ['ai']
             type: timestamp
       - name: first_order
         description: Date of the customers first order
         config:
           meta:
             dimension:
+              tags: ['ai']
               hidden: true
         meta:
           dimension:
@@ -116,6 +122,7 @@ models:
         description: Date of the customers most recent order
         config:
           meta:
+            tags: ['ai']
             dimension:
               hidden: true
         meta:
@@ -125,6 +132,7 @@ models:
         description: Number of days since the customers last order
         config:
           meta:
+            tags: ['ai']
             dimension:
               hidden: true
         meta:
@@ -136,6 +144,7 @@ models:
           first order
         config:
           meta:
+            tags: ['ai']
             dimension:
               hidden: true
         meta:
@@ -145,6 +154,7 @@ models:
         description: ""
         config:
           meta:
+            tags: ['ai']
             dimension:
               hidden: true
         meta:
@@ -154,6 +164,7 @@ models:
         description: ""
         config:
           meta:
+            tags: ['ai']
             dimension:
               hidden: true
         meta:

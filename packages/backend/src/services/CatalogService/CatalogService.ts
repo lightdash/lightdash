@@ -190,7 +190,9 @@ export class CatalogService<
                             explore.baseTable &&
                             explore.tables?.[explore.baseTable]?.description,
                         type: CatalogType.Table,
-                        joinedTables: explore.joinedTables,
+                        joinedTables:
+                            explore.joinedTables?.map((join) => join.table) ??
+                            null,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
@@ -216,7 +218,9 @@ export class CatalogService<
                             explore.tables[explore.baseTable].description,
                         type: CatalogType.Table,
                         groupLabel: explore.groupLabel,
-                        joinedTables: explore.joinedTables,
+                        joinedTables:
+                            explore.joinedTables?.map((join) => join.table) ??
+                            null,
                         tags: explore.tags,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
@@ -236,10 +240,10 @@ export class CatalogService<
         userAttributes: UserAttributeValueMap;
         catalogSearch: ApiCatalogSearch;
         context: CatalogSearchContext;
-        yamlTags: string[] | null;
         tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
+        excludeUnmatched?: boolean;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
@@ -265,9 +269,9 @@ export class CatalogService<
                             userAttributes: args.userAttributes,
                             sortArgs: args.sortArgs,
                             context: args.context,
-                            yamlTags: args.yamlTags,
                             tables: args.tables,
                             tablesConfiguration,
+                            excludeUnmatched: args.excludeUnmatched,
                         }),
                 );
             },
@@ -577,7 +581,6 @@ export class CatalogService<
                 userAttributes,
                 catalogSearch,
                 context,
-                yamlTags: null,
                 tables: null,
             });
         }
@@ -795,7 +798,6 @@ export class CatalogService<
             context,
             paginateArgs,
             sortArgs,
-            yamlTags: null,
             tables: null,
         });
 
@@ -1257,7 +1259,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            yamlTags: null,
             tables: null,
         });
 
@@ -1321,7 +1322,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            yamlTags: null,
             tables: null,
         });
 

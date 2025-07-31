@@ -130,13 +130,13 @@ export class AiAgentModel {
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
                 instruction: this.database.raw(`
-                    (SELECT instruction FROM latest_instruction 
+                    (SELECT instruction FROM latest_instruction
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
                 groupAccess: this.database.raw(`
                     COALESCE(
-                        (SELECT json_agg(group_uuid) 
+                        (SELECT json_agg(group_uuid)
                          FROM group_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
@@ -223,13 +223,13 @@ export class AiAgentModel {
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
                 instruction: this.database.raw(`
-                    (SELECT instruction FROM latest_instruction 
+                    (SELECT instruction FROM latest_instruction
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
                 groupAccess: this.database.raw(`
                     COALESCE(
-                        (SELECT json_agg(group_uuid) 
+                        (SELECT json_agg(group_uuid)
                          FROM group_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json

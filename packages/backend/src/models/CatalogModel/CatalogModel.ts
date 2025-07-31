@@ -234,12 +234,16 @@ export class CatalogModel {
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: { catalogTags, filter, searchQuery = '', type },
-        limit = 50,
+        catalogSearch: {
+            catalogTags,
+            filter,
+            searchQuery = '',
+            type,
+            yamlTags,
+        },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
-        yamlTags,
         tables,
         paginateArgs,
         sortArgs,
@@ -248,11 +252,9 @@ export class CatalogModel {
         projectUuid: string;
         exploreName?: string;
         catalogSearch: ApiCatalogSearch;
-        limit?: number;
         excludeUnmatched?: boolean;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
-        yamlTags: string[] | null;
         tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
@@ -268,6 +270,7 @@ export class CatalogModel {
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
                 `chart_usage`,
+                `${CatalogTableName}.joined_tables`,
                 `icon`,
                 {
                     search_rank: getFullTextSearchRankCalcSql({
@@ -463,45 +466,59 @@ export class CatalogModel {
                 function yamlTagsFiltering() {
                     void this
                         // Condition 1: The item itself has a matching tag.
-                        // This correctly includes any tagged field or table.
+                        // This is the highest priority rule. It includes any
+                        // field or table that is explicitly tagged.
                         .whereRaw(
                             `${CatalogTableName}.yaml_tags && ?::text[]`,
                             [yamlTags],
                         )
 
-                        // Condition 2: The item is part of an explore where ONLY the explore-level
-                        // table is tagged, making all items in that explore visible.
+                        // Condition 2: The item is part of an explore where ONLY the explore's
+                        // base table is tagged, making all items in that explore visible.
+                        // This handles the "show all fields" scenario.
                         .orWhere(function exploreTaggedButFieldsAreNot() {
-                            void this.whereExists(function exploreIsTagged() {
-                                void this.select('name')
-                                    .from(
-                                        `${CatalogTableName} as explore_table`,
-                                    )
-                                    .whereRaw(
-                                        `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                    )
-                                    .andWhere('explore_table.type', 'table')
-                                    .andWhereRaw(
-                                        `explore_table.yaml_tags && ?::text[]`,
-                                        [yamlTags],
-                                    );
-                            }).whereNotExists(function anyFieldIsTagged() {
-                                void this.select('name')
-                                    .from(
-                                        `${CatalogTableName} as any_field_in_explore`,
-                                    )
-                                    .whereRaw(
-                                        `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                    )
-                                    .andWhereNot(
-                                        'any_field_in_explore.type',
-                                        'table',
-                                    )
-                                    .andWhereRaw(
-                                        `any_field_in_explore.yaml_tags && ?::text[]`,
-                                        [yamlTags],
-                                    );
-                            });
+                            void this
+                                // Check that the explore's base table has a matching tag.
+                                .whereExists(function exploreIsTagged() {
+                                    void this.select('name')
+                                        .from(
+                                            `${CatalogTableName} as explore_table`,
+                                        )
+                                        .andWhere(
+                                            'explore_table.project_uuid',
+                                            projectUuid,
+                                        )
+                                        .whereRaw(
+                                            `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                        )
+                                        .andWhere('explore_table.type', 'table')
+                                        .andWhereRaw(
+                                            `explore_table.yaml_tags && ?::text[]`,
+                                            [yamlTags],
+                                        );
+                                })
+                                // AND crucially, check that NO fields within that same explore have any tags.
+                                // This enforces the precedence rule.
+                                .whereNotExists(function anyFieldIsTagged() {
+                                    void this.select('name')
+                                        .from(
+                                            `${CatalogTableName} as any_field_in_explore`,
+                                        )
+                                        .andWhereRaw(
+                                            `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                        )
+                                        .andWhere(
+                                            'any_field_in_explore.project_uuid',
+                                            projectUuid,
+                                        )
+                                        .andWhere(
+                                            'any_field_in_explore.type',
+                                            'field',
+                                        )
+                                        .whereNotNull(
+                                            `any_field_in_explore.yaml_tags`,
+                                        );
+                                });
                         })
 
                         // Condition 3: The item is a table, and at least one of its
@@ -514,6 +531,10 @@ export class CatalogModel {
                             ).whereExists(function hasTaggedChild() {
                                 void this.select('name')
                                     .from(`${CatalogTableName} as child_field`)
+                                    .andWhere(
+                                        'child_field.project_uuid',
+                                        projectUuid,
+                                    )
                                     .whereRaw(
                                         `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
                                     )
@@ -559,9 +580,7 @@ export class CatalogModel {
             );
         }
 
-        catalogItemsQuery = catalogItemsQuery
-            .orderBy('search_rank', 'desc')
-            .limit(limit ?? 50);
+        catalogItemsQuery = catalogItemsQuery.orderBy('search_rank', 'desc');
 
         if (sortArgs) {
             const { sort, order } = sortArgs;
@@ -575,11 +594,12 @@ export class CatalogModel {
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
             catalogItemsQuery.select<
-                (DbCatalog & {
-                    explore: Explore;
-                })[]
+                (DbCatalog & { explore: Explore; search_rank: number })[]
             >(),
-            paginateArgs,
+            {
+                page: paginateArgs?.page ?? 1,
+                pageSize: paginateArgs?.pageSize ?? 50,
+            },
         );
 
         const tagsPerItem = await this.getTagsPerItem(
