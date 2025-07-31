@@ -31,5 +31,6 @@ models:
           meta:
             metrics:
               total_revenue:
+                tags: ['ai']
                 type: sum
                 description: Sum of all payments
