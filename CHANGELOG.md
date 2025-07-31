@@ -1,3 +1,10 @@
+## [0.1865.1](https://github.com/lightdash/lightdash/compare/0.1865.0...0.1865.1) (2025-07-31)
+
+
+### Bug Fixes
+
+* initial state when there are no default parameters ([#16127](https://github.com/lightdash/lightdash/issues/16127)) ([1a30245](https://github.com/lightdash/lightdash/commit/1a302459cb2b96819bb04024cab3183933a2ad06))
+
 # [0.1865.0](https://github.com/lightdash/lightdash/compare/0.1864.0...0.1865.0) (2025-07-31)
 
 
