@@ -184,6 +184,32 @@ import styles from './Component.module.css';
 
 ### 3. Important Guidelines
 
+#### Remove Dead Styles
+
+Before moving styles to CSS modules, analyze if they're actually needed:
+
+```tsx
+// Example: Button inside a Flex container
+<Flex justify="flex-end">
+    <Button style={{display: 'block'}}>Submit</Button>
+</Flex>
+
+// ✅ Better: Remove the style entirely
+// display: block has no effect on flex children - they're flex items regardless
+<Flex justify="flex-end">
+    <Button>Submit</Button>
+</Flex>
+```
+
+**When to remove styles entirely:**
+
+- The style has no visual effect in its context
+- It's overridden by parent layout (e.g., flex/grid children)
+- It duplicates default component behavior
+- It's legacy code from previous implementations
+
+**Always verify:** Test the component with and without the style to confirm it has no effect before removing.
+
 #### Always Use Theme Tokens
 
 ```tsx
@@ -238,4 +264,3 @@ When creating/updating components:
 - [ ] No inline styles (`style` prop)
 - [ ] Theme values instead of magic numbers
 - [ ] Documented WHY any style overrides are needed
-- [ ] TypeScript interfaces are explicit (no duck typing)
