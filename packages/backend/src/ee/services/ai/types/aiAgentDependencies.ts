@@ -5,18 +5,23 @@ import {
     CacheMetadata,
     CatalogField,
     CatalogTable,
+    CompiledDimension,
+    CompiledMetric,
     Explore,
+    FieldSearchQuery,
     ItemsMap,
     KnexPaginateArgs,
     SlackPrompt,
-    ToolFindFieldsArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
 import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 
-export type FindExploresFn = (args: KnexPaginateArgs) => Promise<{
+export type FindExploresFn = (args: {
+    page: number;
+    pageSize: number;
+}) => Promise<{
     tables: CatalogTable[];
     fields: CatalogField[];
     pagination:
@@ -27,19 +32,14 @@ export type FindExploresFn = (args: KnexPaginateArgs) => Promise<{
         | undefined;
 }>;
 
-export type FindFieldFn = (
-    args: KnexPaginateArgs & {
-        fieldSearchQuery: ToolFindFieldsArgs['fieldSearchQueries'][number];
-    },
-) => Promise<{
-    fields: CatalogField[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
-}>;
+export type FindFieldFn = (args: {
+    fieldSearchQuery: FieldSearchQuery;
+}) => Promise<
+    {
+        catalogField: CatalogField;
+        exploreField: CompiledDimension | CompiledMetric;
+    }[]
+>;
 
 export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
 

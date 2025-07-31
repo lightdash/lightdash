@@ -53,6 +53,7 @@ export const aiCopilotConfigSchema = z
         requiresFeatureFlag: z.boolean(),
         telemetryEnabled: z.boolean(),
         debugLoggingEnabled: z.boolean(),
+        __experimental__toolFindFields: z.boolean().default(false),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>

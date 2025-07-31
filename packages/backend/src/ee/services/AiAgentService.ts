@@ -25,6 +25,7 @@ import {
     CommercialFeatureFlags,
     Explore,
     filterExploreByTags,
+    findFieldInExplores,
     ForbiddenError,
     isExploreError,
     isSlackPrompt,
@@ -1461,7 +1462,7 @@ export class AiAgentService {
             return explore;
         };
 
-        const findFields: FindFieldFn = async (args) => {
+        const findFields: FindFieldFn = async ({ fieldSearchQuery }) => {
             const userAttributes =
                 await this.userAttributesModel.getAttributeValuesForOrgMember({
                     organizationUuid,
@@ -1470,30 +1471,54 @@ export class AiAgentService {
 
             const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const { data: catalogItems, pagination } =
-                await this.catalogService.searchCatalog({
-                    projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Field,
-                        searchQuery: args.fieldSearchQuery.label,
-                    },
-                    context: CatalogSearchContext.AI_AGENT,
-                    // TODO: make this paginated
-                    paginateArgs: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                    },
-                    userAttributes,
-                    yamlTags: agentSettings.tags,
-                    tables: null,
-                });
+            const catalogItems = await this.catalogService.searchCatalog({
+                projectUuid,
+                catalogSearch: {
+                    type: CatalogType.Field,
+                    searchQuery: fieldSearchQuery.name,
+                },
+                context: CatalogSearchContext.AI_AGENT,
+                // TODO: make this paginated
+                paginateArgs: {
+                    page: 1,
+                    pageSize: 5,
+                },
+                userAttributes,
+                yamlTags: agentSettings.tags,
+                tables: null,
+            });
 
             // TODO: we should not filter here, we should return all the fields
-            const catalogFields = catalogItems.filter(
+            const catalogFields = catalogItems.data.filter(
                 (item) => item.type === CatalogType.Field,
             );
 
-            return { fields: catalogFields, pagination };
+            const explores = await this.projectService.findExplores({
+                account: fromSession(user),
+                projectUuid,
+                exploreNames: catalogFields.map((s) => s.tableName),
+            });
+
+            const filteredExplores = Object.values(explores).filter(
+                (e): e is Explore => !isExploreError(e),
+            );
+
+            const fields = catalogFields.map((catalogField) => {
+                const exploreField = findFieldInExplores(
+                    filteredExplores,
+                    catalogField.tableName,
+                    catalogField.name,
+                );
+                if (!exploreField)
+                    throw new UnexpectedServerError('Field not found');
+
+                return {
+                    catalogField,
+                    exploreField,
+                };
+            });
+
+            return fields;
         };
 
         const updateProgress: UpdateProgressFn = (progress) =>
@@ -1662,6 +1687,8 @@ export class AiAgentService {
             userId: user.userUuid,
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+            __experimental__toolFindFields:
+                this.lightdashConfig.ai.copilot.__experimental__toolFindFields,
         };
 
         const dependencies = {
