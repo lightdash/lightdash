@@ -107,6 +107,17 @@ export const renderStringFilterSql = (
     }
 };
 
+// Validate that all values are valid numbers
+const validateAndSanitizeNumber = (value: unknown): number => {
+    const num = Number(value);
+    if (Number.isNaN(num) || !Number.isFinite(num)) {
+        throw new CompileError(
+            `Invalid number value in filter: "${value}". Expected a valid number.`,
+        );
+    }
+    return num;
+};
+
 export const renderNumberFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
@@ -115,33 +126,47 @@ export const renderNumberFilterSql = (
         case FilterOperator.EQUALS:
             return !filter.values || filter.values.length === 0
                 ? 'true'
-                : `(${dimensionSql}) IN (${filter.values.join(',')})`;
+                : `(${dimensionSql}) IN (${filter.values
+                      .map(validateAndSanitizeNumber)
+                      .join(',')})`;
         case FilterOperator.NOT_EQUALS:
             return !filter.values || filter.values.length === 0
                 ? 'true'
-                : `((${dimensionSql}) NOT IN (${filter.values.join(
-                      ',',
-                  )}) OR (${dimensionSql}) IS NULL)`;
+                : `((${dimensionSql}) NOT IN (${filter.values
+                      .map(validateAndSanitizeNumber)
+                      .join(',')}) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.GREATER_THAN:
-            return `(${dimensionSql}) > (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) > (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.GREATER_THAN_OR_EQUAL:
-            return `(${dimensionSql}) >= (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) >= (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.LESS_THAN:
-            return `(${dimensionSql}) < (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) < (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.LESS_THAN_OR_EQUAL:
-            return `(${dimensionSql}) <= (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) <= (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.IN_BETWEEN:
             return `(${dimensionSql}) >= (${
-                filter.values?.[0] || 0
-            }) AND (${dimensionSql}) <= (${filter.values?.[1] || 0})`;
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            }) AND (${dimensionSql}) <= (${
+                validateAndSanitizeNumber(filter.values?.[1]) || 0
+            })`;
         case FilterOperator.NOT_IN_BETWEEN:
             return `(${dimensionSql}) < (${
-                filter.values?.[0] || 0
-            }) OR (${dimensionSql}) > (${filter.values?.[1] || 0})`;
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            }) OR (${dimensionSql}) > (${
+                validateAndSanitizeNumber(filter.values?.[1]) || 0
+            })`;
         default:
             return raiseInvalidFilterError('number', filter);
     }

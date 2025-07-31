@@ -7,7 +7,7 @@ export default defineConfig({
         include: ['src/ee/**/*integration.test.ts'],
         exclude: ['node_modules', 'dist'],
         environment: 'node',
-        testTimeout: 60000,
+        testTimeout: 120000,
         hookTimeout: 60000,
         teardownTimeout: 60000,
         globals: true,

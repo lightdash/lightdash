@@ -190,7 +190,9 @@ export class CatalogService<
                             explore.baseTable &&
                             explore.tables?.[explore.baseTable]?.description,
                         type: CatalogType.Table,
-                        joinedTables: explore.joinedTables,
+                        joinedTables:
+                            explore.joinedTables?.map((join) => join.table) ??
+                            null,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
@@ -216,7 +218,9 @@ export class CatalogService<
                             explore.tables[explore.baseTable].description,
                         type: CatalogType.Table,
                         groupLabel: explore.groupLabel,
-                        joinedTables: explore.joinedTables,
+                        joinedTables:
+                            explore.joinedTables?.map((join) => join.table) ??
+                            null,
                         tags: explore.tags,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
@@ -240,6 +244,7 @@ export class CatalogService<
         tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
+        excludeUnmatched?: boolean;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
@@ -268,6 +273,7 @@ export class CatalogService<
                             yamlTags: args.yamlTags,
                             tables: args.tables,
                             tablesConfiguration,
+                            excludeUnmatched: args.excludeUnmatched,
                         }),
                 );
             },
@@ -326,16 +332,7 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        userUuid: string | undefined,
-        embedderFn?: (
-            documents: {
-                name: string;
-                description: string;
-            }[],
-        ) => Promise<Array<Array<number>>>,
-    ) {
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
         const cachedExploresMap =
             await this.projectModel.getAllExploresFromCache(projectUuid);
 
