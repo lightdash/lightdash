@@ -57,6 +57,7 @@ import {
     IconStack,
     IconTableExport,
     IconTelescope,
+    IconVariable,
 } from '@tabler/icons-react';
 import type EChartsReact from 'echarts-for-react';
 import React, {
@@ -423,7 +424,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     } = props;
 
     const {
-        executeQueryResponse: { appliedDashboardFilters, metricQuery },
+        executeQueryResponse: {
+            appliedDashboardFilters,
+            metricQuery,
+            usedParametersValues,
+        },
         chart,
         explore,
     } = dashboardChartReadyQuery;
@@ -949,6 +954,49 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 </HoverCard.Target>
                             </HoverCard>
                         )}
+                        {usedParametersValues &&
+                            Object.keys(usedParametersValues).length > 0 && (
+                                <HoverCard
+                                    withArrow
+                                    withinPortal
+                                    shadow="md"
+                                    position="bottom-end"
+                                    offset={4}
+                                    arrowOffset={10}
+                                >
+                                    <HoverCard.Dropdown>
+                                        <Text color="gray.7" fw={500} mb="xs">
+                                            Parameters:
+                                        </Text>
+                                        <Stack
+                                            spacing="xs"
+                                            align="flex-start"
+                                            ml="xs"
+                                        >
+                                            {Object.entries(
+                                                usedParametersValues,
+                                            ).map(([key, value]) => (
+                                                <Text
+                                                    key={key}
+                                                    size="xs"
+                                                    color="gray.6"
+                                                >
+                                                    <Text span fw={600}>
+                                                        {key}:
+                                                    </Text>{' '}
+                                                    {value}
+                                                </Text>
+                                            ))}
+                                        </Stack>
+                                    </HoverCard.Dropdown>
+
+                                    <HoverCard.Target>
+                                        <ActionIcon size="sm">
+                                            <MantineIcon icon={IconVariable} />
+                                        </ActionIcon>
+                                    </HoverCard.Target>
+                                </HoverCard>
+                            )}
                         {showExecutionTime &&
                             initialQueryExecutionMs !== undefined &&
                             resultsData.totalClientFetchTimeMs !==
