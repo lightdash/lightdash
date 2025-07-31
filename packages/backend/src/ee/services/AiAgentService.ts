@@ -1397,10 +1397,10 @@ export class AiAgentService {
                     projectUuid,
                     catalogSearch: {
                         type: CatalogType.Table,
+                        yamlTags: agentSettings.tags ?? undefined,
                     },
                     userAttributes,
                     context: CatalogSearchContext.AI_AGENT,
-                    yamlTags: agentSettings.tags,
                     tables: null,
                     paginateArgs: {
                         page: args.page,
@@ -1418,10 +1418,10 @@ export class AiAgentService {
                                 catalogSearch: {
                                     type: CatalogType.Field,
                                     searchQuery: '',
+                                    yamlTags: agentSettings.tags ?? undefined,
                                 },
                                 userAttributes,
                                 context: CatalogSearchContext.AI_AGENT,
-                                yamlTags: agentSettings.tags,
                                 tables: [table.name],
                                 paginateArgs: {
                                     page: 1,
@@ -1478,6 +1478,7 @@ export class AiAgentService {
                     catalogSearch: {
                         type: CatalogType.Field,
                         searchQuery: args.fieldSearchQuery.label,
+                        yamlTags: agentSettings.tags ?? undefined,
                     },
                     context: CatalogSearchContext.AI_AGENT,
                     // TODO: make this paginated
@@ -1486,7 +1487,6 @@ export class AiAgentService {
                         pageSize: args.pageSize,
                     },
                     userAttributes,
-                    yamlTags: agentSettings.tags,
                     tables: [args.table],
                 });
 

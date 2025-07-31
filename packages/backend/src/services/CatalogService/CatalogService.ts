@@ -240,7 +240,6 @@ export class CatalogService<
         userAttributes: UserAttributeValueMap;
         catalogSearch: ApiCatalogSearch;
         context: CatalogSearchContext;
-        yamlTags: string[] | null;
         tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
@@ -270,7 +269,6 @@ export class CatalogService<
                             userAttributes: args.userAttributes,
                             sortArgs: args.sortArgs,
                             context: args.context,
-                            yamlTags: args.yamlTags,
                             tables: args.tables,
                             tablesConfiguration,
                             excludeUnmatched: args.excludeUnmatched,
@@ -583,7 +581,6 @@ export class CatalogService<
                 userAttributes,
                 catalogSearch,
                 context,
-                yamlTags: null,
                 tables: null,
             });
         }
@@ -801,7 +798,6 @@ export class CatalogService<
             context,
             paginateArgs,
             sortArgs,
-            yamlTags: null,
             tables: null,
         });
 
@@ -1263,7 +1259,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            yamlTags: null,
             tables: null,
         });
 
@@ -1327,7 +1322,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            yamlTags: null,
             tables: null,
         });
 

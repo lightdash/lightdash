@@ -37,6 +37,7 @@ export type ApiCatalogSearch = {
     type?: CatalogType;
     filter?: CatalogFilter;
     catalogTags?: string[];
+    yamlTags?: string[];
 };
 
 type EmojiIcon = {
