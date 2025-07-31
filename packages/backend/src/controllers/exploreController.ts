@@ -72,7 +72,7 @@ export class ExploreController extends BaseController {
         const results: ApiExploresResults = await this.services
             .getProjectService()
             .getAllExploresSummary(
-                req.user!,
+                req.account!,
                 projectUuid,
                 req.query.filtered === 'true',
             );

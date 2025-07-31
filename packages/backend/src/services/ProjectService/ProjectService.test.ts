@@ -41,6 +41,7 @@ import {
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
+    buildAccount,
     defaultProject,
     expectedAllExploreSummary,
     expectedAllExploreSummaryWithoutErrors,
@@ -148,6 +149,11 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         projectParametersModel: {} as ProjectParametersModel,
     });
 
+const account = buildAccount({
+    accountType: 'session',
+    userType: 'registered',
+});
+
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
@@ -173,7 +179,10 @@ describe('ProjectService', () => {
         expect(results).toEqual(expectedCatalog);
     });
     test('should get tables configuration', async () => {
-        const result = await service.getTablesConfiguration(user, projectUuid);
+        const result = await service.getTablesConfiguration(
+            account,
+            projectUuid,
+        );
         expect(result).toEqual(tablesConfiguration);
     });
     test('should update tables configuration', async () => {
@@ -225,7 +234,7 @@ describe('ProjectService', () => {
     describe('getAllExploresSummary', () => {
         test('should get all explores summary without filtering', async () => {
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 false,
             );
@@ -233,7 +242,7 @@ describe('ProjectService', () => {
         });
         test('should get all explores summary with filtering', async () => {
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 true,
             );
@@ -244,7 +253,7 @@ describe('ProjectService', () => {
                 projectModel.getTablesConfiguration as jest.Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithTags);
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 true,
             );
@@ -255,7 +264,7 @@ describe('ProjectService', () => {
                 projectModel.getTablesConfiguration as jest.Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithNames);
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 true,
             );
@@ -263,7 +272,7 @@ describe('ProjectService', () => {
         });
         test('should get all explores summary that do not have errors', async () => {
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 false,
                 false,

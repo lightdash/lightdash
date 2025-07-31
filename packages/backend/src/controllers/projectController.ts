@@ -93,7 +93,7 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getProject(projectUuid, req.user!),
+                .getProject(projectUuid, req.account!),
         };
     }
 
@@ -671,7 +671,7 @@ export class ProjectController extends BaseController {
         const { schedulerTimezone: oldDefaultProjectTimezone } =
             await this.services
                 .getProjectService()
-                .getProject(projectUuid, req.user!);
+                .getProject(projectUuid, req.account!);
 
         await this.services
             .getProjectService()

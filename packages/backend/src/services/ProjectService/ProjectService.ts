@@ -948,10 +948,10 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
+    async getProject(projectUuid: string, account: Account): Promise<Project> {
         const project = await this.projectModel.get(projectUuid);
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
@@ -3857,7 +3857,7 @@ export class ProjectService extends BaseService {
     }
 
     async getAllExploresSummary(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         filtered: boolean,
         includeErrors: boolean = true,
@@ -3866,7 +3866,7 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -3882,11 +3882,7 @@ export class ProjectService extends BaseService {
         if (!explores) {
             return [];
         }
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const { userAttributes } = await this.getUserAttributes({ account });
 
         const allExploreSummaries = explores.reduce<SummaryExplore[]>(
             (acc, explore) => {
@@ -3946,7 +3942,7 @@ export class ProjectService extends BaseService {
         if (filtered) {
             const {
                 tableSelection: { type, value },
-            } = await this.getTablesConfiguration(user, projectUuid);
+            } = await this.getTablesConfiguration(account, projectUuid);
             if (type === TableSelectionType.WITH_TAGS) {
                 return allExploreSummaries.filter(
                     (explore) =>
@@ -4322,14 +4318,14 @@ export class ProjectService extends BaseService {
     }
 
     async getTablesConfiguration(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<TablesConfiguration> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
