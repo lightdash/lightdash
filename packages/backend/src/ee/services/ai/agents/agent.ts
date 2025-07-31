@@ -21,7 +21,7 @@ import type {
     AiStreamAgentResponseArgs,
 } from '../types/aiAgent';
 
-const defaultAgentOptions = {
+export const defaultAgentOptions = {
     toolChoice: 'auto',
     maxSteps: 10,
     maxRetries: 3,

@@ -4,6 +4,7 @@ import { generateObject } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
 import { getOpenaiGptmodel } from '../../../models/openai-gpt';
+import { defaultAgentOptions } from '../../agent';
 
 export const factualityScores = {
     A: 0.4,
@@ -86,6 +87,7 @@ export async function llmAsAJudge({
             }
             const { object } = await generateObject({
                 model,
+                ...defaultAgentOptions,
                 schema: z.object({
                     answer: z
                         .enum(['A', 'B', 'C', 'D', 'E'])
