@@ -58,7 +58,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         mx="auto"
                     >
                         <Button
-                            variant={minimal ? 'subtle' : 'light'}
+                            variant={minimal ? 'transparent' : 'subtle'}
                             color="gray.7"
                             p="xs"
                             fw="500"
@@ -151,6 +151,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                             href="https://docs.lightdash.com/self-host/update-lightdash"
                                             target="_blank"
                                             rel="noreferrer"
+                                            underline="always" // Required: link isn't differentiated from blue text without underline
                                         >
                                             How to update version
                                         </Anchor>{' '}
