@@ -1,3 +1,10 @@
+# [0.1864.0](https://github.com/lightdash/lightdash/compare/0.1863.1...0.1864.0) (2025-07-31)
+
+
+### Features
+
+* add auto run results setting in explore ([#16086](https://github.com/lightdash/lightdash/issues/16086)) ([5966da7](https://github.com/lightdash/lightdash/commit/5966da717535ee02cb6d6e9e0c4ef6e774d903d2))
+
 ## [0.1863.1](https://github.com/lightdash/lightdash/compare/0.1863.0...0.1863.1) (2025-07-31)
 
 
