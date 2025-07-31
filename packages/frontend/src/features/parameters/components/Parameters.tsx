@@ -61,17 +61,6 @@ export const Parameters: FC<Props> = ({
     // Calculate selected parameters count
     const selectedParametersCount = Object.values(parameters ?? {}).length;
 
-    // Filter out null values to match ParametersValuesMap type
-    const filteredParameterValues = Object.entries(parameterValues).reduce(
-        (acc, [key, value]) => {
-            if (value !== null && value !== undefined && value !== '') {
-                acc[key] = value;
-            }
-            return acc;
-        },
-        {} as Record<string, string | string[]>,
-    );
-
     // Apply defaults
     useEffect(() => {
         if (parameters) {
@@ -89,7 +78,7 @@ export const Parameters: FC<Props> = ({
         }
     }, [parameterValues, parameters, onParameterChange]);
 
-    if (isEditMode || !parameters || Object.keys(parameters).length === 0) {
+    if (isEditMode || !parameters || selectedParametersCount === 0) {
         return null;
     }
 
@@ -145,7 +134,7 @@ export const Parameters: FC<Props> = ({
                         parameters={parameters}
                         isLoading={isLoading || !areAllChartsLoaded}
                         isError={isError}
-                        parameterValues={filteredParameterValues}
+                        parameterValues={parameterValues}
                         onParameterChange={onParameterChange}
                         size="xs"
                         showClearAll={selectedParametersCount > 0}
