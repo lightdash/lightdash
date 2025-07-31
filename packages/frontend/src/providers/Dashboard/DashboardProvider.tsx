@@ -17,6 +17,7 @@ import {
     type SchedulerFilterRule,
     type SortField,
 } from '@lightdash/common';
+import { isEqual } from 'lodash';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -152,7 +153,28 @@ const DashboardProvider: React.FC<
         }
     }, [dashboard]);
 
+    // Saved parameters are the parameters that are saved on the server
+    const [savedParameters, setSavedParameters] = useState<DashboardParameters>(
+        {},
+    );
+    // parameters that are currently applied to the dashboard
     const [parameters, setParameters] = useState<DashboardParameters>({});
+    const [parametersHaveChanged, setParametersHaveChanged] =
+        useState<boolean>(false);
+
+    // Set parameters to saved parameters when they are loaded
+    useEffect(() => {
+        if (savedParameters) {
+            setParameters(savedParameters);
+        }
+    }, [savedParameters]);
+
+    // Set parametersHaveChanged to true if parameters have changed
+    useEffect(() => {
+        if (!isEqual(parameters, savedParameters)) {
+            setParametersHaveChanged(true);
+        }
+    }, [parameters, savedParameters]);
 
     const setParameter = useCallback(
         (key: string, value: string | string[] | null) => {
@@ -239,11 +261,20 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles]);
 
-    // Reset parameter references and loaded tiles when dashboard tiles change
+    // Remove parameter references for tiles that are no longer in the dashboard
     useEffect(() => {
         if (dashboardTiles) {
-            setTileParameterReferences({});
-            setLoadedTiles(new Set());
+            setTileParameterReferences((old) => {
+                if (!dashboardTiles) return {};
+                const tileIds = new Set(
+                    dashboardTiles.map((tile) => tile.uuid),
+                );
+                return Object.fromEntries(
+                    Object.entries(old).filter(([tileId]) =>
+                        tileIds.has(tileId),
+                    ),
+                );
+            });
         }
     }, [dashboardTiles]);
 
@@ -768,6 +799,8 @@ const DashboardProvider: React.FC<
         requiredDashboardFilters,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
+        setSavedParameters,
+        parametersHaveChanged,
         dashboardParameters: parameters,
         parameterValues,
         selectedParametersCount,
