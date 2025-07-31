@@ -19,7 +19,6 @@ export const IGNORE_ERRORS = [
 
 Sentry.init({
     release: VERSION,
-    enabled: process.env.NODE_ENV !== 'test',
     dsn: lightdashConfig.sentry.backend.dsn,
     environment:
         process.env.NODE_ENV === 'development'
