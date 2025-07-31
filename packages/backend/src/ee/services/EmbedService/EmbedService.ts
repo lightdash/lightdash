@@ -655,6 +655,7 @@ export class EmbedService extends BaseService {
 
         // Filter the explore access and fields based on the user attributes
         const filteredExplore = getFilteredExplore(explore, userAttributes);
+
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             filteredExplore,

@@ -1058,8 +1058,6 @@ export const parseConfig = (): LightdashConfig => {
                   }
                 : undefined,
         },
-        __experimental__toolFindFields:
-            process.env.AI_COPILOT_EXPERIMENTAL_TOOL_FIND_FIELDS === 'true',
     };
 
     const copilotConfigParse =
