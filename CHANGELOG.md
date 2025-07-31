@@ -1,3 +1,10 @@
+# [0.1863.0](https://github.com/lightdash/lightdash/compare/0.1862.0...0.1863.0) (2025-07-31)
+
+
+### Features
+
+* save and load parameters on dashboards ([#16126](https://github.com/lightdash/lightdash/issues/16126)) ([f2390f0](https://github.com/lightdash/lightdash/commit/f2390f03e85d36c43509e5c2608445574a75591e))
+
 # [0.1862.0](https://github.com/lightdash/lightdash/compare/0.1861.2...0.1862.0) (2025-07-31)
 
 
