@@ -115,6 +115,62 @@ describe('DashboardModel', () => {
         expect(tracker.history.select).toHaveLength(4);
     });
 
+    test('should order dashboard tiles by y_offset, x_offset, and uuid when fetching dashboard', async () => {
+        tracker.on
+            .select(
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
+            )
+            .response([
+                {
+                    ...dashboardWithVersionEntry,
+                    space_uuid: 'spaceUuid',
+                    space_name: 'space name',
+                },
+            ]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([
+                dashboardTileWithSavedChartEntry,
+                loomTileEntry,
+                markdownTileEntry,
+            ]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTabsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                    dashboardWithVersionEntry.dashboard_id,
+                ]),
+            )
+            .response([]);
+
+        await model.getById(expectedDashboard.uuid);
+
+        // Find the tiles query in the tracker history
+        const tilesQuery = tracker.history.select.find((query) =>
+            query.sql.includes(DashboardTilesTableName),
+        );
+
+        expect(tilesQuery).toBeDefined();
+
+        // Verify that the tiles query includes proper ordering
+        expect(tilesQuery?.sql).toContain(DashboardTilesTableName);
+        expect(tilesQuery?.sql).toContain('order by');
+        expect(tilesQuery?.sql).toContain('y_offset');
+        expect(tilesQuery?.sql).toContain('x_offset');
+        expect(tilesQuery?.sql).toContain('dashboard_tile_uuid');
+    });
+
     test("should error if dashboard isn't found", async () => {
         tracker.on
             .select(
