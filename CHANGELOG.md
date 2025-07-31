@@ -1,3 +1,10 @@
+## [0.1863.1](https://github.com/lightdash/lightdash/compare/0.1863.0...0.1863.1) (2025-07-31)
+
+
+### Bug Fixes
+
+* error states in explorer ([#16141](https://github.com/lightdash/lightdash/issues/16141)) ([1233095](https://github.com/lightdash/lightdash/commit/123309564e1b9c1055e158e98d5a44fc1566bdfd))
+
 # [0.1863.0](https://github.com/lightdash/lightdash/compare/0.1862.0...0.1863.0) (2025-07-31)
 
 
