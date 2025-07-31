@@ -18,8 +18,8 @@ import {
 } from '../../../../../vitest.setup.integration';
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
-import { getGenerateBarVizConfig } from '../../tools/generateBarVizConfig';
 import { llmAsAJudge } from './utils/llmAsAJudge';
+import { setTaskMeta } from './utils/taskMeta';
 
 // Skip if no OpenAI API key
 const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -118,7 +118,7 @@ describeOrSkip('agent integration tests', () => {
 
     it(
         'should be able to tell the user what data models are available to explore with their agent',
-        async () => {
+        async ({ task }) => {
             const services = getServices(context.app);
             if (!createdAgent) {
                 throw new Error('Agent not created');
@@ -154,25 +154,40 @@ describeOrSkip('agent integration tests', () => {
 
             const tablesText = tables.map((table) => table.name).join(', ');
 
-            const factualityEvaluation = await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                expectedAnswer: `You can explore data models such as ${tablesText}`,
-                model,
-                scorerType: 'factuality',
-            });
+            const { result: factualityEvaluation, meta: factualityMeta } =
+                await llmAsAJudge({
+                    query: promptQueryText,
+                    response,
+                    expectedAnswer: `You can explore data models such as ${tablesText}`,
+                    model,
+                    scorerType: 'factuality',
+                });
 
             if (!factualityEvaluation) {
                 throw new Error('Factuality evaluation not found');
             }
 
-            expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
-            expect(factualityEvaluation.rationale).toBeDefined();
+            const isFactualityPassing =
+                factualityEvaluation.answer === 'A' ||
+                factualityEvaluation.answer === 'B';
+
+            setTaskMeta(task.meta, 'llmJudgeResults', [
+                { ...factualityMeta, passed: isFactualityPassing },
+            ]);
+            expect(isFactualityPassing).toBe(true);
+
+            setTaskMeta(
+                task.meta,
+                'toolCalls',
+                toolCalls.map((tc) => tc.tool_name),
+            );
+            setTaskMeta(task.meta, 'prompts', [promptQueryText]);
+            setTaskMeta(task.meta, 'responses', [response]);
         },
         TIMEOUT,
     );
 
-    it('should be able to get total revenue', async () => {
+    it('should be able to get total revenue', async ({ task }) => {
         if (!createdAgent) {
             throw new Error('Agent not created');
         }
@@ -201,23 +216,38 @@ describeOrSkip('agent integration tests', () => {
             1,
         );
 
-        const factualityEvaluation = await llmAsAJudge({
-            query: promptQueryText,
-            response,
-            expectedAnswer: '1989.37',
-            scorerType: 'factuality',
-            model,
-        });
+        const { result: factualityEvaluation, meta: factualityMeta } =
+            await llmAsAJudge({
+                query: promptQueryText,
+                response,
+                expectedAnswer: '1989.37',
+                scorerType: 'factuality',
+                model,
+            });
 
         if (!factualityEvaluation) {
             throw new Error('Factuality evaluation not found');
         }
 
-        expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
-        expect(factualityEvaluation.rationale).toBeDefined();
+        const isFactualityPassing =
+            factualityEvaluation.answer === 'A' ||
+            factualityEvaluation.answer === 'B';
+
+        setTaskMeta(task.meta, 'llmJudgeResults', [
+            { ...factualityMeta, passed: isFactualityPassing },
+        ]);
+        expect(isFactualityPassing).toBe(true);
+
+        setTaskMeta(
+            task.meta,
+            'toolCalls',
+            toolCalls.map((tc) => tc.tool_name),
+        );
+        setTaskMeta(task.meta, 'prompts', [promptQueryText]);
+        setTaskMeta(task.meta, 'responses', [response]);
     });
 
-    it('should generate a time-series chart', async () => {
+    it('should generate a time-series chart', async ({ task }) => {
         if (!createdAgent) {
             throw new Error('Agent not created');
         }
@@ -254,21 +284,28 @@ describeOrSkip('agent integration tests', () => {
         const vizConfig =
             generateTimeSeriesVizConfigToolCallParsed.data?.vizConfig;
 
-        const factualityEvaluation = await llmAsAJudge({
-            query: promptQueryText,
-            response,
-            expectedAnswer:
-                "I've generated a chart of revenue over time (monthly) with Payments explore, order date month on the x axis and total revenue on the y axis",
-            scorerType: 'factuality',
-            model,
-        });
+        const { result: factualityEvaluation, meta: factualityMeta } =
+            await llmAsAJudge({
+                query: promptQueryText,
+                response,
+                expectedAnswer:
+                    "I've generated a chart of revenue over time (monthly) with Payments explore, order date month on the x axis and total revenue on the y axis",
+                scorerType: 'factuality',
+                model,
+            });
 
         if (!factualityEvaluation) {
             throw new Error('Factuality evaluation not found');
         }
 
-        expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
-        expect(factualityEvaluation.rationale).toBeDefined();
+        const isFactualityPassing =
+            factualityEvaluation.answer === 'A' ||
+            factualityEvaluation.answer === 'B';
+
+        setTaskMeta(task.meta, 'llmJudgeResults', [
+            { ...factualityMeta, passed: isFactualityPassing },
+        ]);
+        expect(isFactualityPassing).toBe(true);
 
         const vizConfigExpected = {
             limit: 1000,
@@ -282,7 +319,10 @@ describeOrSkip('agent integration tests', () => {
             breakdownByDimension: null,
         };
 
-        const vizConfigJsonDiffEvaluation = await llmAsAJudge({
+        const {
+            result: vizConfigJsonDiffEvaluation,
+            meta: vizConfigJsonDiffMeta,
+        } = await llmAsAJudge({
             model,
             query: promptQueryText,
             response: JSON.stringify(vizConfig),
@@ -294,12 +334,28 @@ describeOrSkip('agent integration tests', () => {
             throw new Error('JSON diff evaluation not found');
         }
 
-        expect(vizConfigJsonDiffEvaluation.score).toBeGreaterThanOrEqual(0.9);
+        const isJsonDiffPassing =
+            (vizConfigJsonDiffEvaluation?.score ?? 0) >= 0.9;
+
+        setTaskMeta(task.meta, 'llmJudgeResults', [
+            ...task.meta.llmJudgeResults,
+            { ...vizConfigJsonDiffMeta, passed: isJsonDiffPassing },
+        ]);
+
+        expect(isJsonDiffPassing).toBe(true);
+
+        setTaskMeta(
+            task.meta,
+            'toolCalls',
+            toolCalls.map((tc) => tc.tool_name),
+        );
+        setTaskMeta(task.meta, 'prompts', [promptQueryText]);
+        setTaskMeta(task.meta, 'responses', [response]);
     });
 
     it(
         'should retrieve relevant context for a time-based query',
-        async () => {
+        async ({ task }) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
@@ -350,7 +406,10 @@ describeOrSkip('agent integration tests', () => {
 
             const contextForEval = [...exploreDateFields, 'Explore: orders'];
 
-            const contextRelevancyEvaluation = await llmAsAJudge({
+            const {
+                result: contextRelevancyEvaluation,
+                meta: contextRelevancyMeta,
+            } = await llmAsAJudge({
                 query: promptQueryText,
                 response,
                 context: contextForEval,
@@ -359,17 +418,28 @@ describeOrSkip('agent integration tests', () => {
             });
 
             // The retrieved fields should be highly relevant to the query
-            expect(contextRelevancyEvaluation.score).toBeGreaterThanOrEqual(
-                0.7,
+            const isContextRelevancyPassing =
+                contextRelevancyEvaluation.score >= 0.7;
+
+            setTaskMeta(task.meta, 'llmJudgeResults', [
+                { ...contextRelevancyMeta, passed: isContextRelevancyPassing },
+            ]);
+            expect(isContextRelevancyPassing).toBe(true);
+
+            setTaskMeta(
+                task.meta,
+                'toolCalls',
+                toolCalls.map((tc) => tc.tool_name),
             );
-            expect(contextRelevancyEvaluation.reason).toBeDefined();
+            setTaskMeta(task.meta, 'prompts', [promptQueryText]);
+            setTaskMeta(task.meta, 'responses', [response]);
         },
         TIMEOUT,
     );
 
     it(
         'should answer "How many orders were there in 2018?" and generate a one line result',
-        async () => {
+        async ({ task }) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
@@ -434,32 +504,61 @@ describeOrSkip('agent integration tests', () => {
                 'orders',
             );
 
-            const factualityEvaluation = await llmAsAJudge({
-                query: promptQueryText,
-                response,
-                expectedAnswer: 'There were 99 orders in 2018',
-                scorerType: 'factuality',
-                model,
-            });
+            const { result: factualityEvaluation, meta: factualityMeta } =
+                await llmAsAJudge({
+                    query: promptQueryText,
+                    response,
+                    expectedAnswer: 'There were 99 orders in 2018',
+                    scorerType: 'factuality',
+                    model,
+                });
 
             if (!factualityEvaluation) {
                 throw new Error('Factuality evaluation not found');
             }
 
-            expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
-            expect(factualityEvaluation.rationale).toBeDefined();
+            const isFactualityPassing =
+                factualityEvaluation.answer === 'A' ||
+                factualityEvaluation.answer === 'B';
+
+            setTaskMeta(task.meta, 'llmJudgeResults', [
+                { ...factualityMeta, passed: isFactualityPassing },
+            ]);
+            expect(isFactualityPassing).toBe(true);
+
+            setTaskMeta(
+                task.meta,
+                'toolCalls',
+                toolCalls.map((tc) => tc.tool_name),
+            );
+            setTaskMeta(task.meta, 'prompts', [promptQueryText]);
+            setTaskMeta(task.meta, 'responses', [response]);
         },
         TIMEOUT,
     );
 
-    it('gives an intro explanation of what the agent can do', async () => {
+    it('gives an intro explanation of what the agent can do', async ({
+        task,
+    }) => {
         if (!createdAgent) {
             throw new Error('Agent not created');
         }
 
         const promptQueryText = 'What can you do?';
 
-        const { response } = await promptAgent(promptQueryText);
+        const { response, prompt } = await promptAgent(promptQueryText);
+
+        // Fetch tool calls for this test
+        const toolCalls = await context
+            .db<DbAiAgentToolCall>('ai_agent_tool_call')
+            .where('ai_prompt_uuid', prompt!.promptUuid)
+            .select('*');
+
+        setTaskMeta(
+            task.meta,
+            'toolCalls',
+            toolCalls.map((tc) => tc.tool_name),
+        );
 
         const availableExplores = await getServices(
             context.app,
@@ -478,28 +577,43 @@ describeOrSkip('agent integration tests', () => {
             .map((explore) => explore.name)
             .join(', ');
 
-        const factualityEvaluation = await llmAsAJudge({
-            query: promptQueryText,
-            response,
-            expectedAnswer: `I can help you analyze your data with the following explores: ${availableExploresText}
+        const { result: factualityEvaluation, meta: factualityMeta } =
+            await llmAsAJudge({
+                query: promptQueryText,
+                response,
+                expectedAnswer: `I can help you analyze your data with the following explores: ${availableExploresText}
                 I can give you a summary of the data in each explore, breakdown by categories, show trends over time, and generate charts and tables.
                 Chart types available are bar charts, time series charts, and tables.
                 `,
-            scorerType: 'factuality',
-            model,
-        });
+                scorerType: 'factuality',
+                model,
+            });
 
         if (!factualityEvaluation) {
             throw new Error('Factuality evaluation not found');
         }
 
-        expect(factualityEvaluation.answer).toBeOneOf(['A', 'B']);
-        expect(factualityEvaluation.rationale).toBeDefined();
+        const isFactualityPassing =
+            factualityEvaluation.answer === 'A' ||
+            factualityEvaluation.answer === 'B';
+
+        setTaskMeta(task.meta, 'llmJudgeResults', [
+            { ...factualityMeta, passed: isFactualityPassing },
+        ]);
+        expect(isFactualityPassing).toBe(true);
+
+        setTaskMeta(
+            task.meta,
+            'toolCalls',
+            toolCalls.map((tc) => tc.tool_name),
+        );
+        setTaskMeta(task.meta, 'prompts', [promptQueryText]);
+        setTaskMeta(task.meta, 'responses', [response]);
     });
 
     it(
         'should handle multiple consecutive prompts in the same thread maintaining context',
-        async () => {
+        async ({ task }) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
@@ -510,14 +624,16 @@ describeOrSkip('agent integration tests', () => {
             const prompt3 =
                 'Then show me a breakdown of that metric by payment method';
 
-            const { threadUuid } = await promptAgent(prompt1);
-            await promptAgent(prompt2, threadUuid);
+            const { threadUuid, response: response1 } = await promptAgent(
+                prompt1,
+            );
+            const { response: response2 } = await promptAgent(
+                prompt2,
+                threadUuid,
+            );
 
-            const {
-                response: response3,
-                prompt: webPrompt3,
-                threadUuid: threadUuid3,
-            } = await promptAgent(prompt3, threadUuid);
+            const { response: response3, prompt: webPrompt3 } =
+                await promptAgent(prompt3, threadUuid);
 
             const toolCalls = await context
                 .db<DbAiAgentToolCall>('ai_agent_tool_call')
@@ -550,6 +666,18 @@ describeOrSkip('agent integration tests', () => {
                 'payments_payment_method',
             );
             expect(barVizArgs.data?.vizConfig.exploreName).toBe('payments');
+
+            setTaskMeta(
+                task.meta,
+                'toolCalls',
+                toolCalls.map((tc) => tc.tool_name),
+            );
+            setTaskMeta(task.meta, 'prompts', [prompt1, prompt2, prompt3]);
+            setTaskMeta(task.meta, 'responses', [
+                response1,
+                response2,
+                response3,
+            ]);
         },
         TIMEOUT * 2, // Double timeout for multiple prompts
     );
