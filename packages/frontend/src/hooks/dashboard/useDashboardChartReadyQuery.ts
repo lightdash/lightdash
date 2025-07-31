@@ -44,7 +44,7 @@ export const useDashboardChartReadyQuery = (
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameters = useDashboardContext((c) => c.parameters);
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -119,7 +119,7 @@ export const useDashboardChartReadyQuery = (
             autoRefresh,
             hasADateDimension ? granularity : null,
             invalidateCache,
-            parameters,
+            parameterValues,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -133,7 +133,7 @@ export const useDashboardChartReadyQuery = (
             hasADateDimension,
             granularity,
             invalidateCache,
-            parameters,
+            parameterValues,
         ],
     );
 
@@ -158,7 +158,7 @@ export const useDashboardChartReadyQuery = (
                         granularity,
                     },
                     invalidateCache,
-                    parameters,
+                    parameters: parameterValues,
                 },
             );
 

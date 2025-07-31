@@ -23,7 +23,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
-import { Parameters, useDashboardParameterState } from '../features/parameters';
+import { Parameters } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -94,9 +94,10 @@ const Dashboard: FC = () => {
     );
     const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
 
-    // Parameter state management for the Parameters component
-    const { parameterValues, handleParameterChange, clearAllParameters } =
-        useDashboardParameterState();
+    const isEditMode = useMemo(() => mode === 'edit', [mode]);
+
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
 
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -105,6 +106,9 @@ const Dashboard: FC = () => {
         );
     }, [dashboard, isDateZoomDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
+    const dashboardParameters = useDashboardContext(
+        (c) => c.dashboardParameters,
+    );
 
     const {
         enabled: isFullScreenFeatureEnabled,
@@ -120,7 +124,6 @@ const Dashboard: FC = () => {
             dashboardTemporaryFilters.metrics.length > 0,
         [dashboardTemporaryFilters],
     );
-    const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const {
         mutate,
         isSuccess,
@@ -314,6 +317,8 @@ const Dashboard: FC = () => {
                 onFullscreenChange,
             );
     });
+
+    const handleParameterChange = useDashboardContext((c) => c.setParameter);
 
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
@@ -636,6 +641,7 @@ const Dashboard: FC = () => {
                                 config: {
                                     isDateZoomDisabled,
                                 },
+                                parameters: dashboardParameters,
                             });
                         }}
                         onCancel={handleCancel}
