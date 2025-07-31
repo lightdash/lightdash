@@ -3,31 +3,24 @@ import { z } from 'zod';
 import type { FilterRule, Filters } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import { getFieldIdSchema } from '../fieldId';
+import fieldTypeSchema from '../fieldType';
 import booleanFilterSchema from './booleanFilters';
 import dateFilterSchema from './dateFilters';
 import numberFilterSchema from './numberFilters';
 import stringFilterSchema from './stringFilters';
 
-const filterRuleTypeSchema = z
-    .enum(['date', 'timestamp', 'number', 'string', 'boolean'])
-    .describe('"fieldFilterType" of the field');
-
 const filterRuleSchema = z.object({
     type: z.enum(['or', 'and']).describe('Type of filter group operation'),
     target: z.object({
         fieldId: getFieldIdSchema({ additionalDescription: null }),
-        type: filterRuleTypeSchema,
+        type: fieldTypeSchema,
     }),
-    rule: z
-        .union([
-            booleanFilterSchema.describe('Boolean filter'),
-            stringFilterSchema.describe('String filter'),
-            numberFilterSchema.describe('Number filter'),
-            dateFilterSchema.describe('Date filter'),
-        ])
-        .describe(
-            'Filter rule for the field. You can only select filter rules that match the "fieldFilterType" type specified in the field details.',
-        ),
+    rule: z.union([
+        booleanFilterSchema.describe('Boolean filter'),
+        stringFilterSchema.describe('String filter'),
+        numberFilterSchema.describe('Number filter'),
+        dateFilterSchema.describe('Date filter'),
+    ]),
 });
 
 const filterRuleSchemaTransformed = filterRuleSchema.transform(

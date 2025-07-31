@@ -1485,7 +1485,7 @@ export class AiAgentService {
                     },
                     userAttributes,
                     yamlTags: agentSettings.tags,
-                    tables: [args.table],
+                    tables: null,
                 });
 
             // TODO: we should not filter here, we should return all the fields

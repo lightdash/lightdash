@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export const toolFindFieldsArgsSchema = z.object({
     type: z.literal('find_fields'),
-    table: z.string().describe('The table to search in.'),
     fieldSearchQueries: z.array(
         z.object({
             label: z.string().describe('Full field label'),

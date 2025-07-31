@@ -1,8 +1,6 @@
 import {
-    assertUnreachable,
     CatalogField,
     convertToAiHints,
-    FieldType,
     getItemId,
     isEmojiIcon,
     KnexPaginateArgs,
@@ -16,36 +14,17 @@ type Dependencies = {
     findFields: FindFieldFn;
 };
 
-const fieldKindLabel = (fieldType: FieldType) => {
-    switch (fieldType) {
-        case FieldType.DIMENSION:
-            return 'Dimension';
-        case FieldType.METRIC:
-            return 'Metric';
-        default:
-            return assertUnreachable(fieldType, 'Invalid field type');
-    }
-};
-
 const getFieldText = (catalogField: CatalogField) => {
     const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
 
-    const fieldTypeLabel = fieldKindLabel(catalogField.fieldType);
-
-    if (!catalogField.basicType) {
-        throw new Error('Field basic type is required');
-    }
-
     return `
-    <${fieldTypeLabel} fieldId="${getItemId({
+    <Field fieldId="${getItemId({
         name: catalogField.name,
         table: catalogField.tableName,
-    })}" fieldType="${catalogField.fieldValueType}" fieldFilterType="${
-        catalogField.basicType
-    }">
+    })}" fieldType="${catalogField.fieldType}">
         <Name>${catalogField.name}</Name>
         <Label>${catalogField.label}</Label>
-        <SearchRank>${catalogField.searchRank}</SearchRank>
+        <Type>${catalogField.type}</Type>
         ${
             aiHints && aiHints.length > 0
                 ? `
@@ -71,7 +50,7 @@ const getFieldText = (catalogField: CatalogField) => {
                 : ''
         }
         <Description>${catalogField.description}</Description>
-    </${fieldTypeLabel}>
+    </Field>
     `.trim();
 };
 
@@ -119,7 +98,6 @@ Usage tips:
                     args.fieldSearchQueries.map(async (fieldSearchQuery) => ({
                         searchQuery: fieldSearchQuery.label,
                         ...(await findFields({
-                            table: args.table,
                             fieldSearchQuery,
                             page: args.page ?? 1,
                             pageSize: 10,

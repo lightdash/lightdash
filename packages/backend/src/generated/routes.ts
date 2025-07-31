@@ -15043,7 +15043,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        searchRank: { dataType: 'double' },
                         aiHints: {
                             dataType: 'union',
                             subSchemas: [
@@ -15085,18 +15084,7 @@ const models: TsoaRoute.Models = {
                         },
                         tableGroupLabel: { dataType: 'string' },
                         tableName: { dataType: 'string', required: true },
-                        fieldValueType: { dataType: 'string', required: true },
-                        basicType: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'enum', enums: ['string'] },
-                                { dataType: 'enum', enums: ['number'] },
-                                { dataType: 'enum', enums: ['date'] },
-                                { dataType: 'enum', enums: ['timestamp'] },
-                                { dataType: 'enum', enums: ['boolean'] },
-                            ],
-                            required: true,
-                        },
+                        basicType: { dataType: 'string' },
                         type: { ref: 'CatalogType.Field', required: true },
                         catalogSearchUuid: {
                             dataType: 'string',
@@ -15159,7 +15147,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        searchRank: { dataType: 'double' },
                         joinedTables: {
                             dataType: 'union',
                             subSchemas: [
