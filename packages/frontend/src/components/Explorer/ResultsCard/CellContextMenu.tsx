@@ -98,7 +98,7 @@ const CellContextMenu: FC<
                 ? null // Set as null if value is invalid date or undefined
                 : value.raw;
 
-        addFilter(item, filterValue, true);
+        addFilter(item, filterValue);
     }, [track, addFilter, item, value]);
 
     let parseResult: null | object = null;
