@@ -507,6 +507,10 @@ describe('Date tests', () => {
                 'YYYY',
             )}-${now.format('MM')}-01')`,
         );
+
+        // wait for query to finish
+        cy.findByText('Loading chart').should('not.exist');
+        cy.findByText('Loading results').should('not.exist');
         cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by week
@@ -531,6 +535,10 @@ describe('Date tests', () => {
                 weekDate,
             )}')`,
         );
+
+        // wait for query to finish
+        cy.findByText('Loading chart').should('not.exist');
+        cy.findByText('Loading results').should('not.exist');
         cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by day
@@ -550,6 +558,10 @@ describe('Date tests', () => {
                 todayDate,
             )}')`,
         );
+
+        // wait for query to finish
+        cy.findByText('Loading chart').should('not.exist');
+        cy.findByText('Loading results').should('not.exist');
         cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
