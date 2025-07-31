@@ -74,7 +74,9 @@ import styles from './styles.module.css';
 <Button>Submit</Button>
 
 // 2. Theme extension (for repeated patterns)
-// Add to mantine8Theme.ts if using the same override multiple times
+// If all submit buttons need to be 240px wide, add to theme:
+// Button: Button.extend({ defaultProps: { w: 240 } })
+<Button>Submit</Button>  // Will be 240px wide everywhere
 
 // 3. Context-specific overrides (with documentation):
 // 3a. Component props (when available)
