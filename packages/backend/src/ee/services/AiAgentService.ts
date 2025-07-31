@@ -27,6 +27,7 @@ import {
     filterExploreByTags,
     findFieldInExplores,
     ForbiddenError,
+    getItemId,
     isExploreError,
     isSlackPrompt,
     LightdashUser,
@@ -48,7 +49,7 @@ import {
     ToolCallPart,
     ToolResultPart,
 } from 'ai';
-import _ from 'lodash';
+import _, { pick } from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import {
     AiAgentCreatedEvent,
@@ -75,7 +76,6 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
 import {
-    FindExploresFn,
     FindFieldFn,
     GetExploreFn,
     GetPromptFn,
@@ -85,6 +85,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
+import { AiAgentExploreSummary } from './ai/types/aiAgentExploreSummary';
 import {
     getDeepLinkBlocks,
     getExploreBlocks,
@@ -1277,6 +1278,56 @@ export class AiAgentService {
         });
     }
 
+    private async getMinimalExploreInformation(
+        user: SessionUser,
+        projectUuid: string,
+        availableTags: string[] | null,
+    ): Promise<AiAgentExploreSummary[]> {
+        const exploreSummaries =
+            await this.projectService.getAllExploresSummary(
+                user,
+                projectUuid,
+                true,
+                false,
+            );
+
+        const account = fromSession(user);
+        const explores = await this.projectService.findExplores({
+            account,
+            projectUuid,
+            exploreNames: exploreSummaries.map((s) => s.name),
+        });
+
+        const exploresWithoutErrors = Object.values(explores).filter(
+            (e): e is Explore => !isExploreError(e),
+        );
+
+        const exploresWithDescriptions = exploresWithoutErrors
+            .map((explore) =>
+                filterExploreByTags({
+                    explore,
+                    availableTags,
+                }),
+            )
+            .filter((explore) => explore !== undefined)
+            .map((explore, index) => ({
+                ...explore,
+                description: exploreSummaries[index]?.description,
+                aiHint: exploreSummaries[index]?.aiHint,
+            }));
+
+        const minimalExploreInformation: AiAgentExploreSummary[] =
+            exploresWithDescriptions.map((s) => ({
+                ...pick(s, ['name', 'label', 'description', 'baseTable']),
+                joinedTables: Object.keys(s.tables).filter(
+                    (table) => table !== s.baseTable,
+                ),
+                ...(s.aiHint ? { aiHint: s.aiHint } : {}),
+            }));
+
+        return minimalExploreInformation;
+    }
+
     private async getAgentSettings(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
@@ -1381,71 +1432,14 @@ export class AiAgentService {
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
-        const findExplores: FindExploresFn = async (args: {
-            page: number;
-            pageSize: number;
-        }) => {
+        const getExplores = async () => {
             const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
-
-            const { data: tables, pagination } =
-                await this.catalogService.searchCatalog({
-                    projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Table,
-                    },
-                    userAttributes,
-                    context: CatalogSearchContext.AI_AGENT,
-                    yamlTags: agentSettings.tags,
-                    tables: null,
-                    paginateArgs: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                    },
-                });
-
-            const allTableNames = tables.map((table) => table.name);
-
-            const fields =
-                tables.length > 0
-                    ? (
-                          await this.catalogService.searchCatalog({
-                              projectUuid,
-                              catalogSearch: {
-                                  type: CatalogType.Field,
-                                  searchQuery: '',
-                              },
-                              userAttributes,
-                              context: CatalogSearchContext.AI_AGENT,
-                              yamlTags: agentSettings.tags,
-                              tables: allTableNames,
-                              paginateArgs: {
-                                  page: 1,
-                                  // TODO: tweak this
-                                  pageSize: allTableNames.length * 50,
-                              },
-                              sortArgs: {
-                                  sort: 'chartUsage',
-                                  order: 'desc',
-                              },
-                          })
-                      ).data.filter((item) => item.type === CatalogType.Field)
-                    : [];
-
-            return {
-                tables: tables.filter(
-                    (table) => table.type === CatalogType.Table,
-                ),
-                fields: fields.filter(
-                    (field) => field.type === CatalogType.Field,
-                ),
-                pagination,
-            };
+            return this.getMinimalExploreInformation(
+                user,
+                projectUuid,
+                agentSettings?.tags ?? null,
+            );
         };
 
         const getExplore: GetExploreFn = async ({ exploreName }) => {
@@ -1599,7 +1593,7 @@ export class AiAgentService {
 
         return {
             findFields,
-            findExplores,
+            getExplores,
             getExplore,
             updateProgress,
             getPrompt,
@@ -1663,7 +1657,7 @@ export class AiAgentService {
 
         const {
             findFields,
-            findExplores,
+            getExplores,
             getExplore,
             updateProgress,
             getPrompt,
@@ -1693,7 +1687,7 @@ export class AiAgentService {
 
         const dependencies = {
             findFields,
-            findExplores,
+            getExplores,
             getExplore,
             runMiniMetricQuery,
             getPrompt,

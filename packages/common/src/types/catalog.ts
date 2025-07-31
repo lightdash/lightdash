@@ -1,5 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { type InlineError } from './explore';
+import { type CompiledExploreJoin, type InlineError } from './explore';
 import {
     DimensionType,
     MetricType,
@@ -85,10 +85,10 @@ export type CatalogTable = Pick<
     groupLabel?: string;
     tags?: string[];
     categories: Pick<Tag, 'name' | 'color' | 'tagUuid' | 'yamlReference'>[]; // Tags manually added by the user in the catalog
+    joinedTables?: CompiledExploreJoin[]; // Matched type in explore
     chartUsage: number | undefined;
     icon: CatalogItemIcon | null;
     aiHints: string[] | null;
-    joinedTables: string[] | null;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;

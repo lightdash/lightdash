@@ -190,9 +190,7 @@ export class CatalogService<
                             explore.baseTable &&
                             explore.tables?.[explore.baseTable]?.description,
                         type: CatalogType.Table,
-                        joinedTables:
-                            explore.joinedTables?.map((join) => join.table) ??
-                            null,
+                        joinedTables: explore.joinedTables,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
@@ -218,9 +216,7 @@ export class CatalogService<
                             explore.tables[explore.baseTable].description,
                         type: CatalogType.Table,
                         groupLabel: explore.groupLabel,
-                        joinedTables:
-                            explore.joinedTables?.map((join) => join.table) ??
-                            null,
+                        joinedTables: explore.joinedTables,
                         tags: explore.tags,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
