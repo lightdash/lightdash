@@ -85,7 +85,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             icon={<MantineIcon icon={IconFilter} />}
                             onClick={() => {
                                 track({ name: EventName.ADD_FILTER_CLICKED });
-                                addFilter(item, undefined, false);
+                                addFilter(item, undefined);
                             }}
                         >
                             Filter by{' '}
@@ -164,7 +164,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             icon={<MantineIcon icon={IconFilter} />}
                             onClick={() => {
                                 track({ name: EventName.ADD_FILTER_CLICKED });
-                                addFilter(item, undefined, false);
+                                addFilter(item, undefined);
                             }}
                         >
                             Filter by{' '}
@@ -212,7 +212,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon={<MantineIcon icon={IconFilter} />}
                     onClick={() => {
                         track({ name: EventName.ADD_FILTER_CLICKED });
-                        addFilter(item, undefined, false);
+                        addFilter(item, undefined);
                     }}
                 >
                     Filter by{' '}
