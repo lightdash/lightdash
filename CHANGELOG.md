@@ -1,3 +1,10 @@
+# [0.1862.0](https://github.com/lightdash/lightdash/compare/0.1861.2...0.1862.0) (2025-07-31)
+
+
+### Features
+
+* show parameters affecting a chart tile ([#16128](https://github.com/lightdash/lightdash/issues/16128)) ([ae6a90c](https://github.com/lightdash/lightdash/commit/ae6a90c4b8afd26ca203b44c7807fcfcb2ee276a))
+
 ## [0.1861.2](https://github.com/lightdash/lightdash/compare/0.1861.1...0.1861.2) (2025-07-31)
 
 
