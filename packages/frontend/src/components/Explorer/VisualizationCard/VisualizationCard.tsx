@@ -11,12 +11,12 @@ import {
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import {
-    type FC,
     memo,
     useCallback,
     useLayoutEffect,
     useMemo,
     useState,
+    type FC,
 } from 'react';
 import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
@@ -185,7 +185,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 resultsData={resultsData}
-                apiErrorDetail={query.error?.error}
+                apiErrorDetail={query.error?.error ?? queryResults.error?.error}
                 isLoading={isLoadingQueryResults}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
