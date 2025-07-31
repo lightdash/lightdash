@@ -96,6 +96,10 @@ const Dashboard: FC = () => {
 
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
 
+    const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
+    const parametersHaveChanged = useDashboardContext(
+        (c) => c.parametersHaveChanged,
+    );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
 
@@ -154,6 +158,7 @@ const Dashboard: FC = () => {
 
         setDashboardTiles(dashboard?.tiles ?? []);
         setDashboardTabs(dashboard?.tabs ?? []);
+        setSavedParameters(dashboard?.parameters ?? {});
         setActiveTab(
             () =>
                 dashboard?.tabs.find((tab) => tab.uuid === tabUuid) ??
@@ -167,6 +172,7 @@ const Dashboard: FC = () => {
         setDashboardTabs,
         setActiveTab,
         tabUuid,
+        setSavedParameters,
     ]);
 
     useEffect(() => {
@@ -422,6 +428,7 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged(false);
         setHaveTabsChanged(false);
         setDashboardTabs(dashboard.tabs);
+        setSavedParameters(dashboard.parameters ?? {});
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -447,6 +454,7 @@ const Dashboard: FC = () => {
         setDashboardTabs,
         dashboardTabs,
         activeTab,
+        setSavedParameters,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -602,7 +610,8 @@ const Dashboard: FC = () => {
                             haveFiltersChanged ||
                             hasTemporaryFilters ||
                             haveTabsChanged ||
-                            hasDateZoomDisabledChanged
+                            hasDateZoomDisabledChanged ||
+                            parametersHaveChanged
                         }
                         onAddTiles={handleAddTiles}
                         onSaveDashboard={() => {

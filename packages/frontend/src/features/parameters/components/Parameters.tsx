@@ -78,7 +78,7 @@ export const Parameters: FC<Props> = ({
         }
     }, [parameterValues, parameters, onParameterChange]);
 
-    if (isEditMode || !parameters || selectedParametersCount === 0) {
+    if (!parameters || selectedParametersCount === 0) {
         return null;
     }
 
@@ -93,7 +93,7 @@ export const Parameters: FC<Props> = ({
             closeOnClickOutside
             offset={-1}
             position="bottom-end"
-            disabled={isEditMode || isLoadingState}
+            disabled={isLoadingState}
             onOpen={() => setShowOpenIcon(true)}
             onClose={() => setShowOpenIcon(false)}
         >
@@ -103,12 +103,13 @@ export const Parameters: FC<Props> = ({
                     variant="default"
                     loaderPosition="center"
                     loading={isLoadingState}
-                    disabled={isEditMode || isLoadingState}
+                    disabled={isLoadingState}
                     sx={{
                         borderColor:
-                            selectedParametersCount > 0
+                            selectedParametersCount > 0 && !isEditMode
                                 ? theme.colors.blue['6']
                                 : 'default',
+                        marginRight: isEditMode ? 10 : 'auto',
                     }}
                     leftIcon={<MantineIcon icon={IconVariable} />}
                     rightIcon={
