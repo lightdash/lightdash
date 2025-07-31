@@ -127,51 +127,6 @@ describe('ExplorerProvider reducer', () => {
         });
     });
 
-    describe('SET_FETCH_RESULTS_FALSE', () => {
-        it('sets shouldFetchResults to false', () => {
-            const state = mockExplorerState({ shouldFetchResults: true });
-
-            const newState = reducer(state, {
-                type: ActionType.SET_FETCH_RESULTS_FALSE,
-            });
-
-            expect(newState.shouldFetchResults).toBe(false);
-        });
-
-        it('does not affect other parts of state', () => {
-            const state = mockExplorerState({
-                shouldFetchResults: true,
-                unsavedChartVersion: {
-                    tableName: 'orders',
-                    metricQuery: mockMetricQuery({
-                        dimensions: ['order_id'],
-                    }),
-                    chartConfig: mockCartesianChartConfig,
-                    tableConfig: mockTableConfig,
-                },
-            });
-
-            const newState = reducer(state, {
-                type: ActionType.SET_FETCH_RESULTS_FALSE,
-            });
-
-            expect(newState.unsavedChartVersion.tableName).toBe('orders');
-            expect(newState.unsavedChartVersion.metricQuery.dimensions).toEqual(
-                ['order_id'],
-            );
-        });
-
-        it('does not mutate previous state', () => {
-            const frozen = Object.freeze(
-                mockExplorerState({ shouldFetchResults: true }),
-            );
-
-            expect(() =>
-                reducer(frozen, { type: ActionType.SET_FETCH_RESULTS_FALSE }),
-            ).not.toThrow();
-        });
-    });
-
     describe('SET_PREVIOUSLY_FETCHED_STATE', () => {
         const mockPrevQuery = mockMetricQuery({
             dimensions: ['dimension_1'],
@@ -209,7 +164,6 @@ describe('ExplorerProvider reducer', () => {
 
         it('does not affect other parts of state', () => {
             const state = mockExplorerState({
-                shouldFetchResults: true,
                 unsavedChartVersion: {
                     tableName: 'sales',
                     metricQuery: mockMetricQuery(),
@@ -226,7 +180,6 @@ describe('ExplorerProvider reducer', () => {
             expect(newState.unsavedChartVersion).toEqual(
                 state.unsavedChartVersion,
             );
-            expect(newState.shouldFetchResults).toBe(true);
         });
     });
 
@@ -351,7 +304,6 @@ describe('ExplorerProvider reducer', () => {
 
         it('preserves other parts of the state', () => {
             const state = mockExplorerState({
-                shouldFetchResults: true,
                 previouslyFetchedState: mockMetricQuery(),
             });
 
@@ -360,7 +312,6 @@ describe('ExplorerProvider reducer', () => {
                 payload: 'non_existent_field',
             });
 
-            expect(newState.shouldFetchResults).toBe(true);
             expect(newState.previouslyFetchedState).toEqual(mockMetricQuery());
         });
 
@@ -1073,10 +1024,9 @@ describe('ExplorerProvider reducer', () => {
             expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
                 filters,
             );
-            expect(newState.shouldFetchResults).toBe(false);
         });
 
-        it('sets filters and enables shouldFetchResults', () => {
+        it('sets filters', () => {
             const filters = {
                 metrics: mockFilterGroup({
                     id: 'metrics-group',
@@ -1095,13 +1045,11 @@ describe('ExplorerProvider reducer', () => {
             const newState = reducer(state, {
                 type: ActionType.SET_FILTERS,
                 payload: filters,
-                options: { shouldFetchResults: true },
             });
 
             expect(newState.unsavedChartVersion.metricQuery.filters).toEqual(
                 filters,
             );
-            expect(newState.shouldFetchResults).toBe(true);
         });
 
         it('preserves other parts of state', () => {

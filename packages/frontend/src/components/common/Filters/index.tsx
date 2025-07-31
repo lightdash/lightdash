@@ -39,7 +39,7 @@ import useFiltersContext from './useFiltersContext';
 
 type Props = {
     filters: Filters;
-    setFilters: (value: Filters, shouldFetchResults: boolean) => void;
+    setFilters: (value: Filters) => void;
     isEditMode: boolean;
 };
 
@@ -68,7 +68,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
 
     const totalFilterRules = getTotalFilterRules(filters);
     const clearAllFilters = useCallback(() => {
-        setFilters({}, false);
+        setFilters({});
     }, [setFilters]);
     const invalidFilterRules = getInvalidFilterRules(fields, totalFilterRules);
     const hasInvalidFilterRules = invalidFilterRules.length > 0;
@@ -79,7 +79,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
             if (isFilterableField(field)) {
-                setFilters(addFilterRule({ filters, field }), false);
+                setFilters(addFilterRule({ filters, field }));
                 toggleFieldInput(false);
             }
         },
@@ -88,7 +88,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
 
     const updateFiltersFromGroup = useCallback(
         (filterGroup: FilterGroup) => {
-            setFilters(getFiltersFromGroup(filterGroup, fields), false);
+            setFilters(getFiltersFromGroup(filterGroup, fields));
         },
         [fields, setFilters],
     );
@@ -198,7 +198,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 fields={fields}
                                 isEditMode={isEditMode}
                                 onChange={updateFiltersFromGroup}
-                                onDelete={() => setFilters({}, true)}
+                                onDelete={() => setFilters({})}
                             />
                         )}
                     </>

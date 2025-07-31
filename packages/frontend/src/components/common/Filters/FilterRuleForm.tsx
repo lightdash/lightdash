@@ -158,6 +158,7 @@ const FilterRuleForm: FC<Props> = ({
                             <ActionIcon
                                 onClick={onDelete}
                                 disabled={isRequired}
+                                data-testid="delete-filter-rule-button"
                             >
                                 <MantineIcon icon={IconX} size="sm" />
                             </ActionIcon>

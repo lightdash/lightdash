@@ -105,7 +105,6 @@ const MinimalSavedExplorer: FC = () => {
             initialState={
                 data
                     ? {
-                          shouldFetchResults: true,
                           expandedSections: [ExplorerSection.VISUALIZATION],
                           unsavedChartVersion: {
                               tableName: data.tableName,

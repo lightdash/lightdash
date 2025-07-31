@@ -60,7 +60,6 @@ const SavedExplorer = () => {
             initialState={
                 data
                     ? {
-                          shouldFetchResults: true,
                           expandedSections: [ExplorerSection.VISUALIZATION],
                           unsavedChartVersion: {
                               tableName: data.tableName,

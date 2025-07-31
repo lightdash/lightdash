@@ -38,11 +38,8 @@ export const useFilters = () => {
     );
 
     const addFilter = useCallback(
-        (field: FilterableField, value: any, shouldFetchResults?: boolean) => {
-            setFilters(
-                addFilterRule({ filters, field, value }),
-                !!shouldFetchResults,
-            );
+        (field: FilterableField, value: any) => {
+            setFilters(addFilterRule({ filters, field, value }));
             if (!filterIsOpen) toggleExpandedSection(ExplorerSection.FILTERS);
 
             window.scrollTo({
