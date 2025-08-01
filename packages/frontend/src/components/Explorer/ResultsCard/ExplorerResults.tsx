@@ -56,7 +56,10 @@ export const ExplorerResults = memo(() => {
             return 'error';
         } else if (isCreatingQuery || isFetchingFirstPage) {
             return 'loading';
-        } else if (context.query.status === 'loading') {
+        } else if (
+            context.query.status === 'loading' ||
+            !context.query.isFetched
+        ) {
             return 'idle';
         } else {
             return context.query.status;
