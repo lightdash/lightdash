@@ -574,10 +574,10 @@ const BigQueryForm: FC<{
                                     >
                                         dbt documentation
                                     </Anchor>
-                                    .
+                                    . Leaving this field empty or with a 0 value
+                                    means no limit.
                                 </p>
                             }
-                            required
                             disabled={disabled}
                         />
 

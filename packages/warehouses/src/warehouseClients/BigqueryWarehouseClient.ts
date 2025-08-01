@@ -250,10 +250,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             query,
             params: options?.values,
             useLegacySql: false,
-            maximumBytesBilled:
-                this.credentials.maximumBytesBilled === undefined
-                    ? undefined
-                    : `${this.credentials.maximumBytesBilled}`,
+            maximumBytesBilled: this.credentials.maximumBytesBilled
+                ? `${this.credentials.maximumBytesBilled}`
+                : undefined,
             priority: this.credentials.priority,
             jobTimeoutMs:
                 this.credentials.timeoutSeconds &&
