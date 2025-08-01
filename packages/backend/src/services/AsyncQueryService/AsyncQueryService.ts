@@ -1567,6 +1567,7 @@ export class AsyncQueryService extends ProjectService {
                                             ? requestParameters.chartUuid
                                             : undefined,
                                     explore,
+                                    parameters: requestParameters.parameters,
                                 },
                             ),
                             cacheMetadata: {
