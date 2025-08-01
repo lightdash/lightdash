@@ -2090,7 +2090,10 @@ export class AiAgentService {
             throw new ForbiddenError(`Copilot not enabled`);
         }
 
-        const project = await this.projectService.getProject(projectUuid, user);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
         if (project.organizationUuid !== organizationUuid) {
             throw new ForbiddenError(
                 'Project does not belong to this organization',
@@ -2118,7 +2121,10 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const project = await this.projectService.getProject(projectUuid, user);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
         if (project.organizationUuid !== organizationUuid) {
             throw new ForbiddenError(
                 'Project does not belong to this organization',
@@ -2155,7 +2161,10 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const project = await this.projectService.getProject(projectUuid, user);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
         if (project.organizationUuid !== organizationUuid) {
             throw new ForbiddenError(
                 'Project does not belong to this organization',
