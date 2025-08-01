@@ -6,7 +6,7 @@ import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ErrorState from '../components/common/ErrorState';
 import { IconArrowRight } from '@tabler/icons-react';
-import IntegrationModal from '../components/ConnectionsModal';
+import ConnectionsModal from '../components/ConnectionsModal';
 
 const integrations = [
     { name: 'Shopify', status: 'Connected', icon: '/logos/shopify.svg' },
@@ -18,7 +18,7 @@ const integrations = [
 
 
 
-const DataIngestion: FC = () => {
+const Connections: FC = () => {
     const theme = useMantineTheme();
     const params = useParams<{ projectUuid: string }>();
     const projectUuid = params.projectUuid;
@@ -101,7 +101,7 @@ const DataIngestion: FC = () => {
                 </Stack>
             </Card>
             </Stack>
-            <IntegrationModal
+            <ConnectionsModal
             opened={opened}
             onClose={close}
             selectedIntegration={selectedIntegration}
@@ -115,4 +115,4 @@ const DataIngestion: FC = () => {
     );
 };
 
-export default DataIngestion;
+export default Connections;
