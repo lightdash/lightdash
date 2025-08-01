@@ -18,6 +18,8 @@ type Props = {
     contentOverrides?: LanguageMap;
     embedHeaders?: Record<string, string>;
     onExplore?: (options: { chart: SavedChart }) => void;
+    onBackToDashboard?: () => void;
+    savedChart?: SavedChart;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -27,6 +29,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
     contentOverrides,
     onExplore,
+    onBackToDashboard,
+    savedChart,
 }) => {
     const [isInitialized, setIsInitialized] = useState(false);
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
@@ -59,6 +63,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             projectUuid: embed?.projectUuid || projectUuid,
             languageMap: contentOverrides,
             onExplore,
+            savedChart,
+            onBackToDashboard,
         };
     }, [
         embed?.projectUuid,
@@ -68,6 +74,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         projectUuid,
         contentOverrides,
         onExplore,
+        savedChart,
+        onBackToDashboard,
     ]);
 
     return (
