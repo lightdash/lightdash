@@ -339,7 +339,7 @@ const SavedChartsHeader: FC = () => {
                                     order={5} 
                                     fw={600}
 
-                                    style={{
+                                    sx={{
                                         maxWidth: '300px',
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
