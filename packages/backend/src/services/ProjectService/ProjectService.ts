@@ -383,12 +383,14 @@ export class ProjectService extends BaseService {
         chartUuid,
         queryTags,
         explore,
+        parameters,
     }: {
         metricQuery: MetricQuery;
         dateZoom: DateZoom | undefined;
         chartUuid: string | undefined;
         queryTags: Record<string, unknown>;
         explore: Explore;
+        parameters: ParametersValuesMap | undefined;
     }): MetricQueryExecutionProperties {
         return {
             dimensionsCount: metricQuery.dimensions.length,
@@ -481,6 +483,7 @@ export class ProjectService extends BaseService {
                 metricQuery.metrics.includes(metricOverrideKey),
             ).length,
             limit: metricQuery.limit,
+            parametersCount: Object.keys(parameters || {}).length,
         };
     }
 
@@ -2737,6 +2740,7 @@ export class ProjectService extends BaseService {
                                     chartUuid,
                                     dateZoom,
                                     explore,
+                                    parameters,
                                 },
                             ),
                         },

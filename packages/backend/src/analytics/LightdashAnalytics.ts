@@ -227,6 +227,7 @@ export type MetricQueryExecutionProperties = {
     virtualViewId?: string;
     metricOverridesCount: number;
     limit: number;
+    parametersCount: number;
 };
 
 type PaginatedMetricQueryExecutionProperties =
@@ -494,6 +495,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
         numCustomSqlDimensions: number;
+        parametersCount: number;
     };
 };
 
@@ -650,6 +652,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         loomTilesCount: number;
         duplicated?: boolean;
         tabsCount?: number;
+        parametersCount: number;
     };
 };
 
@@ -797,6 +800,7 @@ type SavedChartView = BaseTrack & {
         savedChartId: string;
         projectId: string;
         organizationId: string;
+        parametersCount: number;
     };
 };
 
@@ -807,6 +811,7 @@ type DashboardView = BaseTrack & {
         dashboardId: string;
         projectId: string;
         organizationId: string;
+        parametersCount: number;
     };
 };
 
