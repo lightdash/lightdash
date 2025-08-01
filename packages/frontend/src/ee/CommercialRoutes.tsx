@@ -6,6 +6,7 @@ import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import { AiAgentThreadStreamStoreProvider } from './features/aiCopilot/streaming/AiAgentThreadStreamStoreProvider';
+import EmbeddedApp from './features/embed/EmbeddedApp';
 import AgentPage from './pages/AiAgents/AgentPage';
 import AgentsRedirect from './pages/AiAgents/AgentsRedirect';
 import AgentsWelcome from './pages/AiAgents/AgentsWelcome';
@@ -16,16 +17,11 @@ import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
 import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
-import EmbedProvider from './providers/Embed/EmbedProvider';
 
 const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
     {
         path: '/embed',
-        element: (
-            <EmbedProvider>
-                <Outlet />
-            </EmbedProvider>
-        ),
+        element: <EmbeddedApp />,
         children: [
             {
                 path: '/embed/:projectUuid',

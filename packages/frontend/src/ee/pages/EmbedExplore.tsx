@@ -9,8 +9,13 @@ const EmbedExplorePage: FC<{
     containerStyles?: React.CSSProperties;
     exploreId?: string;
     savedChart?: SavedChart;
-}> = ({ containerStyles, exploreId, savedChart }) => {
-    const { embedToken } = useEmbed();
+}> = ({
+    containerStyles,
+    exploreId: exploreIdProps,
+    savedChart: savedChartProps,
+}) => {
+    const { embedToken, savedChart: savedChartEmbed } = useEmbed();
+    const savedChart = savedChartEmbed || savedChartProps;
 
     if (!embedToken) {
         return (
@@ -18,17 +23,6 @@ const EmbedExplorePage: FC<{
                 <SuboptimalState
                     icon={IconUnlink}
                     title="This embed link is not valid"
-                />
-            </div>
-        );
-    }
-
-    if (!exploreId) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <SuboptimalState
-                    title="Missing explore ID"
-                    description="No explore ID provided"
                 />
             </div>
         );
@@ -44,6 +38,8 @@ const EmbedExplorePage: FC<{
             </div>
         );
     }
+
+    const exploreId = exploreIdProps || savedChart?.tableName;
 
     return (
         <EmbedExplore
