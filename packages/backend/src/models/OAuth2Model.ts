@@ -308,6 +308,53 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return false;
     }
 
+    async createClient({
+        clientName,
+        redirectUris,
+        grantTypes = ['authorization_code', 'refresh_token'],
+        scopes = [],
+        clientSecret,
+    }: {
+        clientName: string;
+        redirectUris: string[];
+        grantTypes?: string[];
+        scopes?: string[];
+        clientSecret?: string;
+        organizationUuid?: string;
+    }): Promise<{
+        clientId: string;
+        clientSecret?: string;
+        clientName: string;
+        redirectUris: string[];
+        grantTypes: string[];
+        scopes: string[];
+        createdAt: Date;
+    }> {
+        const clientId = `mcp-${nanoid(16)}`;
+        const generatedClientSecret = clientSecret || nanoid(32);
+
+        const [client] = await this.database('oauth2_clients')
+            .insert({
+                client_id: clientId,
+                client_secret: generatedClientSecret,
+                redirect_uris: redirectUris,
+                grants: grantTypes,
+                scopes,
+                client_name: clientName,
+            })
+            .returning('*');
+
+        return {
+            clientId: client.client_id,
+            clientSecret: client.client_secret,
+            clientName: client.client_name,
+            redirectUris: client.redirect_uris,
+            grantTypes: client.grants,
+            scopes: client.scopes,
+            createdAt: client.created_at,
+        };
+    }
+
     // Optional not implemented methods
     // We will be using the default implementation from the oauth2-server library
 

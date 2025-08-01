@@ -158,6 +158,9 @@ importers:
       '@mastra/evals':
         specifier: ^0.10.7
         version: 0.10.7(@mastra/core@0.11.1(encoding@0.1.13)(openapi-types@12.1.3)(react@19.0.0)(zod@3.25.55))(ai@4.3.16(react@19.0.0)(zod@3.25.55))
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.17.0
+        version: 1.17.0
       '@node-oauth/oauth2-server':
         specifier: ^5.2.0
         version: 5.2.0
@@ -17711,7 +17714,7 @@ snapshots:
       '@babel/parser': 7.26.3
       '@babel/template': 7.25.9
       '@babel/types': 7.26.3
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.1
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -17723,7 +17726,7 @@ snapshots:
       '@babel/parser': 7.27.0
       '@babel/template': 7.27.0
       '@babel/types': 7.27.0
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.1
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -18407,7 +18410,7 @@ snapshots:
   '@gitbeaker/requester-utils@35.8.1':
     dependencies:
       form-data: 4.0.2
-      qs: 6.13.0
+      qs: 6.14.0
       xcase: 2.0.1
 
   '@godaddy/terminus@4.12.0':
@@ -19046,7 +19049,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -19390,7 +19393,7 @@ snapshots:
       ajv: 6.12.6
       content-type: 1.0.5
       cors: 2.8.5
-      cross-spawn: 7.0.5
+      cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.0.3
       express: 5.1.0
@@ -23958,7 +23961,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -23975,7 +23978,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -24057,7 +24060,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.26.1
       '@typescript-eslint/visitor-keys': 8.26.1
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.1
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -24433,13 +24436,13 @@ snapshots:
 
   agent-base@6.0.2:
     dependencies:
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.1
     transitivePeerDependencies:
       - supports-color
 
   agent-base@7.1.0:
     dependencies:
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.1
     transitivePeerDependencies:
       - supports-color
 
@@ -26001,7 +26004,7 @@ snapshots:
       chalk: 2.4.2
       commander: 2.20.3
       core-js: 3.38.0
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       fast-json-patch: 3.1.1
       get-stdin: 6.0.0
       http-proxy-agent: 5.0.0
@@ -27100,7 +27103,7 @@ snapshots:
 
   execa@4.1.0:
     dependencies:
-      cross-spawn: 7.0.5
+      cross-spawn: 7.0.6
       get-stream: 5.2.0
       human-signals: 1.1.1
       is-stream: 2.0.1
@@ -27485,7 +27488,7 @@ snapshots:
       '@babel/parser': 7.27.0
       '@babel/plugin-syntax-jsx': 7.27.1(@babel/core@7.28.0)
       acorn-walk: 8.2.0
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.1
       globby: 11.1.0
       simple-bin-help: 1.8.0
     transitivePeerDependencies:
@@ -27547,7 +27550,7 @@ snapshots:
 
   foreground-child@3.1.1:
     dependencies:
-      cross-spawn: 7.0.5
+      cross-spawn: 7.0.6
       signal-exit: 4.1.0
 
   forever-agent@0.6.1: {}
@@ -30754,7 +30757,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -33092,7 +33095,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -33234,7 +33237,7 @@ snapshots:
   spec-change@1.11.11:
     dependencies:
       arg: 5.0.2
-      debug: 4.4.0(supports-color@5.5.0)
+      debug: 4.4.1
       deep-equal: 2.2.3
       dependency-tree: 11.0.1
       lazy-ass: 2.0.3

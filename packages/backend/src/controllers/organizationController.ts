@@ -172,7 +172,7 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getProjects(req.user!),
+                .getProjects(req.account!),
         };
     }
 

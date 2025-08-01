@@ -1,3 +1,53 @@
+# [0.1870.0](https://github.com/lightdash/lightdash/compare/0.1869.2...0.1870.0) (2025-08-01)
+
+
+### Features
+
+* refactor Project and Organaization services to enable iframe explores ([#16143](https://github.com/lightdash/lightdash/issues/16143)) ([9b573a7](https://github.com/lightdash/lightdash/commit/9b573a720301c029d2bc4accee40d6715217a054))
+
+## [0.1869.2](https://github.com/lightdash/lightdash/compare/0.1869.1...0.1869.2) (2025-08-01)
+
+
+### Bug Fixes
+
+* run query with correct default sorts after first run ([#16165](https://github.com/lightdash/lightdash/issues/16165)) ([383610b](https://github.com/lightdash/lightdash/commit/383610b37c2f1e7da4ccec3872ed4aaec1454945))
+
+## [0.1869.1](https://github.com/lightdash/lightdash/compare/0.1869.0...0.1869.1) (2025-08-01)
+
+
+### Bug Fixes
+
+* Allow empty value for BigQuery maximunBytesBilled ([#16164](https://github.com/lightdash/lightdash/issues/16164)) ([a483f36](https://github.com/lightdash/lightdash/commit/a483f36e55e17d8f1e1c1d29d8b74c7a5330580c))
+* improve BigQuery error handling ([#16166](https://github.com/lightdash/lightdash/issues/16166)) ([204a749](https://github.com/lightdash/lightdash/commit/204a749da379711f8808f897ca107356f3e2a9e3))
+
+# [0.1869.0](https://github.com/lightdash/lightdash/compare/0.1868.0...0.1869.0) (2025-08-01)
+
+
+### Features
+
+* add orderBy for dashboard tiles for consistent order & update test ([#16153](https://github.com/lightdash/lightdash/issues/16153)) ([226d171](https://github.com/lightdash/lightdash/commit/226d1713ac5f0714047243ff8c191ed4efb62490))
+
+# [0.1868.0](https://github.com/lightdash/lightdash/compare/0.1867.0...0.1868.0) (2025-08-01)
+
+
+### Features
+
+* expose createdAt field for GET /api/v1/org/projects ([#16155](https://github.com/lightdash/lightdash/issues/16155)) ([d43f2db](https://github.com/lightdash/lightdash/commit/d43f2db771a64af89176f5600278efd1c0e97464))
+
+# [0.1867.0](https://github.com/lightdash/lightdash/compare/0.1866.0...0.1867.0) (2025-08-01)
+
+
+### Features
+
+* only reload relevant charts on param change ([#16156](https://github.com/lightdash/lightdash/issues/16156)) ([27c8de4](https://github.com/lightdash/lightdash/commit/27c8de40d51905ca5cf59bf659338cec867777b9))
+
+# [0.1866.0](https://github.com/lightdash/lightdash/compare/0.1865.1...0.1866.0) (2025-08-01)
+
+
+### Features
+
+* mcp server ([#16088](https://github.com/lightdash/lightdash/issues/16088)) ([4da1111](https://github.com/lightdash/lightdash/commit/4da11110be2c541caca7363fb1d01dce9e29dbe2))
+
 ## [0.1865.1](https://github.com/lightdash/lightdash/compare/0.1865.0...0.1865.1) (2025-07-31)
 
 

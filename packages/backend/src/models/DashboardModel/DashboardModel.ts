@@ -863,7 +863,11 @@ export class DashboardModel {
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,
-            );
+            )
+            .orderBy([
+                { column: `${DashboardTilesTableName}.y_offset` },
+                { column: `${DashboardTilesTableName}.x_offset` },
+            ]);
 
         const tabs = await this.database(DashboardTabsTableName)
             .select<DashboardTab[]>(

@@ -23,6 +23,7 @@ import { AiService } from './services/AiService/AiService';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
+import { McpService } from './services/McpService/McpService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { SupportService } from './services/SupportService/SupportService';
@@ -235,6 +236,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     queryHistoryModel: models.getQueryHistoryModel(),
                     lightdashConfig: context.lightdashConfig,
                     storageClient: clients.getResultsFileStorageClient(),
+                }),
+            mcpService: ({ context }) =>
+                new McpService({
+                    lightdashConfig: context.lightdashConfig,
                 }),
         },
         modelProviders: {

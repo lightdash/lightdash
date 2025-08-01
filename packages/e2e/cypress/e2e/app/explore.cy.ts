@@ -12,8 +12,12 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('Dimensions').should('exist');
         cy.findByText('Customers').click();
-        cy.findByText('First name').click();
+
+        // ! Tests run with auto-fetch enabled, so a query runs after each change in the explorer (e.g. clicking a field)
+        // ! This means that right after clicking a field the default sort is applied
+        // ! Since we check attempt to set the order to "First name" we need to click on a different field first, otherwise the sort for first name is applied and the test fails
         cy.findByText('Unique order count').click();
+        cy.findByText('First name').click();
 
         // run query
         cy.get('button').contains('Run query').click();

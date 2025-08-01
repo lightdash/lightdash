@@ -314,6 +314,7 @@ export class SavedChartService
                                   : `${savedChart.chartConfig.config?.spec?.mark}`,
                       }
                     : undefined,
+            parametersCount: Object.keys(savedChart.parameters || {}).length,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),
         };
     }
@@ -802,6 +803,8 @@ export class SavedChartService
                 savedChartId: savedChart.uuid,
                 organizationId: savedChart.organizationUuid,
                 projectId: savedChart.projectUuid,
+                parametersCount: Object.keys(savedChart.parameters || {})
+                    .length,
             },
         });
 

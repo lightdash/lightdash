@@ -175,6 +175,7 @@ export const setupIntegrationTest =
             isJwtUser: () => false,
             isServiceAccount: () => false,
             isPatUser: () => false,
+            isOauthUser: () => false,
         };
 
         const testAgent: ApiCreateAiAgent = {

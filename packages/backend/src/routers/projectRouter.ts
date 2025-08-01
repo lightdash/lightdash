@@ -264,7 +264,7 @@ projectRouter.get(
             const results: TablesConfiguration = await req.services
                 .getProjectService()
                 .getTablesConfiguration(
-                    req.user!,
+                    req.account!,
                     getObjectValue(req.params, 'projectUuid'),
                 );
             res.json({
