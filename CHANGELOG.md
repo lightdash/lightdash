@@ -1,3 +1,10 @@
+## [0.1870.1](https://github.com/lightdash/lightdash/compare/0.1870.0...0.1870.1) (2025-08-01)
+
+
+### Bug Fixes
+
+* charts with default parameters not updating ([#16174](https://github.com/lightdash/lightdash/issues/16174)) ([4644ed5](https://github.com/lightdash/lightdash/commit/4644ed5b3a301c6068463bece7970e5f3b0dc7c5))
+
 # [0.1870.0](https://github.com/lightdash/lightdash/compare/0.1869.2...0.1870.0) (2025-08-01)
 
 
