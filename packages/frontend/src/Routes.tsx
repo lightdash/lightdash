@@ -15,7 +15,7 @@ import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
-import DataIngestion from './pages/Connections';
+import Connections from './pages/Connections';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
@@ -63,7 +63,7 @@ const SOLUCIA_PROJECT_ROUTES: RouteObject[] = [
             <>
                 <NavBar />
                 <TrackPage name="DATA_INGESTION">
-                    <DataIngestion />
+                    <Connections />
                 </TrackPage>
             </>
         ),
