@@ -185,6 +185,7 @@ export const lightdashConfigMock: LightdashConfig = {
         copilot: {
             enabled: false,
             debugLoggingEnabled: false,
+            maxQueryLimit: 10000,
             telemetryEnabled: false,
             requiresFeatureFlag: false,
             defaultProvider: 'openai',
