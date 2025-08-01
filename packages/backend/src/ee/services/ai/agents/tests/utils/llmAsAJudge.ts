@@ -26,16 +26,28 @@ export type ContextRelevancyResponse = {
     reason: string;
 };
 
-export type LlmJudgeResult = {
-    scorerType: 'factuality' | 'jsonDiff' | 'contextRelevancy';
+type LlmJudgeResultBase = {
     query: string;
     response: string;
     expectedAnswer?: string;
-    context?: string[];
-    result: FactualityResponse | JsonDiffResponse | ContextRelevancyResponse;
     timestamp: string;
     passed?: boolean;
 };
+
+export type LlmJudgeResult =
+    | (LlmJudgeResultBase & {
+          scorerType: 'factuality';
+          result: FactualityResponse;
+      })
+    | (LlmJudgeResultBase & {
+          scorerType: 'jsonDiff';
+          result: JsonDiffResponse;
+      })
+    | (LlmJudgeResultBase & {
+          scorerType: 'contextRelevancy';
+          context: string[];
+          result: ContextRelevancyResponse;
+      });
 
 type BaseLlmAsJudgeParams = {
     query: string;
@@ -107,7 +119,6 @@ export async function llmAsAJudge({
                     query,
                     response,
                     expectedAnswer,
-                    context,
                     result: diff,
                     timestamp: new Date().toISOString(),
                 },
@@ -172,7 +183,6 @@ export async function llmAsAJudge({
                     query,
                     response,
                     expectedAnswer,
-                    context,
                     result: factualityResult,
                     timestamp: new Date().toISOString(),
                 },

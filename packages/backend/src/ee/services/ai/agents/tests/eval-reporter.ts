@@ -125,7 +125,7 @@ export default class EvalHtmlReporter implements Reporter {
         const year = now.getFullYear();
         const hour = now.getHours();
         const minute = now.getMinutes();
-        const filename = `eval-report-${day}-${month}-${year}-at-H${hour}:M${minute}.html`;
+        const filename = `eval-report-${day}-${month}-${year}-at-H${hour}-M${minute}.html`;
         const filepath = path.join(this.outputDir, filename);
 
         const html = this.generateHtml();
@@ -615,7 +615,6 @@ export default class EvalHtmlReporter implements Reporter {
                     query,
                     response,
                     expectedAnswer,
-                    context,
                     result: judgeData,
                     timestamp,
                 } = judgeResult;
@@ -625,7 +624,9 @@ export default class EvalHtmlReporter implements Reporter {
                     case 'factuality':
                         const factResult = judgeData as FactualityResponse;
                         scoreDetails = `
-                        <div><strong>Answer:</strong> ${EvalHtmlReporter.escapeHtml(factResult.answer)}</div>
+                        <div><strong>Answer:</strong> ${EvalHtmlReporter.escapeHtml(
+                            factResult.answer,
+                        )}</div>
                         <div><strong>Rationale:</strong> ${EvalHtmlReporter.escapeHtml(
                             factResult.rationale,
                         )}</div>
@@ -687,14 +688,18 @@ export default class EvalHtmlReporter implements Reporter {
                                     : ''
                             }
                             ${
-                                context && context.length > 0
-                                    ? `<div style="margin-top: 4px;"><strong>Context:</strong> ${context
+                                'context' in judgeResult &&
+                                judgeResult.context &&
+                                judgeResult.context.length > 0
+                                    ? `<div style="margin-top: 4px;"><strong>Context:</strong> ${judgeResult.context
                                           .slice(0, 3)
-                                          .map((c) =>
+                                          .map((c: string) =>
                                               EvalHtmlReporter.escapeHtml(c),
                                           )
                                           .join(', ')}${
-                                          context.length > 3 ? '...' : ''
+                                          judgeResult.context.length > 3
+                                              ? '...'
+                                              : ''
                                       }</div>`
                                     : ''
                             }
