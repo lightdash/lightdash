@@ -1,3 +1,11 @@
+## [0.1869.1](https://github.com/lightdash/lightdash/compare/0.1869.0...0.1869.1) (2025-08-01)
+
+
+### Bug Fixes
+
+* Allow empty value for BigQuery maximunBytesBilled ([#16164](https://github.com/lightdash/lightdash/issues/16164)) ([a483f36](https://github.com/lightdash/lightdash/commit/a483f36e55e17d8f1e1c1d29d8b74c7a5330580c))
+* improve BigQuery error handling ([#16166](https://github.com/lightdash/lightdash/issues/16166)) ([204a749](https://github.com/lightdash/lightdash/commit/204a749da379711f8808f897ca107356f3e2a9e3))
+
 # [0.1869.0](https://github.com/lightdash/lightdash/compare/0.1868.0...0.1869.0) (2025-08-01)
 
 
