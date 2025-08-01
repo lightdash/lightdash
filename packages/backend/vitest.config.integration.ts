@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import { defineConfig } from 'vitest/config';
+import EvalHtmlReporter from './src/ee/services/ai/agents/tests/eval-reporter';
 
 export default defineConfig({
     test: {
@@ -17,7 +18,7 @@ export default defineConfig({
             NODE_ENV: 'test',
         },
         logHeapUsage: true,
-        reporters: ['verbose'],
+        reporters: ['verbose', new EvalHtmlReporter()],
     },
     resolve: {
         alias: {
