@@ -75,6 +75,7 @@ import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
+import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
     FindExploresFn,
     FindFieldFn,
@@ -1427,8 +1428,9 @@ export class AiAgentService {
                                 context: CatalogSearchContext.AI_AGENT,
                                 paginateArgs: {
                                     page: 1,
-                                    // TODO: tweak this
-                                    pageSize: args.tableName ? 300 : 5,
+                                    pageSize: args.tableName
+                                        ? args.fieldSearchSize
+                                        : args.fieldOverviewSearchSize,
                                 },
                                 sortArgs: {
                                     sort: 'chartUsage',
@@ -1510,7 +1512,6 @@ export class AiAgentService {
                         yamlTags: agentSettings.tags ?? undefined,
                     },
                     context: CatalogSearchContext.AI_AGENT,
-                    // TODO: make this paginated
                     paginateArgs: {
                         page: args.page,
                         pageSize: args.pageSize,
@@ -1518,7 +1519,7 @@ export class AiAgentService {
                     userAttributes,
                 });
 
-            // TODO: we should not filter here, we should return all the fields
+            // TODO: we should not filter here, search should be returning a proper type
             const catalogFields = catalogItems.filter(
                 (item) => item.type === CatalogType.Field,
             );
@@ -1681,20 +1682,30 @@ export class AiAgentService {
         const model = getModel(this.lightdashConfig.ai.copilot);
         const agentSettings = await this.getAgentSettings(user, prompt);
 
-        const args = {
+        const args: AiAgentArgs = {
             model,
+
             agentSettings,
+
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
             messageHistory,
-            maxLimit: this.lightdashConfig.query.maxLimit,
+
             organizationId: user.organizationUuid,
             userId: user.userUuid,
+
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+
+            findExploresPageSize: 15,
+            findExploresFieldSearchSize: 200,
+            findExploresFieldOverviewSearchSize: 5,
+            findExploresMaxDescriptionLength: 100,
+            findFieldsPageSize: 10,
+            maxQueryLimit: this.lightdashConfig.query.maxLimit,
         };
 
-        const dependencies = {
+        const dependencies: AiAgentDependencies = {
             findFields,
             findExplores,
             getExplore,
@@ -1703,7 +1714,6 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
-            // avoid binding
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -1713,14 +1723,8 @@ export class AiAgentService {
         };
 
         return stream
-            ? streamAgentResponse({
-                  args,
-                  dependencies,
-              })
-            : generateAgentResponse({
-                  args,
-                  dependencies,
-              });
+            ? streamAgentResponse({ args, dependencies })
+            : generateAgentResponse({ args, dependencies });
     }
 
     // TODO: user permissions

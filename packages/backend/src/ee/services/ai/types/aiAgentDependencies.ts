@@ -22,7 +22,11 @@ type Pagination = KnexPaginateArgs & {
 };
 
 export type FindExploresFn = (
-    args: { tableName: string | null } & KnexPaginateArgs,
+    args: {
+        tableName: string | null;
+        fieldOverviewSearchSize: number;
+        fieldSearchSize: number;
+    } & KnexPaginateArgs,
 ) => Promise<{
     tablesWithFields: {
         table: CatalogTable;

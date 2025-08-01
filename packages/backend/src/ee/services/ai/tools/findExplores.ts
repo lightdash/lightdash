@@ -5,10 +5,12 @@ import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
+    pageSize: number;
+    fieldSearchSize: number;
+    fieldOverviewSearchSize: number;
+    maxDescriptionLength: number;
     findExplores: FindExploresFn;
 };
-
-const PAGE_SIZE = 15;
 
 const generateExploreResponse = ({
     table,
@@ -17,8 +19,10 @@ const generateExploreResponse = ({
     dimensionsPagination,
     metricsPagination,
     shouldTruncate,
+    maxDescriptionLength,
 }: Awaited<ReturnType<FindExploresFn>>['tablesWithFields'][number] & {
     shouldTruncate: boolean;
+    maxDescriptionLength: number;
 }) =>
     `
 <Explore tableName="${table.name}">
@@ -40,7 +44,7 @@ const generateExploreResponse = ({
         ${
             shouldTruncate
                 ? truncate(table.description, {
-                      length: 100,
+                      length: maxDescriptionLength,
                       omission: '...(truncated)',
                   })
                 : table.description
@@ -99,7 +103,13 @@ const generateExploreResponse = ({
     </Fields>
 </Explore>`.trim();
 
-export const getFindExplores = ({ findExplores }: Dependencies) => {
+export const getFindExplores = ({
+    findExplores,
+    pageSize,
+    maxDescriptionLength,
+    fieldSearchSize,
+    fieldOverviewSearchSize,
+}: Dependencies) => {
     const schema = toolFindExploresArgsSchema;
 
     return tool({
@@ -125,7 +135,9 @@ Usage Tips:
                 const { pagination, tablesWithFields } = await findExplores({
                     tableName: args.exploreName,
                     page: args.page ?? 1,
-                    pageSize: PAGE_SIZE,
+                    pageSize,
+                    fieldSearchSize,
+                    fieldOverviewSearchSize,
                 });
 
                 const exploreResponses = tablesWithFields
@@ -133,6 +145,7 @@ Usage Tips:
                         generateExploreResponse({
                             ...tableWithFields,
                             shouldTruncate: !args.exploreName,
+                            maxDescriptionLength,
                         }),
                     )
                     .join('\n\n');

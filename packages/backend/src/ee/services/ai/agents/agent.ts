@@ -59,11 +59,16 @@ const getAgentTools = (
     }
 
     const findExplores = getFindExplores({
+        maxDescriptionLength: args.findExploresMaxDescriptionLength,
+        pageSize: args.findExploresPageSize,
+        fieldSearchSize: args.findExploresFieldSearchSize,
+        fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
         findExplores: dependencies.findExplores,
     });
 
     const findFields = getFindFields({
         findFields: dependencies.findFields,
+        pageSize: args.findFieldsPageSize,
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
@@ -73,7 +78,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        maxLimit: args.maxQueryLimit,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -83,7 +88,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        maxLimit: args.maxQueryLimit,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
@@ -93,7 +98,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        maxLimit: args.maxQueryLimit,
     });
 
     const tools = {
