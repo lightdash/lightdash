@@ -1,3 +1,10 @@
+# [0.1868.0](https://github.com/lightdash/lightdash/compare/0.1867.0...0.1868.0) (2025-08-01)
+
+
+### Features
+
+* expose createdAt field for GET /api/v1/org/projects ([#16155](https://github.com/lightdash/lightdash/issues/16155)) ([d43f2db](https://github.com/lightdash/lightdash/commit/d43f2db771a64af89176f5600278efd1c0e97464))
+
 # [0.1867.0](https://github.com/lightdash/lightdash/compare/0.1866.0...0.1867.0) (2025-08-01)
 
 
