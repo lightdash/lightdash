@@ -181,12 +181,19 @@ export const setupIntegrationTest =
         const testAgent: ApiCreateAiAgent = {
             name: 'Integration Test Agent',
             projectUuid: SEED_PROJECT.project_uuid,
-            tags: null,
+            tags: ['ai'],
             integrations: [],
             instruction: 'You are a helpful AI assistant for testing purposes.',
             groupAccess: [],
             imageUrl: null,
         };
+
+        const catalogService = app.getServiceRepository().getCatalogService();
+
+        await catalogService.indexCatalog(
+            SEED_PROJECT.project_uuid,
+            testUser.userUuid,
+        );
 
         const cleanup = async () => {
             console.info('🧹 Cleaning up test environment...');
