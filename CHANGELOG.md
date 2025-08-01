@@ -1,3 +1,10 @@
+# [0.1866.0](https://github.com/lightdash/lightdash/compare/0.1865.1...0.1866.0) (2025-08-01)
+
+
+### Features
+
+* mcp server ([#16088](https://github.com/lightdash/lightdash/issues/16088)) ([4da1111](https://github.com/lightdash/lightdash/commit/4da11110be2c541caca7363fb1d01dce9e29dbe2))
+
 ## [0.1865.1](https://github.com/lightdash/lightdash/compare/0.1865.0...0.1865.1) (2025-07-31)
 
 
