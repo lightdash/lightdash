@@ -1,11 +1,11 @@
-import { type OrganizationMemberProfile } from '@lightdash/common';
 import { Button, Group, Modal, Text, Title } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { type ProjectUserWithRole } from '../../hooks/useProjectUsersWithRoles';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
-    user: OrganizationMemberProfile;
+    user: ProjectUserWithRole;
     onDelete: () => void;
     onClose: () => void;
 };

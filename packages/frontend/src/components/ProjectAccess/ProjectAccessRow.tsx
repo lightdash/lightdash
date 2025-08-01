@@ -3,7 +3,6 @@ import {
     ProjectMemberRoleLabels,
     getHighestProjectRole,
     type InheritedRoles,
-    type OrganizationMemberProfile,
     type ProjectRole,
 } from '@lightdash/common';
 import {
@@ -23,13 +22,14 @@ import {
     useRevokeProjectAccessMutation,
     useUpdateProjectAccessMutation,
 } from '../../hooks/useProjectAccess';
+import { type ProjectUserWithRole } from '../../hooks/useProjectUsersWithRoles';
 import MantineIcon from '../common/MantineIcon';
 import RemoveProjectAccessModal from './RemoveProjectAccessModal';
 
 type Props = {
     projectUuid: string;
     canManageProjectAccess: boolean;
-    user: OrganizationMemberProfile;
+    user: ProjectUserWithRole;
     inheritedRoles: InheritedRoles | undefined;
 };
 
