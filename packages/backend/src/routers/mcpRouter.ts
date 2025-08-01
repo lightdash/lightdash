@@ -1,10 +1,3 @@
-// eslint-disable-next-line import/extensions
-import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-// eslint-disable-next-line import/extensions
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import express from 'express';
-import { IncomingMessage } from 'http';
-
 import {
     getErrorMessage,
     LightdashError,
@@ -12,10 +5,11 @@ import {
     NotImplementedError,
     OauthAccount,
 } from '@lightdash/common';
-import {
-    allowOauthAuthentication,
-    isAuthenticated,
-} from '../controllers/authentication';
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
+import express from 'express';
+import { IncomingMessage } from 'http';
+import { allowOauthAuthentication } from '../controllers/authentication';
 import { ExtraContext, McpService } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 
