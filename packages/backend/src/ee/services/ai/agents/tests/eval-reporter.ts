@@ -625,7 +625,7 @@ export default class EvalHtmlReporter implements Reporter {
                     case 'factuality':
                         const factResult = judgeData as FactualityResponse;
                         scoreDetails = `
-                        <div><strong>Answer:</strong> ${factResult.answer}</div>
+                        <div><strong>Answer:</strong> ${EvalHtmlReporter.escapeHtml(factResult.answer)}</div>
                         <div><strong>Rationale:</strong> ${EvalHtmlReporter.escapeHtml(
                             factResult.rationale,
                         )}</div>
