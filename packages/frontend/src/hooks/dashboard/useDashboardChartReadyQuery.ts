@@ -48,6 +48,9 @@ export const useDashboardChartReadyQuery = (
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
+    const tileParameterReferences = useDashboardContext(
+        (c) => c.tileParameterReferences,
+    );
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
@@ -96,13 +99,14 @@ export const useDashboardChartReadyQuery = (
     ]);
 
     const chartParameterValues = useMemo(() => {
-        if (!chartQuery.data?.parameters) return {};
+        if (!tileParameterReferences || !tileParameterReferences[tileUuid])
+            return {};
         return Object.fromEntries(
-            Object.keys(chartQuery.data.parameters)
-                .filter((key) => parameterValues && key in parameterValues)
-                .map((key) => [key, parameterValues[key]]),
+            Object.entries(parameterValues).filter(([key]) =>
+                tileParameterReferences[tileUuid].includes(key),
+            ),
         );
-    }, [parameterValues, chartQuery.data?.parameters]);
+    }, [parameterValues, tileParameterReferences, tileUuid]);
 
     setChartsWithDateZoomApplied((prev) => {
         if (hasADateDimension) {
