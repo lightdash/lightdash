@@ -14,4 +14,5 @@ export const buildAccountHelpers = <T extends Account>(
     isJwtUser: () => account.authentication?.type === 'jwt',
     isServiceAccount: () => account.authentication?.type === 'service-account',
     isPatUser: () => account.authentication?.type === 'pat',
+    isOauthUser: () => account.authentication?.type === 'oauth',
 });
