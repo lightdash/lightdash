@@ -1,3 +1,10 @@
+# [0.1867.0](https://github.com/lightdash/lightdash/compare/0.1866.0...0.1867.0) (2025-08-01)
+
+
+### Features
+
+* only reload relevant charts on param change ([#16156](https://github.com/lightdash/lightdash/issues/16156)) ([27c8de4](https://github.com/lightdash/lightdash/commit/27c8de40d51905ca5cf59bf659338cec867777b9))
+
 # [0.1866.0](https://github.com/lightdash/lightdash/compare/0.1865.1...0.1866.0) (2025-08-01)
 
 
