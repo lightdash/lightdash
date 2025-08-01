@@ -26,6 +26,29 @@ export type ContextRelevancyResponse = {
     reason: string;
 };
 
+type LlmJudgeResultBase = {
+    query: string;
+    response: string;
+    expectedAnswer?: string;
+    timestamp: string;
+    passed?: boolean;
+};
+
+export type LlmJudgeResult =
+    | (LlmJudgeResultBase & {
+          scorerType: 'factuality';
+          result: FactualityResponse;
+      })
+    | (LlmJudgeResultBase & {
+          scorerType: 'jsonDiff';
+          result: JsonDiffResponse;
+      })
+    | (LlmJudgeResultBase & {
+          scorerType: 'contextRelevancy';
+          context: string[];
+          result: ContextRelevancyResponse;
+      });
+
 type BaseLlmAsJudgeParams = {
     query: string;
     response: string;
@@ -37,15 +60,24 @@ type BaseLlmAsJudgeParams = {
 // Function overloads for type safety
 export async function llmAsAJudge(
     params: BaseLlmAsJudgeParams & { scorerType: 'factuality' },
-): Promise<FactualityResponse>;
+): Promise<{
+    result: FactualityResponse;
+    meta: LlmJudgeResult;
+}>;
 
 export async function llmAsAJudge(
     params: BaseLlmAsJudgeParams & { scorerType: 'jsonDiff' },
-): Promise<JsonDiffResponse>;
+): Promise<{
+    result: JsonDiffResponse;
+    meta: LlmJudgeResult;
+}>;
 
 export async function llmAsAJudge(
     params: BaseLlmAsJudgeParams & { scorerType: 'contextRelevancy' },
-): Promise<ContextRelevancyResponse>;
+): Promise<{
+    result: ContextRelevancyResponse;
+    meta: LlmJudgeResult;
+}>;
 
 /**
  * Use LLM-as-judge to evaluate agent responses
@@ -64,7 +96,10 @@ export async function llmAsAJudge({
     scorerType,
 }: BaseLlmAsJudgeParams & {
     scorerType: 'factuality' | 'jsonDiff' | 'contextRelevancy';
-}): Promise<FactualityResponse | JsonDiffResponse | ContextRelevancyResponse> {
+}): Promise<{
+    result: FactualityResponse | JsonDiffResponse | ContextRelevancyResponse;
+    meta: LlmJudgeResult;
+}> {
     switch (scorerType) {
         case 'jsonDiff': {
             if (!expectedAnswer) {
@@ -76,7 +111,18 @@ export async function llmAsAJudge({
                 output: response,
                 expected: expectedAnswer,
             });
-            return diff;
+
+            return {
+                result: diff,
+                meta: {
+                    scorerType,
+                    query,
+                    response,
+                    expectedAnswer,
+                    result: diff,
+                    timestamp: new Date().toISOString(),
+                },
+            };
         }
 
         case 'factuality': {
@@ -125,9 +171,21 @@ export async function llmAsAJudge({
       `,
             });
 
-            return {
+            const factualityResult = {
                 answer: object.answer,
                 rationale: object.rationale,
+            };
+
+            return {
+                result: factualityResult,
+                meta: {
+                    scorerType,
+                    query,
+                    response,
+                    expectedAnswer,
+                    result: factualityResult,
+                    timestamp: new Date().toISOString(),
+                },
             };
         }
 
@@ -140,9 +198,22 @@ export async function llmAsAJudge({
             });
             const result = await metric.measure(query, response);
 
-            return {
+            const contextResult = {
                 score: result.score,
                 reason: result.info.reason,
+            };
+
+            return {
+                result: contextResult,
+                meta: {
+                    scorerType,
+                    query,
+                    response,
+                    expectedAnswer,
+                    context,
+                    result: contextResult,
+                    timestamp: new Date().toISOString(),
+                },
             };
         }
 
