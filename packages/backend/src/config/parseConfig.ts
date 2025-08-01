@@ -785,6 +785,9 @@ export type LightdashConfig = {
             expirationTime: Date | null;
         };
     };
+    mcp: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1486,5 +1489,8 @@ export const parseConfig = (): LightdashConfig => {
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
+        mcp: {
+            enabled: process.env.MCP_ENABLED === 'true',
+        },
     };
 };

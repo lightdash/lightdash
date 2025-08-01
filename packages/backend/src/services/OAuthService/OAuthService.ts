@@ -1,9 +1,16 @@
-import { UserWithOrganizationUuid } from '@lightdash/common';
+import { ParameterError, UserWithOrganizationUuid } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+
+export enum OAuthScope {
+    READ = 'read',
+    WRITE = 'write',
+    MCP_READ = 'mcp:read',
+    MCP_WRITE = 'mcp:write',
+}
 
 type OAuthServiceArguments = {
     userModel: UserModel;
@@ -36,6 +43,7 @@ export class OAuthService extends BaseService {
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
             allowBearerTokensInQueryString: true,
+            allowEmptyState: true, // Make state parameter optional for MCP compatibility
             accessTokenLifetime:
                 this.lightdashConfig.auth.oauthServer?.accessTokenLifetime,
             refreshTokenLifetime:
@@ -82,5 +90,34 @@ export class OAuthService extends BaseService {
         const refreshToken = await this.oauthModel.getRefreshToken(token);
         if (refreshToken) return this.oauthModel.revokeToken(refreshToken);
         return false;
+    }
+
+    public async registerClient({
+        clientName,
+        redirectUris,
+        grantTypes,
+        scopes,
+    }: {
+        clientName: string;
+        redirectUris: string[];
+        grantTypes?: string[];
+        scopes?: string[];
+    }) {
+        // Validate redirect URIs
+        for (const uri of redirectUris) {
+            try {
+                // eslint-disable-next-line no-new
+                new URL(uri);
+            } catch {
+                throw new ParameterError(`Invalid redirect URI ${uri}`);
+            }
+        }
+
+        return this.oauthModel.createClient({
+            clientName,
+            redirectUris,
+            grantTypes,
+            scopes,
+        });
     }
 }

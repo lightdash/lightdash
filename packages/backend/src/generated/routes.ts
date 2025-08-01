@@ -6455,6 +6455,31 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'url.URL': {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OauthAuth: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                resource: { ref: 'url.URL' },
+                expiresAt: { dataType: 'double' },
+                scopes: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                clientId: { dataType: 'string', required: true },
+                token: { dataType: 'string', required: true },
+                type: { dataType: 'enum', enums: ['oauth'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__': {
         dataType: 'refAlias',
         type: {
@@ -6471,6 +6496,7 @@ const models: TsoaRoute.Models = {
                         { ref: 'JwtAuth' },
                         { ref: 'ServiceAccountAuth' },
                         { ref: 'PersonalAccessTokenAuth' },
+                        { ref: 'OauthAuth' },
                     ],
                     required: true,
                 },

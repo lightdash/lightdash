@@ -1,12 +1,17 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
     generateOAuthAuthorizePage,
+    getErrorMessage,
     OAuthIntrospectResponse,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
+import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
-import { OAuthService } from '../services/OAuthService/OAuthService';
+import {
+    OAuthScope,
+    OAuthService,
+} from '../services/OAuthService/OAuthService';
 
 const oauthRouter = express.Router({ mergeParams: true });
 
@@ -106,6 +111,15 @@ oauthRouter.post('/authorize', async (req, res, next) => {
     if (!req.user.userId || !req.user.organizationUuid) {
         return res.status(400).send('Missing userUuid or organizationUuid');
     }
+
+    // Normalize scope parameter directly on the request object
+    if (req.body.scope && Array.isArray(req.body.scope)) {
+        req.body.scope = req.body.scope.join(' ');
+    }
+    if (req.query.scope && Array.isArray(req.query.scope)) {
+        req.query.scope = req.query.scope.join(' ');
+    }
+
     const oauthService = getOAuthService(req);
     const oauthReq = new OAuth2Server.Request(req);
     const oauthRes = new OAuth2Server.Response(res);
@@ -132,7 +146,7 @@ oauthRouter.post('/authorize', async (req, res, next) => {
         }
         return res.redirect(url.toString());
     } catch (error) {
-        console.error('Authorization error:', error);
+        Logger.error(`Authorization error: ${error}`);
         const redirectUrl = new URL(req.body.redirect_uri);
         redirectUrl.searchParams.set('error', 'server_error');
         if (req.body.state)
@@ -144,6 +158,7 @@ oauthRouter.post('/authorize', async (req, res, next) => {
 // Post token - use OAuth2Server
 oauthRouter.post('/token', async (req, res, next) => {
     const oauthService = getOAuthService(req);
+
     const oauthReq = new OAuth2Server.Request(req);
     const oauthRes = new OAuth2Server.Response(res);
 
@@ -159,10 +174,12 @@ oauthRouter.post('/token', async (req, res, next) => {
                   )
                 : undefined,
             refresh_token: token.refreshToken,
-            scope: token.scope,
+            scope: Array.isArray(token.scope)
+                ? token.scope.join(' ')
+                : token.scope,
         });
     } catch (error) {
-        console.error('Token endpoint error:', error);
+        Logger.error(`Token endpoint error: ${error}`);
         const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
 
@@ -219,7 +236,7 @@ oauthRouter.post('/introspect', async (req, res) => {
 
         return res.json({ active: false });
     } catch (error) {
-        console.error('Introspection error:', error);
+        Logger.error(`Introspection error: ${error}`);
         return res.json({ active: false });
     }
 });
@@ -236,12 +253,72 @@ oauthRouter.post('/revoke', async (req, res) => {
         const oauthService = getOAuthService(req);
         await oauthService.revokeToken(token);
     } catch (error) {
-        console.error('Revocation error:', error);
+        Logger.error(`Revocation error: ${error}`);
     }
     return res.status(200).send();
 });
 
+// Dynamic Client Registration endpoint (RFC 7591)
+// This endpoint is used to register a new OAuth client
+// to be used with the MCP server
+// Scopes and grant types are hardcoded for now
+oauthRouter.post('/register', async (req, res) => {
+    try {
+        const { client_name, redirect_uris, scope, grantTypes } = req.body;
+
+        // Validate required fields
+        if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
+            return res.status(400).json({
+                error: 'invalid_client_metadata',
+                error_description: 'client_name and redirect_uris are required',
+            });
+        }
+
+        const scopes = typeof scope === 'string' ? scope.split(' ') : [];
+        const invalidScopes = scopes.filter((sc) => !sc.startsWith('mcp:'));
+        if (invalidScopes.length > 0) {
+            return res.status(400).json({
+                error: 'invalid_scope',
+                error_description: `Only scopes starting with 'mcp:' are allowed. Invalid scopes: ${invalidScopes.join(
+                    ', ',
+                )}`,
+            });
+        }
+
+        Logger.info(
+            `Registering Oauth client ${client_name} with redirect_uris ${redirect_uris} and scopes ${scope}`,
+        );
+
+        const client = await getOAuthService(req).registerClient({
+            clientName: client_name,
+            redirectUris: redirect_uris,
+            grantTypes,
+            scopes,
+        });
+
+        return res.status(201).json({
+            client_id: client.clientId,
+            client_secret: client.clientSecret,
+            client_name: client.clientName,
+            redirect_uris: client.redirectUris,
+            grant_types: client.grantTypes,
+            scope: client.scopes.join(' '),
+            client_id_issued_at: Math.floor(client.createdAt.getTime() / 1000),
+        });
+    } catch (error) {
+        Logger.error(`Client registration error: ${getErrorMessage(error)}`);
+        return res.status(500).json({
+            error: 'server_error',
+            error_description:
+                'Internal server error during client registration',
+        });
+    }
+});
+
 // OAuth2 Discovery endpoint
+// This endpoint should only be used for the MCP server to discover the OAuth2 server
+// To create new clients
+// We limit the scopes to MCP_READ and MCP_WRITE for now
 oauthRouter.get('/.well-known/oauth-authorization-server', (req, res) => {
     const baseUrl = getOAuthService(req).getSiteUrl();
 
@@ -251,6 +328,7 @@ oauthRouter.get('/.well-known/oauth-authorization-server', (req, res) => {
         token_endpoint: `${baseUrl}/api/v1/oauth/token`,
         introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
         revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
+        registration_endpoint: `${baseUrl}/api/v1/oauth/register`,
         response_types_supported: ['code'],
         grant_types_supported: [
             'authorization_code',
@@ -261,7 +339,7 @@ oauthRouter.get('/.well-known/oauth-authorization-server', (req, res) => {
             'client_secret_basic',
             'client_secret_post',
         ],
-        scopes_supported: ['read', 'write'],
+        scopes_supported: [OAuthScope.MCP_READ, OAuthScope.MCP_WRITE],
         code_challenge_methods_supported: ['S256', 'plain'],
         pkce_required: false, // PKCE is optional but recommended
     });
