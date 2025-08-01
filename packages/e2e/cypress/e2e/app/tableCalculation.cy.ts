@@ -45,7 +45,9 @@ describe('Table calculations', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `SUM("payments_total_revenue") OVER( ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`,
+            // Previously the default sort wasn't taken into account for this table calculation
+            // After auto-fetch this sql needs to be updated since the sorts are applied before running the query for the first time
+            `SUM("payments_total_revenue") OVER(ORDER BY "payments_payment_method" ASC  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`,
             `AS "running_total_of_total_revenue"`,
             `FROM metrics`,
         ];
