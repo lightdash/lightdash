@@ -77,6 +77,7 @@ import {
     stringFilterDimension,
     stringFilterRuleMocks,
 } from './filtersCompiler.mock';
+import { SupportedDbtAdapter } from '../types/dbt';
 
 const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ss');
@@ -658,6 +659,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithSingleVal,
                 "'",
+                SupportedDbtAdapter.BIGQUERY,
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithSingleValSQL);
     });
@@ -668,6 +670,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithMultiVal,
                 "'",
+                SupportedDbtAdapter.SNOWFLAKE,
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithMultiValSQL);
     });
@@ -678,8 +681,144 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithNoVal,
                 "'",
+                SupportedDbtAdapter.POSTGRES,
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithNoValSQL);
+    });
+
+    test('should use regex for special characters in BigQuery', () => {
+        const filterWithUnderscore = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['_us_'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithUnderscore,
+                "'",
+                SupportedDbtAdapter.BIGQUERY,
+            ),
+        ).toBe(`REGEXP_CONTAINS(${stringFilterDimension}, r'_us_')`);
+    });
+
+    test('should use regex for special characters in Snowflake', () => {
+        const filterWithPercent = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['50%'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithPercent,
+                "'",
+                SupportedDbtAdapter.SNOWFLAKE,
+            ),
+        ).toBe(`REGEXP_LIKE(${stringFilterDimension}, '50%', 'i')`);
+    });
+
+    test('should use regex for special characters in PostgreSQL', () => {
+        const filterWithSpecialChars = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['_50%_'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithSpecialChars,
+                "'",
+                SupportedDbtAdapter.POSTGRES,
+            ),
+        ).toBe(`${stringFilterDimension} ~* '_50%_'`);
+    });
+
+    test('should fall back to LIKE for databases without regex support', () => {
+        const filterWithUnderscore = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['_us_'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithUnderscore,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) LIKE LOWER('%\\_us\\_%')`);
+    });
+
+    test('should escape underscore characters in includes filter sql', () => {
+        const filterWithUnderscore = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['_us_'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithUnderscore,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) LIKE LOWER('%\\_us\\_%')`);
+    });
+
+    test('should escape percent characters in includes filter sql', () => {
+        const filterWithPercent = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['50%'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithPercent,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) LIKE LOWER('%50\\%%')`);
+    });
+
+    test('should escape both underscore and percent characters in includes filter sql', () => {
+        const filterWithSpecialChars = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['_50%_'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithSpecialChars,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) LIKE LOWER('%\\_50\\%\\_%')`);
+    });
+
+    test('should handle multiple values with special characters in includes filter sql', () => {
+        const filterWithMultipleSpecialChars = {
+            ...stringFilterRuleMocks.includeFilterWithMultiVal,
+            values: ['_us_', '50%', 'normal'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithMultipleSpecialChars,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`(LOWER(${stringFilterDimension}) LIKE LOWER('%\\_us\\_%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%50\\%%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%normal%'))`);
+    });
+
+    test('should not escape normal characters in includes filter sql', () => {
+        const filterWithNormalChars = {
+            ...stringFilterRuleMocks.includeFilterWithSingleVal,
+            values: ['normal'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithNormalChars,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) LIKE LOWER('%normal%')`);
     });
 
     test('should return single value in notIncludes filter sql', () => {
@@ -688,6 +827,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithSingleVal,
                 "'",
+                SupportedDbtAdapter.BIGQUERY,
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithSingleValSQL);
     });
@@ -698,6 +838,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithMultiVal,
                 "'",
+                SupportedDbtAdapter.SNOWFLAKE,
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithMultiValSQL);
     });
@@ -708,8 +849,84 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithNoVal,
                 "'",
+                SupportedDbtAdapter.POSTGRES,
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithNoValSQL);
+    });
+
+    test('should escape underscore characters in notIncludes filter sql', () => {
+        const filterWithUnderscore = {
+            ...stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+            values: ['_us_'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithUnderscore,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) NOT LIKE LOWER('%\\_us\\_%')`);
+    });
+
+    test('should escape percent characters in notIncludes filter sql', () => {
+        const filterWithPercent = {
+            ...stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+            values: ['50%'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithPercent,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) NOT LIKE LOWER('%50\\%%')`);
+    });
+
+    test('should escape both underscore and percent characters in notIncludes filter sql', () => {
+        const filterWithSpecialChars = {
+            ...stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+            values: ['_50%_'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithSpecialChars,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) NOT LIKE LOWER('%\\_50\\%\\_%')`);
+    });
+
+    test('should handle multiple values with special characters in notIncludes filter sql', () => {
+        const filterWithMultipleSpecialChars = {
+            ...stringFilterRuleMocks.notIncludeFilterWithMultiVal,
+            values: ['_us_', '50%', 'normal'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithMultipleSpecialChars,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) NOT LIKE LOWER('%\\_us\\_%')\n  AND\n  LOWER(${stringFilterDimension}) NOT LIKE LOWER('%50\\%%')\n  AND\n  LOWER(${stringFilterDimension}) NOT LIKE LOWER('%normal%')`);
+    });
+
+    test('should not escape normal characters in notIncludes filter sql', () => {
+        const filterWithNormalChars = {
+            ...stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+            values: ['normal'],
+        };
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                filterWithNormalChars,
+                "'",
+                SupportedDbtAdapter.TRINO,
+            ),
+        ).toBe(`LOWER(${stringFilterDimension}) NOT LIKE LOWER('%normal%')`);
     });
 
     test('should return single value in startsWith filter sql', () => {
@@ -718,6 +935,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithSingleVal,
                 "'",
+                SupportedDbtAdapter.BIGQUERY,
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithSingleValSQL);
     });
@@ -728,6 +946,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithMultiVal,
                 "'",
+                SupportedDbtAdapter.SNOWFLAKE,
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithMultiValSQL);
     });
@@ -738,6 +957,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithNoVal,
                 "'",
+                SupportedDbtAdapter.POSTGRES,
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
@@ -748,6 +968,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithSingleVal,
                 "'",
+                SupportedDbtAdapter.BIGQUERY,
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithSingleValSQL);
     });
@@ -758,6 +979,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithMultiVal,
                 "'",
+                SupportedDbtAdapter.SNOWFLAKE,
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithMultiValSQL);
     });
@@ -768,6 +990,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithNoVal,
                 "'",
+                SupportedDbtAdapter.POSTGRES,
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
     });
@@ -796,6 +1019,7 @@ describe('escape string values', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
                 "'",
+                SupportedDbtAdapter.BIGQUERY,
             ),
         ).toBe(`("customers".first_name) IN ('Bob's')`);
     });
