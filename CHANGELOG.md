@@ -1,3 +1,10 @@
+## [0.1869.2](https://github.com/lightdash/lightdash/compare/0.1869.1...0.1869.2) (2025-08-01)
+
+
+### Bug Fixes
+
+* run query with correct default sorts after first run ([#16165](https://github.com/lightdash/lightdash/issues/16165)) ([383610b](https://github.com/lightdash/lightdash/commit/383610b37c2f1e7da4ccec3872ed4aaec1454945))
+
 ## [0.1869.1](https://github.com/lightdash/lightdash/compare/0.1869.0...0.1869.1) (2025-08-01)
 
 
