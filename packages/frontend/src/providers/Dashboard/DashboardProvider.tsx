@@ -808,6 +808,7 @@ const DashboardProvider: React.FC<
         clearAllParameters,
         dashboardParameterReferences,
         addParameterReferences,
+        tileParameterReferences,
         areAllChartsLoaded,
     };
     return (
