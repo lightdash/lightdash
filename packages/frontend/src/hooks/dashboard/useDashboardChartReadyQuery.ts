@@ -95,6 +95,15 @@ export const useDashboardChartReadyQuery = (
         explore,
     ]);
 
+    const chartParameterValues = useMemo(() => {
+        if (!chartQuery.data?.parameters) return {};
+        return Object.fromEntries(
+            Object.keys(chartQuery.data.parameters)
+                .filter((key) => parameterValues && key in parameterValues)
+                .map((key) => [key, parameterValues[key]]),
+        );
+    }, [parameterValues, chartQuery.data?.parameters]);
+
     setChartsWithDateZoomApplied((prev) => {
         if (hasADateDimension) {
             if (granularity) {
@@ -119,7 +128,7 @@ export const useDashboardChartReadyQuery = (
             autoRefresh,
             hasADateDimension ? granularity : null,
             invalidateCache,
-            parameterValues,
+            chartParameterValues,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -133,7 +142,7 @@ export const useDashboardChartReadyQuery = (
             hasADateDimension,
             granularity,
             invalidateCache,
-            parameterValues,
+            chartParameterValues,
         ],
     );
 
