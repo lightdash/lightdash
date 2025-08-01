@@ -1,7 +1,7 @@
 import { FC } from 'react';
 import { Modal, Group, Text, Stack, TextInput, Button } from '@mantine/core';
 
-interface IntegrationModalProps {
+interface ConnectionsModalProps {
   opened: boolean;
   onClose: () => void;
   selectedIntegration: string | null;
@@ -12,7 +12,7 @@ interface IntegrationModalProps {
   integrations: { name: string; icon: string }[];
 }
 
-const IntegrationModal: FC<IntegrationModalProps> = ({
+const ConnectionsModal: FC<ConnectionsModalProps> = ({
   opened,
   onClose,
   selectedIntegration,
@@ -59,4 +59,4 @@ const IntegrationModal: FC<IntegrationModalProps> = ({
   </Modal>
 );
 
-export default IntegrationModal;
+export default ConnectionsModal;
