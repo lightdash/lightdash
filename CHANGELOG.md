@@ -1,3 +1,10 @@
+# [0.1869.0](https://github.com/lightdash/lightdash/compare/0.1868.0...0.1869.0) (2025-08-01)
+
+
+### Features
+
+* add orderBy for dashboard tiles for consistent order & update test ([#16153](https://github.com/lightdash/lightdash/issues/16153)) ([226d171](https://github.com/lightdash/lightdash/commit/226d1713ac5f0714047243ff8c191ed4efb62490))
+
 # [0.1868.0](https://github.com/lightdash/lightdash/compare/0.1867.0...0.1868.0) (2025-08-01)
 
 
