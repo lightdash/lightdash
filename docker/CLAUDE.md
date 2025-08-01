@@ -1,7 +1,7 @@
 # Docker Configuration for Lightdash Development
 
 <summary>
-Docker Compose configurations for running Lightdash in different environments. Provides isolated services for the main backend, query worker, database, and supporting infrastructure like MinIO and Prometheus.
+Docker Compose configurations for running Lightdash in different environments. Provides isolated services for the main backend and supporting infrastructure like MinIO and Prometheus.
 </summary>
 
 <howToUse>
@@ -15,7 +15,6 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 Key services:
 
 -   `lightdash-dev`: Main backend API (ports 8080, 3000, 9090, 6006)
--   `lightdash-query-worker`: Isolated warehouse query execution
 -   `db-dev`: PostgreSQL with pgvector extension
 -   `minio`: S3-compatible storage for development
 -   `prometheus`: Metrics collection
@@ -35,25 +34,17 @@ services:
   lightdash-dev:
     <<: *lightdash-base
     environment:
-      SCHEDULER_EXCLUDE_TASKS: runAsyncWarehouseQuery
+      SCHEDULER_EXCLUDE_TASKS: ${SCHEDULER_EXCLUDE_TASKS}
     ports: ['8080:8080', '3000:3000']
-
-  lightdash-query-worker:
-    <<: *lightdash-base
-    environment:
-      SCHEDULER_INCLUDE_TASKS: runAsyncWarehouseQuery
-    restart: unless-stopped
 ```
 
 </codeExample>
 
 <importantToKnow>
-**Service Separation**: The main backend and query worker run in separate containers. The main service handles API requests while the worker processes warehouse queries.
 
 **Development Workflow**:
 
 -   `lightdash-dev` starts with `sleep infinity` for manual setup (migrations, builds)
--   `lightdash-query-worker` depends on the main service and auto-restarts on failure
 -   Environment variables are deduplicated using YAML anchors (`x-lightdash-*`)
 
 **Port Allocation**:

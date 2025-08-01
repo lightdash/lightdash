@@ -1,22 +1,13 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { type PivotIndexColum } from '../visualizations/types';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type Explore, type ExploreError } from './explore';
-import { type ItemsMap } from './field';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type PivotConfig } from './pivot';
-import { type ResultColumns } from './results';
-import {
-    type GroupByColumn,
-    type SortBy,
-    type ValuesColumn,
-} from './sqlRunner';
 import { type DateGranularity } from './timeFrames';
 import { type ValidationTarget } from './validation';
-import { type RunQueryTags } from './warehouse';
 
 export type SchedulerCsvOptions = {
     formatted: boolean;
@@ -531,32 +522,3 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
     dashboardFilters: DashboardFilters;
     dateZoomGranularity?: DateGranularity;
 };
-
-// ! Type defined here because it's used in both AsyncQueryService and SchedulerTask
-export type RunAsyncWarehouseQueryArgs = {
-    userId: string;
-    // Can the user have credentials?
-    isSessionUser: boolean;
-    // Is the user in the database?
-    isRegisteredUser: boolean;
-    projectUuid: string;
-    queryTags: RunQueryTags;
-    query: string;
-    fieldsMap: ItemsMap;
-    queryHistoryUuid: string;
-    cacheKey: string;
-    warehouseCredentialsOverrides?: {
-        snowflakeVirtualWarehouse?: string;
-        databricksCompute?: string;
-    };
-    pivotConfiguration?: {
-        indexColumn: PivotIndexColum;
-        valuesColumns: ValuesColumn[];
-        groupByColumns: GroupByColumn[] | undefined;
-        sortBy: SortBy | undefined;
-    };
-    originalColumns?: ResultColumns;
-};
-
-export type AsyncWarehouseQueryPayload = TraceTaskBase &
-    RunAsyncWarehouseQueryArgs;

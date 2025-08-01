@@ -664,42 +664,6 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY]: async (
-                payload,
-                helpers,
-            ) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.runAsyncWarehouseQuery(
-                                helpers.job.id,
-                                helpers.job.run_at,
-                                payload,
-                            );
-                        },
-                    ),
-                    helpers.job,
-                    this.lightdashConfig.scheduler.jobTimeout,
-                    async (job, e) => {
-                        await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                createdByUserUuid: payload.userUuid,
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                                queryHistoryUuid: payload.queryHistoryUuid,
-                            },
-                        });
-                    },
-                );
-            },
         };
     }
 }
