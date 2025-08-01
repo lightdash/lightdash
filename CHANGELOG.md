@@ -1,3 +1,10 @@
+# [0.1870.0](https://github.com/lightdash/lightdash/compare/0.1869.2...0.1870.0) (2025-08-01)
+
+
+### Features
+
+* refactor Project and Organaization services to enable iframe explores ([#16143](https://github.com/lightdash/lightdash/issues/16143)) ([9b573a7](https://github.com/lightdash/lightdash/commit/9b573a720301c029d2bc4accee40d6715217a054))
+
 ## [0.1869.2](https://github.com/lightdash/lightdash/compare/0.1869.1...0.1869.2) (2025-08-01)
 
 
