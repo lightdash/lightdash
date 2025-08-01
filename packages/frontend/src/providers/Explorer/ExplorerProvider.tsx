@@ -1390,6 +1390,15 @@ const ExplorerProvider: FC<
         clearQueryResults();
     }, [clearQueryResults]);
 
+    const defaultSort = useDefaultSortField(unsavedChartVersion);
+
+    // Set default sort in unsavedChartVersion if no query has been run yet (validQueryArgs)
+    useEffect(() => {
+        if (!validQueryArgs?.query?.sorts.length && defaultSort) {
+            setSortFields([defaultSort]);
+        }
+    }, [validQueryArgs, defaultSort, setSortFields]);
+
     // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {
         const fields = new Set([
@@ -1482,23 +1491,11 @@ const ExplorerProvider: FC<
         unsavedChartVersion.tableName,
     ]);
 
-    const defaultSort = useDefaultSortField(unsavedChartVersion);
-
     const fetchResults = useCallback(() => {
-        if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
-            setSortFields([defaultSort]);
-        } else {
-            // force new results even when query is the same
-            clearQueryResults();
-            runQuery();
-        }
-    }, [
-        unsavedChartVersion.metricQuery.sorts.length,
-        defaultSort,
-        setSortFields,
-        clearQueryResults,
-        runQuery,
-    ]);
+        // force new results even when query is the same
+        clearQueryResults();
+        runQuery();
+    }, [clearQueryResults, runQuery]);
 
     const { mutate: cancelQueryMutation } = useCancelQuery(
         projectUuid,
