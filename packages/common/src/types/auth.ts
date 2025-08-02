@@ -124,7 +124,17 @@ export type SessionAccount = BaseAccountWithHelpers & {
  */
 export type AnonymousAccount = BaseAccountWithHelpers & {
     authentication: JwtAuth;
-    user: ExternalUser;
+    user: ExternalUser<'anonymous'>;
+    /** The access permissions the account has */
+    access: DashboardAccess;
+};
+
+/**
+ * Account for registered embed users with JWT authentication (embeds with canEdit)
+ */
+export type RegisteredEmbedAccount = BaseAccountWithHelpers & {
+    authentication: JwtAuth;
+    user: ExternalUser<'registered'>;
     /** The access permissions the account has */
     access: DashboardAccess;
 };
@@ -147,6 +157,7 @@ export type OauthAccount = BaseAccountWithHelpers & {
 export type Account =
     | SessionAccount
     | AnonymousAccount
+    | RegisteredEmbedAccount
     | ApiKeyAccount
     | ServiceAcctAccount
     | OauthAccount;
@@ -158,7 +169,7 @@ export type AccountWithoutHelpers<T extends Account> = Omit<
 
 export function assertEmbeddedAuth(
     account: Account | undefined,
-): asserts account is AnonymousAccount {
+): asserts account is AnonymousAccount | RegisteredEmbedAccount {
     if (account?.authentication.type !== 'jwt') {
         throw new ForbiddenError('Account is not an embedded account');
     }
