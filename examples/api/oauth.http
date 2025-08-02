@@ -1,0 +1,27 @@
+### Get register client 
+POST http://localhost:3000/api/v1/oauth/register
+Content-Type: application/json
+
+{
+    "redirect_uris":["http://localhost:6274/oauth/callback/debug"],
+    "token_endpoint_auth_method":"none",
+    "grant_types":["authorization_code","refresh_token"],
+    "response_types":["code"],
+    "client_name":"MCP Inspector",
+    "client_uri":"https://github.com/modelcontextprotocol/inspector",
+    "scope":"mcp:read mcp:write"
+}
+
+### Register claude client 
+POST https://lightdash-preview-pr-16161.lightdash.okteto.dev/api/v1/oauth/register
+Content-Type: application/json
+
+{
+    "redirect_uris":["https://claude.ai/api/mcp/auth_callback"],
+    "token_endpoint_auth_method":"none",
+    "grant_types":["authorization_code","refresh_token"],
+    "response_types":["code"],
+    "client_name":"Claude",
+    "client_uri":"https://claude.ai",
+    "scope":"mcp:read mcp:write"
+}

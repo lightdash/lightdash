@@ -29,6 +29,29 @@ function getMcpService(req: express.Request): McpService {
     }
 }
 
+/* 
+MCP servers MUST use the HTTP header WWW-Authenticate when returning a 401 Unauthorized to indicate 
+the location of the resource server metadata URL as described in RFC9728 Section 5.1 “WWW-Authenticate Response”.
+https://www.rfc-editor.org/rfc/rfc9728#section-5.1
+*/
+const returnHeaderIfUnauthenticated = (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+) => {
+    if (req.account?.isAuthenticated()) {
+        next();
+    } else {
+        const oauthService = req.services.getOauthService();
+        const baseUrl = oauthService.getSiteUrl();
+        res.set(
+            'WWW-Authenticate',
+            `Bearer resource_metadata="${baseUrl}/api/v1/oauth/.well-known/oauth-protected-resource"`,
+        );
+        res.status(401).json({ error: 'Unauthorized' });
+    }
+};
+
 // MCP endpoint - supports Streamable HTTP
 // Keep the MCP router as raw Express because:
 // - MCP protocol requirements don't align with REST/TSOA patterns
@@ -37,7 +60,7 @@ function getMcpService(req: express.Request): McpService {
 mcpRouter.all(
     '/',
     allowOauthAuthentication,
-    isAuthenticated,
+    returnHeaderIfUnauthenticated,
     async (req, res) => {
         try {
             const mcpService = getMcpService(req);
@@ -79,18 +102,18 @@ mcpRouter.all(
 
                 return await transport.handleRequest(authReq, res, req.body);
             }
+
+            return res.status(405).json({ error: 'Method not allowed' });
         } catch (error) {
             Logger.error(`MCP endpoint error: ${getErrorMessage(error)}`);
             if (error instanceof LightdashError) {
-                res.status(error.statusCode).json({ error: error.message });
-            } else {
-                Logger.error(
-                    `Unknown MCP endpoint error: ${getErrorMessage(error)}`,
-                );
-                res.status(500).json({ error: 'Internal server error' });
+                return res
+                    .status(error.statusCode)
+                    .json({ error: error.message });
             }
+
+            return res.status(500).json({ error: 'Internal server error' });
         }
-        return res.status(405).json({ error: 'Method not allowed' });
     },
 );
 
