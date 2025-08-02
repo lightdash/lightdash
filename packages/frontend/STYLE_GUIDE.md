@@ -4,6 +4,20 @@
 
 **CRITICAL**: We are migrating from Mantine 6 to 8. Always upgrade v6 components when you encounter them.
 
+## Component Checklist
+
+When creating/updating components:
+
+- [ ] Use `@mantine-8/core` imports
+- [ ] Wrap top level component with `MantineProvider` and pass the theme provider `getMantine8ThemeOverride()` to its prop: 'theme'
+- [ ] Follow Quick Migration Guide below and then make reasoning in section ###  When to Override Styles
+- [ ] Confirm you know the guidelines in section ### 1. Theme Extensions (For Repeated Patterns) and section ### 2. Context-Specific Overrides (for simple overrides)
+- [ ] No `style` or `styles` or `sx` props
+- [ ] Check Mantine docs/types for available component props
+- [ ] Use inline-style component props for styling when available (and follow <=3 props rule; if more than 3 props, use CSS modules)
+- [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
+- [ ] Theme values('md', 'lg', 'xl', or 'gray.1', 'gray.2', etc) instead of magic numbers
+
 ### Quick Migration Guide
 
 ```tsx
@@ -29,37 +43,9 @@ import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 
 - `spacing` → `gap`
 - `noWrap` → `wrap="nowrap"`
-- `sx` → Component props (e.g., `mt`, `w`, `c`) or CSS modules
-- Style props now available: `mt`, `mb`, `mr`, `ml`, `p`, `w`, `h`, `c`, `bg`, etc.
-
-### Component Props vs Inline Styles
-
-**IMPORTANT**: Always prefer Mantine component props over the `style` prop:
-
-```tsx
-// ❌ Bad - Using style prop when component props are available
-<Button style={{marginTop: 20, width: 180, color: 'green'}}>Submit</Button>
-<MantineIcon style={{color: 'green', display: 'block'}}/>
-
-// ✅ Good - Using component props
-<Button mt={20} w={180} c="green">Submit</Button>
-<MantineIcon color="green.6" display="block"/>
-```
-
-When migrating from v6 and component props aren't available, use CSS modules:
-
-```css
-/* styles.module.css */
-.customComponent {
-    margin-top: 20px;
-}
-```
-
-```tsx
-import styles from './styles.module.css';
-
-<CustomComponent className={styles.customComponent}>Content</CustomComponent>
-```
+- `sx` → Component props (e.g., `mt`, `w`, `c`) or CSS modules if it's not possible to use component props. Also follow the best practices below in section ### When to Override Styles.
+- `leftIcon` → `leftSection`
+- `rightIcon` → `rightSection`
 
 ## Styling Best Practices
 
@@ -67,7 +53,7 @@ import styles from './styles.module.css';
 
 **The goal is to use theme defaults whenever possible.** Style overrides should be the exception, not the rule.
 
-### Quick Reference
+#### Quick Reference
 
 ```tsx
 // 1. Best: No custom styles (use theme defaults)
@@ -92,21 +78,21 @@ import styles from './styles.module.css';
 
 Only override styles when there's a clear contextual need:
 
-1. **Ask first**: Can I achieve this with theme defaults?
+1. **Ask first**: Can I achieve this with theme defaults by extending the theme?
 2. **Check frequency**: Is this override used multiple times? → Theme extension
-3. **Use component props**: When available for the properties you need
-4. **Use CSS modules**: When component props aren't available
+3. **Use component inline-style props**: When available for the properties you need and the override is simple (1-3 props) .eg `mt={20} w={180} c="green"`
+4. **Use CSS modules**: When component inline-style props aren't available or more than 3 props are needed
 5. **Document why**: Always explain the contextual reason for overrides
 
 **❌ NEVER use:**
 
-- `styles` prop
-- `sx` prop
+- `styles` prop (always use CSS modules instead)
+- `sx` prop (it's a v6 prop)
 - `style` prop (inline styles)
 
 ### 1. Theme Extensions (For Repeated Patterns)
 
-If you find yourself applying the same style override multiple times, add it to the theme:
+If you find yourself applying the same style override multiple times, add it to the theme in mantine8Theme.ts:
 
 ```tsx
 // In src/mantine8Theme.ts - inside the components object
@@ -128,12 +114,13 @@ components: {
 
 When you need to override styles for a specific context with clear motivation:
 
-#### Component Props (for simple overrides)
+#### Inline-style Component Props (for simple overrides)
 
-For simple overrides (1-3 props), use component props when available. Check Mantine docs/TypeScript for available props:
+For simple overrides (1-3 props), use inline-style component props when available. Check Mantine docs/TypeScript for available props.
+When hitting more than 3 props, use CSS modules instead.
 
 ```tsx
-// ✅ Good - Component props with clear context
+// ✅ Good - Inline-style component props with clear context
 <Button
     mt="xl"     // Extra space needed after error message
     w={240}     // Match form field width
@@ -142,23 +129,26 @@ For simple overrides (1-3 props), use component props when available. Check Mant
     Submit
 </Button>
 
-// ❌ Bad - Using style prop when component props exist
+// ❌ Bad - Using style prop when inline-style component props exist
 <Button style={{marginTop: 40, width: 240, color: 'blue'}}>Submit</Button>
 
-// ❌ Bad - Too component props - too complex for inline
+// ❌ Bad - Too many inline-style component props - too complex for inline
 <Button mt={20} mb={20} ml={10} mr={10} w={240} c="blue.6" bg="white">Submit</Button>
 ```
 
-Common component props:
+Common inline-style component props examples:
 
 - Layout: `mt`, `mb`, `ml`, `mr`, `m`, `p`, `pt`, `pb`, `pl`, `pr`
 - Sizing: `w`, `h`, `maw`, `mah`, `miw`, `mih`
 - Colors: `c` (color), `bg` (background)
 - Display: `display`, `pos` (position)
+- Font: `ff` (font family), `fs` (font size), `fw` (font weight)
+- Text: `ta` (text align), `lh` (line height)
+- Shadow: `shadow` (shadow)
 
 #### CSS Modules (complex styles)
 
-Use CSS modules when component props aren't available or for complex styling:
+Use CSS modules when component props aren't available or for complex styling (when more than 3 inline-style props are needed). This file should be in the same folder as the component and share the same name but with .module.css extension.
 
 ```css
 /* Component.module.css */
@@ -205,8 +195,8 @@ Before moving styles to CSS modules, analyze if they're actually needed:
 
 - The style has no visual effect in its context
 - It's overridden by parent layout (e.g., flex/grid children)
-- It duplicates default component behavior
-- It's legacy code from previous implementations
+- It's redundant with the theme
+- It's legacy code from previous v6 implementations
 
 **Always verify:** Test the component with and without the style to confirm it has no effect before removing.
 
@@ -216,23 +206,8 @@ Before moving styles to CSS modules, analyze if they're actually needed:
 // ❌ Bad - Magic numbers
 <Box p={16} mt={24}>
 
-    // ✅ Good - Theme tokens
-    <Box p="md" mt="lg">
-```
-
-#### Document Style Overrides
-
-Always explain WHY you're overriding default styles:
-
-```tsx
-// ✅ Good
-<Button
-    w="100%"  // Full width needed in mobile view
-    mt="xl"   // Extra spacing after error messages
->
-
-    // ❌ Bad - No context
-    <Button w="100%" mt="xl">
+// ✅ Good - Theme tokens
+<Box p="md" mt="lg">
 ```
 
 ## Mantine Documentation
@@ -248,19 +223,5 @@ Component props and APIs can be found in the official docs:
     - SegmentedControl: https://mantine.dev/core/segmented-control/
     - SemiCircleProgress: https://mantine.dev/core/semi-circle-progress/
 
-**Tip**: In your IDE, hover over a component or use Go to Definition to see all available props in the TypeScript
-interface.
+**Tip**: In your IDE, hover over a component or use Go to Definition to see all available props in the TypeScript interface.
 
-## Component Checklist
-
-When creating/updating components:
-
-- [ ] Uses `@mantine-8/core` imports
-- [ ] Wrapped with `MantineProvider` + `getMantine8ThemeOverride()`
-- [ ] No Mantine 6 syntax
-- [ ] Checked Mantine docs/types for available component props
-- [ ] Using component props for styling when available
-- [ ] Using CSS modules when component props aren't available
-- [ ] No inline styles (`style` prop)
-- [ ] Theme values instead of magic numbers
-- [ ] Documented WHY any style overrides are needed
