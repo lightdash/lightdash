@@ -240,11 +240,11 @@ export class CatalogModel {
             searchQuery = '',
             type,
             yamlTags,
+            tables,
         },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
-        tables,
         paginateArgs,
         sortArgs,
         context,
@@ -255,7 +255,6 @@ export class CatalogModel {
         excludeUnmatched?: boolean;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
-        tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
         context: CatalogSearchContext;

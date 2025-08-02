@@ -3,7 +3,6 @@ models:
   - name: payments
     description: This table has information about individual payments
     config:
-      tags: ["ai"]
       meta:
         primary_key: payment_id
         joins:
@@ -18,12 +17,19 @@ models:
         description: This is a unique identifier for a payment
         config:
           meta:
+            dimension:
+              tags: ['ai']
             metrics:
               unique_payment_count:
+                tags: ['ai']
                 type: count_distinct
                 description: count of all payments
       - name: order_id
         description: Foreign key to the orders table
+        config:
+          meta:
+            dimension:
+              tags: ['ai']
       - name: payment_method
         description: Method of payment used, for example credit card
       - name: amount
@@ -32,5 +38,6 @@ models:
           meta:
             metrics:
               total_revenue:
+                tags: ['ai']
                 type: sum
                 description: Sum of all payments

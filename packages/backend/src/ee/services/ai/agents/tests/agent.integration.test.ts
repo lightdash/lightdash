@@ -149,7 +149,6 @@ describeOrSkip('agent integration tests', () => {
                         page: 1,
                         pageSize: 100,
                     },
-                    tables: null,
                 });
 
             const tablesText = tables.map((table) => table.name).join(', ');
@@ -570,7 +569,6 @@ describeOrSkip('agent integration tests', () => {
             },
             userAttributes: {},
             context: CatalogSearchContext.AI_AGENT,
-            tables: null,
         });
 
         const availableExploresText = availableExplores.data
