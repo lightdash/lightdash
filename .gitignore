@@ -48,8 +48,11 @@ yarn-debug.log*
 yarn-error.log*
 
 .idea
+.pnpm-store
 node_modules
 package-lock.json
+pnpm-lock.yaml
+yarn.lock
 
 # typescript
 *.tsbuildinfo
