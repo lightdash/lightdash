@@ -1,3 +1,10 @@
+# [0.1871.0](https://github.com/lightdash/lightdash/compare/0.1870.1...0.1871.0) (2025-08-02)
+
+
+### Features
+
+* add GIN index on yaml_tags in catalog_search table ([#16060](https://github.com/lightdash/lightdash/issues/16060)) ([678239d](https://github.com/lightdash/lightdash/commit/678239d5e70b5da38cd28cebe01129932db2bdff))
+
 ## [0.1870.1](https://github.com/lightdash/lightdash/compare/0.1870.0...0.1870.1) (2025-08-01)
 
 
