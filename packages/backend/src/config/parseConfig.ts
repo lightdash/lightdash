@@ -786,6 +786,9 @@ export type LightdashConfig = {
             expirationTime: Date | null;
         };
     };
+    mcp: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1060,8 +1063,6 @@ export const parseConfig = (): LightdashConfig => {
                   }
                 : undefined,
         },
-        __experimental__toolFindFields:
-            process.env.AI_COPILOT_EXPERIMENTAL_TOOL_FIND_FIELDS === 'true',
     };
 
     const copilotConfigParse =
@@ -1493,5 +1494,8 @@ export const parseConfig = (): LightdashConfig => {
         // TODO: actually set env vars
         initialSetup: undefined,// getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
+        mcp: {
+            enabled: process.env.MCP_ENABLED === 'true',
+        },
     };
 };

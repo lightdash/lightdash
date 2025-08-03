@@ -56,44 +56,33 @@ export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
-    escapeStringQuoteChar: string,
 ): string => {
-    const escapedFilterValues = filter.values?.map((v) =>
-        typeof v === 'string'
-            ? v.replaceAll(
-                  stringQuoteChar,
-                  `${escapeStringQuoteChar}${stringQuoteChar}`,
-              )
-            : v,
-    );
+    const filterValues = filter.values;
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return !escapedFilterValues || escapedFilterValues.length === 0
+            return !filterValues || filterValues.length === 0
                 ? 'true'
-                : `(${dimensionSql}) IN (${escapedFilterValues
+                : `(${dimensionSql}) IN (${filterValues
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
                       .join(',')})`;
         case FilterOperator.NOT_EQUALS:
-            return !escapedFilterValues || escapedFilterValues.length === 0
+            return !filterValues || filterValues.length === 0
                 ? 'true'
-                : `((${dimensionSql}) NOT IN (${escapedFilterValues
+                : `((${dimensionSql}) NOT IN (${filterValues
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
                       .join(',')} ) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.INCLUDE:
-            if (
-                escapedFilterValues === undefined ||
-                escapedFilterValues.length === 0
-            )
+            if (filterValues === undefined || filterValues.length === 0)
                 return 'true';
-            const includesQuery = escapedFilterValues.map(
+            const includesQuery = filterValues.map(
                 (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
             );
             if (includesQuery.length > 1)
                 return `(${includesQuery.join('\n  OR\n  ')})`;
             return includesQuery.join('\n  OR\n  ');
         case FilterOperator.NOT_INCLUDE:
-            const notIncludeQuery = escapedFilterValues?.map(
+            const notIncludeQuery = filterValues?.map(
                 (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
             );
             return notIncludeQuery?.join('\n  AND\n  ') || 'true';
@@ -102,13 +91,13 @@ export const renderStringFilterSql = (
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
-            const startWithQuery = escapedFilterValues?.map(
+            const startWithQuery = filterValues?.map(
                 (v) =>
                     `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
         case FilterOperator.ENDS_WITH:
-            const endsWithQuery = escapedFilterValues?.map(
+            const endsWithQuery = filterValues?.map(
                 (v) =>
                     `(${dimensionSql}) LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
             );
@@ -116,6 +105,17 @@ export const renderStringFilterSql = (
         default:
             return raiseInvalidFilterError('string', filter);
     }
+};
+
+// Validate that all values are valid numbers
+const validateAndSanitizeNumber = (value: unknown): number => {
+    const num = Number(value);
+    if (Number.isNaN(num) || !Number.isFinite(num)) {
+        throw new CompileError(
+            `Invalid number value in filter: "${value}". Expected a valid number.`,
+        );
+    }
+    return num;
 };
 
 export const renderNumberFilterSql = (
@@ -126,33 +126,47 @@ export const renderNumberFilterSql = (
         case FilterOperator.EQUALS:
             return !filter.values || filter.values.length === 0
                 ? 'true'
-                : `(${dimensionSql}) IN (${filter.values.join(',')})`;
+                : `(${dimensionSql}) IN (${filter.values
+                      .map(validateAndSanitizeNumber)
+                      .join(',')})`;
         case FilterOperator.NOT_EQUALS:
             return !filter.values || filter.values.length === 0
                 ? 'true'
-                : `((${dimensionSql}) NOT IN (${filter.values.join(
-                      ',',
-                  )}) OR (${dimensionSql}) IS NULL)`;
+                : `((${dimensionSql}) NOT IN (${filter.values
+                      .map(validateAndSanitizeNumber)
+                      .join(',')}) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.GREATER_THAN:
-            return `(${dimensionSql}) > (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) > (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.GREATER_THAN_OR_EQUAL:
-            return `(${dimensionSql}) >= (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) >= (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.LESS_THAN:
-            return `(${dimensionSql}) < (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) < (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.LESS_THAN_OR_EQUAL:
-            return `(${dimensionSql}) <= (${filter.values?.[0] || 0})`;
+            return `(${dimensionSql}) <= (${
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            })`;
         case FilterOperator.IN_BETWEEN:
             return `(${dimensionSql}) >= (${
-                filter.values?.[0] || 0
-            }) AND (${dimensionSql}) <= (${filter.values?.[1] || 0})`;
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            }) AND (${dimensionSql}) <= (${
+                validateAndSanitizeNumber(filter.values?.[1]) || 0
+            })`;
         case FilterOperator.NOT_IN_BETWEEN:
             return `(${dimensionSql}) < (${
-                filter.values?.[0] || 0
-            }) OR (${dimensionSql}) > (${filter.values?.[1] || 0})`;
+                validateAndSanitizeNumber(filter.values?.[0]) || 0
+            }) OR (${dimensionSql}) > (${
+                validateAndSanitizeNumber(filter.values?.[1]) || 0
+            })`;
         default:
             return raiseInvalidFilterError('number', filter);
     }
@@ -363,12 +377,24 @@ export const renderBooleanFilterSql = (
     }
 };
 
+const escapeStringValuesOnFilterRule = (
+    filterRule: FilterRule<FilterOperator, unknown>,
+    escapeString: (string: string) => string,
+): FilterRule<FilterOperator, unknown> => ({
+    ...filterRule,
+    values: filterRule.values?.map((v) =>
+        typeof v === 'string'
+            ? escapeString(v) // escape the string quote char
+            : v,
+    ),
+});
+
 export const renderTableCalculationFilterRuleSql = (
     filterRule: FilterRule<FilterOperator, unknown>,
     field: CompiledTableCalculation | undefined,
     fieldQuoteChar: string,
     stringQuoteChar: string,
-    escapeStringQuoteChar: string,
+    escapeString: (string: string) => string,
     adapterType: SupportedDbtAdapter,
     startOfWeek: WeekDay | null | undefined,
     timezone: string = 'UTC',
@@ -377,30 +403,34 @@ export const renderTableCalculationFilterRuleSql = (
 
     const fieldSql = `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`;
 
+    const escapedFilterRule = escapeStringValuesOnFilterRule(
+        filterRule,
+        escapeString,
+    );
+
     // First we default to field.type
     // otherwise, we check the custom format for backwards compatibility
     switch (field.type) {
         case TableCalculationType.STRING:
             return renderStringFilterSql(
                 fieldSql,
-                filterRule,
+                escapedFilterRule,
                 stringQuoteChar,
-                escapeStringQuoteChar,
             );
         case TableCalculationType.DATE:
         case TableCalculationType.TIMESTAMP:
             return renderDateFilterSql(
                 fieldSql,
-                filterRule,
+                escapedFilterRule,
                 adapterType,
                 timezone,
                 undefined,
                 startOfWeek,
             );
         case TableCalculationType.NUMBER:
-            return renderNumberFilterSql(fieldSql, filterRule);
+            return renderNumberFilterSql(fieldSql, escapedFilterRule);
         case TableCalculationType.BOOLEAN:
-            return renderBooleanFilterSql(fieldSql, filterRule);
+            return renderBooleanFilterSql(fieldSql, escapedFilterRule);
         default:
         // Do nothing here. This will try with format.type for backwards compatibility
     }
@@ -409,14 +439,13 @@ export const renderTableCalculationFilterRuleSql = (
         case CustomFormatType.PERCENT:
         case CustomFormatType.CURRENCY:
         case CustomFormatType.NUMBER: {
-            return renderNumberFilterSql(fieldSql, filterRule);
+            return renderNumberFilterSql(fieldSql, escapedFilterRule);
         }
         default:
             return renderStringFilterSql(
                 fieldSql,
-                filterRule,
+                escapedFilterRule,
                 stringQuoteChar,
-                escapeStringQuoteChar,
             );
     }
 };
@@ -426,7 +455,7 @@ export const renderFilterRuleSql = (
     fieldType: DimensionType | MetricType,
     fieldSql: string,
     stringQuoteChar: string,
-    escapeStringQuoteChar: string,
+    escapeString: (string: string) => string,
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
@@ -434,15 +463,18 @@ export const renderFilterRuleSql = (
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
     }
+    const escapedFilterRule = escapeStringValuesOnFilterRule(
+        filterRule,
+        escapeString,
+    );
 
     switch (fieldType) {
         case DimensionType.STRING:
         case MetricType.STRING: {
             return renderStringFilterSql(
                 fieldSql,
-                filterRule,
+                escapedFilterRule,
                 stringQuoteChar,
-                escapeStringQuoteChar,
             );
         }
         case DimensionType.NUMBER:
@@ -455,13 +487,13 @@ export const renderFilterRuleSql = (
         case MetricType.SUM:
         case MetricType.MIN:
         case MetricType.MAX: {
-            return renderNumberFilterSql(fieldSql, filterRule);
+            return renderNumberFilterSql(fieldSql, escapedFilterRule);
         }
         case DimensionType.DATE:
         case MetricType.DATE: {
             return renderDateFilterSql(
                 fieldSql,
-                filterRule,
+                escapedFilterRule,
                 adapterType,
                 timezone,
                 undefined,
@@ -472,7 +504,7 @@ export const renderFilterRuleSql = (
         case MetricType.TIMESTAMP: {
             return renderDateFilterSql(
                 fieldSql,
-                filterRule,
+                escapedFilterRule,
                 adapterType,
                 timezone,
                 formatTimestampAsUTCWithNoTimezone,
@@ -481,7 +513,7 @@ export const renderFilterRuleSql = (
         }
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN: {
-            return renderBooleanFilterSql(fieldSql, filterRule);
+            return renderBooleanFilterSql(fieldSql, escapedFilterRule);
         }
         default: {
             return assertUnreachable(
@@ -498,7 +530,7 @@ export const renderFilterRuleSqlFromField = (
     field: CompiledField | CompiledCustomSqlDimension,
     fieldQuoteChar: string,
     stringQuoteChar: string,
-    escapeStringQuoteChar: string,
+    escapeString: (string: string) => string,
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
@@ -514,7 +546,7 @@ export const renderFilterRuleSqlFromField = (
         fieldType,
         fieldSql,
         stringQuoteChar,
-        escapeStringQuoteChar,
+        escapeString,
         startOfWeek,
         adapterType,
         timezone,

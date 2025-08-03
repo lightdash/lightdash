@@ -121,6 +121,9 @@ const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar() {
         return '"';
     },
+    escapeString(value) {
+        return value;
+    },
 };
 
 export const previewConvertCustomDimensionToDbt = (

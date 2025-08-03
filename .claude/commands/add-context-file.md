@@ -32,5 +32,6 @@ concepts, link to tutorials for engineers to learn more.
 </content>
 
 <linting>
-After writing the CLAUDE.md file, run `pnpm format` on that single file to ensure proper formatting.
+- After writing the CLAUDE.md file, run `pnpm format` on that single file to ensure proper formatting.
+- Add a line break between <codeExample> tag and the code block.
 </linting>

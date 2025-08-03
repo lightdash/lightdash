@@ -403,7 +403,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ChartKind": {
         "dataType": "refEnum",
-        "enums": ["line","horizontal_bar","vertical_bar","scatter","area","mixed","pie","table","big_number","funnel","custom"],
+        "enums": ["line","horizontal_bar","vertical_bar","scatter","area","mixed","pie","table","big_number","funnel","custom","treemap"],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "DashboardChartTileProperties": {
@@ -515,6 +515,21 @@ const models: TsoaRoute.Models = {
         "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"tableCalculations":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardFilterRule"},"required":true},"metrics":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardFilterRule"},"required":true},"dimensions":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardFilterRule"},"required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "DashboardParameterValue": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"value":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"array","array":{"dataType":"string"}}],"required":true},"parameterName":{"dataType":"string","required":true}},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "Record_string.DashboardParameterValue_": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{},"additionalProperties":{"ref":"DashboardParameterValue"},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "DashboardParameters": {
+        "dataType": "refAlias",
+        "type": {"ref":"Record_string.DashboardParameterValue_","validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "UpdatedByUser": {
         "dataType": "refObject",
         "properties": {
@@ -557,7 +572,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Dashboard": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"config":{"ref":"DashboardConfig"},"slug":{"dataType":"string","required":true},"access":{"dataType":"union","subSchemas":[{"dataType":"array","array":{"dataType":"refAlias","ref":"SpaceShare"}},{"dataType":"enum","enums":[null]}],"required":true},"isPrivate":{"dataType":"union","subSchemas":[{"dataType":"boolean"},{"dataType":"enum","enums":[null]}],"required":true},"tabs":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTab"},"required":true},"pinnedListOrder":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"enum","enums":[null]}],"required":true},"pinnedListUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"firstViewedAt":{"dataType":"union","subSchemas":[{"dataType":"datetime"},{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"views":{"dataType":"double","required":true},"spaceName":{"dataType":"string","required":true},"spaceUuid":{"dataType":"string","required":true},"updatedByUser":{"ref":"UpdatedByUser"},"filters":{"ref":"DashboardFilters","required":true},"tiles":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTile"},"required":true},"updatedAt":{"dataType":"datetime","required":true},"description":{"dataType":"string"},"name":{"dataType":"string","required":true},"uuid":{"dataType":"string","required":true},"dashboardVersionId":{"dataType":"double","required":true},"projectUuid":{"dataType":"string","required":true},"organizationUuid":{"dataType":"string","required":true}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"config":{"ref":"DashboardConfig"},"slug":{"dataType":"string","required":true},"access":{"dataType":"union","subSchemas":[{"dataType":"array","array":{"dataType":"refAlias","ref":"SpaceShare"}},{"dataType":"enum","enums":[null]}],"required":true},"isPrivate":{"dataType":"union","subSchemas":[{"dataType":"boolean"},{"dataType":"enum","enums":[null]}],"required":true},"tabs":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTab"},"required":true},"pinnedListOrder":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"enum","enums":[null]}],"required":true},"pinnedListUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"firstViewedAt":{"dataType":"union","subSchemas":[{"dataType":"datetime"},{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"views":{"dataType":"double","required":true},"spaceName":{"dataType":"string","required":true},"spaceUuid":{"dataType":"string","required":true},"updatedByUser":{"ref":"UpdatedByUser"},"parameters":{"ref":"DashboardParameters"},"filters":{"ref":"DashboardFilters","required":true},"tiles":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTile"},"required":true},"updatedAt":{"dataType":"datetime","required":true},"description":{"dataType":"string"},"name":{"dataType":"string","required":true},"uuid":{"dataType":"string","required":true},"dashboardVersionId":{"dataType":"double","required":true},"projectUuid":{"dataType":"string","required":true},"organizationUuid":{"dataType":"string","required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ApiEmbedDashboardResponse": {
@@ -1185,9 +1200,24 @@ const models: TsoaRoute.Models = {
         "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"config":{"ref":"TableChart"},"type":{"ref":"ChartType.TABLE","required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ChartType.TREEMAP": {
+        "dataType": "refEnum",
+        "enums": ["treemap"],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TreemapChart": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"endColorThreshold":{"dataType":"double"},"startColorThreshold":{"dataType":"double"},"useDynamicColors":{"dataType":"boolean"},"endColor":{"dataType":"string"},"startColor":{"dataType":"string"},"colorMetricId":{"dataType":"string"},"sizeMetricId":{"dataType":"string"},"groupFieldIds":{"dataType":"array","array":{"dataType":"string"}},"leafDepth":{"dataType":"double"},"visibleMin":{"dataType":"double"}},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "TreemapChartConfig": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"config":{"ref":"TreemapChart"},"type":{"ref":"ChartType.TREEMAP","required":true}},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ChartConfig": {
         "dataType": "refAlias",
-        "type": {"dataType":"union","subSchemas":[{"ref":"BigNumberConfig"},{"ref":"CartesianChartConfig"},{"ref":"CustomVisConfig"},{"ref":"PieChartConfig"},{"ref":"FunnelChartConfig"},{"ref":"TableChartConfig"}],"validators":{}},
+        "type": {"dataType":"union","subSchemas":[{"ref":"BigNumberConfig"},{"ref":"CartesianChartConfig"},{"ref":"CustomVisConfig"},{"ref":"PieChartConfig"},{"ref":"FunnelChartConfig"},{"ref":"TableChartConfig"},{"ref":"TreemapChartConfig"}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ParametersValuesMap": {
@@ -2102,9 +2132,19 @@ const models: TsoaRoute.Models = {
         "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"source":{"dataType":"string","required":true},"type":{"dataType":"enum","enums":["pat"],"required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "url.URL": {
+        "dataType": "refAlias",
+        "type": {"dataType":"string","validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "OauthAuth": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"resource":{"ref":"url.URL"},"expiresAt":{"dataType":"double"},"scopes":{"dataType":"array","array":{"dataType":"string"},"required":true},"clientId":{"dataType":"string","required":true},"token":{"dataType":"string","required":true},"source":{"dataType":"string","required":true},"type":{"dataType":"enum","enums":["oauth"],"required":true}},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"organization":{"ref":"Partial_Pick_Organization.name-or-createdAt-or-organizationUuid__","required":true},"authentication":{"dataType":"union","subSchemas":[{"ref":"SessionAuth"},{"ref":"JwtAuth"},{"ref":"ServiceAccountAuth"},{"ref":"PersonalAccessTokenAuth"}],"required":true}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"organization":{"ref":"Partial_Pick_Organization.name-or-createdAt-or-organizationUuid__","required":true},"authentication":{"dataType":"union","subSchemas":[{"ref":"SessionAuth"},{"ref":"JwtAuth"},{"ref":"ServiceAccountAuth"},{"ref":"PersonalAccessTokenAuth"},{"ref":"OauthAuth"}],"required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Omit_Account.user-or-keyofAccountHelpers_": {
@@ -2534,7 +2574,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ChartType": {
         "dataType": "refEnum",
-        "enums": ["cartesian","table","big_number","pie","funnel","custom"],
+        "enums": ["cartesian","table","big_number","pie","funnel","treemap","custom"],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ChartSourceType": {
@@ -2934,7 +2974,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"description":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"undefined"}]},"name":{"dataType":"string","required":true},"projectUuid":{"dataType":"string","required":true},"organizationUuid":{"dataType":"string","required":true},"uuid":{"dataType":"string","required":true},"updatedAt":{"dataType":"datetime","required":true},"spaceUuid":{"dataType":"string","required":true},"pinnedListUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"pinnedListOrder":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"enum","enums":[null]}],"required":true},"slug":{"dataType":"string","required":true},"spaceName":{"dataType":"string","required":true},"updatedByUser":{"dataType":"union","subSchemas":[{"ref":"UpdatedByUser"},{"dataType":"undefined"}]},"views":{"dataType":"double","required":true},"firstViewedAt":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"datetime"},{"dataType":"enum","enums":[null]}],"required":true},"dashboardVersionId":{"dataType":"double","required":true},"tiles":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTile"},"required":true},"filters":{"ref":"DashboardFilters","required":true},"tabs":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTab"},"required":true},"config":{"dataType":"union","subSchemas":[{"ref":"DashboardConfig"},{"dataType":"undefined"}]}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"description":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"undefined"}]},"name":{"dataType":"string","required":true},"projectUuid":{"dataType":"string","required":true},"organizationUuid":{"dataType":"string","required":true},"uuid":{"dataType":"string","required":true},"updatedAt":{"dataType":"datetime","required":true},"spaceUuid":{"dataType":"string","required":true},"pinnedListUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"pinnedListOrder":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"enum","enums":[null]}],"required":true},"slug":{"dataType":"string","required":true},"spaceName":{"dataType":"string","required":true},"updatedByUser":{"dataType":"union","subSchemas":[{"ref":"UpdatedByUser"},{"dataType":"undefined"}]},"views":{"dataType":"double","required":true},"firstViewedAt":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"datetime"},{"dataType":"enum","enums":[null]}],"required":true},"parameters":{"dataType":"union","subSchemas":[{"ref":"DashboardParameters"},{"dataType":"undefined"}]},"dashboardVersionId":{"dataType":"double","required":true},"tiles":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTile"},"required":true},"filters":{"ref":"DashboardFilters","required":true},"tabs":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTab"},"required":true},"config":{"dataType":"union","subSchemas":[{"ref":"DashboardConfig"},{"dataType":"undefined"}]}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Omit_Dashboard.isPrivate-or-access_": {
@@ -3349,12 +3389,12 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CalculateTotalFromQuery": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"explore":{"dataType":"string","required":true},"metricQuery":{"ref":"MetricQueryRequest","required":true}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"parameters":{"ref":"ParametersValuesMap"},"explore":{"dataType":"string","required":true},"metricQuery":{"ref":"MetricQueryRequest","required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CalculateSubtotalsFromQuery": {
         "dataType": "refAlias",
-        "type": {"dataType":"intersection","subSchemas":[{"ref":"CalculateTotalFromQuery"},{"dataType":"nestedObjectLiteral","nestedProperties":{"pivotDimensions":{"dataType":"array","array":{"dataType":"string"}},"columnOrder":{"dataType":"array","array":{"dataType":"string"},"required":true}}}],"validators":{}},
+        "type": {"dataType":"intersection","subSchemas":[{"ref":"CalculateTotalFromQuery"},{"dataType":"nestedObjectLiteral","nestedProperties":{"parameters":{"ref":"ParametersValuesMap"},"pivotDimensions":{"dataType":"array","array":{"dataType":"string"}},"columnOrder":{"dataType":"array","array":{"dataType":"string"},"required":true}}}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "DbtExposureType": {
@@ -3429,7 +3469,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CreateDashboard": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"config":{"ref":"DashboardConfig"},"tabs":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTab"},"required":true},"spaceUuid":{"dataType":"string"},"updatedByUser":{"ref":"Pick_UpdatedByUser.userUuid_"},"filters":{"ref":"DashboardFilters"},"tiles":{"dataType":"array","array":{"dataType":"union","subSchemas":[{"ref":"CreateDashboardChartTile"},{"ref":"CreateDashboardMarkdownTile"},{"ref":"CreateDashboardLoomTile"},{"ref":"CreateDashboardSqlChartTile"}]},"required":true},"description":{"dataType":"string"},"name":{"dataType":"string","required":true}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"config":{"ref":"DashboardConfig"},"tabs":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTab"},"required":true},"spaceUuid":{"dataType":"string"},"updatedByUser":{"ref":"Pick_UpdatedByUser.userUuid_"},"parameters":{"ref":"DashboardParameters"},"filters":{"ref":"DashboardFilters"},"tiles":{"dataType":"array","array":{"dataType":"union","subSchemas":[{"ref":"CreateDashboardChartTile"},{"ref":"CreateDashboardMarkdownTile"},{"ref":"CreateDashboardLoomTile"},{"ref":"CreateDashboardSqlChartTile"}]},"required":true},"description":{"dataType":"string"},"name":{"dataType":"string","required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ApiUpdateDashboardsResponse": {
@@ -3586,19 +3626,19 @@ const models: TsoaRoute.Models = {
         "type": {"dataType":"intersection","subSchemas":[{"ref":"Pick_Dashboard.name-or-description-or-updatedAt-or-tabs-or-slug_"},{"dataType":"nestedObjectLiteral","nestedProperties":{"filters":{"dataType":"intersection","subSchemas":[{"ref":"Omit_DashboardFilters.dimensions_"},{"dataType":"nestedObjectLiteral","nestedProperties":{"dimensions":{"dataType":"array","array":{"dataType":"refAlias","ref":"Omit_DashboardFilterRule.id_"},"required":true}}}],"required":true},"downloadedAt":{"dataType":"datetime"},"spaceSlug":{"dataType":"string","required":true},"version":{"dataType":"double","required":true},"tiles":{"dataType":"array","array":{"dataType":"refAlias","ref":"DashboardTileAsCode"},"required":true}}}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+    "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
         "dataType": "refAlias",
         "type": {"dataType":"nestedObjectLiteral","nestedProperties":{},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+    "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"dashboard":{"dataType":"union","subSchemas":[{"ref":"PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"},{"dataType":"undefined"}]}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"dashboard":{"dataType":"union","subSchemas":[{"ref":"PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"},{"dataType":"undefined"}]}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
         "dataType": "refAlias",
-        "type": {"ref":"PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__","validators":{}},
+        "type": {"ref":"PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__","validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ApiDashboardAsCodeListResponse": {
@@ -3758,7 +3798,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "OrganizationProject": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"requireUserCredentials":{"dataType":"boolean"},"warehouseType":{"ref":"WarehouseTypes"},"upstreamProjectUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"createdByUserUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"type":{"ref":"ProjectType","required":true},"name":{"dataType":"string","required":true},"projectUuid":{"dataType":"string","required":true}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"requireUserCredentials":{"dataType":"boolean"},"warehouseType":{"ref":"WarehouseTypes"},"upstreamProjectUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"createdAt":{"dataType":"datetime","required":true},"createdByUserUuid":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"enum","enums":[null]}],"required":true},"type":{"ref":"ProjectType","required":true},"name":{"dataType":"string","required":true},"projectUuid":{"dataType":"string","required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "ApiOrganizationProjects": {
@@ -4344,7 +4384,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CatalogField": {
         "dataType": "refAlias",
-        "type": {"dataType":"intersection","subSchemas":[{"ref":"Pick_Field.name-or-label-or-fieldType-or-tableLabel-or-description_"},{"ref":"Pick_Dimension.requiredAttributes_"},{"dataType":"nestedObjectLiteral","nestedProperties":{"icon":{"dataType":"union","subSchemas":[{"ref":"CatalogItemIcon"},{"dataType":"enum","enums":[null]}],"required":true},"chartUsage":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"undefined"}],"required":true},"categories":{"dataType":"array","array":{"dataType":"refAlias","ref":"Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_"},"required":true},"tags":{"dataType":"array","array":{"dataType":"string"}},"tableGroupLabel":{"dataType":"string"},"tableName":{"dataType":"string","required":true},"basicType":{"dataType":"string"},"type":{"ref":"CatalogType.Field","required":true},"catalogSearchUuid":{"dataType":"string","required":true}}}],"validators":{}},
+        "type": {"dataType":"intersection","subSchemas":[{"ref":"Pick_Field.name-or-label-or-fieldType-or-tableLabel-or-description_"},{"ref":"Pick_Dimension.requiredAttributes_"},{"dataType":"nestedObjectLiteral","nestedProperties":{"searchRank":{"dataType":"double"},"aiHints":{"dataType":"union","subSchemas":[{"dataType":"array","array":{"dataType":"string"}},{"dataType":"enum","enums":[null]}],"required":true},"icon":{"dataType":"union","subSchemas":[{"ref":"CatalogItemIcon"},{"dataType":"enum","enums":[null]}],"required":true},"chartUsage":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"undefined"}],"required":true},"categories":{"dataType":"array","array":{"dataType":"refAlias","ref":"Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_"},"required":true},"tags":{"dataType":"array","array":{"dataType":"string"}},"tableGroupLabel":{"dataType":"string"},"tableName":{"dataType":"string","required":true},"fieldValueType":{"dataType":"string","required":true},"basicType":{"dataType":"union","subSchemas":[{"dataType":"enum","enums":["string"]},{"dataType":"enum","enums":["number"]},{"dataType":"enum","enums":["date"]},{"dataType":"enum","enums":["timestamp"]},{"dataType":"enum","enums":["boolean"]}],"required":true},"type":{"ref":"CatalogType.Field","required":true},"catalogSearchUuid":{"dataType":"string","required":true}}}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Pick_TableBase.name-or-label-or-groupLabel-or-description-or-requiredAttributes_": {
@@ -4359,7 +4399,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CatalogTable": {
         "dataType": "refAlias",
-        "type": {"dataType":"intersection","subSchemas":[{"ref":"Pick_TableBase.name-or-label-or-groupLabel-or-description-or-requiredAttributes_"},{"dataType":"nestedObjectLiteral","nestedProperties":{"icon":{"dataType":"union","subSchemas":[{"ref":"CatalogItemIcon"},{"dataType":"enum","enums":[null]}],"required":true},"chartUsage":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"undefined"}],"required":true},"joinedTables":{"dataType":"array","array":{"dataType":"refAlias","ref":"CompiledExploreJoin"}},"categories":{"dataType":"array","array":{"dataType":"refAlias","ref":"Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_"},"required":true},"tags":{"dataType":"array","array":{"dataType":"string"}},"groupLabel":{"dataType":"string"},"type":{"ref":"CatalogType.Table","required":true},"errors":{"dataType":"array","array":{"dataType":"refAlias","ref":"InlineError"}},"catalogSearchUuid":{"dataType":"string","required":true}}}],"validators":{}},
+        "type": {"dataType":"intersection","subSchemas":[{"ref":"Pick_TableBase.name-or-label-or-groupLabel-or-description-or-requiredAttributes_"},{"dataType":"nestedObjectLiteral","nestedProperties":{"searchRank":{"dataType":"double"},"joinedTables":{"dataType":"union","subSchemas":[{"dataType":"array","array":{"dataType":"string"}},{"dataType":"enum","enums":[null]}],"required":true},"aiHints":{"dataType":"union","subSchemas":[{"dataType":"array","array":{"dataType":"string"}},{"dataType":"enum","enums":[null]}],"required":true},"icon":{"dataType":"union","subSchemas":[{"ref":"CatalogItemIcon"},{"dataType":"enum","enums":[null]}],"required":true},"chartUsage":{"dataType":"union","subSchemas":[{"dataType":"double"},{"dataType":"undefined"}],"required":true},"categories":{"dataType":"array","array":{"dataType":"refAlias","ref":"Pick_Tag.name-or-color-or-tagUuid-or-yamlReference_"},"required":true},"tags":{"dataType":"array","array":{"dataType":"string"}},"groupLabel":{"dataType":"string"},"type":{"ref":"CatalogType.Table","required":true},"errors":{"dataType":"array","array":{"dataType":"refAlias","ref":"InlineError"}},"catalogSearchUuid":{"dataType":"string","required":true}}}],"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "CatalogItem": {
@@ -4714,7 +4754,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "LightdashProjectParameter": {
         "dataType": "refAlias",
-        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"options_from_dimension":{"dataType":"nestedObjectLiteral","nestedProperties":{"dimension":{"dataType":"string","required":true},"model":{"dataType":"string","required":true}}},"multiple":{"dataType":"boolean"},"default":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"array","array":{"dataType":"string"}}]},"options":{"dataType":"array","array":{"dataType":"string"}},"description":{"dataType":"string"},"label":{"dataType":"string","required":true}},"validators":{}},
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"options_from_dimension":{"dataType":"nestedObjectLiteral","nestedProperties":{"dimension":{"dataType":"string","required":true},"model":{"dataType":"string","required":true}}},"options":{"dataType":"array","array":{"dataType":"string"}},"allow_custom_values":{"dataType":"boolean"},"multiple":{"dataType":"boolean"},"default":{"dataType":"union","subSchemas":[{"dataType":"string"},{"dataType":"array","array":{"dataType":"string"}}]},"description":{"dataType":"string"},"label":{"dataType":"string","required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Record_string.LightdashProjectParameter_": {
@@ -10096,7 +10136,7 @@ export function RegisterRoutes(app: Router) {
         // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
         const argsSavedChartController_calculateTotalFromSavedChart: Record<string, TsoaRoute.ParameterSchema> = {
                 chartUuid: {"in":"path","name":"chartUuid","required":true,"dataType":"string"},
-                body: {"in":"body","name":"body","required":true,"dataType":"nestedObjectLiteral","nestedProperties":{"invalidateCache":{"dataType":"boolean"},"dashboardFilters":{"ref":"AnyType"}}},
+                body: {"in":"body","name":"body","required":true,"dataType":"nestedObjectLiteral","nestedProperties":{"parameters":{"ref":"ParametersValuesMap"},"invalidateCache":{"dataType":"boolean"},"dashboardFilters":{"ref":"AnyType"}}},
                 req: {"in":"request","name":"req","required":true,"dataType":"object"},
         };
         app.post('/api/v1/saved/:chartUuid/calculate-total',
@@ -13704,6 +13744,7 @@ export function RegisterRoutes(app: Router) {
                 search: {"in":"query","name":"search","dataType":"string"},
                 type: {"in":"query","name":"type","ref":"CatalogType"},
                 filter: {"in":"query","name":"filter","ref":"CatalogFilter"},
+                yamlTags: {"in":"query","name":"yamlTags","dataType":"array","array":{"dataType":"string"}},
         };
         app.get('/api/v1/projects/:projectUuid/dataCatalog',
             ...(fetchMiddlewares<RequestHandler>(CatalogController)),

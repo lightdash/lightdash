@@ -27,6 +27,7 @@ declare module '@mantine-8/core' {
     export interface ButtonProps {
         variant?: ButtonVariant | 'compact-outline' | 'dark';
     }
+
     export interface LoaderProps {
         /**
          * Displays a message after 8s. Only available when type='dots'
@@ -183,6 +184,9 @@ export const getMantine8ThemeOverride = (
             }),
 
             TextInput: TextInput.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);

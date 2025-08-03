@@ -155,6 +155,7 @@ export class DashboardService
                 ({ type }) => type === DashboardTileTypes.LOOM,
             ).length,
             tabsCount: dashboard.tabs.length,
+            parametersCount: Object.keys(dashboard.parameters || {}).length,
         };
     }
 
@@ -270,6 +271,7 @@ export class DashboardService
                 dashboardId: dashboard.uuid,
                 organizationId: dashboard.organizationUuid,
                 projectId: dashboard.projectUuid,
+                parametersCount: Object.keys(dashboard.parameters || {}).length,
             },
         });
 
@@ -660,6 +662,7 @@ export class DashboardService
                 {
                     tiles: dashboard.tiles,
                     filters: dashboard.filters,
+                    parameters: dashboard.parameters,
                     tabs: dashboard.tabs || [],
                     config: dashboard.config,
                 },

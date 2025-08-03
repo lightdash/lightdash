@@ -37,6 +37,7 @@ import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
+import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -153,6 +154,26 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
     getFieldQuoteChar(): string {
         return '`';
     }
+
+    escapeString(value: string): string {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return (
+            normalizeUnicode(value)
+                // BigQuery uses backslash escaping for single quotes
+                .replaceAll('\\', '\\\\')
+                .replaceAll("'", "\\'")
+                .replaceAll('"', '\\"')
+                // Remove SQL comments (BigQuery supports --, /* */, and # comments)
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .replace(/#.*$/gm, '') // BigQuery also supports # comments
+                // Remove null bytes
+                .replaceAll('\0', '')
+        );
+    }
 }
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
@@ -229,10 +250,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             query,
             params: options?.values,
             useLegacySql: false,
-            maximumBytesBilled:
-                this.credentials.maximumBytesBilled === undefined
-                    ? undefined
-                    : `${this.credentials.maximumBytesBilled}`,
+            maximumBytesBilled: this.credentials.maximumBytesBilled
+                ? `${this.credentials.maximumBytesBilled}`
+                : undefined,
             priority: this.credentials.priority,
             jobTimeoutMs:
                 this.credentials.timeoutSeconds &&
@@ -520,6 +540,39 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     break;
                 }
                 break;
+
+            case 'stopped':
+                return new WarehouseQueryError(
+                    `BigQuery job was stopped. ${
+                        error?.message ||
+                        'This may be due to configuration issues such as maximum bytes billed limit, job timeout, or query cancellation. Please check your connection settings.'
+                    }`,
+                );
+
+            case 'invalid':
+                return new WarehouseQueryError(
+                    `BigQuery configuration is invalid. ${
+                        error?.message ||
+                        'Please verify your connection settings and other advanced options.'
+                    }`,
+                );
+
+            case 'quotaExceeded':
+                return new WarehouseQueryError(
+                    `BigQuery quota exceeded. ${
+                        error?.message ||
+                        'You may have reached your query quota, slots quota, or other BigQuery limits. Please check your BigQuery quotas and usage.'
+                    }`,
+                );
+
+            case 'rateLimitExceeded':
+                return new WarehouseQueryError(
+                    `BigQuery rate limit exceeded. ${
+                        error?.message ||
+                        'Please wait a moment and try again, or consider reducing query frequency.'
+                    }`,
+                );
+
             default:
                 break;
         }
@@ -531,7 +584,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             )}`,
         );
         return new WarehouseQueryError(
-            `Bigquery warehouse error: ${error?.reason}`,
+            `Bigquery warehouse error: ${error?.reason}${
+                error?.message ? ` - ${error.message}` : ''
+            }`,
         );
     }
 

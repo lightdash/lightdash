@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import {
     ActionIcon,
@@ -15,8 +16,12 @@ import {
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { Can } from '../../../providers/Ability';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -44,9 +49,10 @@ const LoadingSkeleton = () => (
 
 const BasePanel = () => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
+    const { data: org } = useOrganization();
 
     const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
         useMemo(() => {
@@ -117,10 +123,18 @@ const BasePanel = () => {
             <>
                 <ItemDetailProvider>
                     <Stack h="100%" sx={{ flexGrow: 1 }}>
-                        <PageBreadcrumbs
-                            size="md"
-                            items={[{ title: 'Tables', active: true }]}
-                        />
+                        <Can
+                            I="manage"
+                            this={subject('Explore', {
+                                organizationUuid: org?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <PageBreadcrumbs
+                                size="md"
+                                items={[{ title: 'Tables', active: true }]}
+                            />
+                        </Can>
 
                         <TextInput
                             icon={<MantineIcon icon={IconSearch} />}
@@ -220,16 +234,25 @@ const BasePanel = () => {
 };
 
 const ExploreSideBar = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+    const ability = useAbilityContext();
+    const { data: org } = useOrganization();
 
     const clearExplore = useExplorerContext(
         (context) => context.actions.clearExplore,
     );
     const navigate = useNavigate();
 
+    const canManageExplore = ability.can(
+        'manage',
+        subject('Explore', {
+            organizationUuid: org?.organizationUuid,
+            projectUuid,
+        }),
+    );
     const handleBack = useCallback(() => {
         clearExplore();
         void navigate(`/projects/${projectUuid}/tables`);
@@ -237,7 +260,13 @@ const ExploreSideBar = memo(() => {
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            {!tableName ? <BasePanel /> : <ExplorePanel onBack={handleBack} />}
+            {!tableName ? (
+                <BasePanel />
+            ) : (
+                <ExplorePanel
+                    onBack={canManageExplore ? handleBack : undefined}
+                />
+            )}
         </TrackSection>
     );
 });

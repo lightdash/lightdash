@@ -39,8 +39,8 @@ import {
 import Logger from '../../logging/logger';
 import {
     replaceParameters,
-    replaceParametersAsRaw,
     replaceParametersAsString,
+    unsafeReplaceParametersAsRaw,
 } from './parameters';
 import {
     assertValidDimensionRequiredAttribute,
@@ -501,19 +501,19 @@ export class MetricQueryBuilder {
         const { compiledCustomDimensions } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const stringQuoteChar = warehouseSqlBuilder.getStringQuoteChar();
-        const escapeStringQuoteChar =
-            warehouseSqlBuilder.getEscapeStringQuoteChar();
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
-
+        const escapeString =
+            warehouseSqlBuilder.escapeString.bind(warehouseSqlBuilder);
         // Replace parameter reference values with their actual values as raw sql
         // This is safe as raw because they will get quoted internally by the filter compiler
         const filterRuleWithParamReplacedValues: FilterRule = {
             ...filter,
             values: filter.values?.map((value) => {
                 if (typeof value === 'string') {
-                    const { replacedSql } = replaceParametersAsRaw(
+                    const { replacedSql } = unsafeReplaceParametersAsRaw(
                         value,
                         this.args.parameters ?? {},
+                        this.args.warehouseSqlBuilder,
                     );
 
                     return replacedSql;
@@ -533,7 +533,7 @@ export class MetricQueryBuilder {
                 field,
                 fieldQuoteChar,
                 stringQuoteChar,
-                escapeStringQuoteChar,
+                escapeString,
                 adapterType,
                 startOfWeek,
                 timezone,
@@ -568,7 +568,7 @@ export class MetricQueryBuilder {
             field,
             fieldQuoteChar,
             stringQuoteChar,
-            escapeStringQuoteChar,
+            escapeString,
             startOfWeek,
             adapterType,
             timezone,
@@ -1231,6 +1231,7 @@ export class QueryBuilder {
             fieldQuoteChar: string;
             stringQuoteChar: string;
             escapeStringQuoteChar: string;
+            escapeString: (string: string) => string;
             startOfWeek: WeekDay | null | undefined;
             adapterType: SupportedDbtAdapter;
             timezone?: string;
@@ -1313,7 +1314,7 @@ export class QueryBuilder {
                             reference.type,
                             reference.sql,
                             this.config.stringQuoteChar,
-                            this.config.escapeStringQuoteChar,
+                            this.config.escapeString,
                             this.config.startOfWeek,
                             this.config.adapterType,
                             this.config.timezone,
@@ -1358,6 +1359,7 @@ export class QueryBuilder {
             replaceParameters(
                 sql,
                 this.parameters ?? {},
+                this.config.escapeString,
                 this.config.stringQuoteChar,
             );
 

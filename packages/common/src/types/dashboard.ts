@@ -1,5 +1,6 @@
 import { type FilterableDimension } from './field';
 import { type DashboardFilters } from './filter';
+import { type DashboardParameters } from './parameters';
 import { type ChartKind, type SavedChartType } from './savedCharts';
 import { type SpaceShare } from './space';
 import { type UpdatedByUser } from './user';
@@ -94,6 +95,7 @@ export type CreateDashboard = {
         | CreateDashboardSqlChartTile
     >;
     filters?: DashboardFilters;
+    parameters?: DashboardParameters;
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
     tabs: DashboardTab[];
@@ -150,6 +152,7 @@ export type Dashboard = {
     updatedAt: Date;
     tiles: Array<DashboardTile>;
     filters: DashboardFilters;
+    parameters?: DashboardParameters;
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;
     spaceName: string;
@@ -211,7 +214,7 @@ export type DashboardUnversionedFields = Pick<
 
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
-    'tiles' | 'filters' | 'updatedByUser' | 'tabs' | 'config'
+    'tiles' | 'filters' | 'parameters' | 'updatedByUser' | 'tabs' | 'config'
 >;
 
 export type UpdateDashboardDetails = Pick<Dashboard, 'name' | 'description'>;

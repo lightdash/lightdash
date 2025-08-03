@@ -16,6 +16,10 @@ const ParametersCard = memo(
             (context) => context.state.expandedSections,
         );
 
+        const isEditMode = useExplorerContext(
+            (context) => context.state.isEditMode,
+        );
+
         const tableName = useExplorerContext(
             (context) => context.state.unsavedChartVersion.tableName,
         );
@@ -56,6 +60,10 @@ const ParametersCard = memo(
             ExplorerSection.PARAMETERS,
         );
 
+        const missingRequiredParameters = useExplorerContext(
+            (context) => context.state.missingRequiredParameters,
+        );
+
         return (
             <CollapsableCard
                 isOpen={paramsIsOpen && isFetched}
@@ -69,6 +77,7 @@ const ParametersCard = memo(
                 <Box m="md">
                     <ParameterSelection
                         parameters={parameters}
+                        missingRequiredParameters={missingRequiredParameters}
                         isLoading={isLoading}
                         isError={isError}
                         parameterValues={parameterValues || {}}
@@ -78,6 +87,7 @@ const ParametersCard = memo(
                         onClearAll={clearAllParameters}
                         cols={2}
                         projectUuid={projectUuid}
+                        disabled={!isEditMode}
                     />
                 </Box>
             </CollapsableCard>

@@ -57,6 +57,7 @@ import {
     IconStack,
     IconTableExport,
     IconTelescope,
+    IconVariable,
 } from '@tabler/icons-react';
 import type EChartsReact from 'echarts-for-react';
 import React, {
@@ -91,6 +92,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     useInfiniteQueryResults,
     type InfiniteQueryResults,
@@ -98,6 +100,7 @@ import {
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { Can } from '../../providers/Ability';
+import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -286,6 +289,10 @@ const ValidDashboardChartTile: FC<{
             colorPalette={chart.colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
+            parameters={
+                dashboardChartReadyQuery.executeQueryResponse
+                    .usedParametersValues
+            }
         >
             <LightdashVisualization
                 isDashboard
@@ -361,6 +368,10 @@ const ValidDashboardChartTileMinimal: FC<{
             colorPalette={chart.colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}
+            parameters={
+                dashboardChartReadyQuery.executeQueryResponse
+                    .usedParametersValues
+            }
         >
             <LightdashVisualization
                 isDashboard
@@ -384,6 +395,7 @@ interface DashboardChartTileMainProps
     canExportImages?: boolean;
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
+    onExplore?: (options: { chart: SavedChart }) => void;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -412,7 +424,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     } = props;
 
     const {
-        executeQueryResponse: { appliedDashboardFilters, metricQuery },
+        executeQueryResponse: {
+            appliedDashboardFilters,
+            metricQuery,
+            usedParametersValues,
+        },
         chart,
         explore,
     } = dashboardChartReadyQuery;
@@ -938,6 +954,49 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 </HoverCard.Target>
                             </HoverCard>
                         )}
+                        {usedParametersValues &&
+                            Object.keys(usedParametersValues).length > 0 && (
+                                <HoverCard
+                                    withArrow
+                                    withinPortal
+                                    shadow="md"
+                                    position="bottom-end"
+                                    offset={4}
+                                    arrowOffset={10}
+                                >
+                                    <HoverCard.Dropdown>
+                                        <Text color="gray.7" fw={500} mb="xs">
+                                            Parameters:
+                                        </Text>
+                                        <Stack
+                                            spacing="xs"
+                                            align="flex-start"
+                                            ml="xs"
+                                        >
+                                            {Object.entries(
+                                                usedParametersValues,
+                                            ).map(([key, value]) => (
+                                                <Text
+                                                    key={key}
+                                                    size="xs"
+                                                    color="gray.6"
+                                                >
+                                                    <Text span fw={600}>
+                                                        {key}:
+                                                    </Text>{' '}
+                                                    {value}
+                                                </Text>
+                                            ))}
+                                        </Stack>
+                                    </HoverCard.Dropdown>
+
+                                    <HoverCard.Target>
+                                        <ActionIcon size="sm">
+                                            <MantineIcon icon={IconVariable} />
+                                        </ActionIcon>
+                                    </HoverCard.Target>
+                                </HoverCard>
+                            )}
                         {showExecutionTime &&
                             initialQueryExecutionMs !== undefined &&
                             resultsData.totalClientFetchTimeMs !==
@@ -1341,6 +1400,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         resultsData,
         canExportCsv,
         canExportImages,
+        onExplore,
     } = props;
 
     const {
@@ -1348,7 +1408,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         explore,
         executeQueryResponse: { fields },
     } = dashboardChartReadyQuery;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
+    const ability = useAbilityContext();
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
     >();
@@ -1357,6 +1418,23 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         () => ({ ...resultsData, fields }),
         [resultsData, fields],
     );
+
+    const handleExploreFromHere = useCallback(() => {
+        if (onExplore) {
+            onExplore({ chart });
+        }
+    }, [onExplore, chart]);
+
+    const canExplore = ability.can(
+        'view',
+        subject('Explore', {
+            organizationUuid: chart.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const isEmbeddedExploreEnabled =
+        canExplore && typeof onExplore === 'function';
 
     return (
         <TileBase
@@ -1368,8 +1446,17 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             extraMenuItems={
                 canExportCsv ||
                 (canExportImages &&
-                    !isTableChartConfig(chart.chartConfig.config)) ? (
+                    !isTableChartConfig(chart.chartConfig.config)) ||
+                isEmbeddedExploreEnabled ? (
                     <>
+                        {isEmbeddedExploreEnabled && (
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconTelescope} />}
+                                onClick={handleExploreFromHere}
+                            >
+                                Explore from here
+                            </Menu.Item>
+                        )}
                         {canExportCsv && (
                             <DashboardMinimalDownloadCsv
                                 explore={explore}
@@ -1413,6 +1500,7 @@ type DashboardChartTileProps = Omit<
     canExportImages?: boolean;
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
+    onExplore?: (options: { chart: SavedChart }) => void;
 };
 
 // Abstraction needed for enterprise version
@@ -1432,6 +1520,7 @@ export const GenericDashboardChartTile: FC<
     error,
     canExportCsv = false,
     canExportImages = false,
+    onExplore,
     ...rest
 }) => {
     const { projectUuid } = useParams<{
@@ -1525,6 +1614,7 @@ export const GenericDashboardChartTile: FC<
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
+                    onExplore={onExplore}
                 />
             ) : (
                 <DashboardChartTileMain
@@ -1533,6 +1623,7 @@ export const GenericDashboardChartTile: FC<
                     isEditMode={isEditMode}
                     resultsData={resultsData}
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
+                    onExplore={onExplore}
                 />
             )}
             <UnderlyingDataModal />

@@ -370,7 +370,7 @@ describe('Date tests', () => {
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2018-01-01')`,
         );
 
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by month
         cy.contains('Add filter').click();
@@ -397,7 +397,7 @@ describe('Date tests', () => {
             `(DATE_TRUNC('MONTH', "customers".created)) = ('2018-09-01')`,
         );
 
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
     });
 
     it('Should keep value when changing date operator', () => {
@@ -457,7 +457,7 @@ describe('Date tests', () => {
             )}')`,
         );
 
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
     });
 
     it('Should filter by date on dimension', () => {
@@ -493,7 +493,7 @@ describe('Date tests', () => {
                 'YYYY',
             )}-01-01')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by month
         cy.get('[data-testid=tree-single-node-Month]')
@@ -507,7 +507,8 @@ describe('Date tests', () => {
                 'YYYY',
             )}-${now.format('MM')}-01')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by week
         function startOfTheWeek(): Date {
@@ -531,7 +532,8 @@ describe('Date tests', () => {
                 weekDate,
             )}')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by day
         cy.get('[data-testid=tree-single-node-Day]')
@@ -550,7 +552,8 @@ describe('Date tests', () => {
                 todayDate,
             )}')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+
+        cy.findByTestId('delete-filter-rule-button').click();
     });
 
     it.skip('Should filter by datetime on dimension', () => {
@@ -589,7 +592,7 @@ describe('Date tests', () => {
         cy.get('.bp4-date-input input')
             .should('be.visible')
             .then(($value) => checkDatetime($value, '"events".timestamp_tz'));
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by millisecond
         cy.get('span:contains("Millisecond") ~ div').click();
@@ -602,7 +605,7 @@ describe('Date tests', () => {
                     `DATE_TRUNC('MILLISECOND', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by second
         cy.get('span:contains("Second") ~ div').click();
@@ -615,7 +618,7 @@ describe('Date tests', () => {
                     `DATE_TRUNC('SECOND', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by minute
         cy.get('span:contains("Minute") ~ div').click();
@@ -628,7 +631,7 @@ describe('Date tests', () => {
                     `DATE_TRUNC('MINUTE', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by hour
         cy.get('span:contains("Hour") ~ div').click();
@@ -641,6 +644,6 @@ describe('Date tests', () => {
                     `DATE_TRUNC('HOUR', "events".timestamp_tz)`,
                 ),
             );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+        cy.findByTestId('delete-filter-rule-button').click();
     });
 });

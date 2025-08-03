@@ -104,6 +104,7 @@ interface ServiceManifest {
     cacheService: unknown;
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
+    mcpService: unknown;
 }
 
 /**
@@ -887,6 +888,10 @@ export class ServiceRepository
 
     public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
         return this.getService('supportService');
+    }
+
+    public getMcpService<McpServiceImplT>(): McpServiceImplT {
+        return this.getService('mcpService');
     }
 
     public getSpotlightService(): SpotlightService {

@@ -62,7 +62,9 @@ export const useProjectAiAgents = ({
                     apiError: error.error,
                 });
             } else if (redirectOnUnauthorized) {
-                void navigate(`/projects/${projectUuid}/home`);
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                );
             }
         },
         enabled: !!projectUuid && options?.enabled !== false,
@@ -81,7 +83,9 @@ export const useProjectAiAgent = (
         queryFn: () => getProjectAgent(projectUuid!, agentUuid!),
         onError: (error) => {
             if (error.error?.statusCode === 403) {
-                void navigate(`/projects/${projectUuid}/home`);
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                );
             } else {
                 showToastApiError({
                     title: `Failed to fetch project AI agent details`,

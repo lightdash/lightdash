@@ -27,9 +27,6 @@ const getEmbedFilterValues = async (options: {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
         method: 'POST',
-        headers: {
-            'Lightdash-Embed-Token': options.embedToken!,
-        },
         body: JSON.stringify({
             search: options.search,
             limit: MAX_AUTOCOMPLETE_RESULTS,

@@ -45,6 +45,7 @@ import {
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
@@ -630,6 +631,7 @@ export class EmbedService extends BaseService {
         queryTags,
         account,
         dateZoomGranularity,
+        combinedParameters,
     }: {
         projectUuid: string;
         metricQuery: MetricQuery;
@@ -641,6 +643,7 @@ export class EmbedService extends BaseService {
         };
         account: AnonymousAccount;
         dateZoomGranularity?: DateGranularity;
+        combinedParameters?: ParametersValuesMap;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -652,6 +655,7 @@ export class EmbedService extends BaseService {
 
         // Filter the explore access and fields based on the user attributes
         const filteredExplore = getFilteredExplore(explore, userAttributes);
+
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             filteredExplore,
@@ -664,6 +668,8 @@ export class EmbedService extends BaseService {
                       granularity: dateZoomGranularity,
                   }
                 : undefined,
+            undefined,
+            combinedParameters,
         );
 
         const results =
@@ -814,6 +820,13 @@ export class EmbedService extends BaseService {
             },
         });
 
+        // No parameters are passed in embed requests, just combine the saved parameters
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            {},
+            chart.parameters,
+        );
+
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
             metricQuery: metricQueryWithDashboardOverrides,
@@ -830,6 +843,7 @@ export class EmbedService extends BaseService {
             },
             account,
             dateZoomGranularity,
+            combinedParameters,
         });
 
         return {
@@ -948,6 +962,13 @@ export class EmbedService extends BaseService {
                 warehouseClient,
             );
 
+        // No parameters are passed in embed requests, just combine the saved parameters
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            {},
+            chart.parameters,
+        );
+
         const { rows } = await this._runEmbedQuery({
             projectUuid,
             metricQuery: totalMetricQuery,
@@ -963,6 +984,7 @@ export class EmbedService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             },
             account,
+            combinedParameters,
         });
 
         if (rows.length === 0) {
@@ -998,6 +1020,13 @@ export class EmbedService extends BaseService {
             ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
         ];
 
+        // No parameters are passed in embed requests, just combine the saved parameters
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            {},
+            chart.parameters,
+        );
+
         return this._calculateSubtotalsForEmbed(
             account,
             projectUuid,
@@ -1008,6 +1037,7 @@ export class EmbedService extends BaseService {
             chart.organizationUuid,
             chart.uuid,
             dashboardUuid,
+            combinedParameters,
         );
     }
 
@@ -1021,6 +1051,7 @@ export class EmbedService extends BaseService {
         organizationUuid?: string,
         chartUuid?: string,
         dashboardUuid?: string,
+        combinedParameters?: ParametersValuesMap,
     ) {
         // Use the shared utility to prepare dimension groups
         const { dimensionGroupsToSubtotal, analyticsData } =
@@ -1073,6 +1104,7 @@ export class EmbedService extends BaseService {
                         query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
                     },
                     account,
+                    combinedParameters,
                 });
 
                 // Format raw rows (this matches the logic in ProjectService)

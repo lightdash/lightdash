@@ -1,6 +1,8 @@
-import { type LanguageMap } from '@lightdash/common';
+import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import { get } from 'lodash';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
+import { useAccount } from '../../../hooks/user/useAccount';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import {
     getFromInMemoryStorage,
     setToInMemoryStorage,
@@ -14,6 +16,10 @@ type Props = {
     filters?: SdkFilter[];
     projectUuid?: string;
     contentOverrides?: LanguageMap;
+    embedHeaders?: Record<string, string>;
+    onExplore?: (options: { chart: SavedChart }) => void;
+    onBackToDashboard?: () => void;
+    savedChart?: SavedChart;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -22,9 +28,22 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     filters,
     projectUuid,
     contentOverrides,
+    onExplore,
+    onBackToDashboard,
+    savedChart,
 }) => {
     const [isInitialized, setIsInitialized] = useState(false);
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    const { data: account, isLoading } = useAccount();
+    const ability = useAbilityContext();
+
+    // Set ability rules for the embedded user. We should only get abilities from abilityContext
+    // rather than directly on the user or account.
+    useEffect(() => {
+        if (!isLoading && account?.user) {
+            ability.update(account.user.abilityRules);
+        }
+    }, [ability, account, isLoading]);
 
     // There is method to this madness:
     // When we get an embedded URL, the JWT token is added as a hash to the URL location.
@@ -43,6 +62,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             t: (input: string) => get(contentOverrides, input),
             projectUuid: embed?.projectUuid || projectUuid,
             languageMap: contentOverrides,
+            onExplore,
+            savedChart,
+            onBackToDashboard,
         };
     }, [
         embed?.projectUuid,
@@ -51,6 +73,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         filters,
         projectUuid,
         contentOverrides,
+        onExplore,
+        savedChart,
+        onBackToDashboard,
     ]);
 
     return (

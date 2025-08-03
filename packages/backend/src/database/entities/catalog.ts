@@ -23,6 +23,8 @@ export type DbCatalog = {
     table_name: string;
     spotlight_show: boolean;
     yaml_tags: string[] | null;
+    ai_hints: string[] | null;
+    joined_tables: string[] | null;
 };
 
 export type DbCatalogIn = Pick<
@@ -39,6 +41,8 @@ export type DbCatalogIn = Pick<
     | 'table_name'
     | 'spotlight_show'
     | 'yaml_tags'
+    | 'ai_hints'
+    | 'joined_tables'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate =
@@ -71,8 +75,11 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'required_attributes';
         case 'catalogSearchUuid':
             return 'catalog_search_uuid';
+        case 'aiHints':
+            return 'ai_hints';
         case 'icon':
             return 'icon';
+        case 'searchRank':
         case 'categories':
         case 'tags':
             throw new Error(

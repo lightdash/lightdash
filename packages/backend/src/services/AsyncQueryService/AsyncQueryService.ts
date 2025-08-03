@@ -229,39 +229,6 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    /**
-     * Combines parameter values from multiple sources in order of priority:
-     * 1. Request parameters (highest priority)
-     * 2. Saved chart parameters
-     * 3. Default parameter values (lowest priority)
-     */
-    private async combineParameters(
-        projectUuid: string,
-        requestParameters?: ParametersValuesMap,
-        savedChartParameters?: ParametersValuesMap,
-    ): Promise<ParametersValuesMap> {
-        // Get default values for parameters
-        const defaultParameters: ParametersValuesMap = {};
-        // Fetch all parameters
-        const parameterConfigs = await this.projectParametersModel.find(
-            projectUuid,
-        );
-
-        for (const paramConfig of parameterConfigs) {
-            if (paramConfig.config.default !== undefined) {
-                defaultParameters[paramConfig.name] =
-                    paramConfig.config.default;
-            }
-        }
-
-        // Combine in order of priority: defaults < saved chart < request
-        return {
-            ...defaultParameters,
-            ...(savedChartParameters || {}),
-            ...(requestParameters || {}),
-        };
-    }
-
     async findResultsCache(
         projectUuid: string,
         cacheKey: string,
@@ -1600,6 +1567,7 @@ export class AsyncQueryService extends ProjectService {
                                             ? requestParameters.chartUuid
                                             : undefined,
                                     explore,
+                                    parameters: requestParameters.parameters,
                                 },
                             ),
                             cacheMetadata: {
@@ -2693,6 +2661,10 @@ export class AsyncQueryService extends ProjectService {
                     warehouseConnection.warehouseClient.getStartOfWeek(),
                 adapterType:
                     warehouseConnection.warehouseClient.getAdapterType(),
+                escapeString:
+                    warehouseConnection.warehouseClient.escapeString.bind(
+                        warehouseConnection.warehouseClient,
+                    ),
             },
         );
 

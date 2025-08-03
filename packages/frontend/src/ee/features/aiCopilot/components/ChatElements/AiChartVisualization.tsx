@@ -87,6 +87,9 @@ export const AiChartVisualization: FC<Props> = ({
             <VisualizationProvider
                 resultsData={resultsData}
                 chartConfig={chartConfig.echartsConfig}
+                parameters={
+                    queryExecutionHandle.data.query.usedParametersValues
+                }
                 columnOrder={[
                     ...metricQuery.dimensions,
                     ...metricQuery.metrics,

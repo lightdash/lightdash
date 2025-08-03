@@ -33,6 +33,7 @@ import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { projectAdapterFromConfig } from '../../../projectAdapters/projectAdapter';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -272,6 +273,16 @@ export async function seed(knex: Knex): Promise<void> {
             lightdashConfig,
             encryptionUtil: enc,
         }).saveExploresToCache(SEED_PROJECT.project_uuid, explores);
+
+        // Seed parameters
+        const lightdashProjectConfig = await adapter.getLightdashProjectConfig({
+            projectUuid,
+            organizationUuid,
+            userUuid: user.user_uuid,
+        });
+        await new ProjectParametersModel({
+            database: knex,
+        }).replace(projectUuid, lightdashProjectConfig.parameters ?? {});
     } catch (e) {
         console.error(e);
         throw e;

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { Badge, Box, Group, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -8,8 +9,10 @@ import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
+import { AutoFetchResultsButton } from '../../AutoFetchResultsButton';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import MantineIcon from '../../common/MantineIcon';
@@ -146,15 +149,24 @@ const ExplorerHeader: FC = memo(() => {
                     />
                 )}
 
+                <AutoFetchResultsButton size="md" />
                 <RefreshButton size="xs" />
 
                 {!savedChart && userCanCreateCharts && (
                     <SaveChartButton isExplorer />
                 )}
-                <ShareShortLinkButton
-                    disabled={!isValidQuery}
-                    url={urlToShare}
-                />
+                <Can
+                    I="update"
+                    this={subject('Explore', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid,
+                    })}
+                >
+                    <ShareShortLinkButton
+                        disabled={!isValidQuery}
+                        url={urlToShare}
+                    />
+                </Can>
             </Group>
         </Group>
     );

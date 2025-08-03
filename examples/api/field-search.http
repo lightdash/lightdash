@@ -1,0 +1,57 @@
+
+### Login
+// @no-log
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### String Field search  (expected multiple results)
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/field/customers_first_name/search
+Content-Type: application/json
+
+{
+    "search": "",
+    "limit": 100,
+    "table": "customers"
+}
+
+### String Field search  (expected Aaron)
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/field/customers_first_name/search
+Content-Type: application/json
+
+{
+    "search": "Aa",
+    "limit": 100,
+    "table": "customers"
+}
+
+
+### Invalid string Field search on default postgres project (expected 0 results)
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/field/customers_first_name/search
+Content-Type: application/json
+
+{
+    "search": "\\') OR (1=1) -- -",
+    "limit": 100,
+    "table": "customers",
+    "forceRefresh": false
+}
+
+### Invalid string Field search on bigquery (expected 0 results )
+POST http://localhost:8080/api/v1/projects/7ac0f4ba-ddd8-4c5f-9b8f-52d80a90db06/field/customers_first_name/search
+Content-Type: application/json
+
+{
+    "search": "\\') OR (1=1) -- -",
+    "limit": 100,
+    "table": "customers",
+    "forceRefresh": false
+}
+
+
+
+

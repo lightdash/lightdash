@@ -4,14 +4,15 @@ import {
     type CalculateSubtotalsFromQuery,
     type DashboardFilters,
     type MetricQuery,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import {
     convertDateDashboardFilters,
     convertDateFilters,
 } from '../utils/dateFilter';
+import { useProjectUuid } from './useProjectUuid';
 
 const calculateSubtotalsFromQuery = async (
     projectUuid: string,
@@ -19,6 +20,7 @@ const calculateSubtotalsFromQuery = async (
     metricQuery: MetricQuery,
     columnOrder: string[],
     pivotDimensions?: string[],
+    parameters?: ParametersValuesMap,
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
     const timezoneFixPayload: CalculateSubtotalsFromQuery = {
         explore: explore,
@@ -28,6 +30,7 @@ const calculateSubtotalsFromQuery = async (
         },
         columnOrder,
         pivotDimensions,
+        parameters,
     };
     return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
         url: `/projects/${projectUuid}/calculate-subtotals`,
@@ -73,6 +76,7 @@ export const useCalculateSubtotals = ({
     dashboardFilters,
     invalidateCache,
     embedToken,
+    parameters,
 }: {
     metricQuery?: MetricQuery;
     explore?: string;
@@ -83,8 +87,9 @@ export const useCalculateSubtotals = ({
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     embedToken?: string;
+    parameters?: ParametersValuesMap;
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     return useQuery<ApiCalculateSubtotalsResponse['results'], ApiError>(
         [
@@ -98,6 +103,7 @@ export const useCalculateSubtotals = ({
             dashboardFilters,
             invalidateCache,
             embedToken,
+            parameters,
         ],
         () =>
             embedToken && projectUuid && savedChartUuid && columnOrder
@@ -117,6 +123,7 @@ export const useCalculateSubtotals = ({
                       metricQuery,
                       columnOrder,
                       pivotDimensions,
+                      parameters,
                   )
                 : Promise.reject(),
         {

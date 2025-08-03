@@ -7,6 +7,7 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_PROJECT,
+    SessionAccount,
     SessionUser,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -24,6 +25,7 @@ export interface IntegrationTestContext {
     app: App;
     db: Knex;
     testUser: SessionUser;
+    testUserSessionAccount: SessionAccount;
     testAgent: ApiCreateAiAgent;
     cleanup: () => Promise<void>;
 }
@@ -148,19 +150,49 @@ export const setupIntegrationTest =
             ...testUserData,
             ability: defineUserAbility(testUserData, []),
             isTrackingAnonymized: false,
-            userId: 1,
             abilityRules: [],
+        };
+
+        const testUserSessionAccount: SessionAccount = {
+            user: {
+                ...testUser,
+                id: testUser.userUuid,
+                type: 'registered',
+            },
+            organization: {
+                organizationUuid: testUser.organizationUuid!,
+                name: testUser.organizationName!,
+                createdAt: testUser.organizationCreatedAt!,
+            },
+            authentication: {
+                type: 'session',
+                source: 'test-session',
+            },
+            isAuthenticated: () => true,
+            isRegisteredUser: () => true,
+            isAnonymousUser: () => false,
+            isSessionUser: () => true,
+            isJwtUser: () => false,
+            isServiceAccount: () => false,
+            isPatUser: () => false,
+            isOauthUser: () => false,
         };
 
         const testAgent: ApiCreateAiAgent = {
             name: 'Integration Test Agent',
             projectUuid: SEED_PROJECT.project_uuid,
-            tags: null,
+            tags: ['ai'],
             integrations: [],
             instruction: 'You are a helpful AI assistant for testing purposes.',
             groupAccess: [],
             imageUrl: null,
         };
+
+        const catalogService = app.getServiceRepository().getCatalogService();
+        await catalogService.indexCatalog(
+            SEED_PROJECT.project_uuid,
+            testUser.userUuid,
+        );
 
         const cleanup = async () => {
             console.info('🧹 Cleaning up test environment...');
@@ -177,6 +209,7 @@ export const setupIntegrationTest =
             app,
             db,
             testUser,
+            testUserSessionAccount,
             testAgent,
             cleanup,
         };
@@ -191,6 +224,8 @@ export const getServices = (app: App) => {
 
     const services = {
         aiAgentService: serviceRepository.getAiAgentService<AiAgentService>(),
+        projectService: serviceRepository.getProjectService(),
+        catalogService: serviceRepository.getCatalogService(),
     };
 
     console.info('✅ Services retrieved:', Object.keys(services).join(', '));

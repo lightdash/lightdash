@@ -2,8 +2,8 @@ import { subject } from '@casl/ability';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -20,6 +20,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {
+    const projectUuid = useProjectUuid();
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
@@ -55,8 +56,6 @@ const ResultsCard: FC = memo(() => {
     );
 
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
-
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const resultsIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.RESULTS),
@@ -101,13 +100,21 @@ const ResultsCard: FC = memo(() => {
                 resultsIsOpen &&
                 tableName && (
                     <>
-                        {isEditMode && <AddColumnButton />}
+                        <Can
+                            I="manage"
+                            this={subject('Explore', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            {isEditMode && <AddColumnButton />}
+                        </Can>
 
                         <Can
                             I="manage"
                             this={subject('ExportCsv', {
                                 organizationUuid: user.data?.organizationUuid,
-                                projectUuid: projectUuid,
+                                projectUuid,
                             })}
                         >
                             <Popover

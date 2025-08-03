@@ -2,19 +2,18 @@ version: 2
 models:
   - name: events
     config:
-      tags:
-        - ai-tag-test
+      tags: ['ai']
     meta:
       primary_key: event_id
       group_details:
         events:
           label: Events
           description: Events that happened in the Jaffle Shop
-        nested_group: 
+        nested_group:
           label: nested group
-        another_nested_group: 
+        another_nested_group:
           label: another nested group
-      ai_hint: 
+      ai_hint:
         - This is an events table
         - Contains user activity and engagement data
     columns:
@@ -23,7 +22,7 @@ models:
         meta:
           dimension:
             label: 'Timestamp (with timezone)'
-            ai_hint: 
+            ai_hint:
               - Timestamp with timezone
               - Includes timezone information
             type: timestamp
@@ -68,13 +67,14 @@ models:
             format: "dd mmmm yyyy"
             urls:
               - label: Open in Google Calendar
-                url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
+                url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split:
+                  "-" |join: "/"}'
       - name: event
         description: ""
         meta:
           dimension:
             type: string
-            groups: ['events']
+            groups: [ 'events' ]
           metrics:
             count:
               type: count
@@ -83,9 +83,9 @@ models:
         meta:
           dimension:
             type: number
-            groups: ['events', 'nested_group', 'another_nested_group']
-          additional_dimensions: 
-            event_tier: 
+            groups: [ 'events', 'nested_group', 'another_nested_group' ]
+          additional_dimensions:
+            event_tier:
               type: string
               description: Ratio of event_id to event
               sql: |

@@ -8,6 +8,7 @@ import {
     type DashboardFilters,
     type ItemsMap,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotValue,
     type Series,
     type TableCalculationMetadata,
@@ -40,6 +41,7 @@ import VisualizationCartesianConfig from './VisualizationConfigCartesian';
 import VisualizationConfigFunnel from './VisualizationConfigFunnel';
 import VisualizationPieConfig from './VisualizationConfigPie';
 import VisualizationTableConfig from './VisualizationConfigTable';
+import VisualizationTreemapConfig from './VisualizationConfigTreemap';
 import VisualizationCustomConfig from './VisualizationCustomConfig';
 import Context from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
@@ -52,6 +54,7 @@ export type VisualizationProviderProps = {
         metricQuery?: MetricQuery;
         fields?: ItemsMap;
     };
+    parameters?: ParametersValuesMap;
     isLoading: boolean;
     columnOrder: string[];
     onSeriesContextMenu?: (
@@ -95,6 +98,7 @@ const VisualizationProvider: FC<
     setEchartsRef,
     computedSeries,
     apiErrorDetail,
+    parameters,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -385,6 +389,24 @@ const VisualizationProvider: FC<
                     )}
                 </VisualizationBigNumberConfig>
             );
+        case ChartType.TREEMAP:
+            return (
+                <VisualizationTreemapConfig
+                    itemsMap={itemsMap}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    onChartConfigChange={handleChartConfigChange}
+                    parameters={parameters}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationTreemapConfig>
+            );
         case ChartType.TABLE:
             return (
                 <VisualizationTableConfig
@@ -398,6 +420,7 @@ const VisualizationProvider: FC<
                     savedChartUuid={savedChartUuid}
                     dashboardFilters={dashboardFilters}
                     invalidateCache={invalidateCache}
+                    parameters={parameters}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

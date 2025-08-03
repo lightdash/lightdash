@@ -658,7 +658,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithSingleVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithSingleValSQL);
     });
@@ -668,7 +667,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithMultiVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithMultiValSQL);
@@ -680,7 +678,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithNoVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithNoValSQL);
     });
@@ -690,7 +687,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithSingleVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithSingleValSQL);
@@ -702,7 +698,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithMultiVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithMultiValSQL);
     });
@@ -712,7 +707,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithNoVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithNoValSQL);
@@ -724,7 +718,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithSingleVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithSingleValSQL);
     });
@@ -734,7 +727,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithMultiVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithMultiValSQL);
@@ -746,7 +738,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithNoVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
@@ -756,7 +747,6 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithSingleVal,
-                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithSingleValSQL);
@@ -768,7 +758,6 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithMultiVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithMultiValSQL);
     });
@@ -779,31 +768,8 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.endsWithFilterWithNoVal,
                 "'",
-                "'",
             ),
         ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
-    });
-
-    test('should return escaped query for unescaped single filter value', () => {
-        expect(
-            renderStringFilterSql(
-                stringFilterDimension,
-                stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
-                "'",
-                "'",
-            ),
-        ).toBe(stringFilterRuleMocks.equalsFilterWithSingleUnescapedValueSQL);
-    });
-
-    test('should return escaped query for unescaped multi filter values', () => {
-        expect(
-            renderStringFilterSql(
-                stringFilterDimension,
-                stringFilterRuleMocks.equalsFilterWithMultiUnescapedValue,
-                "'",
-                "'",
-            ),
-        ).toBe(stringFilterRuleMocks.equalsFilterWithMultiUnescapedValueSQL);
     });
 
     test('should return 1=1 if filter is disabled', () => {
@@ -813,12 +779,55 @@ describe('Filter SQL', () => {
                 disabledFilterMock.field,
                 disabledFilterMock.fieldQuoteChar,
                 disabledFilterMock.stringQuoteChar,
-                disabledFilterMock.escapeStringQuoteChar,
+                disabledFilterMock.escapeString,
                 disabledFilterMock.startOfWeek,
                 disabledFilterMock.adapterType,
                 disabledFilterMock.timezone,
             ),
         ).toBe('1=1');
+    });
+});
+
+describe('escape string values', () => {
+    test('should not escape on the string filter method', () => {
+        // Escape happens now on the parent method, not on the string filter
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
+                "'",
+            ),
+        ).toBe(`("customers".first_name) IN ('Bob's')`);
+    });
+
+    test('should return escaped query for unescaped single filter value', () => {
+        expect(
+            renderFilterRuleSqlFromField(
+                stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
+                disabledFilterMock.field,
+                disabledFilterMock.fieldQuoteChar,
+                disabledFilterMock.stringQuoteChar,
+                (v) => v.replaceAll("'", "''"),
+                disabledFilterMock.startOfWeek,
+                disabledFilterMock.adapterType,
+                disabledFilterMock.timezone,
+            ),
+        ).toBe(`("payments".payment_method) IN ('Bob''s')`);
+    });
+
+    test('should return escaped query for unescaped multi filter values', () => {
+        expect(
+            renderFilterRuleSqlFromField(
+                stringFilterRuleMocks.equalsFilterWithMultiUnescapedValue,
+                disabledFilterMock.field,
+                disabledFilterMock.fieldQuoteChar,
+                disabledFilterMock.stringQuoteChar,
+                (v) => v.replaceAll("'", "''"),
+                disabledFilterMock.startOfWeek,
+                disabledFilterMock.adapterType,
+                disabledFilterMock.timezone,
+            ),
+        ).toBe(`("payments".payment_method) IN ('Bob''s','Tom''s')`);
     });
 });
 
@@ -961,6 +970,231 @@ describe('Boolean Filter SQL', () => {
             };
             expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
                 '(("table"."is_active")) IS NOT NULL',
+            );
+        });
+    });
+});
+
+describe('Number Filter SQL Injection Prevention', () => {
+    const dimensionSql = '("table"."customer_id")';
+    const baseFilter = {
+        id: 'test-id',
+        target: { fieldId: 'customer_id' },
+    };
+
+    describe('SQL injection attempts should throw errors', () => {
+        it('should reject SQL injection in EQUALS filter', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['1) OR 1=1; --'],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "1) OR 1=1; --". Expected a valid number.',
+            );
+        });
+
+        it('should reject SQL injection with UNION SELECT', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['1) UNION SELECT * FROM users; --'],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "1) UNION SELECT * FROM users; --". Expected a valid number.',
+            );
+        });
+
+        it('should reject SQL injection in NOT_EQUALS filter', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_EQUALS,
+                values: ['1); DELETE FROM customers; --'],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "1); DELETE FROM customers; --". Expected a valid number.',
+            );
+        });
+
+        it('should reject subquery injection attempts', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['SELECT customer_id FROM customers'],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "SELECT customer_id FROM customers". Expected a valid number.',
+            );
+        });
+
+        it('should reject multiple SQL injection values', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['1', '2) OR 1=1; --', '3'],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "2) OR 1=1; --". Expected a valid number.',
+            );
+        });
+
+        it('should reject SQL injection in comparison operators', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.GREATER_THAN,
+                values: ['1 OR 1=1'],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "1 OR 1=1". Expected a valid number.',
+            );
+        });
+
+        it('should reject SQL injection in BETWEEN operator', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.IN_BETWEEN,
+                values: ['1', '100); DROP TABLE customers; --'],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "100); DROP TABLE customers; --". Expected a valid number.',
+            );
+        });
+    });
+
+    describe('Valid number inputs should be accepted', () => {
+        it('should accept valid integer values', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [1, 2, 3],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."customer_id")) IN (1,2,3)',
+            );
+        });
+
+        it('should accept valid decimal values', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [1.5, 2.7, 3.14159],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."customer_id")) IN (1.5,2.7,3.14159)',
+            );
+        });
+
+        it('should accept negative numbers', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [-1, -2.5, -100],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."customer_id")) IN (-1,-2.5,-100)',
+            );
+        });
+
+        it('should accept numeric strings that can be converted', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['123', '456.78', '-90'],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."customer_id")) IN (123,456.78,-90)',
+            );
+        });
+
+        it('should handle comparison operators with valid numbers', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.GREATER_THAN,
+                values: ['100'],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."customer_id")) > (100)',
+            );
+        });
+
+        it('should handle BETWEEN operator with valid numbers', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.IN_BETWEEN,
+                values: ['10', '100'],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."customer_id")) >= (10) AND (("table"."customer_id")) <= (100)',
+            );
+        });
+    });
+
+    describe('Edge cases and special values', () => {
+        it('should reject NaN values', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [NaN],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "NaN". Expected a valid number.',
+            );
+        });
+
+        it('should reject Infinity values', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [Infinity],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "Infinity". Expected a valid number.',
+            );
+        });
+
+        it('should reject string values that are not numbers', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['abc', 'hello world', ''],
+            };
+            expect(() => renderNumberFilterSql(dimensionSql, filter)).toThrow(
+                'Invalid number value in filter: "abc". Expected a valid number.',
+            );
+        });
+
+        it('should reject objects and arrays', () => {
+            const filterWithObject = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [{}],
+            };
+            expect(() =>
+                renderNumberFilterSql(dimensionSql, filterWithObject),
+            ).toThrow(
+                'Invalid number value in filter: "[object Object]". Expected a valid number.',
+            );
+
+            const filterWithArray = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [[1, 2, 3]],
+            };
+            expect(() =>
+                renderNumberFilterSql(dimensionSql, filterWithArray),
+            ).toThrow(
+                'Invalid number value in filter: "1,2,3". Expected a valid number.',
+            );
+        });
+
+        it('should handle exponential notation', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['1e3', '2.5e-4'],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."customer_id")) IN (1000,0.00025)',
             );
         });
     });

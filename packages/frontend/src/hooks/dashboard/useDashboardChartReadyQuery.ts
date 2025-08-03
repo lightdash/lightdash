@@ -44,9 +44,12 @@ export const useDashboardChartReadyQuery = (
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameters = useDashboardContext((c) => c.parameters);
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
+    );
+    const tileParameterReferences = useDashboardContext(
+        (c) => c.tileParameterReferences,
     );
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
@@ -95,6 +98,16 @@ export const useDashboardChartReadyQuery = (
         explore,
     ]);
 
+    const chartParameterValues = useMemo(() => {
+        if (!tileParameterReferences || !tileParameterReferences[tileUuid])
+            return {};
+        return Object.fromEntries(
+            Object.entries(parameterValues).filter(([key]) =>
+                tileParameterReferences[tileUuid].includes(key),
+            ),
+        );
+    }, [parameterValues, tileParameterReferences, tileUuid]);
+
     setChartsWithDateZoomApplied((prev) => {
         if (hasADateDimension) {
             if (granularity) {
@@ -119,7 +132,7 @@ export const useDashboardChartReadyQuery = (
             autoRefresh,
             hasADateDimension ? granularity : null,
             invalidateCache,
-            parameters,
+            chartParameterValues,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -133,7 +146,7 @@ export const useDashboardChartReadyQuery = (
             hasADateDimension,
             granularity,
             invalidateCache,
-            parameters,
+            chartParameterValues,
         ],
     );
 
@@ -158,7 +171,7 @@ export const useDashboardChartReadyQuery = (
                         granularity,
                     },
                     invalidateCache,
-                    parameters,
+                    parameters: parameterValues,
                 },
             );
 

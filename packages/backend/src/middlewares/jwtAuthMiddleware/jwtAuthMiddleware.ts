@@ -33,6 +33,10 @@ const parseProjectUuid = (req: Pick<Request, 'query' | 'path'>) => {
     return pathParts[projectUuidIndex];
 };
 
+// This is the only embed endpoint that requires a user to be authenticated.
+// All other embed endpoints run off of the JWT.
+const isEmbedRequiringUser = (path: string) => path.includes('get-embed-url');
+
 /**
  * Middleware to authenticate embed tokens
  * If an embed token is provided, it will be decoded and attached to the request
@@ -48,6 +52,11 @@ export async function jwtAuthMiddleware(
         // There are some situations where we'll already have a user and need to still create a
         // JWT account. One example is when an admin is previewing an embed URL.
         if (req.account?.isAuthenticated()) {
+            next();
+            return;
+        }
+
+        if (isEmbedRequiringUser(req.path) && req.isAuthenticated()) {
             next();
             return;
         }
@@ -119,17 +128,6 @@ export async function jwtAuthMiddleware(
 
         next();
     } catch (error) {
-        if (
-            error instanceof ForbiddenError ||
-            error instanceof ParameterError
-        ) {
-            res.status(403).json({
-                status: 'error',
-                message: error.message,
-            });
-        } else {
-            // For unexpected errors, let regular auth handle it
-            next(error);
-        }
+        next(error);
     }
 }

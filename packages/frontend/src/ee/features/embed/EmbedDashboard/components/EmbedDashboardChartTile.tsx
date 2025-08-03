@@ -13,7 +13,6 @@ import { useEmbedChartAndResults } from '../hooks';
 type Props = ComponentProps<typeof DashboardChartTile> & {
     projectUuid: string;
     dashboardSlug: string;
-    embedToken: string;
     locked: boolean;
     tileIndex: number;
 };
@@ -21,7 +20,6 @@ type Props = ComponentProps<typeof DashboardChartTile> & {
 const EmbedDashboardChartTile: FC<Props> = ({
     projectUuid,
     dashboardSlug,
-    embedToken,
     locked,
     canExportCsv,
     canExportImages,
@@ -31,11 +29,10 @@ const EmbedDashboardChartTile: FC<Props> = ({
     tileIndex,
     ...rest
 }) => {
-    const { languageMap } = useEmbed();
+    const { languageMap, onExplore } = useEmbed();
 
     const { isLoading, data, error } = useEmbedChartAndResults(
         projectUuid,
-        embedToken,
         tile.uuid,
     );
 
@@ -83,7 +80,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 metricQuery: translatedChartData?.metricQuery,
                 fields: translatedChartData?.fields,
                 parameterReferences: [],
-                usedParametersValues: {},
+                usedParametersValues: {}, // This is never used in embed endpoints/results, it's calculated in the backend from the saved parameters of the charts
             },
             chart: translatedChartData.chart,
             explore: translatedChartData.explore,
@@ -137,6 +134,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
             resultsData={resultData}
             dashboardChartReadyQuery={query}
             error={error}
+            onExplore={onExplore}
         />
     );
 };

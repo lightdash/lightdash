@@ -6,6 +6,7 @@ import {
     CompiledDimension,
     CompiledMetric,
     CompiledTable,
+    convertToAiHints,
     Explore,
     getBasicType,
     type Tag,
@@ -15,20 +16,14 @@ import { DbCatalog } from '../../../database/entities/catalog';
 const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
-    {
-        catalogSearchUuid,
-        tags,
-        categories,
-        requiredAttributes,
-        chartUsage,
-        icon,
-    }: {
+    catalogArgs: {
         catalogSearchUuid: string;
         tags: string[];
         categories: Pick<Tag, 'tagUuid' | 'color' | 'name' | 'yamlReference'>[];
         requiredAttributes: Record<string, string | string[]> | undefined;
         chartUsage: number | undefined;
         icon: CatalogItemIcon | null;
+        searchRank?: number;
     },
 ): CatalogField => ({
     name: field.name,
@@ -39,13 +34,16 @@ const parseFieldFromMetricOrDimension = (
     tableGroupLabel: table.groupLabel,
     fieldType: field.fieldType,
     basicType: getBasicType(field),
+    fieldValueType: field.type,
     type: CatalogType.Field,
-    requiredAttributes,
-    tags,
-    categories,
-    chartUsage,
-    catalogSearchUuid,
-    icon,
+    aiHints: convertToAiHints(field.aiHint) ?? null,
+    requiredAttributes: catalogArgs.requiredAttributes,
+    tags: catalogArgs.tags,
+    categories: catalogArgs.categories,
+    chartUsage: catalogArgs.chartUsage,
+    catalogSearchUuid: catalogArgs.catalogSearchUuid,
+    icon: catalogArgs.icon,
+    searchRank: catalogArgs.searchRank,
 });
 
 export const parseFieldsFromCompiledTable = (
@@ -76,6 +74,7 @@ export const parseCatalog = (
             Tag,
             'tagUuid' | 'name' | 'color' | 'yamlReference'
         >[];
+        search_rank: number;
     },
 ): CatalogTable | CatalogField => {
     const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];
@@ -93,6 +92,9 @@ export const parseCatalog = (
             categories: dbCatalog.catalog_tags,
             chartUsage: dbCatalog.chart_usage ?? undefined,
             icon: dbCatalog.icon ?? null,
+            aiHints: convertToAiHints(dbCatalog.explore.aiHint) ?? null,
+            joinedTables: dbCatalog.joined_tables ?? null,
+            searchRank: dbCatalog.search_rank,
         };
     }
 
@@ -118,5 +120,6 @@ export const parseCatalog = (
         requiredAttributes: dbCatalog.required_attributes ?? undefined,
         chartUsage: dbCatalog.chart_usage ?? 0,
         icon: dbCatalog.icon ?? null,
+        searchRank: dbCatalog.search_rank,
     });
 };

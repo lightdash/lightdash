@@ -27,6 +27,7 @@ import {
     TablesConfiguration,
     TimeFrames,
     UserAttributeValueMap,
+    convertToAiHints,
     getAvailableCompareMetrics,
     getAvailableSegmentDimensions,
     getAvailableTimeDimensionsFromTables,
@@ -166,6 +167,7 @@ export class CatalogService<
     ): Promise<CatalogTable[]> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
+
         return explores.reduce<CatalogTable[]>((acc, explore) => {
             if (isExploreError(explore)) {
                 // If no dimensions found, we don't show the explore error
@@ -188,13 +190,16 @@ export class CatalogService<
                             explore.baseTable &&
                             explore.tables?.[explore.baseTable]?.description,
                         type: CatalogType.Table,
-                        joinedTables: explore.joinedTables,
+                        joinedTables:
+                            explore.joinedTables?.map((join) => join.table) ??
+                            null,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
                         categories: [],
                         icon: null,
-                    },
+                        aiHints: convertToAiHints(explore.aiHint) ?? null,
+                    } satisfies CatalogTable,
                 ];
             }
 
@@ -213,14 +218,17 @@ export class CatalogService<
                             explore.tables[explore.baseTable].description,
                         type: CatalogType.Table,
                         groupLabel: explore.groupLabel,
-                        joinedTables: explore.joinedTables,
+                        joinedTables:
+                            explore.joinedTables?.map((join) => join.table) ??
+                            null,
                         tags: explore.tags,
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
                         categories: [],
                         icon: null,
-                    },
+                        aiHints: convertToAiHints(explore.aiHint) ?? null,
+                    } satisfies CatalogTable,
                 ];
             }
             return acc;
@@ -232,9 +240,10 @@ export class CatalogService<
         userAttributes: UserAttributeValueMap;
         catalogSearch: ApiCatalogSearch;
         context: CatalogSearchContext;
-        yamlTags: string[] | null;
+        tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
+        excludeUnmatched?: boolean;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
@@ -260,8 +269,9 @@ export class CatalogService<
                             userAttributes: args.userAttributes,
                             sortArgs: args.sortArgs,
                             context: args.context,
-                            yamlTags: args.yamlTags,
+                            tables: args.tables,
                             tablesConfiguration,
+                            excludeUnmatched: args.excludeUnmatched,
                         }),
                 );
             },
@@ -320,16 +330,7 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        userUuid: string | undefined,
-        embedderFn?: (
-            documents: {
-                name: string;
-                description: string;
-            }[],
-        ) => Promise<Array<Array<number>>>,
-    ) {
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
         const cachedExploresMap =
             await this.projectModel.getAllExploresFromCache(projectUuid);
 
@@ -580,7 +581,7 @@ export class CatalogService<
                 userAttributes,
                 catalogSearch,
                 context,
-                yamlTags: null,
+                tables: null,
             });
         }
 
@@ -797,7 +798,7 @@ export class CatalogService<
             context,
             paginateArgs,
             sortArgs,
-            yamlTags: null,
+            tables: null,
         });
 
         const { data: catalogMetrics, pagination } = paginatedCatalog;
@@ -1258,7 +1259,7 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            yamlTags: null,
+            tables: null,
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1321,7 +1322,7 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            yamlTags: null,
+            tables: null,
         });
 
         const allDimensions = catalogDimensions.data

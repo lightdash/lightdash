@@ -6,25 +6,22 @@ import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import { AiAgentThreadStreamStoreProvider } from './features/aiCopilot/streaming/AiAgentThreadStreamStoreProvider';
+import EmbeddedApp from './features/embed/EmbeddedApp';
 import AgentPage from './pages/AiAgents/AgentPage';
 import AgentsRedirect from './pages/AiAgents/AgentsRedirect';
 import AgentsWelcome from './pages/AiAgents/AgentsWelcome';
 import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
+import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPage';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
 import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
-import EmbedProvider from './providers/Embed/EmbedProvider';
 
 const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
     {
         path: '/embed',
-        element: (
-            <EmbedProvider>
-                <Outlet />
-            </EmbedProvider>
-        ),
+        element: <EmbeddedApp />,
         children: [
             {
                 path: '/embed/:projectUuid',
@@ -95,6 +92,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
             {
                 index: true,
                 element: <AgentsWelcome />,
+            },
+            {
+                path: 'not-authorized',
+                element: <AiAgentsNotAuthorizedPage />,
             },
             {
                 path: 'new',

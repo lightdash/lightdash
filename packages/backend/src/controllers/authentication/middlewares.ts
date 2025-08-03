@@ -12,7 +12,7 @@ import { ErrorRequestHandler, Request, RequestHandler } from 'express';
 
 import passport from 'passport';
 import { URL } from 'url';
-import { fromApiKey } from '../../auth/account/account';
+import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
@@ -56,6 +56,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
+            // attach token info to the authInfo request
             req.services
                 .getUserService()
                 .findSessionUser({
@@ -63,6 +64,8 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     organization: token.user.organizationUuid,
                 })
                 .then((user) => {
+                    req.account = fromOauth(user, token);
+
                     req.user = user;
                     next();
                 })

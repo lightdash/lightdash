@@ -15,6 +15,7 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     savedChartUuid,
     dashboardFilters,
     invalidateCache,
+    parameters,
 }) => {
     const tableConfig = useTableConfig(
         initialChartConfig,
@@ -26,6 +27,7 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
         savedChartUuid,
         dashboardFilters,
         invalidateCache,
+        parameters,
     );
 
     useEffect(() => {

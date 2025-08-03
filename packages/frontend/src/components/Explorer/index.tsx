@@ -1,8 +1,11 @@
+import { subject } from '@casl/ability';
 import { Stack } from '@mantine/core';
-import { memo, type FC } from 'react';
-import { useParams } from 'react-router';
+import { memo, useEffect, type FC } from 'react';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import { useExplore } from '../../hooks/useExplore';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
+import { Can } from '../../providers/Ability';
 import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -31,17 +34,33 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const isEditMode = useExplorerContext(
             (context) => context.state.isEditMode,
         );
-        const { projectUuid } = useParams<{ projectUuid: string }>();
+        const projectUuid = useProjectUuid();
 
         const queryUuid = useExplorerContext(
             (context) => context.query?.data?.queryUuid,
         );
 
+        const setParameterReferences = useExplorerContext(
+            (context) => context.actions.setParameterReferences,
+        );
+
         const { data: explore } = useExplore(unsavedChartVersionTableName);
 
-        const { data: { parameterReferences } = {} } = useCompiledSql({
+        const { data: { parameterReferences } = {}, isError } = useCompiledSql({
             enabled: !!unsavedChartVersionTableName,
         });
+
+        useEffect(() => {
+            if (isError) {
+                // If there's an error, we set the parameter references to an empty array
+                setParameterReferences([]);
+            } else {
+                // While there's no parameter references array the request hasn't run, so we set it explicitly to null
+                setParameterReferences(parameterReferences ?? null);
+            }
+        }, [parameterReferences, setParameterReferences, isError]);
+
+        const { data: org } = useOrganization();
 
         return (
             <MetricQueryDataProvider
@@ -68,6 +87,15 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     <ResultsCard />
 
                     {!!projectUuid && user.data?.role === 'admin' && <SqlCard projectUuid={projectUuid} />}
+                    <Can
+                        I="manage"
+                        this={subject('Explore', {
+                            organizationUuid: org?.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
+                        {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
+                    </Can>
                 </Stack>
 
                 <UnderlyingDataModal />

@@ -10,6 +10,7 @@ import SimpleChart from '../SimpleChart';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
+import SimpleTreemap from '../SimpleTreemap';
 import { useVisualizationContext } from './useVisualizationContext';
 
 interface LightdashVisualizationProps {
@@ -38,7 +39,17 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
         if (apiErrorDetail) {
             return (
                 <EmptyState
-                    icon={<MantineIcon icon={IconChartBarOff} />}
+                    icon={
+                        // Icon consistent with SuboptimalState in charts
+                        <MantineIcon
+                            color="gray.5"
+                            size="xxl"
+                            icon={IconChartBarOff}
+                        />
+                    }
+                    h="100%"
+                    w="100%"
+                    justify="center"
                     title="Unable to load visualization"
                     description={
                         <Fragment>
@@ -111,6 +122,16 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.FUNNEL:
                 return (
                     <FunnelChart
+                        className={className}
+                        isInDashboard={!!isDashboard}
+                        $shouldExpand
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
+            case ChartType.TREEMAP:
+                return (
+                    <SimpleTreemap
                         className={className}
                         isInDashboard={!!isDashboard}
                         $shouldExpand

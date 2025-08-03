@@ -38,6 +38,14 @@ import {
     useFieldValues,
 } from '../../../hooks/useFieldValues';
 
+// Consistent create label component for all parameter inputs
+const CreateParameterLabel: FC<{ query: string }> = ({ query }) => (
+    <Group spacing="xxs">
+        <MantineIcon icon={IconPlus} color="blue" size="sm" />
+        <Text color="blue">Add "{query}"</Text>
+    </Group>
+);
+
 type ParameterInputProps = {
     paramKey: string;
     parameter: LightdashProjectParameter;
@@ -49,6 +57,8 @@ type ParameterInputProps = {
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     projectUuid?: string;
     parameterValues?: ParametersValuesMap;
+    disabled?: boolean;
+    isError?: boolean;
 };
 
 // Single value component that mimics a single select behavior - maxSelectedValues={1} behaves weirdly so we don't use it.
@@ -94,6 +104,7 @@ const ParameterStringAutoComplete: FC<ParameterStringAutoCompleteProps> = ({
     singleValue,
     parameterValues,
     size,
+    creatable = false,
     ...rest
 }) => {
     const multiSelectRef = useRef<HTMLInputElement>(null);
@@ -298,20 +309,13 @@ const ParameterStringAutoComplete: FC<ParameterStringAutoCompleteProps> = ({
                     values.length > 0 || disabled ? undefined : placeholder
                 }
                 disabled={disabled}
-                creatable
                 valueComponent={singleValue ? SingleValueComponent : undefined}
-                /**
-                 * Opts out of Mantine's default condition and always allows adding, as long as not
-                 * an empty query.
-                 */
+                creatable={creatable}
                 shouldCreate={(query) =>
                     query.trim().length > 0 && !values.includes(query)
                 }
                 getCreateLabel={(query) => (
-                    <Group spacing="xxs">
-                        <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                        <Text color="blue">Add "{query}"</Text>
-                    </Group>
+                    <CreateParameterLabel query={query} />
                 )}
                 styles={{
                     item: {
@@ -377,7 +381,39 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     size,
     projectUuid,
     parameterValues,
+    disabled,
+    isError,
 }) => {
+    const placeholder = useMemo(() => {
+        const defaultValues = parameter.default
+            ? Array.isArray(parameter.default)
+                ? parameter.default
+                : [parameter.default]
+            : undefined;
+        return defaultValues
+            ? `${
+                  parameter.multiple
+                      ? defaultValues.join(', ')
+                      : defaultValues[0]
+              } (default)`
+            : 'Choose value...';
+    }, [parameter]);
+
+    const shouldCreate = useCallback(
+        (query: string) => {
+            return (
+                query.trim().length > 0 &&
+                !(Array.isArray(value) ? value : [value]).includes(query)
+            );
+        },
+        [value],
+    );
+
+    const getCreateLabel = useCallback(
+        (query: string) => <CreateParameterLabel query={query} />,
+        [],
+    );
+
     if (parameter.options_from_dimension && projectUuid) {
         // Create a FilterableItem from parameter.options_from_dimension
         const field: FilterableItem = {
@@ -397,39 +433,57 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 projectUuid={projectUuid}
                 field={field}
                 autoFocus={false}
-                placeholder="Choose value..."
+                placeholder={placeholder}
                 suggestions={[]}
                 values={value ? (Array.isArray(value) ? value : [value]) : []}
                 singleValue={!parameter.multiple}
                 onChange={(newValue) => onParameterChange(paramKey, newValue)}
                 parameterValues={parameterValues}
                 size={size}
+                creatable={parameter.allow_custom_values}
+                error={isError}
             />
         );
     }
+
+    const currentValues = value ? (Array.isArray(value) ? value : [value]) : [];
+    const optionsData = parameter.allow_custom_values
+        ? uniq([...(parameter.options ?? []), ...currentValues])
+        : parameter.options ?? [];
+
     if (parameter.multiple) {
         return (
             <MultiSelect
-                data={parameter.options ?? []}
-                value={value ? (Array.isArray(value) ? value : [value]) : []}
+                data={optionsData}
+                value={currentValues}
                 onChange={(newValue) => onParameterChange(paramKey, newValue)}
-                placeholder="Choose value..."
+                placeholder={placeholder}
                 size={size}
                 searchable
                 clearable
+                disabled={disabled}
+                creatable={parameter.allow_custom_values}
+                shouldCreate={shouldCreate}
+                getCreateLabel={getCreateLabel}
+                error={isError}
             />
         );
     }
 
     return (
         <Select
-            placeholder="Choose value..."
-            value={Array.isArray(value) ? value[0] || null : value || null}
+            placeholder={placeholder}
+            value={currentValues[0]}
             onChange={(newValue) => onParameterChange(paramKey, newValue)}
-            data={parameter.options ?? []}
+            data={optionsData}
             size={size}
             searchable
             clearable
+            disabled={disabled}
+            creatable={parameter.allow_custom_values}
+            shouldCreate={shouldCreate}
+            getCreateLabel={getCreateLabel}
+            error={isError}
         />
     );
 };

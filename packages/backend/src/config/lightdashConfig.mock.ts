@@ -200,7 +200,6 @@ export const lightdashConfigMock: LightdashConfig = {
                     modelName: 'mock_model_name',
                 },
             },
-            __experimental__toolFindFields: false,
         },
     },
     embedding: {
@@ -240,5 +239,8 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     googleCloudPlatform: {
         projectId: 'test-project-id',
+    },
+    mcp: {
+        enabled: true,
     },
 };

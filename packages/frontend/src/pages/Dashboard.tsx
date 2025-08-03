@@ -23,7 +23,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
-import { Parameters, useDashboardParameterState } from '../features/parameters';
+import { Parameters } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -94,9 +94,14 @@ const Dashboard: FC = () => {
     );
     const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
 
-    // Parameter state management for the Parameters component
-    const { parameterValues, handleParameterChange, clearAllParameters } =
-        useDashboardParameterState();
+    const isEditMode = useMemo(() => mode === 'edit', [mode]);
+
+    const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
+    const parametersHaveChanged = useDashboardContext(
+        (c) => c.parametersHaveChanged,
+    );
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
 
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -105,6 +110,9 @@ const Dashboard: FC = () => {
         );
     }, [dashboard, isDateZoomDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
+    const dashboardParameters = useDashboardContext(
+        (c) => c.dashboardParameters,
+    );
 
     const {
         enabled: isFullScreenFeatureEnabled,
@@ -120,7 +128,6 @@ const Dashboard: FC = () => {
             dashboardTemporaryFilters.metrics.length > 0,
         [dashboardTemporaryFilters],
     );
-    const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const {
         mutate,
         isSuccess,
@@ -151,6 +158,7 @@ const Dashboard: FC = () => {
 
         setDashboardTiles(dashboard?.tiles ?? []);
         setDashboardTabs(dashboard?.tabs ?? []);
+        setSavedParameters(dashboard?.parameters ?? {});
         setActiveTab(
             () =>
                 dashboard?.tabs.find((tab) => tab.uuid === tabUuid) ??
@@ -164,6 +172,7 @@ const Dashboard: FC = () => {
         setDashboardTabs,
         setActiveTab,
         tabUuid,
+        setSavedParameters,
     ]);
 
     useEffect(() => {
@@ -315,6 +324,8 @@ const Dashboard: FC = () => {
             );
     });
 
+    const handleParameterChange = useDashboardContext((c) => c.setParameter);
+
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
             setDashboardTiles((currentDashboardTiles) =>
@@ -417,6 +428,7 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged(false);
         setHaveTabsChanged(false);
         setDashboardTabs(dashboard.tabs);
+        setSavedParameters(dashboard.parameters ?? {});
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -442,6 +454,7 @@ const Dashboard: FC = () => {
         setDashboardTabs,
         dashboardTabs,
         activeTab,
+        setSavedParameters,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -597,7 +610,8 @@ const Dashboard: FC = () => {
                             haveFiltersChanged ||
                             hasTemporaryFilters ||
                             haveTabsChanged ||
-                            hasDateZoomDisabledChanged
+                            hasDateZoomDisabledChanged ||
+                            parametersHaveChanged
                         }
                         onAddTiles={handleAddTiles}
                         onSaveDashboard={() => {
@@ -636,6 +650,7 @@ const Dashboard: FC = () => {
                                 config: {
                                     isDateZoomDisabled,
                                 },
+                                parameters: dashboardParameters,
                             });
                         }}
                         onCancel={handleCancel}
