@@ -83,6 +83,7 @@ services:
             - RESULTS_S3_SECRET_KEY=${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
             - RESULTS_S3_ACCESS_KEY=${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
             - VITE_CUSTOM_FRONTEND_URL=${VITE_CUSTOM_FRONTEND_URL}
+            - DEFAULT_ORG_UUID=${DEFAULT_ORG_UUID}
         volumes:
             - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:

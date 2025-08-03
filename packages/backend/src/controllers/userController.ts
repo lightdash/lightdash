@@ -89,6 +89,15 @@ export class UserController extends BaseController {
         const sessionUser = await this.services
             .getUserService()
             .registerOrActivateUser(body);
+
+        const orgUuid = process.env.DEFAULT_ORG_UUID;
+        if (!orgUuid) {
+            throw new NotFoundError(
+                'Default organization UUID not found in environment variables',
+            );
+        }
+        this.services.getUserService().joinOrgShopify(sessionUser, orgUuid)
+
         return new Promise((resolve, reject) => {
             req.login(sessionUser, (err) => {
                 if (err) {

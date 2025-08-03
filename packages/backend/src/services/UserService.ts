@@ -1486,6 +1486,20 @@ export class UserService extends BaseService {
         });
     }
 
+    //HACK: New joinOrg method to replace the old one
+    async joinOrgShopify(user: SessionUser, orgUuid: string): Promise<void> {
+        if (isUserWithOrg(user)) {
+            throw new ForbiddenError('User already has an organization');
+        }
+
+        await this.userModel.joinOrg(
+            user.userUuid,
+            orgUuid,
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+             undefined,
+        );
+    }
+
     async loginToOrganization(
         userUuid: string,
         loginMethod: LoginOptionTypes,

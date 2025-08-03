@@ -56,54 +56,42 @@ const Register: FC = () => {
         ? `${location.state.from.pathname}${location.state.from.search}`
         : '/';
     const { isLoading, mutate, isSuccess } = useMutation<
-    LightdashUser,
-    ApiError,
-    CreateUserArgs
->(registerQuery, {
-    mutationKey: ['login'],
-    onSuccess: async (data) => {
-        console.log('User created successfully', data);
-        const userUuid = data.userUuid;
-        identify({ id: userUuid });
+        LightdashUser,
+        ApiError,
+        CreateUserArgs
+    >(registerQuery, {
+        mutationKey: ['login'],
+        onSuccess: async (data) => {
+            console.log('User created successfully', data);
+            const userUuid = data.userUuid;
+            identify({ id: userUuid });
 
-        const params = new URLSearchParams(location.search);
-        const shop = params.get('shop');
+            
 
-        if (!shop) {
-            showToastError({
-                title: 'Missing shop info',
-                subtitle: 'Shop domain was not passed from Shopify.',
-            });
-            return;
-        }
-
-        try {
-            console.log('Setting up Shopify:', { shop, userUuid });
-            await lightdashApi({
-                url: '/auth/shopify/setup',
-                method: 'POST',
-                body: JSON.stringify({
-                    userUuid,
-                    shopUrl: shop,
-                }),
-            });
-            console.log('Shopify setup request sent successfully');
-
+            const params = new URLSearchParams(location.search);
+            const shop = params.get('shop');
+            if (shop) {
+                console.log('Setting up Shopify:', { shop, userUuid });
+                lightdashApi({
+                    url: '/auth/shopify/setup',
+                    method: 'POST',
+                    body: JSON.stringify({
+                        userUuid,
+                        shopUrl: shop,
+                    }),
+                });
+                console.log('Shopify setup request sent successfully');
+            }
             window.location.href = '/'; // or /dashboard
-        } catch (err) {
-            showToastError({
-                title: 'Error linking shop to user',
-                subtitle: (err as ApiError).error.message,
+
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to create user`,
+                apiError: error,
             });
-        }
-    },
-    onError: ({ error }) => {
-        showToastApiError({
-            title: `Failed to create user`,
-            apiError: error,
-        });
-    },
-});
+        },
+    });
 
 
     if (health.isInitialLoading) {

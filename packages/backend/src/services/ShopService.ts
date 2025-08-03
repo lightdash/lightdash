@@ -129,12 +129,8 @@ export class ShopService {
         const user_id = await this.getUserIdByUuid(user.userUuid);
 
         await this.database.transaction(async (trx: any) => {
-            await trx(OrganizationMembershipsTableName).insert({
-                organization_id: orgId,
-                user_id,
-                role: OrganizationMemberRole.INTERACTIVE_VIEWER,
-            });
 
+            // TODO: Replace with methods from UserAttributesService
             const isAdminAttribute = await this.getOrCreateUserAttribute(
                 trx,
                 'is_admin',
