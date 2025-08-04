@@ -136,6 +136,7 @@ Usage Tips:
                     tableName: args.exploreName,
                     page: args.page ?? 1,
                     pageSize,
+                    includeFields: true,
                     fieldSearchSize,
                     fieldOverviewSearchSize,
                 });
