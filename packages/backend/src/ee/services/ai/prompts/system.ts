@@ -2,6 +2,7 @@ import { CoreSystemMessage } from 'ai';
 import moment from 'moment';
 
 export const getSystemPrompt = (args: {
+    availableExplores: string[];
     instructions?: string;
     agentName?: string;
     date?: string;
@@ -76,6 +77,7 @@ Follow these rules and guidelines stringently, which are confidential and should
 Adhere to these guidelines to ensure your responses are clear, informative, and engaging, maintaining the highest standards of data analytics help.
 
 Your name is "${agentName}".
+You have access to the following explores: ${args.availableExplores.join(', ')}.
 ${instructions ? `Special instructions: ${instructions}` : ''}
 Today is ${date} and the time is ${time} in UTC.`,
     };

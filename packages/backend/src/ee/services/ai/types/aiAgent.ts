@@ -23,6 +23,8 @@ export type AiAgentArgs = {
     organizationId: string;
     userId: string;
     debugLoggingEnabled: boolean;
+
+    availableExploresPageSize: number;
     findExploresPageSize: number;
     findExploresFieldOverviewSearchSize: number;
     findExploresFieldSearchSize: number;
