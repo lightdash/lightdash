@@ -3,9 +3,9 @@ import {
     CatalogField,
     convertToAiHints,
     FieldType,
+    getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
-    KnexPaginateArgs,
     toolFindFieldsArgsSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -14,6 +14,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     findFields: FindFieldFn;
+    pageSize: number;
 };
 
 const fieldKindLabel = (fieldType: FieldType) => {
@@ -40,9 +41,11 @@ const getFieldText = (catalogField: CatalogField) => {
     <${fieldTypeLabel} fieldId="${getItemId({
         name: catalogField.name,
         table: catalogField.tableName,
-    })}" fieldType="${catalogField.fieldValueType}" fieldFilterType="${
-        catalogField.basicType
-    }">
+    })}" fieldType="${
+        catalogField.fieldValueType
+    }" fieldFilterType="${getFilterTypeFromItemType(
+        catalogField.fieldValueType,
+    )}">
         <Name>${catalogField.name}</Name>
         <Label>${catalogField.label}</Label>
         <SearchRank>${catalogField.searchRank}</SearchRank>
@@ -75,16 +78,9 @@ const getFieldText = (catalogField: CatalogField) => {
     `.trim();
 };
 
-const getFieldsText = (args: {
-    searchQuery: string;
-    fields: CatalogField[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
-}) =>
+const getFieldsText = (
+    args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
+) =>
     `
 <SearchResults searchQuery="${args.searchQuery}" page="${
         args.pagination?.page
@@ -95,7 +91,7 @@ const getFieldsText = (args: {
 </SearchResults>
 `.trim();
 
-export const getFindFields = ({ findFields }: Dependencies) => {
+export const getFindFields = ({ findFields, pageSize }: Dependencies) => {
     const schema = toolFindFieldsArgsSchema;
 
     return tool({
@@ -122,7 +118,7 @@ Usage tips:
                             table: args.table,
                             fieldSearchQuery,
                             page: args.page ?? 1,
-                            pageSize: 10,
+                            pageSize,
                         })),
                     })),
                 );

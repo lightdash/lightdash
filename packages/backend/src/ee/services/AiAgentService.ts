@@ -21,6 +21,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
     Explore,
@@ -70,9 +71,11 @@ import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQuerySe
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
+import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
+import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
     FindExploresFn,
     FindFieldFn,
@@ -1019,7 +1022,7 @@ export class AiAgentService {
 
         const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
 
         if (!parsedVizConfig) {
@@ -1044,21 +1047,21 @@ export class AiAgentService {
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             case AiResultType.TIME_SERIES_RESULT:
                 return renderTimeSeriesViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             case AiResultType.TABLE_RESULT:
                 return renderTableViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             default:
                 return assertUnreachable(parsedVizConfig, 'Invalid viz type');
@@ -1139,7 +1142,7 @@ export class AiAgentService {
 
         const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
 
         if (!parsedVizConfig) {
@@ -1380,74 +1383,121 @@ export class AiAgentService {
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
-        const findExplores: FindExploresFn = async (args: {
-            page: number;
-            pageSize: number;
-        }) => {
-            const agentSettings = await this.getAgentSettings(user, prompt);
+        const findExplores: FindExploresFn = (args) =>
+            wrapSentryTransaction('AiAgent.findExplores', args, async () => {
+                const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
 
-            const { data: tables, pagination } =
-                await this.catalogService.searchCatalog({
-                    projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Table,
-                        yamlTags: agentSettings.tags ?? undefined,
-                    },
-                    userAttributes,
-                    context: CatalogSearchContext.AI_AGENT,
-                    tables: null,
-                    paginateArgs: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                    },
-                });
+                const { data: tables, pagination } =
+                    await this.catalogService.searchCatalog({
+                        projectUuid,
+                        catalogSearch: {
+                            type: CatalogType.Table,
+                            yamlTags: agentSettings.tags ?? undefined,
+                            tables: args.tableName
+                                ? [args.tableName]
+                                : undefined,
+                        },
+                        userAttributes,
+                        context: CatalogSearchContext.AI_AGENT,
+                        paginateArgs: {
+                            page: args.page,
+                            pageSize: args.pageSize,
+                        },
+                    });
 
-            const tablesWithFields = await Promise.all(
-                tables
-                    .filter((table) => table.type === CatalogType.Table)
-                    .map(async (table) => {
-                        const { data: fields } =
-                            await this.catalogService.searchCatalog({
+                const tablesWithFields = await Promise.all(
+                    tables
+                        .filter((table) => table.type === CatalogType.Table)
+                        .map(async (table) => {
+                            if (!args.includeFields) {
+                                return {
+                                    table,
+                                    dimensions: [],
+                                    metrics: [],
+                                    dimensionsPagination: undefined,
+                                    metricsPagination: undefined,
+                                };
+                            }
+
+                            if (
+                                !args.fieldSearchSize ||
+                                !args.fieldOverviewSearchSize
+                            ) {
+                                throw new Error(
+                                    'fieldSearchSize and fieldOverviewSearchSize are required when includeFields is true',
+                                );
+                            }
+
+                            const sharedArgs = {
                                 projectUuid,
                                 catalogSearch: {
                                     type: CatalogType.Field,
-                                    searchQuery: '',
                                     yamlTags: agentSettings.tags ?? undefined,
+                                    tables: [table.name],
                                 },
                                 userAttributes,
                                 context: CatalogSearchContext.AI_AGENT,
-                                tables: [table.name],
                                 paginateArgs: {
                                     page: 1,
-                                    // TODO: tweak this
-                                    pageSize: 50,
+                                    pageSize: args.tableName
+                                        ? args.fieldSearchSize
+                                        : args.fieldOverviewSearchSize,
                                 },
                                 sortArgs: {
                                     sort: 'chartUsage',
-                                    order: 'desc',
+                                    order: 'desc' as const,
+                                },
+                            };
+
+                            const {
+                                data: dimensions,
+                                pagination: dimensionsPagination,
+                            } = await this.catalogService.searchCatalog({
+                                ...sharedArgs,
+                                catalogSearch: {
+                                    ...sharedArgs.catalogSearch,
+                                    filter: CatalogFilter.Dimensions,
                                 },
                             });
 
-                        return {
-                            table,
-                            fields: fields.filter(
-                                (field) => field.type === CatalogType.Field,
-                            ),
-                        };
-                    }),
-            );
+                            const {
+                                data: metrics,
+                                pagination: metricsPagination,
+                            } = await this.catalogService.searchCatalog({
+                                ...sharedArgs,
+                                catalogSearch: {
+                                    ...sharedArgs.catalogSearch,
+                                    filter: CatalogFilter.Metrics,
+                                },
+                            });
 
-            return {
-                tablesWithFields,
-                pagination,
-            };
-        };
+                            return {
+                                table,
+                                dimensions: dimensions.filter(
+                                    (d) => d.type === CatalogType.Field,
+                                ),
+                                metrics: metrics.filter(
+                                    (m) => m.type === CatalogType.Field,
+                                ),
+                                dimensionsPagination,
+                                metricsPagination,
+                            };
+                        }),
+                );
+
+                return {
+                    tablesWithFields,
+                    pagination,
+                };
+            });
 
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
@@ -1481,16 +1531,14 @@ export class AiAgentService {
                         yamlTags: agentSettings.tags ?? undefined,
                     },
                     context: CatalogSearchContext.AI_AGENT,
-                    // TODO: make this paginated
                     paginateArgs: {
                         page: args.page,
                         pageSize: args.pageSize,
                     },
                     userAttributes,
-                    tables: [args.table],
                 });
 
-            // TODO: we should not filter here, we should return all the fields
+            // TODO: we should not filter here, search should be returning a proper type
             const catalogFields = catalogItems.filter(
                 (item) => item.type === CatalogType.Field,
             );
@@ -1653,20 +1701,30 @@ export class AiAgentService {
         const model = getModel(this.lightdashConfig.ai.copilot);
         const agentSettings = await this.getAgentSettings(user, prompt);
 
-        const args = {
-            model,
-            agentSettings,
-            threadUuid: prompt.threadUuid,
-            promptUuid: prompt.promptUuid,
-            messageHistory,
-            maxLimit: this.lightdashConfig.query.maxLimit,
+        const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
+
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
+
+            agentSettings,
+            model,
+            messageHistory,
+
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+
+            availableExploresPageSize: 100,
+            findExploresPageSize: 15,
+            findExploresFieldSearchSize: 200,
+            findExploresFieldOverviewSearchSize: 5,
+            findExploresMaxDescriptionLength: 100,
+            findFieldsPageSize: 10,
+            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
         };
 
-        const dependencies = {
+        const dependencies: AiAgentDependencies = {
             findFields,
             findExplores,
             getExplore,
@@ -1675,7 +1733,6 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
-            // avoid binding
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -1685,14 +1742,8 @@ export class AiAgentService {
         };
 
         return stream
-            ? streamAgentResponse({
-                  args,
-                  dependencies,
-              })
-            : generateAgentResponse({
-                  args,
-                  dependencies,
-              });
+            ? streamAgentResponse({ args, dependencies })
+            : generateAgentResponse({ args, dependencies });
     }
 
     // TODO: user permissions
@@ -1951,7 +2002,7 @@ export class AiAgentService {
         const exploreBlocks = getExploreBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
         const historyBlocks = getDeepLinkBlocks(
             slackPrompt,

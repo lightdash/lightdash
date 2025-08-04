@@ -55,8 +55,8 @@ models:
             metrics:
               subscriptions_by_plan:
                 type: count_distinct
-                label: Subscriptions by Plan
-                description: Count of subscriptions, use with plan dimension for breakdown
+                label: Distinct subscriptions by Plan
+                description: Count of subscriptions, use with plan dimension for breakdown (no parameters)
                 sql: subscription_id
       
       - name: plan_name
@@ -220,7 +220,7 @@ models:
               filtered_by_plan:
                 type: count_distinct
                 label: Subscriptions by Plan
-                description: Count of subscriptions for specific plan type
+                description: Count of subscriptions for specific plan type (uses plan_type)
                 sql: |
                   CASE 
                     WHEN ${ld.parameters.plan_type} = 'all' THEN subscription_id

@@ -1,7 +1,6 @@
 import {
     type Account as AccountType,
     AnyType,
-    type AsyncWarehouseQueryPayload,
     CompileProjectPayload,
     CreateProject,
     CreateSchedulerAndTargets,
@@ -3117,33 +3116,6 @@ export default class SchedulerTask {
                         payload,
                     );
                 return { results };
-            },
-        );
-    }
-
-    /**
-     * Runs the query against the warehouse and updates the query history when complete
-     */
-    protected async runAsyncWarehouseQuery(
-        jobId: string,
-        scheduledTime: Date,
-        payload: AsyncWarehouseQueryPayload,
-    ) {
-        await this.logWrapper(
-            {
-                task: SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                jobId,
-                scheduledTime,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    queryHistoryUuid: payload.queryHistoryUuid,
-                },
-            },
-            async () => {
-                await this.asyncQueryService.runAsyncWarehouseQuery(payload);
-                return {};
             },
         );
     }

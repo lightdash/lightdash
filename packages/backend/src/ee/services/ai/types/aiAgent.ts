@@ -20,10 +20,17 @@ export type AiAgentArgs = {
     messageHistory: CoreMessage[];
     promptUuid: string;
     threadUuid: string;
-    maxLimit: number;
     organizationId: string;
     userId: string;
     debugLoggingEnabled: boolean;
+
+    availableExploresPageSize: number;
+    findExploresPageSize: number;
+    findExploresFieldOverviewSearchSize: number;
+    findExploresFieldSearchSize: number;
+    findExploresMaxDescriptionLength: number;
+    findFieldsPageSize: number;
+    maxQueryLimit: number;
 };
 
 export type AiAgentDependencies = {

@@ -10,10 +10,13 @@ import {
     type DashboardFilters,
     type DateZoom,
     type Filters,
+    type ItemsMap,
     type ParametersValuesMap,
     type PivotIndexColum,
     type QueryExecutionContext,
+    type ResultColumns,
     type ResultsPaginationArgs,
+    type RunQueryTags,
     type SortField,
 } from '@lightdash/common';
 
@@ -136,3 +139,28 @@ export type ExecuteAsyncSqlChartArgs =
 export const isExecuteAsyncSqlChartByUuid = (
     args: ExecuteAsyncSqlChartArgs,
 ): args is ExecuteAsyncSqlChartByUuidArgs => 'savedSqlUuid' in args;
+
+export type RunAsyncWarehouseQueryArgs = {
+    userId: string;
+    // Can the user have credentials?
+    isSessionUser: boolean;
+    // Is the user in the database?
+    isRegisteredUser: boolean;
+    projectUuid: string;
+    queryTags: RunQueryTags;
+    query: string;
+    fieldsMap: ItemsMap;
+    queryHistoryUuid: string;
+    cacheKey: string;
+    warehouseCredentialsOverrides?: {
+        snowflakeVirtualWarehouse?: string;
+        databricksCompute?: string;
+    };
+    pivotConfiguration?: {
+        indexColumn: PivotIndexColum;
+        valuesColumns: ValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
+    };
+    originalColumns?: ResultColumns;
+};

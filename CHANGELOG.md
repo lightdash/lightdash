@@ -1,3 +1,59 @@
+# [0.1875.0](https://github.com/lightdash/lightdash/compare/0.1874.0...0.1875.0) (2025-08-04)
+
+
+### Features
+
+* validate filter type against field type ([#16192](https://github.com/lightdash/lightdash/issues/16192)) ([4f343ae](https://github.com/lightdash/lightdash/commit/4f343ae944b9422c2ec9e712bf755d7440bc6801)), closes [#16188](https://github.com/lightdash/lightdash/issues/16188)
+
+# [0.1874.0](https://github.com/lightdash/lightdash/compare/0.1873.0...0.1874.0) (2025-08-04)
+
+
+### Features
+
+* include available explores in the system prompt ([#16185](https://github.com/lightdash/lightdash/issues/16185)) ([4e1cbba](https://github.com/lightdash/lightdash/commit/4e1cbba6b9144837bbc1105addc4cf5e62e89715))
+
+# [0.1873.0](https://github.com/lightdash/lightdash/compare/0.1872.0...0.1873.0) (2025-08-04)
+
+
+### Features
+
+* refactor AI agent with configurable search parameters ([#16173](https://github.com/lightdash/lightdash/issues/16173)) ([0e6e2d0](https://github.com/lightdash/lightdash/commit/0e6e2d0a00fe9e6e198229d470bb3053398a09e9))
+
+# [0.1872.0](https://github.com/lightdash/lightdash/compare/0.1871.3...0.1872.0) (2025-08-04)
+
+
+### Features
+
+* improve ai agent find explore tool by improving metadata and adding focus on explore ([#16160](https://github.com/lightdash/lightdash/issues/16160)) ([cc29167](https://github.com/lightdash/lightdash/commit/cc29167443070fad1faf1d6131778e728a39ff77))
+
+## [0.1871.3](https://github.com/lightdash/lightdash/compare/0.1871.2...0.1871.3) (2025-08-04)
+
+
+### Bug Fixes
+
+* remove code path for running query in worker ([#16169](https://github.com/lightdash/lightdash/issues/16169)) ([1a21ea0](https://github.com/lightdash/lightdash/commit/1a21ea007d488daa673cd5dc1fb7af9d521b0d14))
+
+## [0.1871.2](https://github.com/lightdash/lightdash/compare/0.1871.1...0.1871.2) (2025-08-04)
+
+
+### Bug Fixes
+
+* handle empty string location in BigQuery client config ([#16183](https://github.com/lightdash/lightdash/issues/16183)) ([530e0c2](https://github.com/lightdash/lightdash/commit/530e0c25595397f0f56e09417f98f836c2e88ff8))
+
+## [0.1871.1](https://github.com/lightdash/lightdash/compare/0.1871.0...0.1871.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* agent generates queries with limits > 1000 ([#16172](https://github.com/lightdash/lightdash/issues/16172)) ([a27a6c0](https://github.com/lightdash/lightdash/commit/a27a6c07d44ad5ec81fa7a72fd768c29842b2451)), closes [#16162](https://github.com/lightdash/lightdash/issues/16162)
+
+# [0.1871.0](https://github.com/lightdash/lightdash/compare/0.1870.1...0.1871.0) (2025-08-02)
+
+
+### Features
+
+* add GIN index on yaml_tags in catalog_search table ([#16060](https://github.com/lightdash/lightdash/issues/16060)) ([678239d](https://github.com/lightdash/lightdash/commit/678239d5e70b5da38cd28cebe01129932db2bdff))
+
 ## [0.1870.1](https://github.com/lightdash/lightdash/compare/0.1870.0...0.1870.1) (2025-08-01)
 
 

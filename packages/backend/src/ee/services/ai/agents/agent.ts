@@ -59,11 +59,16 @@ const getAgentTools = (
     }
 
     const findExplores = getFindExplores({
+        maxDescriptionLength: args.findExploresMaxDescriptionLength,
+        pageSize: args.findExploresPageSize,
+        fieldSearchSize: args.findExploresFieldSearchSize,
+        fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
         findExplores: dependencies.findExplores,
     });
 
     const findFields = getFindFields({
         findFields: dependencies.findFields,
+        pageSize: args.findFieldsPageSize,
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
@@ -73,7 +78,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        maxLimit: args.maxQueryLimit,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -83,7 +88,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        maxLimit: args.maxQueryLimit,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
@@ -93,7 +98,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        maxLimit: args.maxQueryLimit,
     });
 
     const tools = {
@@ -114,14 +119,28 @@ const getAgentTools = (
     return tools;
 };
 
-const getAgentMessages = (args: AiAgentArgs) => {
+const getAgentMessages = async (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+) => {
     if (args.debugLoggingEnabled) {
         Logger.debug('[AiAgent][Agent Messages] Getting agent messages.');
     }
+
+    const availableExplores = await dependencies.findExplores({
+        page: 1,
+        pageSize: args.availableExploresPageSize,
+        tableName: null,
+        includeFields: false,
+    });
+
     const messages = [
         getSystemPrompt({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
+            availableExplores: availableExplores.tablesWithFields.map(
+                (table) => table.table.name,
+            ),
         }),
         ...args.messageHistory,
     ];
@@ -172,7 +191,7 @@ export const generateAgentResponse = async ({
             )}`,
         );
     }
-    const messages = getAgentMessages(args);
+    const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
     try {
@@ -369,7 +388,7 @@ export const streamAgentResponse = async ({
             )}`,
         );
     }
-    const messages = getAgentMessages(args);
+    const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
     try {
