@@ -1,26 +1,25 @@
 import { FC } from 'react';
 import { Modal, Group, Text, Stack, TextInput, Button } from '@mantine/core';
+import { Connection } from '@lightdash/common/dist/types/types/connections';
 
 interface ConnectionsModalProps {
   opened: boolean;
   onClose: () => void;
-  selectedIntegration: string | null;
+  selectedConnection: Connection | null;
   shopUrl: string;
   setShopUrl: (url: string) => void;
   handleRefresh: () => void;
   handleConnect: () => void;
-  integrations: { name: string; icon: string }[];
 }
 
 const ConnectionsModal: FC<ConnectionsModalProps> = ({
   opened,
   onClose,
-  selectedIntegration,
+  selectedConnection,
   shopUrl,
   setShopUrl,
   handleRefresh,
   handleConnect,
-  integrations,
 }) => (
   <Modal
     opened={opened}
@@ -28,12 +27,12 @@ const ConnectionsModal: FC<ConnectionsModalProps> = ({
     title={
       <Group spacing="xs">
         <img
-          src={integrations.find((i) => i.name === selectedIntegration)?.icon}
-          alt={selectedIntegration || ''}
+          src={selectedConnection?.icon}
+          alt={selectedConnection?.name || ''}
           style={{ width: 24, height: 24 }}
         />
         <Text fw={600} size="lg">
-          Connect your {selectedIntegration} account
+          Connect your {selectedConnection?.name} account
         </Text>
       </Group>
     }
@@ -44,7 +43,7 @@ const ConnectionsModal: FC<ConnectionsModalProps> = ({
     <Stack spacing="lg" mt="md">
       <TextInput
         label="Store URL"
-        placeholder={`e.g. myshop.${selectedIntegration}.com`}
+        placeholder={`e.g. myshop.${selectedConnection}.com`}
         value={shopUrl}
         onChange={(e) => setShopUrl(e.currentTarget.value)}
         radius="md"

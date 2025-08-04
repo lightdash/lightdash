@@ -218,6 +218,7 @@ export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
 export * from './types/coder';
+export * from './types/connections';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
