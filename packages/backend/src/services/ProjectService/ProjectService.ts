@@ -76,6 +76,7 @@ import {
     getMetrics,
     getSubtotalKey,
     getTimezoneLabel,
+    GroupByColumn,
     hasIntersection,
     hasWarehouseCredentials,
     IntrinsicUserAttributes,
@@ -102,12 +103,14 @@ import {
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
+    normalizeIndexColumns,
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
     type ParametersValuesMap,
     PivotChartData,
+    PivotChartLayout,
     PivotValuesColumn,
     Project,
     ProjectCatalog,
@@ -146,7 +149,9 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    ValuesColumn,
     VizColumn,
+    VizIndexType,
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseCredentials,
@@ -2932,12 +2937,17 @@ export class ProjectService extends BaseService {
         | 'groupByColumns'
         | 'sortBy'
     > & { warehouseType: WarehouseTypes }): string {
-        if (!indexColumn) throw new ParameterError('Index column is required');
+        const indexColumns = normalizeIndexColumns(indexColumn);
+        if (indexColumns.length === 0) {
+            throw new ParameterError(
+                'At least one valid index column is required',
+            );
+        }
         const q = getFieldQuoteChar(warehouseType);
         const userSql = sql.replace(/;\s*$/, '');
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
-            `${q}${indexColumn.reference}${q}`,
+            ...indexColumns.map((col) => `${q}${col.reference}${q}`),
         ];
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map((col) => {
@@ -2957,7 +2967,7 @@ export class ProjectService extends BaseService {
         ).join(', ')}`;
 
         const selectReferences = [
-            indexColumn.reference,
+            ...indexColumns.map((col) => col.reference),
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
             ...(valuesColumns || []).map(
                 (col) => `${q}${col.reference}_${col.aggregation}${q}`,
@@ -2970,16 +2980,21 @@ export class ProjectService extends BaseService {
                   .join(', ')}`
             : ``;
 
-        const sortDirectionForIndexColumn =
-            sortBy?.find((s) => s.reference === indexColumn.reference)
-                ?.direction === SortByDirection.DESC
-                ? 'DESC'
-                : 'ASC';
+        // Create ORDER BY clause for multiple index columns with their sort directions
+        const indexColumnsOrderBy = indexColumns
+            .map((col) => {
+                const sortDirection =
+                    sortBy?.find((s) => s.reference === col.reference)
+                        ?.direction === SortByDirection.DESC
+                        ? 'DESC'
+                        : 'ASC';
+                return `${q}${col.reference}${q} ${sortDirection}`;
+            })
+            .join(', ');
+
         const pivotQuery = `SELECT ${selectReferences.join(
             ', ',
-        )}, dense_rank() over (order by ${q}${
-            indexColumn.reference
-        }${q} ${sortDirectionForIndexColumn}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
+        )}, dense_rank() over (order by ${indexColumnsOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
         }${q}) as ${q}column_index${q} FROM group_by_query`;
 
@@ -3041,7 +3056,10 @@ export class ProjectService extends BaseService {
     }: SqlRunnerPivotQueryPayload): Promise<
         Omit<PivotChartData, 'results' | 'columns'>
     > {
-        if (!indexColumn) throw new ParameterError('Index column is required');
+        const indexColumns = normalizeIndexColumns(indexColumn);
+        if (indexColumns.length === 0) {
+            throw new ParameterError('Index column is required');
+        }
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -3056,7 +3074,7 @@ export class ProjectService extends BaseService {
             warehouseType: warehouseCredentials.type,
             sql,
             limit,
-            indexColumn,
+            indexColumn: indexColumns,
             valuesColumns,
             groupByColumns,
             sortBy,
@@ -3128,10 +3146,17 @@ export class ProjectService extends BaseService {
                                     if (currentTransformedRow) {
                                         writer(currentTransformedRow);
                                     }
-                                    currentTransformedRow = {
-                                        [indexColumn.reference]:
-                                            row[indexColumn.reference],
-                                    };
+
+                                    currentTransformedRow =
+                                        indexColumns.reduce<ResultRow>(
+                                            (acc, indexCol) => {
+                                                acc[indexCol.reference] =
+                                                    row[indexCol.reference];
+                                                return acc;
+                                            },
+                                            {},
+                                        );
+
                                     currentRowIndex = row.row_index;
                                 }
                                 // Suffix the value column with the group by columns to avoid collisions.
@@ -3198,7 +3223,7 @@ export class ProjectService extends BaseService {
             queryUuid: undefined,
             fileUrl,
             valuesColumns: processedColumns,
-            indexColumn,
+            indexColumn: indexColumns,
             columnCount: Number(columnCount) || undefined,
         };
     }

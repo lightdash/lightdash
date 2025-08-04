@@ -52,6 +52,7 @@ import {
     ItemsMap,
     MAX_SAFE_INTEGER,
     MetricQuery,
+    normalizeIndexColumns,
     NotFoundError,
     type Organization,
     type ParametersValuesMap,
@@ -1033,11 +1034,18 @@ export class AsyncQueryService extends ProjectService {
                               write?.([currentTransformedRow]);
                           }
 
-                          if (indexColumn) {
-                              currentTransformedRow = {
-                                  [indexColumn.reference]:
-                                      row[indexColumn.reference],
-                              };
+                          const indexColumns =
+                              normalizeIndexColumns(indexColumn);
+                          if (indexColumns.length > 0) {
+                              currentTransformedRow =
+                                  indexColumns.reduce<ResultRow>(
+                                      (acc, indexCol) => {
+                                          acc[indexCol.reference] =
+                                              row[indexCol.reference];
+                                          return acc;
+                                      },
+                                      {},
+                                  );
                               currentRowIndex = row.row_index;
                           }
                       }
