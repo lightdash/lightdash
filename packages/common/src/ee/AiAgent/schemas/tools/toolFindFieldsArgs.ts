@@ -10,10 +10,9 @@ export const toolFindFieldsArgsSchema = z.object({
     ),
     page: z
         .number()
+        .positive()
         .nullable()
-        .describe(
-            'Use this to paginate through the results. Starts at 1 and increments by 1.',
-        ),
+        .describe('Use this to paginate through the results'),
 });
 
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
