@@ -39,6 +39,10 @@ import {
     type FC,
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import {
+    AUTO_FETCH_ENABLED_DEFAULT,
+    AUTO_FETCH_ENABLED_KEY,
+} from '../../components/AutoFetchResultsButton/defaults';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
@@ -860,8 +864,8 @@ const ExplorerProvider: FC<
     projectUuid: propProjectUuid,
 }) => {
     const [autoFetchEnabled] = useLocalStorage({
-        key: 'lightdash-explorer-auto-fetch-enabled',
-        defaultValue: true,
+        key: AUTO_FETCH_ENABLED_KEY,
+        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
     });
 
     const defaultStateWithConfig = useMemo(
@@ -1443,9 +1447,9 @@ const ExplorerProvider: FC<
     ]);
 
     useEffect(() => {
-        if (!autoFetchEnabled) return;
+        if (!autoFetchEnabled && isEditMode) return;
         runQuery();
-    }, [runQuery, autoFetchEnabled]);
+    }, [runQuery, autoFetchEnabled, isEditMode]);
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {

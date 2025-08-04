@@ -2,13 +2,14 @@ import { ActionIcon, Tooltip, type MantineSize } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconRefresh, IconRefreshOff } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import MantineIcon from './common/MantineIcon';
+import MantineIcon from '../common/MantineIcon';
+import { AUTO_FETCH_ENABLED_DEFAULT, AUTO_FETCH_ENABLED_KEY } from './defaults';
 
 export const AutoFetchResultsButton: FC<{ size?: MantineSize }> = memo(
     ({ size }) => {
         const [autoFetchEnabled, setAutoFetchEnabled] = useLocalStorage({
-            key: 'lightdash-explorer-auto-fetch-enabled',
-            defaultValue: true,
+            key: AUTO_FETCH_ENABLED_KEY,
+            defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
         });
 
         return (
