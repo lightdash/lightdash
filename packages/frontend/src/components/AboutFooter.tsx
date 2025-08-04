@@ -85,7 +85,12 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                 href="https://docs.lightdash.com/"
                                 target="_blank"
                             >
-                                <ActionIcon variant="light" p="xs" size="lg">
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray.7"
+                                    p="xs"
+                                    size="lg"
+                                >
                                     <MantineIcon
                                         icon={IconBook}
                                         size="lg"
