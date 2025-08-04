@@ -1,3 +1,10 @@
+## [0.1871.1](https://github.com/lightdash/lightdash/compare/0.1871.0...0.1871.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* agent generates queries with limits > 1000 ([#16172](https://github.com/lightdash/lightdash/issues/16172)) ([a27a6c0](https://github.com/lightdash/lightdash/commit/a27a6c07d44ad5ec81fa7a72fd768c29842b2451)), closes [#16162](https://github.com/lightdash/lightdash/issues/16162)
+
 # [0.1871.0](https://github.com/lightdash/lightdash/compare/0.1870.1...0.1871.0) (2025-08-02)
 
 
