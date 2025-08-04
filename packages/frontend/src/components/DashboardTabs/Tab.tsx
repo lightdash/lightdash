@@ -2,7 +2,7 @@ import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tabs, Title, Tooltip } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
-import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconGripVertical, IconDotsVertical, IconPencil, IconTrash, IconCopy } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import MantineIcon from '../common/MantineIcon';
@@ -17,6 +17,7 @@ type DraggableTabProps = {
     setEditingTab: Dispatch<SetStateAction<boolean>>;
     setDeletingTab: Dispatch<SetStateAction<boolean>>;
     handleDeleteTab: (tabUuid: string) => void;
+    handleDuplicateTab: (tabUuid: string) => void;
 };
 
 const DraggableTab: FC<DraggableTabProps> = ({
@@ -28,6 +29,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     isActive,
     setEditingTab,
     handleDeleteTab,
+                                                 handleDuplicateTab,
     setDeletingTab,
 }) => {
     const { hovered: isHovered, ref: hoverRef } = useHover();
@@ -80,7 +82,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         <Menu.Target>
                                             <ActionIcon variant="subtle" size="xs">
                                                 <MantineIcon
-                                                    icon={IconPencil}
+                                                    icon={IconDotsVertical}
                                                     display={
                                                         isHovered ? 'block' : 'none'
                                                     }
@@ -93,6 +95,12 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 icon={<IconPencil size={14} />}
                                             >
                                                 Rename Tab
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                onClick={() => handleDuplicateTab(tab.uuid)}
+                                                icon={<IconCopy size={14} />}
+                                            >
+                                                Duplicate Tab
                                             </Menu.Item>
                                             {sortedTabs.length === 1 ||
                                             !currentTabHasTiles ? (
