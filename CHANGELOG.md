@@ -1,3 +1,10 @@
+## [0.1871.2](https://github.com/lightdash/lightdash/compare/0.1871.1...0.1871.2) (2025-08-04)
+
+
+### Bug Fixes
+
+* handle empty string location in BigQuery client config ([#16183](https://github.com/lightdash/lightdash/issues/16183)) ([530e0c2](https://github.com/lightdash/lightdash/commit/530e0c25595397f0f56e09417f98f836c2e88ff8))
+
 ## [0.1871.1](https://github.com/lightdash/lightdash/compare/0.1871.0...0.1871.1) (2025-08-04)
 
 
