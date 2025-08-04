@@ -174,7 +174,7 @@ import styles from './Component.module.css';
 
 Do not include a `<file>.css.d.ts` file for css modules. We are using Vite and don't need them.
 
-In CSS modules, avoid using `!imporant` where possible. It's better to use the `classNames` API for increased specificity. 
+In CSS modules, avoid using `!important` where possible. It's better to use the `classNames` API for increased specificity. 
 
 ### 3. Important Guidelines
 
@@ -212,26 +212,6 @@ Before moving styles to CSS modules, analyze if they're actually needed:
 
 // ✅ Good - Theme tokens
 <Box p="md" mt="lg">
-```
-
-#### Text
-
-Avoid using <Text> purely as a generic wrapper for applying styles.
-If you need specific styles (spacing, colors, etc.) that aren’t just standard Mantine typography, use <Box> with component="..." instead.
-This ensures consistency, keeps style props working, and aligns with Mantine’s recommended patterns.
-
-Where possible move existing `<Text>` elements to use nothing, or `<Box>`
-
-```tsx
-// ❌ Bad - Text just for styles
-<Text fw={500} c="dimmed" fz="sm" mt="sm">
-  Parameters
-</Text>
-
-// ✅ Good - inherits local text styles
-<Box component="span" fw={500} c="dimmed" fz="sm" mt="sm">
-  Parameters
-</Box>
 ```
 
 ## Mantine Documentation
