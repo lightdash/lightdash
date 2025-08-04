@@ -1,3 +1,10 @@
+# [0.1874.0](https://github.com/lightdash/lightdash/compare/0.1873.0...0.1874.0) (2025-08-04)
+
+
+### Features
+
+* include available explores in the system prompt ([#16185](https://github.com/lightdash/lightdash/issues/16185)) ([4e1cbba](https://github.com/lightdash/lightdash/commit/4e1cbba6b9144837bbc1105addc4cf5e62e89715))
+
 # [0.1873.0](https://github.com/lightdash/lightdash/compare/0.1872.0...0.1873.0) (2025-08-04)
 
 
