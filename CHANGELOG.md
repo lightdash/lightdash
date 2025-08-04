@@ -1,3 +1,10 @@
+## [0.1871.3](https://github.com/lightdash/lightdash/compare/0.1871.2...0.1871.3) (2025-08-04)
+
+
+### Bug Fixes
+
+* remove code path for running query in worker ([#16169](https://github.com/lightdash/lightdash/issues/16169)) ([1a21ea0](https://github.com/lightdash/lightdash/commit/1a21ea007d488daa673cd5dc1fb7af9d521b0d14))
+
 ## [0.1871.2](https://github.com/lightdash/lightdash/compare/0.1871.1...0.1871.2) (2025-08-04)
 
 
