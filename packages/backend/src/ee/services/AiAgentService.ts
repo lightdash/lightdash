@@ -21,6 +21,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
     Explore,
@@ -70,6 +71,7 @@ import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQuerySe
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
+import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
@@ -1380,74 +1382,101 @@ export class AiAgentService {
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
-        const findExplores: FindExploresFn = async (args: {
-            page: number;
-            pageSize: number;
-        }) => {
-            const agentSettings = await this.getAgentSettings(user, prompt);
+        const findExplores: FindExploresFn = (args) =>
+            wrapSentryTransaction('AiAgent.findExplores', args, async () => {
+                const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
 
-            const { data: tables, pagination } =
-                await this.catalogService.searchCatalog({
-                    projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Table,
-                        yamlTags: agentSettings.tags ?? undefined,
-                    },
-                    userAttributes,
-                    context: CatalogSearchContext.AI_AGENT,
-                    tables: null,
-                    paginateArgs: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                    },
-                });
+                const { data: tables, pagination } =
+                    await this.catalogService.searchCatalog({
+                        projectUuid,
+                        catalogSearch: {
+                            type: CatalogType.Table,
+                            yamlTags: agentSettings.tags ?? undefined,
+                            tables: args.tableName
+                                ? [args.tableName]
+                                : undefined,
+                        },
+                        userAttributes,
+                        context: CatalogSearchContext.AI_AGENT,
+                        paginateArgs: {
+                            page: args.page,
+                            pageSize: args.pageSize,
+                        },
+                    });
 
-            const tablesWithFields = await Promise.all(
-                tables
-                    .filter((table) => table.type === CatalogType.Table)
-                    .map(async (table) => {
-                        const { data: fields } =
-                            await this.catalogService.searchCatalog({
+                const tablesWithFields = await Promise.all(
+                    tables
+                        .filter((table) => table.type === CatalogType.Table)
+                        .map(async (table) => {
+                            const sharedArgs = {
                                 projectUuid,
                                 catalogSearch: {
                                     type: CatalogType.Field,
-                                    searchQuery: '',
                                     yamlTags: agentSettings.tags ?? undefined,
+                                    tables: [table.name],
                                 },
                                 userAttributes,
                                 context: CatalogSearchContext.AI_AGENT,
-                                tables: [table.name],
                                 paginateArgs: {
                                     page: 1,
                                     // TODO: tweak this
-                                    pageSize: 50,
+                                    pageSize: args.tableName ? 300 : 5,
                                 },
                                 sortArgs: {
                                     sort: 'chartUsage',
-                                    order: 'desc',
+                                    order: 'desc' as const,
+                                },
+                            };
+
+                            const {
+                                data: dimensions,
+                                pagination: dimensionsPagination,
+                            } = await this.catalogService.searchCatalog({
+                                ...sharedArgs,
+                                catalogSearch: {
+                                    ...sharedArgs.catalogSearch,
+                                    filter: CatalogFilter.Dimensions,
                                 },
                             });
 
-                        return {
-                            table,
-                            fields: fields.filter(
-                                (field) => field.type === CatalogType.Field,
-                            ),
-                        };
-                    }),
-            );
+                            const {
+                                data: metrics,
+                                pagination: metricsPagination,
+                            } = await this.catalogService.searchCatalog({
+                                ...sharedArgs,
+                                catalogSearch: {
+                                    ...sharedArgs.catalogSearch,
+                                    filter: CatalogFilter.Metrics,
+                                },
+                            });
 
-            return {
-                tablesWithFields,
-                pagination,
-            };
-        };
+                            return {
+                                table,
+                                dimensions: dimensions.filter(
+                                    (d) => d.type === CatalogType.Field,
+                                ),
+                                metrics: metrics.filter(
+                                    (m) => m.type === CatalogType.Field,
+                                ),
+                                dimensionsPagination,
+                                metricsPagination,
+                            };
+                        }),
+                );
+
+                return {
+                    tablesWithFields,
+                    pagination,
+                };
+            });
 
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
@@ -1487,7 +1516,6 @@ export class AiAgentService {
                         pageSize: args.pageSize,
                     },
                     userAttributes,
-                    tables: [args.table],
                 });
 
             // TODO: we should not filter here, we should return all the fields

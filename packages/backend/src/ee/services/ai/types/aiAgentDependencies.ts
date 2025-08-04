@@ -16,17 +16,22 @@ import {
 import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 
-export type FindExploresFn = (args: KnexPaginateArgs) => Promise<{
+type Pagination = KnexPaginateArgs & {
+    totalPageCount: number;
+    totalResults: number;
+};
+
+export type FindExploresFn = (
+    args: { tableName: string | null } & KnexPaginateArgs,
+) => Promise<{
     tablesWithFields: {
         table: CatalogTable;
-        fields: CatalogField[];
+        dimensions: CatalogField[];
+        metrics: CatalogField[];
+        dimensionsPagination: Pagination | undefined;
+        metricsPagination: Pagination | undefined;
     }[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
+    pagination: Pagination | undefined;
 }>;
 
 export type FindFieldFn = (
@@ -36,12 +41,7 @@ export type FindFieldFn = (
     },
 ) => Promise<{
     fields: CatalogField[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
+    pagination: Pagination | undefined;
 }>;
 
 export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;

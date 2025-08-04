@@ -38,6 +38,7 @@ export type ApiCatalogSearch = {
     filter?: CatalogFilter;
     catalogTags?: string[];
     yamlTags?: string[];
+    tables?: string[];
 };
 
 type EmojiIcon = {
