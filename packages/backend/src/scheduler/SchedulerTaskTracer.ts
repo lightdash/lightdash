@@ -123,11 +123,6 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
-    [SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY]: (payload) => ({
-        'organization.uuid': payload.organizationUuid,
-        'user.uuid': payload.userUuid,
-        'project.uuid': payload.projectUuid,
-    }),
 } as const;
 
 // Generic accessor function
