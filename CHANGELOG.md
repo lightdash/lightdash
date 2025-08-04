@@ -1,3 +1,10 @@
+# [0.1872.0](https://github.com/lightdash/lightdash/compare/0.1871.3...0.1872.0) (2025-08-04)
+
+
+### Features
+
+* improve ai agent find explore tool by improving metadata and adding focus on explore ([#16160](https://github.com/lightdash/lightdash/issues/16160)) ([cc29167](https://github.com/lightdash/lightdash/commit/cc29167443070fad1faf1d6131778e728a39ff77))
+
 ## [0.1871.3](https://github.com/lightdash/lightdash/compare/0.1871.2...0.1871.3) (2025-08-04)
 
 
