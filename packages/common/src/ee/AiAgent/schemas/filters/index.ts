@@ -8,6 +8,13 @@ import dateFilterSchema from './dateFilters';
 import numberFilterSchema from './numberFilters';
 import stringFilterSchema from './stringFilters';
 
+export {
+    booleanFilterSchema,
+    dateFilterSchema,
+    numberFilterSchema,
+    stringFilterSchema,
+};
+
 const filterAndOrSchema = z
     .union([z.literal('and'), z.literal('or')])
     .describe('Type of filter group operation');
