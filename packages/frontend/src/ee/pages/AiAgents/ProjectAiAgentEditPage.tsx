@@ -629,8 +629,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 isLoadingProjectUsers
                                                     ? 'Loading users...'
                                                     : userOptions.length === 0
-                                                      ? 'No users available'
-                                                      : 'Select users'
+                                                    ? 'No users available'
+                                                    : 'Select users'
                                             }
                                             data={userOptions}
                                             disabled={
@@ -695,9 +695,9 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                         isLoadingGroups
                                                             ? 'Loading groups...'
                                                             : groupOptions.length ===
-                                                                0
-                                                              ? 'No groups available'
-                                                              : 'Select groups or leave empty for all users'
+                                                              0
+                                                            ? 'No groups available'
+                                                            : 'Select groups or leave empty for all users'
                                                     }
                                                     data={groupOptions}
                                                     disabled={
@@ -871,8 +871,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                     {!slackInstallation?.organizationUuid
                                                         ? 'Disabled'
                                                         : !slackChannelsConfigured
-                                                          ? 'Channels not configured'
-                                                          : 'Enabled'}
+                                                        ? 'Channels not configured'
+                                                        : 'Enabled'}
                                                 </Text>
                                             </Group>
                                         </Group>
@@ -986,7 +986,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                                             type: 'slack',
                                                                             channelId:
                                                                                 v,
-                                                                        }) as const,
+                                                                        } as const),
                                                                 ),
                                                             );
                                                         }}
