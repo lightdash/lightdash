@@ -3,6 +3,7 @@ import {
     CatalogField,
     convertToAiHints,
     FieldType,
+    getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
     toolFindFieldsArgsSchema,
@@ -40,9 +41,11 @@ const getFieldText = (catalogField: CatalogField) => {
     <${fieldTypeLabel} fieldId="${getItemId({
         name: catalogField.name,
         table: catalogField.tableName,
-    })}" fieldType="${catalogField.fieldValueType}" fieldFilterType="${
-        catalogField.basicType
-    }">
+    })}" fieldType="${
+        catalogField.fieldValueType
+    }" fieldFilterType="${getFilterTypeFromItemType(
+        catalogField.fieldValueType,
+    )}">
         <Name>${catalogField.name}</Name>
         <Label>${catalogField.label}</Label>
         <SearchRank>${catalogField.searchRank}</SearchRank>

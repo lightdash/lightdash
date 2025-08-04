@@ -8,6 +8,7 @@ import {
     type Dimension,
     type Field,
     type FieldType,
+    type Metric,
 } from './field';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartSummary } from './savedCharts';
@@ -68,7 +69,7 @@ export type CatalogField = Pick<
         catalogSearchUuid: string;
         type: CatalogType.Field;
         basicType: 'string' | 'number' | 'date' | 'timestamp' | 'boolean';
-        fieldValueType: Field['type'];
+        fieldValueType: Metric['type'] | Dimension['type'];
         tableName: string;
         tableGroupLabel?: string;
         tags?: string[]; // Tags from table, for filtering

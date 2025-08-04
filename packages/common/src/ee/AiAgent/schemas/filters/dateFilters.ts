@@ -1,26 +1,43 @@
 import { z } from 'zod';
-import { FilterOperator, UnitOfTime } from '../../../../types/filter';
+import { DimensionType, MetricType } from '../../../../types/field';
+import {
+    FilterOperator,
+    FilterType,
+    UnitOfTime,
+} from '../../../../types/filter';
+import { getFieldIdSchema } from '../fieldId';
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
     z.string().datetime(),
 ]);
 
+const commonDateFilterRuleSchema = z.object({
+    fieldId: getFieldIdSchema({ additionalDescription: null }),
+    fieldType: z.union([
+        z.literal(DimensionType.DATE),
+        z.literal(DimensionType.TIMESTAMP),
+        z.literal(MetricType.DATE),
+        z.literal(MetricType.TIMESTAMP),
+    ]),
+    fieldFilterType: z.literal(FilterType.DATE),
+});
+
 const dateFilterSchema = z.union([
-    z.object({
+    commonDateFilterRuleSchema.extend({
         operator: z.union([
             z.literal(FilterOperator.NULL),
             z.literal(FilterOperator.NOT_NULL),
         ]),
     }),
-    z.object({
+    commonDateFilterRuleSchema.extend({
         operator: z.union([
             z.literal(FilterOperator.EQUALS),
             z.literal(FilterOperator.NOT_EQUALS),
         ]),
         values: z.array(dateOrDateTimeSchema),
     }),
-    z.object({
+    commonDateFilterRuleSchema.extend({
         operator: z.union([
             z.literal(FilterOperator.IN_THE_PAST),
             z.literal(FilterOperator.NOT_IN_THE_PAST),
@@ -39,7 +56,7 @@ const dateFilterSchema = z.union([
             ]),
         }),
     }),
-    z.object({
+    commonDateFilterRuleSchema.extend({
         operator: z.union([
             z.literal(FilterOperator.IN_THE_CURRENT),
             z.literal(FilterOperator.NOT_IN_THE_CURRENT),
@@ -56,7 +73,7 @@ const dateFilterSchema = z.union([
             ]),
         }),
     }),
-    z.object({
+    commonDateFilterRuleSchema.extend({
         operator: z.union([
             z.literal(FilterOperator.LESS_THAN),
             z.literal(FilterOperator.LESS_THAN_OR_EQUAL),
@@ -65,7 +82,7 @@ const dateFilterSchema = z.union([
         ]),
         values: z.array(dateOrDateTimeSchema).length(1),
     }),
-    z.object({
+    commonDateFilterRuleSchema.extend({
         operator: z.literal(FilterOperator.IN_BETWEEN),
         values: z.array(dateOrDateTimeSchema).length(2),
     }),
