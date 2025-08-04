@@ -1,3 +1,10 @@
+# [0.1875.0](https://github.com/lightdash/lightdash/compare/0.1874.0...0.1875.0) (2025-08-04)
+
+
+### Features
+
+* validate filter type against field type ([#16192](https://github.com/lightdash/lightdash/issues/16192)) ([4f343ae](https://github.com/lightdash/lightdash/commit/4f343ae944b9422c2ec9e712bf755d7440bc6801)), closes [#16188](https://github.com/lightdash/lightdash/issues/16188)
+
 # [0.1874.0](https://github.com/lightdash/lightdash/compare/0.1873.0...0.1874.0) (2025-08-04)
 
 
