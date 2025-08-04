@@ -99,6 +99,7 @@ import {
 } from '../../hooks/useQueryResults';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
+import { useAccount } from '../../hooks/user/useAccount';
 import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
@@ -124,6 +125,7 @@ import { DashboardExportImage } from './DashboardExportImage';
 import { DashboardMinimalDownloadCsv } from './DashboardMinimalDownloadCsv';
 import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
+import { applyFilterAccess } from './applyFilterAccess';
 
 interface ExportGoogleSheetProps {
     savedChart: SavedChart;
@@ -141,7 +143,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? savedChart.chartConfig.config.showTableNames ?? false
+                ? (savedChart.chartConfig.config.showTableNames ?? false)
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -403,6 +405,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
     const { user } = useApp();
+    const { data: account } = useAccount();
 
     const showExecutionTime = useFeatureFlagEnabled(
         FeatureFlags.ShowExecutionTime,
@@ -435,10 +438,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const { rows, initialQueryExecutionMs } = resultsData;
 
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-    }>();
+    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
@@ -727,10 +728,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                       ]
                     : [];
 
-            setDashboardTileFilterOptions([
-                ...dimensionOptions,
-                ...pivotOptions,
-            ]);
+            setDashboardTileFilterOptions(
+                applyFilterAccess(account, [
+                    ...dimensionOptions,
+                    ...pivotOptions,
+                ]),
+            );
             setContextMenuIsOpen(true);
             setContextMenuTargetOffset({
                 left: e.event.event.pageX,
@@ -754,7 +757,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 dimensions: queryDimensions,
             });
         },
-        [explore, chart],
+        [explore, chart, account],
     );
     const appliedFilterRules = appliedDashboardFilters
         ? [
@@ -844,6 +847,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         () => setIsDataExportModalOpen(false),
         [],
     );
+
+    const { organizationUuid } = account?.organization || {};
 
     return (
         <>
@@ -1238,8 +1243,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             <Can
                                 I="view"
                                 this={subject('UnderlyingData', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
+                                    organizationUuid,
                                     projectUuid: projectUuid,
                                 })}
                             >
@@ -1256,16 +1260,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             <Can
                                 I="manage"
                                 this={subject('Explore', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
+                                    organizationUuid,
                                     projectUuid: projectUuid,
                                 })}
                             >
                                 <DrillDownMenuItem
                                     {...viewUnderlyingDataOptions}
                                     trackingData={{
-                                        organizationId:
-                                            user.data?.organizationUuid,
+                                        organizationId: organizationUuid,
                                         userId: user.data?.userUuid,
                                         projectId: projectUuid,
                                     }}
