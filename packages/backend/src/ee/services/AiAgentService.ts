@@ -1019,7 +1019,7 @@ export class AiAgentService {
 
         const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
 
         if (!parsedVizConfig) {
@@ -1044,21 +1044,21 @@ export class AiAgentService {
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             case AiResultType.TIME_SERIES_RESULT:
                 return renderTimeSeriesViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             case AiResultType.TABLE_RESULT:
                 return renderTableViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             default:
                 return assertUnreachable(parsedVizConfig, 'Invalid viz type');
@@ -1139,7 +1139,7 @@ export class AiAgentService {
 
         const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
 
         if (!parsedVizConfig) {
@@ -1659,7 +1659,7 @@ export class AiAgentService {
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
             messageHistory,
-            maxLimit: this.lightdashConfig.query.maxLimit,
+            maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             organizationId: user.organizationUuid,
             userId: user.userUuid,
             debugLoggingEnabled:
@@ -1951,7 +1951,7 @@ export class AiAgentService {
         const exploreBlocks = getExploreBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
         const historyBlocks = getDeepLinkBlocks(
             slackPrompt,
