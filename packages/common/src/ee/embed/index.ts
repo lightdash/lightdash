@@ -58,6 +58,7 @@ export const InteractivityOptionsSchema = z.object({
     canExportPagePdf: z.boolean().optional(),
     canDateZoom: z.boolean().optional(),
     canExplore: z.boolean().optional(),
+    canViewUnderlyingData: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
@@ -112,6 +113,7 @@ type CommonEmbedJwtContent = {
     canDateZoom?: boolean;
     canExportPagePdf?: boolean;
     canExplore?: boolean;
+    canViewUnderlyingData?: boolean;
 };
 
 type EmbedJwtContentDashboardUuid = CommonEmbedJwtContent & {
