@@ -1,3 +1,10 @@
+# [0.1873.0](https://github.com/lightdash/lightdash/compare/0.1872.0...0.1873.0) (2025-08-04)
+
+
+### Features
+
+* refactor AI agent with configurable search parameters ([#16173](https://github.com/lightdash/lightdash/issues/16173)) ([0e6e2d0](https://github.com/lightdash/lightdash/commit/0e6e2d0a00fe9e6e198229d470bb3053398a09e9))
+
 # [0.1872.0](https://github.com/lightdash/lightdash/compare/0.1871.3...0.1872.0) (2025-08-04)
 
 
