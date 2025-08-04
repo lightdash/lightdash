@@ -24,8 +24,9 @@ type Pagination = KnexPaginateArgs & {
 export type FindExploresFn = (
     args: {
         tableName: string | null;
-        fieldOverviewSearchSize: number;
-        fieldSearchSize: number;
+        fieldOverviewSearchSize?: number;
+        fieldSearchSize?: number;
+        includeFields: boolean;
     } & KnexPaginateArgs,
 ) => Promise<{
     tablesWithFields: {

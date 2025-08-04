@@ -1417,6 +1417,25 @@ export class AiAgentService {
                     tables
                         .filter((table) => table.type === CatalogType.Table)
                         .map(async (table) => {
+                            if (!args.includeFields) {
+                                return {
+                                    table,
+                                    dimensions: [],
+                                    metrics: [],
+                                    dimensionsPagination: undefined,
+                                    metricsPagination: undefined,
+                                };
+                            }
+
+                            if (
+                                !args.fieldSearchSize ||
+                                !args.fieldOverviewSearchSize
+                            ) {
+                                throw new Error(
+                                    'fieldSearchSize and fieldOverviewSearchSize are required when includeFields is true',
+                                );
+                            }
+
                             const sharedArgs = {
                                 projectUuid,
                                 catalogSearch: {
@@ -1696,6 +1715,7 @@ export class AiAgentService {
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
 
+            availableExploresPageSize: 100,
             findExploresPageSize: 15,
             findExploresFieldSearchSize: 200,
             findExploresFieldOverviewSearchSize: 5,
