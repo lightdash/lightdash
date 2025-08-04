@@ -6,7 +6,9 @@ import {
     getItemLabel,
     getItemLabelWithoutTableName,
     isAndFilterGroup,
+    isDimension,
     isField,
+    isMetric,
     isOrFilterGroup,
     type DimensionType,
     type FieldTarget,
@@ -25,12 +27,7 @@ import { getConditionalRuleLabel } from '../../../../../components/common/Filter
 import classes from './AgentVisualizationFilters.module.css';
 
 const FilterRuleDisplay: FC<{
-    rule: FilterRule<
-        FilterOperator,
-        FieldTarget & {
-            type: DimensionType | MetricType | TableCalculationType;
-        }
-    >;
+    rule: FilterRule<FilterOperator, FieldTarget>;
     fieldsMap: ItemsMap;
     showTablePrefix: boolean;
     compact?: boolean;
@@ -41,8 +38,14 @@ const FilterRuleDisplay: FC<{
             ? getItemLabel(field)
             : getItemLabelWithoutTableName(field)
         : friendlyName(rule.target.fieldId);
-    const filterType = getFilterTypeFromItemType(rule.target.type);
 
+    if (!isDimension(field) && !isMetric(field)) {
+        throw new Error(
+            `Field ${rule.target.fieldId} is not a dimension or metric`,
+        );
+    }
+
+    const filterType = getFilterTypeFromItemType(field.type);
     const ruleLabels = getConditionalRuleLabel(rule, filterType, displayName);
 
     return (
