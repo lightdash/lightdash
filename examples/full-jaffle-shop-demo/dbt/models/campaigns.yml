@@ -1,0 +1,204 @@
+version: 2
+
+models:
+  - name: campaigns
+    description: |
+      Marketing campaign data including campaign details, budgets, and performance metrics.
+      This model enriches raw campaign data with calculated fields for analysis.
+    config:
+      meta:
+        primary_key: campaign_id
+        joins:
+          - join: marketing_touchpoints
+            sql_on: ${marketing_touchpoints.campaign_id} = ${campaigns.campaign_id}
+            relationship: one-to-many
+        metrics:
+          avg_campaign_budget:
+            type: average
+            sql: ${campaigns.budget}
+            format: usd
+          total_campaign_spend:
+            type: sum
+            sql: ${campaigns.budget}
+            format: usd
+          campaign_efficiency_ratio:
+            type: number
+            sql: ${campaigns.total_campaign_spend} / NULLIF(${campaigns.total_campaign_spend}, 0)
+            format: number
+            round: 2
+        default_time_dimension:
+          field: start_date
+          interval: MONTH
+    columns:
+      - name: campaign_id
+        description: Unique identifier for the campaign
+        tests:
+          - unique
+          - not_null
+        config:
+          meta:
+            metrics:
+              campaign_count:
+                type: count_distinct
+              active_campaign_count:
+                type: count_distinct
+                filters:
+                  - status: "active"
+
+      - name: campaign_name
+        description: Name of the marketing campaign
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: campaign_type
+        description: Type of campaign (promotion, product_launch, seasonal, retention, acquisition, brand_awareness, research)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              promotion_campaigns:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - campaign_type: "promotion"
+              retention_campaigns:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - campaign_type: "retention"
+
+      - name: channel
+        description: Marketing channel used (email, social, multi_channel, online, push)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              email_campaigns:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - channel: "email"
+              social_campaigns:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - channel: "social"
+              multi_channel_campaigns:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - channel: "multi_channel"
+
+      - name: start_date
+        description: Campaign start date
+        config:
+          meta:
+            dimension:
+              type: date
+
+      - name: end_date
+        description: Campaign end date
+        config:
+          meta:
+            dimension:
+              type: date
+
+      - name: budget
+        description: Total budget allocated for the campaign in USD
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd
+            metrics:
+              total_budget:
+                type: sum
+                format: usd
+              avg_budget:
+                type: average
+                format: usd
+              max_budget:
+                type: max
+                format: usd
+              min_budget:
+                type: min
+                format: usd
+
+      - name: target_audience
+        description: Primary audience segment targeted by the campaign
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: status
+        description: Current status of the campaign (completed, active, planned)
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: campaign_duration_days
+        description: Number of days the campaign runs
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_campaign_duration:
+                type: average
+                round: 1
+              total_campaign_days:
+                type: sum
+
+      - name: estimated_reach_cost
+        description: Estimated cost per reach based on channel efficiency
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd
+            metrics:
+              total_reach_cost:
+                type: sum
+                format: usd
+
+      - name: department
+        description: Department responsible for the campaign
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              campaigns_by_sales:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - department: "Sales"
+              campaigns_by_marketing:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - department: "Marketing"
+
+      - name: audience_segment
+        description: Broad categorization of target audience (Broad, Loyal, Win-back, Targeted)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              broad_audience_campaigns:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - audience_segment: "Broad"
+              loyal_audience_campaigns:
+                type: count_distinct
+                sql: ${campaigns.campaign_id}
+                filters:
+                  - audience_segment: "Loyal"
