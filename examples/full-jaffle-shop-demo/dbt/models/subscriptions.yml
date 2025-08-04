@@ -220,11 +220,11 @@ models:
               filtered_by_plan:
                 type: count_distinct
                 label: Subscriptions by Plan
-                description: Count of subscriptions for specific plan type (uses plan_type)
+                description: Count of subscriptions for specific plan type (supports multiple values)
                 sql: |
                   CASE 
-                    WHEN ${ld.parameters.plan_type} = 'all' THEN subscription_id
-                    WHEN ${plan.plan_name} = ${ld.parameters.plan_type} THEN subscription_id
+                    WHEN 'all' IN (${ld.parameters.plan_type}) THEN subscription_id
+                    WHEN plan_name IN (${ld.parameters.plan_type}) THEN subscription_id
                     ELSE NULL 
                   END
               combined_filter_count:
@@ -235,7 +235,7 @@ models:
                   CASE 
                     WHEN (${ld.parameters.subscription_status} = 'all' OR subscription_status = ${ld.parameters.subscription_status})
                       AND duration_months >= ${ld.parameters.min_duration_months}::NUMERIC
-                      AND (${ld.parameters.plan_type} = 'all' OR ${plan.plan_name} = ${ld.parameters.plan_type})
+                      AND (${ld.parameters.plan_type} = 'all' OR plan_name = ${ld.parameters.plan_type})
                     THEN subscription_id
                     ELSE NULL 
                   END
@@ -248,7 +248,7 @@ models:
                   CASE 
                     WHEN (${ld.parameters.subscription_status} = 'all' OR subscription_status = ${ld.parameters.subscription_status})
                       AND duration_months >= ${ld.parameters.min_duration_months}::NUMERIC
-                      AND (${ld.parameters.plan_type} = 'all' OR ${plan.plan_name} = ${ld.parameters.plan_type})
+                      AND (${ld.parameters.plan_type} = 'all' OR plan_name = ${ld.parameters.plan_type})
                     THEN duration_months
                     ELSE NULL 
                   END
