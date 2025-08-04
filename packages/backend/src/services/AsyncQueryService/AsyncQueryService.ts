@@ -1966,20 +1966,26 @@ export class AsyncQueryService extends ProjectService {
             ),
         ]);
 
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            space.uuid,
-        );
+        // Anonymous users cannot be assigned to a space,
+        // so they can only access public, `isPrivate: false` charts
+        const savedChartSubject = {
+            organizationUuid,
+            projectUuid,
+            isPrivate: space.isPrivate,
+            ...(account.isRegisteredUser()
+                ? {
+                      access: await this.spaceModel.getUserSpaceAccess(
+                          account.user.id,
+                          space.uuid,
+                      ),
+                  }
+                : {}),
+        };
 
         if (
             account.user.ability.cannot(
                 'view',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
+                subject('SavedChart', savedChartSubject),
             ) ||
             account.user.ability.cannot(
                 'view',
@@ -1994,7 +2000,7 @@ export class AsyncQueryService extends ProjectService {
 
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
-            account.user.id,
+            account.isRegisteredUser() ? account.user.id : null,
         );
 
         const tables = Object.keys(explore.tables);
