@@ -184,7 +184,8 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         try {
             this.client = new BigQuery({
                 projectId: credentials.executionProject || credentials.project,
-                location: credentials.location,
+                // empty string is not a valid value for location
+                location: credentials.location || undefined,
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
             });
