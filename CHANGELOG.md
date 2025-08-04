@@ -1,3 +1,10 @@
+## [0.1875.1](https://github.com/lightdash/lightdash/compare/0.1875.0...0.1875.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* change auto fetch default to false ([#16197](https://github.com/lightdash/lightdash/issues/16197)) ([c477307](https://github.com/lightdash/lightdash/commit/c477307eee8ac412f2cec0dc4d704033e643fc23))
+
 # [0.1875.0](https://github.com/lightdash/lightdash/compare/0.1874.0...0.1875.0) (2025-08-04)
 
 
