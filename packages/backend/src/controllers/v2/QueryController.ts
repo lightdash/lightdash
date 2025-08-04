@@ -51,8 +51,14 @@ export type ApiGetAsyncQueryResultsResponse = {
 
 @Route('/api/v2/projects/{projectUuid}/query')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('v2', 'Query')
+@Tags('Query')
 export class QueryController extends BaseController {
+    /**
+     * Get results from an asynchronous query
+     *
+     * Retrieves paginated results from a previously executed async query using its UUID.
+     * Use this endpoint to fetch query results after the query has completed execution.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}')
@@ -60,11 +66,14 @@ export class QueryController extends BaseController {
     async getAsyncQueryResults(
         @Path()
         projectUuid: string,
+        /** The UUID of the async query to retrieve results for */
         @Path()
         queryUuid: string,
         @Request() req: express.Request,
+        /** Page number for pagination (starts at 1) */
         @Query()
         page?: number,
+        /** Number of results per page (default: 500, max: 5000) */
         @Query()
         pageSize?: number,
     ): Promise<ApiGetAsyncQueryResultsResponse> {
@@ -86,12 +95,19 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Cancel an asynchronous query
+     *
+     * Cancels a running async query. Once cancelled, the query cannot be resumed
+     * and any partial results will be discarded.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/cancel')
     @OperationId('cancelAsyncQuery')
     async cancelAsyncQuery(
         @Path() projectUuid: string,
+        /** The UUID of the async query to cancel */
         @Path() queryUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
@@ -109,6 +125,13 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Execute an asynchronous metric query
+     *
+     * Executes a metric query asynchronously against your data warehouse.
+     * Returns a query UUID that can be used to fetch results once the query completes.
+     * Metric queries are built using dimensions, metrics, filters, and sorts from your dbt models.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/metric-query')
@@ -154,6 +177,12 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Execute an asynchronous saved chart query
+     *
+     * Executes a saved chart query asynchronously. Saved charts contain pre-configured
+     * metric queries that can be executed with optional parameter overrides.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart')
@@ -187,6 +216,12 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Execute an asynchronous dashboard chart query
+     *
+     * Executes a chart within a dashboard context asynchronously. Dashboard charts
+     * inherit dashboard-level filters and may have additional contextual parameters.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-chart')
@@ -223,6 +258,12 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Execute an asynchronous underlying data query
+     *
+     * Executes a query to retrieve the underlying raw data for a specific metric or dimension.
+     * This is useful for drilling down into the data behind aggregated values.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/underlying-data')
@@ -259,6 +300,12 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Execute an asynchronous SQL query
+     *
+     * Executes a raw SQL query asynchronously against your data warehouse.
+     * This allows for custom queries beyond the metric layer capabilities.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql')
@@ -291,6 +338,12 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Execute an asynchronous SQL chart query
+     *
+     * Executes a saved SQL chart query asynchronously. SQL charts are custom visualizations
+     * built from raw SQL queries with optional chart configurations.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql-chart')
@@ -324,6 +377,12 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Execute an asynchronous dashboard SQL chart query
+     *
+     * Executes a SQL chart within a dashboard context asynchronously. Dashboard SQL charts
+     * can inherit dashboard-level filters and contextual parameters.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-sql-chart')
@@ -362,9 +421,12 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Stream results from S3
+     * Stream query results
+     *
+     * Streams query results directly from storage as a JSON stream.
+     * Use this endpoint for large result sets to avoid memory issues.
+     * The response is streamed as newline-delimited JSON (NDJSON).
      */
-
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}/results')
@@ -398,12 +460,20 @@ export class QueryController extends BaseController {
         }
     }
 
+    /**
+     * Download query results
+     *
+     * Downloads query results in various formats (CSV, XLSX, JSON).
+     * Supports custom formatting options like column ordering, hidden fields,
+     * and pivot configurations.
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/download')
     @OperationId('downloadResults')
     async downloadResults(
         @Path() projectUuid: string,
+        /** The UUID of the completed async query to download */
         @Path() queryUuid: string,
         @Request() req: express.Request,
         @Body() body: Omit<DownloadAsyncQueryResultsRequestParams, 'queryUuid'>,
