@@ -1,5 +1,5 @@
 import { type ParametersValuesMap } from '@lightdash/common';
-import { Box, Button, Menu, Text, useMantineTheme } from '@mantine/core';
+import { Box, Button, MantineProvider, Menu } from '@mantine-8/core';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -8,7 +8,9 @@ import {
 import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import { ParameterSelection, useParameters } from '../index';
+import styles from './Parameters.module.css';
 
 type Props = {
     isEditMode: boolean;
@@ -48,7 +50,6 @@ export const Parameters: FC<Props> = ({
     parameterReferences,
     areAllChartsLoaded = true,
 }) => {
-    const theme = useMantineTheme();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
@@ -85,64 +86,70 @@ export const Parameters: FC<Props> = ({
     // Determine if we're in a loading state (either API loading or charts still loading)
     const isLoadingState = isLoading || !areAllChartsLoaded;
 
+    // Determine button CSS classes based on state
+    const buttonClasses = [
+        isEditMode ? styles.parameterButtonEditMode : styles.parameterButton,
+        selectedParametersCount > 0 && !isEditMode
+            ? styles.parameterButtonActive
+            : '',
+    ]
+        .filter(Boolean)
+        .join(' ');
+
     return (
-        <Menu
-            withinPortal
-            withArrow
-            closeOnItemClick={false}
-            closeOnClickOutside
-            offset={-1}
-            position="bottom-end"
-            disabled={isLoadingState}
-            onOpen={() => setShowOpenIcon(true)}
-            onClose={() => setShowOpenIcon(false)}
-        >
-            <Menu.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    loaderPosition="center"
-                    loading={isLoadingState}
-                    disabled={isLoadingState}
-                    sx={{
-                        borderColor:
-                            selectedParametersCount > 0 && !isEditMode
-                                ? theme.colors.blue['6']
-                                : 'default',
-                        marginRight: isEditMode ? 10 : 'auto',
-                    }}
-                    leftIcon={<MantineIcon icon={IconVariable} />}
-                    rightIcon={
-                        <MantineIcon
-                            icon={
-                                showOpenIcon ? IconChevronUp : IconChevronDown
-                            }
-                        />
-                    }
-                >
-                    <Text>
+        <MantineProvider theme={getMantine8ThemeOverride()}>
+            <Menu
+                withinPortal
+                withArrow
+                closeOnItemClick={false}
+                closeOnClickOutside
+                offset={-1}
+                position="bottom-end"
+                disabled={isLoadingState}
+                onOpen={() => setShowOpenIcon(true)}
+                onClose={() => setShowOpenIcon(false)}
+            >
+                <Menu.Target>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        loading={isLoadingState}
+                        disabled={isLoadingState}
+                        className={buttonClasses}
+                        leftSection={<MantineIcon icon={IconVariable} />}
+                        rightSection={
+                            <MantineIcon
+                                icon={
+                                    showOpenIcon
+                                        ? IconChevronUp
+                                        : IconChevronDown
+                                }
+                            />
+                        }
+                    >
                         Parameters
                         {selectedParametersCount > 0
                             ? ` (${selectedParametersCount})`
                             : ''}
-                    </Text>
-                </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Label fz={10}>Parameters</Menu.Label>
-                <Box p="sm" miw={200}>
-                    <ParameterSelection
-                        parameters={parameters}
-                        isLoading={isLoading || !areAllChartsLoaded}
-                        isError={isError}
-                        parameterValues={parameterValues}
-                        onParameterChange={onParameterChange}
-                        size="xs"
-                        showClearAll={selectedParametersCount > 0}
-                        onClearAll={onClearAll}
-                    />
-                </Box>
-            </Menu.Dropdown>
-        </Menu>
+                    </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Label fz={10}>Parameters</Menu.Label>
+                    <Box p="sm" miw={200}>
+                        <ParameterSelection
+                            parameters={parameters}
+                            isLoading={isLoading || !areAllChartsLoaded}
+                            isError={isError}
+                            parameterValues={parameterValues}
+                            onParameterChange={onParameterChange}
+                            size="xs"
+                            showClearAll={selectedParametersCount > 0}
+                            onClearAll={onClearAll}
+                            projectUuid={projectUuid}
+                        />
+                    </Box>
+                </Menu.Dropdown>
+            </Menu>
+        </MantineProvider>
     );
 };
