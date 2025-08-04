@@ -1,4 +1,5 @@
 import { DimensionType } from '../../types/field';
+import { type PivotConfiguration } from '../../types/queryHistory';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
@@ -111,7 +112,7 @@ export type PivotChartData = {
     queryUuid: string | undefined;
     fileUrl: string | undefined;
     results: RawResultRow[];
-    indexColumn: PivotIndexColum | undefined;
+    indexColumn: PivotConfiguration['indexColumn'] | undefined;
     valuesColumns: PivotValuesColumn[];
     columns: VizColumn[];
     columnCount: number | undefined;
