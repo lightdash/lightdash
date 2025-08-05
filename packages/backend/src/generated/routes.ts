@@ -15112,7 +15112,14 @@ const models: TsoaRoute.Models = {
                         },
                         tableGroupLabel: { dataType: 'string' },
                         tableName: { dataType: 'string', required: true },
-                        fieldValueType: { dataType: 'string', required: true },
+                        fieldValueType: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'MetricType' },
+                                { ref: 'DimensionType' },
+                            ],
+                            required: true,
+                        },
                         basicType: {
                             dataType: 'union',
                             subSchemas: [
