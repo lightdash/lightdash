@@ -78,8 +78,8 @@ export const shopifyAuthCallback = async (req: Request, res: Response) => {
             domains: null,
         });
 
-        runShopifyDataIngestion(normalizedShop);
-        
+        runShopifyDataIngestion({ shopUrl: normalizedShop, accessToken: data.access_token });
+
 
         // TODO: May not want to run every time. This may run on every login
         if(isCurrentUser) {

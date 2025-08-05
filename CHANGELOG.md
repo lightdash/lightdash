@@ -1,3 +1,109 @@
+## [0.1876.1](https://github.com/lightdash/lightdash/compare/0.1876.0...0.1876.1) (2025-08-05)
+
+
+### Bug Fixes
+
+* return valid XML from find fields tool call ([#16218](https://github.com/lightdash/lightdash/issues/16218)) ([05827ec](https://github.com/lightdash/lightdash/commit/05827ec4bceb7d44a6415d53ab3e7bccf56e96c6))
+
+# [0.1876.0](https://github.com/lightdash/lightdash/compare/0.1875.6...0.1876.0) (2025-08-05)
+
+
+### Features
+
+* improve jaffle shop seed data & models ([#16201](https://github.com/lightdash/lightdash/issues/16201)) ([a4d52d4](https://github.com/lightdash/lightdash/commit/a4d52d47089fb5b3e66070c523de28ae4bfdf7c2))
+
+## [0.1875.6](https://github.com/lightdash/lightdash/compare/0.1875.5...0.1875.6) (2025-08-05)
+
+
+### Bug Fixes
+
+* only run query after first run even if auto-fetch is enabled ([#16207](https://github.com/lightdash/lightdash/issues/16207)) ([f1880e7](https://github.com/lightdash/lightdash/commit/f1880e7f1de8806672ddb19c5ca73a793d951217))
+
+## [0.1875.5](https://github.com/lightdash/lightdash/compare/0.1875.4...0.1875.5) (2025-08-05)
+
+
+### Bug Fixes
+
+* range input filter properly indicates missing values ([#16152](https://github.com/lightdash/lightdash/issues/16152)) ([7a36457](https://github.com/lightdash/lightdash/commit/7a36457d7ff5af1751b589392550d2454ff994e5)), closes [#16043](https://github.com/lightdash/lightdash/issues/16043)
+
+## [0.1875.4](https://github.com/lightdash/lightdash/compare/0.1875.3...0.1875.4) (2025-08-05)
+
+
+### Bug Fixes
+
+* bump snowflake-sdk version ([#16209](https://github.com/lightdash/lightdash/issues/16209)) ([1e64b0f](https://github.com/lightdash/lightdash/commit/1e64b0f3eb0868e7d8679483f9537bac207de6e3))
+
+## [0.1875.3](https://github.com/lightdash/lightdash/compare/0.1875.2...0.1875.3) (2025-08-05)
+
+
+### Bug Fixes
+
+* Empty filters apply placeholder values ([#16151](https://github.com/lightdash/lightdash/issues/16151)) ([d6c3302](https://github.com/lightdash/lightdash/commit/d6c33028c06517156836f7bf937ab916a53ae58a)), closes [#16043](https://github.com/lightdash/lightdash/issues/16043) [#7083](https://github.com/lightdash/lightdash/issues/7083) [#16152](https://github.com/lightdash/lightdash/issues/16152)
+* improve error handling in git integration ([#16213](https://github.com/lightdash/lightdash/issues/16213)) ([2aa4574](https://github.com/lightdash/lightdash/commit/2aa4574fd5e10acbd7f69d7a8e72d3b356f810ff))
+
+## [0.1875.2](https://github.com/lightdash/lightdash/compare/0.1875.1...0.1875.2) (2025-08-05)
+
+
+### Bug Fixes
+
+* add fieldFilterType to AiFilterRule for improved filtering ([#16210](https://github.com/lightdash/lightdash/issues/16210)) ([f369ced](https://github.com/lightdash/lightdash/commit/f369ced09ba135651dd28259f731821154c78d53))
+
+## [0.1875.1](https://github.com/lightdash/lightdash/compare/0.1875.0...0.1875.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* change auto fetch default to false ([#16197](https://github.com/lightdash/lightdash/issues/16197)) ([c477307](https://github.com/lightdash/lightdash/commit/c477307eee8ac412f2cec0dc4d704033e643fc23))
+
+# [0.1875.0](https://github.com/lightdash/lightdash/compare/0.1874.0...0.1875.0) (2025-08-04)
+
+
+### Features
+
+* validate filter type against field type ([#16192](https://github.com/lightdash/lightdash/issues/16192)) ([4f343ae](https://github.com/lightdash/lightdash/commit/4f343ae944b9422c2ec9e712bf755d7440bc6801)), closes [#16188](https://github.com/lightdash/lightdash/issues/16188)
+
+# [0.1874.0](https://github.com/lightdash/lightdash/compare/0.1873.0...0.1874.0) (2025-08-04)
+
+
+### Features
+
+* include available explores in the system prompt ([#16185](https://github.com/lightdash/lightdash/issues/16185)) ([4e1cbba](https://github.com/lightdash/lightdash/commit/4e1cbba6b9144837bbc1105addc4cf5e62e89715))
+
+# [0.1873.0](https://github.com/lightdash/lightdash/compare/0.1872.0...0.1873.0) (2025-08-04)
+
+
+### Features
+
+* refactor AI agent with configurable search parameters ([#16173](https://github.com/lightdash/lightdash/issues/16173)) ([0e6e2d0](https://github.com/lightdash/lightdash/commit/0e6e2d0a00fe9e6e198229d470bb3053398a09e9))
+
+# [0.1872.0](https://github.com/lightdash/lightdash/compare/0.1871.3...0.1872.0) (2025-08-04)
+
+
+### Features
+
+* improve ai agent find explore tool by improving metadata and adding focus on explore ([#16160](https://github.com/lightdash/lightdash/issues/16160)) ([cc29167](https://github.com/lightdash/lightdash/commit/cc29167443070fad1faf1d6131778e728a39ff77))
+
+## [0.1871.3](https://github.com/lightdash/lightdash/compare/0.1871.2...0.1871.3) (2025-08-04)
+
+
+### Bug Fixes
+
+* remove code path for running query in worker ([#16169](https://github.com/lightdash/lightdash/issues/16169)) ([1a21ea0](https://github.com/lightdash/lightdash/commit/1a21ea007d488daa673cd5dc1fb7af9d521b0d14))
+
+## [0.1871.2](https://github.com/lightdash/lightdash/compare/0.1871.1...0.1871.2) (2025-08-04)
+
+
+### Bug Fixes
+
+* handle empty string location in BigQuery client config ([#16183](https://github.com/lightdash/lightdash/issues/16183)) ([530e0c2](https://github.com/lightdash/lightdash/commit/530e0c25595397f0f56e09417f98f836c2e88ff8))
+
+## [0.1871.1](https://github.com/lightdash/lightdash/compare/0.1871.0...0.1871.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* agent generates queries with limits > 1000 ([#16172](https://github.com/lightdash/lightdash/issues/16172)) ([a27a6c0](https://github.com/lightdash/lightdash/commit/a27a6c07d44ad5ec81fa7a72fd768c29842b2451)), closes [#16162](https://github.com/lightdash/lightdash/issues/16162)
+
 # [0.1871.0](https://github.com/lightdash/lightdash/compare/0.1870.1...0.1871.0) (2025-08-02)
 
 

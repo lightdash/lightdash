@@ -7,9 +7,9 @@ import PageSpinner from '../components/PageSpinner';
 import ErrorState from '../components/common/ErrorState';
 import { IconArrowRight } from '@tabler/icons-react';
 import ConnectionsModal from '../components/ConnectionsModal';
-import useUser from '../hooks/user/useUser';
 import useConnections from '../hooks/useConnections';
 import { Connection, ConnectionType } from '@lightdash/common';
+import { lightdashApi } from '../api';
 
 
 
@@ -21,7 +21,15 @@ const Connections: FC = () => {
     const { data: connections } = useConnections() || [];
     const [opened, { open, close }] = useDisclosure(false);
     const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
-    const [shopUrl, setShopUrl] = useState('');
+
+    const updateConnection = (newName: string) => {
+    if (selectedConnection) {
+        setSelectedConnection({
+            ...selectedConnection,
+            name: newName,
+        });
+    }
+};
 
 
     const isLoading = false;
@@ -36,11 +44,12 @@ const Connections: FC = () => {
 
 
     const handleConnect = () => {
-        console.log(`Connecting to ${selectedConnection} with URL: ${shopUrl}`);
+        if (!selectedConnection) return;
+        console.log(`Connecting to ${selectedConnection} with URL: ${selectedConnection.name}`);
         // Redirect to shopify auth URL
         const siteUrl = import.meta.env.VITE_SITE_URL;
         console.log(`Site URL: ${siteUrl}`);
-        const redirectUrl = `${siteUrl}/api/v1/auth/shopify/start?shop=${encodeURIComponent(shopUrl)}`;
+        const redirectUrl = `${siteUrl}/api/v1/auth/shopify/start?shop=${encodeURIComponent(selectedConnection.name)}`;
         console.log(`Redirecting to: ${redirectUrl}`);
         window.open(redirectUrl, '_blank');
         // Optionally close the modal after redirecting
@@ -49,7 +58,15 @@ const Connections: FC = () => {
 
     const handleRefresh = () => {
         console.log('Refershing data for${selectedIntegration}');
-        runShopifyDataIngestion(shopUrl);
+        lightdashApi({
+            url: '/auth/shopify/refresh',
+            method: 'POST',
+            body: JSON.stringify({
+                shopUrl: selectedConnection?.name,
+            }),
+        });
+        // Optionally close the modal after refreshing
+        close();
     };
 
 
@@ -113,8 +130,7 @@ const Connections: FC = () => {
                 opened={opened}
                 onClose={close}
                 selectedConnection={selectedConnection}
-                shopUrl={shopUrl}
-                setShopUrl={setShopUrl}
+                updateConnection={updateConnection}
                 handleConnect={handleConnect}
                 handleRefresh={handleRefresh}
             />

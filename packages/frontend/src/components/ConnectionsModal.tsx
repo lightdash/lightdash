@@ -6,20 +6,18 @@ interface ConnectionsModalProps {
   opened: boolean;
   onClose: () => void;
   selectedConnection: Connection | null;
-  shopUrl: string;
-  setShopUrl: (url: string) => void;
   handleRefresh: () => void;
   handleConnect: () => void;
+  updateConnection: (newName: string) => void;
 }
 
 const ConnectionsModal: FC<ConnectionsModalProps> = ({
   opened,
   onClose,
   selectedConnection,
-  shopUrl,
-  setShopUrl,
   handleRefresh,
   handleConnect,
+  updateConnection
 }) => (
   <Modal
     opened={opened}
@@ -43,9 +41,9 @@ const ConnectionsModal: FC<ConnectionsModalProps> = ({
     <Stack spacing="lg" mt="md">
       <TextInput
         label="Store URL"
-        placeholder={`e.g. myshop.${selectedConnection}.com`}
-        value={shopUrl}
-        onChange={(e) => setShopUrl(e.currentTarget.value)}
+        placeholder={`e.g. myshop.myshopify.com`}
+        value={selectedConnection?.name || ''}
+       onChange={(e) => updateConnection(e.currentTarget.value)}
         radius="md"
       />
       <Group position="right">

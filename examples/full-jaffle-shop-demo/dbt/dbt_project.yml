@@ -25,11 +25,29 @@ models:
     fanouts_examples:
       +meta:
         group_label: fanouts
+    campaigns:
+      +meta:
+        group_label: campaigns
+    marketing_touchpoints:
+      +meta:
+        group_label: campaigns
+    patient_health_scores:
+      +meta:
+        group_label: healthcare
+    visit_analytics:
+      +meta:
+        group_label: healthcare
 seeds:
   jaffle_shop:
     raw_customers:
       +column_types:
         created: timestamp
+    raw_orders:
+      +column_types:
+        order_date: date
+        estimated_delivery_days: integer
+        shipping_cost: numeric
+        tax_rate: numeric
     raw_plan:
       +column_types:
         metadata: jsonb

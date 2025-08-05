@@ -64,7 +64,7 @@ export const chartForValidation: Awaited<
                 {
                     id: '',
                     target: { fieldId: 'table_dimension' },
-                    values: ['2018-01-01'],
+                    values: ['2024-04-12'],
                     operator: FilterOperator.EQUALS,
                 },
             ],
@@ -75,7 +75,7 @@ export const chartForValidation: Awaited<
                 {
                     id: '',
                     target: { fieldId: 'table_metric' },
-                    values: ['2018-01-01'],
+                    values: ['2024-04-12'],
                     operator: FilterOperator.EQUALS,
                 },
                 {

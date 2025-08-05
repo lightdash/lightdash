@@ -28,10 +28,10 @@ describe('Custom dimensions', () => {
         cy.get('button').contains('Run query').click();
 
         // Check valid results
-        cy.contains('0 - 6');
-        cy.contains('$231.95');
-        cy.contains('6 - 12');
-        cy.contains('$226.99');
+        cy.contains('0 - 11');
+        cy.contains('$679.94');
+        cy.contains('11 - 22');
+        cy.contains('$1,331.02');
 
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
@@ -109,7 +109,7 @@ describe('Custom dimensions', () => {
 
         // Check results
         cy.contains('payment_credit_card');
-        cy.contains(994.16);
+        cy.contains('1,452.16');
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results
@@ -158,7 +158,7 @@ describe('Custom dimensions', () => {
 
         // Check results
         cy.contains('bank_transfer');
-        cy.contains(5.8);
+        cy.contains('6.9');
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results

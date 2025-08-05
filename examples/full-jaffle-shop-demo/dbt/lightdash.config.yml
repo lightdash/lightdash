@@ -15,6 +15,7 @@ parameters:
     label: "Subscription Status"
     description: "Filter subscriptions by their current status"
     default: "all"
+    multiple: true
     options:
       - "all"
       - "Current"
@@ -24,6 +25,7 @@ parameters:
     label: "Minimum Duration (Months)"
     description: "Filter subscriptions by minimum duration in months"
     default: "0"
+    allow_custom_values: true
     options:
       - "0"
       - "1"
@@ -34,6 +36,7 @@ parameters:
     label: "Plan Type"
     description: "Filter by subscription plan"
     default: "all"
+    multiple: true
     options:
       - "all"
       - "free"

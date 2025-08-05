@@ -22,7 +22,7 @@ import {
 } from './authentication';
 import { BaseController } from './baseController';
 
-type ApiSuccess<T> = {
+type ConnApiSuccess<T> = {
     status: 'ok';
     results: T;
 };
@@ -57,7 +57,7 @@ export class ConnectionsController extends BaseController {
     @SuccessResponse('200', 'Success')
     async getConnections(
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<Connection[]>> {
+    ): Promise<ConnApiSuccess<Connection[]>> {
         const shopService = req.services.getShopService();
         const connections: Connection[] = [];
 

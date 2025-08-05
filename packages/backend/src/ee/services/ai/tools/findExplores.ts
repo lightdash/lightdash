@@ -1,118 +1,130 @@
-import {
-    CatalogField,
-    CatalogTable,
-    FieldType,
-    getItemId,
-    toolFindExploresArgsSchema,
-} from '@lightdash/common';
+import { getItemId, toolFindExploresArgsSchema } from '@lightdash/common';
 import { tool } from 'ai';
+import { truncate } from 'lodash';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
+    pageSize: number;
+    fieldSearchSize: number;
+    fieldOverviewSearchSize: number;
+    maxDescriptionLength: number;
     findExplores: FindExploresFn;
 };
 
-const PAGE_SIZE = 15;
-
-const generateExploreResponse = (
-    table: CatalogTable,
-    fields: CatalogField[],
-) => {
-    const allTableNames = [table.name, ...(table.joinedTables ?? [])];
-
-    const dimensions = fields
-        .filter((field) => field.fieldType === FieldType.DIMENSION)
-        .filter((field) => allTableNames.includes(field.tableName))
-        .sort((a, b) => (b.chartUsage ?? 0) - (a.chartUsage ?? 0));
-
-    const metrics = fields
-        .filter((field) => field.fieldType === FieldType.METRIC)
-        .filter((field) => allTableNames.includes(field.tableName))
-        .sort((a, b) => (b.chartUsage ?? 0) - (a.chartUsage ?? 0));
-
-    return `
-<Explore table="${table.name}">
+const generateExploreResponse = ({
+    table,
+    dimensions,
+    metrics,
+    dimensionsPagination,
+    metricsPagination,
+    shouldTruncate,
+    maxDescriptionLength,
+}: Awaited<ReturnType<FindExploresFn>>['tablesWithFields'][number] & {
+    shouldTruncate: boolean;
+    maxDescriptionLength: number;
+}) =>
+    `
+<Explore tableName="${table.name}">
     <Label>${table.label}</Label>
     <BaseTable alt="ID of the base table">${table.name}</BaseTable>
 
     ${
         table.aiHints && table.aiHints.length > 0
             ? `
-    <AI Hints>
-        ${table.aiHints.map((hint) => `<Hint>${hint}</Hint>`).join('\n')}
-    </AI Hints>`.trim()
+    <AIHints>
+        ${table.aiHints
+            .map((hint) => `<Hint>${hint}</Hint>`)
+            .join('\n        ')}
+    </AIHints>`.trim()
             : ''
     }
 
     <Description alt="Description of the base table">
-        ${table.description}
+        ${
+            shouldTruncate
+                ? truncate(table.description, {
+                      length: maxDescriptionLength,
+                      omission: '...(truncated)',
+                  })
+                : table.description
+        }
     </Description>
 
     ${
         table.joinedTables && table.joinedTables.length > 0
             ? `
-    <JoinedTables alt="IDs of the joined tables" size="${
+    <JoinedTables alt="IDs of the joined tables" totalCount="${
         table.joinedTables.length
     }">
         ${table.joinedTables
-            .map(
-                (joinedTable) =>
-                    `<JoinedTable id="${joinedTable}">${joinedTable}</JoinedTable>`,
-            )
-            .join('\n\n')}
+            .map((joinedTable) => `<Table>${joinedTable}</Table>`)
+            .join('\n        ')}
     </JoinedTables>
 `.trim()
             : ''
     }
 
-    <Fields alt="All fields from all tables" size="${
-        dimensions.length + metrics.length
-    }">
-        <Dimensions alt="dimension ids" size="${dimensions.length}">
+    <Fields alt="All fields from all tables" totalCount="${
+        (dimensionsPagination?.totalResults ?? 0) +
+        (metricsPagination?.totalResults ?? 0)
+    }" displayedResults="${dimensions.length + metrics.length}">
+        <Dimensions alt="most popular dimensions" totalResults="${
+            dimensionsPagination?.totalResults ?? 0
+        }" displayedResults="${dimensions.length}">
             ${dimensions
                 .map(
                     (d) =>
-                        `<Dimension fieldId="${getItemId({
+                        `<Dimension table="${d.tableName}" name="${
+                            d.name
+                        }" fieldId="${getItemId({
                             name: d.name,
                             table: d.tableName,
-                        })}" table="${d.tableName}" name="${d.name}" label="${
-                            d.label
-                        }" />`,
+                        })}">${d.label}</Dimension>`,
                 )
-                .join('\n')}
+                .join('\n            ')}
         </Dimensions>
 
-        <Metrics alt="metric ids sorted by popularity" size="${metrics.length}">
+        <Metrics alt="most popular metrics" totalResults="${
+            metricsPagination?.totalResults ?? 0
+        }" displayedResults="${metrics.length}">
             ${metrics
                 .map(
                     (m) =>
-                        `<Metric fieldId="${getItemId({
+                        `<Metric table="${m.tableName}" name="${
+                            m.name
+                        }" fieldId="${getItemId({
                             name: m.name,
                             table: m.tableName,
-                        })}" table="${m.tableName}" name="${m.name}" label="${
-                            m.label
-                        }" />`,
+                        })}">${m.label}</Metric>`,
                 )
-                .join('\n')}
+                .join('\n            ')}
         </Metrics>
     </Fields>
 </Explore>`.trim();
-};
 
-export const getFindExplores = ({ findExplores }: Dependencies) => {
+export const getFindExplores = ({
+    findExplores,
+    pageSize,
+    maxDescriptionLength,
+    fieldSearchSize,
+    fieldOverviewSearchSize,
+}: Dependencies) => {
     const schema = toolFindExploresArgsSchema;
 
     return tool({
-        description: `Tool: "findExplores"
+        description: `Tool: findExplores
 
 Purpose:
-Lists available Explores along with their field labels, joined tables, descriptions, and a partial list of dimensions and metrics.
+Lists available Explores along with their field labels, joined tables, hints for you (Ai Hints), descriptions, and a sample set of dimensions and metrics.
 
-Usage tips:
-- Use this to understand Explore structure before calling "findFields".
-- Only shows a subset of fields — use "findFields" for full field details.
-- Results are paginated — use the next page token to get more.`,
+Usage Tips:
+- Use this to understand the structure of an Explore before calling findFields.
+- Only a subset of fields is returned
+- Results are paginated — use the next page token to retrieve additional pages.
+- It's advised to look for tables first and then use the exploreName parameter to narrow results to a specific Explore.
+- When using the exploreName parameter, all fields and full description are returned for that explore.
+`,
         parameters: schema,
         execute: async (args) => {
             try {
@@ -121,21 +133,32 @@ Usage tips:
                 }
 
                 const { pagination, tablesWithFields } = await findExplores({
+                    tableName: args.exploreName,
                     page: args.page ?? 1,
-                    pageSize: PAGE_SIZE,
+                    pageSize,
+                    includeFields: true,
+                    fieldSearchSize,
+                    fieldOverviewSearchSize,
                 });
 
                 const exploreResponses = tablesWithFields
                     .map((tableWithFields) =>
-                        generateExploreResponse(
-                            tableWithFields.table,
-                            tableWithFields.fields,
-                        ),
+                        generateExploreResponse({
+                            ...tableWithFields,
+                            shouldTruncate: !args.exploreName,
+                            maxDescriptionLength,
+                        }),
                     )
                     .join('\n\n');
 
+                if (args.exploreName) {
+                    return exploreResponses;
+                }
+
                 return `<Explores page="${pagination?.page}" pageSize="${pagination?.pageSize}" totalPageCount="${pagination?.totalPageCount}" totalResults="${pagination?.totalResults}">
-                ${exploreResponses}
+
+${exploreResponses}
+
 </Explores>`;
             } catch (error) {
                 return toolErrorHandler(error, `Error listing explores.`);
