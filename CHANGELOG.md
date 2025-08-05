@@ -1,3 +1,10 @@
+## [0.1875.4](https://github.com/lightdash/lightdash/compare/0.1875.3...0.1875.4) (2025-08-05)
+
+
+### Bug Fixes
+
+* bump snowflake-sdk version ([#16209](https://github.com/lightdash/lightdash/issues/16209)) ([1e64b0f](https://github.com/lightdash/lightdash/commit/1e64b0f3eb0868e7d8679483f9537bac207de6e3))
+
 ## [0.1875.3](https://github.com/lightdash/lightdash/compare/0.1875.2...0.1875.3) (2025-08-05)
 
 
