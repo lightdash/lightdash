@@ -66,39 +66,26 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 
 Before contributing to Lightdash you must complete the following steps:
 
--   Join
-    our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and introduce yourself in the `#community-contributors` channel
--   Choose an existing labelled `open-contribution`
--   Ask a member of the team to assign you to the issue
+1. **Join our Slack community** Head over to our [Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and introduce yourself in the `#community-contributors` channel.
+2. **Pick an issue** Browse through the existing [issues](https://github.com/lightdash/lightdash/issues?q=state%3Aopen%20label%3A%22%F0%9F%91%8B%20open-contribution%22) and choose one that's labeled `open-contribution`.
+3. **Claim your issue** Post in the `#community-contributors` Slack channel using this template: 
 
-Pull requests will not be reviewed unless the previous three steps are completed.
+    ``` Hi Lightdash team, I'd like to work on this open-contribution issue: [paste your issue link here]```
 
----
+4. **Get started** Once you're assigned to the issue, you can get started on your contribution. Make sure you go through our CLAUDE.md files to get a sense of our ways of coding while working on your changes.  
+5. **Submit a PR** When ready, create a pull request with your changes. This will trigger GitHub Actions to validate the changes you made. Please wait for this to complete in full and ensure that you fix any issues highlighted by GitHub Actions.
 
-Working on your first Pull Request? You can learn how from this free video series:
+> Important Note: Pull requests will not be reviewed unless these steps are followed. 
 
-[How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
+> Please bear with us: We're a small team doing our best to review contributions quickly, but it might take us a while to get to your PR - especially if the changes are large or if they don't align with our current development cycle. We appreciate your patience!
 
-To help you get your feet wet and get you familiar with our contribution process, we have a list
-of [good first issues](https://github.com/lightdash/lightdash/issues?q=is%3Aissue+is%3Aopen+label%3A%22%F0%9F%99%8B+good+first+issue%22)
-that contain changes that have a relatively limited scope. This label means that there is already a working solution to
-the issue in the discussion section. Therefore, it is a great place to get started.
 
-Pull requests working on other issues or completely new problems may take a bit longer to review when they don't fit
-into our current development cycle.
-
-If you decide to fix an issue, please be sure to check the comment thread in case somebody is already working on a fix.
-If nobody is working on it at the moment, please leave a comment stating that you have started to work on it so other
-people don't accidentally duplicate your effort.
-
-If somebody claims an issue but doesn't follow up for more than a week, it's fine to take it over but you should still
-leave a comment.
-If there has been no activity on the issue for 7 to 14 days, it is safe to assume that nobody is working on it.
+New to open source? Check out this free series: [How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
 
 ## Opening a Pull Request
 
 Lightdash is a community project, so Pull Requests are always welcome, but, before working on a large change, it is best
-to open an issue first to discuss it with the maintainers.
+to open an issue first to discuss it and get the go-ahead from the maintainers (see required contribution steps [here](#how-to-contribute-code-to-lightdash)).
 
 When in doubt, keep your Pull Requests small. To give a Pull Request the best chance of getting accepted, don't bundle
 more than one feature or bug fix per Pull Request. It's often best to create two smaller Pull Requests than one big one.
