@@ -1,3 +1,10 @@
+## [0.1875.5](https://github.com/lightdash/lightdash/compare/0.1875.4...0.1875.5) (2025-08-05)
+
+
+### Bug Fixes
+
+* range input filter properly indicates missing values ([#16152](https://github.com/lightdash/lightdash/issues/16152)) ([7a36457](https://github.com/lightdash/lightdash/commit/7a36457d7ff5af1751b589392550d2454ff994e5)), closes [#16043](https://github.com/lightdash/lightdash/issues/16043)
+
 ## [0.1875.4](https://github.com/lightdash/lightdash/compare/0.1875.3...0.1875.4) (2025-08-05)
 
 
