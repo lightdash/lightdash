@@ -117,10 +117,10 @@ import {
 } from '../database/entities/warehouseCredentials';
 
 import {
+    AnalyticsChartViews,
     AnalyticsChartViewsTableName,
+    AnalyticsDashboardViews,
     AnalyticsDashboardViewsTableName,
-    DbAnalyticsChartViews,
-    DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
     CatalogTable,
@@ -313,8 +313,8 @@ declare module 'knex/types/tables' {
         [ShareTableName]: ShareTable;
         [SpaceUserAccessTableName]: SpaceUserAccessTable;
         [SlackAuthTokensTableName]: SlackAuthTokensTable;
-        [AnalyticsChartViewsTableName]: DbAnalyticsChartViews;
-        [AnalyticsDashboardViewsTableName]: DbAnalyticsDashboardViews;
+        [AnalyticsChartViewsTableName]: AnalyticsChartViews;
+        [AnalyticsDashboardViewsTableName]: AnalyticsDashboardViews;
         [PinnedListTableName]: PinnedListTable;
         [PinnedChartTableName]: PinnedChartTable;
         [PinnedDashboardTableName]: PinnedDashboardTable;
