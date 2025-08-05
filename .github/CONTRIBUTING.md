@@ -76,6 +76,7 @@ Before contributing to Lightdash you must complete the following steps:
 5. **Submit a PR** When ready, create a pull request with your changes. This will trigger GitHub Actions to validate the changes you made. Please wait for this to complete in full and ensure that you fix any issues highlighted by GitHub Actions.
 
 > Important Note: Pull requests will not be reviewed unless these steps are followed. 
+
 > Please bear with us: We're a small team doing our best to review contributions quickly, but it might take us a week or two to get to your PR - especially if the changes are large or if they don't align with our current development cycle. We appreciate your patience!
 
 New to open source? Check out this free series: [How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
