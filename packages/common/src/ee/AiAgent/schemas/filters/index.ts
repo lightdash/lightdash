@@ -1,6 +1,11 @@
 import { v4 as uuid } from 'uuid';
 import { z } from 'zod';
-import type { FilterRule, Filters } from '../../../../types/filter';
+import type {
+    FilterOperator,
+    FilterRule,
+    Filters,
+    FilterType,
+} from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 
 import booleanFilterSchema from './booleanFilters';
@@ -26,11 +31,17 @@ const filterRuleSchema = z.union([
     dateFilterSchema,
 ]);
 
+export type AiFilterRule = FilterRule<
+    FilterOperator,
+    { fieldId: string; fieldFilterType: FilterType }
+>;
+
 const filterRuleSchemaTransformed = filterRuleSchema.transform(
-    (data): FilterRule => ({
+    (data): AiFilterRule => ({
         id: uuid(),
         target: {
             fieldId: data.fieldId,
+            fieldFilterType: data.fieldFilterType,
         },
         operator: data.operator,
         values: 'values' in data ? data.values : [],
