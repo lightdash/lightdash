@@ -72,7 +72,7 @@ Before contributing to Lightdash you must complete the following steps:
 
     ``` Hi Lightdash team, I'd like to work on this open-contribution issue: [paste your issue link here]```
 
-4. **Get started** Once you're assigned to the issue, you can get started on your contribution. Make sure to follow our [style guidelines](#styleguides) while working on your changes.  
+4. **Get started** Once you're assigned to the issue, you can get started on your contribution. Make sure you go through our CLAUDE.md files to get a sense of our ways of coding while working on your changes.  
 5. **Submit a PR** When ready, create a pull request with your changes. This will trigger GitHub Actions to validate the changes you made. Please wait for this to complete in full and ensure that you fix any issues highlighted by GitHub Actions.
 
 > Important Note: Pull requests will not be reviewed unless these steps are followed. 
