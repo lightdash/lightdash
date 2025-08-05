@@ -28,10 +28,10 @@ type ConnApiSuccess<T> = {
 };
 
 
-
+const siteUrl = process.env.SITE_URL
 const integrations = [
-    { name: ConnectionType.SHOPIFY, icon: '/logos/shopify.svg' },
-    { name: ConnectionType.GOOGLE_ANALYTICS, icon: '/logos/google-analytics.svg' },
+    { name: ConnectionType.SHOPIFY, icon: '/logos/shopify.svg', startUrl: `${siteUrl}/api/v1/auth/shopify/start`, callbackUrl: `${siteUrl}/api/v1/auth/shopify/callback` },
+     { name: ConnectionType.GOOGLE_ANALYTICS, icon: '/logos/google-analytics.svg', startUrl: `${siteUrl}/api/v1/auth/google-analytics/start`, callbackUrl: `${siteUrl}/api/v1/auth/google-analytics/callback` },
     // { name: ConnectionType.META_ADS, icon: '/logos/meta-ads.svg' },
     // { name: ConnectionType.GOOGLE_ADS, icon: '/logos/google-ads.svg' },
     // { name: ConnectionType.POSTHOG, icon: '/logos/posthog.svg' },
@@ -69,6 +69,8 @@ export class ConnectionsController extends BaseController {
             name: shop ? shop.shop_url : '',
             is_connected: shop && !shop.is_uninstalled && !!shop.access_token ? true : false,
             icon: integrationIconMap[ConnectionType.SHOPIFY],
+            startUrl: integrations.find(i => i.name === ConnectionType.SHOPIFY)?.startUrl,
+            callbackUrl: integrations.find(i => i.name === ConnectionType.SHOPIFY)?.callbackUrl
         });
 
 
@@ -78,7 +80,7 @@ export class ConnectionsController extends BaseController {
         connections.push({
             connection_type: ConnectionType.GOOGLE_ANALYTICS,
             user_uuid: req.user!.userUuid,
-            name: '',
+            name: 'Coming soon',
             is_connected: false,
             icon: integrationIconMap[ConnectionType.GOOGLE_ANALYTICS],
         });

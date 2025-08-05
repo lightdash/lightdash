@@ -16,13 +16,12 @@ import { lightdashApi } from '../api';
 const Connections: FC = () => {
     const theme = useMantineTheme();
     const params = useParams<{ projectUuid: string }>();
-    const projectUuid = params.projectUuid;
 
     const { data: connections } = useConnections() || [];
     const [opened, { open, close }] = useDisclosure(false);
     const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
 
-    const updateConnection = (newName: string) => {
+    const updateConnectionName = (newName: string) => {
     if (selectedConnection) {
         setSelectedConnection({
             ...selectedConnection,
@@ -46,14 +45,11 @@ const Connections: FC = () => {
     const handleConnect = () => {
         if (!selectedConnection) return;
         console.log(`Connecting to ${selectedConnection} with URL: ${selectedConnection.name}`);
-        // Redirect to shopify auth URL
-        const siteUrl = import.meta.env.VITE_SITE_URL;
-        console.log(`Site URL: ${siteUrl}`);
-        const redirectUrl = `${siteUrl}/api/v1/auth/shopify/start?shop=${encodeURIComponent(selectedConnection.name)}`;
+
+        const redirectUrl = `${selectedConnection.startUrl}?shop=${encodeURIComponent(selectedConnection.name)}`;
         console.log(`Redirecting to: ${redirectUrl}`);
         window.open(redirectUrl, '_blank');
-        // Optionally close the modal after redirecting
-        close();
+ 
     }
 
     const handleRefresh = () => {
@@ -79,7 +75,7 @@ const Connections: FC = () => {
             <Stack spacing="xl">
                 <Title order={2}>Connections</Title>
                 <Text color="dimmed">
-                    Connect and sync data from your external sources.
+                    Connect and sync data from your external sources. Refresh page to verify connection status.
                 </Text>
 
                 <Card withBorder shadow="sm" padding="lg" radius="md">
@@ -130,7 +126,7 @@ const Connections: FC = () => {
                 opened={opened}
                 onClose={close}
                 selectedConnection={selectedConnection}
-                updateConnection={updateConnection}
+                updateConnection={updateConnectionName}
                 handleConnect={handleConnect}
                 handleRefresh={handleRefresh}
             />
