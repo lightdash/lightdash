@@ -58,10 +58,10 @@ declare module 'knex/types/tables' {
 
 ## Type Guidelines
 
-- Use `null` instead of `undefined` or optional types (`?`) for nullable database fields since databases don't have the concept of undefined
-- Use `Pick<>` to specify which fields are required for insert operations
-- Specify a separate update type if it differs from the insert type
-- Use descriptive names: `DbTableName` for row definitions and `TableNameTable` for Knex composite types
+-   Use `null` instead of `undefined` or optional types (`?`) for nullable database fields since databases don't have the concept of undefined
+-   Use `Pick<>` to specify which fields are required for insert operations
+-   Specify a separate update type if it differs from the insert type
+-   Use descriptive names: `DbTableName` for row definitions and `TableNameTable` for Knex composite types
 
 ## Examples from the Codebase
 
