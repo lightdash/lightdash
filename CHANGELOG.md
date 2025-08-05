@@ -1,3 +1,11 @@
+## [0.1875.3](https://github.com/lightdash/lightdash/compare/0.1875.2...0.1875.3) (2025-08-05)
+
+
+### Bug Fixes
+
+* Empty filters apply placeholder values ([#16151](https://github.com/lightdash/lightdash/issues/16151)) ([d6c3302](https://github.com/lightdash/lightdash/commit/d6c33028c06517156836f7bf937ab916a53ae58a)), closes [#16043](https://github.com/lightdash/lightdash/issues/16043) [#7083](https://github.com/lightdash/lightdash/issues/7083) [#16152](https://github.com/lightdash/lightdash/issues/16152)
+* improve error handling in git integration ([#16213](https://github.com/lightdash/lightdash/issues/16213)) ([2aa4574](https://github.com/lightdash/lightdash/commit/2aa4574fd5e10acbd7f69d7a8e72d3b356f810ff))
+
 ## [0.1875.2](https://github.com/lightdash/lightdash/compare/0.1875.1...0.1875.2) (2025-08-05)
 
 
