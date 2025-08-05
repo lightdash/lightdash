@@ -16040,7 +16040,14 @@
                                 "type": "string"
                             },
                             "fieldValueType": {
-                                "type": "string"
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/MetricType"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DimensionType"
+                                    }
+                                ]
                             },
                             "basicType": {
                                 "type": "string",
@@ -18179,7 +18186,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1871.3",
+        "version": "0.1875.5",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -27997,7 +28004,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Get results from an asynchronous query\n\nRetrieves paginated results from a previously executed async query using its UUID.\nUse this endpoint to fetch query results after the query has completed execution.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28009,6 +28017,7 @@
                         }
                     },
                     {
+                        "description": "The UUID of the async query to retrieve results for",
                         "in": "path",
                         "name": "queryUuid",
                         "required": true,
@@ -28017,6 +28026,7 @@
                         }
                     },
                     {
+                        "description": "Page number for pagination (starts at 1)",
                         "in": "query",
                         "name": "page",
                         "required": false,
@@ -28026,6 +28036,7 @@
                         }
                     },
                     {
+                        "description": "Number of results per page (default: 500, max: 5000)",
                         "in": "query",
                         "name": "pageSize",
                         "required": false,
@@ -28062,7 +28073,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Cancel an asynchronous query\n\nCancels a running async query. Once cancelled, the query cannot be resumed\nand any partial results will be discarded.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28074,6 +28086,7 @@
                         }
                     },
                     {
+                        "description": "The UUID of the async query to cancel",
                         "in": "path",
                         "name": "queryUuid",
                         "required": true,
@@ -28109,7 +28122,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Execute an asynchronous metric query\n\nExecutes a metric query asynchronously against your data warehouse.\nReturns a query UUID that can be used to fetch results once the query completes.\nMetric queries are built using dimensions, metrics, filters, and sorts from your dbt models.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28158,7 +28172,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Execute an asynchronous saved chart query\n\nExecutes a saved chart query asynchronously. Saved charts contain pre-configured\nmetric queries that can be executed with optional parameter overrides.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28207,7 +28222,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Execute an asynchronous dashboard chart query\n\nExecutes a chart within a dashboard context asynchronously. Dashboard charts\ninherit dashboard-level filters and may have additional contextual parameters.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28256,7 +28272,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Execute an asynchronous underlying data query\n\nExecutes a query to retrieve the underlying raw data for a specific metric or dimension.\nThis is useful for drilling down into the data behind aggregated values.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28305,7 +28322,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Execute an asynchronous SQL query\n\nExecutes a raw SQL query asynchronously against your data warehouse.\nThis allows for custom queries beyond the metric layer capabilities.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28354,7 +28372,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Execute an asynchronous SQL chart query\n\nExecutes a saved SQL chart query asynchronously. SQL charts are custom visualizations\nbuilt from raw SQL queries with optional chart configurations.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28403,7 +28422,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Execute an asynchronous dashboard SQL chart query\n\nExecutes a SQL chart within a dashboard context asynchronously. Dashboard SQL charts\ncan inherit dashboard-level filters and contextual parameters.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28425,54 +28445,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v2/projects/{projectUuid}/query/{queryUuid}/results": {
-            "get": {
-                "operationId": "getResultsStream",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/AnyType"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Stream results from S3",
-                "tags": ["v2", "Query"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v2/projects/{projectUuid}/query/{queryUuid}/download": {
@@ -28500,7 +28472,8 @@
                         }
                     }
                 },
-                "tags": ["v2", "Query"],
+                "description": "Download query results\n\nDownloads query results in various formats (CSV, XLSX, JSON).\nSupports custom formatting options like column ordering, hidden fields,\nand pivot configurations.",
+                "tags": ["Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -28512,6 +28485,7 @@
                         }
                     },
                     {
+                        "description": "The UUID of the completed async query to download",
                         "in": "path",
                         "name": "queryUuid",
                         "required": true,
@@ -28931,6 +28905,10 @@
             "externalDocs": {
                 "url": "https://docs.lightdash.com/references/roles"
             }
+        },
+        {
+            "name": "Query",
+            "description": "These routes allow users to execute and manage queries against their data warehouse. This includes metric queries, SQL queries, and retrieving query results."
         }
     ]
 }

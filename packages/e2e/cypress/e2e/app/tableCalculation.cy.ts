@@ -125,9 +125,9 @@ describe('Table calculations', () => {
 
         // Check valid results
         cy.contains('100');
-        cy.contains('200');
-        cy.contains('300');
-        cy.contains('400');
+        cy.contains('1500');
+        cy.contains('1800');
+        cy.contains('2000');
 
         // Add string filter
         cy.findByTestId('Filters-card-expand').click();
@@ -140,13 +140,11 @@ describe('Table calculations', () => {
         cy.get(".mantine-Select-input[value='is']").click();
         cy.contains('greater than').click(); // If the type is string, this option will not be available and it will fail when running the query
 
-        cy.findByPlaceholderText('Enter value(s)').clear().type('250');
-
-        // Run query
+        cy.findByPlaceholderText('Enter value(s)').clear().type('2000');
         cy.get('button').contains('Run query').click();
 
-        // Check valid results
-        cy.contains('300');
-        cy.contains('100').should('not.exist');
+        // Check valid results`
+        cy.contains('2200');
+        cy.contains('1800').should('not.exist');
     });
 });

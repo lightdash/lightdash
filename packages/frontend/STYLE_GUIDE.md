@@ -172,6 +172,10 @@ import styles from './Component.module.css';
 </Card>
 ```
 
+Do not include a `<file>.css.d.ts` file for css modules. We are using Vite and don't need them.
+
+In CSS modules, avoid using `!important` where possible. It's better to use the `classNames` API for increased specificity. 
+
 ### 3. Important Guidelines
 
 #### Remove Dead Styles

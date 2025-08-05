@@ -54,8 +54,8 @@ exposures:
     owner:
       name: David Attenborough
       email: ""
-    label: How many orders did we get on February?
-    description: A single value of the total number of orders received in February
+    label: How many orders did we get in June?
+    description: A single value of the total number of orders received in June
     url: >-
       http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/be15e7e2-2ad4-49c7-b1fe-40d334e17373/view
     tags:

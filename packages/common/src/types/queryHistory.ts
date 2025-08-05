@@ -26,6 +26,13 @@ export enum QueryHistoryStatus {
     CANCELLED = 'cancelled',
 }
 
+export type PivotConfiguration = {
+    indexColumn: PivotIndexColum | undefined;
+    valuesColumns: ValuesColumn[];
+    groupByColumns: GroupByColumn[] | undefined;
+    sortBy: SortBy | undefined;
+};
+
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
@@ -47,12 +54,7 @@ export type QueryHistory = {
     warehouseExecutionTimeMs: number | null;
     error: string | null;
     cacheKey: string;
-    pivotConfiguration: {
-        indexColumn: PivotIndexColum;
-        valuesColumns: ValuesColumn[];
-        groupByColumns: GroupByColumn[] | undefined;
-        sortBy: SortBy | undefined;
-    } | null;
+    pivotConfiguration: PivotConfiguration | null;
     pivotValuesColumns: PivotValuesColumn[] | null;
     pivotTotalColumnCount: number | null;
     resultsFileName: string | null; // S3 file name

@@ -19,8 +19,8 @@ describe('Pivot Tables', () => {
         cy.contains('shipped');
 
         cy.contains('False');
-        cy.contains('2018-04-02');
-        cy.contains('$236.21');
+        cy.contains('2025-06-09');
+        cy.contains('$1.00');
     });
     it('Can create a pivot table chart on explore', () => {
         // Navigate to the explore page
@@ -79,7 +79,7 @@ describe('Pivot Tables', () => {
         cy.contains('placed');
         cy.contains('shipped');
         cy.contains('False');
-        cy.contains('2018-04-02');
-        cy.contains('$236.21');
+        cy.contains('2025-06-09');
+        cy.contains('$1.00');
     });
 });

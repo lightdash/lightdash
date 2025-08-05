@@ -37,6 +37,16 @@ final as (
         orders.order_date,
         orders.status,
         case when status = 'completed' then TRUE else FALSE end AS is_completed,
+        orders.order_source,
+        orders.shipping_method,
+        orders.promo_code,
+        orders.order_priority,
+        orders.estimated_delivery_days,
+        orders.shipping_cost,
+        orders.tax_rate,
+        orders.currency,
+        orders.fulfillment_center,
+        orders.order_notes,
 
         {% for payment_method in payment_methods -%}
 

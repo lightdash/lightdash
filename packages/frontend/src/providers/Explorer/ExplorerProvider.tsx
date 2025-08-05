@@ -42,7 +42,7 @@ import { useNavigate, useParams } from 'react-router';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
-} from '../../components/AutoFetchResultsButton/defaults';
+} from '../../components/RunQuerySettings/defaults';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
@@ -1447,9 +1447,11 @@ const ExplorerProvider: FC<
     ]);
 
     useEffect(() => {
-        if (!autoFetchEnabled && isEditMode) return;
+        // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query
+        // This will stop auto-fetching until the first query is run
+        if ((!autoFetchEnabled || !query.isFetched) && isEditMode) return;
         runQuery();
-    }, [runQuery, autoFetchEnabled, isEditMode]);
+    }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
