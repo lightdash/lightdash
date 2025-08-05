@@ -1,3 +1,10 @@
+# [0.1876.0](https://github.com/lightdash/lightdash/compare/0.1875.6...0.1876.0) (2025-08-05)
+
+
+### Features
+
+* improve jaffle shop seed data & models ([#16201](https://github.com/lightdash/lightdash/issues/16201)) ([a4d52d4](https://github.com/lightdash/lightdash/commit/a4d52d47089fb5b3e66070c523de28ae4bfdf7c2))
+
 ## [0.1875.6](https://github.com/lightdash/lightdash/compare/0.1875.5...0.1875.6) (2025-08-05)
 
 
