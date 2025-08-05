@@ -1,3 +1,10 @@
+## [0.1875.2](https://github.com/lightdash/lightdash/compare/0.1875.1...0.1875.2) (2025-08-05)
+
+
+### Bug Fixes
+
+* add fieldFilterType to AiFilterRule for improved filtering ([#16210](https://github.com/lightdash/lightdash/issues/16210)) ([f369ced](https://github.com/lightdash/lightdash/commit/f369ced09ba135651dd28259f731821154c78d53))
+
 ## [0.1875.1](https://github.com/lightdash/lightdash/compare/0.1875.0...0.1875.1) (2025-08-04)
 
 
