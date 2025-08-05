@@ -1,0 +1,21 @@
+campaign_id,campaign_name,campaign_type,channel,start_date,end_date,budget,target_audience,status
+1,New Year Sale 2023,promotion,email,2023-01-01,2023-01-15,5000,all_customers,completed
+2,Valentine's Special,promotion,social,2023-02-10,2023-02-14,3000,high_value,completed
+3,Spring Collection Launch,product_launch,multi_channel,2023-03-15,2023-03-31,10000,all_customers,completed
+4,Easter Promotion,promotion,email,2023-03-25,2023-04-01,4000,active_customers,completed
+5,Mother's Day Campaign,seasonal,social,2023-05-01,2023-05-13,6000,female_customers,completed
+6,Summer Sale,promotion,multi_channel,2023-06-01,2023-06-30,15000,all_customers,completed
+7,Back to School,seasonal,email,2023-08-15,2023-09-05,8000,parents,completed
+8,Fall Collection,product_launch,social,2023-09-01,2023-09-15,7000,fashion_enthusiasts,completed
+9,Black Friday Weekend,promotion,multi_channel,2023-11-23,2023-11-26,25000,all_customers,completed
+10,Cyber Monday Flash,promotion,online,2023-11-26,2023-11-26,12000,online_shoppers,completed
+11,Holiday Season 2023,seasonal,multi_channel,2023-12-01,2023-12-25,30000,all_customers,completed
+12,Year End Clearance,promotion,email,2023-12-26,2023-12-31,5000,bargain_hunters,completed
+13,Loyalty Program Launch,retention,email,2023-04-01,2023-04-30,20000,repeat_customers,completed
+14,Customer Win-Back,retention,email,2023-07-01,2023-07-31,10000,churned_customers,completed
+15,Referral Program,acquisition,social,2023-05-15,2023-06-15,8000,existing_customers,completed
+16,Influencer Partnership,brand_awareness,social,2023-10-01,2023-10-31,15000,millennials,completed
+17,Email Re-engagement,retention,email,2023-09-15,2023-09-30,3000,inactive_subscribers,completed
+18,Premium Member Drive,acquisition,multi_channel,2023-11-01,2023-11-30,12000,high_value,completed
+19,Mobile App Launch,product_launch,push,2023-06-15,2023-06-30,18000,mobile_users,completed
+20,Customer Survey Campaign,research,email,2023-08-01,2023-08-15,2000,all_customers,completed

@@ -160,7 +160,10 @@ import type {
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ParametersValuesMap } from './types/parameters';
 import { type ApiPromotionChangesResponse } from './types/promotion';
-import type { QueryHistoryStatus } from './types/queryHistory';
+import {
+    type PivotConfiguration,
+    type QueryHistoryStatus,
+} from './types/queryHistory';
 import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
@@ -180,10 +183,7 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
-import type {
-    PivotIndexColum,
-    PivotValuesColumn,
-} from './visualizations/types';
+import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
@@ -218,6 +218,7 @@ export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
 export * from './types/coder';
+export * from './types/connections';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
@@ -583,7 +584,7 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     pivotDetails: {
         // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
         totalColumnCount: number | null;
-        indexColumn: PivotIndexColum;
+        indexColumn: PivotConfiguration['indexColumn'] | undefined;
         valuesColumns: PivotValuesColumn[];
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;

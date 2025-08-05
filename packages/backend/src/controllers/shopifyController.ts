@@ -54,9 +54,46 @@ export class ShopifyAuthController extends BaseController {
             console.log(`Found shop: ${JSON.stringify(shop)}`);
             await shopService.setupUserForShop(shop, user);
             console.log(`User ${userUuid} setup for shop ${shopUrl}`);
-            runShopifyDataIngestion(shopUrl);
+            runShopifyDataIngestion({
+                shopUrl,
+                accessToken: shop.access_token,
+            });
             console.log(`Started data ingestion for shop ${shopUrl}`);
 
+
+            return { status: 'ok', results: undefined };
+        } catch (e: any) {
+            throw e;
+        }
+    }
+
+    /**
+     * Trigger Shopify data ingestion
+     */
+    @Post('/refresh')
+    @OperationId('RefreshShopifyData')
+    async refreshShopifyData(
+        @Body() body: { shopUrl: string },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        try {
+            const { shopUrl } = body;
+            if (!shopUrl) {
+                throw new ParameterError('Missing shopUrl');
+            }
+
+            const shopService = req.services.getShopService();
+
+            const shop = await shopService.getByShopUrl(shopUrl);
+            console.log(`Found shop: ${JSON.stringify(shop)}`);
+
+            if (!shop) {
+                throw new ParameterError(`No shop found for URL: ${shopUrl}`);
+            }
+
+            console.log(`Starting data ingestion for shop ${shopUrl}`);
+            runShopifyDataIngestion({ shopUrl, accessToken: shop.access_token });
+            console.log(`Started data ingestion for shop ${shopUrl}`);
 
             return { status: 'ok', results: undefined };
         } catch (e: any) {

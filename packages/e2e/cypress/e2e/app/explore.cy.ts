@@ -19,13 +19,6 @@ describe('Explore', () => {
         cy.findByText('Unique order count').click();
         cy.findByText('First name').click();
 
-        // run query
-        cy.get('button').contains('Run query').click();
-
-        // wait for query to finish
-        cy.findByText('Loading chart').should('not.exist');
-        cy.findByText('Loading results').should('not.exist');
-
         // open column menu
         cy.get('th')
             .contains('Customers First name')
@@ -35,6 +28,9 @@ describe('Explore', () => {
 
         // sort `Customers First-Name` by ascending
         cy.findByRole('menuitem', { name: 'Sort A-Z' }).click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
 
         // wait for query to finish
         cy.findByText('Loading results').should('not.exist');
@@ -188,6 +184,12 @@ describe('Explore', () => {
             `{selectAll}${newTCName}`,
         );
         cy.findAllByTestId('table-calculation-save-button').click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // wait for the chart to finish loading
+        cy.contains('Loading chart').should('not.exist');
 
         cy.findByTestId('x-axis-field-select').should('have.value', newTCName);
         cy.findByTestId('y-axis-field-select').should('have.value', newTCName);

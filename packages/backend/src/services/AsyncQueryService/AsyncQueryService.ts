@@ -13,7 +13,6 @@ import {
     assertIsAccountWithOrg,
     assertUnreachable,
     CompiledDimension,
-    CompileError,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
@@ -42,7 +41,6 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
-    GroupByColumn,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
@@ -52,15 +50,13 @@ import {
     isMetric,
     isVizTableConfig,
     ItemsMap,
-    JobPriority,
     MAX_SAFE_INTEGER,
     MetricQuery,
     NotFoundError,
     type Organization,
-    ParameterError,
     type ParametersValuesMap,
     PivotConfig,
-    PivotIndexColum,
+    PivotConfiguration,
     type PivotValuesColumn,
     type Project,
     QueryExecutionContext,
@@ -68,18 +64,14 @@ import {
     QueryHistoryStatus,
     type ResultColumns,
     ResultRow,
-    type RunAsyncWarehouseQueryArgs,
     type RunQueryTags,
     S3Error,
-    SCHEDULER_TASKS,
     SchedulerFormat,
     sleep,
-    SortBy,
     type SpaceShare,
     type SpaceSummary,
     SqlChart,
     UnexpectedServerError,
-    ValuesColumn,
     WarehouseClient,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
@@ -95,7 +87,6 @@ import { measureTime } from '../../logging/measureTime';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import PrometheusMetrics from '../../prometheus';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
@@ -133,6 +124,7 @@ import {
     type GetAsyncQueryResultsArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
+    type RunAsyncWarehouseQueryArgs,
 } from './types';
 
 const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
@@ -989,12 +981,7 @@ export class AsyncQueryService extends ProjectService {
         query: string;
         queryTags: RunQueryTags;
         write?: (rows: Record<string, unknown>[]) => void;
-        pivotConfiguration?: {
-            indexColumn: PivotIndexColum;
-            valuesColumns: ValuesColumn[];
-            groupByColumns: GroupByColumn[] | undefined;
-            sortBy: SortBy | undefined;
-        };
+        pivotConfiguration?: PivotConfiguration;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1426,12 +1413,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: string[];
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-        pivotConfiguration?: {
-            indexColumn: PivotIndexColum;
-            valuesColumns: ValuesColumn[];
-            groupByColumns: GroupByColumn[] | undefined;
-            sortBy: SortBy | undefined;
-        },
+        pivotConfiguration?: PivotConfiguration,
     ): Promise<ExecuteAsyncQueryReturn> {
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
@@ -1618,19 +1600,6 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    const isWorkerQueryExecutionEnabled =
-                        await isFeatureFlagEnabled(
-                            FeatureFlags.WorkerQueryExecution,
-                            {
-                                userUuid: account.user.id,
-                                organizationUuid:
-                                    account.organization.organizationUuid,
-                                organizationName: account.organization.name,
-                            },
-                            { throwOnTimeout: false },
-                            false, // default value
-                        );
-
                     if (missingParameterReferences.length > 0) {
                         await this.queryHistoryModel.update(
                             queryHistoryUuid,
@@ -1652,49 +1621,23 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    if (isWorkerQueryExecutionEnabled) {
-                        this.logger.info(
-                            `Queuing query ${queryHistoryUuid} for execution in a worker`,
-                        );
-                        await this.schedulerClient.scheduleTask(
-                            SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                            {
-                                userUuid: account.user.id,
-                                userId: account.user.id,
-                                isSessionUser: account.isSessionUser(),
-                                isRegisteredUser: account.isRegisteredUser(),
-                                projectUuid,
-                                organizationUuid,
-                                queryTags,
-                                query,
-                                fieldsMap,
-                                queryHistoryUuid,
-                                cacheKey,
-                                pivotConfiguration,
-                                originalColumns,
-                                warehouseCredentialsOverrides,
-                            },
-                            JobPriority.HIGH,
-                        );
-                    } else {
-                        this.logger.info(
-                            `Executing query ${queryHistoryUuid} in the main loop`,
-                        );
-                        void this.runAsyncWarehouseQuery({
-                            userId: account.user.id,
-                            isRegisteredUser: account.isRegisteredUser(),
-                            isSessionUser: account.isSessionUser(),
-                            projectUuid,
-                            query,
-                            fieldsMap,
-                            queryTags,
-                            warehouseCredentialsOverrides,
-                            queryHistoryUuid,
-                            pivotConfiguration,
-                            cacheKey,
-                            originalColumns,
-                        });
-                    }
+                    this.logger.info(
+                        `Executing query ${queryHistoryUuid} in the main loop`,
+                    );
+                    void this.runAsyncWarehouseQuery({
+                        userId: account.user.id,
+                        isRegisteredUser: account.isRegisteredUser(),
+                        isSessionUser: account.isSessionUser(),
+                        projectUuid,
+                        query,
+                        fieldsMap,
+                        queryTags,
+                        warehouseCredentialsOverrides,
+                        queryHistoryUuid,
+                        pivotConfiguration,
+                        cacheKey,
+                        originalColumns,
+                    });
 
                     return {
                         queryUuid: queryHistoryUuid,

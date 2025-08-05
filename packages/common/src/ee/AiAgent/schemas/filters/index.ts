@@ -1,54 +1,63 @@
 import { v4 as uuid } from 'uuid';
 import { z } from 'zod';
-import type { FilterRule, Filters } from '../../../../types/filter';
+import type {
+    FilterOperator,
+    FilterRule,
+    Filters,
+    FilterType,
+} from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import { getFieldIdSchema } from '../fieldId';
+
 import booleanFilterSchema from './booleanFilters';
 import dateFilterSchema from './dateFilters';
 import numberFilterSchema from './numberFilters';
 import stringFilterSchema from './stringFilters';
 
-const filterRuleTypeSchema = z
-    .enum(['date', 'timestamp', 'number', 'string', 'boolean'])
-    .describe('"fieldFilterType" of the field');
+export {
+    booleanFilterSchema,
+    dateFilterSchema,
+    numberFilterSchema,
+    stringFilterSchema,
+};
 
-const filterRuleSchema = z.object({
-    type: z.enum(['or', 'and']).describe('Type of filter group operation'),
-    target: z.object({
-        fieldId: getFieldIdSchema({ additionalDescription: null }),
-        type: filterRuleTypeSchema,
-    }),
-    rule: z
-        .union([
-            booleanFilterSchema.describe('Boolean filter'),
-            stringFilterSchema.describe('String filter'),
-            numberFilterSchema.describe('Number filter'),
-            dateFilterSchema.describe('Date filter'),
-        ])
-        .describe(
-            'Filter rule for the field. You can only select filter rules that match the "fieldFilterType" type specified in the field details.',
-        ),
-});
+const filterAndOrSchema = z
+    .union([z.literal('and'), z.literal('or')])
+    .describe('Type of filter group operation');
+
+const filterRuleSchema = z.union([
+    booleanFilterSchema,
+    stringFilterSchema,
+    numberFilterSchema,
+    dateFilterSchema,
+]);
+
+export type AiFilterRule = FilterRule<
+    FilterOperator,
+    { fieldId: string; fieldFilterType: FilterType }
+>;
 
 const filterRuleSchemaTransformed = filterRuleSchema.transform(
-    (data): FilterRule => ({
+    (data): AiFilterRule => ({
         id: uuid(),
-        target: data.target,
-        operator: data.rule.operator,
-        values: 'values' in data.rule ? data.rule.values : [],
-        ...('settings' in data.rule ? { settings: data.rule.settings } : {}),
+        target: {
+            fieldId: data.fieldId,
+            fieldFilterType: data.fieldFilterType,
+        },
+        operator: data.operator,
+        values: 'values' in data ? data.values : [],
+        ...('settings' in data ? { settings: data.settings } : {}),
     }),
 );
 
 export const filtersSchema = z.object({
-    type: z.enum(['and', 'or']).describe('Type of filter group operation'),
+    type: filterAndOrSchema,
     dimensions: z.array(filterRuleSchema).nullable(),
     metrics: z.array(filterRuleSchema).nullable(),
 });
 
 const filtersSchemaAndFilterRulesTransformed = z
     .object({
-        type: z.enum(['and', 'or']).describe('Type of filter group operation'),
+        type: filterAndOrSchema,
         dimensions: z.array(filterRuleSchemaTransformed).nullable(),
         metrics: z.array(filterRuleSchemaTransformed).nullable(),
     })

@@ -8785,13 +8785,16 @@
 				],
 				"type": "object"
 			},
-			"ApiSqlRunnerPivotQueryPayload": {
+			"SortBy": {
+				"items": {
+					"$ref": "#/components/schemas/VizSortBy"
+				},
+				"type": "array"
+			},
+			"PivotConfiguration": {
 				"properties": {
 					"sortBy": {
-						"items": {
-							"$ref": "#/components/schemas/VizSortBy"
-						},
-						"type": "array"
+						"$ref": "#/components/schemas/SortBy"
 					},
 					"groupByColumns": {
 						"items": {
@@ -8807,16 +8810,27 @@
 					},
 					"indexColumn": {
 						"$ref": "#/components/schemas/PivotIndexColum"
-					},
-					"savedSqlUuid": {
-						"type": "string"
 					}
 				},
 				"required": [
-					"valuesColumns",
-					"indexColumn"
+					"valuesColumns"
 				],
 				"type": "object"
+			},
+			"ApiSqlRunnerPivotQueryPayload": {
+				"allOf": [
+					{
+						"$ref": "#/components/schemas/PivotConfiguration"
+					},
+					{
+						"properties": {
+							"savedSqlUuid": {
+								"type": "string"
+							}
+						},
+						"type": "object"
+					}
+				]
 			},
 			"SqlRunnerPivotQueryBody": {
 				"allOf": [
@@ -11086,8 +11100,7 @@
 					"indexCatalog",
 					"generateDailyJobs",
 					"exportCsvDashboard",
-					"renameResources",
-					"runAsyncWarehouseQuery"
+					"renameResources"
 				]
 			},
 			"SchedulerJobStatus": {
@@ -17754,6 +17767,62 @@
 				],
 				"type": "object"
 			},
+			"ConnectionType": {
+				"enum": [
+					"Shopify",
+					"Google Analytics"
+				],
+				"type": "string"
+			},
+			"Connection": {
+				"properties": {
+					"connection_type": {
+						"$ref": "#/components/schemas/ConnectionType"
+					},
+					"user_uuid": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"is_connected": {
+						"type": "boolean"
+					},
+					"icon": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"connection_type",
+					"user_uuid",
+					"name",
+					"is_connected"
+				],
+				"type": "object",
+				"additionalProperties": true
+			},
+			"ConnApiSuccess_Connection-Array_": {
+				"properties": {
+					"results": {
+						"items": {
+							"$ref": "#/components/schemas/Connection"
+						},
+						"type": "array"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"ok"
+						],
+						"nullable": false
+					}
+				},
+				"required": [
+					"results",
+					"status"
+				],
+				"type": "object"
+			},
 			"ApiCreateComment": {
 				"properties": {
 					"results": {
@@ -18051,7 +18120,14 @@
 								"type": "string"
 							},
 							"fieldValueType": {
-								"type": "string"
+								"anyOf": [
+									{
+										"$ref": "#/components/schemas/MetricType"
+									},
+									{
+										"$ref": "#/components/schemas/DimensionType"
+									}
+								]
 							},
 							"basicType": {
 								"type": "string",
@@ -18735,12 +18811,6 @@
 				],
 				"type": "object"
 			},
-			"SortBy": {
-				"items": {
-					"$ref": "#/components/schemas/VizSortBy"
-				},
-				"type": "array"
-			},
 			"ReadyQueryResultsPage": {
 				"allOf": [
 					{
@@ -18780,7 +18850,6 @@
 								"required": [
 									"originalColumns",
 									"valuesColumns",
-									"indexColumn",
 									"totalColumnCount"
 								],
 								"type": "object",
@@ -19269,31 +19338,7 @@
 					{
 						"properties": {
 							"pivotConfiguration": {
-								"properties": {
-									"sortBy": {
-										"$ref": "#/components/schemas/SortBy"
-									},
-									"groupByColumns": {
-										"items": {
-											"$ref": "#/components/schemas/GroupByColumn"
-										},
-										"type": "array"
-									},
-									"valuesColumns": {
-										"items": {
-											"$ref": "#/components/schemas/ValuesColumn"
-										},
-										"type": "array"
-									},
-									"indexColumn": {
-										"$ref": "#/components/schemas/PivotIndexColum"
-									}
-								},
-								"required": [
-									"valuesColumns",
-									"indexColumn"
-								],
-								"type": "object"
+								"$ref": "#/components/schemas/PivotConfiguration"
 							},
 							"limit": {
 								"type": "number",
@@ -20468,7 +20513,7 @@
 	},
 	"info": {
 		"title": "Lightdash API",
-		"version": "0.1871.0",
+		"version": "0.1876.1",
 		"description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
 		"license": {
 			"name": "MIT"
@@ -23649,6 +23694,57 @@
 								},
 								"required": [
 									"userUuid",
+									"shopUrl"
+								],
+								"type": "object"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/auth/shopify/refresh": {
+			"post": {
+				"operationId": "RefreshShopifyData",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiSuccessEmpty"
+								}
+							}
+						}
+					},
+					"default": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiErrorPayload"
+								}
+							}
+						}
+					}
+				},
+				"description": "Trigger Shopify data ingestion",
+				"tags": [
+					"Shopify"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"properties": {
+									"shopUrl": {
+										"type": "string"
+									}
+								},
+								"required": [
 									"shopUrl"
 								],
 								"type": "object"
@@ -29636,6 +29732,39 @@
 				]
 			}
 		},
+		"/api/v1/connections": {
+			"get": {
+				"operationId": "getConnections",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnApiSuccess_Connection-Array_"
+								}
+							}
+						}
+					},
+					"default": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApiErrorPayload"
+								}
+							}
+						}
+					}
+				},
+				"description": "Get user connections\nReturns all connections (Shopify, Google Analytics, etc.) for the current user",
+				"tags": [
+					"Connections"
+				],
+				"security": [],
+				"parameters": []
+			}
+		},
 		"/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {
 			"post": {
 				"operationId": "createComment",
@@ -29927,6 +30056,17 @@
 					{
 						"in": "query",
 						"name": "yamlTags",
+						"required": false,
+						"schema": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						}
+					},
+					{
+						"in": "query",
+						"name": "tables",
 						"required": false,
 						"schema": {
 							"type": "array",
@@ -30898,8 +31038,8 @@
 						}
 					}
 				},
+				"description": "Get results from an asynchronous query\n\nRetrieves paginated results from a previously executed async query using its UUID.\nUse this endpoint to fetch query results after the query has completed execution.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -30913,6 +31053,7 @@
 						}
 					},
 					{
+						"description": "The UUID of the async query to retrieve results for",
 						"in": "path",
 						"name": "queryUuid",
 						"required": true,
@@ -30921,6 +31062,7 @@
 						}
 					},
 					{
+						"description": "Page number for pagination (starts at 1)",
 						"in": "query",
 						"name": "page",
 						"required": false,
@@ -30930,6 +31072,7 @@
 						}
 					},
 					{
+						"description": "Number of results per page (default: 500, max: 5000)",
 						"in": "query",
 						"name": "pageSize",
 						"required": false,
@@ -30966,8 +31109,8 @@
 						}
 					}
 				},
+				"description": "Cancel an asynchronous query\n\nCancels a running async query. Once cancelled, the query cannot be resumed\nand any partial results will be discarded.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -30981,6 +31124,7 @@
 						}
 					},
 					{
+						"description": "The UUID of the async query to cancel",
 						"in": "path",
 						"name": "queryUuid",
 						"required": true,
@@ -31016,8 +31160,8 @@
 						}
 					}
 				},
+				"description": "Execute an asynchronous metric query\n\nExecutes a metric query asynchronously against your data warehouse.\nReturns a query UUID that can be used to fetch results once the query completes.\nMetric queries are built using dimensions, metrics, filters, and sorts from your dbt models.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31068,8 +31212,8 @@
 						}
 					}
 				},
+				"description": "Execute an asynchronous saved chart query\n\nExecutes a saved chart query asynchronously. Saved charts contain pre-configured\nmetric queries that can be executed with optional parameter overrides.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31120,8 +31264,8 @@
 						}
 					}
 				},
+				"description": "Execute an asynchronous dashboard chart query\n\nExecutes a chart within a dashboard context asynchronously. Dashboard charts\ninherit dashboard-level filters and may have additional contextual parameters.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31172,8 +31316,8 @@
 						}
 					}
 				},
+				"description": "Execute an asynchronous underlying data query\n\nExecutes a query to retrieve the underlying raw data for a specific metric or dimension.\nThis is useful for drilling down into the data behind aggregated values.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31224,8 +31368,8 @@
 						}
 					}
 				},
+				"description": "Execute an asynchronous SQL query\n\nExecutes a raw SQL query asynchronously against your data warehouse.\nThis allows for custom queries beyond the metric layer capabilities.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31276,8 +31420,8 @@
 						}
 					}
 				},
+				"description": "Execute an asynchronous SQL chart query\n\nExecutes a saved SQL chart query asynchronously. SQL charts are custom visualizations\nbuilt from raw SQL queries with optional chart configurations.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31328,8 +31472,8 @@
 						}
 					}
 				},
+				"description": "Execute an asynchronous dashboard SQL chart query\n\nExecutes a SQL chart within a dashboard context asynchronously. Dashboard SQL charts\ncan inherit dashboard-level filters and contextual parameters.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31353,57 +31497,6 @@
 						}
 					}
 				}
-			}
-		},
-		"/api/v2/projects/{projectUuid}/query/{queryUuid}/results": {
-			"get": {
-				"operationId": "getResultsStream",
-				"responses": {
-					"200": {
-						"description": "Success",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/AnyType"
-								}
-							}
-						}
-					},
-					"default": {
-						"description": "Error",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ApiErrorPayload"
-								}
-							}
-						}
-					}
-				},
-				"description": "Stream results from S3",
-				"tags": [
-					"v2",
-					"Query"
-				],
-				"security": [],
-				"parameters": [
-					{
-						"in": "path",
-						"name": "projectUuid",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "path",
-						"name": "queryUuid",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				]
 			}
 		},
 		"/api/v2/projects/{projectUuid}/query/{queryUuid}/download": {
@@ -31431,8 +31524,8 @@
 						}
 					}
 				},
+				"description": "Download query results\n\nDownloads query results in various formats (CSV, XLSX, JSON).\nSupports custom formatting options like column ordering, hidden fields,\nand pivot configurations.",
 				"tags": [
-					"v2",
 					"Query"
 				],
 				"security": [],
@@ -31446,6 +31539,7 @@
 						}
 					},
 					{
+						"description": "The UUID of the completed async query to download",
 						"in": "path",
 						"name": "queryUuid",
 						"required": true,
@@ -31890,6 +31984,10 @@
 			"externalDocs": {
 				"url": "https://docs.lightdash.com/references/roles"
 			}
+		},
+		{
+			"name": "Query",
+			"description": "These routes allow users to execute and manage queries against their data warehouse. This includes metric queries, SQL queries, and retrieving query results."
 		}
 	]
 }

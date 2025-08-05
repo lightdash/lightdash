@@ -62,6 +62,14 @@ export class ShopService {
         }
     }
 
+    async getShopByUserUuid(userUuid: string): Promise<DbShop | undefined> {
+        const result = await this.database<DbShop>(ShopTableName)
+            .where('user_uuid', userUuid)
+            .first();
+
+        return result;
+    }
+
     async getByUrl(shopUrl: string): Promise<DbShop | undefined> {
         return this.database<DbShop>(ShopTableName)
             .where('shop_url', shopUrl)
@@ -130,7 +138,7 @@ export class ShopService {
 
         await this.database.transaction(async (trx: any) => {
 
-            // TODO: Replace with methods from UserAttributesService
+            // TODO SOLUCIA: Replace with methods from UserAttributesService
             const isAdminAttribute = await this.getOrCreateUserAttribute(
                 trx,
                 'is_admin',
@@ -168,7 +176,7 @@ export class ShopService {
     }
 
 
-
+    // TODO SOLUCIA: Replace with methods from UserAttributesService
     private async getOrCreateUserAttribute(
         trx: Knex.Transaction,
         name: string,

@@ -1,4 +1,5 @@
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
     AllowedEmailDomainsRoles,
@@ -1063,6 +1064,9 @@ export const parseConfig = (): LightdashConfig => {
                   }
                 : undefined,
         },
+        maxQueryLimit:
+            getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
+            AI_DEFAULT_MAX_QUERY_LIMIT,
     };
 
     const copilotConfigParse =
