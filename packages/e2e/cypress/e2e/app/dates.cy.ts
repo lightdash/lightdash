@@ -80,12 +80,14 @@ describe('Date tests', () => {
     it('Should get right month on filtered chart', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/saved`);
 
-        cy.contains('a', 'How many orders did we get on February?').click();
+        // find with serach input "how many"
+        cy.findByPlaceholderText('Search by name').type('how many');
+        cy.findByText('How many orders did we get in June?').click();
 
         cy.findByTestId('Filters-card-expand').click();
         cy.findAllByText('Loading chart').should('have.length', 0);
-        cy.get('tbody td').contains('2018-02');
-        cy.get('tbody td').contains('$415.00');
+        cy.get('tbody td').contains('2024-06');
+        cy.get('tbody td').contains('$843.10');
         cy.get('tbody td').contains('26');
 
         cy.findByTestId('Chart-card-expand').click(); // Collapse charts
@@ -99,7 +101,7 @@ describe('Date tests', () => {
             cy.wrap(compiledSql).should((actualArray) => {
                 const expectedStrings = [
                     'WHERE ((',
-                    "  (DATE_TRUNC('MONTH', \"orders\".order_date)) = ('2018-02-01')",
+                    "  (DATE_TRUNC('MONTH', \"orders\".order_date)) = ('2024-06-01')",
                     '))',
                 ];
 
@@ -129,7 +131,7 @@ describe('Date tests', () => {
         cy.get('.react-grid-layout').within(() => {
             cy.contains(`What's our total revenue to date?`)
                 .parents('.react-grid-item')
-                .contains('1,103');
+                .contains('855');
         });
 
         // Add filter
@@ -142,10 +144,9 @@ describe('Date tests', () => {
         cy.findAllByRole('dialog')
             .eq(1)
             .within(() => {
-                cy.contains('button', new Date().getFullYear()).click();
-                cy.get('button').find('[data-previous="true"]').click();
-                cy.contains('button', 2018).click();
-                cy.contains('button', 'Feb').click();
+                cy.contains('button', 2025).click();
+                cy.contains('button', 2024).click();
+                cy.contains('button', 'Jun').click();
             });
 
         cy.contains('Apply').click();
@@ -155,7 +156,7 @@ describe('Date tests', () => {
         cy.get('.react-grid-layout').within(() => {
             cy.contains(`What's our total revenue to date?`)
                 .parents('.react-grid-item')
-                .contains('400');
+                .contains('468');
         });
     });
 
@@ -221,47 +222,41 @@ describe('Date tests', () => {
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)',
         ).click();
-        cy.contains('Filter by 2018').click();
-        cy.get('.mantine-YearPickerInput-input').contains('2018');
+        cy.contains('Filter by 2025').click();
+        cy.get('.mantine-YearPickerInput-input').contains('2025');
         cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('YEAR', "orders".order_date)) = ('2018-01-01')`,
+            `(DATE_TRUNC('YEAR', "orders".order_date)) = ('2025-01-01')`,
         );
 
         // Filter by month
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)',
         ).click();
-        cy.contains('Filter by 2018-04').click();
+        cy.contains('Filter by 2025-06').click();
 
-        cy.get('.mantine-MonthPickerInput-input').contains('April 2018');
+        cy.get('.mantine-MonthPickerInput-input').contains('June 2025');
         cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2018-04-01')`,
+            `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2025-06-01')`,
         );
 
         // Filter by week
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)',
         ).click();
-        cy.contains('Filter by 2018-04-09').click();
-        cy.get('.mantine-DateInput-input').should(
-            'have.value',
-            'April 9, 2018',
-        );
+        cy.contains('Filter by 2025-06-09').click();
+        cy.get('.mantine-DateInput-input').should('have.value', 'June 9, 2025');
         cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('2018-04-09')`,
+            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('2025-06-09')`,
         );
 
         // Filter by day
         cy.get(
             '.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)',
         ).click();
-        cy.contains('Filter by 2018-04-09').click();
-        cy.get('.mantine-DateInput-input').should(
-            'have.value',
-            'April 9, 2018',
-        );
+        cy.contains('Filter by 2025-06-15').click();
+        cy.get('.mantine-DateInput-input').should('have.value', 'June 9, 2025');
         cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('DAY', "orders".order_date)) = ('2018-04-09')`,
+            `(DATE_TRUNC('DAY', "orders".order_date)) = ('2025-06-15')`,
         );
     });
 
@@ -357,20 +352,20 @@ describe('Date tests', () => {
 
         cy.contains('button', new Date().getFullYear()).click();
         cy.findByRole('dialog').within(() => {
-            cy.get('button').find('[data-previous="true"]').click();
-            cy.contains('button', 2017).click();
+            cy.contains('button', 2025).click();
+            cy.contains('button', 2024).click();
         });
         cy.get('[data-testid=SQL-card-expand]').click();
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('YEAR', "customers".created)) = ('2017-01-01')`,
+            `(DATE_TRUNC('YEAR', "customers".created)) = ('2024-01-01')`,
         );
 
-        cy.contains('button', 2017).click();
+        cy.contains('button', 2024).click();
         cy.findByRole('dialog').within(() => {
-            cy.contains('button', 2018).click();
+            cy.contains('button', 2025).click();
         });
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('YEAR', "customers".created)) = ('2018-01-01')`,
+            `(DATE_TRUNC('YEAR', "customers".created)) = ('2025-01-01')`,
         );
 
         cy.findByTestId('delete-filter-rule-button').click();
@@ -382,22 +377,21 @@ describe('Date tests', () => {
         cy.contains('button', dayjs().format('MMMM YYYY')).click();
         cy.findByRole('dialog').within(() => {
             cy.contains('button', dayjs().format('YYYY')).click();
-            cy.get('button').find('[data-previous="true"]').click();
-            cy.contains('button', 2017).click();
+            cy.contains('button', 2024).click();
             cy.contains('button', 'Aug').click();
         });
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2017-08-01')`,
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2024-08-01')`,
         );
 
-        cy.contains('button', 'August 2017').click();
+        cy.contains('button', 'August 2024').click();
         cy.findByRole('dialog').within(() => {
-            cy.contains('button', '2017').click();
-            cy.contains('button', '2018').click();
-            cy.contains('button', 'Sep').click();
+            cy.contains('button', '2024').click();
+            cy.contains('button', '2025').click();
+            cy.contains('button', 'Jun').click();
         });
         cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2018-09-01')`,
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2025-06-01')`,
         );
 
         cy.findByTestId('delete-filter-rule-button').click();
