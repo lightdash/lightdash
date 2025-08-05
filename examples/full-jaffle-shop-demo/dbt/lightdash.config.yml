@@ -47,8 +47,8 @@ parameters:
       - "quarterly"
   metric_type:
     label: "Metric Type"
-    description: "Switch between counting subscriptions or calculating MRR"
+    description: "Switch between counting subscriptions or calculating Revenue"
     default: "count"
     options:
       - "count"
-      - "mrr"
+      - "revenue"
