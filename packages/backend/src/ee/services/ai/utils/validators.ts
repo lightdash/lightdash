@@ -76,6 +76,7 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
                 fieldFilterType: 'date',
                 operator: filterRule.operator,
                 values: filterRule.values,
+                settings: filterRule.settings,
             });
 
             if (!parsedDateFilterRule.success) {
