@@ -13,7 +13,6 @@ import {
     assertIsAccountWithOrg,
     assertUnreachable,
     CompiledDimension,
-    CompileError,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
@@ -42,7 +41,6 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
-    GroupByColumn,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
@@ -58,7 +56,7 @@ import {
     type Organization,
     type ParametersValuesMap,
     PivotConfig,
-    PivotIndexColum,
+    PivotConfiguration,
     type PivotValuesColumn,
     type Project,
     QueryExecutionContext,
@@ -70,12 +68,10 @@ import {
     S3Error,
     SchedulerFormat,
     sleep,
-    SortBy,
     type SpaceShare,
     type SpaceSummary,
     SqlChart,
     UnexpectedServerError,
-    ValuesColumn,
     WarehouseClient,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
@@ -985,12 +981,7 @@ export class AsyncQueryService extends ProjectService {
         query: string;
         queryTags: RunQueryTags;
         write?: (rows: Record<string, unknown>[]) => void;
-        pivotConfiguration?: {
-            indexColumn: PivotIndexColum;
-            valuesColumns: ValuesColumn[];
-            groupByColumns: GroupByColumn[] | undefined;
-            sortBy: SortBy | undefined;
-        };
+        pivotConfiguration?: PivotConfiguration;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1422,12 +1413,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: string[];
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-        pivotConfiguration?: {
-            indexColumn: PivotIndexColum;
-            valuesColumns: ValuesColumn[];
-            groupByColumns: GroupByColumn[] | undefined;
-            sortBy: SortBy | undefined;
-        },
+        pivotConfiguration?: PivotConfiguration,
     ): Promise<ExecuteAsyncQueryReturn> {
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
