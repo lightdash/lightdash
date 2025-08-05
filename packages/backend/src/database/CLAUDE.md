@@ -72,6 +72,7 @@ console.log(`Found ${searchResults.pagination.totalResults} results`);
 
 <links>
 @/packages/backend/src/database/entities/ - Complete entity definitions directory
+@/packages/backend/src/database/entities/CLAUDE.md - Detailed guide for creating entity files
 @/packages/backend/src/database/migrations/ - Database migration history
 @/packages/backend/knexfile.ts - Database configuration and connection settings
 @/packages/backend/src/database/seeds/development/ - Development seed data
