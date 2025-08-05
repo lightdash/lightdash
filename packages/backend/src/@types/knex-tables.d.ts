@@ -205,12 +205,12 @@ import {
 } from '../database/entities/sshKeyPairs';
 import { TagsTable, TagsTableName } from '../database/entities/tags';
 import {
-    DbGroupUserAttribute,
-    DbOrganizationMemberUserAttribute,
-    DbUserAttribute,
     GroupUserAttributesTable,
+    GroupUserAttributeTable,
     OrganizationMemberUserAttributesTable,
+    OrganizationMemberUserAttributeTable,
     UserAttributesTable,
+    UserAttributeTable,
 } from '../database/entities/userAttributes';
 import {
     ProjectUserWarehouseCredentialPreferenceTable,
@@ -331,9 +331,9 @@ declare module 'knex/types/tables' {
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [SshKeyPairTableName]: SshKeyPairTable;
-        [UserAttributesTable]: DbUserAttribute;
-        [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
-        [GroupUserAttributesTable]: DbGroupUserAttribute;
+        [UserAttributesTable]: UserAttributeTable;
+        [OrganizationMemberUserAttributesTable]: OrganizationMemberUserAttributeTable;
+        [GroupUserAttributesTable]: GroupUserAttributeTable;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [SavedChartCustomSqlDimensionsTableName]: SavedChartCustomSqlDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
