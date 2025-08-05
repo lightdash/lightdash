@@ -1,3 +1,10 @@
+## [0.1875.6](https://github.com/lightdash/lightdash/compare/0.1875.5...0.1875.6) (2025-08-05)
+
+
+### Bug Fixes
+
+* only run query after first run even if auto-fetch is enabled ([#16207](https://github.com/lightdash/lightdash/issues/16207)) ([f1880e7](https://github.com/lightdash/lightdash/commit/f1880e7f1de8806672ddb19c5ca73a793d951217))
+
 ## [0.1875.5](https://github.com/lightdash/lightdash/compare/0.1875.4...0.1875.5) (2025-08-05)
 
 
