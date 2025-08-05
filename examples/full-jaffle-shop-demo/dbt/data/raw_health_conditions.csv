@@ -1,0 +1,41 @@
+condition_id,patient_id,diagnosis_date,icd10_code,condition_name,severity,chronic,managed
+1,3,2023-03-15,E11.9,Type 2 Diabetes,Moderate,true,true
+2,7,2023-08-20,I10,Essential Hypertension,Mild,true,true
+3,9,2023-11-10,I25.10,Coronary Artery Disease,Severe,true,true
+4,13,2023-05-25,E11.65,Type 2 Diabetes with Complications,Severe,true,true
+5,13,2023-02-18,I10,Essential Hypertension,Moderate,true,true
+6,13,2023-09-30,E78.5,Hyperlipidemia,Mild,true,true
+7,17,2023-12-05,J44.0,COPD,Moderate,true,true
+8,21,2024-01-15,M15.0,Primary Osteoarthritis,Moderate,true,true
+9,26,2023-07-22,M80.0,Osteoporosis,Moderate,true,true
+10,30,2023-04-10,J45.909,Asthma,Mild,true,true
+11,2,2024-01-20,J20.9,Acute Bronchitis,Mild,false,true
+12,5,2024-02-20,M54.5,Low Back Pain,Moderate,false,false
+13,8,2024-03-10,J11.1,Influenza,Moderate,false,true
+14,9,2024-06-15,I48.91,Atrial Fibrillation,Moderate,true,true
+15,12,2024-04-15,J30.1,Allergic Rhinitis,Mild,true,true
+16,16,2024-05-10,G43.909,Migraine,Moderate,true,false
+17,17,2023-03-20,J44.1,COPD with Exacerbation,Severe,true,true
+18,22,2024-08-10,F41.1,Generalized Anxiety Disorder,Mild,true,true
+19,24,2024-07-01,F41.9,Anxiety Disorder,Moderate,true,false
+20,27,2024-07-20,K58.0,IBS with Diarrhea,Mild,true,false
+21,3,2024-11-20,E11.22,Diabetic Nephropathy,Moderate,true,true
+22,7,2023-05-15,I11.9,Hypertensive Heart Disease,Moderate,true,true
+23,13,2024-07-10,E11.40,Diabetic Neuropathy,Moderate,true,true
+24,1,2024-09-15,E78.5,Hyperlipidemia,Mild,true,true
+25,4,2023-12-01,D64.9,Anemia,Mild,false,true
+26,6,2024-03-20,K21.0,GERD,Mild,true,true
+27,10,2024-01-05,F32.1,Major Depression,Moderate,true,false
+28,11,2024-06-30,E03.9,Hypothyroidism,Mild,true,true
+29,14,2023-10-15,N18.3,Chronic Kidney Disease Stage 3,Moderate,true,true
+30,15,2024-04-22,E66.9,Obesity,Mild,true,false
+31,18,2024-02-28,R73.03,Prediabetes,Mild,false,false
+32,19,2024-12-10,M79.3,Fibromyalgia,Moderate,true,false
+33,20,2023-08-18,G47.33,Sleep Apnea,Moderate,true,true
+34,23,2024-11-05,Z86.43,History of Tobacco Use,Mild,false,true
+35,25,2024-03-15,R53.83,Chronic Fatigue,Mild,true,false
+36,28,2024-07-20,D50.9,Iron Deficiency Anemia,Mild,false,true
+37,29,2023-09-10,M81.0,Age-related Osteoporosis,Mild,true,true
+38,5,2024-05-15,G89.29,Chronic Pain Syndrome,Moderate,true,false
+39,8,2024-10-20,B18.2,Chronic Hepatitis C,Moderate,true,true
+40,12,2023-04-05,L40.0,Psoriasis,Mild,true,true

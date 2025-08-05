@@ -1,100 +1,121 @@
-id,user_id,order_date,status
-1,1,2018-01-01,returned
-2,3,2018-01-02,completed
-3,94,2018-01-04,completed
-4,50,2018-01-05,completed
-5,64,2018-01-05,completed
-6,54,2018-01-07,completed
-7,88,2018-01-09,completed
-8,2,2018-01-11,returned
-9,53,2018-01-12,completed
-10,7,2018-01-14,completed
-11,99,2018-01-14,completed
-12,59,2018-01-15,completed
-13,84,2018-01-17,completed
-14,40,2018-01-17,returned
-15,25,2018-01-17,completed
-16,39,2018-01-18,completed
-17,71,2018-01-18,completed
-18,64,2018-01-20,returned
-19,54,2018-01-22,completed
-20,20,2018-01-23,completed
-21,71,2018-01-23,completed
-22,86,2018-01-24,completed
-23,22,2018-01-26,return_pending
-24,3,2018-01-27,completed
-25,51,2018-01-28,completed
-26,32,2018-01-28,completed
-27,94,2018-01-29,completed
-28,8,2018-01-29,completed
-29,57,2018-01-31,completed
-30,69,2018-02-02,completed
-31,16,2018-02-02,completed
-32,28,2018-02-04,completed
-33,42,2018-02-04,completed
-34,38,2018-02-06,completed
-35,80,2018-02-08,completed
-36,85,2018-02-10,completed
-37,1,2018-02-10,completed
-38,51,2018-02-10,completed
-39,26,2018-02-11,completed
-40,33,2018-02-13,completed
-41,99,2018-02-14,completed
-42,92,2018-02-16,completed
-43,31,2018-02-17,completed
-44,66,2018-02-17,completed
-45,22,2018-02-17,completed
-46,6,2018-02-19,completed
-47,50,2018-02-20,completed
-48,27,2018-02-21,completed
-49,35,2018-02-21,completed
-50,51,2018-02-23,completed
-51,71,2018-02-24,completed
-52,54,2018-02-25,return_pending
-53,34,2018-02-26,completed
-54,54,2018-02-26,completed
-55,18,2018-02-27,completed
-56,79,2018-02-28,completed
-57,93,2018-03-01,completed
-58,22,2018-03-01,completed
-59,30,2018-03-02,completed
-60,12,2018-03-03,completed
-61,63,2018-03-03,completed
-62,57,2018-03-05,completed
-63,70,2018-03-06,completed
-64,13,2018-03-07,completed
-65,26,2018-03-08,completed
-66,36,2018-03-10,completed
-67,79,2018-03-11,completed
-68,53,2018-03-11,completed
-69,3,2018-03-11,completed
-70,8,2018-03-12,completed
-71,42,2018-03-12,shipped
-72,30,2018-03-14,shipped
-73,19,2018-03-16,completed
-74,9,2018-03-17,shipped
-75,69,2018-03-18,completed
-76,25,2018-03-20,completed
-77,35,2018-03-21,shipped
-78,90,2018-03-23,shipped
-79,52,2018-03-23,shipped
-80,11,2018-03-23,shipped
-81,76,2018-03-23,shipped
-82,46,2018-03-24,shipped
-83,54,2018-03-24,shipped
-84,70,2018-03-26,placed
-85,47,2018-03-26,shipped
-86,68,2018-03-26,placed
-87,46,2018-03-27,placed
-88,91,2018-03-27,shipped
-89,21,2018-03-28,placed
-90,66,2018-03-30,shipped
-91,47,2018-03-31,placed
-92,84,2018-04-02,placed
-93,66,2018-04-03,placed
-94,63,2018-04-03,placed
-95,27,2018-04-04,placed
-96,90,2018-04-06,placed
-97,89,2018-04-07,placed
-98,41,2018-04-07,placed
-99,85,2018-04-09,placed
+id,user_id,order_date,status,order_source,shipping_method,promo_code,order_priority,estimated_delivery_days,shipping_cost,tax_rate,currency,fulfillment_center,order_notes
+1,1,2023-03-15,returned,website,standard,SPRING23,normal,5,8.99,0.0875,USD,east_coast,Customer requested return - wrong size
+2,3,2023-05-22,completed,mobile_app,express,MOBILE10,high,2,15.99,0.08,USD,west_coast,Gift wrap requested
+3,94,2023-08-10,completed,website,standard,,normal,7,12.50,0.0925,USD,central,
+4,50,2023-11-03,completed,phone,overnight,VIP50,urgent,1,29.99,0.085,USD,east_coast,Rush delivery for event
+5,64,2024-01-18,completed,website,standard,NEW2024,normal,5,9.99,0.0875,USD,west_coast,
+6,54,2024-04-12,completed,mobile_app,express,,high,2,18.99,0.08,USD,central,Mobile exclusive item
+7,88,2024-07-25,completed,website,standard,SUMMER24,normal,6,11.50,0.0925,USD,east_coast,
+8,2,2024-09-14,returned,website,express,BACK2SCHOOL,normal,3,14.99,0.0875,USD,west_coast,Damaged in shipping
+9,53,2024-12-05,completed,mobile_app,standard,,normal,8,7.99,0.08,USD,central,Holiday rush order
+10,7,2025-02-20,completed,website,overnight,VALENTINE,urgent,1,24.99,0.0925,USD,east_coast,Valentine's Day delivery
+11,99,2025-04-08,completed,phone,standard,,normal,5,10.50,0.085,USD,west_coast,Phone order assistance
+12,59,2025-06-15,completed,website,express,SUMMER25,high,2,16.99,0.0875,USD,central,Summer collection pre-order
+13,84,2025-01-30,completed,mobile_app,standard,NEWSTART,normal,6,9.50,0.08,USD,east_coast,
+14,40,2023-07-18,returned,website,standard,,normal,7,13.25,0.0925,USD,west_coast,Quality issue reported
+15,25,2023-10-22,completed,website,express,FALL23,high,3,17.50,0.085,USD,central,
+16,39,2024-02-14,completed,mobile_app,overnight,LOVE14,urgent,1,28.50,0.0875,USD,east_coast,Valentine's rush
+17,71,2024-05-09,completed,website,standard,,normal,5,8.75,0.08,USD,west_coast,
+18,64,2024-08-27,returned,phone,express,LOYALTY,normal,2,19.99,0.0925,USD,central,Loyalty member return
+19,54,2024-11-11,completed,website,standard,VETERANS,normal,6,12.99,0.085,USD,east_coast,Veterans Day special
+20,20,2025-01-29,completed,mobile_app,express,,high,3,15.50,0.0875,USD,west_coast,
+21,71,2024-03-23,completed,website,standard,SPRING24,normal,5,11.25,0.08,USD,central,
+22,86,2024-03-24,completed,mobile_app,overnight,URGENT,urgent,1,32.99,0.0925,USD,east_coast,Emergency replacement
+23,22,2024-03-26,return_pending,website,express,,normal,2,18.50,0.085,USD,west_coast,Return requested
+24,3,2024-03-27,completed,phone,standard,PHONE10,normal,7,9.25,0.0875,USD,central,
+25,51,2024-03-28,completed,website,express,FLASH,high,2,21.99,0.08,USD,east_coast,Flash sale item
+26,32,2024-03-28,completed,mobile_app,standard,,normal,6,10.75,0.0925,USD,west_coast,
+27,94,2024-03-29,completed,website,overnight,PREMIUM,urgent,1,35.50,0.085,USD,central,Premium member
+28,8,2024-03-29,completed,mobile_app,standard,,normal,5,8.50,0.0875,USD,east_coast,
+29,57,2024-03-31,completed,website,express,MONTH,high,3,16.25,0.08,USD,west_coast,End of month sale
+30,69,2024-06-02,completed,phone,standard,,normal,7,13.50,0.0925,USD,central,Phone consultation
+31,16,2024-06-02,completed,website,express,JUNE24,high,2,19.75,0.085,USD,east_coast,
+32,28,2024-06-04,completed,mobile_app,overnight,RUSH,urgent,1,29.25,0.0875,USD,west_coast,Last minute gift
+33,42,2024-06-04,completed,website,standard,,normal,6,11.99,0.08,USD,central,
+34,38,2024-06-06,completed,mobile_app,express,MOBILE,high,2,17.25,0.0925,USD,east_coast,Mobile app exclusive
+35,80,2024-06-08,completed,website,standard,CUSTOMER,normal,5,9.75,0.085,USD,west_coast,Returning customer
+36,85,2024-06-10,completed,phone,overnight,,urgent,1,31.50,0.0875,USD,central,Urgent business need
+37,1,2024-06-10,completed,website,express,REPEAT,high,3,18.99,0.08,USD,east_coast,Repeat customer
+38,51,2024-06-10,completed,mobile_app,standard,,normal,6,12.25,0.0925,USD,west_coast,
+39,26,2024-06-11,completed,website,express,QUICK,high,2,20.50,0.085,USD,central,Quick delivery needed
+40,33,2024-06-13,completed,mobile_app,standard,,normal,5,10.25,0.0875,USD,east_coast,
+41,99,2024-06-14,completed,website,overnight,VIP,urgent,1,33.75,0.08,USD,west_coast,VIP customer
+42,92,2024-06-16,completed,phone,standard,,normal,7,14.50,0.0925,USD,central,
+43,31,2024-06-17,completed,website,express,WEEKEND,high,2,16.75,0.085,USD,east_coast,Weekend special
+44,66,2024-06-17,completed,mobile_app,standard,,normal,6,11.50,0.0875,USD,west_coast,
+45,22,2024-06-17,completed,website,overnight,PARTY,urgent,1,28.99,0.08,USD,central,Party preparation
+46,6,2024-06-19,completed,mobile_app,express,,high,3,19.25,0.0925,USD,east_coast,
+47,50,2024-06-20,completed,website,standard,MIDYEAR,normal,5,13.75,0.085,USD,west_coast,Mid-year sale
+48,27,2024-06-21,completed,phone,express,,normal,2,22.50,0.0875,USD,central,
+49,35,2024-06-21,completed,website,standard,,normal,6,12.75,0.08,USD,east_coast,
+50,51,2024-06-23,completed,mobile_app,overnight,URGENT24,urgent,1,34.25,0.0925,USD,west_coast,Business urgent
+51,71,2024-06-24,completed,website,express,,high,2,18.25,0.085,USD,central,
+52,54,2024-06-25,return_pending,mobile_app,standard,RETURN,normal,5,11.75,0.0875,USD,east_coast,Return in process
+53,34,2024-06-26,completed,website,overnight,,urgent,1,30.50,0.08,USD,west_coast,
+54,54,2024-06-26,completed,phone,express,PHONE,high,3,17.99,0.0925,USD,central,Phone order bonus
+55,18,2024-06-27,completed,website,standard,,normal,6,14.25,0.085,USD,east_coast,
+56,79,2024-06-28,completed,mobile_app,express,APP25,high,2,21.75,0.0875,USD,west_coast,App anniversary
+57,93,2025-01-01,completed,website,overnight,NY2025,urgent,1,35.99,0.08,USD,central,New Year rush
+58,22,2025-01-01,completed,mobile_app,standard,,normal,5,13.25,0.0925,USD,east_coast,
+59,30,2025-01-02,completed,website,express,NEWYEAR,high,2,19.50,0.085,USD,west_coast,New Year sale
+60,12,2025-01-03,completed,phone,standard,,normal,7,15.75,0.0875,USD,central,
+61,63,2025-01-03,completed,website,overnight,RESOLUTION,urgent,1,32.25,0.08,USD,east_coast,New Year resolution
+62,57,2025-01-05,completed,mobile_app,express,,high,3,18.50,0.0925,USD,west_coast,
+63,70,2025-01-06,completed,website,standard,HEALTH,normal,6,12.50,0.085,USD,central,Health & wellness
+64,13,2025-01-07,completed,mobile_app,overnight,,urgent,1,29.75,0.0875,USD,east_coast,
+65,26,2025-01-08,completed,website,express,FITNESS,high,2,20.25,0.08,USD,west_coast,Fitness goal
+66,36,2025-01-10,completed,phone,standard,,normal,5,14.99,0.0925,USD,central,
+67,79,2025-01-11,completed,website,overnight,PREMIUM25,urgent,1,36.50,0.085,USD,east_coast,Premium 2025
+68,53,2025-01-11,completed,mobile_app,express,,high,2,22.25,0.0875,USD,west_coast,
+69,3,2025-01-11,completed,website,standard,LOYALTY25,normal,6,13.50,0.08,USD,central,Loyalty program
+70,8,2025-01-12,completed,mobile_app,overnight,,urgent,1,31.75,0.0925,USD,east_coast,
+71,42,2025-01-12,shipped,website,express,SHIP,high,2,19.99,0.085,USD,west_coast,Shipping in progress
+72,30,2025-01-14,shipped,phone,standard,,normal,5,16.25,0.0875,USD,central,
+73,19,2025-01-16,completed,website,overnight,MIDJAN,urgent,1,33.50,0.08,USD,east_coast,Mid-January rush
+74,9,2025-01-17,shipped,mobile_app,express,,high,3,21.50,0.0925,USD,west_coast,
+75,69,2025-01-18,completed,website,standard,WEEKEND25,normal,6,15.25,0.085,USD,central,Weekend deal
+76,25,2025-01-20,completed,phone,overnight,,urgent,1,34.75,0.0875,USD,east_coast,
+77,35,2025-01-21,shipped,website,express,EXPRESS,high,2,23.25,0.08,USD,west_coast,Express shipping
+78,90,2025-01-23,shipped,mobile_app,standard,,normal,5,17.50,0.0925,USD,central,
+79,52,2025-01-23,shipped,website,overnight,,urgent,1,37.25,0.085,USD,east_coast,
+80,11,2025-01-23,shipped,mobile_app,express,MOBILE25,high,2,24.99,0.0875,USD,west_coast,Mobile exclusive
+81,76,2025-01-23,shipped,website,standard,,normal,6,18.75,0.08,USD,central,
+82,46,2025-01-24,shipped,phone,overnight,URGENT25,urgent,1,38.50,0.0925,USD,east_coast,Urgent January
+83,54,2025-01-24,shipped,website,express,,high,3,25.25,0.085,USD,west_coast,
+84,70,2024-06-26,placed,mobile_app,standard,PLACED,normal,5,19.99,0.0875,USD,central,Order placed
+85,47,2024-06-26,shipped,website,express,,high,2,26.50,0.08,USD,east_coast,
+86,68,2024-06-26,placed,mobile_app,overnight,,urgent,1,39.75,0.0925,USD,west_coast,
+87,46,2024-06-27,placed,website,standard,LATE,normal,6,20.25,0.085,USD,central,
+88,91,2024-06-27,shipped,phone,express,,high,2,27.99,0.0875,USD,east_coast,
+89,21,2024-06-28,placed,website,overnight,MONTH,urgent,1,41.25,0.08,USD,west_coast,Month end
+90,66,2024-06-30,shipped,mobile_app,standard,,normal,5,21.50,0.0925,USD,central,
+91,47,2024-06-30,placed,website,express,JUNE30,high,2,28.75,0.085,USD,east_coast,Last day June
+92,84,2025-01-02,placed,mobile_app,overnight,,urgent,1,42.50,0.0875,USD,west_coast,
+93,66,2025-01-03,placed,website,standard,START25,normal,6,22.75,0.08,USD,central,Start of 2025
+94,63,2025-01-03,placed,phone,express,,high,3,29.99,0.0925,USD,east_coast,
+95,27,2025-01-04,placed,website,overnight,NEW25,urgent,1,43.75,0.085,USD,west_coast,New 2025 start
+96,90,2025-01-06,placed,mobile_app,standard,,normal,5,23.25,0.0875,USD,central,
+97,89,2025-01-07,placed,website,express,WEEK1,high,2,30.50,0.08,USD,east_coast,First week 2025
+98,41,2025-01-07,placed,mobile_app,overnight,,urgent,1,44.99,0.0925,USD,west_coast,
+99,85,2025-01-09,placed,website,standard,RESOLUTION25,normal,6,24.50,0.085,USD,central,Resolution order
+100,12,2025-01-10,completed,phone,express,,high,2,31.75,0.0875,USD,east_coast,Phone support
+101,45,2025-01-12,completed,website,overnight,MIDJAN25,urgent,1,46.25,0.08,USD,west_coast,Mid January special
+102,78,2025-01-15,shipped,mobile_app,standard,,normal,5,25.99,0.0925,USD,central,
+103,23,2025-01-18,placed,website,express,MLK25,high,2,32.50,0.085,USD,east_coast,MLK Day sale
+104,67,2025-01-20,completed,phone,overnight,,urgent,1,47.75,0.0875,USD,west_coast,
+105,34,2025-01-22,shipped,website,standard,LATE25,normal,6,26.25,0.08,USD,central,Late January
+106,88,2025-01-25,placed,mobile_app,express,,high,3,33.99,0.0925,USD,east_coast,
+107,55,2025-01-28,completed,website,overnight,MONTH25,urgent,1,49.50,0.085,USD,west_coast,Month end January
+108,92,2025-02-01,shipped,phone,standard,,normal,5,27.50,0.0875,USD,central,February start
+109,18,2025-02-03,placed,website,express,FEB25,high,2,34.75,0.08,USD,east_coast,February special
+110,77,2025-02-05,completed,mobile_app,overnight,,urgent,1,51.25,0.0925,USD,west_coast,
+111,29,2025-02-08,shipped,website,standard,LOVE25,normal,6,28.99,0.085,USD,central,Early Valentine prep
+112,65,2025-02-10,placed,phone,express,,high,2,35.50,0.0875,USD,east_coast,
+113,43,2025-02-12,completed,website,overnight,VALENTINE25,urgent,1,52.75,0.08,USD,west_coast,Valentine rush
+114,81,2025-02-15,shipped,mobile_app,standard,,normal,5,29.25,0.0925,USD,central,Valentine's Day
+115,37,2025-02-18,placed,website,express,AFTER,high,3,36.99,0.085,USD,east_coast,After Valentine
+116,96,2025-02-20,completed,phone,overnight,,urgent,1,54.50,0.0875,USD,west_coast,
+117,14,2025-02-22,shipped,website,standard,PRESIDENTS,normal,6,30.75,0.08,USD,central,Presidents Day
+118,72,2025-02-25,placed,mobile_app,express,,high,2,38.25,0.0925,USD,east_coast,
+119,58,2025-02-28,completed,website,overnight,LASTFEB,urgent,1,56.99,0.085,USD,west_coast,Last day February
+120,39,2025-03-03,shipped,phone,standard,,normal,5,32.50,0.0875,USD,central,March start

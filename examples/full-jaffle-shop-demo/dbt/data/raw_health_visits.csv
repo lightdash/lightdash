@@ -1,0 +1,51 @@
+visit_id,patient_id,visit_date,visit_type,provider,chief_complaint,duration_minutes,follow_up_required,visit_cost
+1,1,2024-01-15,Annual Checkup,Dr. Smith,Routine physical exam,30,false,150.00
+2,2,2024-01-20,Sick Visit,Dr. Jones,Persistent cough,20,true,120.00
+3,3,2024-01-25,Chronic Management,Dr. Smith,Diabetes follow-up,45,true,200.00
+4,1,2024-02-10,Follow-up,Dr. Smith,Blood pressure check,15,false,80.00
+5,4,2024-02-15,Wellness Visit,Dr. Wilson,Preventive care,30,false,150.00
+6,5,2024-02-20,Urgent Care,Dr. Jones,Acute back pain,25,true,180.00
+7,3,2024-02-25,Chronic Management,Dr. Smith,Diabetes management,40,true,200.00
+8,6,2024-03-01,Annual Checkup,Dr. Wilson,Routine physical,30,false,150.00
+9,7,2024-03-05,Chronic Management,Dr. Smith,Hypertension follow-up,35,true,175.00
+10,8,2024-03-10,Sick Visit,Dr. Jones,Flu symptoms,20,true,120.00
+11,2,2024-03-15,Follow-up,Dr. Jones,Cough resolved,15,false,80.00
+12,9,2024-03-20,Chronic Management,Dr. Wilson,Heart disease monitoring,50,true,250.00
+13,10,2024-03-25,Wellness Visit,Dr. Smith,Preventive screening,30,false,150.00
+14,5,2024-03-30,Follow-up,Dr. Jones,Pain management,20,false,100.00
+15,11,2024-04-05,Annual Checkup,Dr. Jones,Routine physical,30,false,150.00
+16,7,2024-04-10,Chronic Management,Dr. Smith,Medication adjustment,30,true,175.00
+17,12,2024-04-15,Sick Visit,Dr. Wilson,Allergies,15,false,100.00
+18,13,2024-04-20,Chronic Management,Dr. Smith,Multiple conditions,60,true,300.00
+19,14,2024-04-25,Wellness Visit,Dr. Jones,Health coaching,25,false,125.00
+20,15,2024-05-01,Annual Checkup,Dr. Wilson,Routine exam,30,false,150.00
+21,9,2024-05-05,Chronic Management,Dr. Wilson,Cardiac follow-up,45,true,225.00
+22,16,2024-05-10,Sick Visit,Dr. Smith,Migraine,20,true,120.00
+23,17,2024-05-15,Chronic Management,Dr. Jones,COPD management,40,true,200.00
+24,18,2024-05-20,Wellness Visit,Dr. Wilson,Lifestyle counseling,30,false,150.00
+25,19,2024-05-25,Annual Checkup,Dr. Smith,Physical exam,30,false,150.00
+26,3,2024-05-30,Emergency,Dr. Smith,Hypoglycemia,90,true,500.00
+27,20,2024-06-05,Sick Visit,Dr. Jones,Skin rash,15,false,100.00
+28,21,2024-06-10,Chronic Management,Dr. Wilson,Arthritis check,35,true,175.00
+29,22,2024-06-15,Annual Checkup,Dr. Smith,Routine physical,30,false,150.00
+30,7,2024-06-20,Chronic Management,Dr. Smith,BP monitoring,25,true,125.00
+31,23,2024-06-25,Wellness Visit,Dr. Jones,Weight management,30,true,150.00
+32,24,2024-07-01,Sick Visit,Dr. Wilson,Anxiety symptoms,45,true,200.00
+33,25,2024-07-05,Annual Checkup,Dr. Smith,Preventive care,30,false,150.00
+34,13,2024-07-10,Chronic Management,Dr. Smith,Comprehensive review,75,true,375.00
+35,26,2024-07-15,Chronic Management,Dr. Jones,Osteoporosis,40,true,200.00
+36,27,2024-07-20,Sick Visit,Dr. Wilson,Digestive issues,25,true,125.00
+37,28,2024-07-25,Wellness Visit,Dr. Smith,Health screening,30,false,150.00
+38,16,2024-07-30,Follow-up,Dr. Smith,Migraine management,20,false,100.00
+39,29,2024-08-05,Annual Checkup,Dr. Jones,Physical exam,30,false,150.00
+40,30,2024-08-10,Chronic Management,Dr. Wilson,Asthma control,35,true,175.00
+41,9,2024-08-15,Chronic Management,Dr. Wilson,Heart health review,55,true,275.00
+42,21,2024-08-20,Chronic Management,Dr. Wilson,Joint assessment,40,true,200.00
+43,1,2024-08-25,Wellness Visit,Dr. Smith,Preventive check,25,false,125.00
+44,17,2024-08-30,Chronic Management,Dr. Jones,Respiratory therapy,45,true,225.00
+45,31,2024-09-05,Telemedicine,Dr. Jones,Mental health check,30,true,100.00
+46,32,2024-09-10,Telemedicine,Dr. Wilson,Follow-up consultation,20,false,75.00
+47,33,2024-09-15,Telemedicine,Dr. Smith,Medication review,15,false,60.00
+48,34,2024-09-20,Telemedicine,Dr. Jones,Chronic care check-in,25,true,90.00
+49,35,2024-09-25,Telemedicine,Dr. Wilson,Wellness coaching,30,false,100.00
+50,36,2024-09-30,Telemedicine,Dr. Smith,Lab results review,20,true,75.00
