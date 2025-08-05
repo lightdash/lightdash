@@ -27,6 +27,7 @@ import {
 import {
     Body,
     Get,
+    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -367,6 +368,7 @@ export class QueryController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}/results')
+    @Hidden() // This endpoint is temporary while we migrate SQL runner to use pagination. Should not be part of API docs.
     @OperationId('getResultsStream')
     async getResultsStream(
         @Path() projectUuid: string,
