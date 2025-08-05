@@ -82,13 +82,13 @@ const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
 ) =>
     `
-<SearchResults searchQuery="${args.searchQuery}" page="${
+<SearchResult searchQuery="${args.searchQuery}" page="${
         args.pagination?.page
     }" pageSize="${args.pagination?.pageSize}" totalPageCount="${
         args.pagination?.totalPageCount
     }" totalResults="${args.pagination?.totalResults}">
     ${args.fields.map((field) => getFieldText(field)).join('\n\n')}
-</SearchResults>
+</SearchResult>
 `.trim();
 
 export const getFindFields = ({ findFields, pageSize }: Dependencies) => {
@@ -129,7 +129,7 @@ Usage tips:
                     )
                     .join('\n\n');
 
-                return fieldsText;
+                return `<SearchResults>${fieldsText}</SearchResults>`;
             } catch (error) {
                 return toolErrorHandler(
                     error,
