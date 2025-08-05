@@ -41,82 +41,88 @@ const DraggableTab: FC<DraggableTabProps> = ({
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                 >
-                    <Tabs.Tab
-                        key={idx}
-                        value={tab.uuid}
-                        bg={isActive ? 'white' : 'gray.0'}
-                        icon={
-                            isEditMode ? (
-                                <Box {...provided.dragHandleProps} w={'sm'}>
-                                    <MantineIcon
-                                        display={isHovered ? 'block' : 'none'}
-                                        size="sm"
-                                        color="gray.6"
-                                        icon={IconGripVertical}
-                                    />
-                                </Box>
-                            ) : null
-                        }
-                        rightSection={
-                            isEditMode ? (
-                                <Menu
-                                    position="bottom"
-                                    withArrow
-                                    withinPortal
-                                    shadow="md"
-                                >
-                                    <Menu.Target>
-                                        <ActionIcon variant="subtle" size="xs">
-                                            <MantineIcon
-                                                icon={IconPencil}
-                                                display={
-                                                    isHovered ? 'block' : 'none'
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Menu.Target>
-                                    <Menu.Dropdown>
-                                        <Menu.Item
-                                            onClick={() => setEditingTab(true)}
-                                            icon={<IconPencil size={14} />}
-                                        >
-                                            Rename Tab
-                                        </Menu.Item>
-                                        {sortedTabs.length === 1 ||
-                                        !currentTabHasTiles ? (
-                                            <Menu.Item
-                                                onClick={(
-                                                    e: React.MouseEvent<HTMLButtonElement>,
-                                                ) => {
-                                                    handleDeleteTab(tab.uuid);
-                                                    e.stopPropagation();
-                                                }}
-                                                color="red"
-                                                icon={<IconTrash size={14} />}
-                                            >
-                                                Remove Tab
-                                            </Menu.Item>
-                                        ) : (
-                                            <Menu.Item
-                                                onClick={() =>
-                                                    setDeletingTab(true)
-                                                }
-                                                color="red"
-                                                icon={<IconTrash size={14} />}
-                                            >
-                                                Safely Remove Tab
-                                            </Menu.Item>
-                                        )}
-                                    </Menu.Dropdown>
-                                </Menu>
-                            ) : null
-                        }
+                    <Tooltip
+                        label={tab.name}
+                        withinPortal
+                        position="top"
+                        withArrow
+                        openDelay={500}
+                        color="dark"
+                        variant="xs"
+                        disabled={!isTruncated}
+                        maw={300}
+                        multiline
                     >
-                        <Tooltip
-                            disabled={!isTruncated}
-                            label={tab.name}
-                            withinPortal
-                            variant="xs"
+                        <Tabs.Tab
+                            key={idx}
+                            value={tab.uuid}
+                            bg={isActive ? 'white' : 'gray.0'}
+                            icon={
+                                isEditMode ? (
+                                    <Box {...provided.dragHandleProps} w={'sm'}>
+                                        <MantineIcon
+                                            display={isHovered ? 'block' : 'none'}
+                                            size="sm"
+                                            color="gray.6"
+                                            icon={IconGripVertical}
+                                        />
+                                    </Box>
+                                ) : null
+                            }
+                            rightSection={
+                                isEditMode ? (
+                                    <Menu
+                                        position="bottom"
+                                        withArrow
+                                        withinPortal
+                                        shadow="md"
+                                    >
+                                        <Menu.Target>
+                                            <ActionIcon variant="subtle" size="xs">
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                    display={
+                                                        isHovered ? 'block' : 'none'
+                                                    }
+                                                />
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Item
+                                                onClick={() => setEditingTab(true)}
+                                                icon={<IconPencil size={14} />}
+                                            >
+                                                Rename Tab
+                                            </Menu.Item>
+                                            {sortedTabs.length === 1 ||
+                                            !currentTabHasTiles ? (
+                                                <Menu.Item
+                                                    onClick={(
+                                                        e: React.MouseEvent<HTMLButtonElement>,
+                                                    ) => {
+                                                        handleDeleteTab(tab.uuid);
+                                                        e.stopPropagation();
+                                                    }}
+                                                    color="red"
+                                                    icon={<IconTrash size={14} />}
+                                                >
+                                                    Remove Tab
+                                                </Menu.Item>
+                                            ) : (
+                                                <Menu.Item
+                                                    onClick={() =>
+                                                        setDeletingTab(true)
+                                                    }
+                                                    color="red"
+                                                    icon={<IconTrash size={14} />}
+                                                >
+                                                    Safely Remove Tab
+                                                </Menu.Item>
+                                            )}
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                ) : null
+                            }
                         >
                             <Title
                                 ref={ref}
@@ -130,8 +136,8 @@ const DraggableTab: FC<DraggableTabProps> = ({
                             >
                                 {tab.name}
                             </Title>
-                        </Tooltip>
-                    </Tabs.Tab>
+                        </Tabs.Tab>
+                    </Tooltip>
                 </div>
             )}
         </Draggable>
