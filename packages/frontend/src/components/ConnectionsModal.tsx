@@ -30,7 +30,7 @@ const ConnectionsModal: FC<ConnectionsModalProps> = ({
           style={{ width: 24, height: 24 }}
         />
         <Text fw={600} size="lg">
-          Connect your {selectedConnection?.name} account
+          Connect your account
         </Text>
       </Group>
     }
@@ -43,14 +43,22 @@ const ConnectionsModal: FC<ConnectionsModalProps> = ({
         label="Store URL"
         placeholder={`e.g. myshop.myshopify.com`}
         value={selectedConnection?.name || ''}
-       onChange={(e) => updateConnection(e.currentTarget.value)}
+        onChange={(e) => updateConnection(e.currentTarget.value)}
         radius="md"
       />
       <Group position="right">
-        <Button variant="default" onClick={handleRefresh}>
-          Refresh Data
-        </Button>
-        <Button onClick={handleConnect}>Connect</Button>
+        {selectedConnection?.is_connected ? (
+          <>
+          <Button variant="default" onClick={handleRefresh}>
+            Refresh Data
+          </Button>
+          {/* TODO: Hook up disconnect functionality */}
+          <Button variant="filled" onClick={handleConnect}>Disconnect</Button>
+          </>
+
+        ) : (<Button onClick={handleConnect}>Connect</Button>)}
+
+
       </Group>
     </Stack>
   </Modal>

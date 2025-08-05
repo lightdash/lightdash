@@ -9,4 +9,6 @@ export interface Connection {
     name: string;
     is_connected: boolean;
     icon?: string; // Optional icon URL for the connection
+    startUrl?: string; // Optional start URL for the connection
+    callbackUrl?: string; // Optional callback URL for the connection
 }

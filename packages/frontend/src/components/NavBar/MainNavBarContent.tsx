@@ -33,9 +33,6 @@ export const MainNavBarContent: FC<Props> = ({
         projectUuid: activeProjectUuid,
     });
 
-    const frontendUrl = import.meta.env.VITE_CUSTOM_FRONTEND_URL;
-
-
     return (
         <>
             <Group align="center" sx={{ flexShrink: 0 }}>
