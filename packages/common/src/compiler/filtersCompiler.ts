@@ -52,10 +52,74 @@ const raiseInvalidFilterError = (
     );
 };
 
+/**
+ * Escapes SQL LIKE special characters (_ and %) for literal matching
+ * @param value The string value to escape
+ * @returns The escaped string with special characters treated as literals
+ */
+const escapeLikeSpecialCharacters = (value: string): string => {
+    return value.replace(/[_%]/g, (match) => `\\${match}`);
+};
+
+/**
+ * Checks if a string contains SQL LIKE special characters that need escaping
+ * @param value The string value to check
+ * @returns True if the string contains special characters that need escaping
+ */
+const containsLikeSpecialCharacters = (value: string): boolean => {
+    return /[_%]/.test(value);
+};
+
+/**
+ * Checks if a database adapter supports regex functions
+ * @param adapterType The database adapter type
+ * @returns True if the database supports regex functions
+ */
+const supportsRegexFunctions = (adapterType: SupportedDbtAdapter): boolean => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.REDSHIFT:
+            return true;
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.TRINO:
+            return false;
+        default:
+            return false;
+    }
+};
+
+/**
+ * Generates regex SQL based on database adapter
+ * @param dimensionSql The column SQL
+ * @param pattern The regex pattern
+ * @param adapterType The database adapter type
+ * @returns The regex SQL for the specific database
+ */
+const generateRegexSql = (
+    dimensionSql: string,
+    pattern: string,
+    adapterType: SupportedDbtAdapter,
+): string => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return `REGEXP_CONTAINS(${dimensionSql}, r'${pattern}')`;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            return `REGEXP_LIKE(${dimensionSql}, '${pattern}', 'i')`;
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.REDSHIFT:
+            return `${dimensionSql} ~* '${pattern}'`;
+        default:
+            throw new Error(`Regex not supported for adapter: ${adapterType}`);
+    }
+};
+
 export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
+    adapterType?: SupportedDbtAdapter,
 ): string => {
     const filterValues = filter.values;
 
@@ -75,16 +139,40 @@ export const renderStringFilterSql = (
         case FilterOperator.INCLUDE:
             if (filterValues === undefined || filterValues.length === 0)
                 return 'true';
-            const includesQuery = filterValues.map(
-                (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
-            );
+            
+            const includesQuery = filterValues.map((v) => {
+                const stringValue = String(v);
+                
+                // Use regex if database supports it and special characters are present
+                if (adapterType && supportsRegexFunctions(adapterType) && containsLikeSpecialCharacters(stringValue)) {
+                    return generateRegexSql(dimensionSql, stringValue, adapterType);
+                }
+                
+                // Fall back to LIKE with escaping
+                const escapedValue = containsLikeSpecialCharacters(stringValue)
+                    ? escapeLikeSpecialCharacters(stringValue)
+                    : stringValue;
+                return `LOWER(${dimensionSql}) LIKE LOWER('%${escapedValue}%')`;
+            });
+            
             if (includesQuery.length > 1)
                 return `(${includesQuery.join('\n  OR\n  ')})`;
             return includesQuery.join('\n  OR\n  ');
         case FilterOperator.NOT_INCLUDE:
-            const notIncludeQuery = filterValues?.map(
-                (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
-            );
+            const notIncludeQuery = filterValues?.map((v) => {
+                const stringValue = String(v);
+                
+                // Use regex if database supports it and special characters are present
+                if (adapterType && supportsRegexFunctions(adapterType) && containsLikeSpecialCharacters(stringValue)) {
+                    return `NOT ${generateRegexSql(dimensionSql, stringValue, adapterType)}`;
+                }
+                
+                // Fall back to LIKE with escaping
+                const escapedValue = containsLikeSpecialCharacters(stringValue)
+                    ? escapeLikeSpecialCharacters(stringValue)
+                    : stringValue;
+                return `LOWER(${dimensionSql}) NOT LIKE LOWER('%${escapedValue}%')`;
+            });
             return notIncludeQuery?.join('\n  AND\n  ') || 'true';
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
@@ -416,6 +504,7 @@ export const renderTableCalculationFilterRuleSql = (
                 fieldSql,
                 escapedFilterRule,
                 stringQuoteChar,
+                adapterType,
             );
         case TableCalculationType.DATE:
         case TableCalculationType.TIMESTAMP:
@@ -446,6 +535,7 @@ export const renderTableCalculationFilterRuleSql = (
                 fieldSql,
                 escapedFilterRule,
                 stringQuoteChar,
+                adapterType,
             );
     }
 };
@@ -475,6 +565,7 @@ export const renderFilterRuleSql = (
                 fieldSql,
                 escapedFilterRule,
                 stringQuoteChar,
+                adapterType,
             );
         }
         case DimensionType.NUMBER:
