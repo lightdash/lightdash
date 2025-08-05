@@ -18186,7 +18186,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1874.0",
+        "version": "0.1875.5",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -28432,54 +28432,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v2/projects/{projectUuid}/query/{queryUuid}/results": {
-            "get": {
-                "operationId": "getResultsStream",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/AnyType"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Stream results from S3",
-                "tags": ["v2", "Query"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v2/projects/{projectUuid}/query/{queryUuid}/download": {
