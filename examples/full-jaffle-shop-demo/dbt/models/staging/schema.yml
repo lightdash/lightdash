@@ -72,3 +72,86 @@ models:
         description: ""
       - name: amount
         description: ""
+
+  # Health staging models
+  - name: stg_patients
+    description: Cleaned patient demographic and registration information
+    meta:
+      group_label: "staging"
+    columns:
+      - name: patient_id
+        description: Unique patient identifier
+        tests:
+          - unique
+          - not_null
+      - name: full_name
+        description: Patient's full name
+      - name: age
+        description: Patient's current age in years
+      - name: email
+        description: Patient email address
+      - name: health_plan
+        description: Patient's health insurance plan
+      - name: risk_category
+        description: Patient risk stratification (Low, Medium, High)
+
+  - name: stg_health_visits
+    description: Cleaned healthcare visits and encounters
+    meta:
+      group_label: "staging"
+    columns:
+      - name: visit_id
+        description: Unique visit identifier
+        tests:
+          - unique
+          - not_null
+      - name: patient_id
+        description: Reference to patient
+        tests:
+          - not_null
+      - name: visit_date
+        description: Date of the healthcare visit
+      - name: visit_type
+        description: Type of visit (Annual Checkup, Sick Visit, etc.)
+      - name: provider
+        description: Healthcare provider who conducted the visit
+
+  - name: stg_health_vitals
+    description: Cleaned vital signs measurements from visits
+    meta:
+      group_label: "staging"
+    columns:
+      - name: vital_id
+        description: Unique vital measurement identifier
+        tests:
+          - unique
+          - not_null
+      - name: visit_id
+        description: Reference to visit
+        tests:
+          - not_null
+      - name: blood_pressure_category
+        description: BP classification (Normal, Elevated, etc.)
+      - name: bmi_category
+        description: BMI classification (Underweight, Normal, etc.)
+
+  - name: stg_health_conditions
+    description: Cleaned patient diagnoses and conditions
+    meta:
+      group_label: "staging"
+    columns:
+      - name: condition_id
+        description: Unique condition identifier
+        tests:
+          - unique
+          - not_null
+      - name: patient_id
+        description: Reference to patient
+        tests:
+          - not_null
+      - name: condition_name
+        description: Name of the medical condition
+      - name: condition_category
+        description: Category of condition (Endocrine, Cardiovascular, etc.)
+      - name: chronic
+        description: Whether condition is chronic
