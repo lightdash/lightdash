@@ -42,7 +42,7 @@ import { useNavigate, useParams } from 'react-router';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
-} from '../../components/AutoFetchResultsButton/defaults';
+} from '../../components/RunQuerySettings/defaults';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
