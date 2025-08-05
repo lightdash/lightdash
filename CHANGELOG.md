@@ -1,3 +1,10 @@
+## [0.1876.1](https://github.com/lightdash/lightdash/compare/0.1876.0...0.1876.1) (2025-08-05)
+
+
+### Bug Fixes
+
+* return valid XML from find fields tool call ([#16218](https://github.com/lightdash/lightdash/issues/16218)) ([05827ec](https://github.com/lightdash/lightdash/commit/05827ec4bceb7d44a6415d53ab3e7bccf56e96c6))
+
 # [0.1876.0](https://github.com/lightdash/lightdash/compare/0.1875.6...0.1876.0) (2025-08-05)
 
 
