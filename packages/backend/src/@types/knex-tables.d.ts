@@ -219,7 +219,7 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../database/entities/userWarehouseCredentials';
 import {
-    DbValidationTable,
+    ValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
 import {
@@ -327,7 +327,7 @@ declare module 'knex/types/tables' {
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
         [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
-        [ValidationTableName]: DbValidationTable;
+        [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [SshKeyPairTableName]: SshKeyPairTable;
