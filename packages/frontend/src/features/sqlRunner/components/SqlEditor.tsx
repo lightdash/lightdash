@@ -136,45 +136,6 @@ const LIGHTDASH_THEME = {
     },
 };
 
-// Helper function to check if cursor is inside parameter syntax
-const checkParameterContext = (
-    textUntilPosition: string,
-    currentColumn: number,
-) => {
-    // Look for the nearest parameter syntax before the cursor
-    const parameterRegex = /\$\{(lightdash|ld)\.parameters\.(\w*)$/;
-    const match = textUntilPosition.match(parameterRegex);
-
-    if (match) {
-        // We're inside parameter syntax
-        const typedParameterName = match[2] || '';
-        // const parameterStartIndex = textUntilPosition.lastIndexOf('${');
-        const dotIndex = textUntilPosition.lastIndexOf('.') + 1; // +1 to position after the dot
-
-        return {
-            isInsideParameterSyntax: true,
-            typedParameterName,
-            replaceStartColumn: dotIndex + 1, // Monaco uses 1-based indexing
-        };
-    }
-
-    // Check if we're in the middle of typing parameter syntax (incomplete)
-    const incompleteParameterRegex = /\$\{(lightdash|ld)\.param/;
-    if (incompleteParameterRegex.test(textUntilPosition)) {
-        return {
-            isInsideParameterSyntax: false,
-            typedParameterName: '',
-            replaceStartColumn: currentColumn,
-        };
-    }
-
-    return {
-        isInsideParameterSyntax: false,
-        typedParameterName: '',
-        replaceStartColumn: currentColumn,
-    };
-};
-
 const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
@@ -207,97 +168,72 @@ const registerCustomCompletionProvider = (
 
             const suggestions: languages.CompletionItem[] = [];
 
-            // Check if we're inside parameter syntax
-            const parameterContext = checkParameterContext(
-                textUntilPosition,
-                position.column,
-            );
-
-            if (
-                parameterContext.isInsideParameterSyntax &&
-                availableParameters
-            ) {
-                // We're inside ${ld.parameters.} or ${lightdash.parameters.}
-                // Only show parameter suggestions
-                Object.keys(availableParameters).forEach((paramName) => {
-                    const paramConfig = availableParameters[paramName];
-                    const hasValue =
-                        parameterValues &&
-                        parameterValues[paramName] !== undefined;
-                    const value = hasValue
-                        ? parameterValues[paramName]
-                        : undefined;
-                    const valuePreview = Array.isArray(value)
-                        ? value.join(', ')
-                        : value;
-
-                    // Filter parameters based on what user has typed after the dot
-                    if (
-                        parameterContext.typedParameterName === '' ||
-                        paramName
-                            .toLowerCase()
-                            .includes(
-                                parameterContext.typedParameterName.toLowerCase(),
-                            )
-                    ) {
-                        suggestions.push({
-                            label: {
-                                label: paramName,
-                                detail: hasValue
-                                    ? ` = ${valuePreview}`
-                                    : paramConfig.description
-                                    ? ` - ${paramConfig.description}`
-                                    : '',
-                            },
-                            kind: monaco.languages.CompletionItemKind.Variable,
-                            insertText: paramName,
-                            range: {
-                                startLineNumber: position.lineNumber,
-                                endLineNumber: position.lineNumber,
-                                startColumn:
-                                    parameterContext.replaceStartColumn,
-                                endColumn: position.column,
-                            },
-                            sortText: `param_${paramName}`,
-                            detail: hasValue
-                                ? `Parameter: ${
-                                      paramConfig.label || paramName
-                                  } = ${valuePreview}`
-                                : `Parameter: ${
-                                      paramConfig.label || paramName
-                                  }${
-                                      paramConfig.description
-                                          ? ` - ${paramConfig.description}`
-                                          : ''
-                                  }`,
-                            documentation:
-                                paramConfig.description ||
-                                'Lightdash parameter',
-                        });
-                    }
-                });
-
-                return { suggestions };
-            }
-
-            // Not inside parameter syntax - show general autocomplete including parameters
+            // Add parameter completions with simplified logic
             if (availableParameters) {
-                // Create parameter suggestions from available project parameters
                 Object.keys(availableParameters).forEach((paramName) => {
                     const paramConfig = availableParameters[paramName];
-                    const hasValue =
-                        parameterValues &&
-                        parameterValues[paramName] !== undefined;
+                    const hasValue = parameterValues?.[paramName] !== undefined;
                     const value = hasValue
                         ? parameterValues[paramName]
                         : undefined;
                     const valuePreview = Array.isArray(value)
                         ? value.join(', ')
                         : value;
+
+                    // Use a single regex to detect context and what to replace
+                    const parameterPattern =
+                        /\$\{(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)\}?$/;
+                    const ldPattern =
+                        /\b(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)$/;
+
+                    const parameterMatch =
+                        textUntilPosition.match(parameterPattern);
+                    const ldMatch = textUntilPosition.match(ldPattern);
+
+                    let insertText: string;
+                    let customRange = range;
+
+                    if (parameterMatch) {
+                        // Inside ${} - replace from the start of the match
+                        const matchStart = textUntilPosition.lastIndexOf(
+                            parameterMatch[1],
+                        );
+                        insertText = `ld.parameters.${paramName}`;
+                        customRange = {
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: matchStart + 1,
+                            endColumn: position.column,
+                        };
+                    } else if (ldMatch) {
+                        // Outside ${} - wrap with ${} and replace from start of ld
+                        const matchStart = textUntilPosition.lastIndexOf(
+                            ldMatch[1],
+                        );
+                        insertText = `\${ld.parameters.${paramName}}`;
+                        customRange = {
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: matchStart + 1,
+                            endColumn: position.column,
+                        };
+                    } else {
+                        // Default case - insert full parameter
+                        insertText = `\${ld.parameters.${paramName}}`;
+                    }
+
+                    // Prioritize parameters when typing ld/parameters related text
+                    const isRelevantContext =
+                        parameterMatch ||
+                        ldMatch ||
+                        /(?:^|\W)(?:ld|parameters)/i.test(textUntilPosition);
+                    const sortText = isRelevantContext
+                        ? `0_param_${paramName}`
+                        : `param_${paramName}`;
 
                     suggestions.push({
                         label: {
-                            label: `\${ld.parameters.${paramName}}`,
+                            label: `ld.parameters.${paramName}`,
                             detail: hasValue
                                 ? ` = ${valuePreview}`
                                 : paramConfig.description
@@ -305,9 +241,9 @@ const registerCustomCompletionProvider = (
                                 : ' (no value)',
                         },
                         kind: monaco.languages.CompletionItemKind.Variable,
-                        insertText: `\${ld.parameters.${paramName}}`,
-                        range,
-                        sortText: `param_${paramName}`, // High priority with 'param_' prefix
+                        insertText,
+                        range: customRange,
+                        sortText,
                         detail: hasValue
                             ? `Parameter: ${
                                   paramConfig.label || paramName
@@ -581,17 +517,15 @@ export const SqlEditor: FC<{
     // Register completion provider reactively when data changes
     useEffect(() => {
         // Setup logic only runs when all dependencies are available
-        if (monaco && transformedData && quoteChar) {
+        if (monaco && quoteChar) {
             // Dispose of the previous completion provider
             if (completionProviderRef.current) {
                 completionProviderRef.current.dispose();
                 completionProviderRef.current = null;
             }
-            const tablesList = generateTableCompletions(
-                quoteChar,
-                transformedData,
-                settings,
-            );
+            const tablesList = transformedData
+                ? generateTableCompletions(quoteChar, transformedData, settings)
+                : [];
             // Transform current table fields to include context and combine with detected table fields
             const currentTableFieldsWithContext = (tableFieldsData || []).map(
                 (field) => ({
@@ -605,19 +539,18 @@ export const SqlEditor: FC<{
                 ...(detectedTablesFieldData || []),
             ];
 
-            if (tablesList && tablesList.length > 0) {
-                const provider = registerCustomCompletionProvider(
-                    monaco,
-                    language,
-                    quoteChar,
-                    tablesList,
-                    allFieldsData.length > 0 ? allFieldsData : undefined,
-                    settings,
-                    availableParameters,
-                    parameterValues,
-                );
-                completionProviderRef.current = provider;
-            }
+            // Always register completion provider, even without tables
+            const provider = registerCustomCompletionProvider(
+                monaco,
+                language,
+                quoteChar,
+                tablesList || [],
+                allFieldsData.length > 0 ? allFieldsData : undefined,
+                settings,
+                availableParameters,
+                parameterValues,
+            );
+            completionProviderRef.current = provider;
         }
         // Cleanup function always runs on unmount regardless of conditions
         return () => {
