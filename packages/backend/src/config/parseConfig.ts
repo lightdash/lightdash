@@ -38,6 +38,7 @@ import {
     DEFAULT_OPENROUTER_MODEL_NAME,
 } from './aiConfigSchema';
 import { parseShopifyConfig, ShopifyAuthConfig } from './shopifyConfig';
+import { GoogleAnalyticsConfig, parseGoogleAnalyticsConfig } from './googleAnalyticsConfig';
 
 enum TokenEnvironmentVariable {
     SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
@@ -940,6 +941,7 @@ export type AuthConfig = {
         maxExpirationTimeInDays: number | undefined;
     };
     shopify: ShopifyAuthConfig | undefined;
+    googleAnalytics: GoogleAnalyticsConfig | undefined;
     oauthServer?: {
         accessTokenLifetime: number; // in seconds (default = 1 hour)
         refreshTokenLifetime: number; // in seconds (default = 2 weeks)
@@ -1199,6 +1201,7 @@ export const parseConfig = (): LightdashConfig => {
                     ) ?? undefined,
             },
             shopify: parseShopifyConfig(),
+            googleAnalytics: parseGoogleAnalyticsConfig(),
             disablePasswordAuthentication:
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',

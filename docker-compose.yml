@@ -85,6 +85,8 @@ services:
             - VITE_CUSTOM_FRONTEND_URL=${VITE_CUSTOM_FRONTEND_URL}
             - VITE_SITE_URL=${VITE_SITE_URL}
             - DEFAULT_ORG_UUID=${DEFAULT_ORG_UUID}
+            - GA_CLIENT_ID=${GA_CLIENT_ID}
+            - GA_CLIENT_SECRET=${GA_CLIENT_SECRET}
         volumes:
             - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:

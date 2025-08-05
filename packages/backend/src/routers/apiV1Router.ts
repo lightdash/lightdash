@@ -21,6 +21,7 @@ import { projectRouter } from './projectRouter';
 import { savedChartRouter } from './savedChartRouter';
 import { userRouter } from './userRouter';
 import { shopifyInstallRedirect, shopifyAuthCallback } from './shopifyRouter';
+import { googleAnalyticsAuthCallback, googleAnalyticsAuthStart } from './googleAnalyticsRouter';
 
 export const apiV1Router = express.Router();
 
@@ -265,5 +266,7 @@ apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/headless-browser', headlessBrowserRouter);
 apiV1Router.get('/auth/shopify/start', shopifyInstallRedirect);
 apiV1Router.get('/auth/shopify/callback', shopifyAuthCallback);
+apiV1Router.get('/auth/google-analytics/start', googleAnalyticsAuthStart);
+apiV1Router.get('/auth/google-analytics/callback', googleAnalyticsAuthCallback);
 apiV1Router.use('/mcp', mcpRouter);
 apiV1Router.use('/oauth', oauthRouter);
