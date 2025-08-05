@@ -20,9 +20,6 @@ import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
 
-// Mantine v8 styles
-import '@mantine-8/core/styles.css';
-
 // const isMobile =
 //     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
 //         navigator.userAgent,
