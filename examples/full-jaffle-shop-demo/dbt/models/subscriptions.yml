@@ -235,7 +235,7 @@ models:
                   CASE 
                     WHEN (${ld.parameters.subscription_status} = 'all' OR subscription_status = ${ld.parameters.subscription_status})
                       AND duration_months >= ${ld.parameters.min_duration_months}::NUMERIC
-                      AND (${ld.parameters.plan_type} = 'all' OR plan_name = ${ld.parameters.plan_type})
+                      AND ('all' IN (${ld.parameters.plan_type}) OR plan_name IN (${ld.parameters.plan_type}))
                     THEN subscription_id
                     ELSE NULL 
                   END
