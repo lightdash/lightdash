@@ -117,10 +117,10 @@ import {
 } from '../database/entities/warehouseCredentials';
 
 import {
+    AnalyticsChartViews,
     AnalyticsChartViewsTableName,
+    AnalyticsDashboardViews,
     AnalyticsDashboardViewsTableName,
-    DbAnalyticsChartViews,
-    DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
     CatalogTable,
@@ -205,12 +205,12 @@ import {
 } from '../database/entities/sshKeyPairs';
 import { TagsTable, TagsTableName } from '../database/entities/tags';
 import {
-    DbGroupUserAttribute,
-    DbOrganizationMemberUserAttribute,
-    DbUserAttribute,
     GroupUserAttributesTable,
+    GroupUserAttributeTable,
     OrganizationMemberUserAttributesTable,
+    OrganizationMemberUserAttributeTable,
     UserAttributesTable,
+    UserAttributeTable,
 } from '../database/entities/userAttributes';
 import {
     ProjectUserWarehouseCredentialPreferenceTable,
@@ -219,7 +219,7 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../database/entities/userWarehouseCredentials';
 import {
-    DbValidationTable,
+    ValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
 import {
@@ -313,8 +313,8 @@ declare module 'knex/types/tables' {
         [ShareTableName]: ShareTable;
         [SpaceUserAccessTableName]: SpaceUserAccessTable;
         [SlackAuthTokensTableName]: SlackAuthTokensTable;
-        [AnalyticsChartViewsTableName]: DbAnalyticsChartViews;
-        [AnalyticsDashboardViewsTableName]: DbAnalyticsDashboardViews;
+        [AnalyticsChartViewsTableName]: AnalyticsChartViews;
+        [AnalyticsDashboardViewsTableName]: AnalyticsDashboardViews;
         [PinnedListTableName]: PinnedListTable;
         [PinnedChartTableName]: PinnedChartTable;
         [PinnedDashboardTableName]: PinnedDashboardTable;
@@ -327,13 +327,13 @@ declare module 'knex/types/tables' {
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
         [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
-        [ValidationTableName]: DbValidationTable;
+        [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [SshKeyPairTableName]: SshKeyPairTable;
-        [UserAttributesTable]: DbUserAttribute;
-        [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
-        [GroupUserAttributesTable]: DbGroupUserAttribute;
+        [UserAttributesTable]: UserAttributeTable;
+        [OrganizationMemberUserAttributesTable]: OrganizationMemberUserAttributeTable;
+        [GroupUserAttributesTable]: GroupUserAttributeTable;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
         [SavedChartCustomSqlDimensionsTableName]: SavedChartCustomSqlDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
