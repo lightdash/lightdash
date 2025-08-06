@@ -1,13 +1,15 @@
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import Locize from 'i18next-locize-backend';
+import Backend from 'i18next-http-backend';
 import { initReactI18next } from 'react-i18next';
 
 i18next
-    .use(Locize)
+    .use(Backend)
     .use(LanguageDetector)
     .use(initReactI18next) // bind react-i18next to the instance
     .init({
+        // Options for using Locize as the backend
+        /*
         backend: {
             projectId: import.meta.env.VITE_LOCIZE_PROJECT_ID,
             apiKey: import.meta.env.VITE_LOCIZE_API_KEY,
@@ -15,9 +17,7 @@ i18next
             private: false,
             referenceLng: 'en',
         },
-
-        defaultNS: 'sdk-test-app',
-        ns: ['sdk-test-app', 'lightdash', 'analytics'],
+        */
         fallbackLng: 'en',
         debug: true,
 

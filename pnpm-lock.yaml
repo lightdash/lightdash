@@ -1237,6 +1237,9 @@ importers:
       i18next-browser-languagedetector:
         specifier: ^8.0.3
         version: 8.0.3
+      i18next-http-backend:
+        specifier: ^3.0.2
+        version: 3.0.2(encoding@0.1.13)
       i18next-locize-backend:
         specifier: ^7.0.3
         version: 7.0.3(encoding@0.1.13)
@@ -10890,6 +10893,9 @@ packages:
 
   i18next-browser-languagedetector@8.0.3:
     resolution: {integrity: sha512-beOOLArattPBc2YZG5IXGJytdYFgUR7cS8Wd6HT4IczIoWKgmTspOQ2yasaGklelVo5seLPmnEKvLHR+E/MdWQ==}
+
+  i18next-http-backend@3.0.2:
+    resolution: {integrity: sha512-PdlvPnvIp4E1sYi46Ik4tBYh/v/NbYfFFgTjkwFl0is8A18s7/bx9aXqsrOax9WUbeNS6mD2oix7Z0yGGf6m5g==}
 
   i18next-locize-backend@7.0.3:
     resolution: {integrity: sha512-KsHtX1vQdEkBSbfJy2AQ1PTGNHZGmRtNVTZAkv/xFwNrObYIc2p0UxpRCocc3BC4IBJKysHd8QoFcUV6aX1Ssg==}
@@ -29372,6 +29378,12 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.26.9
 
+  i18next-http-backend@3.0.2(encoding@0.1.13):
+    dependencies:
+      cross-fetch: 4.0.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+
   i18next-locize-backend@7.0.3(encoding@0.1.13):
     dependencies:
       cross-fetch: 4.0.0(encoding@0.1.13)
@@ -34923,8 +34935,8 @@ snapshots:
 
   tsx@4.19.4:
     dependencies:
-      esbuild: 0.25.2
-      get-tsconfig: 4.7.5
+      esbuild: 0.25.8
+      get-tsconfig: 4.10.1
     optionalDependencies:
       fsevents: 2.3.3
 
