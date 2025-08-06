@@ -73,6 +73,7 @@ import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
+import SchedulerParameters from './SchedulerParameters';
 import { SchedulerPreview } from './SchedulerPreview';
 import { Limit, Values } from './types';
 
@@ -99,6 +100,7 @@ const DEFAULT_VALUES = {
     slackTargets: [] as string[],
     msTeamsTargets: [] as string[],
     filters: undefined,
+    parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: undefined,
     thresholds: [],
@@ -193,6 +195,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         msTeamsTargets: msTeamsTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
+            parameters: schedulerData.parameters,
             customViewportWidth: schedulerData.customViewportWidth,
             selectedTabs: schedulerData.selectedTabs,
         }),
@@ -422,6 +425,7 @@ const SchedulerForm: FC<Props> = ({
                 targets,
                 ...(resource?.type === 'dashboard' && {
                     filters: values.filters,
+                    parameters: values.parameters,
                     customViewportWidth: values.customViewportWidth,
                     selectedTabs: values.selectedTabs,
                 }),
@@ -538,7 +542,10 @@ const SchedulerForm: FC<Props> = ({
                         Setup
                     </Tabs.Tab>
                     {isDashboard && dashboard ? (
-                        <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                        <>
+                            <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                            <Tabs.Tab value="parameters">Parameters</Tabs.Tab>
+                        </>
                     ) : null}
 
                     {!isThresholdAlert && (
@@ -1187,15 +1194,33 @@ const SchedulerForm: FC<Props> = ({
                 </Tabs.Panel>
 
                 {isDashboard && dashboard ? (
-                    <Tabs.Panel value="filters" p="md">
-                        <SchedulerFilters
-                            dashboard={dashboard}
-                            schedulerFilters={form.values.filters}
-                            onChange={(schedulerFilters) => {
-                                form.setFieldValue('filters', schedulerFilters);
-                            }}
-                        />
-                    </Tabs.Panel>
+                    <>
+                        <Tabs.Panel value="filters" p="md">
+                            <SchedulerFilters
+                                dashboard={dashboard}
+                                schedulerFilters={form.values.filters}
+                                onChange={(schedulerFilters) => {
+                                    form.setFieldValue(
+                                        'filters',
+                                        schedulerFilters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="parameters" p="md">
+                            <SchedulerParameters
+                                dashboard={dashboard}
+                                schedulerParameters={form.values.parameters}
+                                onChange={(schedulerParameters) => {
+                                    form.setFieldValue(
+                                        'parameters',
+                                        schedulerParameters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+                    </>
                 ) : null}
 
                 <Tabs.Panel value="customization">
