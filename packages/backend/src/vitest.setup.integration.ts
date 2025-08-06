@@ -190,6 +190,7 @@ export const setupIntegrationTest =
             integrations: [],
             instruction: 'You are a helpful AI assistant for testing purposes.',
             groupAccess: [],
+            userAccess: [],
             imageUrl: null,
         };
 

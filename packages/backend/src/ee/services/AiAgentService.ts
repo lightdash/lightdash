@@ -160,11 +160,12 @@ export class AiAgentService {
     }
 
     /**
-     * Checks if a user has group access to an AI agent
+     * Checks if a user has access to an AI agent
      * Returns true if:
      * 1. The user can manage the AiAgent (admin access)
-     * 2. The agent has no group access defined (open access - users that can view AiAgent)
+     * 2. The agent has no group or user access defined (open access - users that can view AiAgent)
      * 3. The user is a member of at least one of the agent's groups
+     * 4. The user is in the agent's user access list
      */
     private async checkAgentAccess(
         user: SessionUser,
@@ -182,18 +183,35 @@ export class AiAgentService {
             return true;
         }
 
-        if (!agent.groupAccess || agent.groupAccess.length === 0) {
+        // Check if open access (no restrictions)
+        const hasGroupAccess =
+            agent.groupAccess && agent.groupAccess.length > 0;
+        const hasUserAccess = agent.userAccess && agent.userAccess.length > 0;
+
+        if (!hasGroupAccess && !hasUserAccess) {
             return true;
         }
 
-        const groupUuids = agent.groupAccess;
-        const userGroups = await this.groupsModel.findUserInGroups({
-            userUuid: user.userUuid,
-            organizationUuid: agent.organizationUuid,
-            groupUuids,
-        });
+        // Check user access first (direct access)
+        if (hasUserAccess && agent.userAccess.includes(user.userUuid)) {
+            return true;
+        }
 
-        return userGroups.length > 0;
+        // Check group access
+        if (hasGroupAccess) {
+            const groupUuids = agent.groupAccess;
+            const userGroups = await this.groupsModel.findUserInGroups({
+                userUuid: user.userUuid,
+                organizationUuid: agent.organizationUuid,
+                groupUuids,
+            });
+
+            if (userGroups.length > 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -450,7 +468,7 @@ export class AiAgentService {
         const slackUserIds = _.uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
-                .filter((thread) => thread.user.slackUserId != null)
+                .filter((thread) => thread.user.slackUserId !== null)
                 .map((thread) => thread.user.slackUserId),
         );
 
@@ -467,7 +485,7 @@ export class AiAgentService {
 
             const slackUser = slackUsers.find(
                 ({ id }) =>
-                    thread.user.slackUserId != null &&
+                    thread.user.slackUserId !== null &&
                     id === thread.user.slackUserId,
             );
 
@@ -744,6 +762,7 @@ export class AiAgentService {
             integrations: body.integrations,
             instruction: body.instruction,
             groupAccess: body.groupAccess,
+            userAccess: body.userAccess,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -798,6 +817,7 @@ export class AiAgentService {
             instruction: body.instruction,
             imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
+            userAccess: body.userAccess,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
