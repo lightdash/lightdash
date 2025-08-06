@@ -37,7 +37,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     METRIC_QUERY,
     warehouseClientMock,
-} from '../../utils/QueryBuilder/queryBuilder.mock';
+} from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
