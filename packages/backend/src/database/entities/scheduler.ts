@@ -88,6 +88,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'format'
           | 'options'
           | 'filters'
+          | 'parameters'
           | 'custom_viewport_width'
           | 'thresholds'
           | 'notification_frequency'

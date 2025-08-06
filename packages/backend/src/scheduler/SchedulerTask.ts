@@ -21,6 +21,7 @@ import {
     NotEnoughResults,
     NotificationFrequency,
     NotificationPayloadBase,
+    ParametersValuesMap,
     QueryExecutionContext,
     ReadFileError,
     RenameResourcesPayload,
@@ -216,6 +217,7 @@ export default class SchedulerTask {
         dashboardUuid: string | null,
         schedulerUuid: string | undefined,
         sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
+        sendNowSchedulerParameters: ParametersValuesMap | undefined,
         context: DownloadCsv['properties']['context'],
         selectedTabs: string[] | undefined,
     ) {
@@ -249,6 +251,11 @@ export default class SchedulerTask {
                 queryParams.set(
                     'sendNowSchedulerFilters',
                     JSON.stringify(sendNowSchedulerFilters),
+                );
+            if (sendNowSchedulerParameters)
+                queryParams.set(
+                    'sendNowSchedulerParameters',
+                    JSON.stringify(sendNowSchedulerParameters),
                 );
             if (selectedTabs)
                 queryParams.set('selectedTabs', JSON.stringify(selectedTabs));
@@ -304,6 +311,11 @@ export default class SchedulerTask {
                 ? scheduler.filters
                 : undefined;
 
+        const sendNowSchedulerParameters =
+            !schedulerUuid && isDashboardScheduler(scheduler)
+                ? scheduler.parameters
+                : undefined;
+
         const selectedTabs = isDashboardScheduler(scheduler)
             ? scheduler.selectedTabs
             : undefined;
@@ -326,6 +338,7 @@ export default class SchedulerTask {
             dashboardUuid,
             schedulerUuid,
             sendNowSchedulerFilters,
+            sendNowSchedulerParameters,
             context,
             selectedTabs,
         );
@@ -486,6 +499,27 @@ export default class SchedulerTask {
                                 );
                         }
 
+                        const dashboardParameters = dashboard.parameters || {};
+                        const schedulerParameters = isDashboardScheduler(
+                            scheduler,
+                        )
+                            ? scheduler.parameters
+                            : undefined;
+
+                        // Convert dashboard parameters to ParametersValuesMap format
+                        const convertedDashboardParameters: ParametersValuesMap =
+                            Object.fromEntries(
+                                Object.entries(dashboardParameters).map(
+                                    ([key, param]) => [key, param.value],
+                                ),
+                            );
+
+                        // Merge scheduler parameters with dashboard parameters (scheduler parameters override)
+                        const finalParameters: ParametersValuesMap = {
+                            ...convertedDashboardParameters,
+                            ...schedulerParameters,
+                        };
+
                         const chartTileUuidsWithChartUuids = dashboard.tiles
                             .filter(isDashboardChartTileType)
                             .filter((tile) => tile.properties.savedChartUuid)
@@ -522,6 +556,7 @@ export default class SchedulerTask {
                                                 dashboardUuid,
                                                 dashboardFilters,
                                                 dashboardSorts: [],
+                                                parameters: finalParameters,
                                                 limit: chartLimit,
                                             },
                                         );
@@ -580,6 +615,7 @@ export default class SchedulerTask {
                                             tileUuid,
                                             dashboardFilters,
                                             dashboardSorts: [],
+                                            parameters: finalParameters,
                                             limit:
                                                 sqlLimit === null
                                                     ? MAX_SAFE_INTEGER
