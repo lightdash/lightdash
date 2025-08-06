@@ -1,0 +1,78 @@
+{
+    "dashboard": {
+        "jaffle-dashboard": {
+            "name": "Tablero de Jaffle",
+            "tiles": [
+                {
+                    "type": "loom",
+                    "properties": {
+                        "title": "Tutorial: Creando tus primeras métricas y dimensiones"
+                    }
+                },
+                {
+                    "type": "markdown",
+                    "properties": {
+                        "title": "¡Bienvenido a Lightdash!",
+                        "content": "### Lightdash es una analítica de código abierto para tu proyecto dbt.\n\nSomos algo así como Looker, pero sin la etiqueta de precio.\n\n#### En Lightdash, nuestra misión es simple:\n\n&gt; queremos permitir que todos en tu empresa puedan responder sus propias preguntas usando datos.\n\n¿Tienes alguna pregunta? No dudes en enviarnos un mensaje a support@lightdash.com. O simplemente habla con el bot en esta página: puede que no tenga las respuestas a las grandes preguntas de la vida, pero te pondrá en contacto con las personas adecuadas."
+                    }
+                },
+                {
+                    "type": "markdown",
+                    "properties": {
+                        "title": "💸 Ingresos",
+                        "content": "Gráficos relacionados con los ingresos de nuestra Tienda Jaffle."
+                    }
+                },
+                {
+                    "type": "saved_chart",
+                    "properties": {
+                        "title": "¿Cuántos ingresos tenemos por método de pago?",
+                        "chartName": "¿Cuántos ingresos tenemos por método de pago?"
+                    }
+                },
+                {
+                    "type": "saved_chart",
+                    "properties": {
+                        "title": "¿Cuáles son nuestros ingresos totales hasta la fecha?",
+                        "chartName": "¿Cuáles son nuestros ingresos totales hasta la fecha?"
+                    }
+                },
+                {
+                    "type": "markdown",
+                    "properties": {
+                        "title": "📨 Pedidos",
+                        "content": "Detalles sobre nuestros pedidos de Jaffle y la actividad de los clientes."
+                    }
+                },
+                {
+                    "type": "saved_chart",
+                    "properties": {
+                        "title": "¿Cuántos pedidos tenemos a lo largo del tiempo?",
+                        "chartName": "¿Cuántos pedidos tenemos a lo largo del tiempo?"
+                    }
+                },
+                {
+                    "type": "saved_chart",
+                    "properties": {
+                        "title": "¿Cuál es el gasto promedio por cliente?",
+                        "chartName": "¿Cuál es el gasto promedio por cliente?"
+                    }
+                },
+                {
+                    "type": "saved_chart",
+                    "properties": {
+                        "title": "¿Qué clientes no han pedido un artículo recientemente?",
+                        "chartName": "¿Qué clientes no han pedido un artículo recientemente?"
+                    }
+                },
+                {
+                    "type": "saved_chart",
+                    "properties": {
+                        "title": "Ejemplo de Subtítulos",
+                        "chartName": "Ejemplo de Subtítulos"
+                    }
+                }
+            ]
+        }
+    }
+}
