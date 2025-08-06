@@ -1,3 +1,4 @@
+export * from './toolFindDashboardsArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';
 export * from './toolTableVizArgs';

@@ -108,7 +108,7 @@ export class SearchModel {
             .limit(10);
     }
 
-    private async searchDashboards(
+    async searchDashboards(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
@@ -140,6 +140,7 @@ export class SearchModel {
                 { uuid: 'dashboard_uuid' },
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
+                { projectUuid: `${ProjectTableName}.project_uuid` },
                 { spaceUuid: 'space_uuid' },
                 { search_rank: searchRankRawSql },
             )
