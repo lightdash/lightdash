@@ -262,7 +262,7 @@ const registerCustomCompletionProvider = (
                                 label: `ld.parameters.${paramName}`,
                                 detail: paramConfig.description
                                     ? ` - ${paramConfig.description}`
-                                    : ' (no value)',
+                                    : '',
                             },
                             kind: monaco.languages.CompletionItemKind.Variable,
                             insertText,
