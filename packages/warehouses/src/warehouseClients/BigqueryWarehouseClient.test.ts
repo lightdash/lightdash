@@ -1,5 +1,8 @@
 import { Dataset } from '@google-cloud/bigquery';
-import { BigqueryWarehouseClient } from './BigqueryWarehouseClient';
+import {
+    BigquerySqlBuilder,
+    BigqueryWarehouseClient,
+} from './BigqueryWarehouseClient';
 import {
     createJobResponse,
     credentials,
@@ -39,5 +42,29 @@ describe('BigqueryWarehouseClient', () => {
         );
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('BigquerySqlBuilder escaping', () => {
+    const bigquerySqlBuilder = new BigquerySqlBuilder();
+
+    test('Should escape backslashes and quotes in bigquery', () => {
+        expect(bigquerySqlBuilder.escapeString("\\') OR (1=1) --")).toBe(
+            "\\\\\\') OR (1=1) ",
+        );
+    });
+
+    test('Should handle SQL injection attempts', () => {
+        // Test with a typical SQL injection pattern
+        const maliciousInput = "'; DROP TABLE users; --";
+        const escaped = bigquerySqlBuilder.escapeString(maliciousInput);
+        expect(escaped).toBe("\\'; DROP TABLE users; ");
+
+        // Test with another common SQL injection pattern
+        const anotherMaliciousInput = "' OR '1'='1";
+        const anotherEscaped = bigquerySqlBuilder.escapeString(
+            anotherMaliciousInput,
+        );
+        expect(anotherEscaped).toBe("\\' OR \\'1\\'=\\'1");
     });
 });

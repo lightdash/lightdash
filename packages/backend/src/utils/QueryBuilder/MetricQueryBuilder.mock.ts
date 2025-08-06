@@ -22,7 +22,6 @@ import {
     WarehouseTables,
     WarehouseTypes,
 } from '@lightdash/common';
-import { BigquerySqlBuilder, PostgresSqlBuilder } from '@lightdash/warehouses';
 
 export const warehouseClientMock: WarehouseClient = {
     credentials: {
@@ -109,7 +108,17 @@ export const warehouseClientMock: WarehouseClient = {
     parseError: (error: Error) => {
         throw error;
     },
-    escapeString: (value) => value, // Initializing PostgresSqlBuilder here will cause issues on ProjectService.test.ts
+    escapeString: (value) => {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return value
+            .replaceAll("'", "''")
+            .replaceAll('\\', '\\\\')
+            .replace(/--.*$/gm, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '');
+    },
 };
 
 export const bigqueryClientMock: WarehouseClient = {
