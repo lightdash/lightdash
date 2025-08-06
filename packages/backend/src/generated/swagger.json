@@ -28018,6 +28018,7 @@
                         }
                     }
                 },
+                "description": "Retrieves paginated results from a previously executed async query using its UUID",
                 "summary": "Get results",
                 "tags": ["Query"],
                 "security": [],
@@ -28087,6 +28088,7 @@
                         }
                     }
                 },
+                "description": "Cancels a running async query and discards any partial results",
                 "summary": "Cancel query",
                 "tags": ["Query"],
                 "security": [],
@@ -28136,6 +28138,7 @@
                         }
                     }
                 },
+                "description": "Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts",
                 "summary": "Execute metric query",
                 "tags": ["Query"],
                 "security": [],
@@ -28186,6 +28189,7 @@
                         }
                     }
                 },
+                "description": "Executes a saved chart query asynchronously with optional parameter overrides",
                 "summary": "Execute saved chart",
                 "tags": ["Query"],
                 "security": [],
@@ -28236,6 +28240,7 @@
                         }
                     }
                 },
+                "description": "Executes a chart within a dashboard context asynchronously with inherited dashboard filters",
                 "summary": "Execute dashboard chart",
                 "tags": ["Query"],
                 "security": [],
@@ -28286,6 +28291,7 @@
                         }
                     }
                 },
+                "description": "Executes a query to retrieve underlying raw data for drilling down into aggregated values",
                 "summary": "Execute underlying data",
                 "tags": ["Query"],
                 "security": [],
@@ -28336,6 +28342,7 @@
                         }
                     }
                 },
+                "description": "Executes a raw SQL query asynchronously against your data warehouse for custom queries",
                 "summary": "Execute SQL query",
                 "tags": ["Query"],
                 "security": [],
@@ -28386,6 +28393,7 @@
                         }
                     }
                 },
+                "description": "Executes a saved SQL chart query asynchronously with optional chart configurations",
                 "summary": "Execute SQL chart",
                 "tags": ["Query"],
                 "security": [],
@@ -28436,6 +28444,7 @@
                         }
                     }
                 },
+                "description": "Executes a SQL chart within a dashboard context asynchronously with inherited filters",
                 "summary": "Execute dashboard SQL chart",
                 "tags": ["Query"],
                 "security": [],
@@ -28486,6 +28495,7 @@
                         }
                     }
                 },
+                "description": "Downloads query results in various formats with custom formatting options",
                 "summary": "Download results",
                 "tags": ["Query"],
                 "security": [],

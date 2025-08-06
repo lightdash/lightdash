@@ -22,8 +22,8 @@ Key patterns:
 @Tags('Projects')
 export class ProjectController extends BaseController {
     /**
+     * Retrieves all charts within a project's spaces
      * @summary List charts
-     * @description Retrieves all charts within a project's spaces
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -44,8 +44,8 @@ export class ProjectController extends BaseController {
     }
 
     /**
+     * Creates a new chart in the specified project
      * @summary Create chart
-     * @description Creates a new chart in the specified project
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Post('/{projectUuid}/charts')
@@ -88,7 +88,7 @@ export class ProjectController extends BaseController {
 -   Services accessed via `this.services.get{Service}Service()`
 -   Consistent response format: `{status: 'ok', results: T}`
 -   User object available as `req.user!` in authenticated endpoints
--   All endpoints must have JSDoc comments with `@summary` (2-3 words) and `@description`
+-   All endpoints must have JSDoc comments with description first, then `@summary` tag (2-3 words)
 
 **V2 Differences:**
 

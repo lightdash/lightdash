@@ -54,8 +54,8 @@ export type ApiGetAsyncQueryResultsResponse = {
 @Tags('Query')
 export class QueryController extends BaseController {
     /**
+     * Retrieves paginated results from a previously executed async query using its UUID
      * @summary Get results
-     * @description Retrieves paginated results from a previously executed async query using its UUID
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -94,8 +94,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Cancels a running async query and discards any partial results
      * @summary Cancel query
-     * @description Cancels a running async query and discards any partial results
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -122,8 +122,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      * @summary Execute metric query
-     * @description Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -171,8 +171,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Executes a saved chart query asynchronously with optional parameter overrides
      * @summary Execute saved chart
-     * @description Executes a saved chart query asynchronously with optional parameter overrides
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -208,8 +208,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Executes a chart within a dashboard context asynchronously with inherited dashboard filters
      * @summary Execute dashboard chart
-     * @description Executes a chart within a dashboard context asynchronously with inherited dashboard filters
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -248,8 +248,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Executes a query to retrieve underlying raw data for drilling down into aggregated values
      * @summary Execute underlying data
-     * @description Executes a query to retrieve underlying raw data for drilling down into aggregated values
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -288,8 +288,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Executes a raw SQL query asynchronously against your data warehouse for custom queries
      * @summary Execute SQL query
-     * @description Executes a raw SQL query asynchronously against your data warehouse for custom queries
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -324,8 +324,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Executes a saved SQL chart query asynchronously with optional chart configurations
      * @summary Execute SQL chart
-     * @description Executes a saved SQL chart query asynchronously with optional chart configurations
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -361,8 +361,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Executes a SQL chart within a dashboard context asynchronously with inherited filters
      * @summary Execute dashboard SQL chart
-     * @description Executes a SQL chart within a dashboard context asynchronously with inherited filters
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -402,8 +402,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Streams query results directly from storage as newline-delimited JSON for large result sets
      * @summary Stream results
-     * @description Streams query results directly from storage as newline-delimited JSON for large result sets
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -439,8 +439,8 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Downloads query results in various formats with custom formatting options
      * @summary Download results
-     * @description Downloads query results in various formats with custom formatting options
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
