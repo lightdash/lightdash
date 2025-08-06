@@ -233,8 +233,15 @@ const registerCustomCompletionProvider = (
                             endColumn: position.column,
                         };
                     } else {
-                        // Default case - insert full parameter
-                        insertText = `\${ld.parameters.${paramName}}`;
+                        // Default case - be smart about existing $ prefix
+                        const hasDollarPrefix = /\$$/.test(textUntilPosition);
+                        if (hasDollarPrefix) {
+                            // If line ends with $, just add the bracketed parameter
+                            insertText = `\{ld.parameters.${paramName}}`;
+                        } else {
+                            // Otherwise add full parameter
+                            insertText = `\${ld.parameters.${paramName}}`;
+                        }
                     }
 
                     // Prioritize parameters when typing ld/parameters related text
