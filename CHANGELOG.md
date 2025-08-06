@@ -1,3 +1,10 @@
+# [0.1880.0](https://github.com/lightdash/lightdash/compare/0.1879.0...0.1880.0) (2025-08-06)
+
+
+### Features
+
+* sql editor parameters autocomplete ([#15962](https://github.com/lightdash/lightdash/issues/15962)) ([9e3bfb9](https://github.com/lightdash/lightdash/commit/9e3bfb9acafb537374220e9a3546332abca56512))
+
 # [0.1879.0](https://github.com/lightdash/lightdash/compare/0.1878.0...0.1879.0) (2025-08-06)
 
 
