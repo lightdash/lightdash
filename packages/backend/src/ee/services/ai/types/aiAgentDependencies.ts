@@ -31,10 +31,10 @@ export type FindExploresFn = (
 ) => Promise<{
     tablesWithFields: {
         table: CatalogTable;
-        dimensions: CatalogField[];
-        metrics: CatalogField[];
-        dimensionsPagination: Pagination | undefined;
-        metricsPagination: Pagination | undefined;
+        dimensions?: CatalogField[];
+        metrics?: CatalogField[];
+        dimensionsPagination?: Pagination;
+        metricsPagination?: Pagination;
     }[];
     pagination: Pagination | undefined;
 }>;
