@@ -18200,7 +18200,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1876.1",
+        "version": "0.1880.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -28018,7 +28018,8 @@
                         }
                     }
                 },
-                "description": "Get results from an asynchronous query\n\nRetrieves paginated results from a previously executed async query using its UUID.\nUse this endpoint to fetch query results after the query has completed execution.",
+                "description": "Retrieves paginated results from a previously executed async query using its UUID",
+                "summary": "Get results",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28087,7 +28088,8 @@
                         }
                     }
                 },
-                "description": "Cancel an asynchronous query\n\nCancels a running async query. Once cancelled, the query cannot be resumed\nand any partial results will be discarded.",
+                "description": "Cancels a running async query and discards any partial results",
+                "summary": "Cancel query",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28136,7 +28138,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous metric query\n\nExecutes a metric query asynchronously against your data warehouse.\nReturns a query UUID that can be used to fetch results once the query completes.\nMetric queries are built using dimensions, metrics, filters, and sorts from your dbt models.",
+                "description": "Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts",
+                "summary": "Execute metric query",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28186,7 +28189,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous saved chart query\n\nExecutes a saved chart query asynchronously. Saved charts contain pre-configured\nmetric queries that can be executed with optional parameter overrides.",
+                "description": "Executes a saved chart query asynchronously with optional parameter overrides",
+                "summary": "Execute saved chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28236,7 +28240,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous dashboard chart query\n\nExecutes a chart within a dashboard context asynchronously. Dashboard charts\ninherit dashboard-level filters and may have additional contextual parameters.",
+                "description": "Executes a chart within a dashboard context asynchronously with inherited dashboard filters",
+                "summary": "Execute dashboard chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28286,7 +28291,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous underlying data query\n\nExecutes a query to retrieve the underlying raw data for a specific metric or dimension.\nThis is useful for drilling down into the data behind aggregated values.",
+                "description": "Executes a query to retrieve underlying raw data for drilling down into aggregated values",
+                "summary": "Execute underlying data",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28336,7 +28342,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous SQL query\n\nExecutes a raw SQL query asynchronously against your data warehouse.\nThis allows for custom queries beyond the metric layer capabilities.",
+                "description": "Executes a raw SQL query asynchronously against your data warehouse for custom queries",
+                "summary": "Execute SQL query",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28386,7 +28393,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous SQL chart query\n\nExecutes a saved SQL chart query asynchronously. SQL charts are custom visualizations\nbuilt from raw SQL queries with optional chart configurations.",
+                "description": "Executes a saved SQL chart query asynchronously with optional chart configurations",
+                "summary": "Execute SQL chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28436,7 +28444,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous dashboard SQL chart query\n\nExecutes a SQL chart within a dashboard context asynchronously. Dashboard SQL charts\ncan inherit dashboard-level filters and contextual parameters.",
+                "description": "Executes a SQL chart within a dashboard context asynchronously with inherited filters",
+                "summary": "Execute dashboard SQL chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28486,7 +28495,8 @@
                         }
                     }
                 },
-                "description": "Download query results\n\nDownloads query results in various formats (CSV, XLSX, JSON).\nSupports custom formatting options like column ordering, hidden fields,\nand pivot configurations.",
+                "description": "Downloads query results in various formats with custom formatting options",
+                "summary": "Download results",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
