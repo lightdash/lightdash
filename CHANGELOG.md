@@ -1,3 +1,10 @@
+# [0.1878.0](https://github.com/lightdash/lightdash/compare/0.1877.0...0.1878.0) (2025-08-06)
+
+
+### Features
+
+* enable ai agent user access ([#16090](https://github.com/lightdash/lightdash/issues/16090)) ([08fd182](https://github.com/lightdash/lightdash/commit/08fd1826ca6d25115b3dbf31f406ed567328f65c))
+
 # [0.1877.0](https://github.com/lightdash/lightdash/compare/0.1876.1...0.1877.0) (2025-08-06)
 
 
