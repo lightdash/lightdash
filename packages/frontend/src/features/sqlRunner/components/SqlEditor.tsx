@@ -170,116 +170,145 @@ const registerCustomCompletionProvider = (
 
             // Add parameter completions with simplified logic
             if (availableParameters) {
-                Object.keys(availableParameters).forEach((paramName) => {
-                    const paramConfig = availableParameters[paramName];
-                    const hasValue = parameterValues?.[paramName] !== undefined;
-                    const value = hasValue
-                        ? parameterValues[paramName]
-                        : undefined;
-                    const valuePreview = Array.isArray(value)
-                        ? value.join(', ')
-                        : value;
+                // Don't show parameter completions for $word patterns (like $param, $metric, $ld)
+                // Only show for clean patterns: ${...}, ld.parameters, or plain $
+                const isDollarWord =
+                    /\$\w+$/.test(textUntilPosition) &&
+                    !/\$$/.test(textUntilPosition);
+                if (!isDollarWord) {
+                    // Only add parameter completions for clean patterns
+                    Object.keys(availableParameters).forEach((paramName) => {
+                        const paramConfig = availableParameters[paramName];
+                        const hasValue =
+                            parameterValues?.[paramName] !== undefined;
+                        const value = hasValue
+                            ? parameterValues[paramName]
+                            : undefined;
+                        const valuePreview = Array.isArray(value)
+                            ? value.join(', ')
+                            : value;
 
-                    // Use regex patterns to detect context and what to replace
-                    const parameterPattern =
-                        /\$\{(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)\}?$/;
-                    const ldPattern =
-                        /\b(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)$/;
-                    // Pattern to detect any content inside ${} brackets
-                    const insideBracketsPattern = /\$\{([^}]*?)$/;
+                        // Use regex patterns to detect context and what to replace
+                        const parameterPattern =
+                            /\$\{(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)\}?$/;
+                        const ldPattern =
+                            /\b(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)$/;
+                        // Pattern to detect any content inside ${} brackets
+                        const insideBracketsPattern = /\$\{([^}]*?)$/;
 
-                    const parameterMatch =
-                        textUntilPosition.match(parameterPattern);
-                    const ldMatch = textUntilPosition.match(ldPattern);
-                    const insideBracketsMatch = textUntilPosition.match(
-                        insideBracketsPattern,
-                    );
-
-                    let insertText: string;
-                    let customRange = range;
-
-                    if (parameterMatch) {
-                        // Inside ${} with ld prefix - replace from the start of the match
-                        const matchStart = textUntilPosition.lastIndexOf(
-                            parameterMatch[1],
+                        const parameterMatch =
+                            textUntilPosition.match(parameterPattern);
+                        const ldMatch = textUntilPosition.match(ldPattern);
+                        const insideBracketsMatch = textUntilPosition.match(
+                            insideBracketsPattern,
                         );
-                        insertText = `ld.parameters.${paramName}`;
-                        customRange = {
-                            startLineNumber: position.lineNumber,
-                            endLineNumber: position.lineNumber,
-                            startColumn: matchStart + 1,
-                            endColumn: position.column,
-                        };
-                    } else if (insideBracketsMatch) {
-                        // Inside ${} but not ld prefix - replace content inside brackets
-                        const matchStart = insideBracketsMatch.index! + 2; // +2 to skip "${
-                        insertText = `ld.parameters.${paramName}`;
-                        customRange = {
-                            startLineNumber: position.lineNumber,
-                            endLineNumber: position.lineNumber,
-                            startColumn: matchStart + 1,
-                            endColumn: position.column,
-                        };
-                    } else if (ldMatch) {
-                        // Outside ${} - wrap with ${} and replace from start of ld
-                        const matchStart = textUntilPosition.lastIndexOf(
-                            ldMatch[1],
-                        );
-                        insertText = `\${ld.parameters.${paramName}}`;
-                        customRange = {
-                            startLineNumber: position.lineNumber,
-                            endLineNumber: position.lineNumber,
-                            startColumn: matchStart + 1,
-                            endColumn: position.column,
-                        };
-                    } else {
-                        // Default case - be smart about existing $ prefix
-                        const hasDollarPrefix = /\$$/.test(textUntilPosition);
-                        if (hasDollarPrefix) {
-                            // If line ends with $, just add the bracketed parameter
-                            insertText = `\{ld.parameters.${paramName}}`;
-                        } else {
-                            // Otherwise add full parameter
+
+                        let insertText: string;
+                        let customRange = range;
+
+                        if (parameterMatch) {
+                            // Inside ${} with ld prefix - replace from the start of the match
+                            const matchStart = textUntilPosition.lastIndexOf(
+                                parameterMatch[1],
+                            );
+                            insertText = `ld.parameters.${paramName}`;
+                            customRange = {
+                                startLineNumber: position.lineNumber,
+                                endLineNumber: position.lineNumber,
+                                startColumn: matchStart + 1,
+                                endColumn: position.column,
+                            };
+                        } else if (insideBracketsMatch) {
+                            // Inside ${} but not ld prefix - replace content inside brackets
+                            const matchStart = insideBracketsMatch.index! + 2; // +2 to skip "${
+                            insertText = `ld.parameters.${paramName}`;
+                            customRange = {
+                                startLineNumber: position.lineNumber,
+                                endLineNumber: position.lineNumber,
+                                startColumn: matchStart + 1,
+                                endColumn: position.column,
+                            };
+                        } else if (ldMatch) {
+                            // Outside ${} - wrap with ${} and replace from start of ld
+                            const matchStart = textUntilPosition.lastIndexOf(
+                                ldMatch[1],
+                            );
                             insertText = `\${ld.parameters.${paramName}}`;
+                            customRange = {
+                                startLineNumber: position.lineNumber,
+                                endLineNumber: position.lineNumber,
+                                startColumn: matchStart + 1,
+                                endColumn: position.column,
+                            };
+                        } else {
+                            // Default case - be smart about existing $ prefix
+                            const hasDollarPrefix = /\$$/.test(
+                                textUntilPosition,
+                            );
+                            const dollarWordMatch = /\$(\w+)$/.exec(
+                                textUntilPosition,
+                            );
+
+                            if (hasDollarPrefix) {
+                                // If line ends with $, just add the bracketed parameter
+                                insertText = `\{ld.parameters.${paramName}}`;
+                            } else if (dollarWordMatch) {
+                                // Handle $word patterns - replace the entire $word to avoid double $
+                                insertText = `\${ld.parameters.${paramName}}`;
+                                customRange = {
+                                    startLineNumber: position.lineNumber,
+                                    endLineNumber: position.lineNumber,
+                                    startColumn: dollarWordMatch.index! + 1,
+                                    endColumn: position.column,
+                                };
+                            } else {
+                                // Otherwise add full parameter
+                                insertText = `\${ld.parameters.${paramName}}`;
+                            }
                         }
-                    }
 
-                    // Prioritize parameters when typing ld/parameters related text
-                    const isRelevantContext =
-                        parameterMatch ||
-                        insideBracketsMatch ||
-                        ldMatch ||
-                        /(?:^|\W)(?:ld|parameters|\$)/i.test(textUntilPosition);
-                    const sortText = isRelevantContext
-                        ? `0_param_${paramName}`
-                        : `param_${paramName}`;
+                        // Prioritize parameters when typing ld/parameters related text
+                        const isRelevantContext =
+                            parameterMatch ||
+                            insideBracketsMatch ||
+                            ldMatch ||
+                            /(?:^|\W)(?:ld|parameters|\$)/i.test(
+                                textUntilPosition,
+                            );
+                        const sortText = isRelevantContext
+                            ? `0_param_${paramName}`
+                            : `param_${paramName}`;
 
-                    suggestions.push({
-                        label: {
-                            label: `ld.parameters.${paramName}`,
+                        suggestions.push({
+                            label: {
+                                label: `ld.parameters.${paramName}`,
+                                detail: hasValue
+                                    ? ` = ${valuePreview}`
+                                    : paramConfig.description
+                                    ? ` - ${paramConfig.description}`
+                                    : ' (no value)',
+                            },
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            insertText,
+                            range: customRange,
+                            sortText,
                             detail: hasValue
-                                ? ` = ${valuePreview}`
-                                : paramConfig.description
-                                ? ` - ${paramConfig.description}`
-                                : ' (no value)',
-                        },
-                        kind: monaco.languages.CompletionItemKind.Variable,
-                        insertText,
-                        range: customRange,
-                        sortText,
-                        detail: hasValue
-                            ? `Parameter: ${
-                                  paramConfig.label || paramName
-                              } = ${valuePreview}`
-                            : `Parameter: ${paramConfig.label || paramName}${
-                                  paramConfig.description
-                                      ? ` - ${paramConfig.description}`
-                                      : ''
-                              }`,
-                        documentation:
-                            paramConfig.description || 'Lightdash parameter',
+                                ? `Parameter: ${
+                                      paramConfig.label || paramName
+                                  } = ${valuePreview}`
+                                : `Parameter: ${
+                                      paramConfig.label || paramName
+                                  }${
+                                      paramConfig.description
+                                          ? ` - ${paramConfig.description}`
+                                          : ''
+                                  }`,
+                            documentation:
+                                paramConfig.description ||
+                                'Lightdash parameter',
+                        });
                     });
-                });
+                }
             }
 
             const formatFieldName = (fieldName: string): string => {
@@ -373,7 +402,7 @@ const registerCustomCompletionProvider = (
 
             return { suggestions };
         },
-        triggerCharacters: ['.', '$', '{', 'l', 'd'],
+        triggerCharacters: ['.', '{'],
     });
 };
 
