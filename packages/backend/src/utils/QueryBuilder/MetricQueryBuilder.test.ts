@@ -11,7 +11,7 @@ import {
     BuildQueryProps,
     CompiledQuery,
     MetricQueryBuilder,
-} from './queryBuilder';
+} from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
@@ -72,7 +72,7 @@ import {
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
-} from './queryBuilder.mock';
+} from './MetricQueryBuilder.mock';
 
 const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
 
