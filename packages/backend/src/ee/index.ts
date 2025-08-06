@@ -96,6 +96,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     userAttributesModel: models.getUserAttributesModel(),
+                    searchModel: models.getSearchModel(),
+                    spaceModel: models.getSpaceModel(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

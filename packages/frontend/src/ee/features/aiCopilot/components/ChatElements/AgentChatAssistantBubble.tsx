@@ -27,6 +27,7 @@ import {
 import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import {
@@ -76,6 +77,12 @@ const AssistantBubbleContent: FC<{
             <MDEditor.Markdown
                 source={messageContent}
                 style={{ backgroundColor: 'transparent', padding: `0.5rem 0` }}
+                rehypePlugins={[
+                    [
+                        rehypeExternalLinks,
+                        { target: '_blank', rel: ['noopener', 'noreferrer'] },
+                    ],
+                ]}
             />
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
         </>
