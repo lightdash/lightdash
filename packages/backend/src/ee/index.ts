@@ -35,7 +35,6 @@ type EnterpriseAppArguments = Pick<
     | 'serviceProviders'
     | 'modelProviders'
     | 'customExpressMiddlewares'
-    | 'slackClientFactory'
 >;
 
 export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArguments> {
@@ -98,6 +97,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
                     spaceModel: models.getSpaceModel(),
+                    slackAuthenticationModel:
+                        models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    openIdIdentityModel: models.getOpenIdIdentityModel(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
@@ -296,18 +300,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 asyncQueryService:
                     context.serviceRepository.getAsyncQueryService(),
             }),
-        slackClientFactory: (context) =>
-            new CommercialSlackClient({
-                lightdashConfig: context.lightdashConfig,
-                analytics: context.analytics,
-                slackAuthenticationModel:
-                    context.models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
-                schedulerClient:
-                    context.clients.getSchedulerClient() as CommercialSchedulerClient,
-                aiAgentModel: context.models.getAiAgentModel(),
-                openIdIdentityModel: context.models.getOpenIdIdentityModel(),
-                userModel: context.models.getUserModel(),
-            }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>
                 new CommercialSchedulerClient({
@@ -315,17 +307,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     schedulerModel: models.getSchedulerModel(),
                 }),
-            slackClient: ({ context, models, repository }) =>
+            slackClient: ({ context, models }) =>
                 new CommercialSlackClient({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
-                    schedulerClient:
-                        repository.getSchedulerClient() as CommercialSchedulerClient,
-                    aiAgentModel: models.getAiAgentModel(),
-                    openIdIdentityModel: models.getOpenIdIdentityModel(),
-                    userModel: models.getUserModel(),
                 }),
         },
     };
