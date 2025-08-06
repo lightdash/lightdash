@@ -795,7 +795,7 @@ type ShareSlack = BaseTrack & {
 
 type SavedChartView = BaseTrack & {
     event: 'saved_chart.view';
-    userId: string;
+    userId?: string;
     properties: {
         savedChartId: string;
         projectId: string;
