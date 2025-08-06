@@ -1,3 +1,10 @@
+# [0.1882.0](https://github.com/lightdash/lightdash/compare/0.1881.0...0.1882.0) (2025-08-06)
+
+
+### Features
+
+* add agent integration tests for query relevancy evaluation ([#16125](https://github.com/lightdash/lightdash/issues/16125)) ([073e3e7](https://github.com/lightdash/lightdash/commit/073e3e73ea729396b75f58186d616ce056b97aca))
+
 # [0.1881.0](https://github.com/lightdash/lightdash/compare/0.1880.0...0.1881.0) (2025-08-06)
 
 
