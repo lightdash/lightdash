@@ -1,3 +1,11 @@
+# [0.1879.0](https://github.com/lightdash/lightdash/compare/0.1878.0...0.1879.0) (2025-08-06)
+
+
+### Features
+
+* add find_explores tool to MCP service ([#16219](https://github.com/lightdash/lightdash/issues/16219)) ([ff386fc](https://github.com/lightdash/lightdash/commit/ff386fc2789c1a7cfae746e555d8e9bf0980c91c)), closes [#16199](https://github.com/lightdash/lightdash/issues/16199)
+* add findFields tool to MCP service ([#16220](https://github.com/lightdash/lightdash/issues/16220)) ([3093f28](https://github.com/lightdash/lightdash/commit/3093f28ae1972d2613f4346706ec5783353d441e)), closes [#16199](https://github.com/lightdash/lightdash/issues/16199)
+
 # [0.1878.0](https://github.com/lightdash/lightdash/compare/0.1877.0...0.1878.0) (2025-08-06)
 
 
