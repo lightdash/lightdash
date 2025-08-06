@@ -1,3 +1,10 @@
+# [0.1877.0](https://github.com/lightdash/lightdash/compare/0.1876.1...0.1877.0) (2025-08-06)
+
+
+### Features
+
+* only show metrics/dimensions overview when focusing on explore ([#16231](https://github.com/lightdash/lightdash/issues/16231)) ([8ed7cd8](https://github.com/lightdash/lightdash/commit/8ed7cd8187be55c13a9364fd7a20c1aa871af138))
+
 ## [0.1876.1](https://github.com/lightdash/lightdash/compare/0.1876.0...0.1876.1) (2025-08-05)
 
 
