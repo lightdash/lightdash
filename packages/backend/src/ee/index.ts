@@ -249,6 +249,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogService: repository.getCatalogService(),
                     projectService: repository.getProjectService(),
                     userAttributesModel: models.getUserAttributesModel(),
+                    searchModel: models.getSearchModel(),
+                    spaceModel: models.getSpaceModel(),
                 }),
         },
         modelProviders: {
