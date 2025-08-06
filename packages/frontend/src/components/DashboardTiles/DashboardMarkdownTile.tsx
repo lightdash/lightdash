@@ -108,13 +108,17 @@ const MarkdownTile: FC<Props> = (props) => {
                     },
                 }}
             >
-                <MarkdownPreview
-                    className="markdown-tile"
-                    source={content}
-                    rehypePlugins={[
-                        [rehypeExternalLinks, { target: '_blank' }],
-                    ]}
-                />
+                <div data-color-mode="light">
+                    <div className="wmde-markdown-var">
+                        <MarkdownPreview
+                            className="markdown-tile"
+                            source={content}
+                            rehypePlugins={[
+                                [rehypeExternalLinks, { target: '_blank' }],
+                            ]}
+                        />
+                    </div>
+                </div>
             </Text>
         </TileBase>
     );

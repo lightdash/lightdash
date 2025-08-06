@@ -72,7 +72,6 @@ const EmbedDashboardGrid: FC<{
                                 projectUuid={projectUuid}
                                 dashboardSlug={dashboard.slug}
                                 key={tile.uuid}
-                                minimal
                                 tile={tile}
                                 isEditMode={false}
                                 onDelete={() => {}}
