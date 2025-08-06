@@ -64,8 +64,10 @@ const generateExploreResponse = ({
 `.trim()
             : ''
     }
-
-    <Fields alt="All fields from all tables" totalCount="${
+    ${
+        dimensions && metrics && dimensions.length > 0 && metrics.length > 0
+            ? `
+    <Fields alt="most popular dimensions and metrics" totalCount="${
         (dimensionsPagination?.totalResults ?? 0) +
         (metricsPagination?.totalResults ?? 0)
     }" displayedResults="${dimensions.length + metrics.length}">
@@ -100,7 +102,9 @@ const generateExploreResponse = ({
                 )
                 .join('\n            ')}
         </Metrics>
-    </Fields>
+    </Fields>`.trim()
+            : ''
+    }
 </Explore>`.trim();
 
 export const getFindExplores = ({
@@ -116,7 +120,7 @@ export const getFindExplores = ({
         description: `Tool: findExplores
 
 Purpose:
-Lists available Explores along with their field labels, joined tables, hints for you (Ai Hints), descriptions, and a sample set of dimensions and metrics.
+Lists available Explores along with their field labels, joined tables, hints for you (Ai Hints) and descriptions.
 
 Usage Tips:
 - Use this to understand the structure of an Explore before calling findFields.
@@ -136,7 +140,7 @@ Usage Tips:
                     tableName: args.exploreName,
                     page: args.page ?? 1,
                     pageSize,
-                    includeFields: true,
+                    includeFields: !!args.exploreName,
                     fieldSearchSize,
                     fieldOverviewSearchSize,
                 });
