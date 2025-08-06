@@ -8,6 +8,7 @@ import {
     toolTimeSeriesArgsSchema,
     toolVerticalBarArgsSchema,
 } from '@lightdash/common';
+import moment from 'moment';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
@@ -219,7 +220,7 @@ describeOrSkip('agent integration tests', () => {
             await llmAsAJudge({
                 query: promptQueryText,
                 response,
-                expectedAnswer: '1989.37',
+                expectedAnswer: '3,053.87',
                 scorerType: 'factuality',
                 model,
             });
@@ -288,7 +289,7 @@ describeOrSkip('agent integration tests', () => {
                 query: promptQueryText,
                 response,
                 expectedAnswer:
-                    "I've generated a chart of revenue over time (monthly) with Payments explore, order date month on the x axis and total revenue on the y axis",
+                    "I've generated a chart of revenue over time (monthly) using 'Total revenue' metric from the Payments explore. The x-axis represents month and the y-axis represents revenue of that month.",
                 scorerType: 'factuality',
                 model,
             });
@@ -437,13 +438,13 @@ describeOrSkip('agent integration tests', () => {
     );
 
     it(
-        'should answer "How many orders were there in 2018?" and generate a one line result',
+        'should answer "How many orders were there in 2024?" and generate a one line result',
         async ({ task }) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
 
-            const promptQueryText = 'How many orders were there in 2018?';
+            const promptQueryText = 'How many orders were there in 2024?';
 
             const { response, prompt } = await promptAgent(promptQueryText);
 
@@ -451,6 +452,8 @@ describeOrSkip('agent integration tests', () => {
                 .db<DbAiAgentToolCall>('ai_agent_tool_call')
                 .where('ai_prompt_uuid', prompt!.promptUuid)
                 .select('*');
+
+            // TODO: Update tool calls expectations to not focus on implementation details, but rather on the expected results
 
             // Should have exactly 3 tool calls in sequence
             expect(toolCalls.length).toBe(3);
@@ -474,7 +477,7 @@ describeOrSkip('agent integration tests', () => {
                 ],
             });
 
-            // Third tool call: generateTableVizConfig with 2018 filter
+            // Third tool call: generateTableVizConfig with 2024 filter
             expect(toolCalls[2].tool_name).toBe('generateTableVizConfig');
 
             const tableVizArgsParsed = toolTableVizArgsSchema.safeParse(
@@ -488,12 +491,11 @@ describeOrSkip('agent integration tests', () => {
             const tableVizArgs = tableVizArgsParsed.data;
 
             expect(tableVizArgs.filters?.dimensions?.[0]).toMatchObject({
-                rule: { values: ['2018'], operator: 'equals' },
-                type: 'or',
-                target: {
-                    type: 'date',
-                    fieldId: 'orders_order_date_year',
-                },
+                values: ['2024-01-01'],
+                operator: 'equals',
+                fieldFilterType: 'date',
+                fieldId: 'orders_order_date_year',
+                fieldType: 'date',
             });
 
             expect(tableVizArgs.vizConfig.metrics).toContain(
@@ -507,7 +509,7 @@ describeOrSkip('agent integration tests', () => {
                 await llmAsAJudge({
                     query: promptQueryText,
                     response,
-                    expectedAnswer: 'There were 99 orders in 2018',
+                    expectedAnswer: 'There were 53 orders in 2024',
                     scorerType: 'factuality',
                     model,
                 });
@@ -633,16 +635,16 @@ describeOrSkip('agent integration tests', () => {
             const { response: response3, prompt: webPrompt3 } =
                 await promptAgent(prompt3, threadUuid);
 
-            const toolCalls = await context
+            const toolCallsForPrompt3 = await context
                 .db<DbAiAgentToolCall>('ai_agent_tool_call')
                 .where('ai_prompt_uuid', webPrompt3!.promptUuid)
                 .select('*');
 
-            expect(toolCalls.length).toBe(2);
+            expect(toolCallsForPrompt3.length).toBe(2);
 
-            expect(toolCalls[0].tool_name).toBe('findFields');
+            expect(toolCallsForPrompt3[0].tool_name).toBe('findFields');
             const findFieldsArgs = toolFindFieldsArgsSchema.safeParse(
-                toolCalls[0].tool_args,
+                toolCallsForPrompt3[0].tool_args,
             );
             expect(findFieldsArgs.success).toBe(true);
             expect(findFieldsArgs.data?.table).toBe('payments');
@@ -651,9 +653,11 @@ describeOrSkip('agent integration tests', () => {
                     q.label.toLowerCase().includes('payment method'),
                 ),
             ).toBe(true);
-            expect(toolCalls[1].tool_name).toBe('generateBarVizConfig');
+            expect(toolCallsForPrompt3[1].tool_name).toBe(
+                'generateBarVizConfig',
+            );
             const barVizArgs = toolVerticalBarArgsSchema.safeParse(
-                toolCalls[1].tool_args,
+                toolCallsForPrompt3[1].tool_args,
             );
             expect(barVizArgs.success).toBe(true);
             expect(barVizArgs.data?.vizConfig.yMetrics).toContain(
@@ -668,7 +672,7 @@ describeOrSkip('agent integration tests', () => {
             setTaskMeta(
                 task.meta,
                 'toolCalls',
-                toolCalls.map((tc) => tc.tool_name),
+                toolCallsForPrompt3.map((tc) => tc.tool_name),
             );
             setTaskMeta(task.meta, 'prompts', [prompt1, prompt2, prompt3]);
             setTaskMeta(task.meta, 'responses', [
@@ -679,4 +683,157 @@ describeOrSkip('agent integration tests', () => {
         },
         TIMEOUT * 2, // Double timeout for multiple prompts
     );
+
+    [
+        {
+            question:
+                'What are the order amounts for this year, broken down by order status month over month?',
+            expectedExplore: 'orders',
+            expectedFields: {
+                dimensions: ['Order date month'],
+                metrics: ['Total order amount'],
+                breakdownByDimension: 'Order status',
+                filters: [`Order year ${new Date().getFullYear()}`],
+            },
+            expectedVisualization: 'time_series_chart',
+            maxToolCalls: 3,
+        },
+        {
+            question:
+                'Revenue from the last 3 months for the "credit_card" and "coupon" payment method, displayed as a bar chart.',
+            expectedExplore: 'payments',
+            expectedFields: {
+                dimensions: [],
+                metrics: ['Total revenue'],
+                breakdownByDimension: 'Payment method',
+                filters: [
+                    `Order date from ${moment()
+                        .subtract(3, 'months')
+                        .format('YYYY-MM-DD')} to ${moment()
+                        .subtract(1, 'months')
+                        .format('YYYY-MM-DD')}`,
+                    'Payment method (credit_card, coupon)',
+                ],
+            },
+            expectedVisualization: 'vertical_bar_chart',
+            maxToolCalls: 4,
+        },
+    ].forEach((testCase) => {
+        describe(`Evaluating answer for question: ${testCase.question}`, () => {
+            let toolCalls: DbAiAgentToolCall[] = [];
+            let response: string = '';
+            let prompt: AiWebAppPrompt | undefined;
+
+            beforeAll(async () => {
+                const agentResponse = await promptAgent(testCase.question);
+
+                response = agentResponse.response;
+                prompt = agentResponse.prompt;
+
+                toolCalls = await context
+                    .db<DbAiAgentToolCall>('ai_agent_tool_call')
+                    .leftJoin(
+                        'ai_agent_tool_result',
+                        'ai_agent_tool_call.tool_call_id',
+                        'ai_agent_tool_result.tool_call_id',
+                    )
+                    .where(
+                        'ai_agent_tool_call.ai_prompt_uuid',
+                        prompt!.promptUuid,
+                    )
+                    .select('*');
+            });
+
+            it('should not use more than the max number of tool calls', () => {
+                expect(toolCalls.length).toBeLessThanOrEqual(
+                    testCase.maxToolCalls,
+                );
+            });
+
+            it(
+                `should get relevant information to answer the question: ${testCase.question}`,
+                async ({ task }) => {
+                    if (!createdAgent) throw new Error('Agent not created');
+
+                    const relevancyEvaluation = await llmAsAJudge({
+                        query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
+                        response: JSON.stringify(toolCalls),
+                        model,
+                        scorerType: 'contextRelevancy',
+                        context: [
+                            JSON.stringify(
+                                await getServices(
+                                    context.app,
+                                ).projectService.getExplore(
+                                    context.testUserSessionAccount,
+                                    createdAgent.projectUuid!,
+                                    testCase.expectedExplore,
+                                ),
+                            ),
+                        ],
+                    });
+                    const isRelevancyPassing =
+                        relevancyEvaluation.result.score === 1;
+
+                    expect(isRelevancyPassing).toBe(true);
+
+                    setTaskMeta(task.meta, 'llmJudgeResults', [
+                        {
+                            ...relevancyEvaluation.meta,
+                            passed: isRelevancyPassing,
+                        },
+                    ]);
+
+                    setTaskMeta(
+                        task.meta,
+                        'toolCalls',
+                        toolCalls.map((tc) => tc.tool_name),
+                    );
+                    setTaskMeta(task.meta, 'prompts', [testCase.question]);
+                    setTaskMeta(task.meta, 'responses', [response]);
+                },
+                TIMEOUT,
+            );
+
+            it('should answer the question with correct factual information', async ({
+                task,
+            }) => {
+                const factualEvaluation = await llmAsAJudge({
+                    query: testCase.question,
+                    response,
+                    expectedAnswer: [
+                        `The explore is ${testCase.expectedExplore}.`,
+                        `The dimensions are ${testCase.expectedFields.dimensions.join()}.`,
+                        `The metrics are ${testCase.expectedFields.metrics.join()}.`,
+                        `The breakdown by dimension is ${testCase.expectedFields.breakdownByDimension}.`,
+                        `The filters are ${testCase.expectedFields.filters.join()}.`,
+                        `The visualization is a ${testCase.expectedVisualization}.`,
+                    ].join('\n'),
+                    scorerType: 'factuality',
+                    model,
+                });
+
+                const isFactualityPassing =
+                    factualEvaluation.result.answer === 'A' ||
+                    factualEvaluation.result.answer === 'B';
+
+                expect(isFactualityPassing).toBe(true);
+
+                setTaskMeta(task.meta, 'llmJudgeResults', [
+                    {
+                        ...factualEvaluation.meta,
+                        passed: isFactualityPassing,
+                    },
+                ]);
+
+                setTaskMeta(
+                    task.meta,
+                    'toolCalls',
+                    toolCalls.map((tc) => tc.tool_name),
+                );
+                setTaskMeta(task.meta, 'prompts', [testCase.question]);
+                setTaskMeta(task.meta, 'responses', [response]);
+            });
+        });
+    });
 });
