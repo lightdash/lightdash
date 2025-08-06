@@ -54,10 +54,8 @@ export type ApiGetAsyncQueryResultsResponse = {
 @Tags('Query')
 export class QueryController extends BaseController {
     /**
-     * Get results from an asynchronous query
-     *
-     * Retrieves paginated results from a previously executed async query using its UUID.
-     * Use this endpoint to fetch query results after the query has completed execution.
+     * @summary Get results
+     * @description Retrieves paginated results from a previously executed async query using its UUID
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -96,10 +94,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Cancel an asynchronous query
-     *
-     * Cancels a running async query. Once cancelled, the query cannot be resumed
-     * and any partial results will be discarded.
+     * @summary Cancel query
+     * @description Cancels a running async query and discards any partial results
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -126,11 +122,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Execute an asynchronous metric query
-     *
-     * Executes a metric query asynchronously against your data warehouse.
-     * Returns a query UUID that can be used to fetch results once the query completes.
-     * Metric queries are built using dimensions, metrics, filters, and sorts from your dbt models.
+     * @summary Execute metric query
+     * @description Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -178,10 +171,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Execute an asynchronous saved chart query
-     *
-     * Executes a saved chart query asynchronously. Saved charts contain pre-configured
-     * metric queries that can be executed with optional parameter overrides.
+     * @summary Execute saved chart
+     * @description Executes a saved chart query asynchronously with optional parameter overrides
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -217,10 +208,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Execute an asynchronous dashboard chart query
-     *
-     * Executes a chart within a dashboard context asynchronously. Dashboard charts
-     * inherit dashboard-level filters and may have additional contextual parameters.
+     * @summary Execute dashboard chart
+     * @description Executes a chart within a dashboard context asynchronously with inherited dashboard filters
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -259,10 +248,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Execute an asynchronous underlying data query
-     *
-     * Executes a query to retrieve the underlying raw data for a specific metric or dimension.
-     * This is useful for drilling down into the data behind aggregated values.
+     * @summary Execute underlying data
+     * @description Executes a query to retrieve underlying raw data for drilling down into aggregated values
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -301,10 +288,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Execute an asynchronous SQL query
-     *
-     * Executes a raw SQL query asynchronously against your data warehouse.
-     * This allows for custom queries beyond the metric layer capabilities.
+     * @summary Execute SQL query
+     * @description Executes a raw SQL query asynchronously against your data warehouse for custom queries
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -339,10 +324,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Execute an asynchronous SQL chart query
-     *
-     * Executes a saved SQL chart query asynchronously. SQL charts are custom visualizations
-     * built from raw SQL queries with optional chart configurations.
+     * @summary Execute SQL chart
+     * @description Executes a saved SQL chart query asynchronously with optional chart configurations
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -378,10 +361,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Execute an asynchronous dashboard SQL chart query
-     *
-     * Executes a SQL chart within a dashboard context asynchronously. Dashboard SQL charts
-     * can inherit dashboard-level filters and contextual parameters.
+     * @summary Execute dashboard SQL chart
+     * @description Executes a SQL chart within a dashboard context asynchronously with inherited filters
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -421,11 +402,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Stream query results
-     *
-     * Streams query results directly from storage as a JSON stream.
-     * Use this endpoint for large result sets to avoid memory issues.
-     * The response is streamed as newline-delimited JSON (NDJSON).
+     * @summary Stream results
+     * @description Streams query results directly from storage as newline-delimited JSON for large result sets
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -461,11 +439,8 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Download query results
-     *
-     * Downloads query results in various formats (CSV, XLSX, JSON).
-     * Supports custom formatting options like column ordering, hidden fields,
-     * and pivot configurations.
+     * @summary Download results
+     * @description Downloads query results in various formats with custom formatting options
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

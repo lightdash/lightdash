@@ -5,24 +5,6 @@ Backend API controllers built with TSOA that handle HTTP requests and generate O
 <howToUse>
 Controllers are automatically registered by TSOA and accessible at their defined routes. All controllers extend BaseController and use dependency injection:
 
-```typescript
-export class MyController extends BaseController {
-    @Route('/api/v1/my-resource')
-    @Tags('MyResource')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @Get('/{id}')
-    @SuccessResponse('200', 'Success')
-    @Response<ApiErrorPayload>('default', 'Error')
-    async getResource(@Path() id: string): Promise<ApiSuccessEmpty> {
-        const result = await this.services.getMyService().getById(id);
-        return {
-            status: 'ok',
-            results: result,
-        };
-    }
-}
-```
-
 Key patterns:
 
 -   Use `@Middlewares([allowApiKeyAuthentication, isAuthenticated])` for protected endpoints
@@ -36,9 +18,15 @@ Key patterns:
 ```typescript
 // Basic CRUD controller
 @Route('/api/v1/projects')
+@Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class ProjectController extends BaseController {
+    /**
+     * @summary List charts
+     * @description Retrieves all charts within a project's spaces
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Get('/{projectUuid}/charts')
     @OperationId('listCharts')
     async getCharts(
@@ -55,6 +43,10 @@ export class ProjectController extends BaseController {
         };
     }
 
+    /**
+     * @summary Create chart
+     * @description Creates a new chart in the specified project
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Post('/{projectUuid}/charts')
     @SuccessResponse('201', 'Created')
@@ -96,6 +88,7 @@ export class ProjectController extends BaseController {
 -   Services accessed via `this.services.get{Service}Service()`
 -   Consistent response format: `{status: 'ok', results: T}`
 -   User object available as `req.user!` in authenticated endpoints
+-   All endpoints must have JSDoc comments with `@summary` (2-3 words) and `@description`
 
 **V2 Differences:**
 
