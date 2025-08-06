@@ -45,7 +45,7 @@ import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { warehouseClientMock } from '../../utils/QueryBuilder/queryBuilder.mock';
+import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PivotTableService } from '../PivotTableService/PivotTableService';

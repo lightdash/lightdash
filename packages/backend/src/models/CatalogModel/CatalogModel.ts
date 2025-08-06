@@ -58,6 +58,7 @@ export enum CatalogSearchContext {
     CATALOG = 'catalog',
     METRICS_EXPLORER = 'metricsExplorer',
     AI_AGENT = 'aiAgent',
+    MCP = 'mcp',
 }
 
 export type CatalogModelArguments = {

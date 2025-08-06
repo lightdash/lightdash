@@ -239,7 +239,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                         }
                                         rightIcon={
                                             <MantineIcon
-                                                color="gray"
                                                 icon={
                                                     isVisualizationConfigOpen
                                                         ? IconLayoutSidebarLeftCollapse

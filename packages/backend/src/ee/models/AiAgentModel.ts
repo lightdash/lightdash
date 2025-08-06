@@ -49,6 +49,7 @@ import {
     AiAgentIntegrationTableName,
     AiAgentSlackIntegrationTableName,
     AiAgentTableName,
+    AiAgentUserAccessTableName,
     DbAiAgentIntegration,
     DbAiAgentSlackIntegration,
 } from '../database/entities/aiAgent';
@@ -94,6 +95,11 @@ export class AiAgentModel {
             .select('ai_agent_uuid', 'group_uuid')
             .where(`${AiAgentGroupAccessTableName}.ai_agent_uuid`, agentUuid);
 
+        const userAccess = this.database
+            .from(AiAgentUserAccessTableName)
+            .select('ai_agent_uuid', 'user_uuid')
+            .where(`${AiAgentUserAccessTableName}.ai_agent_uuid`, agentUuid);
+
         const latestInstruction = this.database
             .from(AiAgentInstructionVersionsTableName)
             .select(
@@ -108,6 +114,7 @@ export class AiAgentModel {
             .with('integrations', integrations)
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
+            .with('user_access', userAccess)
             .from(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
@@ -138,6 +145,14 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(group_uuid)
                          FROM group_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                userAccess: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(user_uuid) 
+                         FROM user_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -187,6 +202,10 @@ export class AiAgentModel {
             .from(AiAgentGroupAccessTableName)
             .select('ai_agent_uuid', 'group_uuid');
 
+        const userAccess = this.database
+            .from(AiAgentUserAccessTableName)
+            .select('ai_agent_uuid', 'user_uuid');
+
         const latestInstruction = this.database
             .from(AiAgentInstructionVersionsTableName)
             .select(
@@ -201,6 +220,7 @@ export class AiAgentModel {
             .with('integrations', integrations)
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
+            .with('user_access', userAccess)
             .from(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
@@ -231,6 +251,14 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(group_uuid)
                          FROM group_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                userAccess: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(user_uuid) 
+                         FROM user_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -297,6 +325,7 @@ export class AiAgentModel {
             | 'integrations'
             | 'instruction'
             | 'groupAccess'
+            | 'userAccess'
         > & {
             organizationUuid: string;
         },
@@ -360,6 +389,12 @@ export class AiAgentModel {
                 { trx },
             );
 
+            const userAccess = await this.setAndGetUserAccess(
+                agent.ai_agent_uuid,
+                args.userAccess ?? undefined,
+                { trx },
+            );
+
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
@@ -372,6 +407,7 @@ export class AiAgentModel {
                 instruction: args.instruction,
                 imageUrl: agent.image_url,
                 groupAccess,
+                userAccess,
             };
         });
     }
@@ -463,6 +499,12 @@ export class AiAgentModel {
                 { trx },
             );
 
+            const userAccess = await this.setAndGetUserAccess(
+                agent.ai_agent_uuid,
+                args.userAccess ?? undefined,
+                { trx },
+            );
+
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
@@ -475,6 +517,7 @@ export class AiAgentModel {
                 instruction,
                 imageUrl: agent.image_url,
                 groupAccess,
+                userAccess,
             };
         });
     }
@@ -523,6 +566,52 @@ export class AiAgentModel {
             await this.setGroupAccess(agentUuid, groupAccess, { trx });
         }
         return this.getGroupAccess(agentUuid, { trx });
+    }
+
+    private async getUserAccess(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiAgent['userAccess']> {
+        const rows = await trx(AiAgentUserAccessTableName)
+            .select('user_uuid')
+            .where('ai_agent_uuid', agentUuid);
+
+        return rows.map((row) => row.user_uuid);
+    }
+
+    private async setUserAccess(
+        agentUuid: AiAgent['uuid'],
+        userAccess: NonNullable<AiAgent['userAccess']>,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<NonNullable<AiAgent['userAccess']>> {
+        // Delete existing user access
+        await trx(AiAgentUserAccessTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .delete();
+
+        if (userAccess.length === 0) {
+            return [];
+        }
+
+        await trx(AiAgentUserAccessTableName).insert(
+            userAccess.map((userUuid) => ({
+                ai_agent_uuid: agentUuid,
+                user_uuid: userUuid,
+            })),
+        );
+
+        return userAccess;
+    }
+
+    private async setAndGetUserAccess(
+        agentUuid: AiAgent['uuid'],
+        userAccess: NonNullable<AiAgent['userAccess']> | undefined,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<NonNullable<AiAgent['userAccess']>> {
+        if (userAccess !== undefined) {
+            await this.setUserAccess(agentUuid, userAccess, { trx });
+        }
+        return this.getUserAccess(agentUuid, { trx });
     }
 
     async getAgentLastInstruction(

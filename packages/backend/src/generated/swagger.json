@@ -5050,7 +5050,7 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
-            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_": {
+            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5109,6 +5109,12 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -5122,13 +5128,14 @@
                     "updatedAt",
                     "instruction",
                     "imageUrl",
-                    "groupAccess"
+                    "groupAccess",
+                    "userAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -5147,7 +5154,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5206,6 +5213,12 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -5219,13 +5232,14 @@
                     "updatedAt",
                     "instruction",
                     "imageUrl",
-                    "groupAccess"
+                    "groupAccess",
+                    "userAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -5255,7 +5269,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5296,6 +5310,12 @@
                         "nullable": true
                     },
                     "groupAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "userAccess": {
                         "items": {
                             "type": "string"
                         },
@@ -5309,15 +5329,16 @@
                     "tags",
                     "instruction",
                     "imageUrl",
-                    "groupAccess"
+                    "groupAccess",
+                    "userAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5362,6 +5383,12 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "userAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
                 "type": "object",
@@ -5370,7 +5397,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess__"
                     },
                     {
                         "properties": {
@@ -7797,13 +7824,16 @@
                 "required": ["direction", "reference"],
                 "type": "object"
             },
-            "ApiSqlRunnerPivotQueryPayload": {
+            "SortBy": {
+                "items": {
+                    "$ref": "#/components/schemas/VizSortBy"
+                },
+                "type": "array"
+            },
+            "PivotConfiguration": {
                 "properties": {
                     "sortBy": {
-                        "items": {
-                            "$ref": "#/components/schemas/VizSortBy"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/SortBy"
                     },
                     "groupByColumns": {
                         "items": {
@@ -7819,13 +7849,25 @@
                     },
                     "indexColumn": {
                         "$ref": "#/components/schemas/PivotIndexColum"
-                    },
-                    "savedSqlUuid": {
-                        "type": "string"
                     }
                 },
-                "required": ["valuesColumns", "indexColumn"],
+                "required": ["valuesColumns"],
                 "type": "object"
+            },
+            "ApiSqlRunnerPivotQueryPayload": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PivotConfiguration"
+                    },
+                    {
+                        "properties": {
+                            "savedSqlUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "SqlRunnerPivotQueryBody": {
                 "allOf": [
@@ -8152,11 +8194,11 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "userAccess": {
                         "$ref": "#/components/schemas/SpaceShare"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["name", "uuid", "isPrivate"],
@@ -12918,22 +12960,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -16654,12 +16696,6 @@
                 ],
                 "type": "object"
             },
-            "SortBy": {
-                "items": {
-                    "$ref": "#/components/schemas/VizSortBy"
-                },
-                "type": "array"
-            },
             "ReadyQueryResultsPage": {
                 "allOf": [
                     {
@@ -16699,7 +16735,6 @@
                                 "required": [
                                     "originalColumns",
                                     "valuesColumns",
-                                    "indexColumn",
                                     "totalColumnCount"
                                 ],
                                 "type": "object",
@@ -17149,28 +17184,7 @@
                     {
                         "properties": {
                             "pivotConfiguration": {
-                                "properties": {
-                                    "sortBy": {
-                                        "$ref": "#/components/schemas/SortBy"
-                                    },
-                                    "groupByColumns": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/GroupByColumn"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "valuesColumns": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/ValuesColumn"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "indexColumn": {
-                                        "$ref": "#/components/schemas/PivotIndexColum"
-                                    }
-                                },
-                                "required": ["valuesColumns", "indexColumn"],
-                                "type": "object"
+                                "$ref": "#/components/schemas/PivotConfiguration"
                             },
                             "limit": {
                                 "type": "number",
@@ -18186,7 +18200,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1875.5",
+        "version": "0.1880.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -28004,7 +28018,8 @@
                         }
                     }
                 },
-                "description": "Get results from an asynchronous query\n\nRetrieves paginated results from a previously executed async query using its UUID.\nUse this endpoint to fetch query results after the query has completed execution.",
+                "description": "Retrieves paginated results from a previously executed async query using its UUID",
+                "summary": "Get results",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28073,7 +28088,8 @@
                         }
                     }
                 },
-                "description": "Cancel an asynchronous query\n\nCancels a running async query. Once cancelled, the query cannot be resumed\nand any partial results will be discarded.",
+                "description": "Cancels a running async query and discards any partial results",
+                "summary": "Cancel query",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28122,7 +28138,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous metric query\n\nExecutes a metric query asynchronously against your data warehouse.\nReturns a query UUID that can be used to fetch results once the query completes.\nMetric queries are built using dimensions, metrics, filters, and sorts from your dbt models.",
+                "description": "Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts",
+                "summary": "Execute metric query",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28172,7 +28189,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous saved chart query\n\nExecutes a saved chart query asynchronously. Saved charts contain pre-configured\nmetric queries that can be executed with optional parameter overrides.",
+                "description": "Executes a saved chart query asynchronously with optional parameter overrides",
+                "summary": "Execute saved chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28222,7 +28240,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous dashboard chart query\n\nExecutes a chart within a dashboard context asynchronously. Dashboard charts\ninherit dashboard-level filters and may have additional contextual parameters.",
+                "description": "Executes a chart within a dashboard context asynchronously with inherited dashboard filters",
+                "summary": "Execute dashboard chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28272,7 +28291,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous underlying data query\n\nExecutes a query to retrieve the underlying raw data for a specific metric or dimension.\nThis is useful for drilling down into the data behind aggregated values.",
+                "description": "Executes a query to retrieve underlying raw data for drilling down into aggregated values",
+                "summary": "Execute underlying data",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28322,7 +28342,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous SQL query\n\nExecutes a raw SQL query asynchronously against your data warehouse.\nThis allows for custom queries beyond the metric layer capabilities.",
+                "description": "Executes a raw SQL query asynchronously against your data warehouse for custom queries",
+                "summary": "Execute SQL query",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28372,7 +28393,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous SQL chart query\n\nExecutes a saved SQL chart query asynchronously. SQL charts are custom visualizations\nbuilt from raw SQL queries with optional chart configurations.",
+                "description": "Executes a saved SQL chart query asynchronously with optional chart configurations",
+                "summary": "Execute SQL chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28422,7 +28444,8 @@
                         }
                     }
                 },
-                "description": "Execute an asynchronous dashboard SQL chart query\n\nExecutes a SQL chart within a dashboard context asynchronously. Dashboard SQL charts\ncan inherit dashboard-level filters and contextual parameters.",
+                "description": "Executes a SQL chart within a dashboard context asynchronously with inherited filters",
+                "summary": "Execute dashboard SQL chart",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [
@@ -28472,7 +28495,8 @@
                         }
                     }
                 },
-                "description": "Download query results\n\nDownloads query results in various formats (CSV, XLSX, JSON).\nSupports custom formatting options like column ordering, hidden fields,\nand pivot configurations.",
+                "description": "Downloads query results in various formats with custom formatting options",
+                "summary": "Download results",
                 "tags": ["Query"],
                 "security": [],
                 "parameters": [

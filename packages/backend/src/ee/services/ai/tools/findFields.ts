@@ -91,11 +91,7 @@ const getFieldsText = (
 </SearchResult>
 `.trim();
 
-export const getFindFields = ({ findFields, pageSize }: Dependencies) => {
-    const schema = toolFindFieldsArgsSchema;
-
-    return tool({
-        description: `Tool: "findFields"
+export const toolFindFieldsDescription = `Tool: "findFields"
 
 Purpose:
 Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
@@ -107,8 +103,12 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
-`,
-        parameters: schema,
+`;
+
+export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
+    tool({
+        description: toolFindFieldsDescription,
+        parameters: toolFindFieldsArgsSchema,
         execute: async (args) => {
             try {
                 const fieldSearchQueryResults = await Promise.all(
@@ -140,4 +140,3 @@ Usage tips:
             }
         },
     });
-};

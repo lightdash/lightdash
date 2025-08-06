@@ -281,12 +281,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     {!renderDialogActions ? (
                         <Button
                             loading={isExporting}
-                            compact
                             sx={{
                                 alignSelf: 'end',
                             }}
+                            size="xs"
                             mt="sm"
-                            size="md"
                             leftIcon={<MantineIcon icon={IconTableExport} />}
                             onClick={exportMutation}
                             data-testid="chart-export-results-button"

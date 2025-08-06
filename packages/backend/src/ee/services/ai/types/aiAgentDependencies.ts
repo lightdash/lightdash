@@ -5,10 +5,12 @@ import {
     CacheMetadata,
     CatalogField,
     CatalogTable,
+    DashboardSearchResult,
     Explore,
     ItemsMap,
     KnexPaginateArgs,
     SlackPrompt,
+    ToolFindDashboardsArgs,
     ToolFindFieldsArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
@@ -31,10 +33,10 @@ export type FindExploresFn = (
 ) => Promise<{
     tablesWithFields: {
         table: CatalogTable;
-        dimensions: CatalogField[];
-        metrics: CatalogField[];
-        dimensionsPagination: Pagination | undefined;
-        metricsPagination: Pagination | undefined;
+        dimensions?: CatalogField[];
+        metrics?: CatalogField[];
+        dimensionsPagination?: Pagination;
+        metricsPagination?: Pagination;
     }[];
     pagination: Pagination | undefined;
 }>;
@@ -46,6 +48,15 @@ export type FindFieldFn = (
     },
 ) => Promise<{
     fields: CatalogField[];
+    pagination: Pagination | undefined;
+}>;
+
+export type FindDashboardsFn = (
+    args: KnexPaginateArgs & {
+        dashboardSearchQuery: ToolFindDashboardsArgs['dashboardSearchQueries'][number];
+    },
+) => Promise<{
+    dashboards: DashboardSearchResult[];
     pagination: Pagination | undefined;
 }>;
 

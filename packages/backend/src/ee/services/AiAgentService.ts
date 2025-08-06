@@ -65,18 +65,22 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
 import { GroupsModel } from '../../models/GroupsModel';
+import { SearchModel } from '../../models/SearchModel';
+import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
+import { hasViewAccessToSpace } from '../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
+    FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
     GetExploreFn,
@@ -110,6 +114,8 @@ type AiAgentServiceDependencies = {
     asyncQueryService: AsyncQueryService;
     userAttributesModel: UserAttributesModel;
     catalogService: CatalogService;
+    searchModel: SearchModel;
+    spaceModel: SpaceModel;
 };
 
 export class AiAgentService {
@@ -135,6 +141,10 @@ export class AiAgentService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
+    private readonly searchModel: SearchModel;
+
+    private readonly spaceModel: SpaceModel;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.analytics = dependencies.analytics;
@@ -147,6 +157,8 @@ export class AiAgentService {
         this.asyncQueryService = dependencies.asyncQueryService;
         this.userAttributesModel = dependencies.userAttributesModel;
         this.catalogService = dependencies.catalogService;
+        this.searchModel = dependencies.searchModel;
+        this.spaceModel = dependencies.spaceModel;
     }
 
     private async getIsCopilotEnabled(
@@ -160,11 +172,12 @@ export class AiAgentService {
     }
 
     /**
-     * Checks if a user has group access to an AI agent
+     * Checks if a user has access to an AI agent
      * Returns true if:
      * 1. The user can manage the AiAgent (admin access)
-     * 2. The agent has no group access defined (open access - users that can view AiAgent)
+     * 2. The agent has no group or user access defined (open access - users that can view AiAgent)
      * 3. The user is a member of at least one of the agent's groups
+     * 4. The user is in the agent's user access list
      */
     private async checkAgentAccess(
         user: SessionUser,
@@ -182,18 +195,35 @@ export class AiAgentService {
             return true;
         }
 
-        if (!agent.groupAccess || agent.groupAccess.length === 0) {
+        // Check if open access (no restrictions)
+        const hasGroupAccess =
+            agent.groupAccess && agent.groupAccess.length > 0;
+        const hasUserAccess = agent.userAccess && agent.userAccess.length > 0;
+
+        if (!hasGroupAccess && !hasUserAccess) {
             return true;
         }
 
-        const groupUuids = agent.groupAccess;
-        const userGroups = await this.groupsModel.findUserInGroups({
-            userUuid: user.userUuid,
-            organizationUuid: agent.organizationUuid,
-            groupUuids,
-        });
+        // Check user access first (direct access)
+        if (hasUserAccess && agent.userAccess.includes(user.userUuid)) {
+            return true;
+        }
 
-        return userGroups.length > 0;
+        // Check group access
+        if (hasGroupAccess) {
+            const groupUuids = agent.groupAccess;
+            const userGroups = await this.groupsModel.findUserInGroups({
+                userUuid: user.userUuid,
+                organizationUuid: agent.organizationUuid,
+                groupUuids,
+            });
+
+            if (userGroups.length > 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -450,7 +480,7 @@ export class AiAgentService {
         const slackUserIds = _.uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
-                .filter((thread) => thread.user.slackUserId != null)
+                .filter((thread) => thread.user.slackUserId !== null)
                 .map((thread) => thread.user.slackUserId),
         );
 
@@ -467,7 +497,7 @@ export class AiAgentService {
 
             const slackUser = slackUsers.find(
                 ({ id }) =>
-                    thread.user.slackUserId != null &&
+                    thread.user.slackUserId !== null &&
                     id === thread.user.slackUserId,
             );
 
@@ -744,6 +774,7 @@ export class AiAgentService {
             integrations: body.integrations,
             instruction: body.instruction,
             groupAccess: body.groupAccess,
+            userAccess: body.userAccess,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -798,6 +829,7 @@ export class AiAgentService {
             instruction: body.instruction,
             imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
+            userAccess: body.userAccess,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -1622,7 +1654,62 @@ export class AiAgentService {
             await this.aiAgentModel.createToolResults(data);
         };
 
+        const findDashboards: FindDashboardsFn = async (args) => {
+            const searchResults = await this.searchModel.searchDashboards(
+                projectUuid,
+                args.dashboardSearchQuery.label,
+            );
+
+            // Apply permission filtering - check space access for each dashboard
+            const spaceUuids = [
+                ...new Set(
+                    searchResults.map((dashboard) => dashboard.spaceUuid),
+                ),
+            ];
+
+            const spaces = await Promise.all(
+                spaceUuids.map((spaceUuid) =>
+                    this.spaceModel.getSpaceSummary(spaceUuid),
+                ),
+            );
+
+            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                user.userUuid,
+                spaces.map((s) => s.uuid),
+            );
+
+            const filterDashboard = (dashboard: typeof searchResults[0]) => {
+                const itemSpace = spaces.find(
+                    (s) => s.uuid === dashboard.spaceUuid,
+                );
+                return (
+                    itemSpace &&
+                    hasViewAccessToSpace(
+                        user,
+                        itemSpace,
+                        spacesAccess[dashboard.spaceUuid] ?? [],
+                    )
+                );
+            };
+
+            const filteredResults = searchResults.filter(filterDashboard);
+
+            const totalResults = filteredResults.length;
+            const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+            return {
+                dashboards: filteredResults,
+                pagination: {
+                    page: args.page,
+                    pageSize: args.pageSize,
+                    totalPageCount,
+                    totalResults,
+                },
+            };
+        };
+
         return {
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -1687,6 +1774,7 @@ export class AiAgentService {
         const { prompt, stream } = options;
 
         const {
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -1721,10 +1809,13 @@ export class AiAgentService {
             findExploresFieldOverviewSearchSize: 5,
             findExploresMaxDescriptionLength: 100,
             findFieldsPageSize: 10,
+            findDashboardsPageSize: 10,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            siteUrl: this.lightdashConfig.siteUrl,
         };
 
         const dependencies: AiAgentDependencies = {
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
