@@ -236,22 +236,9 @@ const registerCustomCompletionProvider = (
                             const hasDollarPrefix = /\$$/.test(
                                 textUntilPosition,
                             );
-                            const dollarWordMatch = /\$(\w+)$/.exec(
-                                textUntilPosition,
-                            );
-
                             if (hasDollarPrefix) {
                                 // If line ends with $, just add the bracketed parameter
-                                insertText = `\{ld.parameters.${paramName}}`;
-                            } else if (dollarWordMatch) {
-                                // Handle $word patterns - replace the entire $word to avoid double $
-                                insertText = `\${ld.parameters.${paramName}}`;
-                                customRange = {
-                                    startLineNumber: position.lineNumber,
-                                    endLineNumber: position.lineNumber,
-                                    startColumn: dollarWordMatch.index! + 1,
-                                    endColumn: position.column,
-                                };
+                                insertText = `{ld.parameters.${paramName}}`;
                             } else {
                                 // Otherwise add full parameter
                                 insertText = `\${ld.parameters.${paramName}}`;
