@@ -237,9 +237,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     storageClient: clients.getResultsFileStorageClient(),
                 }),
-            mcpService: ({ context }) =>
+            mcpService: ({ context, repository, models }) =>
                 new McpService({
                     lightdashConfig: context.lightdashConfig,
+                    catalogService: repository.getCatalogService(),
+                    projectService: repository.getProjectService(),
+                    userAttributesModel: models.getUserAttributesModel(),
                 }),
         },
         modelProviders: {
