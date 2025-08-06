@@ -11,6 +11,7 @@ export const ToolNameSchema = z.enum([
     'generateBarVizConfig',
     'generateTableVizConfig',
     'generateTimeSeriesVizConfig',
+    'findDashboards',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -23,6 +24,7 @@ export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
+    findDashboards: 'Finding relevant dashboards',
     findFields: 'Finding relevant fields',
     generateBarVizConfig: 'Generating a bar chart',
     generateTableVizConfig: 'Generating a table',
@@ -33,6 +35,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
 export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
     ToolDisplayMessagesSchema.parse({
         findExplores: 'Found relevant explores',
+        findDashboards: 'Found relevant dashboards',
         findFields: 'Found relevant fields',
         generateBarVizConfig: 'Generated a bar chart',
         generateTableVizConfig: 'Generated a table',

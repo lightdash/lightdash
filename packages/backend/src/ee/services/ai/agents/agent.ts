@@ -10,6 +10,7 @@ import {
 import type { ZodType } from 'zod';
 import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
+import { getFindDashboards } from '../tools/findDashboards';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
@@ -71,6 +72,12 @@ const getAgentTools = (
         pageSize: args.findFieldsPageSize,
     });
 
+    const findDashboards = getFindDashboards({
+        findDashboards: dependencies.findDashboards,
+        pageSize: args.findDashboardsPageSize,
+        siteUrl: args.siteUrl,
+    });
+
     const generateBarVizConfig = getGenerateBarVizConfig({
         getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
@@ -102,6 +109,7 @@ const getAgentTools = (
     });
 
     const tools = {
+        findDashboards,
         findExplores,
         findFields,
         generateBarVizConfig,
