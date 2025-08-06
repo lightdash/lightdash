@@ -14,7 +14,7 @@ type EmbeddedAbilityBuilder = (
     options: EmbeddedAbilityBuilderPayload,
 ) => EmbeddedAbilityBuilderPayload;
 
-const addBaseAbilities: EmbeddedAbilityBuilder = ({
+const dashboardAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
     organization,
@@ -38,14 +38,28 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
     const { content } = embedUser;
     const { can } = builder;
 
+    if (content.canExplore || content.canViewUnderlyingData) {
+        can('view', 'UnderlyingData', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: content.projectUuid,
+        });
+
+        can('view', 'Project', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: content.projectUuid,
+        });
+
+        can('view', 'SavedChart', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: content.projectUuid,
+            isPrivate: false,
+        });
+    }
+
     if (content.canExplore) {
         can('view', 'Explore', {
             organizationUuid: organization.organizationUuid,
-            projectUuid: embedUser.content.projectUuid,
-        });
-        can('view', 'Project', {
-            organizationUuid: organization.organizationUuid,
-            projectUuid: embedUser.content.projectUuid,
+            projectUuid: content.projectUuid,
         });
     }
 
@@ -85,24 +99,8 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     return { embedUser, dashboardUuid, organization, builder };
 };
 
-const dashboardAbilities: EmbeddedAbilityBuilder = ({
-    embedUser,
-    dashboardUuid,
-    organization,
-    builder,
-}) => {
-    const { content } = embedUser;
-    const { can } = builder;
-
-    can('view', 'Dashboard', {
-        dateZoom: content.canDateZoom ?? false,
-        organizationUuid: organization.organizationUuid,
-    });
-    return { embedUser, dashboardUuid, organization, builder };
-};
-
 const applyAbilities = flow(
-    addBaseAbilities,
+    dashboardAbilities,
     exportAbilities,
     dashboardAbilities,
     exploreAbilities,
