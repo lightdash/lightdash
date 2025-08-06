@@ -99,3 +99,22 @@ export type AiAgentGroupAccessTable = Knex.CompositeTableType<
         >
     >
 >;
+
+export const AiAgentUserAccessTableName = 'ai_agent_user_access';
+
+export type DbAiAgentUserAccess = {
+    user_uuid: string;
+    ai_agent_uuid: string;
+    created_at: Date;
+};
+
+export type AiAgentUserAccessTable = Knex.CompositeTableType<
+    // base
+    DbAiAgentUserAccess,
+    // insert
+    Omit<DbAiAgentUserAccess, 'created_at'>,
+    // update
+    Partial<
+        Omit<DbAiAgentUserAccess, 'user_uuid' | 'ai_agent_uuid' | 'created_at'>
+    >
+>;
