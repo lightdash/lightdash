@@ -1,6 +1,7 @@
 import { AiAgent } from '@lightdash/common';
 import { CoreMessage, LanguageModelV1 } from 'ai';
 import {
+    FindChartsFn,
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
@@ -32,11 +33,13 @@ export type AiAgentArgs = {
     findExploresMaxDescriptionLength: number;
     findFieldsPageSize: number;
     findDashboardsPageSize: number;
+    findChartsPageSize: number;
     maxQueryLimit: number;
     siteUrl?: string;
 };
 
 export type AiAgentDependencies = {
+    findCharts: FindChartsFn;
     findDashboards: FindDashboardsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;

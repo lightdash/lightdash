@@ -48,6 +48,7 @@ const getToolIcon = (toolName: ToolName) => {
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
             findDashboards: IconDashboard,
+            findCharts: IconChartDots3,
         };
 
     return iconMap[toolName];
@@ -206,6 +207,29 @@ const ToolCallDescription: FC<{
                             </Badge>
                         ),
                     )}
+                </Text>
+            );
+        case 'find_charts':
+            const findChartsToolArgs = toolArgs;
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for charts{' '}
+                    {findChartsToolArgs.chartSearchQueries.map((query) => (
+                        <Badge
+                            key={query.label}
+                            color="gray"
+                            variant="light"
+                            size="xs"
+                            mx={rem(2)}
+                            radius="sm"
+                            style={{
+                                textTransform: 'none',
+                                fontWeight: 400,
+                            }}
+                        >
+                            {query.label}
+                        </Badge>
+                    ))}
                 </Text>
             );
         default:

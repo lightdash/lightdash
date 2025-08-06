@@ -80,6 +80,7 @@ import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
+    FindChartsFn,
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
@@ -1333,6 +1334,50 @@ export class AiAgentService {
         return agentSettings;
     }
 
+    /**
+     * Filters search results (dashboards or charts) by space access permissions
+     * @param user - The session user to check permissions for
+     * @param searchResults - Array of search results with spaceUuid property
+     * @returns Filtered array containing only items the user has access to
+     */
+    private async filterSearchResultsBySpaceAccess<
+        T extends { spaceUuid: string },
+    >(user: SessionUser, searchResults: T[]): Promise<T[]> {
+        if (searchResults.length === 0) {
+            return [];
+        }
+
+        // Get unique space UUIDs from search results
+        const spaceUuids = [
+            ...new Set(searchResults.map((item) => item.spaceUuid)),
+        ];
+
+        // Fetch space summaries and user access
+        const [spaces, spacesAccess] = await Promise.all([
+            Promise.all(
+                spaceUuids.map((spaceUuid) =>
+                    this.spaceModel.getSpaceSummary(spaceUuid),
+                ),
+            ),
+            this.spaceModel.getUserSpacesAccess(user.userUuid, spaceUuids),
+        ]);
+
+        // Filter function to check space access
+        const hasAccessToItem = (item: T) => {
+            const itemSpace = spaces.find((s) => s.uuid === item.spaceUuid);
+            return (
+                itemSpace &&
+                hasViewAccessToSpace(
+                    user,
+                    itemSpace,
+                    spacesAccess[item.spaceUuid] ?? [],
+                )
+            );
+        };
+
+        return searchResults.filter(hasAccessToItem);
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -1660,39 +1705,10 @@ export class AiAgentService {
                 args.dashboardSearchQuery.label,
             );
 
-            // Apply permission filtering - check space access for each dashboard
-            const spaceUuids = [
-                ...new Set(
-                    searchResults.map((dashboard) => dashboard.spaceUuid),
-                ),
-            ];
-
-            const spaces = await Promise.all(
-                spaceUuids.map((spaceUuid) =>
-                    this.spaceModel.getSpaceSummary(spaceUuid),
-                ),
+            const filteredResults = await this.filterSearchResultsBySpaceAccess(
+                user,
+                searchResults,
             );
-
-            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-                user.userUuid,
-                spaces.map((s) => s.uuid),
-            );
-
-            const filterDashboard = (dashboard: typeof searchResults[0]) => {
-                const itemSpace = spaces.find(
-                    (s) => s.uuid === dashboard.spaceUuid,
-                );
-                return (
-                    itemSpace &&
-                    hasViewAccessToSpace(
-                        user,
-                        itemSpace,
-                        spacesAccess[dashboard.spaceUuid] ?? [],
-                    )
-                );
-            };
-
-            const filteredResults = searchResults.filter(filterDashboard);
 
             const totalResults = filteredResults.length;
             const totalPageCount = Math.ceil(totalResults / args.pageSize);
@@ -1708,7 +1724,33 @@ export class AiAgentService {
             };
         };
 
+        const findCharts: FindChartsFn = async (args) => {
+            const searchResults = await this.searchModel.searchSavedCharts(
+                projectUuid,
+                args.chartSearchQuery.label,
+            );
+
+            const filteredResults = await this.filterSearchResultsBySpaceAccess(
+                user,
+                searchResults,
+            );
+
+            const totalResults = filteredResults.length;
+            const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+            return {
+                charts: filteredResults,
+                pagination: {
+                    page: args.page,
+                    pageSize: args.pageSize,
+                    totalPageCount,
+                    totalResults,
+                },
+            };
+        };
+
         return {
+            findCharts,
             findDashboards,
             findFields,
             findExplores,
@@ -1774,6 +1816,7 @@ export class AiAgentService {
         const { prompt, stream } = options;
 
         const {
+            findCharts,
             findDashboards,
             findFields,
             findExplores,
@@ -1810,11 +1853,13 @@ export class AiAgentService {
             findExploresMaxDescriptionLength: 100,
             findFieldsPageSize: 10,
             findDashboardsPageSize: 10,
+            findChartsPageSize: 10,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
         };
 
         const dependencies: AiAgentDependencies = {
+            findCharts,
             findDashboards,
             findFields,
             findExplores,
