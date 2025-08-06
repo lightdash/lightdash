@@ -65,18 +65,22 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
 import { GroupsModel } from '../../models/GroupsModel';
+import { SearchModel } from '../../models/SearchModel';
+import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
+import { hasViewAccessToSpace } from '../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
+    FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
     GetExploreFn,
@@ -110,6 +114,8 @@ type AiAgentServiceDependencies = {
     asyncQueryService: AsyncQueryService;
     userAttributesModel: UserAttributesModel;
     catalogService: CatalogService;
+    searchModel: SearchModel;
+    spaceModel: SpaceModel;
 };
 
 export class AiAgentService {
@@ -135,6 +141,10 @@ export class AiAgentService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
+    private readonly searchModel: SearchModel;
+
+    private readonly spaceModel: SpaceModel;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.analytics = dependencies.analytics;
@@ -147,6 +157,8 @@ export class AiAgentService {
         this.asyncQueryService = dependencies.asyncQueryService;
         this.userAttributesModel = dependencies.userAttributesModel;
         this.catalogService = dependencies.catalogService;
+        this.searchModel = dependencies.searchModel;
+        this.spaceModel = dependencies.spaceModel;
     }
 
     private async getIsCopilotEnabled(
@@ -1642,7 +1654,62 @@ export class AiAgentService {
             await this.aiAgentModel.createToolResults(data);
         };
 
+        const findDashboards: FindDashboardsFn = async (args) => {
+            const searchResults = await this.searchModel.searchDashboards(
+                projectUuid,
+                args.dashboardSearchQuery.label,
+            );
+
+            // Apply permission filtering - check space access for each dashboard
+            const spaceUuids = [
+                ...new Set(
+                    searchResults.map((dashboard) => dashboard.spaceUuid),
+                ),
+            ];
+
+            const spaces = await Promise.all(
+                spaceUuids.map((spaceUuid) =>
+                    this.spaceModel.getSpaceSummary(spaceUuid),
+                ),
+            );
+
+            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                user.userUuid,
+                spaces.map((s) => s.uuid),
+            );
+
+            const filterDashboard = (dashboard: typeof searchResults[0]) => {
+                const itemSpace = spaces.find(
+                    (s) => s.uuid === dashboard.spaceUuid,
+                );
+                return (
+                    itemSpace &&
+                    hasViewAccessToSpace(
+                        user,
+                        itemSpace,
+                        spacesAccess[dashboard.spaceUuid] ?? [],
+                    )
+                );
+            };
+
+            const filteredResults = searchResults.filter(filterDashboard);
+
+            const totalResults = filteredResults.length;
+            const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+            return {
+                dashboards: filteredResults,
+                pagination: {
+                    page: args.page,
+                    pageSize: args.pageSize,
+                    totalPageCount,
+                    totalResults,
+                },
+            };
+        };
+
         return {
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -1707,6 +1774,7 @@ export class AiAgentService {
         const { prompt, stream } = options;
 
         const {
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -1741,10 +1809,13 @@ export class AiAgentService {
             findExploresFieldOverviewSearchSize: 5,
             findExploresMaxDescriptionLength: 100,
             findFieldsPageSize: 10,
+            findDashboardsPageSize: 10,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            siteUrl: this.lightdashConfig.siteUrl,
         };
 
         const dependencies: AiAgentDependencies = {
+            findDashboards,
             findFields,
             findExplores,
             getExplore,

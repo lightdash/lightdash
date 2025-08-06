@@ -19,7 +19,7 @@ export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'> &
     RankedItem;
 export type DashboardSearchResult = Pick<
     Dashboard,
-    'uuid' | 'name' | 'description' | 'spaceUuid'
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
 > & {
     validationErrors: {
         validationId: ValidationErrorDashboardResponse['validationId'];
