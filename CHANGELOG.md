@@ -1,3 +1,10 @@
+# [0.1881.0](https://github.com/lightdash/lightdash/compare/0.1880.0...0.1881.0) (2025-08-06)
+
+
+### Features
+
+* add find_dashboards tool ([#16239](https://github.com/lightdash/lightdash/issues/16239)) ([04912ee](https://github.com/lightdash/lightdash/commit/04912eea6998f75f599a47ba1ae89391e05e12b3))
+
 # [0.1880.0](https://github.com/lightdash/lightdash/compare/0.1879.0...0.1880.0) (2025-08-06)
 
 
