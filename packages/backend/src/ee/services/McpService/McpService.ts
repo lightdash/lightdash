@@ -7,7 +7,9 @@ import {
     OauthAccount,
     SessionUser,
     ToolFindExploresArgs,
+    ToolFindFieldsArgs,
     toolFindExploresArgsSchema,
+    toolFindFieldsArgsSchema,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { subject } from '@casl/ability';
@@ -29,11 +31,16 @@ import {
     getFindExplores,
     toolFindExploresDescription,
 } from '../ai/tools/findExplores';
-import { FindExploresFn } from '../ai/types/aiAgentDependencies';
+import {
+    getFindFields,
+    toolFindFieldsDescription,
+} from '../ai/tools/findFields';
+import { FindExploresFn, FindFieldFn } from '../ai/types/aiAgentDependencies';
 
 export enum McpToolName {
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
     FIND_EXPLORES = 'find_explores',
+    FIND_FIELDS = 'find_fields',
 }
 
 type McpServiceArguments = {
@@ -130,6 +137,47 @@ export class McpService extends BaseService {
                     fieldOverviewSearchSize: 5,
                 });
                 const result = await findExploresTool.execute(args, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: result,
+                        },
+                    ],
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.FIND_FIELDS,
+            {
+                description: toolFindFieldsDescription,
+                inputSchema: {
+                    // Cast to AnyType to avoid slow TypeScript compilation
+                    ...(toolFindFieldsArgsSchema.shape as AnyType),
+                    projectUuid: z.string(),
+                },
+            },
+            async (_args, context) => {
+                const args = _args as ToolFindFieldsArgs & {
+                    projectUuid: string;
+                };
+
+                const findFields: FindFieldFn =
+                    await this.getFindFieldsFunction(
+                        args,
+                        context as McpContext,
+                    );
+
+                const findFieldsTool = getFindFields({
+                    findFields,
+                    pageSize: 15,
+                });
+                const result = await findFieldsTool.execute(args, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -290,6 +338,72 @@ export class McpService extends BaseService {
             });
 
         return findExplores;
+    }
+
+    async getFindFieldsFunction(
+        toolArgs: ToolFindFieldsArgs & { projectUuid: string },
+        context: McpContext,
+    ): Promise<FindFieldFn> {
+        const { user, account } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+        const { projectUuid } = toolArgs;
+
+        if (!user || !organizationUuid || !account) {
+            throw new ForbiddenError();
+        }
+
+        const project = await this.projectService.getProject(
+            projectUuid,
+            account,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const findFields: FindFieldFn = (args) =>
+            wrapSentryTransaction('McpService.findFields', args, async () => {
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
+
+                const { data: catalogItems, pagination } =
+                    await this.catalogService.searchCatalog({
+                        projectUuid,
+                        catalogSearch: {
+                            type: CatalogType.Field,
+                            searchQuery: args.fieldSearchQuery.label,
+                            yamlTags: undefined,
+                            tables: args.table ? [args.table] : undefined,
+                        },
+                        context: CatalogSearchContext.MCP,
+                        paginateArgs: {
+                            page: args.page,
+                            pageSize: args.pageSize,
+                        },
+                        userAttributes,
+                    });
+
+                const catalogFields = catalogItems.filter(
+                    (item) => item.type === CatalogType.Field,
+                );
+
+                return { fields: catalogFields, pagination };
+            });
+
+        return findFields;
     }
 
     public getServer(): McpServer {
