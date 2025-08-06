@@ -92,9 +92,9 @@ import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { replaceParametersAsString } from '../../utils/QueryBuilder/parameters';
 import {
-    QueryBuilder,
     ReferenceMap,
-} from '../../utils/QueryBuilder/queryBuilder';
+    SqlQueryBuilder,
+} from '../../utils/QueryBuilder/SqlQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
@@ -2579,8 +2579,8 @@ export class AsyncQueryService extends ProjectService {
         // Select all vizColumns
         const selectColumns = vizColumns.map((col) => col.reference);
 
-        // Create and return the QueryBuilder instance
-        const queryBuilder = new QueryBuilder(
+        // Create and return the SqlQueryBuilder instance
+        const queryBuilder = new SqlQueryBuilder(
             {
                 referenceMap,
                 select: selectColumns,
