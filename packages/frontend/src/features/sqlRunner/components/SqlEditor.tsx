@@ -180,24 +180,39 @@ const registerCustomCompletionProvider = (
                         ? value.join(', ')
                         : value;
 
-                    // Use a single regex to detect context and what to replace
+                    // Use regex patterns to detect context and what to replace
                     const parameterPattern =
                         /\$\{(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)\}?$/;
                     const ldPattern =
                         /\b(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)$/;
+                    // Pattern to detect any content inside ${} brackets
+                    const insideBracketsPattern = /\$\{([^}]*?)$/;
 
                     const parameterMatch =
                         textUntilPosition.match(parameterPattern);
                     const ldMatch = textUntilPosition.match(ldPattern);
+                    const insideBracketsMatch = textUntilPosition.match(
+                        insideBracketsPattern,
+                    );
 
                     let insertText: string;
                     let customRange = range;
 
                     if (parameterMatch) {
-                        // Inside ${} - replace from the start of the match
+                        // Inside ${} with ld prefix - replace from the start of the match
                         const matchStart = textUntilPosition.lastIndexOf(
                             parameterMatch[1],
                         );
+                        insertText = `ld.parameters.${paramName}`;
+                        customRange = {
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: matchStart + 1,
+                            endColumn: position.column,
+                        };
+                    } else if (insideBracketsMatch) {
+                        // Inside ${} but not ld prefix - replace content inside brackets
+                        const matchStart = insideBracketsMatch.index! + 2; // +2 to skip "${
                         insertText = `ld.parameters.${paramName}`;
                         customRange = {
                             startLineNumber: position.lineNumber,
@@ -225,8 +240,9 @@ const registerCustomCompletionProvider = (
                     // Prioritize parameters when typing ld/parameters related text
                     const isRelevantContext =
                         parameterMatch ||
+                        insideBracketsMatch ||
                         ldMatch ||
-                        /(?:^|\W)(?:ld|parameters)/i.test(textUntilPosition);
+                        /(?:^|\W)(?:ld|parameters|\$)/i.test(textUntilPosition);
                     const sortText = isRelevantContext
                         ? `0_param_${paramName}`
                         : `param_${paramName}`;
