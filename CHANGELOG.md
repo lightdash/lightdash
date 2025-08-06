@@ -1,3 +1,10 @@
+# [0.1883.0](https://github.com/lightdash/lightdash/compare/0.1882.0...0.1883.0) (2025-08-06)
+
+
+### Features
+
+* allow embeds to access spaces ([#16203](https://github.com/lightdash/lightdash/issues/16203)) ([47c0c55](https://github.com/lightdash/lightdash/commit/47c0c5506c669d7c4bb1f828e85a1fb01a642321))
+
 # [0.1882.0](https://github.com/lightdash/lightdash/compare/0.1881.0...0.1882.0) (2025-08-06)
 
 
