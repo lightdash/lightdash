@@ -23,6 +23,7 @@ export type AiAgentArgs = {
     organizationId: string;
     userId: string;
     debugLoggingEnabled: boolean;
+    telemetryEnabled: boolean;
 
     availableExploresPageSize: number;
     findExploresPageSize: number;

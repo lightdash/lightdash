@@ -1734,6 +1734,7 @@ export class AiAgentService {
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+            telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
 
             availableExploresPageSize: 100,
             findExploresPageSize: 15,
