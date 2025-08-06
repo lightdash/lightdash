@@ -18,6 +18,7 @@ import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useParameters } from '../../../hooks/parameters/useParameters';
 import '../../../styles/monaco.css';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import {
@@ -142,6 +143,10 @@ const registerCustomCompletionProvider = (
     tables: string[],
     fields?: WarehouseTableFieldWithContext[],
     settings?: SqlEditorPreferences,
+    availableParameters?: Record<
+        string,
+        { label: string; description?: string; default?: string | string[] }
+    >,
 ) => {
     return monaco.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: (model, position) => {
@@ -161,6 +166,116 @@ const registerCustomCompletionProvider = (
             });
 
             const suggestions: languages.CompletionItem[] = [];
+
+            // Add parameter completions with simplified logic
+            if (availableParameters) {
+                // Don't show parameter completions for $word patterns (like $param, $metric, $ld)
+                // Only show for clean patterns: ${...}, ld.parameters, or plain $
+                const isDollarWord =
+                    /\$\w+$/.test(textUntilPosition) &&
+                    !/\$$/.test(textUntilPosition);
+                if (!isDollarWord) {
+                    // Only add parameter completions for clean patterns
+                    Object.keys(availableParameters).forEach((paramName) => {
+                        const paramConfig = availableParameters[paramName];
+
+                        // Use regex patterns to detect context and what to replace
+                        const parameterPattern =
+                            /\$\{(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)\}?$/;
+                        const ldPattern =
+                            /\b(ld(?:\.(?:parameters(?:\.\w*)?|\w*))?)$/;
+                        // Pattern to detect any content inside ${} brackets
+                        const insideBracketsPattern = /\$\{([^}]*?)$/;
+
+                        const parameterMatch =
+                            textUntilPosition.match(parameterPattern);
+                        const ldMatch = textUntilPosition.match(ldPattern);
+                        const insideBracketsMatch = textUntilPosition.match(
+                            insideBracketsPattern,
+                        );
+
+                        let insertText: string;
+                        let customRange = range;
+
+                        if (parameterMatch) {
+                            // Inside ${} with ld prefix - replace from the start of the match
+                            const matchStart = textUntilPosition.lastIndexOf(
+                                parameterMatch[1],
+                            );
+                            insertText = `ld.parameters.${paramName}`;
+                            customRange = {
+                                startLineNumber: position.lineNumber,
+                                endLineNumber: position.lineNumber,
+                                startColumn: matchStart + 1,
+                                endColumn: position.column,
+                            };
+                        } else if (insideBracketsMatch) {
+                            // Inside ${} but not ld prefix - replace content inside brackets
+                            const matchStart = insideBracketsMatch.index! + 2; // +2 to skip "${
+                            insertText = `ld.parameters.${paramName}`;
+                            customRange = {
+                                startLineNumber: position.lineNumber,
+                                endLineNumber: position.lineNumber,
+                                startColumn: matchStart + 1,
+                                endColumn: position.column,
+                            };
+                        } else if (ldMatch) {
+                            // Outside ${} - wrap with ${} and replace from start of ld
+                            const matchStart = textUntilPosition.lastIndexOf(
+                                ldMatch[1],
+                            );
+                            insertText = `\${ld.parameters.${paramName}}`;
+                            customRange = {
+                                startLineNumber: position.lineNumber,
+                                endLineNumber: position.lineNumber,
+                                startColumn: matchStart + 1,
+                                endColumn: position.column,
+                            };
+                        } else {
+                            // Default case - be smart about existing $ prefix
+                            const hasDollarPrefix = /\$$/.test(
+                                textUntilPosition,
+                            );
+                            if (hasDollarPrefix) {
+                                // If line ends with $, just add the bracketed parameter
+                                insertText = `{ld.parameters.${paramName}}`;
+                            } else {
+                                // Otherwise add full parameter
+                                insertText = `\${ld.parameters.${paramName}}`;
+                            }
+                        }
+
+                        // Prioritize parameters when typing ld/parameters related text
+                        const isRelevantContext =
+                            parameterMatch ||
+                            insideBracketsMatch ||
+                            ldMatch ||
+                            /(?:^|\W)(?:ld|parameters|\$)/i.test(
+                                textUntilPosition,
+                            );
+                        const sortText = isRelevantContext
+                            ? `0_param_${paramName}`
+                            : `param_${paramName}`;
+
+                        suggestions.push({
+                            label: {
+                                label: `ld.parameters.${paramName}`,
+                                detail: paramConfig.description
+                                    ? ` - ${paramConfig.description}`
+                                    : '',
+                            },
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            insertText,
+                            range: customRange,
+                            sortText,
+                            detail: `Parameter: ${
+                                paramConfig.label || paramName
+                            }`,
+                            documentation: paramConfig.description,
+                        });
+                    });
+                }
+            }
 
             const formatFieldName = (fieldName: string): string => {
                 let formattedName = fieldName;
@@ -253,6 +368,7 @@ const registerCustomCompletionProvider = (
 
             return { suggestions };
         },
+        triggerCharacters: ['.', '{'],
     });
 };
 
@@ -323,6 +439,9 @@ export const SqlEditor: FC<{
     );
 
     const [settings] = useSqlEditorPreferences(warehouseConnectionType);
+
+    // Fetch all available parameters for the project
+    const { data: availableParameters } = useParameters(projectUuid, undefined);
 
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
@@ -415,17 +534,15 @@ export const SqlEditor: FC<{
     // Register completion provider reactively when data changes
     useEffect(() => {
         // Setup logic only runs when all dependencies are available
-        if (monaco && transformedData && quoteChar) {
+        if (monaco && quoteChar) {
             // Dispose of the previous completion provider
             if (completionProviderRef.current) {
                 completionProviderRef.current.dispose();
                 completionProviderRef.current = null;
             }
-            const tablesList = generateTableCompletions(
-                quoteChar,
-                transformedData,
-                settings,
-            );
+            const tablesList = transformedData
+                ? generateTableCompletions(quoteChar, transformedData, settings)
+                : [];
             // Transform current table fields to include context and combine with detected table fields
             const currentTableFieldsWithContext = (tableFieldsData || []).map(
                 (field) => ({
@@ -439,17 +556,17 @@ export const SqlEditor: FC<{
                 ...(detectedTablesFieldData || []),
             ];
 
-            if (tablesList && tablesList.length > 0) {
-                const provider = registerCustomCompletionProvider(
-                    monaco,
-                    language,
-                    quoteChar,
-                    tablesList,
-                    allFieldsData.length > 0 ? allFieldsData : undefined,
-                    settings,
-                );
-                completionProviderRef.current = provider;
-            }
+            // Always register completion provider, even without tables
+            const provider = registerCustomCompletionProvider(
+                monaco,
+                language,
+                quoteChar,
+                tablesList || [],
+                allFieldsData.length > 0 ? allFieldsData : undefined,
+                settings,
+                availableParameters,
+            );
+            completionProviderRef.current = provider;
         }
         // Cleanup function always runs on unmount regardless of conditions
         return () => {
@@ -469,6 +586,7 @@ export const SqlEditor: FC<{
         currentSchema,
         warehouseConnectionType,
         settings,
+        availableParameters,
     ]);
 
     useEffect(() => {
