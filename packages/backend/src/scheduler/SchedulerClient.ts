@@ -472,6 +472,27 @@ export class SchedulerClient {
         return { target, jobId: id };
     }
 
+    private async deleteOverlappingScheduledJobs(
+        schedulerUuid: string,
+        dates: Date[],
+    ) {
+        // Delete any existing scheduled jobs for this scheduler that overlap with the dates we're about to create
+        // This prevents duplicates if the generateDailyJobs task runs multiple times or retries
+        const existingJobs = await this.getScheduledJobs(schedulerUuid);
+        const datesToCreate = new Set(dates.map((d) => d.toISOString()));
+        const jobsToDelete = existingJobs.filter((job) =>
+            datesToCreate.has(new Date(job.date).toISOString()),
+        );
+
+        if (jobsToDelete.length > 0) {
+            Logger.info(
+                `Removing ${jobsToDelete.length} existing scheduled jobs for scheduler ${schedulerUuid} to prevent duplicates`,
+            );
+            const graphileClient = await this.graphileUtils;
+            await graphileClient.completeJobs(jobsToDelete.map((j) => j.id));
+        }
+    }
+
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
         traceProperties: TraceTaskBase,
@@ -492,6 +513,11 @@ export class SchedulerClient {
         );
 
         try {
+            await this.deleteOverlappingScheduledJobs(
+                scheduler.schedulerUuid,
+                dates,
+            );
+
             const promises = dates.map((date: Date) =>
                 this.addScheduledDeliveryJob(
                     date,
