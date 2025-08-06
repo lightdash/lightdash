@@ -1,4 +1,4 @@
-import { WarehouseTypes, type ParametersValuesMap } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import { Center, Loader } from '@mantine/core';
 import Editor, {
     useMonaco,
@@ -147,7 +147,6 @@ const registerCustomCompletionProvider = (
         string,
         { label: string; description?: string; default?: string | string[] }
     >,
-    parameterValues?: ParametersValuesMap,
 ) => {
     return monaco.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: (model, position) => {
@@ -179,14 +178,6 @@ const registerCustomCompletionProvider = (
                     // Only add parameter completions for clean patterns
                     Object.keys(availableParameters).forEach((paramName) => {
                         const paramConfig = availableParameters[paramName];
-                        const hasValue =
-                            parameterValues?.[paramName] !== undefined;
-                        const value = hasValue
-                            ? parameterValues[paramName]
-                            : undefined;
-                        const valuePreview = Array.isArray(value)
-                            ? value.join(', ')
-                            : value;
 
                         // Use regex patterns to detect context and what to replace
                         const parameterPattern =
@@ -282,9 +273,7 @@ const registerCustomCompletionProvider = (
                         suggestions.push({
                             label: {
                                 label: `ld.parameters.${paramName}`,
-                                detail: hasValue
-                                    ? ` = ${valuePreview}`
-                                    : paramConfig.description
+                                detail: paramConfig.description
                                     ? ` - ${paramConfig.description}`
                                     : ' (no value)',
                             },
@@ -292,20 +281,10 @@ const registerCustomCompletionProvider = (
                             insertText,
                             range: customRange,
                             sortText,
-                            detail: hasValue
-                                ? `Parameter: ${
-                                      paramConfig.label || paramName
-                                  } = ${valuePreview}`
-                                : `Parameter: ${
-                                      paramConfig.label || paramName
-                                  }${
-                                      paramConfig.description
-                                          ? ` - ${paramConfig.description}`
-                                          : ''
-                                  }`,
-                            documentation:
-                                paramConfig.description ||
-                                'Lightdash parameter',
+                            detail: `Parameter: ${
+                                paramConfig.label || paramName
+                            }`,
+                            documentation: paramConfig.description,
                         });
                     });
                 }
@@ -463,8 +442,7 @@ export const SqlEditor: FC<{
     onSubmit?: (sql: string) => void;
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
-    parameterValues?: ParametersValuesMap;
-}> = ({ onSubmit, highlightText, resetHighlightError, parameterValues }) => {
+}> = ({ onSubmit, highlightText, resetHighlightError }) => {
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
@@ -600,7 +578,6 @@ export const SqlEditor: FC<{
                 allFieldsData.length > 0 ? allFieldsData : undefined,
                 settings,
                 availableParameters,
-                parameterValues,
             );
             completionProviderRef.current = provider;
         }
@@ -623,7 +600,6 @@ export const SqlEditor: FC<{
         warehouseConnectionType,
         settings,
         availableParameters,
-        parameterValues,
     ]);
 
     useEffect(() => {
