@@ -107,17 +107,7 @@ const generateExploreResponse = ({
     }
 </Explore>`.trim();
 
-export const getFindExplores = ({
-    findExplores,
-    pageSize,
-    maxDescriptionLength,
-    fieldSearchSize,
-    fieldOverviewSearchSize,
-}: Dependencies) => {
-    const schema = toolFindExploresArgsSchema;
-
-    return tool({
-        description: `Tool: findExplores
+export const toolFindExploresDescription = `Tool: findExplores
 
 Purpose:
 Lists available Explores along with their field labels, joined tables, hints for you (Ai Hints) and descriptions.
@@ -128,8 +118,18 @@ Usage Tips:
 - Results are paginated — use the next page token to retrieve additional pages.
 - It's advised to look for tables first and then use the exploreName parameter to narrow results to a specific Explore.
 - When using the exploreName parameter, all fields and full description are returned for that explore.
-`,
-        parameters: schema,
+`;
+
+export const getFindExplores = ({
+    findExplores,
+    pageSize,
+    maxDescriptionLength,
+    fieldSearchSize,
+    fieldOverviewSearchSize,
+}: Dependencies) =>
+    tool({
+        description: toolFindExploresDescription,
+        parameters: toolFindExploresArgsSchema,
         execute: async (args) => {
             try {
                 if (args.page && args.page < 1) {
@@ -169,4 +169,3 @@ ${exploreResponses}
             }
         },
     });
-};
