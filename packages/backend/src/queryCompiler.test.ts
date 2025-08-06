@@ -12,7 +12,7 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED,
     METRIC_QUERY_WITH_INVALID_ADDITIONAL_METRIC,
 } from './queryCompiler.mock';
-import { warehouseClientMock } from './utils/QueryBuilder/queryBuilder.mock';
+import { warehouseClientMock } from './utils/QueryBuilder/MetricQueryBuilder.mock';
 
 test('Should compile without table calculations', () => {
     const expected: CompiledMetricQuery = {

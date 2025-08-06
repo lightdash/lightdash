@@ -22,7 +22,7 @@ import {
     warehouseClientMock,
     WEEK_NAME_SORT_DESCENDING_SQL,
     WEEK_NAME_SORT_SQL,
-} from './queryBuilder.mock';
+} from './MetricQueryBuilder.mock';
 import {
     applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
