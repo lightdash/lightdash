@@ -29,7 +29,7 @@ export enum SidebarTabs {
     VISUALIZATION = 'visualization',
 }
 
-const getLanguage = (
+export const getLanguage = (
     warehouseConnectionType?: WarehouseTypes,
 ): FormatOptionsWithLanguage['language'] => {
     switch (warehouseConnectionType) {
