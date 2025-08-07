@@ -5,21 +5,13 @@
     gap: var(--mantine-spacing-xxs);
     padding: var(--mantine-spacing-two) var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-gray-3);
     cursor: pointer;
-}
-
-.chartContentLink {
     transition: all 0.2s ease;
-    border: 1px solid var(--mantine-color-blue-3);
+    position: relative;
+    vertical-align: middle;
+    margin-right: var(--mantine-spacing-two);
     &:hover {
-        background-color: var(--mantine-color-blue-1) !important;
-    }
-}
-
-.dashboardContentLink {
-    transition: all 0.2s ease;
-    border: 1px solid var(--mantine-color-green-3);
-    &:hover {
-        background-color: var(--mantine-color-green-1) !important;
+        background-color: var(--mantine-color-gray-1) !important;
     }
 }
