@@ -6,6 +6,8 @@ import {
     MissingConfigError,
     OauthAccount,
     SessionUser,
+    ToolFindChartsArgs,
+    toolFindChartsArgsSchema,
     ToolFindDashboardsArgs,
     toolFindDashboardsArgsSchema,
     ToolFindExploresArgs,
@@ -29,9 +31,13 @@ import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
-import { hasViewAccessToSpace } from '../../../services/SpaceService/SpaceService';
+import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
+import {
+    getFindCharts,
+    toolFindChartsDescription,
+} from '../ai/tools/findCharts';
 import {
     getFindDashboards,
     toolFindDashboardsDescription,
@@ -45,6 +51,7 @@ import {
     toolFindFieldsDescription,
 } from '../ai/tools/findFields';
 import {
+    FindChartsFn,
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
@@ -55,6 +62,7 @@ export enum McpToolName {
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
     FIND_DASHBOARDS = 'find_dashboards',
+    FIND_CHARTS = 'find_charts',
 }
 
 type McpServiceArguments = {
@@ -64,6 +72,7 @@ type McpServiceArguments = {
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
 };
 
 export type ExtraContext = { user: SessionUser; account: OauthAccount };
@@ -86,6 +95,8 @@ export class McpService extends BaseService {
 
     private spaceModel: SpaceModel;
 
+    private spaceService: SpaceService;
+
     private mcpServer: McpServer;
 
     constructor({
@@ -95,6 +106,7 @@ export class McpService extends BaseService {
         userAttributesModel,
         searchModel,
         spaceModel,
+        spaceService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -103,6 +115,7 @@ export class McpService extends BaseService {
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         try {
             this.mcpServer = new McpServer({
                 name: 'Lightdash MCP Server',
@@ -244,6 +257,48 @@ export class McpService extends BaseService {
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await findDashboardsTool.execute(args, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: result,
+                        },
+                    ],
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.FIND_CHARTS,
+            {
+                description: toolFindChartsDescription,
+                inputSchema: {
+                    // Cast to AnyType to avoid slow TypeScript compilation
+                    ...(toolFindChartsArgsSchema.shape as AnyType),
+                    projectUuid: z.string(),
+                },
+            },
+            async (_args, context) => {
+                const args = _args as ToolFindChartsArgs & {
+                    projectUuid: string;
+                };
+
+                const findCharts: FindChartsFn =
+                    await this.getFindChartsFunction(
+                        args,
+                        context as McpContext,
+                    );
+
+                const findChartsTool = getFindCharts({
+                    findCharts,
+                    pageSize: 10,
+                    siteUrl: this.lightdashConfig.siteUrl,
+                });
+                const result = await findChartsTool.execute(args, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -512,42 +567,11 @@ export class McpService extends BaseService {
                             args.dashboardSearchQuery.label,
                         );
 
-                    const spaceUuids = [
-                        ...new Set(
-                            searchResults.map(
-                                (dashboard) => dashboard.spaceUuid,
-                            ),
-                        ),
-                    ];
-                    const spaces = await Promise.all(
-                        spaceUuids.map((spaceUuid) =>
-                            this.spaceModel.getSpaceSummary(spaceUuid),
-                        ),
-                    );
-                    const spacesAccess =
-                        await this.spaceModel.getUserSpacesAccess(
-                            user.userUuid,
-                            spaces.map((s) => s.uuid),
-                        );
-
-                    const filterDashboard = (
-                        dashboard: typeof searchResults[0],
-                    ) => {
-                        const itemSpace = spaces.find(
-                            (s) => s.uuid === dashboard.spaceUuid,
-                        );
-                        return (
-                            itemSpace &&
-                            hasViewAccessToSpace(
-                                user,
-                                itemSpace,
-                                spacesAccess[itemSpace.uuid],
-                            )
-                        );
-                    };
-
                     const filteredDashboards =
-                        searchResults.filter(filterDashboard);
+                        await this.spaceService.filterBySpaceAccess(
+                            user,
+                            searchResults,
+                        );
 
                     const totalResults = filteredDashboards.length;
                     const totalPageCount = Math.ceil(
@@ -567,6 +591,65 @@ export class McpService extends BaseService {
             );
 
         return findDashboards;
+    }
+
+    async getFindChartsFunction(
+        toolArgs: ToolFindChartsArgs & { projectUuid: string },
+        context: McpContext,
+    ): Promise<FindChartsFn> {
+        const { user, account } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+        const { projectUuid } = toolArgs;
+
+        if (!user || !organizationUuid || !account) {
+            throw new ForbiddenError();
+        }
+
+        const project = await this.projectService.getProject(
+            projectUuid,
+            account,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const findCharts: FindChartsFn = (args) =>
+            wrapSentryTransaction('McpService.findCharts', args, async () => {
+                const searchResults = await this.searchModel.searchSavedCharts(
+                    projectUuid,
+                    args.chartSearchQuery.label,
+                );
+
+                const filteredCharts =
+                    await this.spaceService.filterBySpaceAccess(
+                        user,
+                        searchResults,
+                    );
+
+                const totalResults = filteredCharts.length;
+                const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+                return {
+                    charts: filteredCharts,
+                    pagination: {
+                        page: args.page,
+                        pageSize: args.pageSize,
+                        totalResults,
+                        totalPageCount,
+                    },
+                };
+            });
+
+        return findCharts;
     }
 
     public getServer(): McpServer {

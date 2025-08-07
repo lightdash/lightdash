@@ -77,7 +77,7 @@ import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQuerySe
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
-import { hasViewAccessToSpace } from '../../services/SpaceService/SpaceService';
+import { SpaceService } from '../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
@@ -130,6 +130,7 @@ type AiAgentServiceDependencies = {
     slackClient: SlackClient;
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
+    spaceService: SpaceService;
 };
 
 export class AiAgentService {
@@ -165,6 +166,8 @@ export class AiAgentService {
 
     private readonly userModel: UserModel;
 
+    private readonly spaceService: SpaceService;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.analytics = dependencies.analytics;
@@ -182,6 +185,7 @@ export class AiAgentService {
         this.slackClient = dependencies.slackClient;
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
+        this.spaceService = dependencies.spaceService;
 
         this.initSlackListeners();
     }
@@ -1373,50 +1377,6 @@ export class AiAgentService {
         return agentSettings;
     }
 
-    /**
-     * Filters search results (dashboards or charts) by space access permissions
-     * @param user - The session user to check permissions for
-     * @param searchResults - Array of search results with spaceUuid property
-     * @returns Filtered array containing only items the user has access to
-     */
-    private async filterSearchResultsBySpaceAccess<
-        T extends { spaceUuid: string },
-    >(user: SessionUser, searchResults: T[]): Promise<T[]> {
-        if (searchResults.length === 0) {
-            return [];
-        }
-
-        // Get unique space UUIDs from search results
-        const spaceUuids = [
-            ...new Set(searchResults.map((item) => item.spaceUuid)),
-        ];
-
-        // Fetch space summaries and user access
-        const [spaces, spacesAccess] = await Promise.all([
-            Promise.all(
-                spaceUuids.map((spaceUuid) =>
-                    this.spaceModel.getSpaceSummary(spaceUuid),
-                ),
-            ),
-            this.spaceModel.getUserSpacesAccess(user.userUuid, spaceUuids),
-        ]);
-
-        // Filter function to check space access
-        const hasAccessToItem = (item: T) => {
-            const itemSpace = spaces.find((s) => s.uuid === item.spaceUuid);
-            return (
-                itemSpace &&
-                hasViewAccessToSpace(
-                    user,
-                    itemSpace,
-                    spacesAccess[item.spaceUuid] ?? [],
-                )
-            );
-        };
-
-        return searchResults.filter(hasAccessToItem);
-    }
-
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -1744,7 +1704,7 @@ export class AiAgentService {
                 args.dashboardSearchQuery.label,
             );
 
-            const filteredResults = await this.filterSearchResultsBySpaceAccess(
+            const filteredResults = await this.spaceService.filterBySpaceAccess(
                 user,
                 searchResults,
             );
@@ -1769,7 +1729,7 @@ export class AiAgentService {
                 args.chartSearchQuery.label,
             );
 
-            const filteredResults = await this.filterSearchResultsBySpaceAccess(
+            const filteredResults = await this.spaceService.filterBySpaceAccess(
                 user,
                 searchResults,
             );
