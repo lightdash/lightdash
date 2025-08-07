@@ -736,6 +736,236 @@ describe('Query builder', () => {
         expect(result.warnings[0].tables).toContain('table2');
     });
 
+    describe('getNullsFirstLast static method', () => {
+        test('Should return empty string when nullsFirst is null', () => {
+            const sort = {
+                fieldId: 'test',
+                descending: false,
+                nullsFirst: undefined,
+            };
+            expect(MetricQueryBuilder.getNullsFirstLast(sort)).toBe('');
+        });
+
+        test('Should return " NULLS FIRST" when nullsFirst is true', () => {
+            const sort = {
+                fieldId: 'test',
+                descending: false,
+                nullsFirst: true,
+            };
+            expect(MetricQueryBuilder.getNullsFirstLast(sort)).toBe(
+                ' NULLS FIRST',
+            );
+        });
+
+        test('Should return " NULLS LAST" when nullsFirst is false', () => {
+            const sort = {
+                fieldId: 'test',
+                descending: false,
+                nullsFirst: false,
+            };
+            expect(MetricQueryBuilder.getNullsFirstLast(sort)).toBe(
+                ' NULLS LAST',
+            );
+        });
+
+        test('Should work correctly with descending sort', () => {
+            const sortFirst = {
+                fieldId: 'test',
+                descending: true,
+                nullsFirst: true,
+            };
+            const sortLast = {
+                fieldId: 'test',
+                descending: true,
+                nullsFirst: false,
+            };
+
+            expect(MetricQueryBuilder.getNullsFirstLast(sortFirst)).toBe(
+                ' NULLS FIRST',
+            );
+            expect(MetricQueryBuilder.getNullsFirstLast(sortLast)).toBe(
+                ' NULLS LAST',
+            );
+        });
+    });
+
+    describe('nullsFirst in sort queries', () => {
+        test('Should build query with NULLS FIRST on dimension', () => {
+            const queryWithNullsFirst = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_dim1',
+                            descending: false,
+                            nullsFirst: true,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(queryWithNullsFirst.query).toContain(
+                'ORDER BY "table1_dim1" NULLS FIRST',
+            );
+        });
+
+        test('Should build query with NULLS LAST on dimension', () => {
+            const queryWithNullsLast = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_dim1',
+                            descending: false,
+                            nullsFirst: false,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(queryWithNullsLast.query).toContain(
+                'ORDER BY "table1_dim1" NULLS LAST',
+            );
+        });
+
+        test('Should build query with NULLS FIRST on metric descending', () => {
+            const queryWithNullsFirst = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_metric1',
+                            descending: true,
+                            nullsFirst: true,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(queryWithNullsFirst.query).toContain(
+                'ORDER BY "table1_metric1" DESC NULLS FIRST',
+            );
+        });
+
+        test('Should build query with NULLS LAST on metric descending', () => {
+            const queryWithNullsLast = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_metric1',
+                            descending: true,
+                            nullsFirst: false,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(queryWithNullsLast.query).toContain(
+                'ORDER BY "table1_metric1" DESC NULLS LAST',
+            );
+        });
+
+        test('Should build query with multiple sorts using nullsFirst', () => {
+            const queryWithMultipleSorts = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_dim1',
+                            descending: false,
+                            nullsFirst: true,
+                        },
+                        {
+                            fieldId: 'table1_metric1',
+                            descending: true,
+                            nullsFirst: false,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(queryWithMultipleSorts.query).toContain(
+                'ORDER BY "table1_dim1" NULLS FIRST, "table1_metric1" DESC NULLS LAST',
+            );
+        });
+
+        test('Should build query with mixed nullsFirst values', () => {
+            const queryWithMixedNulls = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    sorts: [
+                        {
+                            fieldId: 'table1_dim1',
+                            descending: false,
+                            nullsFirst: undefined, // Should omit NULLS clause
+                        },
+                        {
+                            fieldId: 'table1_metric1',
+                            descending: true,
+                            nullsFirst: true,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            const orderByClause =
+                queryWithMixedNulls.query.match(/ORDER BY[^;]+/)?.[0];
+            expect(orderByClause).toContain('"table1_dim1"');
+            expect(orderByClause).not.toContain('"table1_dim1" NULLS');
+            expect(orderByClause).toContain(
+                '"table1_metric1" DESC NULLS FIRST',
+            );
+        });
+
+        test('Should work with custom bin dimensions and nullsFirst', () => {
+            const queryWithCustomDimAndNullsFirst = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    sorts: [
+                        {
+                            fieldId: 'age_range',
+                            descending: false,
+                            nullsFirst: true,
+                        },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(queryWithCustomDimAndNullsFirst.query).toContain(
+                '"age_range_order" NULLS FIRST',
+            );
+        });
+    });
+
     describe('Parameters', () => {
         test('Should build query with parameters in dimensions', () => {
             const exploreWithParameterDimension = {
