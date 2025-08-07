@@ -17,7 +17,7 @@ const getDashboardText = (
     siteUrl?: string,
 ) => {
     const dashboardUrl = siteUrl
-        ? `${siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view`
+        ? `${siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view#dashboard-link`
         : undefined;
 
     return `
