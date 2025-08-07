@@ -35,13 +35,17 @@ const getAgentTelemetryConfig = (
         agentSettings,
         threadUuid,
         promptUuid,
-    }: Pick<AiAgentArgs, 'agentSettings' | 'threadUuid' | 'promptUuid'>,
+        telemetryEnabled,
+    }: Pick<
+        AiAgentArgs,
+        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
+    >,
 ) =>
     ({
         functionId,
         isEnabled: true,
-        recordInputs: false,
-        recordOutputs: false,
+        recordInputs: telemetryEnabled,
+        recordOutputs: telemetryEnabled,
         metadata: {
             agentUuid: agentSettings.uuid,
             threadUuid,
