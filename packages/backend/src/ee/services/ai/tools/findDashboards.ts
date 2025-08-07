@@ -56,15 +56,7 @@ const getDashboardsText = (
 </SearchResult>
 `.trim();
 
-export const getFindDashboards = ({
-    findDashboards,
-    pageSize,
-    siteUrl,
-}: Dependencies) => {
-    const schema = toolFindDashboardsArgsSchema;
-
-    return tool({
-        description: `Tool: "findDashboards"
+export const toolFindDashboardsDescription = `Tool: "findDashboards"
                     Purpose:
                     Finds dashboards by name or description within a project, returning detailed info about each.
 
@@ -75,8 +67,16 @@ export const getFindDashboards = ({
                     - Dashboards with validation errors will be deprioritized
                     - Returns dashboard URLs when available 
                     - It doesn't provide a dashboard summary yet, so don't suggest this capability
-        `,
-        parameters: schema,
+        `;
+
+export const getFindDashboards = ({
+    findDashboards,
+    pageSize,
+    siteUrl,
+}: Dependencies) =>
+    tool({
+        description: toolFindDashboardsDescription,
+        parameters: toolFindDashboardsArgsSchema,
         execute: async (args) => {
             try {
                 const dashboardSearchQueryResults = await Promise.all(
@@ -109,4 +109,3 @@ export const getFindDashboards = ({
             }
         },
     });
-};
