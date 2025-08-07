@@ -96,7 +96,8 @@ export class UserController extends BaseController {
                 'Default organization UUID not found in environment variables',
             );
         }
-        this.services.getUserService().joinOrgShopify(sessionUser, orgUuid)
+        await this.services.getUserService().joinOrgShopify(sessionUser, orgUuid);
+        (sessionUser as any).organizationUuid = orgUuid;
 
         return new Promise((resolve, reject) => {
             req.login(sessionUser, (err) => {
