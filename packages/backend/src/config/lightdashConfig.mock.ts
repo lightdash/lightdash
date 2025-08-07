@@ -147,6 +147,7 @@ export const lightdashConfigMock: LightdashConfig = {
                 batchSize: 1000,
                 delayMs: 100,
                 maxBatches: 100,
+                schedule: '0 2 * * *',
             },
         },
     },

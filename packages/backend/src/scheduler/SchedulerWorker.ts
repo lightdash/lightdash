@@ -83,7 +83,9 @@ export class SchedulerWorker extends SchedulerTask {
                 },
                 {
                     task: 'cleanQueryHistory',
-                    pattern: '0 2 * * *', // Run daily at 2 AM
+                    pattern:
+                        this.lightdashConfig.scheduler.queryHistory.cleanup
+                            .schedule,
                     options: {
                         backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
                         maxAttempts: 3,
