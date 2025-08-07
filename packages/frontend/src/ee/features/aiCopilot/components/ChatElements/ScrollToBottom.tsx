@@ -76,6 +76,7 @@ const ThreadScrollToBottom = ({
     }, [
         streamingState?.content,
         streamingState?.toolCalls?.length,
+        streamingState?.error,
         scrollToBottom,
     ]);
 
