@@ -923,6 +923,9 @@ importers:
       fuse.js:
         specifier: ^6.5.3
         version: 6.5.3
+      hast:
+        specifier: ^1.0.0
+        version: 1.0.0
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
@@ -1034,6 +1037,9 @@ importers:
       unique-names-generator:
         specifier: ^4.7.1
         version: 4.7.1
+      unist-util-visit:
+        specifier: ^5.0.0
+        version: 5.0.0
       use-context-selector:
         specifier: ^1.4.1
         version: 1.4.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(scheduler@0.23.2)
@@ -1099,6 +1105,9 @@ importers:
         specifier: ^4.0.8
         version: 4.0.8
       '@types/d3-time':
+        specifier: ^3.0.4
+        version: 3.0.4
+      '@types/hast':
         specifier: ^3.0.4
         version: 3.0.4
       '@types/isomorphic-fetch':
@@ -7992,7 +8001,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -10924,6 +10932,10 @@ packages:
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
 
+  hast@1.0.0:
+    resolution: {integrity: sha512-vFUqlRV5C+xqP76Wwq2SrM0kipnmpxJm7OfvVXpB35Fp+Fn4MV+ozr+JZr5qFvyR1q/U+Foim2x+3P+x9S1PLA==}
+    deprecated: Renamed to rehype
+
   hastscript@7.0.2:
     resolution: {integrity: sha512-uA8ooUY4ipaBvKcMuPehTAB/YfFLSSzCwFSwT6ltJbocFUKH/GDHLN+tflq7lSRf9H86uOuxOFkh1KgIy3Gg2g==}
 
@@ -11436,10 +11448,6 @@ packages:
   is-plain-obj@2.1.0:
     resolution: {integrity: sha512-YWnfyRwxL/+SsrWYfOpUtz5b3YD+nyfkHvjbcanzk8zgyO4ASD67uVMRt8k5bM4lLMDnXfriRhOpemw+NfT1eA==}
     engines: {node: '>=8'}
-
-  is-plain-obj@4.0.0:
-    resolution: {integrity: sha512-NXRbBtUdBioI73y/HmOhogw/U5msYPC9DAtGkJXeFcFWSFZw0mCUsPxk/snTuJHzNKA8kLBK4rH97RMB1BfCXw==}
-    engines: {node: '>=12'}
 
   is-plain-obj@4.1.0:
     resolution: {integrity: sha512-+Pgi+vMuUNkJyExiMBt5IlFoMyKnr5zhJ4Uspz58WOhBF5QoIZkFyNHIbBAtHwzVAgk5RtndVNsDRN61/mmDqg==}
@@ -25071,7 +25079,7 @@ snapshots:
 
   '@types/hast@3.0.4':
     dependencies:
-      '@types/unist': 2.0.8
+      '@types/unist': 3.0.3
 
   '@types/hoist-non-react-statics@3.3.5':
     dependencies:
@@ -25154,11 +25162,11 @@ snapshots:
 
   '@types/mdast@3.0.10':
     dependencies:
-      '@types/unist': 2.0.8
+      '@types/unist': 3.0.3
 
   '@types/mdast@4.0.4':
     dependencies:
-      '@types/unist': 2.0.8
+      '@types/unist': 3.0.3
 
   '@types/mdx@2.0.13': {}
 
@@ -29768,6 +29776,8 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.4
 
+  hast@1.0.0: {}
+
   hastscript@7.0.2:
     dependencies:
       '@types/hast': 2.3.1
@@ -30233,8 +30243,6 @@ snapshots:
   is-path-inside@3.0.3: {}
 
   is-plain-obj@2.1.0: {}
-
-  is-plain-obj@4.0.0: {}
 
   is-plain-obj@4.1.0: {}
 
@@ -35617,7 +35625,7 @@ snapshots:
       bail: 2.0.2
       devlop: 1.1.0
       extend: 3.0.2
-      is-plain-obj: 4.0.0
+      is-plain-obj: 4.1.0
       trough: 2.0.2
       vfile: 6.0.3
 
