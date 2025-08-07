@@ -1,3 +1,10 @@
+# [0.1887.0](https://github.com/lightdash/lightdash/compare/0.1886.0...0.1887.0) (2025-08-07)
+
+
+### Features
+
+* add find_charts tool to MCP service ([#16267](https://github.com/lightdash/lightdash/issues/16267)) ([e2643db](https://github.com/lightdash/lightdash/commit/e2643dbceec490d4c200db6feae92a297af6a517)), closes [#16266](https://github.com/lightdash/lightdash/issues/16266)
+
 # [0.1886.0](https://github.com/lightdash/lightdash/compare/0.1885.2...0.1886.0) (2025-08-07)
 
 
