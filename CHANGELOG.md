@@ -1,3 +1,10 @@
+## [0.1885.2](https://github.com/lightdash/lightdash/compare/0.1885.1...0.1885.2) (2025-08-07)
+
+
+### Bug Fixes
+
+* extract limit clause from subquery and add it at the end of the sql ([#16238](https://github.com/lightdash/lightdash/issues/16238)) ([d65e36d](https://github.com/lightdash/lightdash/commit/d65e36dc11a9a9acca691c413d4c9780c3085d94))
+
 ## [0.1885.1](https://github.com/lightdash/lightdash/compare/0.1885.0...0.1885.1) (2025-08-07)
 
 
