@@ -6,6 +6,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
+    DashboardParameterValue,
     DownloadCsvPayload,
     DownloadFileType,
     EmailNotificationPayload,
@@ -727,6 +728,37 @@ export default class SchedulerTask {
                 const csvOptions = isSchedulerCsvOptions(options)
                     ? options
                     : undefined;
+
+                // Extract parameters for CSV format same as XLSX
+                let csvSchedulerParameters: ParametersValuesMap | undefined;
+                if (dashboardUuid) {
+                    const dashboard =
+                        await this.schedulerService.dashboardModel.getById(
+                            dashboardUuid,
+                        );
+                    const dashboardParameters = dashboard.parameters || {};
+                    const schedulerParameters = isDashboardScheduler(scheduler)
+                        ? scheduler.parameters
+                        : undefined;
+
+                    // Convert dashboard parameters to ParametersValuesMap format
+                    const convertedDashboardParameters: ParametersValuesMap =
+                        Object.fromEntries(
+                            Object.entries(dashboardParameters).map(
+                                ([key, param]) => [
+                                    key,
+                                    (param as DashboardParameterValue).value,
+                                ],
+                            ),
+                        );
+
+                    // Merge scheduler parameters with dashboard parameters (scheduler parameters override)
+                    csvSchedulerParameters = {
+                        ...convertedDashboardParameters,
+                        ...schedulerParameters,
+                    };
+                }
+
                 const baseAnalyticsProperties: DownloadCsv['properties'] = {
                     jobId,
                     userId: userUuid,
@@ -767,6 +799,7 @@ export default class SchedulerTask {
                                 : undefined,
                             selectedTabs,
                             invalidateCache: true,
+                            schedulerParameters: csvSchedulerParameters,
                         });
 
                         this.analytics.track({

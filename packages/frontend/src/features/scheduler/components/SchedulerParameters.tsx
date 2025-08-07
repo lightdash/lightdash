@@ -144,6 +144,9 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
     const dashboardParameterReferences = useDashboardContext(
         (c) => c.dashboardParameterReferences,
     );
+    const dashboardParameterValues = useDashboardContext(
+        (c) => c.parameterValues,
+    );
     // Get parameters that are referenced in the dashboard
     const { data: availableParameters, isInitialLoading } = useParameters(
         dashboard?.projectUuid,
@@ -211,7 +214,11 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
             {Object.entries(availableParameters).map(
                 ([paramKey, parameter]) => {
                     const schedulerValue = schedulerParameters?.[paramKey];
-                    const dashboardValue = parameter.default || null;
+                    // Use actual dashboard parameter value, fallback to default if not set
+                    const dashboardValue =
+                        dashboardParameterValues?.[paramKey] ??
+                        parameter.default ??
+                        null;
 
                     return (
                         <ParameterItem
@@ -224,7 +231,10 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
                             onRevert={() => handleRevertParameter(paramKey)}
                             hasChanged={hasParameterChanged(paramKey)}
                             projectUuid={dashboard?.projectUuid || ''}
-                            parameterValues={schedulerParameters}
+                            parameterValues={{
+                                ...dashboardParameterValues,
+                                ...schedulerParameters,
+                            }}
                         />
                     );
                 },

@@ -68,6 +68,7 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MsTeamsSvg from '../../../svgs/msteams.svg?react';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -335,6 +336,14 @@ const SchedulerForm: FC<Props> = ({
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
+    // Get current dashboard parameter values for initialization
+    const allDashboardParameterValues = useDashboardContext(
+        (c) => c.parameterValues,
+    );
+    const dashboardParameterValues = isDashboard
+        ? allDashboardParameterValues
+        : {};
+
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
@@ -353,6 +362,11 @@ const SchedulerForm: FC<Props> = ({
                       selectedTabs: isDashboardTabsAvailable
                           ? dashboard?.tabs.map((tab) => tab.uuid)
                           : undefined,
+                      parameters:
+                          isDashboard &&
+                          Object.keys(dashboardParameterValues).length > 0
+                              ? dashboardParameterValues
+                              : undefined,
                   },
         validateInputOnBlur: ['options.customLimit'],
 
