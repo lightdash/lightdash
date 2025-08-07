@@ -14,11 +14,13 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    EXPECTED_SQL_WITH_CROSS_JOIN,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_NUMBER,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH_ON_POSTGRES,
     EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION,
+    EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN,
     EXPECTED_SQL_WITH_SORTED_CUSTOM_DIMENSION,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
@@ -26,6 +28,8 @@ import {
     EXPLORE_JOIN_CHAIN,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
+    EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
+    EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
@@ -79,6 +83,10 @@ const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
 // Wrapper around class to simplify test calls
 const buildQuery = (args: BuildQueryProps): CompiledQuery =>
     new MetricQueryBuilder(args).compileQuery();
+
+// Wrapper around class to simplify test calls with useExperimentalMetricCtes=true
+const buildQueryWithExperimentalCtes = (args: BuildQueryProps): CompiledQuery =>
+    new MetricQueryBuilder(args).compileQuery(true);
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
@@ -819,6 +827,124 @@ describe('Query builder', () => {
 
             // Verify that unused parameter is not included
             expect(compiledQuery.usedParameters).not.toHaveProperty('unused');
+        });
+    });
+
+    describe('Query builder with useExperimentalMetricCtes=true', () => {
+        test('Should build query with CTEs for metrics to prevent inflation', () => {
+            // Use the imported explore mock with MANY_TO_ONE relationship to trigger metric inflation
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    metrics: ['table1_metric1', 'table2_metric3'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings).toHaveLength(0);
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN),
+            );
+        });
+
+        test('Should build query with CTEs for metrics and CROSS join', () => {
+            // Use the imported explore mock with MANY_TO_ONE relationship to trigger metric inflation
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: [], // no dimensions in the query causes a CROSS join
+                    metrics: ['table1_metric1', 'table2_metric3'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings).toHaveLength(0);
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_WITH_CROSS_JOIN),
+            );
+        });
+
+        test('Should handle inflation-proof metrics correctly', () => {
+            // Create a metric query that includes both the count distinct metric and the sum metric
+            const metricQueryWithMixedMetrics = {
+                ...METRIC_QUERY_TWO_TABLES,
+                metrics: [
+                    'table2_metric2',
+                    'table1_metric1',
+                    'table1_metric_that_references_dim_from_table2',
+                ],
+            };
+
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE,
+                compiledMetricQuery: metricQueryWithMixedMetrics,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings).toHaveLength(0);
+            expect(result.query).not.toContain('cte_keys_');
+            expect(result.query).not.toContain('cte_metrics_');
+            expect(result.query).not.toContain('cte_unaffected');
+        });
+
+        test('Should generate warnings for tables without primary keys', () => {
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITHOUT_PRIMARY_KEYS,
+                compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should have warnings about missing primary keys
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a primary key definition'),
+                ),
+            ).toBe(true);
+
+            // Should have warnings about metrics that could be inflated
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes(
+                        'could be inflated due to table missing primary key definition',
+                    ),
+                ),
+            ).toBe(true);
+        });
+
+        test('Should generate warnings for joins without relationship type', () => {
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
+                compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should have warnings about missing relationship type
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a join relationship type'),
+                ),
+            ).toBe(true);
+
+            // Should have warnings about metrics that could be inflated
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes(
+                        'could be inflated due to missing join relationship type',
+                    ),
+                ),
+            ).toBe(true);
         });
     });
 });
