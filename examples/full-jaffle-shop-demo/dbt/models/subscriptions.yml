@@ -352,8 +352,8 @@ models:
                   END
               dynamic_subscription_metric:
                 type: sum
-                label: Dynamic Metric (Count vs MRR)
-                description: Switches between subscription count and MRR based on parameter
+                label: Dynamic Metric (Count vs Revenue)
+                description: Switches between subscription count and Revenue based on parameter
                 sql: |
                   CASE 
                     WHEN ${ld.parameters.metric_type} = 'count' THEN 1
