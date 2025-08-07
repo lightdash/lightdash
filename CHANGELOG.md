@@ -1,3 +1,11 @@
+# [0.1886.0](https://github.com/lightdash/lightdash/compare/0.1885.2...0.1886.0) (2025-08-07)
+
+
+### Features
+
+* add find_dashboards tool to MCP service ([#16244](https://github.com/lightdash/lightdash/issues/16244)) ([8b32f40](https://github.com/lightdash/lightdash/commit/8b32f40ba198a057003a81c1b9661a940e17c21c)), closes [#16243](https://github.com/lightdash/lightdash/issues/16243)
+* render chart/dashboard content links differently ([#16263](https://github.com/lightdash/lightdash/issues/16263)) ([344b3f0](https://github.com/lightdash/lightdash/commit/344b3f090abbc43d08ad28579db94dcc36e5d42d))
+
 ## [0.1885.2](https://github.com/lightdash/lightdash/compare/0.1885.1...0.1885.2) (2025-08-07)
 
 
