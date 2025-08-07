@@ -1,0 +1,25 @@
+.contentLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--mantine-spacing-xxs);
+    padding: var(--mantine-spacing-two) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-md);
+    cursor: pointer;
+}
+
+.chartContentLink {
+    transition: all 0.2s ease;
+    border: 1px solid var(--mantine-color-blue-3);
+    &:hover {
+        background-color: var(--mantine-color-blue-1) !important;
+    }
+}
+
+.dashboardContentLink {
+    transition: all 0.2s ease;
+    border: 1px solid var(--mantine-color-green-3);
+    &:hover {
+        background-color: var(--mantine-color-green-1) !important;
+    }
+}

@@ -14,7 +14,7 @@ type Dependencies = {
 
 const getChartText = (chart: SavedChartSearchResult, siteUrl?: string) => {
     const chartUrl = siteUrl
-        ? `${siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view`
+        ? `${siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`
         : undefined;
 
     return `
