@@ -7,6 +7,7 @@ import {
     type DashboardParameters,
     type DateGranularity,
     type FilterableDimension,
+    type ParameterDefinitions,
     type ParametersValuesMap,
     type ResultColumn,
     type SortField,
@@ -105,4 +106,6 @@ export type DashboardContextType = {
     addParameterReferences: (tileUuid: string, references: string[]) => void;
     tileParameterReferences: Record<string, string[]>;
     areAllChartsLoaded: boolean;
+    parameterDefinitions: ParameterDefinitions;
+    setParameterDefinitions: Dispatch<SetStateAction<ParameterDefinitions>>;
 };

@@ -536,6 +536,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const chartsWithDateZoomApplied = useDashboardContext(
         (c) => c.chartsWithDateZoomApplied,
     );
+
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
@@ -966,7 +971,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 >
                                     <HoverCard.Dropdown>
                                         <Text color="gray.7" fw={500} mb="xs">
-                                            Parameters:
+                                            Parameters
                                         </Text>
                                         <Stack
                                             spacing="xs"
@@ -982,9 +987,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     color="gray.6"
                                                 >
                                                     <Text span fw={600}>
-                                                        {key}:
+                                                        {parameterDefinitions[
+                                                            key
+                                                        ]?.label || key}
+                                                        :
                                                     </Text>{' '}
-                                                    {value}
+                                                    {Array.isArray(value)
+                                                        ? value.join(', ')
+                                                        : value}
                                                 </Text>
                                             ))}
                                         </Stack>

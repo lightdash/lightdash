@@ -12,6 +12,7 @@ import {
     type DashboardFilters,
     type DashboardParameters,
     type FilterableDimension,
+    type ParameterDefinitions,
     type ParametersValuesMap,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerFilterRule,
@@ -152,6 +153,9 @@ const DashboardProvider: React.FC<
             setIsDateZoomDisabled(true);
         }
     }, [dashboard]);
+
+    const [parameterDefinitions, setParameterDefinitions] =
+        useState<ParameterDefinitions>({});
 
     // Saved parameters are the parameters that are saved on the server
     const [savedParameters, setSavedParameters] = useState<DashboardParameters>(
@@ -805,6 +809,8 @@ const DashboardProvider: React.FC<
         parameterValues,
         selectedParametersCount,
         setParameter,
+        setParameterDefinitions,
+        parameterDefinitions,
         clearAllParameters,
         dashboardParameterReferences,
         addParameterReferences,
