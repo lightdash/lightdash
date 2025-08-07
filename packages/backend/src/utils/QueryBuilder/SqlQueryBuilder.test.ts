@@ -9,6 +9,10 @@ import {
     MULTI_FIELD_REFERENCE_MAP,
     QUERY_WITH_EMPTY_SELECT_SQL,
     QUERY_WITH_FILTER_SQL,
+    QUERY_WITH_LIMIT_OFFSET_MIN_SQL,
+    QUERY_WITH_LIMIT_OFFSET_SQL,
+    QUERY_WITH_LIMIT_ONLY_LIMIT_SQL,
+    QUERY_WITH_LIMIT_SQL,
     QUERY_WITH_NESTED_FILTERS_SQL,
     QUERY_WITH_SUBQUERY_SEMICOLON_COMMENTS_SQL,
     QUERY_WITH_SUBQUERY_SQL,
@@ -208,6 +212,87 @@ describe('SqlQueryBuilder class', () => {
                 DEFAULT_CONFIG,
             );
             expect(queryBuilder.toSql()).toBe(QUERY_WITH_EMPTY_SELECT_SQL);
+        });
+    });
+
+    describe('limit and offset functionality', () => {
+        it('should return query without LIMIT when no limit is set', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: { name: 'test_table' },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            expect(queryBuilder.toSql()).toBe(SIMPLE_QUERY_SQL);
+        });
+
+        it('should generate simple LIMIT clause when only limit is set', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: { name: 'test_table' },
+                    limit: 100,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            expect(queryBuilder.toSql()).toBe(QUERY_WITH_LIMIT_SQL);
+        });
+
+        it('should handle limit when limitOffset is found in subquery', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT * FROM source_table WHERE field IS NOT NULL LIMIT 200 OFFSET 10',
+                    },
+                    limit: 50,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            expect(queryBuilder.toSql()).toBe(QUERY_WITH_LIMIT_OFFSET_SQL);
+        });
+
+        it('should use the minimum of existing limit and new limit', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT * FROM source_table WHERE field IS NOT NULL LIMIT 30 OFFSET 5',
+                    },
+                    limit: 100,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            expect(queryBuilder.toSql()).toBe(QUERY_WITH_LIMIT_OFFSET_MIN_SQL);
+        });
+
+        it('should handle limitOffset with only limit (no offset) in subquery', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT * FROM source_table WHERE field IS NOT NULL LIMIT 75',
+                    },
+                    limit: 100,
+                },
+                DEFAULT_CONFIG,
+            );
+
+            expect(queryBuilder.toSql()).toBe(QUERY_WITH_LIMIT_ONLY_LIMIT_SQL);
         });
     });
 

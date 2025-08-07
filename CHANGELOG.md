@@ -1,3 +1,60 @@
+## [0.1888.1](https://github.com/lightdash/lightdash/compare/0.1888.0...0.1888.1) (2025-08-07)
+
+
+### Bug Fixes
+
+* duplicate scheduler jobs when there are errors generating daily jobs ([#16249](https://github.com/lightdash/lightdash/issues/16249)) ([a10f21e](https://github.com/lightdash/lightdash/commit/a10f21eb19e06747a3eea33b4e45c00c105d8de8))
+
+# [0.1888.0](https://github.com/lightdash/lightdash/compare/0.1887.0...0.1888.0) (2025-08-07)
+
+
+### Features
+
+* show parameter label on tiles ([#16262](https://github.com/lightdash/lightdash/issues/16262)) ([ee423af](https://github.com/lightdash/lightdash/commit/ee423af0d7c57536396d5090c068e5ccec53ad43))
+
+# [0.1887.0](https://github.com/lightdash/lightdash/compare/0.1886.0...0.1887.0) (2025-08-07)
+
+
+### Features
+
+* add find_charts tool to MCP service ([#16267](https://github.com/lightdash/lightdash/issues/16267)) ([e2643db](https://github.com/lightdash/lightdash/commit/e2643dbceec490d4c200db6feae92a297af6a517)), closes [#16266](https://github.com/lightdash/lightdash/issues/16266)
+
+# [0.1886.0](https://github.com/lightdash/lightdash/compare/0.1885.2...0.1886.0) (2025-08-07)
+
+
+### Features
+
+* add find_dashboards tool to MCP service ([#16244](https://github.com/lightdash/lightdash/issues/16244)) ([8b32f40](https://github.com/lightdash/lightdash/commit/8b32f40ba198a057003a81c1b9661a940e17c21c)), closes [#16243](https://github.com/lightdash/lightdash/issues/16243)
+* render chart/dashboard content links differently ([#16263](https://github.com/lightdash/lightdash/issues/16263)) ([344b3f0](https://github.com/lightdash/lightdash/commit/344b3f090abbc43d08ad28579db94dcc36e5d42d))
+
+## [0.1885.2](https://github.com/lightdash/lightdash/compare/0.1885.1...0.1885.2) (2025-08-07)
+
+
+### Bug Fixes
+
+* extract limit clause from subquery and add it at the end of the sql ([#16238](https://github.com/lightdash/lightdash/issues/16238)) ([d65e36d](https://github.com/lightdash/lightdash/commit/d65e36dc11a9a9acca691c413d4c9780c3085d94))
+
+## [0.1885.1](https://github.com/lightdash/lightdash/compare/0.1885.0...0.1885.1) (2025-08-07)
+
+
+### Bug Fixes
+
+* **dev:** payments model ([#16270](https://github.com/lightdash/lightdash/issues/16270)) ([9f58b6d](https://github.com/lightdash/lightdash/commit/9f58b6ddb35a80828c735323f0417946be3ab4a5))
+
+# [0.1885.0](https://github.com/lightdash/lightdash/compare/0.1884.0...0.1885.0) (2025-08-07)
+
+
+### Features
+
+* add find_charts tool ([#16246](https://github.com/lightdash/lightdash/issues/16246)) ([57f243c](https://github.com/lightdash/lightdash/commit/57f243cc05e1661f16b6986b7cd3734d31787a9a))
+
+# [0.1884.0](https://github.com/lightdash/lightdash/compare/0.1883.0...0.1884.0) (2025-08-07)
+
+
+### Features
+
+* Add SpotlightJS for local traces ([#16240](https://github.com/lightdash/lightdash/issues/16240)) ([e675c2e](https://github.com/lightdash/lightdash/commit/e675c2e3c4e60396a5ad3e15ab4606b361607b64))
+
 # [0.1883.0](https://github.com/lightdash/lightdash/compare/0.1882.0...0.1883.0) (2025-08-06)
 
 

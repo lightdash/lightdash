@@ -604,4 +604,45 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
 
         return this.getSpace(projectUuid, user, spaceUuid);
     }
+
+    /**
+     * Filters search results (dashboards or charts) by space access permissions
+     * @param user - The session user to check permissions for
+     * @param searchResults - Array of search results with spaceUuid property
+     * @returns Filtered array containing only items the user has access to
+     */
+    async filterBySpaceAccess<T extends { spaceUuid: string }>(
+        user: SessionUser,
+        searchResults: T[],
+    ): Promise<T[]> {
+        if (searchResults.length === 0) {
+            return [];
+        }
+
+        // Get unique space UUIDs from search results
+        const spaceUuids = [
+            ...new Set(searchResults.map((item) => item.spaceUuid)),
+        ];
+
+        // Fetch space summaries and user access
+        const [spaces, spacesAccess] = await Promise.all([
+            this.spaceModel.find({ spaceUuids }),
+            this.spaceModel.getUserSpacesAccess(user.userUuid, spaceUuids),
+        ]);
+
+        // Filter function to check space access
+        const hasAccessToItem = (item: T) => {
+            const itemSpace = spaces.find((s) => s.uuid === item.spaceUuid);
+            return (
+                itemSpace &&
+                hasViewAccessToSpace(
+                    user,
+                    itemSpace,
+                    spacesAccess[item.spaceUuid] ?? [],
+                )
+            );
+        };
+
+        return searchResults.filter(hasAccessToItem);
+    }
 }

@@ -71,3 +71,16 @@ export const QUERY_WITH_NESTED_FILTERS_SQL =
     'SELECT\n"table"."field1" AS "field1",\n"table"."field2" AS "field2",\n"table"."field3" AS "field3"\nFROM "table"\nWHERE ((\n("table"."field1") IN (\'value1\')\n) AND ((\n("table"."field2") > (10)\n) OR (\n("table"."field3") = true\n)))';
 
 export const QUERY_WITH_EMPTY_SELECT_SQL = 'SELECT\n*\nFROM "test_table"';
+
+// Limit and offset SQL strings
+export const QUERY_WITH_LIMIT_SQL =
+    'SELECT\n"test_table"."test_field" AS "test_field"\nFROM "test_table"\nLIMIT 100';
+
+export const QUERY_WITH_LIMIT_OFFSET_SQL =
+    'SELECT\n"test_table"."test_field" AS "test_field"\nFROM (\nSELECT * FROM source_table WHERE field IS NOT NULL\n) AS "subquery"\nLIMIT 50 OFFSET 10';
+
+export const QUERY_WITH_LIMIT_OFFSET_MIN_SQL =
+    'SELECT\n"test_table"."test_field" AS "test_field"\nFROM (\nSELECT * FROM source_table WHERE field IS NOT NULL\n) AS "subquery"\nLIMIT 30 OFFSET 5';
+
+export const QUERY_WITH_LIMIT_ONLY_LIMIT_SQL =
+    'SELECT\n"test_table"."test_field" AS "test_field"\nFROM (\nSELECT * FROM source_table WHERE field IS NOT NULL\n) AS "subquery"\nLIMIT 75';

@@ -23,7 +23,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
-import { Parameters } from '../features/parameters';
+import { Parameters, useParameters } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -102,6 +102,9 @@ const Dashboard: FC = () => {
     );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
+    const setParameterDefinitions = useDashboardContext(
+        (c) => c.setParameterDefinitions,
+    );
 
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -151,6 +154,20 @@ const Dashboard: FC = () => {
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
 
     const defaultTab = dashboardTabs?.[0];
+
+    const { data: parameterDefinitions } = useParameters(
+        projectUuid,
+        Array.from(dashboardParameterReferences ?? []),
+        {
+            enabled: !!projectUuid && !!dashboardParameterReferences,
+        },
+    );
+
+    useEffect(() => {
+        if (parameterDefinitions) {
+            setParameterDefinitions(parameterDefinitions);
+        }
+    }, [parameterDefinitions, setParameterDefinitions]);
 
     useEffect(() => {
         if (isDashboardLoading) return;

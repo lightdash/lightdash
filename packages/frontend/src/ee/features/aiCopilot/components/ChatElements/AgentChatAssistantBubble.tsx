@@ -1,11 +1,13 @@
 import {
     AiResultType,
+    ChartKind,
     parseVizConfig,
     type AiAgentMessageAssistant,
     type ApiExecuteAsyncMetricQueryResults,
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Center,
     CopyButton,
     Group,
@@ -16,9 +18,11 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import {
+    IconArrowRight,
     IconCheck,
     IconCopy,
     IconExclamationCircle,
+    IconLayoutDashboard,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
@@ -27,8 +31,8 @@ import {
 import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import {
     useAiAgentThreadMessageVizQuery,
@@ -38,7 +42,9 @@ import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
+import styles from './AgentChatAssistantBubble.module.css';
 import { AiChartVisualization } from './AiChartVisualization';
+import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
 const AssistantBubbleContent: FC<{
@@ -76,13 +82,107 @@ const AssistantBubbleContent: FC<{
             )}
             <MDEditor.Markdown
                 source={messageContent}
-                style={{ backgroundColor: 'transparent', padding: `0.5rem 0` }}
-                rehypePlugins={[
-                    [
-                        rehypeExternalLinks,
-                        { target: '_blank', rel: ['noopener', 'noreferrer'] },
-                    ],
-                ]}
+                style={{ padding: `0.5rem 0` }}
+                rehypePlugins={[rehypeAiAgentContentLinks]}
+                components={{
+                    a: ({ node, children, ...props }) => {
+                        const contentType =
+                            'data-content-type' in props &&
+                            typeof props['data-content-type'] === 'string'
+                                ? props['data-content-type']
+                                : undefined;
+                        const chartType =
+                            'data-chart-type' in props &&
+                            typeof props['data-chart-type'] === 'string'
+                                ? props['data-chart-type']
+                                : undefined;
+
+                        if (contentType === 'dashboard-link') {
+                            return (
+                                <Anchor
+                                    {...props}
+                                    target="_blank"
+                                    fz="sm"
+                                    fw={500}
+                                    bg="gray.0"
+                                    c="gray.7"
+                                    td="none"
+                                    classNames={{
+                                        root: styles.contentLink,
+                                    }}
+                                >
+                                    <MantineIcon
+                                        icon={IconLayoutDashboard}
+                                        size="md"
+                                        color="green.7"
+                                        fill="green.6"
+                                        fillOpacity={0.2}
+                                        strokeWidth={1.9}
+                                    />
+
+                                    {/* margin is added by md package */}
+                                    <Text fz="sm" fw={500} m={0}>
+                                        {children}
+                                    </Text>
+
+                                    <MantineIcon
+                                        icon={IconArrowRight}
+                                        color="gray.7"
+                                        size="sm"
+                                        strokeWidth={2.0}
+                                    />
+                                </Anchor>
+                            );
+                        } else if (contentType === 'chart-link') {
+                            const chartTypeKind =
+                                chartType &&
+                                Object.values(ChartKind).includes(
+                                    chartType as ChartKind,
+                                )
+                                    ? (chartType as ChartKind)
+                                    : undefined;
+                            return (
+                                <Anchor
+                                    {...props}
+                                    target="_blank"
+                                    fz="sm"
+                                    fw={500}
+                                    bg="gray.0"
+                                    c="gray.7"
+                                    td="none"
+                                    classNames={{
+                                        root: styles.contentLink,
+                                    }}
+                                >
+                                    {chartTypeKind && (
+                                        <MantineIcon
+                                            icon={getChartIcon(chartTypeKind)}
+                                            size="md"
+                                            color="blue.7"
+                                            fill="blue.4"
+                                            fillOpacity={0.2}
+                                            strokeWidth={1.9}
+                                        />
+                                    )}
+
+                                    {/* margin is added by md package */}
+                                    <Text fz="sm" fw={500} m={0}>
+                                        {children}
+                                    </Text>
+
+                                    <MantineIcon
+                                        icon={IconArrowRight}
+                                        color="gray.7"
+                                        size="sm"
+                                        strokeWidth={2.0}
+                                    />
+                                </Anchor>
+                            );
+                        }
+
+                        return <a {...props}>{children}</a>;
+                    },
+                }}
             />
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
         </>

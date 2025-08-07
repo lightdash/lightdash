@@ -576,3 +576,31 @@ export class OauthAuthenticationError extends LightdashError {
         });
     }
 }
+
+export class GenerateDailySchedulerJobError extends LightdashError {
+    schedulerUuid: string;
+
+    constructor(
+        message: string,
+        schedulerUuid: string,
+        originalError?: unknown,
+    ) {
+        super({
+            message,
+            name: 'GenerateDailySchedulerJobError',
+            statusCode: 500,
+            data: {
+                schedulerUuid,
+                originalError:
+                    originalError instanceof Error
+                        ? originalError.message
+                        : String(originalError),
+            },
+        });
+        this.schedulerUuid = schedulerUuid;
+        if (originalError instanceof Error) {
+            this.stack = originalError.stack;
+            this.cause = originalError;
+        }
+    }
+}

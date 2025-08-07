@@ -5,12 +5,13 @@ import {
 import {
     Box,
     Button,
+    Flex,
     Group,
     SimpleGrid,
     Stack,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -80,11 +81,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
 
     return (
         <Stack>
-            <SimpleGrid
-                cols={cols}
-                spacing="sm"
-                breakpoints={[{ maxWidth: 'sm', cols: 1 }]}
-            >
+            <SimpleGrid cols={{ base: 1, sm: cols }} spacing="sm">
                 {parameterKeys.map((paramKey) => {
                     const parameter = parameters?.[paramKey];
                     if (!parameter) {
@@ -96,8 +93,8 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                         <Box key={paramKey}>
                             <Group
                                 align="center"
-                                position="left"
-                                spacing="xs"
+                                justify="flex-start"
+                                gap="xs"
                                 mb="xxs"
                             >
                                 <Text size={size} fw={500}>
@@ -139,20 +136,22 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
             </SimpleGrid>
 
             {showClearAll && selectedParametersCount > 0 && onClearAll && (
-                <Tooltip label="Clear all parameter values" position="bottom">
-                    <Button
-                        selfAlign="flex-end"
-                        variant="subtle"
-                        compact
-                        size="xs"
-                        color="gray"
-                        onClick={onClearAll}
-                        style={{ alignSelf: 'flex-end' }}
-                        disabled={disabled}
+                <Flex justify="flex-end">
+                    <Tooltip
+                        label="Clear all parameter values"
+                        position="bottom"
                     >
-                        Clear all
-                    </Button>
-                </Tooltip>
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            c="gray"
+                            onClick={onClearAll}
+                            disabled={disabled}
+                        >
+                            Clear all
+                        </Button>
+                    </Tooltip>
+                </Flex>
             )}
         </Stack>
     );

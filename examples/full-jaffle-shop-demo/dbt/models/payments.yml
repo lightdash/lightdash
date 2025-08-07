@@ -3,7 +3,7 @@ models:
   - name: payments
     description: This table has information about individual payments
     config:
-      tags: ['ai']
+      tags: ["ai"]
       meta:
         primary_key: payment_id
         joins:
@@ -17,6 +17,7 @@ models:
       - name: payment_id
         description: This is a unique identifier for a payment
         config:
+          meta:
             metrics:
               unique_payment_count:
                 type: count_distinct
