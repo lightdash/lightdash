@@ -1,3 +1,10 @@
+# [0.1885.0](https://github.com/lightdash/lightdash/compare/0.1884.0...0.1885.0) (2025-08-07)
+
+
+### Features
+
+* add find_charts tool ([#16246](https://github.com/lightdash/lightdash/issues/16246)) ([57f243c](https://github.com/lightdash/lightdash/commit/57f243cc05e1661f16b6986b7cd3734d31787a9a))
+
 # [0.1884.0](https://github.com/lightdash/lightdash/compare/0.1883.0...0.1884.0) (2025-08-07)
 
 
