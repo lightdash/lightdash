@@ -11,7 +11,9 @@ const runQueryBody = {
         dimensions: ['events_event_tier', 'events_event_id'],
         metrics: ['events_count', 'events_in_dkk'],
         filters: {},
-        sorts: [{ fieldId: 'events_count', descending: true }],
+        sorts: [
+            { fieldId: 'events_count', descending: true, nullsFirst: null },
+        ],
         limit: 2500,
         tableCalculations: [],
         additionalMetrics: [],
@@ -416,7 +418,13 @@ describe('Async Query API', () => {
                             ],
                         },
                     },
-                    sorts: [{ fieldId: 'events_count', descending: true }],
+                    sorts: [
+                        {
+                            fieldId: 'events_count',
+                            descending: true,
+                            nullsFirst: null,
+                        },
+                    ],
                     limit: 50,
                     tableCalculations: [],
                     additionalMetrics: [],

@@ -2186,6 +2186,10 @@
             },
             "SortField": {
                 "properties": {
+                    "nullsFirst": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
                     "descending": {
                         "type": "boolean"
                     },
@@ -2193,7 +2197,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["descending", "fieldId"],
+                "required": ["nullsFirst", "descending", "fieldId"],
                 "type": "object"
             },
             "CustomFormatType": {
@@ -18446,7 +18450,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1927.0",
+        "version": "0.1930.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

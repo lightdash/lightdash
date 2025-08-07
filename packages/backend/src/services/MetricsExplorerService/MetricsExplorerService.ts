@@ -207,7 +207,13 @@ export class MetricsExplorerService<
                     ],
                 },
             },
-            sorts: [{ fieldId: dimensionFieldId, descending: false }],
+            sorts: [
+                {
+                    fieldId: dimensionFieldId,
+                    descending: false,
+                    nullsFirst: null,
+                },
+            ],
             tableCalculations: [],
             limit: this.maxQueryLimit,
         };
@@ -285,7 +291,13 @@ export class MetricsExplorerService<
             ...metricQuery,
             exploreName,
             dimensions: [segmentDimension],
-            sorts: [{ fieldId: metricQuery.metrics[0], descending: true }],
+            sorts: [
+                {
+                    fieldId: metricQuery.metrics[0],
+                    descending: true,
+                    nullsFirst: null,
+                },
+            ],
             limit: MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
             tableCalculations: [],
         };
@@ -380,7 +392,13 @@ export class MetricsExplorerService<
                     and: dateFilters,
                 },
             },
-            sorts: [{ fieldId: timeDimension, descending: false }],
+            sorts: [
+                {
+                    fieldId: timeDimension,
+                    descending: false,
+                    nullsFirst: null,
+                },
+            ],
             tableCalculations: [],
             limit: this.maxQueryLimit,
         };

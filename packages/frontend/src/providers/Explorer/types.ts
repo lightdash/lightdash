@@ -55,6 +55,7 @@ export enum ActionType {
     ADD_SORT_FIELD,
     REMOVE_SORT_FIELD,
     MOVE_SORT_FIELDS,
+    SET_SORT_FIELD_NULLS_FIRST,
     SET_ROW_LIMIT,
     SET_TIME_ZONE,
     SET_FILTERS,
@@ -127,6 +128,10 @@ export type Action =
     | {
           type: ActionType.MOVE_SORT_FIELDS;
           payload: SwapSortFieldsPayload;
+      }
+    | {
+          type: ActionType.SET_SORT_FIELD_NULLS_FIRST;
+          payload: { fieldId: FieldId; nullsFirst: boolean | null };
       }
     | {
           type: ActionType.SET_ROW_LIMIT;
@@ -320,6 +325,10 @@ export interface ExplorerContextType {
         ) => void;
         removeSortField: (fieldId: FieldId) => void;
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
+        setSortFieldNullsFirst: (
+            fieldId: FieldId,
+            nullsFirst: boolean | null,
+        ) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;

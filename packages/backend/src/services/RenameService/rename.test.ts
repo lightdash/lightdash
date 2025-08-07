@@ -402,6 +402,7 @@ describe('renameMetricQuery', () => {
                 {
                     fieldId: 'payment_id',
                     descending: true,
+                    nullsFirst: null,
                 },
             ],
             limit: 100,
@@ -476,6 +477,7 @@ describe('renameMetricQuery', () => {
                 {
                     fieldId: 'payment_amount',
                     descending: true,
+                    nullsFirst: null,
                 },
             ],
             limit: 100,
@@ -770,6 +772,7 @@ describe('renameSavedChart', () => {
                             fieldId:
                                 'stripe_subscriptions_lightdash_organization_id',
                             descending: false,
+                            nullsFirst: null,
                         },
                     ],
                     limit: 500,
@@ -839,6 +842,7 @@ describe('renameSavedChart', () => {
                 {
                     fieldId: 'subscriptions_lightdash_organization_id',
                     descending: false,
+                    nullsFirst: null,
                 },
             ],
             limit: 500,
@@ -858,7 +862,13 @@ describe('renameSavedChart', () => {
                     dimensions: ['purchases_type'],
                     metrics: [],
                     filters: {},
-                    sorts: [{ fieldId: 'purchases_type', descending: false }],
+                    sorts: [
+                        {
+                            fieldId: 'purchases_type',
+                            descending: false,
+                            nullsFirst: null,
+                        },
+                    ],
                     limit: 500,
                     tableCalculations: [],
                     additionalMetrics: [],
@@ -881,7 +891,9 @@ describe('renameSavedChart', () => {
             dimensions: ['orders_type'],
             metrics: [],
             filters: {},
-            sorts: [{ fieldId: 'orders_type', descending: false }],
+            sorts: [
+                { fieldId: 'orders_type', descending: false, nullsFirst: null },
+            ],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],

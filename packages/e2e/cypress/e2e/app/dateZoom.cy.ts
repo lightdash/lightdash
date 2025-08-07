@@ -19,6 +19,7 @@ const createChart = async (fieldX: string, fieldY: string) =>
                         {
                             fieldId: fieldX,
                             descending: true,
+                            nullsFirst: null,
                         },
                     ],
                     limit: 500,

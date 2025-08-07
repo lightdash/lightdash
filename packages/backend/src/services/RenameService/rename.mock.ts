@@ -38,7 +38,13 @@ export const chartWithCustomMetric = {
         dimensions: ['customers_first_name'],
         metrics: ['customers_Customer_ID_min_of_Customer_ID_10'],
         filters: {},
-        sorts: [{ fieldId: 'customers_first_name', descending: false }],
+        sorts: [
+            {
+                fieldId: 'customers_first_name',
+                descending: false,
+                nullsFirst: null,
+            },
+        ],
         limit: 500,
         metricOverrides: {},
         tableCalculations: [],
@@ -138,6 +144,7 @@ export const expectedRenamedChartWithCustomMetric = {
             {
                 fieldId: 'customers_first_name',
                 descending: false,
+                nullsFirst: null,
             },
         ],
         limit: 500,
@@ -671,7 +678,13 @@ export const chartWithCustomMetricWithSimilarName = {
         dimensions: ['customers_first_name'],
         metrics: ['customers_Customer_ID_min_of_Customer_ID_10'],
         filters: {},
-        sorts: [{ fieldId: 'customers_first_name', descending: false }],
+        sorts: [
+            {
+                fieldId: 'customers_first_name',
+                descending: false,
+                nullsFirst: null,
+            },
+        ],
         limit: 500,
         metricOverrides: {},
         tableCalculations: [],

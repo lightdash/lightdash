@@ -33,6 +33,7 @@ const useDefaultSortField = (
                 return {
                     fieldId: getItemId(timeDimension),
                     descending: true,
+                    nullsFirst: null,
                 };
             }
 
@@ -44,6 +45,7 @@ const useDefaultSortField = (
                 return {
                     fieldId: getItemId(firstMetricField),
                     descending: true,
+                    nullsFirst: null,
                 };
             }
             const firstDimension = columnOrder.find((c) =>
@@ -57,6 +59,7 @@ const useDefaultSortField = (
                 return {
                     fieldId: getItemId(firstDimensionField),
                     descending: false,
+                    nullsFirst: null,
                 };
             }
         }

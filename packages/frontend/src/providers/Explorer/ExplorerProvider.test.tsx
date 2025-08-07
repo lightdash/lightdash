@@ -97,7 +97,7 @@ describe('ExplorerProvider reducer', () => {
             });
             expect(newState.unsavedChartVersion.metricQuery.limit).toBe(1000);
             expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                { fieldId: 'x', descending: false },
+                { fieldId: 'x', descending: false, nullsFirst: null },
             ]);
         });
 
@@ -269,8 +269,16 @@ describe('ExplorerProvider reducer', () => {
                             { name: 'calc1', displayName: 'calc1', sql: '' },
                         ],
                         sorts: [
-                            { fieldId: 'revenue', descending: false },
-                            { fieldId: 'user_id', descending: true },
+                            {
+                                fieldId: 'revenue',
+                                descending: false,
+                                nullsFirst: null,
+                            },
+                            {
+                                fieldId: 'user_id',
+                                descending: true,
+                                nullsFirst: null,
+                            },
                         ],
                     },
                     tableConfig: {
@@ -295,7 +303,11 @@ describe('ExplorerProvider reducer', () => {
                 newState.unsavedChartVersion.metricQuery.tableCalculations,
             ).toEqual([{ name: 'calc1', displayName: 'calc1', sql: '' }]);
             expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                { fieldId: 'user_id', descending: true },
+                {
+                    fieldId: 'user_id',
+                    descending: true,
+                    nullsFirst: null,
+                },
             ]);
             expect(
                 newState.unsavedChartVersion.tableConfig.columnOrder,
@@ -339,7 +351,13 @@ describe('ExplorerProvider reducer', () => {
                         tableCalculations: [
                             { name: 'calc_1', displayName: 'Calc', sql: '1' },
                         ],
-                        sorts: [{ fieldId: 'dim_1', descending: false }],
+                        sorts: [
+                            {
+                                fieldId: 'dim_1',
+                                descending: false,
+                                nullsFirst: null,
+                            },
+                        ],
                     },
                     tableConfig: {
                         columnOrder: [],
@@ -619,7 +637,11 @@ describe('ExplorerProvider reducer', () => {
             });
 
             expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                { fieldId: 'dim_1', descending: false },
+                {
+                    fieldId: 'dim_1',
+                    descending: false,
+                    nullsFirst: null,
+                },
             ]);
         });
 
@@ -630,7 +652,13 @@ describe('ExplorerProvider reducer', () => {
                     ...baseState.unsavedChartVersion,
                     metricQuery: {
                         ...baseState.unsavedChartVersion.metricQuery,
-                        sorts: [{ fieldId: 'dim_1', descending: false }],
+                        sorts: [
+                            {
+                                fieldId: 'dim_1',
+                                descending: false,
+                                nullsFirst: null,
+                            },
+                        ],
                     },
                 },
             };
@@ -641,7 +669,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                { fieldId: 'dim_1', descending: true },
+                { fieldId: 'dim_1', descending: true, nullsFirst: null },
             ]);
         });
 
@@ -652,7 +680,13 @@ describe('ExplorerProvider reducer', () => {
                     ...baseState.unsavedChartVersion,
                     metricQuery: {
                         ...baseState.unsavedChartVersion.metricQuery,
-                        sorts: [{ fieldId: 'dim_1', descending: true }],
+                        sorts: [
+                            {
+                                fieldId: 'dim_1',
+                                descending: true,
+                                nullsFirst: null,
+                            },
+                        ],
                     },
                 },
             };
@@ -774,12 +808,20 @@ describe('ExplorerProvider reducer', () => {
 
             const action = {
                 type: ActionType.ADD_SORT_FIELD,
-                payload: { fieldId: 'x', descending: true },
+                payload: {
+                    fieldId: 'x',
+                    descending: true,
+                    nullsFirst: null,
+                },
             } as const;
 
             const newState = reducer(state, action);
             expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                { fieldId: 'x', descending: true },
+                {
+                    fieldId: 'x',
+                    descending: true,
+                    nullsFirst: null,
+                },
             ]);
         });
     });
@@ -1366,7 +1408,11 @@ describe('ExplorerProvider reducer', () => {
                             { ...mockAdditionalMetric, uuid: 'metric-uuid' },
                         ],
                         sorts: [
-                            { fieldId: previousMetricName, descending: false },
+                            {
+                                fieldId: previousMetricName,
+                                descending: false,
+                                nullsFirst: null,
+                            },
                         ],
                         filters: {
                             metrics: mockFilterGroup({
@@ -1448,7 +1494,13 @@ describe('ExplorerProvider reducer', () => {
                     metricQuery: mockMetricQuery({
                         metrics: [metricId],
                         additionalMetrics: [mockAdditionalMetric],
-                        sorts: [{ fieldId: metricId, descending: false }],
+                        sorts: [
+                            {
+                                fieldId: metricId,
+                                descending: false,
+                                nullsFirst: null,
+                            },
+                        ],
                         filters: {
                             metrics: {
                                 id: 'test-filter-group',

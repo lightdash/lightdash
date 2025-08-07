@@ -378,7 +378,13 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     ),
                 userAttributes: {},
                 intrinsicUserAttributes: {},
-                sorts: [{ fieldId: 'age_range', descending: true }],
+                sorts: [
+                    {
+                        fieldId: 'age_range',
+                        descending: true,
+                        nullsFirst: null,
+                    },
+                ],
             }),
         ).toStrictEqual({
             ctes: [
