@@ -1,3 +1,10 @@
+# [0.1884.0](https://github.com/lightdash/lightdash/compare/0.1883.0...0.1884.0) (2025-08-07)
+
+
+### Features
+
+* Add SpotlightJS for local traces ([#16240](https://github.com/lightdash/lightdash/issues/16240)) ([e675c2e](https://github.com/lightdash/lightdash/commit/e675c2e3c4e60396a5ad3e15ab4606b361607b64))
+
 # [0.1883.0](https://github.com/lightdash/lightdash/compare/0.1882.0...0.1883.0) (2025-08-06)
 
 
