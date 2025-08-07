@@ -3,6 +3,7 @@ import {
     BinType,
     CompiledCustomSqlDimension,
     CompiledDimension,
+    CompiledMetric,
     CompiledMetricQuery,
     CompiledTable,
     CreateWarehouseCredentials,
@@ -424,6 +425,18 @@ export const EXPLORE: Explore = {
                     sql: '${table2.dim2}',
                     compiledSql: 'MAX("table2".dim2)',
                     tablesReferences: ['table1', 'table2'],
+                    hidden: false,
+                },
+                metric3: {
+                    type: MetricType.SUM,
+                    fieldType: FieldType.METRIC,
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    name: 'metric3',
+                    label: 'metric3',
+                    sql: '${TABLE}.number_column',
+                    compiledSql: 'SUM("table1".number_column)',
+                    tablesReferences: ['table1'],
                     hidden: false,
                 },
             },
@@ -1809,3 +1822,82 @@ GROUP BY 1,2
 ORDER BY "table1_metric1" DESC LIMIT 10`;
 
 export const QUERY_BUILDER_UTC_TIMEZONE = 'UTC';
+
+export const EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN = `WITH cte_keys_table2 AS (
+    SELECT DISTINCT "table1".dim1 AS "table1_dim1", "table2".dim2 AS "pk_dim2"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+),
+cte_metrics_table2 AS (
+    SELECT cte_keys_table2."table1_dim1", SUM("table2".number_column) AS "table2_metric3"
+    FROM cte_keys_table2
+    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+    GROUP BY 1
+),
+cte_unaffected AS (
+    SELECT "table1".dim1 AS "table1_dim1", MAX("table1".number_column) AS "table1_metric1"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    GROUP BY 1
+),
+metrics AS (
+    SELECT cte_unaffected.*, cte_metrics_table2."table2_metric3" AS "table2_metric3"
+    FROM cte_unaffected
+    INNER JOIN cte_metrics_table2 ON ( cte_unaffected."table1_dim1" = cte_metrics_table2."table1_dim1" OR ( cte_unaffected."table1_dim1" IS NULL AND cte_metrics_table2."table1_dim1" IS NULL ) )
+)
+SELECT
+  *,
+  table1_dim1 + table2_metric2 AS "calc3"
+FROM metrics
+ORDER BY "table2_metric2" DESC
+LIMIT 10`;
+
+export const EXPECTED_SQL_WITH_CROSS_JOIN = `WITH cte_keys_table2 AS ( 
+    SELECT DISTINCT "table2".dim2 AS "pk_dim2" 
+    FROM "db"."schema"."table1" AS "table1" 
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared) 
+), cte_metrics_table2 AS ( 
+    SELECT SUM("table2".number_column) AS "table2_metric3" 
+    FROM cte_keys_table2 
+    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2 
+), cte_unaffected AS ( 
+    SELECT MAX("table1".number_column) AS "table1_metric1" 
+    FROM "db"."schema"."table1" AS "table1" 
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared) 
+), metrics AS ( 
+    SELECT cte_unaffected.*, cte_metrics_table2."table2_metric3" AS "table2_metric3" 
+    FROM cte_unaffected 
+    CROSS JOIN cte_metrics_table2 
+) 
+SELECT *, table1_dim1 + table2_metric2 AS "calc3" FROM metrics ORDER BY "table2_metric2" DESC LIMIT 10`;
+
+// Explore without primary keys
+export const EXPLORE_WITHOUT_PRIMARY_KEYS: Explore = {
+    ...EXPLORE,
+    tables: {
+        ...EXPLORE.tables,
+        table1: {
+            ...EXPLORE.tables.table1,
+            primaryKey: undefined,
+        },
+        table2: {
+            ...EXPLORE.tables.table2,
+            primaryKey: undefined,
+        },
+    },
+};
+
+// Explore without relationship type
+export const EXPLORE_WITHOUT_JOIN_RELATIONSHIPS: Explore = {
+    ...EXPLORE,
+    joinedTables: [
+        {
+            table: 'table2',
+            sqlOn: '${table1.shared} = ${table2.shared}',
+            compiledSqlOn: '("table1".shared) = ("table2".shared)',
+            type: undefined,
+            tablesReferences: ['table1', 'table2'],
+            // No relationship defined
+        },
+    ],
+};
