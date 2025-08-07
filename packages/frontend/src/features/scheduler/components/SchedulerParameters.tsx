@@ -13,6 +13,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPencil, IconRotate2 } from '@tabler/icons-react';
+import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from '../../../features/parameters/components/ParameterInput';
@@ -185,6 +186,17 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
         [schedulerParameters, onChange],
     );
 
+    const hasParameterChanged = useCallback(
+        (paramKey: string) => {
+            const schedulerValue = schedulerParameters?.[paramKey];
+            if (!schedulerValue) return false;
+
+            const dashboardValue = dashboardParameterValues?.[paramKey];
+            return !isEqual(schedulerValue, dashboardValue);
+        },
+        [schedulerParameters, dashboardParameterValues],
+    );
+
     if (isInitialLoading) {
         return (
             <Center component={Stack} h={100}>
@@ -203,11 +215,6 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
             </Center>
         );
     }
-
-    const hasParameterChanged = (paramKey: string) => {
-        const schedulerValue = schedulerParameters?.[paramKey];
-        return schedulerValue !== undefined;
-    };
 
     return (
         <Stack>
