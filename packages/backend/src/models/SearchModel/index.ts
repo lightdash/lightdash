@@ -335,7 +335,7 @@ export class SearchModel {
         );
     }
 
-    private async searchSavedCharts(
+    async searchSavedCharts(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
@@ -384,6 +384,7 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: 'space_uuid' },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
                 { search_rank: searchRankRawSql },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
