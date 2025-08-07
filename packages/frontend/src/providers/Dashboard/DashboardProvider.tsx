@@ -48,6 +48,7 @@ const emptyFilters: DashboardFilters = {
 const DashboardProvider: React.FC<
     React.PropsWithChildren<{
         schedulerFilters?: SchedulerFilterRule[] | undefined;
+        schedulerParameters?: ParametersValuesMap | undefined;
         dateZoom?: DateGranularity | undefined;
         projectUuid?: string;
         embedToken?: string;
@@ -56,6 +57,7 @@ const DashboardProvider: React.FC<
     }>
 > = ({
     schedulerFilters,
+    schedulerParameters,
     dateZoom,
     projectUuid,
     embedToken,
@@ -168,6 +170,23 @@ const DashboardProvider: React.FC<
             setParameters(savedParameters);
         }
     }, [savedParameters]);
+
+    // Apply scheduler parameters when provided (for scheduled deliveries)
+    useEffect(() => {
+        if (schedulerParameters) {
+            // Convert ParametersValuesMap to DashboardParameters format
+            const dashboardParams: DashboardParameters = Object.fromEntries(
+                Object.entries(schedulerParameters).map(([key, value]) => [
+                    key,
+                    {
+                        parameterName: key,
+                        value,
+                    },
+                ]),
+            );
+            setSavedParameters(dashboardParams);
+        }
+    }, [schedulerParameters]);
 
     // Set parametersHaveChanged to true if parameters have changed
     useEffect(() => {
