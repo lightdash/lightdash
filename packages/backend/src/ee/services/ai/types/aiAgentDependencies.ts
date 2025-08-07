@@ -9,7 +9,9 @@ import {
     Explore,
     ItemsMap,
     KnexPaginateArgs,
+    SavedChartSearchResult,
     SlackPrompt,
+    ToolFindChartsArgs,
     ToolFindDashboardsArgs,
     ToolFindFieldsArgs,
     UpdateSlackResponse,
@@ -57,6 +59,15 @@ export type FindDashboardsFn = (
     },
 ) => Promise<{
     dashboards: DashboardSearchResult[];
+    pagination: Pagination | undefined;
+}>;
+
+export type FindChartsFn = (
+    args: KnexPaginateArgs & {
+        chartSearchQuery: ToolFindChartsArgs['chartSearchQueries'][number];
+    },
+) => Promise<{
+    charts: SavedChartSearchResult[];
     pagination: Pagination | undefined;
 }>;
 

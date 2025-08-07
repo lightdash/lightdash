@@ -28,7 +28,7 @@ export type DashboardSearchResult = Pick<
 
 export type SavedChartSearchResult = Pick<
     SavedChart,
-    'uuid' | 'name' | 'description' | 'spaceUuid'
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
 > & {
     chartType: ChartKind;
     validationErrors: {
