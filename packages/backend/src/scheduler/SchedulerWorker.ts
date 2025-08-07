@@ -1,4 +1,5 @@
 import {
+    GenerateDailySchedulerJobError,
     getErrorMessage,
     getSchedulerUuid,
     isSchedulerTaskName,
@@ -114,28 +115,70 @@ export class SchedulerWorker extends SchedulerTask {
                     await this.schedulerService.getAllSchedulers();
 
                 const promises = schedulers.map(async (scheduler) => {
-                    const defaultTimezone =
-                        await this.schedulerService.getSchedulerDefaultTimezone(
-                            scheduler.schedulerUuid,
-                        );
-                    const { organizationUuid, projectUuid } =
-                        await this.schedulerService.getCreateSchedulerResource(
-                            scheduler,
-                        );
+                    try {
+                        const defaultTimezone =
+                            await this.schedulerService.getSchedulerDefaultTimezone(
+                                scheduler.schedulerUuid,
+                            );
+                        const { organizationUuid, projectUuid } =
+                            await this.schedulerService.getCreateSchedulerResource(
+                                scheduler,
+                            );
 
-                    await this.schedulerClient.generateDailyJobsForScheduler(
-                        scheduler,
-                        {
-                            organizationUuid,
-                            projectUuid,
-                            userUuid: scheduler.createdBy,
-                        },
-                        defaultTimezone,
-                        currentDateStartOfDay,
-                    );
+                        await this.schedulerClient.generateDailyJobsForScheduler(
+                            scheduler,
+                            {
+                                organizationUuid,
+                                projectUuid,
+                                userUuid: scheduler.createdBy,
+                            },
+                            defaultTimezone,
+                            currentDateStartOfDay,
+                        );
+                        return scheduler.schedulerUuid;
+                    } catch (error) {
+                        throw new GenerateDailySchedulerJobError(
+                            `Failed to generate daily jobs for scheduler ${scheduler.schedulerUuid} with: ${error}`,
+                            scheduler.schedulerUuid,
+                            error,
+                        );
+                    }
                 });
 
-                await Promise.all(promises);
+                const results = await Promise.allSettled(promises);
+
+                const successful = results.filter(
+                    (result) => result.status === 'fulfilled',
+                );
+
+                const failed = results.filter(
+                    (result) => result.status === 'rejected',
+                );
+
+                Logger.info(
+                    `Completed generating daily jobs: ${successful.length} successful, ${failed.length} failed out of ${schedulers.length} total schedulers`,
+                );
+
+                // Log individual failures
+                failed.forEach((result) => {
+                    if (
+                        result.reason instanceof GenerateDailySchedulerJobError
+                    ) {
+                        Logger.error(result.reason.message);
+                    } else {
+                        Logger.error(
+                            'Scheduler job failed with unexpected error',
+                            result.reason,
+                        );
+                    }
+                });
+
+                // Only throw if all schedulers failed
+                if (failed.length > 0 && successful.length === 0) {
+                    throw new Error(
+                        'Failed to generate daily jobs for all schedulers',
+                    );
+                }
             },
             [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: async (
                 payload,
