@@ -156,7 +156,6 @@ export type AppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
-    slackClientFactory?: typeof slackClientFactory;
     schedulerWorkerFactory?: typeof schedulerWorkerFactory;
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
 };
@@ -181,8 +180,6 @@ export default class App {
     private readonly models: ModelRepository;
 
     private readonly database: Knex;
-
-    private readonly slackClientFactory: typeof slackClientFactory;
 
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
@@ -245,7 +242,6 @@ export default class App {
             utils: this.utils,
             prometheusMetrics: this.prometheusMetrics,
         });
-        this.slackClientFactory = args.slackClientFactory || slackClientFactory;
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
@@ -753,18 +749,8 @@ export default class App {
     }
 
     private async initSlack(expressApp: Express) {
-        const slackClient = this.slackClientFactory({
-            lightdashConfig: this.lightdashConfig,
-            analytics: this.analytics,
-            serviceRepository: this.serviceRepository,
-            models: this.models,
-            clients: this.clients,
-        });
-        await slackClient.start(
-            expressApp,
-            this.serviceRepository.getUnfurlService(),
-            this.serviceRepository.getAiAgentService(),
-        );
+        const slackClient = this.clients.getSlackClient();
+        await slackClient.start(expressApp);
     }
 
     private initSchedulerWorker() {
