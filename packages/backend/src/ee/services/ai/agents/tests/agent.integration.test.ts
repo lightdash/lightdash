@@ -3,10 +3,7 @@ import {
     AiWebAppPrompt,
     CatalogType,
     isDateItem,
-    toolFindFieldsArgsSchema,
-    toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
-    toolVerticalBarArgsSchema,
 } from '@lightdash/common';
 import moment from 'moment';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -20,6 +17,7 @@ import {
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
 import { llmAsAJudge } from './utils/llmAsAJudge';
+import { llmAsJudgeForTools } from './utils/llmAsJudgeForTools';
 import { setTaskMeta } from './utils/taskMeta';
 
 // Skip if no OpenAI API key
@@ -134,9 +132,6 @@ describeOrSkip('agent integration tests', () => {
                 .where('ai_prompt_uuid', prompt!.promptUuid)
                 .select('*');
 
-            expect(toolCalls.length).toBeGreaterThan(0);
-            expect(toolCalls[0].tool_name).toBe('findExplores');
-
             const { data: tables } =
                 await services.catalogService.searchCatalog({
                     projectUuid: createdAgent.projectUuid!,
@@ -153,12 +148,12 @@ describeOrSkip('agent integration tests', () => {
                 });
 
             const tablesText = tables.map((table) => table.name).join(', ');
-
+            const expectedAnswer = `You can explore data models such as ${tablesText}`;
             const { result: factualityEvaluation, meta: factualityMeta } =
                 await llmAsAJudge({
                     query: promptQueryText,
                     response,
-                    expectedAnswer: `You can explore data models such as ${tablesText}`,
+                    expectedAnswer,
                     model,
                     scorerType: 'factuality',
                 });
@@ -171,10 +166,17 @@ describeOrSkip('agent integration tests', () => {
                 factualityEvaluation.answer === 'A' ||
                 factualityEvaluation.answer === 'B';
 
+            const toolsEvaluation = await llmAsJudgeForTools({
+                query: promptQueryText,
+                toolCalls,
+                expectedOutcome:
+                    'It should have used the findExplores tool to find the data models and then the table tool to get the data models',
+                model,
+            });
+
             setTaskMeta(task.meta, 'llmJudgeResults', [
                 { ...factualityMeta, passed: isFactualityPassing },
             ]);
-            expect(isFactualityPassing).toBe(true);
 
             setTaskMeta(
                 task.meta,
@@ -183,6 +185,10 @@ describeOrSkip('agent integration tests', () => {
             );
             setTaskMeta(task.meta, 'prompts', [promptQueryText]);
             setTaskMeta(task.meta, 'responses', [response]);
+            setTaskMeta(task.meta, 'llmToolJudgeResults', [toolsEvaluation]);
+
+            expect(isFactualityPassing).toBe(true);
+            expect(toolsEvaluation.passed).toBe(true);
         },
         TIMEOUT,
     );
@@ -201,21 +207,6 @@ describeOrSkip('agent integration tests', () => {
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
 
-        expect(toolCalls.length).toBeGreaterThan(0);
-
-        const generateTableVizConfigToolCall = toolCalls.find(
-            (call) => call.tool_name === 'generateTableVizConfig',
-        );
-        expect(generateTableVizConfigToolCall).toBeDefined();
-        const generateTableVizConfigToolCallParsed =
-            toolTableVizArgsSchema.safeParse(
-                generateTableVizConfigToolCall?.tool_args,
-            );
-        expect(generateTableVizConfigToolCallParsed.success).toBe(true);
-        expect(generateTableVizConfigToolCallParsed.data?.vizConfig.limit).toBe(
-            1,
-        );
-
         const { result: factualityEvaluation, meta: factualityMeta } =
             await llmAsAJudge({
                 query: promptQueryText,
@@ -233,11 +224,17 @@ describeOrSkip('agent integration tests', () => {
             factualityEvaluation.answer === 'A' ||
             factualityEvaluation.answer === 'B';
 
+        const toolUsageEvaluation = await llmAsJudgeForTools({
+            query: promptQueryText,
+            toolCalls,
+            expectedOutcome:
+                'It should have used the findExplores, findFields tool and then the table tool summarize the data to get the total revenue',
+            model,
+        });
+
         setTaskMeta(task.meta, 'llmJudgeResults', [
             { ...factualityMeta, passed: isFactualityPassing },
         ]);
-        expect(isFactualityPassing).toBe(true);
-
         setTaskMeta(
             task.meta,
             'toolCalls',
@@ -245,6 +242,10 @@ describeOrSkip('agent integration tests', () => {
         );
         setTaskMeta(task.meta, 'prompts', [promptQueryText]);
         setTaskMeta(task.meta, 'responses', [response]);
+        setTaskMeta(task.meta, 'llmToolJudgeResults', [toolUsageEvaluation]);
+
+        expect(isFactualityPassing).toBe(true);
+        expect(toolUsageEvaluation.passed).toBe(true);
     });
 
     it('should generate a time-series chart', async ({ task }) => {
@@ -263,19 +264,6 @@ describeOrSkip('agent integration tests', () => {
             .select('*');
 
         expect(toolCalls.length).toBeGreaterThan(0);
-        expect(toolCalls[0].tool_name).toBe('findExplores');
-
-        expect(toolCalls[1].tool_name).toBe('findFields');
-        const findFieldsToolCallParsed = toolFindFieldsArgsSchema.safeParse(
-            toolCalls[1].tool_args,
-        );
-        expect(findFieldsToolCallParsed.success).toBe(true);
-        expect(findFieldsToolCallParsed.data?.table).toBe('payments');
-        findFieldsToolCallParsed.data?.fieldSearchQueries.forEach((field) => {
-            expect(field.label).toMatch(/revenue|month/i);
-        });
-
-        expect(toolCalls[2].tool_name).toBe('generateTimeSeriesVizConfig');
 
         const generateTimeSeriesVizConfigToolCallParsed =
             toolTimeSeriesArgsSchema.safeParse(toolCalls[2].tool_args);
@@ -453,58 +441,6 @@ describeOrSkip('agent integration tests', () => {
                 .where('ai_prompt_uuid', prompt!.promptUuid)
                 .select('*');
 
-            // TODO: Update tool calls expectations to not focus on implementation details, but rather on the expected results
-
-            // Should have exactly 3 tool calls in sequence
-            expect(toolCalls.length).toBe(3);
-
-            // First tool call: findExplores
-            expect(toolCalls[0].tool_name).toBe('findExplores');
-            expect(toolCalls[0].tool_args).toEqual({
-                page: 1,
-                type: 'find_explores',
-            });
-
-            // Second tool call: findFields with specific search for order count and date
-            expect(toolCalls[1].tool_name).toBe('findFields');
-            expect(toolCalls[1].tool_args).toEqual({
-                page: 1,
-                type: 'find_fields',
-                table: 'orders',
-                fieldSearchQueries: [
-                    { label: 'Unique order count' },
-                    { label: 'Order date year' },
-                ],
-            });
-
-            // Third tool call: generateTableVizConfig with 2024 filter
-            expect(toolCalls[2].tool_name).toBe('generateTableVizConfig');
-
-            const tableVizArgsParsed = toolTableVizArgsSchema.safeParse(
-                toolCalls[2].tool_args,
-            );
-
-            if (!tableVizArgsParsed.success) {
-                throw new Error('Failed to parse table viz args');
-            }
-
-            const tableVizArgs = tableVizArgsParsed.data;
-
-            expect(tableVizArgs.filters?.dimensions?.[0]).toMatchObject({
-                values: ['2024-01-01'],
-                operator: 'equals',
-                fieldFilterType: 'date',
-                fieldId: 'orders_order_date_year',
-                fieldType: 'date',
-            });
-
-            expect(tableVizArgs.vizConfig.metrics).toContain(
-                'orders_unique_order_count',
-            );
-            expect(tableVizArgsParsed.data.vizConfig.exploreName).toBe(
-                'orders',
-            );
-
             const { result: factualityEvaluation, meta: factualityMeta } =
                 await llmAsAJudge({
                     query: promptQueryText,
@@ -639,35 +575,6 @@ describeOrSkip('agent integration tests', () => {
                 .db<DbAiAgentToolCall>('ai_agent_tool_call')
                 .where('ai_prompt_uuid', webPrompt3!.promptUuid)
                 .select('*');
-
-            expect(toolCallsForPrompt3.length).toBe(2);
-
-            expect(toolCallsForPrompt3[0].tool_name).toBe('findFields');
-            const findFieldsArgs = toolFindFieldsArgsSchema.safeParse(
-                toolCallsForPrompt3[0].tool_args,
-            );
-            expect(findFieldsArgs.success).toBe(true);
-            expect(findFieldsArgs.data?.table).toBe('payments');
-            expect(
-                findFieldsArgs.data?.fieldSearchQueries.some((q) =>
-                    q.label.toLowerCase().includes('payment method'),
-                ),
-            ).toBe(true);
-            expect(toolCallsForPrompt3[1].tool_name).toBe(
-                'generateBarVizConfig',
-            );
-            const barVizArgs = toolVerticalBarArgsSchema.safeParse(
-                toolCallsForPrompt3[1].tool_args,
-            );
-            expect(barVizArgs.success).toBe(true);
-            expect(barVizArgs.data?.vizConfig.yMetrics).toContain(
-                'payments_total_revenue',
-            );
-
-            expect(barVizArgs.data?.vizConfig.xDimension).toBe(
-                'payments_payment_method',
-            );
-            expect(barVizArgs.data?.vizConfig.exploreName).toBe('payments');
 
             setTaskMeta(
                 task.meta,
