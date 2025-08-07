@@ -1,3 +1,10 @@
+## [0.1885.1](https://github.com/lightdash/lightdash/compare/0.1885.0...0.1885.1) (2025-08-07)
+
+
+### Bug Fixes
+
+* **dev:** payments model ([#16270](https://github.com/lightdash/lightdash/issues/16270)) ([9f58b6d](https://github.com/lightdash/lightdash/commit/9f58b6ddb35a80828c735323f0417946be3ab4a5))
+
 # [0.1885.0](https://github.com/lightdash/lightdash/compare/0.1884.0...0.1885.0) (2025-08-07)
 
 
