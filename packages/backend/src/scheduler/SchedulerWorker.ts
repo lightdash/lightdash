@@ -81,6 +81,14 @@ export class SchedulerWorker extends SchedulerTask {
                         maxAttempts: 3,
                     },
                 },
+                {
+                    task: 'cleanQueryHistory',
+                    pattern: '0 2 * * *', // Run daily at 2 AM
+                    options: {
+                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                        maxAttempts: 3,
+                    },
+                },
             ]),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
@@ -706,6 +714,43 @@ export class SchedulerWorker extends SchedulerTask {
                         });
                     },
                 );
+            },
+            [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: async () => {
+                const cleanupConfig =
+                    this.lightdashConfig.scheduler.queryHistory.cleanup;
+
+                if (!cleanupConfig.enabled) {
+                    Logger.info('Query history cleanup job is disabled');
+                    return;
+                }
+
+                Logger.info('Starting query history cleanup job');
+
+                const cutoffDate = moment()
+                    .utc()
+                    .subtract(cleanupConfig.retentionDays, 'days')
+                    .toDate();
+
+                Logger.info(
+                    `Cleaning query history records older than ${cutoffDate.toISOString()}`,
+                );
+
+                try {
+                    const { totalDeleted, batchCount } =
+                        await this.asyncQueryService.queryHistoryModel.cleanupBatch(
+                            cutoffDate,
+                            cleanupConfig.batchSize,
+                            cleanupConfig.delayMs,
+                            cleanupConfig.maxBatches,
+                        );
+
+                    Logger.info(
+                        `Query history cleanup completed. Total records deleted: ${totalDeleted} in ${batchCount} batches`,
+                    );
+                } catch (error) {
+                    Logger.error('Error during query history cleanup:', error);
+                    throw error;
+                }
             },
         };
     }
