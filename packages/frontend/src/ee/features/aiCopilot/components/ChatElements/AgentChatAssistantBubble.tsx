@@ -1,11 +1,13 @@
 import {
     AiResultType,
+    ChartKind,
     parseVizConfig,
     type AiAgentMessageAssistant,
     type ApiExecuteAsyncMetricQueryResults,
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Center,
     CopyButton,
     Group,
@@ -15,10 +17,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
+import { clsx } from '@mantine/core';
 import {
     IconCheck,
     IconCopy,
     IconExclamationCircle,
+    IconLayoutDashboard,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
@@ -27,8 +31,8 @@ import {
 import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import {
     useAiAgentThreadMessageVizQuery,
@@ -38,7 +42,9 @@ import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
+import styles from './AgentChatAssistantBubble.module.css';
 import { AiChartVisualization } from './AiChartVisualization';
+import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
 const AssistantBubbleContent: FC<{
@@ -76,13 +82,93 @@ const AssistantBubbleContent: FC<{
             )}
             <MDEditor.Markdown
                 source={messageContent}
-                style={{ backgroundColor: 'transparent', padding: `0.5rem 0` }}
-                rehypePlugins={[
-                    [
-                        rehypeExternalLinks,
-                        { target: '_blank', rel: ['noopener', 'noreferrer'] },
-                    ],
-                ]}
+                style={{ padding: `0.5rem 0` }}
+                rehypePlugins={[rehypeAiAgentContentLinks]}
+                components={{
+                    a: ({ node, children, ...props }) => {
+                        const contentType =
+                            'data-content-type' in props &&
+                            typeof props['data-content-type'] === 'string'
+                                ? props['data-content-type']
+                                : undefined;
+                        const chartType =
+                            'data-chart-type' in props &&
+                            typeof props['data-chart-type'] === 'string'
+                                ? props['data-chart-type']
+                                : undefined;
+
+                        if (contentType === 'dashboard-link') {
+                            return (
+                                <Anchor
+                                    {...props}
+                                    target="_blank"
+                                    fz="xs"
+                                    fw={500}
+                                    bg="green.0"
+                                    c="green.7"
+                                    td="none"
+                                    classNames={{
+                                        root: clsx(
+                                            styles.dashboardContentLink,
+                                            styles.contentLink,
+                                        ),
+                                    }}
+                                >
+                                    <MantineIcon
+                                        icon={IconLayoutDashboard}
+                                        size={12}
+                                        color="green.7"
+                                        fill="green.6"
+                                        fillOpacity={0.3}
+                                        strokeWidth={1.8}
+                                    />
+
+                                    {children}
+                                </Anchor>
+                            );
+                        } else if (contentType === 'chart-link') {
+                            const chartTypeKind =
+                                chartType &&
+                                Object.values(ChartKind).includes(
+                                    chartType as ChartKind,
+                                )
+                                    ? (chartType as ChartKind)
+                                    : undefined;
+                            return (
+                                <Anchor
+                                    {...props}
+                                    target="_blank"
+                                    fz="xs"
+                                    fw={500}
+                                    bg="blue.0"
+                                    c="blue.7"
+                                    td="none"
+                                    classNames={{
+                                        root: clsx(
+                                            styles.chartContentLink,
+                                            styles.contentLink,
+                                        ),
+                                    }}
+                                >
+                                    {chartTypeKind && (
+                                        <MantineIcon
+                                            icon={getChartIcon(chartTypeKind)}
+                                            size="sm"
+                                            color="blue.7"
+                                            fill="blue.4"
+                                            fillOpacity={0.3}
+                                            strokeWidth={1.8}
+                                        />
+                                    )}
+
+                                    {children}
+                                </Anchor>
+                            );
+                        }
+
+                        return <a {...props}>{children}</a>;
+                    },
+                }}
             />
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
         </>
