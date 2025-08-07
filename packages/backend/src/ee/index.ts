@@ -102,6 +102,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
+                    spaceService: repository.getSpaceService(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
@@ -251,6 +252,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
                     spaceModel: models.getSpaceModel(),
+                    spaceService: repository.getSpaceService(),
                 }),
         },
         modelProviders: {
