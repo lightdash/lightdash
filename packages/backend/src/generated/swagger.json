@@ -5154,6 +5154,211 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AiAgentUserPreferences": {
+                "properties": {
+                    "defaultAgentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["defaultAgentUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentUserPreferences_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentUserPreferences"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGetUserAgentPreferencesResponse": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiSuccess_AiAgentUserPreferences_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiSuccessEmpty"
+                    }
+                ]
+            },
+            "ApiUpdateUserAgentPreferencesResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "ApiUpdateUserAgentPreferences": {
+                "$ref": "#/components/schemas/AiAgentUserPreferences"
+            },
+            "AiConversation": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "firstMessage": {
+                        "type": "string"
+                    },
+                    "createdFrom": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ]
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "firstMessage",
+                    "createdFrom",
+                    "createdAt",
+                    "threadUuid"
+                ],
+                "type": "object"
+            },
+            "ApiAiConversations": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiConversation"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiConversationMessageIncomplete": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ]
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["user", "createdAt", "message", "promptUuid"],
+                "type": "object"
+            },
+            "AiConversationComplete": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
+                    },
+                    {
+                        "properties": {
+                            "humanScore": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "metricQuery": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "filtersOutput": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "vizConfigOutput": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "respondedAt": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                ]
+                            },
+                            "response": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["respondedAt", "response"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiConversationMessage": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AiConversationComplete"
+                    }
+                ]
+            },
+            "ApiAiConversationMessages": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiConversationMessage"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
                 "properties": {
                     "name": {
@@ -5963,211 +6168,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "AiConversation": {
-                "properties": {
-                    "user": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "firstMessage": {
-                        "type": "string"
-                    },
-                    "createdFrom": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        ]
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "user",
-                    "firstMessage",
-                    "createdFrom",
-                    "createdAt",
-                    "threadUuid"
-                ],
-                "type": "object"
-            },
-            "ApiAiConversations": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiConversation"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiConversationMessageIncomplete": {
-                "properties": {
-                    "user": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "createdAt": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        ]
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["user", "createdAt", "message", "promptUuid"],
-                "type": "object"
-            },
-            "AiConversationComplete": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
-                    },
-                    {
-                        "properties": {
-                            "humanScore": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "metricQuery": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "filtersOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "vizConfigOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "respondedAt": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "string",
-                                        "format": "date-time"
-                                    }
-                                ]
-                            },
-                            "response": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["respondedAt", "response"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AiConversationMessage": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
-                    },
-                    {
-                        "$ref": "#/components/schemas/AiConversationComplete"
-                    }
-                ]
-            },
-            "ApiAiConversationMessages": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiConversationMessage"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiAgentUserPreferences": {
-                "properties": {
-                    "defaultAgentUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["defaultAgentUuid"],
-                "type": "object"
-            },
-            "ApiSuccess_AiAgentUserPreferences_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiAgentUserPreferences"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiGetUserAgentPreferencesResponse": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ApiSuccess_AiAgentUserPreferences_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ApiSuccessEmpty"
-                    }
-                ]
-            },
-            "ApiUpdateUserAgentPreferencesResponse": {
-                "$ref": "#/components/schemas/ApiSuccessEmpty"
-            },
-            "ApiUpdateUserAgentPreferences": {
-                "$ref": "#/components/schemas/AiAgentUserPreferences"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -18200,7 +18200,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1880.0",
+        "version": "0.1885.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

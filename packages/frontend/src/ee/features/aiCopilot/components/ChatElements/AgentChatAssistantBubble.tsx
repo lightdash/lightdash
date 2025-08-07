@@ -295,6 +295,7 @@ export const AssistantBubble: FC<{
     const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
     const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
+        projectUuid,
         agentUuid,
         message.threadUuid,
     );
