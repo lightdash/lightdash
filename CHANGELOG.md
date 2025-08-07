@@ -1,3 +1,10 @@
+## [0.1888.1](https://github.com/lightdash/lightdash/compare/0.1888.0...0.1888.1) (2025-08-07)
+
+
+### Bug Fixes
+
+* duplicate scheduler jobs when there are errors generating daily jobs ([#16249](https://github.com/lightdash/lightdash/issues/16249)) ([a10f21e](https://github.com/lightdash/lightdash/commit/a10f21eb19e06747a3eea33b4e45c00c105d8de8))
+
 # [0.1888.0](https://github.com/lightdash/lightdash/compare/0.1887.0...0.1888.0) (2025-08-07)
 
 
