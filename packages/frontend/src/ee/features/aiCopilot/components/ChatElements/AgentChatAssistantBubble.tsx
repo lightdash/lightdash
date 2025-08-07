@@ -17,8 +17,8 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
 import {
+    IconArrowRight,
     IconCheck,
     IconCopy,
     IconExclamationCircle,
@@ -102,28 +102,35 @@ const AssistantBubbleContent: FC<{
                                 <Anchor
                                     {...props}
                                     target="_blank"
-                                    fz="xs"
+                                    fz="sm"
                                     fw={500}
-                                    bg="green.0"
-                                    c="green.7"
+                                    bg="gray.0"
+                                    c="gray.7"
                                     td="none"
                                     classNames={{
-                                        root: clsx(
-                                            styles.dashboardContentLink,
-                                            styles.contentLink,
-                                        ),
+                                        root: styles.contentLink,
                                     }}
                                 >
                                     <MantineIcon
                                         icon={IconLayoutDashboard}
-                                        size={12}
+                                        size="md"
                                         color="green.7"
                                         fill="green.6"
-                                        fillOpacity={0.3}
-                                        strokeWidth={1.8}
+                                        fillOpacity={0.2}
+                                        strokeWidth={1.9}
                                     />
 
-                                    {children}
+                                    {/* margin is added by md package */}
+                                    <Text fz="sm" fw={500} m={0}>
+                                        {children}
+                                    </Text>
+
+                                    <MantineIcon
+                                        icon={IconArrowRight}
+                                        color="gray.7"
+                                        size="sm"
+                                        strokeWidth={2.0}
+                                    />
                                 </Anchor>
                             );
                         } else if (contentType === 'chart-link') {
@@ -138,30 +145,37 @@ const AssistantBubbleContent: FC<{
                                 <Anchor
                                     {...props}
                                     target="_blank"
-                                    fz="xs"
+                                    fz="sm"
                                     fw={500}
-                                    bg="blue.0"
-                                    c="blue.7"
+                                    bg="gray.0"
+                                    c="gray.7"
                                     td="none"
                                     classNames={{
-                                        root: clsx(
-                                            styles.chartContentLink,
-                                            styles.contentLink,
-                                        ),
+                                        root: styles.contentLink,
                                     }}
                                 >
                                     {chartTypeKind && (
                                         <MantineIcon
                                             icon={getChartIcon(chartTypeKind)}
-                                            size="sm"
+                                            size="md"
                                             color="blue.7"
                                             fill="blue.4"
-                                            fillOpacity={0.3}
-                                            strokeWidth={1.8}
+                                            fillOpacity={0.2}
+                                            strokeWidth={1.9}
                                         />
                                     )}
 
-                                    {children}
+                                    {/* margin is added by md package */}
+                                    <Text fz="sm" fw={500} m={0}>
+                                        {children}
+                                    </Text>
+
+                                    <MantineIcon
+                                        icon={IconArrowRight}
+                                        color="gray.7"
+                                        size="sm"
+                                        strokeWidth={2.0}
+                                    />
                                 </Anchor>
                             );
                         }
