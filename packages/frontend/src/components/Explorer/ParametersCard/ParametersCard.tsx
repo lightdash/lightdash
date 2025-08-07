@@ -1,10 +1,11 @@
-import { Box } from '@mantine/core';
+import { Box, MantineProvider } from '@mantine-8/core';
 import { memo } from 'react';
 import { useParams } from 'react-router';
 import {
     ParameterSelection,
     useParameters,
 } from '../../../features/parameters';
+import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -65,32 +66,35 @@ const ParametersCard = memo(
         );
 
         return (
-            <CollapsableCard
-                isOpen={paramsIsOpen && isFetched}
-                title="Parameters"
-                disabled={!tableName}
-                toggleTooltip={!tableName ? 'No model selected' : ''}
-                onToggle={() =>
-                    toggleExpandedSection(ExplorerSection.PARAMETERS)
-                }
-            >
-                <Box m="md">
-                    <ParameterSelection
-                        parameters={parameters}
-                        missingRequiredParameters={missingRequiredParameters}
-                        isLoading={isLoading}
-                        isError={isError}
-                        parameterValues={parameterValues || {}}
-                        onParameterChange={handleParameterChange}
-                        size="sm"
-                        showClearAll={true}
-                        onClearAll={clearAllParameters}
-                        cols={2}
-                        projectUuid={projectUuid}
-                        disabled={!isEditMode}
-                    />
-                </Box>
-            </CollapsableCard>
+            <MantineProvider theme={getMantine8ThemeOverride()}>
+                <CollapsableCard
+                    isOpen={paramsIsOpen && isFetched}
+                    title="Parameters"
+                    disabled={!tableName}
+                    toggleTooltip={!tableName ? 'No model selected' : ''}
+                    onToggle={() =>
+                        toggleExpandedSection(ExplorerSection.PARAMETERS)
+                    }
+                >
+                    <Box m="md">
+                        <ParameterSelection
+                            parameters={parameters}
+                            missingRequiredParameters={
+                                missingRequiredParameters
+                            }
+                            isLoading={isLoading}
+                            isError={isError}
+                            parameterValues={parameterValues || {}}
+                            onParameterChange={handleParameterChange}
+                            showClearAll={true}
+                            onClearAll={clearAllParameters}
+                            cols={2}
+                            projectUuid={projectUuid}
+                            disabled={!isEditMode}
+                        />
+                    </Box>
+                </CollapsableCard>
+            </MantineProvider>
         );
     },
 );

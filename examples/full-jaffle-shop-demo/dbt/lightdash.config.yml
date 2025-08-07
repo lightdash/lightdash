@@ -34,6 +34,7 @@ parameters:
     description: "Filter by subscription plan"
     default: "free"
     multiple: true
+    allow_custom_values: true
     options_from_dimension:
       dimension: "plan_name"
       model: "plan"
