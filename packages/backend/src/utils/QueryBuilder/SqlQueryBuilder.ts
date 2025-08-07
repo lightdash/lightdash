@@ -10,7 +10,12 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { replaceParameters } from './parameters';
-import { removeComments, removeTrailingSemicolon } from './utils';
+import {
+    extractOuterLimitOffsetFromSQL,
+    removeCommentsAndOuterLimitOffset,
+    removeTrailingSemicolon,
+    type LimitOffsetClause,
+} from './utils';
 
 type ReferenceObject = { type: DimensionType; sql: string };
 export type ReferenceMap = Record<string, ReferenceObject> | undefined;
@@ -87,8 +92,8 @@ export class SqlQueryBuilder {
 
     private fromToSql(): string {
         if (this.from.sql) {
-            // strip any trailing semicolons and comments
-            let sanitizedSql = removeComments(this.from.sql);
+            // strip any trailing semicolons, comments and outer limit/offset
+            let sanitizedSql = removeCommentsAndOuterLimitOffset(this.from.sql);
             sanitizedSql = removeTrailingSemicolon(sanitizedSql);
             return `FROM (\n${sanitizedSql}\n) AS ${this.quotedName(
                 this.from.name,
@@ -151,10 +156,32 @@ export class SqlQueryBuilder {
     }
 
     private limitToSql() {
-        if (this.limit) {
-            return `LIMIT ${this.limit}`;
+        if (!this.limit) {
+            return undefined;
         }
-        return undefined;
+
+        // If there is this.from.sql then we removed the outer limit/offset from the from clause, we need to append the limit to the query if it exists
+        if (this.from.sql) {
+            const limitOffset = extractOuterLimitOffsetFromSQL(this.from.sql);
+            return SqlQueryBuilder.buildLimitOffsetSql(this.limit, limitOffset);
+        }
+
+        return `LIMIT ${this.limit}`;
+    }
+
+    private static buildLimitOffsetSql(
+        limit: number,
+        limitOffset?: LimitOffsetClause,
+    ): string {
+        const limitToAppend = limitOffset?.limit
+            ? Math.min(limitOffset.limit, limit)
+            : limit;
+
+        const offsetString = limitOffset?.offset
+            ? ` OFFSET ${limitOffset.offset}`
+            : '';
+
+        return `LIMIT ${limitToAppend}${offsetString}`;
     }
 
     getSqlAndReferences(): {
