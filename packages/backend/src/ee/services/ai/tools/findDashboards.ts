@@ -61,8 +61,10 @@ export const toolFindDashboardsDescription = `Tool: "findDashboards"
                     Finds dashboards by name or description within a project, returning detailed info about each.
 
                     Usage tips:
-                    - Search for dashboards using partial names or descriptions
-                    - If results aren't relevant, retry with clearer or more specific terms
+                    - IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns")
+                    - The search engine understands natural language and context - more words provide better results
+                    - You can provide multiple search queries to search for different dashboard topics simultaneously
+                    - If results aren't relevant, retry with the full user query or more specific terms
                     - Results are paginated — use the page parameter to get more results if needed
                     - Dashboards with validation errors will be deprioritized
                     - Returns dashboard URLs when available 
