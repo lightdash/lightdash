@@ -1,11 +1,11 @@
-import { SnowflakeSqlBuilder } from '@lightdash/warehouses';
+import { warehouseClientMock } from './MetricQueryBuilder.mock';
 import {
     replaceParameters,
     replaceParametersAsString,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
 
-const mockSqlBuilder = new SnowflakeSqlBuilder();
+const mockSqlBuilder = warehouseClientMock;
 
 describe('replaceParameters', () => {
     it('should replace lightdash parameter placeholders with values', () => {
