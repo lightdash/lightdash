@@ -1,3 +1,10 @@
+# [0.1889.0](https://github.com/lightdash/lightdash/compare/0.1888.1...0.1889.0) (2025-08-08)
+
+
+### Features
+
+* loosen search terms on AI tools ([#16275](https://github.com/lightdash/lightdash/issues/16275)) ([33c53b4](https://github.com/lightdash/lightdash/commit/33c53b499fb5489a0b7a1364ab6d0bc943ddcf20))
+
 ## [0.1888.1](https://github.com/lightdash/lightdash/compare/0.1888.0...0.1888.1) (2025-08-07)
 
 
