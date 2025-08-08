@@ -1,3 +1,10 @@
+## [0.1892.1](https://github.com/lightdash/lightdash/compare/0.1892.0...0.1892.1) (2025-08-08)
+
+
+### Bug Fixes
+
+* add clamp behaviour to limit input ([#16312](https://github.com/lightdash/lightdash/issues/16312)) ([3f9b82d](https://github.com/lightdash/lightdash/commit/3f9b82db313df8e0d6d335643a08f64943005352))
+
 # [0.1892.0](https://github.com/lightdash/lightdash/compare/0.1891.0...0.1892.0) (2025-08-08)
 
 
