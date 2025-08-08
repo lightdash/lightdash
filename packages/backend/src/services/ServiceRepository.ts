@@ -33,6 +33,7 @@ import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
+import { RolesService } from './RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
@@ -93,6 +94,7 @@ interface ServiceManifest {
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
+    rolesService: RolesService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -937,6 +939,19 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
+                }),
+        );
+    }
+
+    public getRolesService(): RolesService {
+        return this.getService(
+            'rolesService',
+            () =>
+                new RolesService({
+                    analytics: this.context.lightdashAnalytics,
+                    rolesModel: this.models.getRolesModel(),
+                    scopesModel: this.models.getScopesModel(),
+                    scopedRolesModel: this.models.getScopedRolesModel(),
                 }),
         );
     }
