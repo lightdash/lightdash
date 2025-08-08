@@ -30,9 +30,12 @@ describeOrSkip('agent integration tests', () => {
     let context: IntegrationTestContext;
     const TIMEOUT = 60_000;
     let createdAgent: AiAgent | null = null;
-    const model = getOpenaiGptmodel({
+    const { model, callOptions } = getOpenaiGptmodel({
         apiKey: process.env.OPENAI_API_KEY!,
         modelName: 'gpt-4.1',
+        temperature: process.env.OPENAI_TEMPERATURE
+            ? parseFloat(process.env.OPENAI_TEMPERATURE)
+            : 0.2,
     });
 
     beforeAll(async () => {
@@ -160,6 +163,7 @@ describeOrSkip('agent integration tests', () => {
                     response,
                     expectedAnswer: `You can explore data models such as ${tablesText}`,
                     model,
+                    callOptions,
                     scorerType: 'factuality',
                 });
 
@@ -223,6 +227,7 @@ describeOrSkip('agent integration tests', () => {
                 expectedAnswer: '3,053.87',
                 scorerType: 'factuality',
                 model,
+                callOptions,
             });
 
         if (!factualityEvaluation) {
@@ -292,6 +297,7 @@ describeOrSkip('agent integration tests', () => {
                     "I've generated a chart of revenue over time (monthly) using 'Total revenue' metric from the Payments explore. The x-axis represents month and the y-axis represents revenue of that month.",
                 scorerType: 'factuality',
                 model,
+                callOptions,
             });
 
         if (!factualityEvaluation) {
@@ -324,6 +330,7 @@ describeOrSkip('agent integration tests', () => {
             meta: vizConfigJsonDiffMeta,
         } = await llmAsAJudge({
             model,
+            callOptions,
             query: promptQueryText,
             response: JSON.stringify(vizConfig),
             expectedAnswer: JSON.stringify(vizConfigExpected),
@@ -414,6 +421,7 @@ describeOrSkip('agent integration tests', () => {
                 response,
                 context: contextForEval,
                 model,
+                callOptions,
                 scorerType: 'contextRelevancy',
             });
 
@@ -512,6 +520,7 @@ describeOrSkip('agent integration tests', () => {
                     expectedAnswer: 'There were 53 orders in 2024',
                     scorerType: 'factuality',
                     model,
+                    callOptions,
                 });
 
             if (!factualityEvaluation) {
@@ -587,6 +596,7 @@ describeOrSkip('agent integration tests', () => {
                 `,
                 scorerType: 'factuality',
                 model,
+                callOptions,
             });
 
         if (!factualityEvaluation) {
@@ -759,6 +769,7 @@ describeOrSkip('agent integration tests', () => {
                         query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
                         response: JSON.stringify(toolCalls),
                         model,
+                        callOptions,
                         scorerType: 'contextRelevancy',
                         context: [
                             JSON.stringify(
@@ -811,6 +822,7 @@ describeOrSkip('agent integration tests', () => {
                     ].join('\n'),
                     scorerType: 'factuality',
                     model,
+                    callOptions,
                 });
 
                 const isFactualityPassing =
