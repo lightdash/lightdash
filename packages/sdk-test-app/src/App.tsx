@@ -1,5 +1,5 @@
 import Lightdash from '@lightdash/sdk';
-import '@mantine/core/styles.css';
+import '@lightdash/sdk/sdk.css';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SavedChart } from '../../common/src';
