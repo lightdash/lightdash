@@ -22,7 +22,7 @@ import { type AgentContext } from './AgentPage';
 const AiAgentNewThreadPage = () => {
     const { agentUuid, projectUuid } = useParams();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
-        useCreateAgentThreadMutation(agentUuid, projectUuid);
+        useCreateAgentThreadMutation(agentUuid, projectUuid!);
     const { agent } = useOutletContext<AgentContext>();
 
     const onSubmit = (prompt: string) => {

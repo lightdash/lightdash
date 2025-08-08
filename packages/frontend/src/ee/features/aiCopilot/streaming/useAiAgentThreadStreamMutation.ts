@@ -15,6 +15,7 @@ import {
 } from './AiAgentThreadStreamStore';
 
 export interface AiAgentThreadStreamOptions {
+    projectUuid: string;
     agentUuid: string;
     threadUuid: string;
     messageUuid: string;
@@ -23,12 +24,13 @@ export interface AiAgentThreadStreamOptions {
 }
 
 const streamAgentThreadResponse = async (
+    projectUuid: string,
     agentUuid: string,
     threadUuid: string,
     { signal }: { signal: AbortSignal },
 ) =>
     lightdashApiStream({
-        url: `/aiAgents/${agentUuid}/threads/${threadUuid}/stream`,
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/stream`,
         method: 'POST',
         body: JSON.stringify({ threadUuid }),
         signal,
@@ -41,6 +43,7 @@ export function useAiAgentThreadStreamMutation() {
 
     const streamMessage = useCallback(
         async ({
+            projectUuid,
             agentUuid,
             threadUuid,
             messageUuid,
@@ -54,6 +57,7 @@ export function useAiAgentThreadStreamMutation() {
                 dispatch(startStreaming({ threadUuid, messageUuid }));
 
                 const response = await streamAgentThreadResponse(
+                    projectUuid,
                     agentUuid,
                     threadUuid,
                     {
