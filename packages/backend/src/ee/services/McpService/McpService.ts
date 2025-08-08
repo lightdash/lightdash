@@ -666,12 +666,15 @@ export class McpService extends BaseService {
         const { scopes } = account.authentication;
 
         // TODO replace with CASL ability check
+        // Do not enforce client scopes for now until more MCP clients support this
+        /*
         if (
             !scopes.includes(OAuthScope.MCP_READ) &&
             !scopes.includes(OAuthScope.MCP_WRITE)
         ) {
             throw new ForbiddenError('You are not allowed to access MCP');
         }
+        */
 
         if (!this.lightdashConfig.mcp.enabled) {
             throw new MissingConfigError('MCP is not enabled');
