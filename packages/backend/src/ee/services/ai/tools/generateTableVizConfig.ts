@@ -45,7 +45,7 @@ export const getGenerateTableVizConfig = ({
     const schema = toolTableVizArgsSchema;
 
     return tool({
-        description: `Use this tool to query data to display in a table or summarized if limit is set to 1.`,
+        description: toolTableVizArgsSchema.description,
         parameters: schema,
         execute: async (toolArgs) => {
             let isOneRow = false;

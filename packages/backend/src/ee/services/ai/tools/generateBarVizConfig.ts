@@ -43,7 +43,7 @@ export const getGenerateBarVizConfig = ({
     const schema = toolVerticalBarArgsSchema;
 
     return tool({
-        description: `Use this tool to generate a Bar Chart Visualization.`,
+        description: toolVerticalBarArgsSchema.description,
         parameters: schema,
         execute: async (toolArgs) => {
             try {

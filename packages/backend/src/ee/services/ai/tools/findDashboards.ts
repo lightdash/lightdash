@@ -56,28 +56,13 @@ const getDashboardsText = (
 </SearchResult>
 `.trim();
 
-export const toolFindDashboardsDescription = `Tool: "findDashboards"
-                    Purpose:
-                    Finds dashboards by name or description within a project, returning detailed info about each.
-
-                    Usage tips:
-                    - IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns")
-                    - The search engine understands natural language and context - more words provide better results
-                    - You can provide multiple search queries to search for different dashboard topics simultaneously
-                    - If results aren't relevant, retry with the full user query or more specific terms
-                    - Results are paginated — use the page parameter to get more results if needed
-                    - Dashboards with validation errors will be deprioritized
-                    - Returns dashboard URLs when available 
-                    - It doesn't provide a dashboard summary yet, so don't suggest this capability
-        `;
-
 export const getFindDashboards = ({
     findDashboards,
     pageSize,
     siteUrl,
 }: Dependencies) =>
     tool({
-        description: toolFindDashboardsDescription,
+        description: toolFindDashboardsArgsSchema.description,
         parameters: toolFindDashboardsArgsSchema,
         execute: async (args) => {
             try {

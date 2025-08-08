@@ -42,7 +42,7 @@ export const getGenerateTimeSeriesVizConfig = ({
     const schema = toolTimeSeriesArgsSchema;
 
     return tool({
-        description: `Use this tool to generate a Time Series Chart.`,
+        description: toolTimeSeriesArgsSchema.description,
         parameters: schema,
         execute: async (toolArgs) => {
             try {
