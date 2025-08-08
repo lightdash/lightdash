@@ -41,7 +41,11 @@ export type CreateScope = {
 };
 
 export type AddScopeToRole = {
-    scopeUuid: string;
+    scopeUuids: string[];
+};
+
+export type RemoveScopesFromRole = {
+    scopeUuids: string[];
 };
 
 // API Response Types
@@ -69,10 +73,12 @@ export type ApiDeleteRoleResponse = ApiSuccessEmpty;
 
 export type ApiAddScopeToRoleResponse = {
     status: 'ok';
-    results: Scope;
+    results: Scope[];
 };
 
 export type ApiRemoveScopeFromRoleResponse = ApiSuccessEmpty;
+
+export type ApiRemoveScopesFromRoleResponse = ApiSuccessEmpty;
 
 export type ApiGetScopesResponse = {
     status: 'ok';

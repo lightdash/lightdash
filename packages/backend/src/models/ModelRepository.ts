@@ -28,9 +28,12 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
+import { RolesModel } from './RolesModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
+import { ScopedRolesModel } from './ScopedRolesModel';
+import { ScopesModel } from './ScopesModel';
 import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
@@ -93,6 +96,9 @@ export type ModelManifest = {
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
     projectParametersModel: ProjectParametersModel;
+    rolesModel: RolesModel;
+    scopesModel: ScopesModel;
+    scopedRolesModel: ScopedRolesModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
     embedModel: unknown;
@@ -559,6 +565,24 @@ export class ModelRepository
         return this.getModel(
             'projectParametersModel',
             () => new ProjectParametersModel({ database: this.database }),
+        );
+    }
+
+    public getRolesModel(): RolesModel {
+        return this.getModel('rolesModel', () => new RolesModel(this.database));
+    }
+
+    public getScopesModel(): ScopesModel {
+        return this.getModel(
+            'scopesModel',
+            () => new ScopesModel(this.database),
+        );
+    }
+
+    public getScopedRolesModel(): ScopedRolesModel {
+        return this.getModel(
+            'scopedRolesModel',
+            () => new ScopedRolesModel(this.database),
         );
     }
 
