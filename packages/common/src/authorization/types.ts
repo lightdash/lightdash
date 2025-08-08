@@ -8,7 +8,10 @@ export type AbilityAction =
     | 'manage'
     | 'promote'
     | 'update'
-    | 'view';
+    | 'view'
+    | 'csv'
+    | 'image'
+    | 'pdf';
 
 interface Project {
     organizationUuid: string;
@@ -50,7 +53,8 @@ export type CaslSubjectNames =
     | 'Tags'
     | 'UnderlyingData'
     | 'Validation'
-    | 'VirtualView';
+    | 'VirtualView'
+    | 'Export';
 
 export type Subject =
     | CaslSubjectNames
