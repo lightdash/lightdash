@@ -1,3 +1,6 @@
+// TODO: move this to separate - Mantine8 Provider
+import '@mantine-8/core/styles.css';
+
 import {
     MantineProvider as MantineProviderBase,
     type MantineThemeOverride,

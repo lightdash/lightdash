@@ -1204,14 +1204,7 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2(@types/node@22.15.3)(jsdom@24.0.0(canvas@2.11.2(encoding@0.1.13)))(lightningcss@1.22.0)(tsx@4.19.4)(yaml@2.7.0)
 
-  packages/frontend/sdk:
-    dependencies:
-      react:
-        specifier: ^18.x || ^19.x
-        version: 19.0.0
-      react-dom:
-        specifier: ^18.x || ^19.x
-        version: 19.0.0(react@19.0.0)
+  packages/frontend/sdk: {}
 
   packages/sdk-next-test-app:
     dependencies:
@@ -8004,6 +7997,7 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
+    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
