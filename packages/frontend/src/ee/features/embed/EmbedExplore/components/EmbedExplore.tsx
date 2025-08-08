@@ -118,7 +118,6 @@ const EmbedExplore: FC<Props> = ({
             <ExplorerProvider
                 isEditMode={true}
                 projectUuid={projectUuid}
-                savedChart={savedChart}
                 initialState={getInitialState(exploreId, savedChart)}
                 defaultLimit={500}
             >
