@@ -53,8 +53,10 @@ Purpose:
 Finds saved charts by name or description within a project, returning detailed info about each.
 
 Usage tips:
-- Search for charts using partial names or descriptions
-- If results aren't relevant, retry with clearer or more specific terms
+- IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns")
+- The search engine understands natural language and context - more words provide better results
+- You can provide multiple search queries to search for different chart topics simultaneously
+- If results aren't relevant, retry with the full user query or more specific terms
 - Results are paginated — use the page parameter to get more results if needed
 - Returns chart URLs when available
 - Charts are ordered by search relevance
