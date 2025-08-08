@@ -18,5 +18,10 @@ export const getOpenaiGptmodel = (
         structuredOutputs: true,
     });
 
-    return model;
+    return {
+        model,
+        callOptions: {
+            temperature: config.temperature,
+        },
+    };
 };

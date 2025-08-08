@@ -22,5 +22,12 @@ export const getOpenRouterModel = (
         },
     });
 
-    return openrouter.chat(config.modelName);
+    const model = openrouter.chat(config.modelName);
+
+    return {
+        model,
+        callOptions: {
+            temperature: config.temperature,
+        },
+    };
 };

@@ -26,6 +26,7 @@ export type AiAgentArgs = {
     userId: string;
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
+    callOptions: { temperature: number };
 
     availableExploresPageSize: number;
     findExploresPageSize: number;

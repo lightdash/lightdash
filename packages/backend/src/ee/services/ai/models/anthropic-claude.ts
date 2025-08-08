@@ -12,5 +12,10 @@ export const getAnthropicModel = (
 
     const model = anthropic(config.modelName);
 
-    return model;
+    return {
+        model,
+        callOptions: {
+            temperature: config.temperature,
+        },
+    };
 };
