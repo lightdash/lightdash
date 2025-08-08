@@ -18,6 +18,7 @@ import {
     type CreateSchedulerTarget,
     type Dashboard,
     type ItemsMap,
+    type ParametersValuesMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import {
@@ -68,7 +69,6 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MsTeamsSvg from '../../../svgs/msteams.svg?react';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -256,6 +256,8 @@ type Props = {
     confirmText?: string;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
+    parameterReferences?: Set<string> | string[];
+    currentParameterValues?: ParametersValuesMap;
 };
 
 const validateMsTeamsWebhook = (webhook: string): boolean => {
@@ -324,6 +326,8 @@ const SchedulerForm: FC<Props> = ({
     confirmText,
     isThresholdAlert,
     itemsMap,
+    parameterReferences,
+    currentParameterValues,
 }) => {
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
@@ -336,13 +340,8 @@ const SchedulerForm: FC<Props> = ({
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
-    // Get current dashboard parameter values for initialization
-    const allDashboardParameterValues = useDashboardContext(
-        (c) => c.parameterValues,
-    );
-    const dashboardParameterValues = isDashboard
-        ? allDashboardParameterValues
-        : {};
+    // Use the explicitly passed parameter values
+    const dashboardParameterValues = currentParameterValues || {};
 
     const form = useForm({
         initialValues:
@@ -1225,6 +1224,8 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Panel value="parameters" p="md">
                             <SchedulerParameters
                                 dashboard={dashboard}
+                                parameterReferences={parameterReferences}
+                                currentParameterValues={currentParameterValues}
                                 schedulerParameters={form.values.parameters}
                                 onChange={(schedulerParameters) => {
                                     form.setFieldValue(

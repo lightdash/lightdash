@@ -18,7 +18,6 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from '../../../features/parameters/components/ParameterInput';
 import { useParameters } from '../../../hooks/parameters/useParameters';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 
 type SchedulerParameterItemProps = {
     paramKey: string;
@@ -133,26 +132,34 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
 
 type SchedulerParametersProps = {
     dashboard?: Dashboard;
+    parameterReferences?: Set<string> | string[];
+    currentParameterValues?: ParametersValuesMap;
     onChange: (schedulerParameters: ParametersValuesMap) => void;
     schedulerParameters: ParametersValuesMap | undefined;
 };
 
 const SchedulerParameters: FC<SchedulerParametersProps> = ({
     dashboard,
+    parameterReferences,
+    currentParameterValues = {},
     schedulerParameters,
     onChange,
 }) => {
-    const dashboardParameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
-    const dashboardParameterValues = useDashboardContext(
-        (c) => c.parameterValues,
-    );
+    // Convert array to Set if needed
+    const parameterReferencesSet = useMemo(() => {
+        if (!parameterReferences) return new Set<string>();
+        return Array.isArray(parameterReferences)
+            ? new Set(parameterReferences)
+            : parameterReferences;
+    }, [parameterReferences]);
+
+    // Use the explicitly passed parameter values
+    const dashboardParameterValues = currentParameterValues;
     // Get parameters that are referenced in the dashboard
     const { data: availableParameters, isInitialLoading } = useParameters(
         dashboard?.projectUuid,
-        dashboardParameterReferences
-            ? Array.from(dashboardParameterReferences)
+        parameterReferencesSet.size > 0
+            ? Array.from(parameterReferencesSet)
             : undefined,
     );
 
