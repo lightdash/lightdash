@@ -243,6 +243,7 @@ export class CatalogService<
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
         excludeUnmatched?: boolean;
+        fullTextSearchOperator?: 'OR' | 'AND';
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
@@ -270,6 +271,7 @@ export class CatalogService<
                             context: args.context,
                             tablesConfiguration,
                             excludeUnmatched: args.excludeUnmatched,
+                            fullTextSearchOperator: args.fullTextSearchOperator,
                         }),
                 );
             },

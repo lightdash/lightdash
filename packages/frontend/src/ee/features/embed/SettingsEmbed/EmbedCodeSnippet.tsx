@@ -32,6 +32,7 @@ const data = {
         canExportImages: {{canExportImagesEnabled}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
+        canExplore: {{canExploreEnabled}},
     },
     user: {
         externalId: {{externalId}},
@@ -63,6 +64,7 @@ data = {
         "canExportImages": {{canExportImagesEnabledPython}},
         "canExportPagePdf": {{canExportPagePdfPython}},
         "canDateZoom": {{canDateZoomPython}},
+        "canExplore": {{canExploreEnabledPython}},
     },
     "user": {
         "externalId": {{externalIdPython}},
@@ -104,6 +106,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            CanExplore bool \`json:"canExplore"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         jwt.StandardClaims
@@ -127,6 +130,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            CanExplore bool \`json:"canExplore"\`
         }{
             Type:          "dashboard",
             ProjectUuid:   projectUuid,
@@ -142,6 +146,7 @@ func main() {
             CanExportImages: {{canExportImagesEnabled}},
             CanExportPagePdf: {{canExportPagePdf}},
             CanDateZoom: {{canDateZoom}},
+            CanExplore: {{canExploreEnabled}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -294,7 +299,15 @@ const getCodeSnippet = (
             '{{emailGoDef}}',
             data.user?.email ? `email := "${data.user?.email}"` : '',
         )
-        .replace('{{emailGo}}', data.user?.email ? `&email` : 'nil');
+        .replace('{{emailGo}}', data.user?.email ? `&email` : 'nil')
+        .replace(
+            '{{canExploreEnabled}}',
+            data.content.canExplore ? 'true' : 'false',
+        )
+        .replace(
+            '{{canExploreEnabledPython}}',
+            data.content.canExplore ? 'True' : 'False',
+        );
 };
 
 const EmbedCodeSnippet: FC<{

@@ -16,6 +16,7 @@ import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPag
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
+import EmbedExplore from './pages/EmbedExplore';
 import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
 
 const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
@@ -28,6 +29,14 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 element: (
                     <TrackPage name={PageName.EMBED_DASHBOARD}>
                         <EmbedDashboard />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/embed/:projectUuid/explore/:exploreId',
+                element: (
+                    <TrackPage name={PageName.EMBED_EXPLORE}>
+                        <EmbedExplore />
                     </TrackPage>
                 ),
             },

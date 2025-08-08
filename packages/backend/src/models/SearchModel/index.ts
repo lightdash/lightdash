@@ -112,6 +112,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ): Promise<DashboardSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DASHBOARD, filters?.type)) {
             return [];
@@ -123,6 +124,7 @@ export class SearchModel {
                 searchVectorColumn: `${DashboardsTableName}.search_vector`,
                 searchQuery: query,
             },
+            fullTextSearchOperator,
         });
 
         let subquery = this.database(DashboardsTableName)
@@ -249,6 +251,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ) {
         const { name: tableName, uuidColumnName } = searchTable;
 
@@ -258,6 +261,7 @@ export class SearchModel {
                 searchVectorColumn: `${tableName}.search_vector`,
                 searchQuery: query,
             },
+            fullTextSearchOperator,
         });
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
@@ -319,6 +323,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ): Promise<SqlChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
             return [];
@@ -332,6 +337,7 @@ export class SearchModel {
             projectUuid,
             query,
             filters,
+            fullTextSearchOperator,
         );
     }
 
@@ -339,6 +345,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ): Promise<SavedChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.CHART, filters?.type)) {
             return [];
@@ -350,6 +357,7 @@ export class SearchModel {
                 searchVectorColumn: `${SavedChartsTableName}.search_vector`,
                 searchQuery: query,
             },
+            fullTextSearchOperator,
         });
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results

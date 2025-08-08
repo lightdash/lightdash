@@ -27,10 +27,29 @@ export enum QueryHistoryStatus {
 }
 
 export type PivotConfiguration = {
-    indexColumn: PivotIndexColum | undefined;
+    indexColumn: PivotIndexColum | PivotIndexColum[] | undefined;
     valuesColumns: ValuesColumn[];
     groupByColumns: GroupByColumn[] | undefined;
     sortBy: SortBy | undefined;
+};
+
+export const normalizeIndexColumns = (
+    indexColumn: PivotConfiguration['indexColumn'],
+): PivotIndexColum[] => {
+    if (!indexColumn) {
+        return [];
+    }
+    if (Array.isArray(indexColumn)) {
+        return indexColumn;
+    }
+    return [indexColumn];
+};
+
+export const getFirstIndexColumns = (
+    indexColumn: PivotConfiguration['indexColumn'],
+): PivotIndexColum | undefined => {
+    const normalizedIndexColumns = normalizeIndexColumns(indexColumn);
+    return normalizedIndexColumns[0];
 };
 
 export type QueryHistory = {

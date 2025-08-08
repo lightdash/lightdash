@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    getFirstIndexColumns,
     getParameterReferences,
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
@@ -328,7 +329,8 @@ export const ContentPanel: FC = () => {
             (acc, col) => {
                 if (
                     isPivoted &&
-                    pivotedChartInfo.data?.indexColumn?.reference !== col
+                    getFirstIndexColumns(pivotedChartInfo.data?.indexColumn)
+                        ?.reference !== col
                 ) {
                     return acc;
                 }

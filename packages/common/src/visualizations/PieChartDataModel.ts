@@ -1,5 +1,6 @@
 import { type AnyType } from '../types/any';
 import { DimensionType } from '../types/field';
+import { getFirstIndexColumns } from '../types/queryHistory';
 import { type RawResultRow } from '../types/results';
 import { type ChartKind } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
@@ -381,18 +382,23 @@ export class PieChartDataModel {
                     type: 'pie',
                     radius: display?.isDonut ? ['30%', '70%'] : '50%',
                     center: ['50%', '50%'],
-                    data: transformedData.results.map((result) => ({
-                        name: transformedData.indexColumn?.reference
-                            ? result[transformedData.indexColumn.reference]
-                            : '-',
-                        groupId: transformedData.indexColumn?.reference,
-                        // Pie chart uses only the first value column, though others
-                        // could be returned from the pivot query. If the pie chart
-                        // ever supports pivoting, we'll need to update this.
-                        value: result[
-                            transformedData.valuesColumns[0].pivotColumnName
-                        ],
-                    })),
+                    data: transformedData.results.map((result) => {
+                        const firstIndexColumn = getFirstIndexColumns(
+                            transformedData.indexColumn,
+                        );
+                        return {
+                            name: firstIndexColumn?.reference
+                                ? result[firstIndexColumn.reference]
+                                : '-',
+                            groupId: firstIndexColumn?.reference,
+                            // Pie chart uses only the first value column, though others
+                            // could be returned from the pivot query. If the pie chart
+                            // ever supports pivoting, we'll need to update this.
+                            value: result[
+                                transformedData.valuesColumns[0].pivotColumnName
+                            ],
+                        };
+                    }),
                 },
             ],
         };

@@ -1487,6 +1487,7 @@ export class AiAgentService {
                             page: args.page,
                             pageSize: args.pageSize,
                         },
+                        fullTextSearchOperator: 'OR',
                     });
 
                 const tablesWithFields = await Promise.all(
@@ -1542,6 +1543,7 @@ export class AiAgentService {
                                     ...sharedArgs.catalogSearch,
                                     filter: CatalogFilter.Dimensions,
                                 },
+                                fullTextSearchOperator: 'OR',
                             });
 
                             const {
@@ -1553,6 +1555,7 @@ export class AiAgentService {
                                     ...sharedArgs.catalogSearch,
                                     filter: CatalogFilter.Metrics,
                                 },
+                                fullTextSearchOperator: 'OR',
                             });
 
                             return {
@@ -1612,6 +1615,7 @@ export class AiAgentService {
                         pageSize: args.pageSize,
                     },
                     userAttributes,
+                    fullTextSearchOperator: 'OR',
                 });
 
             // TODO: we should not filter here, search should be returning a proper type
@@ -1702,6 +1706,8 @@ export class AiAgentService {
             const searchResults = await this.searchModel.searchDashboards(
                 projectUuid,
                 args.dashboardSearchQuery.label,
+                undefined,
+                'OR',
             );
 
             const filteredResults = await this.spaceService.filterBySpaceAccess(
@@ -1727,7 +1733,10 @@ export class AiAgentService {
             const searchResults = await this.searchModel.searchSavedCharts(
                 projectUuid,
                 args.chartSearchQuery.label,
+                undefined,
+                'OR',
             );
+            // TODO: also search for sql charts
 
             const filteredResults = await this.spaceService.filterBySpaceAccess(
                 user,
@@ -1828,7 +1837,9 @@ export class AiAgentService {
             storeToolResults,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const model = getModel(this.lightdashConfig.ai.copilot);
+        const { model, callOptions } = getModel(
+            this.lightdashConfig.ai.copilot,
+        );
         const agentSettings = await this.getAgentSettings(user, prompt);
 
         const args: AiAgentArgs = {
@@ -1840,6 +1851,7 @@ export class AiAgentService {
 
             agentSettings,
             model,
+            callOptions,
             messageHistory,
 
             debugLoggingEnabled:
@@ -1852,8 +1864,8 @@ export class AiAgentService {
             findExploresFieldOverviewSearchSize: 5,
             findExploresMaxDescriptionLength: 100,
             findFieldsPageSize: 10,
-            findDashboardsPageSize: 10,
-            findChartsPageSize: 10,
+            findDashboardsPageSize: 5,
+            findChartsPageSize: 5,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
         };

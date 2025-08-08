@@ -1,3 +1,60 @@
+## [0.1892.2](https://github.com/lightdash/lightdash/compare/0.1892.1...0.1892.2) (2025-08-08)
+
+
+### Bug Fixes
+
+* warehouse sql builder is not taking start of week into consideration ([#16321](https://github.com/lightdash/lightdash/issues/16321)) ([fcd0865](https://github.com/lightdash/lightdash/commit/fcd08654693c35f7f524956ba884ab5777998261))
+
+## [0.1892.1](https://github.com/lightdash/lightdash/compare/0.1892.0...0.1892.1) (2025-08-08)
+
+
+### Bug Fixes
+
+* add clamp behaviour to limit input ([#16312](https://github.com/lightdash/lightdash/issues/16312)) ([3f9b82d](https://github.com/lightdash/lightdash/commit/3f9b82db313df8e0d6d335643a08f64943005352))
+
+# [0.1892.0](https://github.com/lightdash/lightdash/compare/0.1891.0...0.1892.0) (2025-08-08)
+
+
+### Features
+
+* support multiple index columns in pivot charts ([#16200](https://github.com/lightdash/lightdash/issues/16200)) ([312dd2e](https://github.com/lightdash/lightdash/commit/312dd2edd8c5f88be07dc24f62ae1834d003534a))
+
+# [0.1891.0](https://github.com/lightdash/lightdash/compare/0.1890.0...0.1891.0) (2025-08-08)
+
+
+### Features
+
+* add temperature configuration for AI models ([#16300](https://github.com/lightdash/lightdash/issues/16300)) ([5c79b58](https://github.com/lightdash/lightdash/commit/5c79b585b255d18382bf1597295d5d2c2651713a))
+* enable 'Explore from here' for iframe and embed URLs ([#16118](https://github.com/lightdash/lightdash/issues/16118)) ([c013947](https://github.com/lightdash/lightdash/commit/c0139474be1a8475cf15f35fd04232a9315efea2))
+
+# [0.1890.0](https://github.com/lightdash/lightdash/compare/0.1889.2...0.1890.0) (2025-08-08)
+
+
+### Features
+
+* add error handling and retry-on-error to AI agent chat ([#16276](https://github.com/lightdash/lightdash/issues/16276)) ([c98c4f2](https://github.com/lightdash/lightdash/commit/c98c4f2e7ca3a2b10e215bf4636ebc25dd7fb53c)), closes [#15917](https://github.com/lightdash/lightdash/issues/15917)
+
+## [0.1889.2](https://github.com/lightdash/lightdash/compare/0.1889.1...0.1889.2) (2025-08-08)
+
+
+### Bug Fixes
+
+* close visualization config when exiting edit mode ([#16289](https://github.com/lightdash/lightdash/issues/16289)) ([34309e6](https://github.com/lightdash/lightdash/commit/34309e6e0be75f5ad131036bb7c78564e2858712))
+
+## [0.1889.1](https://github.com/lightdash/lightdash/compare/0.1889.0...0.1889.1) (2025-08-08)
+
+
+### Bug Fixes
+
+* extra oauth discovery for mcp server ([#16161](https://github.com/lightdash/lightdash/issues/16161)) ([c230ea9](https://github.com/lightdash/lightdash/commit/c230ea9abec058d74edec263500682fd5905dfdd))
+
+# [0.1889.0](https://github.com/lightdash/lightdash/compare/0.1888.1...0.1889.0) (2025-08-08)
+
+
+### Features
+
+* loosen search terms on AI tools ([#16275](https://github.com/lightdash/lightdash/issues/16275)) ([33c53b4](https://github.com/lightdash/lightdash/commit/33c53b499fb5489a0b7a1364ab6d0bc943ddcf20))
+
 ## [0.1888.1](https://github.com/lightdash/lightdash/compare/0.1888.0...0.1888.1) (2025-08-07)
 
 
