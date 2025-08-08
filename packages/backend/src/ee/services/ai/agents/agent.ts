@@ -27,7 +27,6 @@ export const defaultAgentOptions = {
     toolChoice: 'auto',
     maxSteps: 10,
     maxRetries: 3,
-    temperature: 0.2,
 } as const;
 
 const getAgentTelemetryConfig = (
@@ -222,6 +221,7 @@ export const generateAgentResponse = async ({
         }
         const result = await generateText({
             ...defaultAgentOptions,
+            ...args.callOptions,
             model: args.model,
             tools,
             messages,
@@ -419,6 +419,7 @@ export const streamAgentResponse = async ({
         }
         const result = streamText({
             ...defaultAgentOptions,
+            ...args.callOptions,
             model: args.model,
             tools,
             messages,
