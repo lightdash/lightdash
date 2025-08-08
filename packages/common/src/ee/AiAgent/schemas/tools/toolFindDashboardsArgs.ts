@@ -6,7 +6,9 @@ export const toolFindDashboardsArgsSchema = z.object({
         z.object({
             label: z
                 .string()
-                .describe('Dashboard name or description to search for'),
+                .describe(
+                    'Full search query from the user (e.g., "revenue based on campaigns" not just "campaigns"). Include full context for better results.',
+                ),
         }),
     ),
     page: z
