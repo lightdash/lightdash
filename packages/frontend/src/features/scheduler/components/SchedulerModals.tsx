@@ -1,5 +1,7 @@
 import { type ItemsMap } from '@lightdash/common';
 import React, { type FC } from 'react';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,
@@ -25,6 +27,14 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const schedulersQuery = useDashboardSchedulers(dashboardUuid);
     const createMutation = useDashboardSchedulerCreateMutation();
 
+    // Extract parameter data from dashboard context
+    const parameterReferences = useDashboardContext(
+        (c) => c.dashboardParameterReferences,
+    );
+    const currentParameterValues = useDashboardContext(
+        (c) => c.parameterValues,
+    );
+
     return (
         <SchedulerModal
             resourceUuid={dashboardUuid}
@@ -32,6 +42,8 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
             schedulersQuery={schedulersQuery}
             createMutation={createMutation}
             isChart={false}
+            parameterReferences={parameterReferences}
+            currentParameterValues={currentParameterValues}
             {...modalProps}
         />
     );
@@ -54,6 +66,17 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     const chartSchedulersQuery = useChartSchedulers(chartUuid);
     const createMutation = useChartSchedulerCreateMutation();
 
+    // Extract parameter data from explorer context
+    const explorerParameterReferences = useExplorerContext(
+        (c) => c.state.parameterReferences,
+    );
+    const currentParameterValues = useExplorerContext(
+        (c) => c.state.unsavedChartVersion.parameters || {},
+    );
+
+    // Convert null to undefined and array to proper format
+    const parameterReferences = explorerParameterReferences || undefined;
+
     return (
         <SchedulerModal
             resourceUuid={chartUuid}
@@ -61,6 +84,8 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
             schedulersQuery={chartSchedulersQuery}
             createMutation={createMutation}
             isChart
+            parameterReferences={parameterReferences}
+            currentParameterValues={currentParameterValues}
             {...modalProps}
         />
     );
