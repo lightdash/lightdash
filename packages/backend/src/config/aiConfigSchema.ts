@@ -16,6 +16,7 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_OPENAI_MODEL_NAME),
                     baseUrl: z.string().optional(),
+                    temperature: z.number().min(0).max(2).default(0.2),
                 })
                 .optional(),
             azure: z
@@ -24,12 +25,14 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     apiVersion: z.string(),
                     deploymentName: z.string(),
+                    temperature: z.number().min(0).max(2).default(0.2),
                 })
                 .optional(),
             anthropic: z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
+                    temperature: z.number().min(0).max(2).default(0.2),
                 })
                 .optional(),
             openrouter: z
@@ -46,6 +49,7 @@ export const aiCopilotConfigSchema = z
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
+                    temperature: z.number().min(0).max(2).default(0.2),
                 })
                 .optional(),
         }),

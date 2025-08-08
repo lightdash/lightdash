@@ -1837,7 +1837,9 @@ export class AiAgentService {
             storeToolResults,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const model = getModel(this.lightdashConfig.ai.copilot);
+        const { model, callOptions } = getModel(
+            this.lightdashConfig.ai.copilot,
+        );
         const agentSettings = await this.getAgentSettings(user, prompt);
 
         const args: AiAgentArgs = {
@@ -1849,6 +1851,7 @@ export class AiAgentService {
 
             agentSettings,
             model,
+            callOptions,
             messageHistory,
 
             debugLoggingEnabled:
