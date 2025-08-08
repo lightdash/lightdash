@@ -8,6 +8,7 @@ import {
     friendlyName,
 } from '../types/field';
 import { type Organization } from '../types/organization';
+import { getFirstIndexColumns } from '../types/queryHistory';
 import { type RawResultRow } from '../types/results';
 import {
     ChartKind,
@@ -457,9 +458,12 @@ export class CartesianChartDataModel {
           }
         | undefined {
         const transformedData = this.pivotedChartData;
+        const firstIndexColumn = getFirstIndexColumns(
+            transformedData?.indexColumn,
+        );
         if (
             !transformedData ||
-            !transformedData.indexColumn ||
+            !firstIndexColumn ||
             !transformedData.results ||
             !transformedData.results.length
         ) {
@@ -468,7 +472,7 @@ export class CartesianChartDataModel {
 
         return {
             columns: [
-                transformedData.indexColumn.reference,
+                firstIndexColumn.reference,
                 ...transformedData.valuesColumns.map(
                     (valueColumn) => valueColumn.pivotColumnName,
                 ),
@@ -506,7 +510,9 @@ export class CartesianChartDataModel {
 
         const shouldStack = display?.stack === true;
 
-        const xAxisReference = transformedData.indexColumn?.reference;
+        const xAxisReference = getFirstIndexColumns(
+            transformedData?.indexColumn,
+        )?.reference;
 
         const leftYAxisSeriesReferences: string[] = [];
         const rightYAxisSeriesReferences: string[] = [];
@@ -600,7 +606,7 @@ export class CartesianChartDataModel {
 
         const xAxisType =
             display?.xAxis?.type ||
-            transformedData.indexColumn?.type ||
+            getFirstIndexColumns(transformedData.indexColumn)?.type ||
             DEFAULT_X_AXIS_TYPE;
 
         const spec = {
