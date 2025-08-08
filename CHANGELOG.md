@@ -1,3 +1,10 @@
+# [0.1892.0](https://github.com/lightdash/lightdash/compare/0.1891.0...0.1892.0) (2025-08-08)
+
+
+### Features
+
+* support multiple index columns in pivot charts ([#16200](https://github.com/lightdash/lightdash/issues/16200)) ([312dd2e](https://github.com/lightdash/lightdash/commit/312dd2edd8c5f88be07dc24f62ae1834d003534a))
+
 # [0.1891.0](https://github.com/lightdash/lightdash/compare/0.1890.0...0.1891.0) (2025-08-08)
 
 
