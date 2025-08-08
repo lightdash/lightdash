@@ -8,6 +8,7 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Button,
     Center,
     CopyButton,
     Group,
@@ -23,6 +24,7 @@ import {
     IconCopy,
     IconExclamationCircle,
     IconLayoutDashboard,
+    IconRefresh,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
@@ -38,6 +40,7 @@ import {
     useAiAgentThreadMessageVizQuery,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
+import { useAiAgentThreadStreamMutation } from '../../streaming/useAiAgentThreadStreamMutation';
 import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
@@ -50,21 +53,77 @@ import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
+    agentUuid: string;
     metricQuery?: ApiExecuteAsyncMetricQueryResults['metricQuery'];
-}> = ({ message, metricQuery, projectUuid }) => {
+}> = ({ message, metricQuery, projectUuid, agentUuid }) => {
     const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
     const isStreaming = useAiAgentThreadMessageStreaming(
         message.threadUuid,
         message.uuid,
     );
+    const { streamMessage } = useAiAgentThreadStreamMutation();
 
+    const hasStreamingError =
+        streamingState?.error && streamingState?.messageUuid === message.uuid;
     const messageContent =
         isStreaming && streamingState
             ? streamingState.content
             : message.message ?? 'No response...';
 
+    const handleRetry = useCallback(() => {
+        void streamMessage({
+            agentUuid,
+            threadUuid: message.threadUuid,
+            messageUuid: message.uuid,
+        });
+    }, [streamMessage, agentUuid, message.threadUuid, message.uuid]);
+
     return (
         <>
+            {hasStreamingError && (
+                <Paper
+                    withBorder
+                    radius="md"
+                    p="md"
+                    shadow="none"
+                    bg="gray.0"
+                    style={{
+                        borderStyle: 'dashed',
+                    }}
+                >
+                    <Group gap="xs" align="center" justify="space-between">
+                        <Group gap="xs" align="flex-start">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                color="gray"
+                                size="sm"
+                                style={{ flexShrink: 0, marginTop: '2px' }}
+                            />
+                            <Stack gap={4}>
+                                <Text size="sm" fw={500} c="dimmed">
+                                    Something went wrong
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    Failed to generate response. Please try
+                                    again.
+                                </Text>
+                            </Stack>
+                        </Group>
+                        <Button
+                            size="xs"
+                            variant="default"
+                            color="dark.5"
+                            leftSection={
+                                <MantineIcon icon={IconRefresh} size="xs" />
+                            }
+                            onClick={handleRetry}
+                        >
+                            Try again
+                        </Button>
+                    </Group>
+                </Paper>
+            )}
+
             {isStreaming && (
                 <AiChartToolCalls
                     toolCalls={streamingState?.toolCalls}
@@ -80,110 +139,114 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                 />
             )}
-            <MDEditor.Markdown
-                source={messageContent}
-                style={{ padding: `0.5rem 0` }}
-                rehypePlugins={[rehypeAiAgentContentLinks]}
-                components={{
-                    a: ({ node, children, ...props }) => {
-                        const contentType =
-                            'data-content-type' in props &&
-                            typeof props['data-content-type'] === 'string'
-                                ? props['data-content-type']
-                                : undefined;
-                        const chartType =
-                            'data-chart-type' in props &&
-                            typeof props['data-chart-type'] === 'string'
-                                ? props['data-chart-type']
-                                : undefined;
-
-                        if (contentType === 'dashboard-link') {
-                            return (
-                                <Anchor
-                                    {...props}
-                                    target="_blank"
-                                    fz="sm"
-                                    fw={500}
-                                    bg="gray.0"
-                                    c="gray.7"
-                                    td="none"
-                                    classNames={{
-                                        root: styles.contentLink,
-                                    }}
-                                >
-                                    <MantineIcon
-                                        icon={IconLayoutDashboard}
-                                        size="md"
-                                        color="green.7"
-                                        fill="green.6"
-                                        fillOpacity={0.2}
-                                        strokeWidth={1.9}
-                                    />
-
-                                    {/* margin is added by md package */}
-                                    <Text fz="sm" fw={500} m={0}>
-                                        {children}
-                                    </Text>
-
-                                    <MantineIcon
-                                        icon={IconArrowRight}
-                                        color="gray.7"
-                                        size="sm"
-                                        strokeWidth={2.0}
-                                    />
-                                </Anchor>
-                            );
-                        } else if (contentType === 'chart-link') {
-                            const chartTypeKind =
-                                chartType &&
-                                Object.values(ChartKind).includes(
-                                    chartType as ChartKind,
-                                )
-                                    ? (chartType as ChartKind)
+            {messageContent.length > 0 ? (
+                <MDEditor.Markdown
+                    source={messageContent}
+                    style={{ padding: `0.5rem 0` }}
+                    rehypePlugins={[rehypeAiAgentContentLinks]}
+                    components={{
+                        a: ({ node, children, ...props }) => {
+                            const contentType =
+                                'data-content-type' in props &&
+                                typeof props['data-content-type'] === 'string'
+                                    ? props['data-content-type']
                                     : undefined;
-                            return (
-                                <Anchor
-                                    {...props}
-                                    target="_blank"
-                                    fz="sm"
-                                    fw={500}
-                                    bg="gray.0"
-                                    c="gray.7"
-                                    td="none"
-                                    classNames={{
-                                        root: styles.contentLink,
-                                    }}
-                                >
-                                    {chartTypeKind && (
+                            const chartType =
+                                'data-chart-type' in props &&
+                                typeof props['data-chart-type'] === 'string'
+                                    ? props['data-chart-type']
+                                    : undefined;
+
+                            if (contentType === 'dashboard-link') {
+                                return (
+                                    <Anchor
+                                        {...props}
+                                        target="_blank"
+                                        fz="sm"
+                                        fw={500}
+                                        bg="gray.0"
+                                        c="gray.7"
+                                        td="none"
+                                        classNames={{
+                                            root: styles.contentLink,
+                                        }}
+                                    >
                                         <MantineIcon
-                                            icon={getChartIcon(chartTypeKind)}
+                                            icon={IconLayoutDashboard}
                                             size="md"
-                                            color="blue.7"
-                                            fill="blue.4"
+                                            color="green.7"
+                                            fill="green.6"
                                             fillOpacity={0.2}
                                             strokeWidth={1.9}
                                         />
-                                    )}
 
-                                    {/* margin is added by md package */}
-                                    <Text fz="sm" fw={500} m={0}>
-                                        {children}
-                                    </Text>
+                                        {/* margin is added by md package */}
+                                        <Text fz="sm" fw={500} m={0}>
+                                            {children}
+                                        </Text>
 
-                                    <MantineIcon
-                                        icon={IconArrowRight}
-                                        color="gray.7"
-                                        size="sm"
-                                        strokeWidth={2.0}
-                                    />
-                                </Anchor>
-                            );
-                        }
+                                        <MantineIcon
+                                            icon={IconArrowRight}
+                                            color="gray.7"
+                                            size="sm"
+                                            strokeWidth={2.0}
+                                        />
+                                    </Anchor>
+                                );
+                            } else if (contentType === 'chart-link') {
+                                const chartTypeKind =
+                                    chartType &&
+                                    Object.values(ChartKind).includes(
+                                        chartType as ChartKind,
+                                    )
+                                        ? (chartType as ChartKind)
+                                        : undefined;
+                                return (
+                                    <Anchor
+                                        {...props}
+                                        target="_blank"
+                                        fz="sm"
+                                        fw={500}
+                                        bg="gray.0"
+                                        c="gray.7"
+                                        td="none"
+                                        classNames={{
+                                            root: styles.contentLink,
+                                        }}
+                                    >
+                                        {chartTypeKind && (
+                                            <MantineIcon
+                                                icon={getChartIcon(
+                                                    chartTypeKind,
+                                                )}
+                                                size="md"
+                                                color="blue.7"
+                                                fill="blue.4"
+                                                fillOpacity={0.2}
+                                                strokeWidth={1.9}
+                                            />
+                                        )}
 
-                        return <a {...props}>{children}</a>;
-                    },
-                }}
-            />
+                                        {/* margin is added by md package */}
+                                        <Text fz="sm" fw={500} m={0}>
+                                            {children}
+                                        </Text>
+
+                                        <MantineIcon
+                                            icon={IconArrowRight}
+                                            color="gray.7"
+                                            size="sm"
+                                            strokeWidth={2.0}
+                                        />
+                                    </Anchor>
+                                );
+                            }
+
+                            return <a {...props}>{children}</a>;
+                        },
+                    }}
+                />
+            ) : null}
             {isStreaming ? <Loader type="dots" color="gray" /> : null}
         </>
     );
@@ -275,6 +338,7 @@ export const AssistantBubble: FC<{
                 message={message}
                 metricQuery={queryExecutionHandle.data?.query.metricQuery}
                 projectUuid={projectUuid}
+                agentUuid={agentUuid}
             />
 
             {isVisualizationAvailable && (
@@ -301,7 +365,12 @@ export const AssistantBubble: FC<{
                             />
                         </Center>
                     ) : isQueryError ? (
-                        <Stack gap="xs" align="center">
+                        <Stack
+                            gap="xs"
+                            align="center"
+                            justify="center"
+                            h="100%"
+                        >
                             <MantineIcon
                                 icon={IconExclamationCircle}
                                 color="gray"
