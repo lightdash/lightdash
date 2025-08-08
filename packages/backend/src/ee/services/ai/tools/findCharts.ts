@@ -1,5 +1,7 @@
 import {
-    SavedChartSearchResult,
+    AllChartsSearchResult,
+    isSavedChartSearchResult,
+    isSqlChartSearchResult,
     toolFindChartsArgsSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -12,10 +14,20 @@ type Dependencies = {
     siteUrl?: string;
 };
 
-const getChartText = (chart: SavedChartSearchResult, siteUrl?: string) => {
-    const chartUrl = siteUrl
-        ? `${siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`
-        : undefined;
+const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
+    const isSavedChart = isSavedChartSearchResult(chart);
+    const isSqlChart = isSqlChartSearchResult(chart);
+
+    let chartUrl: string | undefined;
+    if (isSavedChart) {
+        chartUrl = siteUrl
+            ? `${siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`
+            : undefined;
+    } else if (isSqlChart) {
+        chartUrl = siteUrl
+            ? `${siteUrl}/projects/${chart.projectUuid}/sql-runner/${chart.slug}#chart-link#chart-type-${chart.chartType}`
+            : undefined;
+    }
 
     return `
     <Chart chartUuid="${chart.uuid}">

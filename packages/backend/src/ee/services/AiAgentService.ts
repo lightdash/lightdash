@@ -1730,17 +1730,15 @@ export class AiAgentService {
         };
 
         const findCharts: FindChartsFn = async (args) => {
-            const searchResults = await this.searchModel.searchSavedCharts(
+            const allCharts = await this.searchModel.searchAllCharts(
                 projectUuid,
                 args.chartSearchQuery.label,
-                undefined,
                 'OR',
             );
-            // TODO: also search for sql charts
 
             const filteredResults = await this.spaceService.filterBySpaceAccess(
                 user,
-                searchResults,
+                allCharts,
             );
 
             const totalResults = filteredResults.length;

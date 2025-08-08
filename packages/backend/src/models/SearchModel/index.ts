@@ -1,4 +1,5 @@
 import {
+    AllChartsSearchResult,
     DashboardSearchResult,
     DashboardTabResult,
     Explore,
@@ -341,7 +342,7 @@ export class SearchModel {
         );
     }
 
-    async searchSavedCharts(
+    private async searchSavedCharts(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
@@ -440,6 +441,140 @@ export class SearchModel {
         return savedCharts.map((chart) => ({
             ...chart,
             validationErrors: validationErrors[chart.uuid] || [],
+        }));
+    }
+
+    async searchAllCharts(
+        projectUuid: string,
+        query: string,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+    ): Promise<Array<AllChartsSearchResult>> {
+        const savedChartsSearchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${SavedChartsTableName}.search_vector`,
+                searchQuery: query,
+            },
+            fullTextSearchOperator,
+        });
+
+        const savedChartsSubquery = this.database(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${SavedChartsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SavedChartsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+                this.orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .column(
+                { uuid: 'saved_query_uuid' },
+                `${SavedChartsTableName}.slug`,
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                {
+                    chartType: `${SavedChartsTableName}.last_version_chart_kind`,
+                },
+                { spaceUuid: `${SpaceTableName}.space_uuid` },
+                { search_rank: savedChartsSearchRankRawSql },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
+                this.database.raw('? as chart_source', ['saved']),
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        const savedSqlSearchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${SavedSqlTableName}.search_vector`,
+                searchQuery: query,
+            },
+            fullTextSearchOperator,
+        });
+
+        const savedSqlSubquery = this.database(SavedSqlTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${SavedSqlTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SavedSqlTableName}.space_uuid`,
+                    '=',
+                    `${SpaceTableName}.space_uuid`,
+                );
+                this.orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .column(
+                { uuid: 'saved_sql_uuid' },
+                `${SavedSqlTableName}.slug`,
+                `${SavedSqlTableName}.name`,
+                `${SavedSqlTableName}.description`,
+                {
+                    chartType: `${SavedSqlTableName}.last_version_chart_kind`,
+                },
+                { spaceUuid: `${SavedSqlTableName}.space_uuid` },
+                { search_rank: savedSqlSearchRankRawSql },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
+                this.database.raw('? as chart_source', ['sql']),
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        // Type-safe union by ensuring both subqueries have identical column structure
+        const unionQuery = this.database
+            .select<{
+                uuid: string;
+                slug: string;
+                name: string;
+                description: string;
+                chartType: string;
+                spaceUuid: string;
+                search_rank: number;
+                projectUuid: string;
+                chart_source: 'saved' | 'sql';
+            }>()
+            .from(savedChartsSubquery.as('saved_charts'))
+            .unionAll(
+                this.database.select().from(savedSqlSubquery.as('saved_sql')),
+            );
+
+        const results = await this.database
+            .select<
+                (Omit<AllChartsSearchResult, 'chartSource'> & {
+                    chart_source: 'saved' | 'sql';
+                })[]
+            >('*')
+            .from(unionQuery.as('all_charts_with_rank'))
+            .where('search_rank', '>', 0)
+            .orderBy('search_rank', 'desc')
+            .limit(20);
+
+        return results.map((result) => ({
+            ...result,
+            chartSource: result.chart_source as 'saved' | 'sql',
         }));
     }
 
