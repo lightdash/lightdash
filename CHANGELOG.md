@@ -1,3 +1,10 @@
+# [0.1890.0](https://github.com/lightdash/lightdash/compare/0.1889.2...0.1890.0) (2025-08-08)
+
+
+### Features
+
+* add error handling and retry-on-error to AI agent chat ([#16276](https://github.com/lightdash/lightdash/issues/16276)) ([c98c4f2](https://github.com/lightdash/lightdash/commit/c98c4f2e7ca3a2b10e215bf4636ebc25dd7fb53c)), closes [#15917](https://github.com/lightdash/lightdash/issues/15917)
+
 ## [0.1889.2](https://github.com/lightdash/lightdash/compare/0.1889.1...0.1889.2) (2025-08-08)
 
 
