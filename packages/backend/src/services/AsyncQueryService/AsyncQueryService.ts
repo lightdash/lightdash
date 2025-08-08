@@ -1729,6 +1729,7 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
 
         // Combine default parameter values with request parameters first
@@ -1886,6 +1887,7 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
 
         // Combine default parameter values, saved chart parameters, and request parameters first
@@ -2108,6 +2110,7 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
 
         // Combine default parameter values, saved chart parameters, and request parameters first
@@ -2294,6 +2297,7 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
 
         // Combine default parameter values with request parameters first
