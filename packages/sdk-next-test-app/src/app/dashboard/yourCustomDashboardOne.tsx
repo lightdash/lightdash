@@ -1,5 +1,6 @@
 'use client';
 
+import '@lightdash/sdk/sdk.css';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { SavedChart } from '../../../../common/src';
