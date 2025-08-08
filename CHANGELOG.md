@@ -1,3 +1,10 @@
+## [0.1889.1](https://github.com/lightdash/lightdash/compare/0.1889.0...0.1889.1) (2025-08-08)
+
+
+### Bug Fixes
+
+* extra oauth discovery for mcp server ([#16161](https://github.com/lightdash/lightdash/issues/16161)) ([c230ea9](https://github.com/lightdash/lightdash/commit/c230ea9abec058d74edec263500682fd5905dfdd))
+
 # [0.1889.0](https://github.com/lightdash/lightdash/compare/0.1888.1...0.1889.0) (2025-08-08)
 
 
