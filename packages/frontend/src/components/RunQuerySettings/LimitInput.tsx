@@ -30,6 +30,7 @@ const LimitInput = ({
             step={100}
             size={size}
             label="Row limit:"
+            clampBehavior="strict"
             {...numberInputProps}
         />
     );
