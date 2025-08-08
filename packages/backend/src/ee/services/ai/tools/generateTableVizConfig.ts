@@ -86,11 +86,7 @@ export const getGenerateTableVizConfig = ({
 
                 isOneRow = results.rows.length === 1;
 
-                if (isOneRow) {
-                    return `Here's the result:
-${serializeData(csv, 'csv')}`;
-                }
-
+                // Always send CSV file to Slack if it's a Slack prompt, regardless of row count
                 if (isSlackPrompt(prompt)) {
                     await sendFile({
                         channelId: prompt.slackChannelId,
@@ -101,6 +97,11 @@ ${serializeData(csv, 'csv')}`;
                         filename: 'lightdash-query-results.csv',
                         file: Buffer.from(csv, 'utf8'),
                     });
+                }
+
+                if (isOneRow) {
+                    return `Here's the result:
+                    ${serializeData(csv, 'csv')}`;
                 }
 
                 return `Success.`;
