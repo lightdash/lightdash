@@ -1,3 +1,10 @@
+## [0.1892.2](https://github.com/lightdash/lightdash/compare/0.1892.1...0.1892.2) (2025-08-08)
+
+
+### Bug Fixes
+
+* warehouse sql builder is not taking start of week into consideration ([#16321](https://github.com/lightdash/lightdash/issues/16321)) ([fcd0865](https://github.com/lightdash/lightdash/commit/fcd08654693c35f7f524956ba884ab5777998261))
+
 ## [0.1892.1](https://github.com/lightdash/lightdash/compare/0.1892.0...0.1892.1) (2025-08-08)
 
 
