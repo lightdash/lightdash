@@ -84,23 +84,26 @@ const AssistantBubbleContent: FC<{
                 <Paper
                     withBorder
                     radius="md"
-                    p="sm"
-                    bg="red.0"
-                    style={{ borderColor: 'var(--mantine-color-red-3)' }}
+                    p="md"
+                    shadow="none"
+                    bg="gray.0"
+                    style={{
+                        borderStyle: 'dashed',
+                    }}
                 >
-                    <Group gap="xs" align="flex-start" justify="space-between">
+                    <Group gap="xs" align="center" justify="space-between">
                         <Group gap="xs" align="flex-start">
                             <MantineIcon
                                 icon={IconExclamationCircle}
-                                color="red"
+                                color="gray"
                                 size="sm"
                                 style={{ flexShrink: 0, marginTop: '2px' }}
                             />
                             <Stack gap={4}>
-                                <Text size="sm" fw={500} c="red.7">
+                                <Text size="sm" fw={500} c="dimmed">
                                     Something went wrong
                                 </Text>
-                                <Text size="xs" c="red.6">
+                                <Text size="xs" c="dimmed">
                                     Failed to generate response. Please try
                                     again.
                                 </Text>
@@ -362,7 +365,12 @@ export const AssistantBubble: FC<{
                             />
                         </Center>
                     ) : isQueryError ? (
-                        <Stack gap="xs" align="center">
+                        <Stack
+                            gap="xs"
+                            align="center"
+                            justify="center"
+                            h="100%"
+                        >
                             <MantineIcon
                                 icon={IconExclamationCircle}
                                 color="gray"
