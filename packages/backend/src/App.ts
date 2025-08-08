@@ -61,6 +61,10 @@ import {
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
+import {
+    oauthAuthorizationServerHandler,
+    oauthProtectedResourceHandler,
+} from './routers/oauthRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import {
     OperationContext,
@@ -585,6 +589,18 @@ export default class App {
                 },
             ),
         );
+
+        // Root-level .well-known endpoints for OAuth discovery (required by many MCP clients)
+        // Use the same handlers as the API-level endpoints to ensure consistency
+        expressApp.get(
+            '/.well-known/oauth-authorization-server',
+            oauthAuthorizationServerHandler,
+        );
+        expressApp.get(
+            '/.well-known/oauth-protected-resource',
+            oauthProtectedResourceHandler,
+        );
+
         // frontend static files - no cache
         expressApp.use(
             express.static(path.join(__dirname, '../../frontend/build'), {
