@@ -1,3 +1,10 @@
+## [0.1889.2](https://github.com/lightdash/lightdash/compare/0.1889.1...0.1889.2) (2025-08-08)
+
+
+### Bug Fixes
+
+* close visualization config when exiting edit mode ([#16289](https://github.com/lightdash/lightdash/issues/16289)) ([34309e6](https://github.com/lightdash/lightdash/commit/34309e6e0be75f5ad131036bb7c78564e2858712))
+
 ## [0.1889.1](https://github.com/lightdash/lightdash/compare/0.1889.0...0.1889.1) (2025-08-08)
 
 
