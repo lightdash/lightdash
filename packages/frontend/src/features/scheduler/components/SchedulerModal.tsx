@@ -22,6 +22,8 @@ const SchedulersModal: FC<
     isChart,
     isThresholdAlert,
     itemsMap,
+    parameterReferences,
+    currentParameterValues,
     onClose = () => {},
 }) => {
     return (
@@ -66,6 +68,8 @@ const SchedulersModal: FC<
                 isChart={isChart}
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
+                parameterReferences={parameterReferences}
+                currentParameterValues={currentParameterValues}
             />
         </Modal>
     );

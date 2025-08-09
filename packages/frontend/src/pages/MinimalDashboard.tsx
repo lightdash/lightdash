@@ -36,6 +36,9 @@ const MinimalDashboard: FC = () => {
 
     const schedulerUuid = useSearchParams('schedulerUuid');
     const sendNowSchedulerFilters = useSearchParams('sendNowSchedulerFilters');
+    const sendNowSchedulerParameters = useSearchParams(
+        'sendNowSchedulerParameters',
+    );
     const schedulerTabs = useSearchParams('selectedTabs');
     const dateZoom = useDateZoomGranularitySearch();
 
@@ -71,6 +74,16 @@ const MinimalDashboard: FC = () => {
         }
         return undefined;
     }, [scheduler, schedulerUuid, sendNowSchedulerFilters]);
+
+    const schedulerParameters = useMemo(() => {
+        if (schedulerUuid && scheduler && isDashboardScheduler(scheduler)) {
+            return scheduler.parameters;
+        }
+        if (sendNowSchedulerParameters) {
+            return JSON.parse(sendNowSchedulerParameters);
+        }
+        return undefined;
+    }, [scheduler, schedulerUuid, sendNowSchedulerParameters]);
 
     const schedulerTabsSelected = useMemo(() => {
         if (schedulerTabs) {
@@ -159,6 +172,7 @@ const MinimalDashboard: FC = () => {
     return (
         <DashboardProvider
             schedulerFilters={schedulerFilters}
+            schedulerParameters={schedulerParameters}
             dateZoom={dateZoom}
             defaultInvalidateCache={true}
         >

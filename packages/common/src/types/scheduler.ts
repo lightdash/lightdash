@@ -5,6 +5,7 @@ import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
+import { type ParametersValuesMap } from './parameters';
 import { type PivotConfig } from './pivot';
 import { type DateGranularity } from './timeFrames';
 import { type ValidationTarget } from './validation';
@@ -131,6 +132,7 @@ export type DashboardScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: string;
     filters?: SchedulerFilterRule[];
+    parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs?: string[];
 };
@@ -236,7 +238,10 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'notificationFrequency'
     | 'includeLinks'
 > &
-    Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
+    Pick<
+        DashboardScheduler,
+        'filters' | 'parameters' | 'customViewportWidth'
+    > & {
         targets: Array<
             | CreateSchedulerTarget
             | UpdateSchedulerSlackTarget

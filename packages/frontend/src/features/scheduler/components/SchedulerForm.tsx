@@ -18,6 +18,7 @@ import {
     type CreateSchedulerTarget,
     type Dashboard,
     type ItemsMap,
+    type ParametersValuesMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import {
@@ -73,6 +74,7 @@ import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
+import SchedulerParameters from './SchedulerParameters';
 import { SchedulerPreview } from './SchedulerPreview';
 import { Limit, Values } from './types';
 
@@ -99,6 +101,7 @@ const DEFAULT_VALUES = {
     slackTargets: [] as string[],
     msTeamsTargets: [] as string[],
     filters: undefined,
+    parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: undefined,
     thresholds: [],
@@ -193,6 +196,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         msTeamsTargets: msTeamsTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
+            parameters: schedulerData.parameters,
             customViewportWidth: schedulerData.customViewportWidth,
             selectedTabs: schedulerData.selectedTabs,
         }),
@@ -252,6 +256,8 @@ type Props = {
     confirmText?: string;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
+    parameterReferences?: Set<string> | string[];
+    currentParameterValues?: ParametersValuesMap;
 };
 
 const validateMsTeamsWebhook = (webhook: string): boolean => {
@@ -320,6 +326,8 @@ const SchedulerForm: FC<Props> = ({
     confirmText,
     isThresholdAlert,
     itemsMap,
+    parameterReferences,
+    currentParameterValues,
 }) => {
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
@@ -331,6 +339,9 @@ const SchedulerForm: FC<Props> = ({
 
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
+
+    // Use the explicitly passed parameter values
+    const dashboardParameterValues = currentParameterValues || {};
 
     const form = useForm({
         initialValues:
@@ -350,6 +361,11 @@ const SchedulerForm: FC<Props> = ({
                       selectedTabs: isDashboardTabsAvailable
                           ? dashboard?.tabs.map((tab) => tab.uuid)
                           : undefined,
+                      parameters:
+                          isDashboard &&
+                          Object.keys(dashboardParameterValues).length > 0
+                              ? dashboardParameterValues
+                              : undefined,
                   },
         validateInputOnBlur: ['options.customLimit'],
 
@@ -422,6 +438,7 @@ const SchedulerForm: FC<Props> = ({
                 targets,
                 ...(resource?.type === 'dashboard' && {
                     filters: values.filters,
+                    parameters: values.parameters,
                     customViewportWidth: values.customViewportWidth,
                     selectedTabs: values.selectedTabs,
                 }),
@@ -538,7 +555,10 @@ const SchedulerForm: FC<Props> = ({
                         Setup
                     </Tabs.Tab>
                     {isDashboard && dashboard ? (
-                        <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                        <>
+                            <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                            <Tabs.Tab value="parameters">Parameters</Tabs.Tab>
+                        </>
                     ) : null}
 
                     {!isThresholdAlert && (
@@ -1187,15 +1207,35 @@ const SchedulerForm: FC<Props> = ({
                 </Tabs.Panel>
 
                 {isDashboard && dashboard ? (
-                    <Tabs.Panel value="filters" p="md">
-                        <SchedulerFilters
-                            dashboard={dashboard}
-                            schedulerFilters={form.values.filters}
-                            onChange={(schedulerFilters) => {
-                                form.setFieldValue('filters', schedulerFilters);
-                            }}
-                        />
-                    </Tabs.Panel>
+                    <>
+                        <Tabs.Panel value="filters" p="md">
+                            <SchedulerFilters
+                                dashboard={dashboard}
+                                schedulerFilters={form.values.filters}
+                                onChange={(schedulerFilters) => {
+                                    form.setFieldValue(
+                                        'filters',
+                                        schedulerFilters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="parameters" p="md">
+                            <SchedulerParameters
+                                dashboard={dashboard}
+                                parameterReferences={parameterReferences}
+                                currentParameterValues={currentParameterValues}
+                                schedulerParameters={form.values.parameters}
+                                onChange={(schedulerParameters) => {
+                                    form.setFieldValue(
+                                        'parameters',
+                                        schedulerParameters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+                    </>
                 ) : null}
 
                 <Tabs.Panel value="customization">

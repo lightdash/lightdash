@@ -87,6 +87,7 @@ export class SchedulerModel {
             format: scheduler.format,
             options: scheduler.options,
             filters: scheduler.filters,
+            parameters: scheduler.parameters,
             customViewportWidth: scheduler.custom_viewport_width,
             thresholds: scheduler.thresholds || undefined,
             enabled: scheduler.enabled,
@@ -410,6 +411,11 @@ export class SchedulerModel {
                         newScheduler.filters
                             ? JSON.stringify(newScheduler.filters)
                             : null,
+                    parameters:
+                        isDashboardScheduler(newScheduler) &&
+                        newScheduler.parameters
+                            ? JSON.stringify(newScheduler.parameters)
+                            : null,
                     custom_viewport_width:
                         isDashboardScheduler(newScheduler) &&
                         newScheduler.customViewportWidth
@@ -488,6 +494,10 @@ export class SchedulerModel {
                     filters:
                         'filters' in scheduler && scheduler.filters
                             ? JSON.stringify(scheduler.filters)
+                            : null,
+                    parameters:
+                        'parameters' in scheduler && scheduler.parameters
+                            ? JSON.stringify(scheduler.parameters)
                             : null,
                     custom_viewport_width:
                         'customViewportWidth' in scheduler &&
