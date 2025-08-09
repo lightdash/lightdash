@@ -2,10 +2,12 @@ import {
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
+    ExploreError,
     getCompiledModels,
     getDbtManifestVersion,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    InlineErrorType,
     isExploreError,
     isSupportedDbtAdapter,
     ParseError,
@@ -161,21 +163,44 @@ ${errors.join('')}`),
     const explores = [...validExplores, ...failedExplores];
 
     explores.forEach((e) => {
-        const status = isExploreError(e)
-            ? styles.error('ERROR')
-            : styles.success('SUCCESS');
-        const errors = isExploreError(e)
-            ? `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`
-            : '';
-        console.error(`- ${status}> ${e.name} ${errors}`);
+        if (isExploreError(e)) {
+            const hasOnlyNoDimensions = e.errors.every(
+                (err) => err.type === InlineErrorType.NO_DIMENSIONS_FOUND,
+            );
+            const status = hasOnlyNoDimensions
+                ? styles.warning('WARNING')
+                : styles.error('ERROR');
+            const errorStyles = hasOnlyNoDimensions
+                ? styles.warning
+                : styles.error;
+            const errors = `: ${errorStyles(
+                e.errors.map((err) => err.message).join(', '),
+            )}`;
+            console.error(`- ${status}> ${e.name} ${errors}`);
+        } else {
+            console.error(`- ${styles.success('SUCCESS')}> ${e.name}`);
+        }
     });
     console.error('');
-    const errors = explores.filter((e) => isExploreError(e)).length;
-    console.error(
-        `Compiled ${explores.length} explores, SUCCESS=${
-            explores.length - errors
-        } ERRORS=${errors}`,
-    );
+    const exploreErrors = explores.filter((e) =>
+        isExploreError(e),
+    ) as ExploreError[];
+    const warnings = exploreErrors.filter((e) =>
+        e.errors.every(
+            (err) => err.type === InlineErrorType.NO_DIMENSIONS_FOUND,
+        ),
+    ).length;
+    const errors = exploreErrors.length - warnings;
+    const successCount = explores.length - exploreErrors.length;
+
+    let summary = `Compiled ${explores.length} explores, SUCCESS=${successCount}`;
+    if (errors > 0) {
+        summary += ` ERRORS=${errors}`;
+    }
+    if (warnings > 0) {
+        summary += ` WARNINGS=${warnings}`;
+    }
+    console.error(summary);
 
     await LightdashAnalytics.track({
         event: 'compile.completed',
@@ -199,17 +224,42 @@ export const compileHandler = async (
     }
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
-    const errorsCount = explores.filter((e) => isExploreError(e)).length;
+
+    const exploreErrors = explores.filter((e) =>
+        isExploreError(e),
+    ) as ExploreError[];
+    const blockingErrors = exploreErrors.filter(
+        (e) =>
+            !e.errors.some(
+                (err) => err.type === InlineErrorType.NO_DIMENSIONS_FOUND,
+            ),
+    );
+    const warningsCount = exploreErrors.filter((e) =>
+        e.errors.every(
+            (err) => err.type === InlineErrorType.NO_DIMENSIONS_FOUND,
+        ),
+    ).length;
+
     console.error('');
-    if (errorsCount > 0) {
+    if (blockingErrors.length > 0) {
         console.error(
             styles.error(
-                `Failed to compile project. Found ${errorsCount} error${
-                    errorsCount > 1 ? 's' : ''
-                }`,
+                `Failed to compile project. Found ${
+                    blockingErrors.length
+                } error${blockingErrors.length > 1 ? 's' : ''}`,
             ),
         );
         process.exit(1);
+    } else if (warningsCount > 0) {
+        console.error(
+            `${styles.success(
+                'Successfully compiled project',
+            )} ${styles.warning(
+                `(with ${warningsCount} warning${
+                    warningsCount > 1 ? 's' : ''
+                })`,
+            )}`,
+        );
     } else {
         console.error(styles.success('Successfully compiled project'));
     }
