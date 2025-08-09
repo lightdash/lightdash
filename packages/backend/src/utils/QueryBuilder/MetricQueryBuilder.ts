@@ -27,6 +27,7 @@ import {
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    SortField,
     SupportedDbtAdapter,
     TimeFrames,
     UserAttributeValueMap,
@@ -569,6 +570,11 @@ export class MetricQueryBuilder {
         );
     }
 
+    static getNullsFirstLast(sort: SortField) {
+        if (sort.nullsFirst === null) return '';
+        return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
+    }
+
     private getSortSQL() {
         const { explore, compiledMetricQuery, warehouseSqlBuilder } = this.args;
         const { sorts, compiledCustomDimensions } = compiledMetricQuery;
@@ -590,7 +596,9 @@ export class MetricQueryBuilder {
                 // so we can use it for sorting
                 return `${fieldQuoteChar}${
                     sort.fieldId
-                }_order${fieldQuoteChar}${sort.descending ? ' DESC' : ''}`;
+                }_order${fieldQuoteChar}${
+                    sort.descending ? ' DESC' : ''
+                }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
             }
             const sortedDimension = compiledDimensions.find(
                 (d) => getItemId(d) === sort.fieldId,
@@ -625,7 +633,7 @@ export class MetricQueryBuilder {
             }
             return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
                 sort.descending ? ' DESC' : ''
-            }`;
+            }${MetricQueryBuilder.getNullsFirstLast(sort)}`;
         });
 
         const sqlOrderBy =

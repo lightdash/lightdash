@@ -365,6 +365,7 @@ describe('ChartAsCodeInternalization', () => {
                         {
                             fieldId: 'orders_average_order_size',
                             descending: true,
+                            nullsFirst: false,
                         },
                     ],
                     limit: 500,

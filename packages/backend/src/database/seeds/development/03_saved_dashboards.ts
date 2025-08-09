@@ -305,6 +305,7 @@ async function createDashboardWithDashboardCharts(knex: Knex): Promise<void> {
                     {
                         fieldId: 'payments_total_revenue',
                         descending: false,
+                        nullsFirst: null,
                     },
                 ],
                 limit: 10,

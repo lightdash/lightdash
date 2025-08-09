@@ -284,6 +284,7 @@ export function reducer(
                     draft.unsavedChartVersion.metricQuery.sorts.push({
                         fieldId: sortFieldId,
                         descending: false,
+                        nullsFirst: null,
                     });
                 } else if (sortField.descending) {
                     draft.unsavedChartVersion.metricQuery.sorts =
@@ -339,6 +340,16 @@ export function reducer(
 
                 const [removed] = sorts.splice(sourceIndex, 1);
                 sorts.splice(destinationIndex, 0, removed);
+            });
+        }
+        case ActionType.SET_SORT_FIELD_NULLS_FIRST: {
+            return produce(state, (newState) => {
+                newState.unsavedChartVersion.metricQuery.sorts =
+                    newState.unsavedChartVersion.metricQuery.sorts.map((sf) =>
+                        sf.fieldId === action.payload.fieldId
+                            ? { ...sf, nullsFirst: action.payload.nullsFirst }
+                            : sf,
+                    );
             });
         }
         case ActionType.SET_ROW_LIMIT: {
@@ -983,11 +994,23 @@ const ExplorerProvider: FC<
     const addSortField = useCallback(
         (
             fieldId: FieldId,
-            options: { descending: boolean } = { descending: false },
+            options: {
+                descending: boolean;
+            } = { descending: false },
         ) => {
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
-                payload: { fieldId, ...options },
+                payload: { fieldId, nullsFirst: null, ...options },
+            });
+        },
+        [],
+    );
+
+    const setSortFieldNullsFirst = useCallback(
+        (fieldId: FieldId, nullsFirst: boolean | null) => {
+            dispatch({
+                type: ActionType.SET_SORT_FIELD_NULLS_FIRST,
+                payload: { fieldId, nullsFirst },
             });
         },
         [],
@@ -1566,6 +1589,7 @@ const ExplorerProvider: FC<
             addSortField,
             removeSortField,
             moveSortFields,
+            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,
@@ -1610,6 +1634,7 @@ const ExplorerProvider: FC<
             addSortField,
             removeSortField,
             moveSortFields,
+            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,

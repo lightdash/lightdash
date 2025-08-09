@@ -92,6 +92,7 @@ export const mockSortField = (
 ): SortField => ({
     fieldId,
     descending,
+    nullsFirst: null,
 });
 
 /**

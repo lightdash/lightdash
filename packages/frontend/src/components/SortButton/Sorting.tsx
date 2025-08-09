@@ -27,6 +27,9 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
     const moveSortFields = useExplorerContext(
         (context) => context.actions.moveSortFields,
     );
+    const setSortFieldNullsFirst = useExplorerContext(
+        (context) => context.actions.setSortFieldNullsFirst,
+    );
 
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
@@ -94,6 +97,14 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                             onRemoveSortField={() => {
                                                 removeSortField(sort.fieldId);
                                             }}
+                                            onSetSortFieldNullsFirst={(
+                                                payload,
+                                            ) => {
+                                                setSortFieldNullsFirst(
+                                                    sort.fieldId,
+                                                    payload,
+                                                );
+                                            }}
                                         />
                                     )}
                                 </Draggable>
@@ -105,8 +116,8 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                 </Droppable>
             </DragDropContext>
 
-            {/* 
-                Add sort to multi-sort form  
+            {/*
+                Add sort to multi-sort form
                 Mimics SortItem component
             */}
             {isEditMode && availableColumnsToAddToSort.length > 0 && (
