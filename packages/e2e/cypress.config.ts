@@ -1,3 +1,4 @@
+import { buildEmbedUserUuid } from '@lightdash/common';
 import { defineConfig } from 'cypress';
 import cypressSplit from 'cypress-split';
 import { unlinkSync } from 'fs';
@@ -63,6 +64,12 @@ export default defineConfig({
                         unlinkSync(results.video);
                     }
                 }
+            });
+
+            on('task', {
+                buildEmbedUserUuid: (externalId: string) => {
+                    return buildEmbedUserUuid(externalId);
+                },
             });
 
             // IMPORTANT: return the config object
