@@ -123,6 +123,8 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+
+    [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: () => ({}),
 } as const;
 
 // Generic accessor function
