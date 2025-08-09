@@ -13,6 +13,7 @@ import {
     Box,
     Button,
     Code,
+    Container,
     Group,
     HoverCard,
     LoadingOverlay,
@@ -32,6 +33,7 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import {
     IconAdjustmentsAlt,
+    IconAlertTriangle,
     IconArrowLeft,
     IconBook2,
     IconCheck,
@@ -47,13 +49,13 @@ import { z } from 'zod';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import Page from '../../../components/common/Page/Page';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUsersWithRoles } from '../../../hooks/useProjectUsersWithRoles';
 import useApp from '../../../providers/App/useApp';
+import { AiAgentEditPageLayout } from '../../features/aiCopilot/components/AiAgentEditPageLayout/AiAgentEditPageLayout';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import {
     InstructionsGuidelines,
@@ -368,14 +370,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
 
     if (!isCreateMode && actualAgentUuid && !agent && !isLoadingAgent) {
         return (
-            <Page
-                withFullHeight
-                withCenteredRoot
-                withCenteredContent
-                withXLargePaddedContent
-                withLargeContent
-                withFixedContent
-            >
+            <Container py="xl">
                 <Stack gap="md">
                     <Group gap="xs">
                         <Button
@@ -401,21 +396,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         </Text>
                     </Paper>
                 </Stack>
-            </Page>
+            </Container>
         );
     }
 
     return (
-        <Page
-            withFullHeight
-            withCenteredRoot
-            withCenteredContent
-            withXLargePaddedContent
-            withLargeContent
-            withFixedContent
-        >
-            <Stack gap="xs">
-                <div>
+        <AiAgentEditPageLayout
+            header={
+                <Stack gap="xs" align="flex-start">
                     <Button
                         variant="subtle"
                         leftSection={<MantineIcon icon={IconArrowLeft} />}
@@ -423,66 +411,67 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     >
                         Back
                     </Button>
-                </div>
-                <Group justify="space-between" wrap="nowrap" align="center">
-                    <Group gap="sm" align="center" flex="1" wrap="nowrap">
-                        <LightdashUserAvatar
-                            name={isCreateMode ? '+' : form.values.name}
-                            variant="filled"
-                            src={
-                                !isCreateMode ? form.values.imageUrl : undefined
-                            }
-                            size={48}
-                        />
-                        <Stack gap={0}>
-                            <Title order={2} lineClamp={1} w="100%">
-                                {isCreateMode
-                                    ? 'New Agent'
-                                    : agent?.name || 'Agent'}
-                            </Title>
-                            <Text size="sm" c="dimmed">
-                                Last modified:{' '}
-                                {new Date(
-                                    agent?.updatedAt ?? new Date(),
-                                ).toLocaleString()}
-                            </Text>
-                        </Stack>
-                    </Group>
-                    <Group justify="flex-end" gap="xs">
-                        {!isCreateMode && (
-                            <Button
-                                size="compact-sm"
-                                variant="outline"
-                                color="red"
-                                leftSection={<MantineIcon icon={IconTrash} />}
-                                onClick={handleDeleteClick}
-                            >
-                                Delete agent
-                            </Button>
-                        )}
-                        <Button
-                            size="compact-sm"
-                            onClick={() => handleSubmit()}
-                            loading={isCreating || isUpdating}
-                            leftSection={<MantineIcon icon={IconCheck} />}
-                            disabled={
-                                isCreateMode ? !form.isValid() : !form.isDirty()
-                            }
-                        >
-                            {isCreateMode ? 'Create agent' : 'Save changes'}
-                        </Button>
-                    </Group>
-                </Group>
 
+                    <Group
+                        justify="space-between"
+                        wrap="nowrap"
+                        align="center"
+                        w="100%"
+                    >
+                        <Group gap="sm" align="center" flex="1" wrap="nowrap">
+                            <LightdashUserAvatar
+                                name={isCreateMode ? '+' : form.values.name}
+                                variant="filled"
+                                src={
+                                    !isCreateMode
+                                        ? form.values.imageUrl
+                                        : undefined
+                                }
+                                size={48}
+                            />
+                            <Stack gap={0}>
+                                <Title order={2} lineClamp={1} w="100%">
+                                    {isCreateMode
+                                        ? 'New Agent'
+                                        : agent?.name || 'Agent'}
+                                </Title>
+                                <Text size="sm" c="dimmed">
+                                    Last modified:{' '}
+                                    {new Date(
+                                        agent?.updatedAt ?? new Date(),
+                                    ).toLocaleString()}
+                                </Text>
+                            </Stack>
+                        </Group>
+                        <Group justify="flex-end" gap="xs">
+                            <Button
+                                variant="outline"
+                                onClick={() => handleSubmit()}
+                                loading={isCreating || isUpdating}
+                                leftSection={<MantineIcon icon={IconCheck} />}
+                                disabled={
+                                    isCreateMode
+                                        ? !form.isValid()
+                                        : !form.isDirty()
+                                }
+                            >
+                                {isCreateMode ? 'Create agent' : 'Save changes'}
+                            </Button>
+                        </Group>
+                    </Group>
+                </Stack>
+            }
+        >
+            <Stack gap="xs">
                 <Tabs defaultValue="setup">
-                    <Tabs.List>
-                        <Tabs.Tab value="setup">Setup</Tabs.Tab>
-                        {!isCreateMode && (
+                    {!isCreateMode && (
+                        <Tabs.List>
+                            <Tabs.Tab value="setup">Setup</Tabs.Tab>
                             <Tabs.Tab value="conversations">
                                 Conversations
                             </Tabs.Tab>
-                        )}
-                    </Tabs.List>
+                        </Tabs.List>
+                    )}
 
                     <Tabs.Panel value="setup" pt="lg">
                         <form>
@@ -996,6 +985,63 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                         )}
                                     </Stack>
                                 </Paper>
+
+                                {!isCreateMode && (
+                                    <Paper p="xl" withBorder>
+                                        <Group align="center" gap="xs" mb="md">
+                                            <Paper
+                                                p="xxs"
+                                                withBorder
+                                                radius="sm"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconAlertTriangle}
+                                                    size="md"
+                                                />
+                                            </Paper>
+                                            <Title
+                                                order={5}
+                                                c="gray.9"
+                                                fw={700}
+                                            >
+                                                Danger zone
+                                            </Title>
+                                        </Group>
+                                        <Group
+                                            gap="xs"
+                                            align="center"
+                                            justify="space-between"
+                                        >
+                                            <Box>
+                                                <Title
+                                                    order={6}
+                                                    c="gray.7"
+                                                    size="sm"
+                                                    fw={500}
+                                                >
+                                                    Delete agent
+                                                </Title>
+                                                <Text c="dimmed" size="xs">
+                                                    Deleting an agent will
+                                                    remove all its data and
+                                                    conversations.
+                                                </Text>
+                                            </Box>
+                                            <Button
+                                                variant="outline"
+                                                color="red"
+                                                onClick={handleDeleteClick}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                }
+                                            >
+                                                Delete
+                                            </Button>
+                                        </Group>
+                                    </Paper>
+                                )}
                             </Stack>
                         </form>
                     </Tabs.Panel>
@@ -1035,7 +1081,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     </Stack>
                 </MantineModal>
             </Stack>
-        </Page>
+        </AiAgentEditPageLayout>
     );
 };
 
