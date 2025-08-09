@@ -5,6 +5,7 @@ import {
 } from '../compiler/lightdashProjectConfig';
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
+import { type WeekDay } from '../utils/timeFrames';
 import { type AnyType } from './any';
 import {
     type ColumnInfo,
@@ -14,10 +15,11 @@ import {
 import { DbtError, ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
+    DimensionType,
     FieldType,
     friendlyName,
     type CompactOrAlias,
-    type DimensionType,
+    type Dimension,
     type FieldUrl,
     type Format,
     type Metric,
@@ -83,6 +85,7 @@ type ExploreConfig = {
 
 type DbtModelLightdashConfig = ExploreConfig & {
     metrics?: Record<string, DbtModelLightdashMetric>;
+    dimensions?: Record<string, DbtModelLightdashDimension>;
     order_fields_by?: OrderFieldsByStrategy;
     group_label?: string;
     sql_filter?: string;
@@ -152,6 +155,12 @@ export type DbtColumnLightdashDimension = {
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
+    spotlight?: {
+        visibility?: NonNullable<
+            LightdashProjectConfig['spotlight']
+        >['default_visibility'];
+        categories?: string[]; // yaml_reference
+    };
     ai_hint?: string | string[];
 } & DbtLightdashFieldTags;
 
@@ -189,6 +198,9 @@ export type DbtColumnLightdashMetric = {
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
     Required<Pick<DbtColumnLightdashMetric, 'sql'>>;
+
+export type DbtModelLightdashDimension = DbtColumnLightdashDimension &
+    Required<Pick<DbtColumnLightdashDimension, 'sql'>>;
 
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
@@ -542,6 +554,121 @@ export const convertModelMetric = ({
             spotlightCategories,
         ),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
+    };
+};
+
+type ConvertModelDimensionArgs = {
+    modelName: string;
+    name: string;
+    dimension: DbtModelLightdashDimension;
+    source?: Source;
+    tableLabel: string;
+    index: number;
+    adapterType: SupportedDbtAdapter;
+    startOfWeek?: WeekDay | null;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
+    modelCategories?: string[];
+};
+
+const convertTimezone = (
+    timestampSql: string,
+    default_source_tz: string,
+    target_tz: string,
+    adapterType: SupportedDbtAdapter,
+) => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return timestampSql;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            return `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${timestampSql}))`;
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+            return `(${timestampSql})::timestamp`;
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.TRINO:
+        default:
+            return timestampSql;
+    }
+};
+
+export const convertModelDimension = ({
+    modelName,
+    name,
+    dimension,
+    source,
+    tableLabel,
+    index,
+    adapterType,
+    startOfWeek: _startOfWeek,
+    spotlightConfig,
+    modelCategories = [],
+}: ConvertModelDimensionArgs): Dimension => {
+    const groups = convertToGroups(dimension.groups, dimension.group_label);
+    const spotlightVisibility =
+        dimension.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+    const dimensionCategories = Array.from(
+        new Set([
+            ...modelCategories,
+            ...(dimension.spotlight?.categories || []),
+        ]),
+    );
+
+    const spotlightCategories = getCategoriesFromResource(
+        'metric',
+        name,
+        spotlightConfig,
+        dimensionCategories,
+    );
+
+    const type = dimension.type || DimensionType.STRING;
+    let { sql } = dimension;
+    const label = dimension.label || friendlyName(name);
+
+    // Handle timezone conversion for timestamps similar to convertDimension
+    if (type === DimensionType.TIMESTAMP) {
+        sql = convertTimezone(sql, 'UTC', 'UTC', adapterType);
+    }
+
+    const isIntervalBase =
+        [DimensionType.DATE, DimensionType.TIMESTAMP].includes(type) &&
+        dimension.time_intervals !== false &&
+        ((dimension.time_intervals && dimension.time_intervals !== 'OFF') ||
+            !dimension.time_intervals);
+
+    return {
+        fieldType: FieldType.DIMENSION,
+        name,
+        label,
+        sql,
+        table: modelName,
+        tableLabel,
+        type,
+        description: dimension.description,
+        source,
+        hidden: !!dimension.hidden,
+        round: dimension.round,
+        compact: dimension.compact,
+        format: dimension.format,
+        groups,
+        colors: dimension.colors,
+        requiredAttributes: dimension.required_attributes,
+        isIntervalBase,
+        index,
+        ...(dimension.urls ? { urls: dimension.urls } : null),
+        ...(dimension.tags
+            ? {
+                  tags: Array.isArray(dimension.tags)
+                      ? dimension.tags
+                      : [dimension.tags],
+              }
+            : null),
+        ...getSpotlightConfigurationForResource(
+            spotlightVisibility,
+            spotlightCategories,
+        ),
+        ...(dimension.ai_hint
+            ? { aiHint: convertToAiHints(dimension.ai_hint) }
+            : {}),
     };
 };
 
