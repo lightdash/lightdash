@@ -93,22 +93,10 @@ describe('Date tests', () => {
         cy.findByTestId('Chart-card-expand').click(); // Collapse charts
         cy.findByTestId('SQL-card-expand').click();
 
-        cy.get('.mantine-Prism-root').within(() => {
-            const compiledSql = Cypress.$('.mantine-Prism-lineContent')
-                .toArray()
-                .map((el) => (el.innerText === '\n' ? '' : el.innerText));
-
-            cy.wrap(compiledSql).should((actualArray) => {
-                const expectedStrings = [
-                    'WHERE ((',
-                    "  (DATE_TRUNC('MONTH', \"orders\".order_date)) = ('2024-06-01')",
-                    '))',
-                ];
-
-                expectedStrings.forEach((str) => {
-                    expect(actualArray).to.include(str);
-                });
-            });
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                "WHERE ( ( (DATE_TRUNC('MONTH', \"orders\".order_date)) = ('2024-06-01') ) )",
+            );
         });
     });
 
@@ -224,9 +212,12 @@ describe('Date tests', () => {
         ).click();
         cy.contains('Filter by 2025').click();
         cy.get('.mantine-YearPickerInput-input').contains('2025');
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('YEAR', "orders".order_date)) = ('2025-01-01')`,
-        );
+
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('YEAR', "orders".order_date)) = ('2025-01-01')`,
+            );
+        });
 
         // Filter by month
         cy.get(
@@ -235,9 +226,11 @@ describe('Date tests', () => {
         cy.contains('Filter by 2025-06').click();
 
         cy.get('.mantine-MonthPickerInput-input').contains('June 2025');
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2025-06-01')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2025-06-01')`,
+            );
+        });
 
         // Filter by week
         cy.get(
@@ -245,9 +238,12 @@ describe('Date tests', () => {
         ).click();
         cy.contains('Filter by 2025-06-09').click();
         cy.get('.mantine-DateInput-input').should('have.value', 'June 9, 2025');
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('2025-06-09')`,
-        );
+
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('WEEK', "orders".order_date)) = ('2025-06-09')`,
+            );
+        });
 
         // Filter by day
         cy.get(
@@ -255,9 +251,11 @@ describe('Date tests', () => {
         ).click();
         cy.contains('Filter by 2025-06-15').click();
         cy.get('.mantine-DateInput-input').should('have.value', 'June 9, 2025');
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('DAY', "orders".order_date)) = ('2025-06-15')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('DAY', "orders".order_date)) = ('2025-06-15')`,
+            );
+        });
     });
 
     it('Should filter by datetimes on results table', () => {
@@ -281,9 +279,11 @@ describe('Date tests', () => {
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
-        cy.get('.mantine-Prism-code').contains(
-            `("events".timestamp_tz) = ('2020-08-11 23:44:00')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `("events".timestamp_tz) = ('2020-08-11 23:44:00')`,
+            );
+        });
 
         // Filter by Milisecond
         // FIXME: selecting a different cell is not working
@@ -294,9 +294,11 @@ describe('Date tests', () => {
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('MILLISECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`, // Known Milisecond limitation
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('MILLISECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
+            ); // Known Milisecond limitation
+        });
 
         // Filter by Second
         cy.get(
@@ -306,9 +308,11 @@ describe('Date tests', () => {
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('SECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('SECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
+            );
+        });
 
         // Filter by Minute
         cy.get(
@@ -318,9 +322,11 @@ describe('Date tests', () => {
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
         );
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('MINUTE', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('MINUTE', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
+            );
+        });
 
         // Filter by Hour
         cy.get(
@@ -330,9 +336,11 @@ describe('Date tests', () => {
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:00:00'), // Timezone sensitive
         );
-        cy.get('.mantine-Prism-code').contains(
-            `(DATE_TRUNC('HOUR', "events".timestamp_tz)) = ('2020-08-11 23:00:00')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('HOUR', "events".timestamp_tz)) = ('2020-08-11 23:00:00')`,
+            );
+        });
     });
 
     it('Should change dates on filters', () => {
@@ -356,17 +364,21 @@ describe('Date tests', () => {
             cy.contains('button', 2024).click();
         });
         cy.get('[data-testid=SQL-card-expand]').click();
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('YEAR', "customers".created)) = ('2024-01-01')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('YEAR', "customers".created)) = ('2024-01-01')`,
+            );
+        });
 
         cy.contains('button', 2024).click();
         cy.findByRole('dialog').within(() => {
             cy.contains('button', 2025).click();
         });
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('YEAR', "customers".created)) = ('2025-01-01')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('YEAR', "customers".created)) = ('2025-01-01')`,
+            );
+        });
 
         cy.findByTestId('delete-filter-rule-button').click();
 
@@ -380,9 +392,11 @@ describe('Date tests', () => {
             cy.contains('button', 2024).click();
             cy.contains('button', 'Aug').click();
         });
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2024-08-01')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('MONTH', "customers".created)) = ('2024-08-01')`,
+            );
+        });
 
         cy.contains('button', 'August 2024').click();
         cy.findByRole('dialog').within(() => {
@@ -390,9 +404,11 @@ describe('Date tests', () => {
             cy.contains('button', '2025').click();
             cy.contains('button', 'Jun').click();
         });
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('MONTH', "customers".created)) = ('2025-06-01')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('MONTH', "customers".created)) = ('2025-06-01')`,
+            );
+        });
 
         cy.findByTestId('delete-filter-rule-button').click();
     });
@@ -425,11 +441,13 @@ describe('Date tests', () => {
             dayjs(todayDate).format('MMMM D, YYYY'),
         );
         cy.get('[data-testid=SQL-card-expand]').click();
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "customers".created)) = ('${getLocalISOString(
-                todayDate,
-            )}')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('DAY', "customers".created)) = ('${getLocalISOString(
+                    todayDate,
+                )}')`,
+            );
+        });
 
         // Change date operator
         cy.get('[role="combobox"]').find('input[value="is"]').click();
@@ -448,11 +466,13 @@ describe('Date tests', () => {
             'have.value',
             dayjs(todayDate).format('MMMM D, YYYY'),
         );
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "customers".created)) != ('${getLocalISOString(
-                todayDate,
-            )}')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('DAY', "customers".created)) != ('${getLocalISOString(
+                    todayDate,
+                )}')`,
+            );
+        });
 
         cy.findByTestId('delete-filter-rule-button').click();
     });
@@ -486,11 +506,13 @@ describe('Date tests', () => {
 
         cy.contains('button', now.format('YYYY'));
         cy.get('[data-testid=SQL-card-expand]').click();
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('YEAR', "orders".order_date)) = ('${now.format(
-                'YYYY',
-            )}-01-01')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('YEAR', "orders".order_date)) = ('${now.format(
+                    'YYYY',
+                )}-01-01')`,
+            );
+        });
         cy.findByTestId('delete-filter-rule-button').click();
 
         // Filter by month
@@ -500,11 +522,13 @@ describe('Date tests', () => {
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.contains('button', now.format('MMMM YYYY'));
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('MONTH', "orders".order_date)) = ('${now.format(
-                'YYYY',
-            )}-${now.format('MM')}-01')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('MONTH', "orders".order_date)) = ('${now.format(
+                    'YYYY',
+                )}-${now.format('MM')}-01')`,
+            );
+        });
 
         cy.findByTestId('delete-filter-rule-button').click();
 
@@ -525,11 +549,13 @@ describe('Date tests', () => {
             'have.value',
             dayjs(weekDate).format('MMMM D, YYYY'),
         );
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${getLocalISOString(
-                weekDate,
-            )}')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${getLocalISOString(
+                    weekDate,
+                )}')`,
+            );
+        });
 
         cy.findByTestId('delete-filter-rule-button').click();
 
@@ -545,11 +571,13 @@ describe('Date tests', () => {
             'have.value',
             dayjs(todayDate).format('MMMM D, YYYY'),
         );
-        cy.get('.mantine-Prism-root').contains(
-            `(DATE_TRUNC('DAY', "orders".order_date)) = ('${getLocalISOString(
-                todayDate,
-            )}')`,
-        );
+        cy.getMonacoEditorText().then((exploreSql) => {
+            expect(exploreSql).to.include(
+                `(DATE_TRUNC('DAY', "orders".order_date)) = ('${getLocalISOString(
+                    todayDate,
+                )}')`,
+            );
+        });
 
         cy.findByTestId('delete-filter-rule-button').click();
     });
@@ -575,11 +603,13 @@ describe('Date tests', () => {
                 aSecondBefore.format(inputDatetimeFormat),
             ];
             expect(dateString).to.be.oneOf(expectedDatetimes);
-            cy.get('.mantine-Prism-code').contains(
-                `(${sqlFilter}) = ('${dayjs(dateString).format(
-                    'YYYY-MM-DD HH:mm:ss',
-                )}')`,
-            );
+            cy.getMonacoEditorText().then((exploreSql) => {
+                expect(exploreSql).to.include(
+                    `(${sqlFilter}) = ('${dayjs(dateString).format(
+                        'YYYY-MM-DD HH:mm:ss',
+                    )}')`,
+                );
+            });
         };
         // Open date dimension
         cy.contains('Timestamp tz').click();
