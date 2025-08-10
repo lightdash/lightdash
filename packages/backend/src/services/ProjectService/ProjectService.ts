@@ -6483,13 +6483,15 @@ export class ProjectService extends BaseService {
     /**
      * Combines parameter values from multiple sources in order of priority:
      * 1. Request parameters (highest priority)
-     * 2. Saved chart parameters
-     * 3. Default parameter values (lowest priority)
+     * 2. Dashboard parameters
+     * 3. Saved chart parameters
+     * 4. Default parameter values (lowest priority)
      */
     public async combineParameters(
         projectUuid: string,
         requestParameters?: ParametersValuesMap,
         savedChartParameters?: ParametersValuesMap,
+        dashboardParameters?: ParametersValuesMap,
     ): Promise<ParametersValuesMap> {
         // Get default values for parameters
         const defaultParameters: ParametersValuesMap = {};
@@ -6505,10 +6507,11 @@ export class ProjectService extends BaseService {
             }
         }
 
-        // Combine in order of priority: defaults < saved chart < request
+        // Combine in order of priority: defaults < saved chart < dashboard < request
         return {
             ...defaultParameters,
             ...(savedChartParameters || {}),
+            ...(dashboardParameters || {}),
             ...(requestParameters || {}),
         };
     }
