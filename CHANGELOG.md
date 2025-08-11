@@ -1,3 +1,10 @@
+## [0.1894.2](https://github.com/lightdash/lightdash/compare/0.1894.1...0.1894.2) (2025-08-11)
+
+
+### Bug Fixes
+
+* markdown embed error and tabs ([#16330](https://github.com/lightdash/lightdash/issues/16330)) ([762aa46](https://github.com/lightdash/lightdash/commit/762aa46b823ef8c217bc1841c6f3671b5216d421))
+
 ## [0.1894.1](https://github.com/lightdash/lightdash/compare/0.1894.0...0.1894.1) (2025-08-11)
 
 
