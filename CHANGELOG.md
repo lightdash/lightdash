@@ -1,3 +1,10 @@
+## [0.1894.3](https://github.com/lightdash/lightdash/compare/0.1894.2...0.1894.3) (2025-08-11)
+
+
+### Bug Fixes
+
+* conditionally load Sentry Spotlight in development ([#16335](https://github.com/lightdash/lightdash/issues/16335)) ([fbfc58d](https://github.com/lightdash/lightdash/commit/fbfc58d3426d5803a2fd7877428f5bc04c7c72cf))
+
 ## [0.1894.2](https://github.com/lightdash/lightdash/compare/0.1894.1...0.1894.2) (2025-08-11)
 
 
