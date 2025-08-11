@@ -1,3 +1,10 @@
+# [0.1897.0](https://github.com/lightdash/lightdash/compare/0.1896.0...0.1897.0) (2025-08-11)
+
+
+### Features
+
+* add MCP context table and project selection tools ([#16339](https://github.com/lightdash/lightdash/issues/16339)) ([bd5a296](https://github.com/lightdash/lightdash/commit/bd5a296d5e5a834652c523395d4b9f07bc1733f7))
+
 # [0.1896.0](https://github.com/lightdash/lightdash/compare/0.1895.0...0.1896.0) (2025-08-11)
 
 
