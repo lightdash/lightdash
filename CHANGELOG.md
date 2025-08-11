@@ -1,3 +1,10 @@
+# [0.1893.0](https://github.com/lightdash/lightdash/compare/0.1892.2...0.1893.0) (2025-08-11)
+
+
+### Features
+
+* scheduled delivery parameters ([#16224](https://github.com/lightdash/lightdash/issues/16224)) ([90db49f](https://github.com/lightdash/lightdash/commit/90db49fb8873a4bafc9f567e15d3d7350f2ed09c))
+
 ## [0.1892.2](https://github.com/lightdash/lightdash/compare/0.1892.1...0.1892.2) (2025-08-08)
 
 
