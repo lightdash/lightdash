@@ -15,7 +15,13 @@ const runqueryBody: MetricQuery = {
     dimensions: ['customers_customer_id'],
     metrics: [],
     filters: {},
-    sorts: [{ fieldId: 'customers_customer_id', descending: false }],
+    sorts: [
+        {
+            fieldId: 'customers_customer_id',
+            descending: false,
+            nullsFirst: null,
+        },
+    ],
     limit: 500,
     tableCalculations: [],
     additionalMetrics: [],

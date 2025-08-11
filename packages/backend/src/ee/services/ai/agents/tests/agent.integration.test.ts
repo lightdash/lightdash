@@ -315,7 +315,13 @@ describeOrSkip('agent integration tests', () => {
 
         const vizConfigExpected = {
             limit: 1000,
-            sorts: [{ fieldId: 'orders_order_date_month', descending: false }],
+            sorts: [
+                {
+                    fieldId: 'orders_order_date_month',
+                    descending: false,
+                    nullsFirst: null,
+                },
+            ],
             lineType: 'line',
             yMetrics: ['payments_total_revenue'],
             xAxisLabel: 'Order date month',

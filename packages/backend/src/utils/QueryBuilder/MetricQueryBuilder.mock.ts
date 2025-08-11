@@ -675,7 +675,7 @@ export const METRIC_QUERY: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {},
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [
         {
@@ -701,7 +701,7 @@ export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
     dimensions: ['table1_dim1', 'age_range'],
     metrics: ['table1_metric1'],
     filters: {},
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     compiledAdditionalMetrics: [],
     compiledTableCalculations: [],
@@ -724,7 +724,7 @@ export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table2_metric2'],
     filters: {},
-    sorts: [{ fieldId: 'table2_metric2', descending: true }],
+    sorts: [{ fieldId: 'table2_metric2', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [
         {
@@ -784,7 +784,7 @@ export const METRIC_QUERY_WITH_FILTER: CompiledMetricQuery = {
             ],
         },
     },
-    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    sorts: [{ fieldId: 'table1_dim1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -811,7 +811,7 @@ export const METRIC_QUERY_WITH_METRIC_FILTER: CompiledMetricQuery = {
             ],
         },
     },
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -889,7 +889,7 @@ export const METRIC_QUERY_WITH_NESTED_METRIC_FILTERS: CompiledMetricQuery = {
             ],
         },
     },
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -923,7 +923,7 @@ export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
             ],
         },
     },
-    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    sorts: [{ fieldId: 'table1_dim1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -951,7 +951,7 @@ export const METRIC_QUERY_WITH_DISABLED_FILTER: CompiledMetricQuery = {
             ],
         },
     },
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -987,7 +987,7 @@ export const METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER: CompiledMetricQuery =
                 ],
             },
         },
-        sorts: [{ fieldId: 'table1_dim1', descending: true }],
+        sorts: [{ fieldId: 'table1_dim1', descending: true, nullsFirst: null }],
         limit: 10,
         tableCalculations: [],
         compiledTableCalculations: [],
@@ -1034,7 +1034,7 @@ export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
             ],
         },
     },
-    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    sorts: [{ fieldId: 'table1_dim1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -1052,7 +1052,7 @@ export const METRIC_QUERY_WITH_EMPTY_FILTER: CompiledMetricQuery = {
             and: [],
         },
     },
-    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    sorts: [{ fieldId: 'table1_dim1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -1070,7 +1070,7 @@ export const METRIC_QUERY_WITH_EMPTY_METRIC_FILTER: CompiledMetricQuery = {
             and: [],
         },
     },
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -1083,7 +1083,13 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table2_additional_metric'],
     filters: {},
-    sorts: [{ fieldId: 'table2_additional_metric', descending: true }],
+    sorts: [
+        {
+            fieldId: 'table2_additional_metric',
+            descending: true,
+            nullsFirst: null,
+        },
+    ],
     limit: 10,
     tableCalculations: [
         {
@@ -1159,7 +1165,7 @@ export const METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER: CompiledMetricQuery = {
             ],
         },
     },
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [
         {
@@ -1194,7 +1200,7 @@ export const COMPILED_DIMENSION: CompiledDimension = {
 };
 
 export const METRIC_QUERY_SQL = `WITH metrics AS (
-                                    SELECT 
+                                    SELECT
                                         "table1".dim1               AS "table1_dim1",
                                         MAX("table1".number_column) AS "table1_metric1"
                                     FROM "db"."schema"."table1" AS "table1"
@@ -1709,7 +1715,7 @@ export const METRIC_QUERY_WITH_MONTH_NAME_SORT: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {},
-    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    sorts: [{ fieldId: 'table1_dim1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -1752,7 +1758,7 @@ export const METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
     filters: {},
-    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    sorts: [{ fieldId: 'table1_dim1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -1801,7 +1807,7 @@ export const METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION: CompiledMetricQuery = {
     dimensions: ['table1_dim1', 'is_adult'],
     metrics: ['table1_metric1'],
     filters: {},
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    sorts: [{ fieldId: 'table1_metric1', descending: true, nullsFirst: null }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],

@@ -62,6 +62,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
                                           descending:
                                               sortDirection ===
                                               SortDirection.DESC,
+                                          nullsFirst: true, // TODO: implement UI
                                       },
                                   ])
                         }

@@ -13,6 +13,7 @@ metricQuery:
     sorts:
         - fieldId: orders_total_order_amount
           descending: true
+          nullsFirst: null
     limit: 500
     tableCalculations: []
     additionalMetrics: []

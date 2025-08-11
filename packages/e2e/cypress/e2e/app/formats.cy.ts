@@ -35,7 +35,13 @@ describe('Explore', () => {
                         ],
                     },
                 },
-                sorts: [{ fieldId: 'events_in_eur', descending: true }],
+                sorts: [
+                    {
+                        fieldId: 'events_in_eur',
+                        descending: true,
+                        nullsFirst: null,
+                    },
+                ],
                 limit: 1,
                 tableCalculations: [],
                 additionalMetrics: [],

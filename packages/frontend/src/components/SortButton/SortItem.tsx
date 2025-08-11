@@ -10,7 +10,10 @@ import { type ExplorerContextType } from '../../providers/Explorer/types';
 import {
     getSortDirectionOrder,
     getSortLabel,
+    getSortNullsFirstValue,
     SortDirection,
+    SortNullsFirst,
+    sortNullsFirstLabels,
 } from '../../utils/sortUtils';
 import MantineIcon from '../common/MantineIcon';
 import { type TableColumn } from '../common/Table/types';
@@ -25,9 +28,14 @@ interface SortItemProps {
     draggableProps: DraggableProvidedDraggableProps;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
     onAddSortField: (
-        options: Parameters<ExplorerContextType['actions']['addSortField']>[1],
+        payload: Parameters<ExplorerContextType['actions']['addSortField']>[1],
     ) => void;
     onRemoveSortField: () => void;
+    onSetSortFieldNullsFirst: (
+        payload: Parameters<
+            ExplorerContextType['actions']['setSortFieldNullsFirst']
+        >[1],
+    ) => void;
 }
 
 const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
@@ -43,6 +51,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
             dragHandleProps,
             onAddSortField,
             onRemoveSortField,
+            onSetSortFieldNullsFirst,
         },
         ref,
     ) => {
@@ -51,6 +60,8 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
             : SortDirection.ASC;
 
         const item = column?.meta?.item;
+
+        const selectedSortNullsFirst = getSortNullsFirstValue(sort);
 
         if (!item) {
             return null;
@@ -66,7 +77,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 pl="xs"
                 pr="xxs"
                 py="two"
-                miw={420}
+                miw={560}
                 sx={(theme) => ({
                     borderRadius: theme.radius.sm,
                     transition: 'all 100ms ease',
@@ -108,6 +119,32 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                             onAddSortField({
                                 descending: value === SortDirection.DESC,
                             });
+                        }}
+                    />
+
+                    <Text ml="lg" fw={500}>
+                        Nulls
+                    </Text>
+
+                    <SegmentedControl
+                        disabled={!isEditMode}
+                        value={selectedSortNullsFirst}
+                        size="xs"
+                        color="blue"
+                        data={Object.entries(sortNullsFirstLabels).map(
+                            ([value, label]) => ({
+                                label,
+                                value,
+                            }),
+                        )}
+                        onChange={(value) => {
+                            onSetSortFieldNullsFirst(
+                                value === SortNullsFirst.FIRST
+                                    ? true
+                                    : value === SortNullsFirst.LAST
+                                    ? false
+                                    : null,
+                            );
                         }}
                     />
 
