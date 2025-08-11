@@ -1,3 +1,76 @@
+## [0.1897.1](https://github.com/lightdash/lightdash/compare/0.1897.0...0.1897.1) (2025-08-11)
+
+
+### Bug Fixes
+
+* allow MCP clients to pass pagination `page` param as a string and coerce to number server-side ([#16340](https://github.com/lightdash/lightdash/issues/16340)) ([7c775e1](https://github.com/lightdash/lightdash/commit/7c775e1cb46f8ba21fe9fea982ee018608e317f7))
+
+# [0.1897.0](https://github.com/lightdash/lightdash/compare/0.1896.0...0.1897.0) (2025-08-11)
+
+
+### Features
+
+* add MCP context table and project selection tools ([#16339](https://github.com/lightdash/lightdash/issues/16339)) ([bd5a296](https://github.com/lightdash/lightdash/commit/bd5a296d5e5a834652c523395d4b9f07bc1733f7))
+
+# [0.1896.0](https://github.com/lightdash/lightdash/compare/0.1895.0...0.1896.0) (2025-08-11)
+
+
+### Bug Fixes
+
+* get screenshot on preview and size tab ([#16338](https://github.com/lightdash/lightdash/issues/16338)) ([f57144f](https://github.com/lightdash/lightdash/commit/f57144f91498f272c662f1af14aad183177dd7a4))
+
+
+### Features
+
+* include sql charts in find_charts tool ([#16285](https://github.com/lightdash/lightdash/issues/16285)) ([2261166](https://github.com/lightdash/lightdash/commit/2261166c50651397ce2a3bc30ee4b980de6d5b81))
+
+# [0.1895.0](https://github.com/lightdash/lightdash/compare/0.1894.3...0.1895.0) (2025-08-11)
+
+
+### Features
+
+* enable dashboard download csv ([#16301](https://github.com/lightdash/lightdash/issues/16301)) ([02384eb](https://github.com/lightdash/lightdash/commit/02384eb46f12aa8984066dbae664d7a79b6d5ace))
+
+## [0.1894.3](https://github.com/lightdash/lightdash/compare/0.1894.2...0.1894.3) (2025-08-11)
+
+
+### Bug Fixes
+
+* conditionally load Sentry Spotlight in development ([#16335](https://github.com/lightdash/lightdash/issues/16335)) ([fbfc58d](https://github.com/lightdash/lightdash/commit/fbfc58d3426d5803a2fd7877428f5bc04c7c72cf))
+
+## [0.1894.2](https://github.com/lightdash/lightdash/compare/0.1894.1...0.1894.2) (2025-08-11)
+
+
+### Bug Fixes
+
+* markdown embed error and tabs ([#16330](https://github.com/lightdash/lightdash/issues/16330)) ([762aa46](https://github.com/lightdash/lightdash/commit/762aa46b823ef8c217bc1841c6f3671b5216d421))
+
+## [0.1894.1](https://github.com/lightdash/lightdash/compare/0.1894.0...0.1894.1) (2025-08-11)
+
+
+### Bug Fixes
+
+* add form-action to content security policy ([#16332](https://github.com/lightdash/lightdash/issues/16332)) ([50a1fe2](https://github.com/lightdash/lightdash/commit/50a1fe28aabff22d381e636d2fe1c8268025076d))
+
+# [0.1894.0](https://github.com/lightdash/lightdash/compare/0.1893.0...0.1894.0) (2025-08-11)
+
+
+### Bug Fixes
+
+* unlock csv file attachment ([#16325](https://github.com/lightdash/lightdash/issues/16325)) ([deb5983](https://github.com/lightdash/lightdash/commit/deb59834c0f0bf94364a543d65735a9ec9edfbf6))
+
+
+### Features
+
+* introduce tool schema builder ([#16261](https://github.com/lightdash/lightdash/issues/16261)) ([a844c6c](https://github.com/lightdash/lightdash/commit/a844c6c5445080891fad0f965acaaa8491c82ec1))
+
+# [0.1893.0](https://github.com/lightdash/lightdash/compare/0.1892.2...0.1893.0) (2025-08-11)
+
+
+### Features
+
+* scheduled delivery parameters ([#16224](https://github.com/lightdash/lightdash/issues/16224)) ([90db49f](https://github.com/lightdash/lightdash/commit/90db49fb8873a4bafc9f567e15d3d7350f2ed09c))
+
 ## [0.1892.2](https://github.com/lightdash/lightdash/compare/0.1892.1...0.1892.2) (2025-08-08)
 
 

@@ -72,11 +72,18 @@ const AssistantBubbleContent: FC<{
 
     const handleRetry = useCallback(() => {
         void streamMessage({
+            projectUuid,
             agentUuid,
             threadUuid: message.threadUuid,
             messageUuid: message.uuid,
         });
-    }, [streamMessage, agentUuid, message.threadUuid, message.uuid]);
+    }, [
+        streamMessage,
+        agentUuid,
+        message.threadUuid,
+        message.uuid,
+        projectUuid,
+    ]);
 
     return (
         <>
@@ -295,6 +302,7 @@ export const AssistantBubble: FC<{
     const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
     const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
+        projectUuid,
         agentUuid,
         message.threadUuid,
     );

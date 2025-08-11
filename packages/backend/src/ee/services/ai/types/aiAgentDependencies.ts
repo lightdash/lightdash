@@ -1,6 +1,7 @@
 import {
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
+    AllChartsSearchResult,
     AnyType,
     CacheMetadata,
     CatalogField,
@@ -9,7 +10,6 @@ import {
     Explore,
     ItemsMap,
     KnexPaginateArgs,
-    SavedChartSearchResult,
     SlackPrompt,
     ToolFindChartsArgs,
     ToolFindDashboardsArgs,
@@ -67,7 +67,7 @@ export type FindChartsFn = (
         chartSearchQuery: ToolFindChartsArgs['chartSearchQueries'][number];
     },
 ) => Promise<{
-    charts: SavedChartSearchResult[];
+    charts: AllChartsSearchResult[];
     pagination: Pagination | undefined;
 }>;
 
