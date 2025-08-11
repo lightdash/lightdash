@@ -1,3 +1,10 @@
+## [0.1894.1](https://github.com/lightdash/lightdash/compare/0.1894.0...0.1894.1) (2025-08-11)
+
+
+### Bug Fixes
+
+* add form-action to content security policy ([#16332](https://github.com/lightdash/lightdash/issues/16332)) ([50a1fe2](https://github.com/lightdash/lightdash/commit/50a1fe28aabff22d381e636d2fe1c8268025076d))
+
 # [0.1894.0](https://github.com/lightdash/lightdash/compare/0.1893.0...0.1894.0) (2025-08-11)
 
 
