@@ -1,3 +1,10 @@
+## [0.1897.1](https://github.com/lightdash/lightdash/compare/0.1897.0...0.1897.1) (2025-08-11)
+
+
+### Bug Fixes
+
+* allow MCP clients to pass pagination `page` param as a string and coerce to number server-side ([#16340](https://github.com/lightdash/lightdash/issues/16340)) ([7c775e1](https://github.com/lightdash/lightdash/commit/7c775e1cb46f8ba21fe9fea982ee018608e317f7))
+
 # [0.1897.0](https://github.com/lightdash/lightdash/compare/0.1896.0...0.1897.0) (2025-08-11)
 
 
