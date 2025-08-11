@@ -2113,11 +2113,24 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        // Combine default parameter values, saved chart parameters, and request parameters first
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const { parameters: rawDashboardParameters } = dashboard;
+
+        // Convert dashboard parameters to ParametersValuesMap format
+        const dashboardParameters = rawDashboardParameters
+            ? Object.fromEntries(
+                  Object.entries(rawDashboardParameters).map(
+                      ([key, dashboardParam]) => [key, dashboardParam.value],
+                  ),
+              )
+            : undefined;
+
+        // Combine default parameter values, saved chart parameters, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             parameters,
             savedChartParameters,
+            dashboardParameters,
         );
 
         const {
