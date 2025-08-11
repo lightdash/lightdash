@@ -7,6 +7,7 @@ import {
     MissingConfigError,
     OauthAccount,
     ParameterError,
+    QueryExecutionContext,
     SessionUser,
     ToolFindChartsArgs,
     toolFindChartsArgsSchema,
@@ -16,6 +17,8 @@ import {
     toolFindExploresArgsSchema,
     ToolFindFieldsArgs,
     toolFindFieldsArgsSchema,
+    ToolRunMetricQueryArgs,
+    toolRunMetricQueryArgsSchema,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { subject } from '@casl/ability';
@@ -24,6 +27,7 @@ import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 // eslint-disable-next-line import/extensions
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import {
@@ -45,11 +49,14 @@ import { getFindCharts } from '../ai/tools/findCharts';
 import { getFindDashboards } from '../ai/tools/findDashboards';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
+import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
 import {
     FindChartsFn,
     FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
+    GetExploreFn,
+    RunMiniMetricQueryFn,
 } from '../ai/types/aiAgentDependencies';
 
 export enum McpToolName {
@@ -61,6 +68,7 @@ export enum McpToolName {
     LIST_PROJECTS = 'list_projects',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
+    RUN_METRIC_QUERY = 'run_metric_query',
 }
 
 type McpServiceArguments = {
@@ -470,6 +478,51 @@ export class McpService extends BaseService {
                 };
             },
         );
+
+        this.mcpServer.registerTool(
+            McpToolName.RUN_METRIC_QUERY,
+            {
+                description: toolRunMetricQueryArgsSchema.description,
+                inputSchema: toolRunMetricQueryArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+            },
+            async (_args, context) => {
+                const args = _args as ToolRunMetricQueryArgs;
+
+                const projectUuid = await this.resolveProjectUuid(
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
+
+                const { getExplore, runMiniMetricQuery } =
+                    await this.getRunMetricQueryDependencies(
+                        argsWithProject,
+                        context as McpProtocolContext,
+                    );
+
+                const runMetricQueryTool = getRunMetricQuery({
+                    getExplore,
+                    runMiniMetricQuery,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+                });
+
+                const result = await runMetricQueryTool.execute(
+                    argsWithProject,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: result,
+                        },
+                    ],
+                };
+            },
+        );
     }
 
     async getProjectUuidFromContext(
@@ -836,6 +889,74 @@ export class McpService extends BaseService {
             });
 
         return findCharts;
+    }
+
+    async getRunMetricQueryDependencies(
+        toolArgs: ToolRunMetricQueryArgs & {
+            projectUuid: string;
+        },
+        context: McpProtocolContext,
+    ): Promise<{
+        getExplore: GetExploreFn;
+        runMiniMetricQuery: RunMiniMetricQueryFn;
+    }> {
+        const { user, account } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+        const { projectUuid } = toolArgs;
+
+        if (!user || !organizationUuid || !account) {
+            throw new ForbiddenError();
+        }
+
+        const project = await this.projectService.getProject(
+            projectUuid,
+            account,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const getExplore: GetExploreFn = async ({ exploreName }) => {
+            const explore = await this.projectService.getExplore(
+                account,
+                projectUuid,
+                exploreName,
+            );
+            return explore;
+        };
+
+        const runMiniMetricQuery: RunMiniMetricQueryFn = async (
+            metricQuery,
+            maxLimit,
+        ) =>
+            this.projectService.runMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: {
+                    ...metricQuery,
+                    tableCalculations: [],
+                },
+                exploreName: metricQuery.exploreName,
+                csvLimit: maxLimit,
+                context: QueryExecutionContext.MCP,
+                chartUuid: undefined,
+                queryTags: {
+                    project_uuid: projectUuid,
+                    user_uuid: user.userUuid,
+                    organization_uuid: organizationUuid,
+                },
+            });
+
+        return { getExplore, runMiniMetricQuery };
     }
 
     public getServer(): McpServer {
