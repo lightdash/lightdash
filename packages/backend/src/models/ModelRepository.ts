@@ -14,6 +14,7 @@ import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppI
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
+import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
@@ -59,6 +60,7 @@ export type ModelManifest = {
     groupsModel: GroupsModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
+    mcpContextModel: McpContextModel;
     migrationModel: MigrationModel;
     notificationsModel: NotificationsModel;
     oauthModel: OAuth2Model;
@@ -262,6 +264,13 @@ export class ModelRepository
         return this.getModel(
             'jobModel',
             () => new JobModel({ database: this.database }),
+        );
+    }
+
+    public getMcpContextModel(): McpContextModel {
+        return this.getModel(
+            'mcpContextModel',
+            () => new McpContextModel(this.database),
         );
     }
 
