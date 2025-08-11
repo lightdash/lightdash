@@ -118,7 +118,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         useProjectCreateAiAgentMutation(projectUuid!);
     const { mutateAsync: updateAgent, isLoading: isUpdating } =
         useProjectUpdateAiAgentMutation(projectUuid!);
-    const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation();
+    const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation(projectUuid!);
 
     const actualAgentUuid = !isCreateMode && agentUuid ? agentUuid : undefined;
 
