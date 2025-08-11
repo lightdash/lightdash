@@ -1,10 +1,12 @@
 import {
+    Account,
     AnyType,
     CatalogFilter,
     CatalogType,
     ForbiddenError,
     MissingConfigError,
     OauthAccount,
+    ParameterError,
     SessionUser,
     ToolFindChartsArgs,
     toolFindChartsArgsSchema,
@@ -24,6 +26,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
+import {
+    McpContextModel,
+    McpContext as ProjectContext,
+} from '../../../models/McpContextModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -51,20 +58,25 @@ export enum McpToolName {
     FIND_FIELDS = 'find_fields',
     FIND_DASHBOARDS = 'find_dashboards',
     FIND_CHARTS = 'find_charts',
+    LIST_PROJECTS = 'list_projects',
+    SET_PROJECT = 'set_project',
+    GET_CURRENT_PROJECT = 'get_current_project',
 }
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
     catalogService: CatalogService;
+    projectModel: ProjectModel;
     projectService: ProjectService;
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
     spaceModel: SpaceModel;
     spaceService: SpaceService;
+    mcpContextModel: McpContextModel;
 };
 
 export type ExtraContext = { user: SessionUser; account: OauthAccount };
-type McpContext = {
+type McpProtocolContext = {
     authInfo?: AuthInfo & {
         extra: ExtraContext;
     };
@@ -77,6 +89,8 @@ export class McpService extends BaseService {
 
     private projectService: ProjectService;
 
+    private projectModel: ProjectModel;
+
     private userAttributesModel: UserAttributesModel;
 
     private searchModel: SearchModel;
@@ -84,6 +98,8 @@ export class McpService extends BaseService {
     private spaceModel: SpaceModel;
 
     private spaceService: SpaceService;
+
+    private mcpContextModel: McpContextModel;
 
     private mcpServer: McpServer;
 
@@ -95,6 +111,8 @@ export class McpService extends BaseService {
         searchModel,
         spaceModel,
         spaceService,
+        projectModel,
+        mcpContextModel,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -103,7 +121,9 @@ export class McpService extends BaseService {
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
         this.spaceModel = spaceModel;
+        this.projectModel = projectModel;
         this.spaceService = spaceService;
+        this.mcpContextModel = mcpContextModel;
         try {
             this.mcpServer = new McpServer({
                 name: 'Lightdash MCP Server',
@@ -127,7 +147,9 @@ export class McpService extends BaseService {
                 content: [
                     {
                         type: 'text',
-                        text: this.getLightdashVersion(context as McpContext),
+                        text: this.getLightdashVersion(
+                            context as McpProtocolContext,
+                        ),
                     },
                 ],
             }),
@@ -140,18 +162,24 @@ export class McpService extends BaseService {
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindExploresArgsSchema.shape as AnyType),
-                    projectUuid: z.string(),
+                    projectUuid: z.string().optional(),
                 },
             },
             async (_args, context) => {
                 const args = _args as ToolFindExploresArgs & {
-                    projectUuid: string;
+                    projectUuid?: string;
                 };
+
+                const projectUuid = await this.resolveProjectUuid(
+                    args,
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
 
                 const findExplores: FindExploresFn =
                     await this.getFindExploresFunction(
-                        args,
-                        context as McpContext,
+                        argsWithProject,
+                        context as McpProtocolContext,
                     );
 
                 const findExploresTool = getFindExplores({
@@ -161,7 +189,7 @@ export class McpService extends BaseService {
                     fieldSearchSize: 200,
                     fieldOverviewSearchSize: 5,
                 });
-                const result = await findExploresTool.execute(args, {
+                const result = await findExploresTool.execute(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -184,25 +212,31 @@ export class McpService extends BaseService {
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindFieldsArgsSchema.shape as AnyType),
-                    projectUuid: z.string(),
+                    projectUuid: z.string().optional(),
                 },
             },
             async (_args, context) => {
                 const args = _args as ToolFindFieldsArgs & {
-                    projectUuid: string;
+                    projectUuid?: string;
                 };
+
+                const projectUuid = await this.resolveProjectUuid(
+                    args,
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
 
                 const findFields: FindFieldFn =
                     await this.getFindFieldsFunction(
-                        args,
-                        context as McpContext,
+                        argsWithProject,
+                        context as McpProtocolContext,
                     );
 
                 const findFieldsTool = getFindFields({
                     findFields,
                     pageSize: 15,
                 });
-                const result = await findFieldsTool.execute(args, {
+                const result = await findFieldsTool.execute(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -225,18 +259,24 @@ export class McpService extends BaseService {
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindDashboardsArgsSchema.shape as AnyType),
-                    projectUuid: z.string(),
+                    projectUuid: z.string().optional(),
                 },
             },
             async (_args, context) => {
                 const args = _args as ToolFindDashboardsArgs & {
-                    projectUuid: string;
+                    projectUuid?: string;
                 };
+
+                const projectUuid = await this.resolveProjectUuid(
+                    args,
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
 
                 const findDashboards: FindDashboardsFn =
                     await this.getFindDashboardsFunction(
-                        args,
-                        context as McpContext,
+                        argsWithProject,
+                        context as McpProtocolContext,
                     );
 
                 const findDashboardsTool = getFindDashboards({
@@ -244,10 +284,13 @@ export class McpService extends BaseService {
                     pageSize: 10,
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
-                const result = await findDashboardsTool.execute(args, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                const result = await findDashboardsTool.execute(
+                    argsWithProject,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
 
                 return {
                     content: [
@@ -267,18 +310,24 @@ export class McpService extends BaseService {
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindChartsArgsSchema.shape as AnyType),
-                    projectUuid: z.string(),
+                    projectUuid: z.string().optional(),
                 },
             },
             async (_args, context) => {
                 const args = _args as ToolFindChartsArgs & {
-                    projectUuid: string;
+                    projectUuid?: string;
                 };
+
+                const projectUuid = await this.resolveProjectUuid(
+                    args,
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
 
                 const findCharts: FindChartsFn =
                     await this.getFindChartsFunction(
-                        args,
-                        context as McpContext,
+                        argsWithProject,
+                        context as McpProtocolContext,
                     );
 
                 const findChartsTool = getFindCharts({
@@ -286,7 +335,7 @@ export class McpService extends BaseService {
                     pageSize: 10,
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
-                const result = await findChartsTool.execute(args, {
+                const result = await findChartsTool.execute(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -301,11 +350,194 @@ export class McpService extends BaseService {
                 };
             },
         );
+
+        this.mcpServer.registerTool(
+            McpToolName.LIST_PROJECTS,
+            {
+                description: 'List all accessible projects in the organization',
+                inputSchema: {},
+            },
+            async (_args, context) => {
+                const { user, organizationUuid, account } = this.getAccount(
+                    context as McpProtocolContext,
+                );
+
+                const projects =
+                    await this.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    );
+
+                const projectList = projects.map((project) => ({
+                    name: project.name,
+                    projectUuid: project.projectUuid,
+                }));
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: JSON.stringify(projectList, null, 2),
+                        },
+                    ],
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.SET_PROJECT,
+            {
+                description:
+                    'Set the active project for subsequent MCP operations',
+                inputSchema: {
+                    projectUuid: z.string() as AnyType,
+                },
+            },
+            async (_args, context) => {
+                const args = _args as { projectUuid: string };
+                const { user, organizationUuid, account } = this.getAccount(
+                    context as McpProtocolContext,
+                );
+
+                if (!args.projectUuid) {
+                    throw new ParameterError('Project UUID is required');
+                }
+
+                // Validate project access
+                const project = await this.projectService.getProject(
+                    args.projectUuid,
+                    account,
+                );
+
+                if (
+                    user.ability.cannot(
+                        'view',
+                        subject('Project', {
+                            projectUuid: args.projectUuid,
+                            organizationUuid: project.organizationUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You do not have access to this project',
+                    );
+                }
+
+                // Set context
+                await this.mcpContextModel.setContext({
+                    userUuid: user.userUuid,
+                    organizationUuid,
+                    context: {
+                        projectUuid: args.projectUuid,
+                        projectName: project.name,
+                    },
+                });
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: JSON.stringify(
+                                {
+                                    projectUuid: args.projectUuid,
+                                    projectName: project.name,
+                                },
+                                null,
+                                2,
+                            ),
+                        },
+                    ],
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.GET_CURRENT_PROJECT,
+            {
+                description: 'Get the currently active project',
+                inputSchema: {},
+            },
+            async (_args, context) => {
+                const { user, organizationUuid } = this.getAccount(
+                    context as McpProtocolContext,
+                );
+
+                const contextRow = await this.mcpContextModel.getContext(
+                    user.userUuid,
+                    organizationUuid,
+                );
+
+                if (!contextRow || !contextRow.context.projectUuid) {
+                    return {
+                        content: [
+                            {
+                                type: 'text',
+                                text: JSON.stringify(
+                                    {
+                                        error: 'No active project set. Use set_project to set one.',
+                                    },
+                                    null,
+                                    2,
+                                ),
+                            },
+                        ],
+                    };
+                }
+
+                const { projectUuid, projectName } = contextRow.context;
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: JSON.stringify(
+                                { projectUuid, projectName },
+                                null,
+                                2,
+                            ),
+                        },
+                    ],
+                };
+            },
+        );
+    }
+
+    async getProjectUuidFromContext(
+        context: McpProtocolContext,
+    ): Promise<string | undefined> {
+        const { user } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+
+        if (!user || !organizationUuid) {
+            return undefined;
+        }
+
+        const contextRow = await this.mcpContextModel.getContext(
+            user.userUuid,
+            organizationUuid,
+        );
+
+        return contextRow?.context.projectUuid;
+    }
+
+    async resolveProjectUuid(
+        args: { projectUuid?: string },
+        context: McpProtocolContext,
+    ): Promise<string> {
+        // Use projectUuid from args or get from context
+        let { projectUuid } = args;
+        if (!projectUuid) {
+            projectUuid = await this.getProjectUuidFromContext(context);
+            if (!projectUuid) {
+                throw new ForbiddenError(
+                    'No project context set. Use set_project or provide projectUuid parameter.',
+                );
+            }
+        }
+        return projectUuid;
     }
 
     async getFindExploresFunction(
         toolArgs: ToolFindExploresArgs & { projectUuid: string },
-        context: McpContext,
+        context: McpProtocolContext,
     ): Promise<FindExploresFn> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
@@ -451,7 +683,7 @@ export class McpService extends BaseService {
 
     async getFindFieldsFunction(
         toolArgs: ToolFindFieldsArgs & { projectUuid: string },
-        context: McpContext,
+        context: McpProtocolContext,
     ): Promise<FindFieldFn> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
@@ -517,7 +749,7 @@ export class McpService extends BaseService {
 
     async getFindDashboardsFunction(
         toolArgs: ToolFindDashboardsArgs & { projectUuid: string },
-        context: McpContext,
+        context: McpProtocolContext,
     ): Promise<FindDashboardsFn> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
@@ -583,7 +815,7 @@ export class McpService extends BaseService {
 
     async getFindChartsFunction(
         toolArgs: ToolFindChartsArgs & { projectUuid: string },
-        context: McpContext,
+        context: McpProtocolContext,
     ): Promise<FindChartsFn> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
@@ -644,7 +876,22 @@ export class McpService extends BaseService {
         return this.mcpServer;
     }
 
-    public canAccessMcp(context: McpContext): boolean {
+    // eslint-disable-next-line class-methods-use-this
+    public getAccount(context: McpProtocolContext): {
+        user: SessionUser;
+        organizationUuid: string;
+        account: Account;
+    } {
+        const { user, account } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+
+        if (!user || !organizationUuid || !account) {
+            throw new ForbiddenError();
+        }
+        return { user, organizationUuid, account };
+    }
+
+    public canAccessMcp(context: McpProtocolContext): boolean {
         if (!context.authInfo) {
             throw new ForbiddenError('Invalid authInfo context');
         }
@@ -671,7 +918,7 @@ export class McpService extends BaseService {
         return true;
     }
 
-    public getLightdashVersion(context: McpContext): string {
+    public getLightdashVersion(context: McpProtocolContext): string {
         this.canAccessMcp(context);
         return VERSION;
     }
