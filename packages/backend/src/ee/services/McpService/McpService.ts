@@ -34,22 +34,10 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
-import {
-    getFindCharts,
-    toolFindChartsDescription,
-} from '../ai/tools/findCharts';
-import {
-    getFindDashboards,
-    toolFindDashboardsDescription,
-} from '../ai/tools/findDashboards';
-import {
-    getFindExplores,
-    toolFindExploresDescription,
-} from '../ai/tools/findExplores';
-import {
-    getFindFields,
-    toolFindFieldsDescription,
-} from '../ai/tools/findFields';
+import { getFindCharts } from '../ai/tools/findCharts';
+import { getFindDashboards } from '../ai/tools/findDashboards';
+import { getFindExplores } from '../ai/tools/findExplores';
+import { getFindFields } from '../ai/tools/findFields';
 import {
     FindChartsFn,
     FindDashboardsFn,
@@ -148,7 +136,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             McpToolName.FIND_EXPLORES,
             {
-                description: toolFindExploresDescription,
+                description: toolFindExploresArgsSchema.description,
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindExploresArgsSchema.shape as AnyType),
@@ -192,7 +180,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             McpToolName.FIND_FIELDS,
             {
-                description: toolFindFieldsDescription,
+                description: toolFindFieldsArgsSchema.description,
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindFieldsArgsSchema.shape as AnyType),
@@ -233,7 +221,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             McpToolName.FIND_DASHBOARDS,
             {
-                description: toolFindDashboardsDescription,
+                description: toolFindDashboardsArgsSchema.description,
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindDashboardsArgsSchema.shape as AnyType),
@@ -275,7 +263,7 @@ export class McpService extends BaseService {
         this.mcpServer.registerTool(
             McpToolName.FIND_CHARTS,
             {
-                description: toolFindChartsDescription,
+                description: toolFindChartsArgsSchema.description,
                 inputSchema: {
                     // Cast to AnyType to avoid slow TypeScript compilation
                     ...(toolFindChartsArgsSchema.shape as AnyType),
