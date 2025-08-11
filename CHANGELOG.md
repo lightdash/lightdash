@@ -1,3 +1,15 @@
+# [0.1896.0](https://github.com/lightdash/lightdash/compare/0.1895.0...0.1896.0) (2025-08-11)
+
+
+### Bug Fixes
+
+* get screenshot on preview and size tab ([#16338](https://github.com/lightdash/lightdash/issues/16338)) ([f57144f](https://github.com/lightdash/lightdash/commit/f57144f91498f272c662f1af14aad183177dd7a4))
+
+
+### Features
+
+* include sql charts in find_charts tool ([#16285](https://github.com/lightdash/lightdash/issues/16285)) ([2261166](https://github.com/lightdash/lightdash/commit/2261166c50651397ce2a3bc30ee4b980de6d5b81))
+
 # [0.1895.0](https://github.com/lightdash/lightdash/compare/0.1894.3...0.1895.0) (2025-08-11)
 
 
