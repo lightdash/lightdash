@@ -442,6 +442,10 @@ export default class App {
                         "'unsafe-inline'",
                         ...contentSecurityPolicyAllowedDomains,
                     ],
+                    'form-action': [
+                        "'self'",
+                        ...contentSecurityPolicyAllowedDomains,
+                    ],
                     'report-uri': reportUris.map((uri) => uri.href),
                 },
                 reportOnly:
