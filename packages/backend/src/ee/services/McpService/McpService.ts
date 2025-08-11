@@ -612,7 +612,7 @@ export class McpService extends BaseService {
 
         const findCharts: FindChartsFn = (args) =>
             wrapSentryTransaction('McpService.findCharts', args, async () => {
-                const searchResults = await this.searchModel.searchSavedCharts(
+                const searchResults = await this.searchModel.searchAllCharts(
                     projectUuid,
                     args.chartSearchQuery.label,
                 );
