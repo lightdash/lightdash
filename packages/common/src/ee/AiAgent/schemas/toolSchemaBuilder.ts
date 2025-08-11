@@ -28,7 +28,8 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
     withPagination: () =>
         toolSchemaBuilder(
             schema.extend({
-                page: z
+                // We need to coerce because LLMs were passing strings instead of numbers quite often (via MCP)
+                page: z.coerce
                     .number()
                     .positive()
                     .nullable()
