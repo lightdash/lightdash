@@ -44,7 +44,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentService } from '../services/AiAgentService';
 
-@Route('/api/v1/aiAgents')
+@Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentController extends BaseController {
@@ -54,14 +54,119 @@ export class AiAgentController extends BaseController {
     @OperationId('listAgents')
     async listAgents(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
     ): Promise<ApiAiAgentSummaryResponse> {
         this.setStatus(200);
 
         return {
             status: 'ok',
-            results: await this.getAiAgentService().listAgents(req.user!),
+            results: await this.getAiAgentService().listAgents(
+                req.user!,
+                projectUuid,
+            ),
         };
     }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/preferences')
+    @OperationId('getUserAgentPreferences')
+    async getUserAgentPreferences(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiGetUserAgentPreferencesResponse> {
+        this.setStatus(200);
+
+        const userPreferences =
+            await this.getAiAgentService().getUserAgentPreferences(
+                req.user!,
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results: userPreferences ?? undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/preferences')
+    @OperationId('updateUserAgentPreferences')
+    async setUserDefaultAgent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiUpdateUserAgentPreferences,
+    ): Promise<ApiUpdateUserAgentPreferencesResponse> {
+        this.setStatus(200);
+        await this.getAiAgentService().updateUserAgentPreferences(
+            req.user!,
+            projectUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/preferences')
+    @OperationId('deleteUserAgentPreferences')
+    async deleteUserAgentPreferences(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.getAiAgentService().deleteUserAgentPreferences(
+            req.user!,
+            projectUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    // Legacy routes
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/conversations')
+    @OperationId('getAiAgentConversations')
+    async getAiAgentConversations(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiConversations> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getConversations(
+                req.user!,
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/conversations/:aiThreadUuid/messages')
+    @OperationId('getAiAgentConversationMessages')
+    async getAiAgentConversationMessages(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() aiThreadUuid: string,
+    ): Promise<ApiAiConversationMessages> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getConversationMessages(
+                req.user!,
+                projectUuid,
+                aiThreadUuid,
+            ),
+        };
+    }
+    // End of legacy routes
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -69,12 +174,14 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgent')
     async getAgent(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentResponse> {
         this.setStatus(200);
         const agent = await this.getAiAgentService().getAgent(
             req.user!,
             agentUuid,
+            projectUuid,
         );
         return {
             status: 'ok',
@@ -88,13 +195,14 @@ export class AiAgentController extends BaseController {
     @OperationId('createAgent')
     async createAgent(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Body() body: ApiCreateAiAgent,
     ): Promise<ApiCreateAiAgentResponse> {
         this.setStatus(201);
-        const agent = await this.getAiAgentService().createAgent(
-            req.user!,
-            body,
-        );
+        const agent = await this.getAiAgentService().createAgent(req.user!, {
+            ...body,
+            projectUuid,
+        });
         return {
             status: 'ok',
             results: agent,
@@ -107,6 +215,7 @@ export class AiAgentController extends BaseController {
     @OperationId('updateAgent')
     async updateAgent(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Body() body: ApiUpdateAiAgent,
     ): Promise<ApiAiAgentResponse> {
@@ -114,7 +223,7 @@ export class AiAgentController extends BaseController {
         const agent = await this.getAiAgentService().updateAgent(
             req.user!,
             agentUuid,
-            body,
+            { ...body, projectUuid },
         );
         return {
             status: 'ok',
@@ -128,6 +237,7 @@ export class AiAgentController extends BaseController {
     @OperationId('deleteAgent')
     async deleteAgent(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
@@ -145,6 +255,7 @@ export class AiAgentController extends BaseController {
     @OperationId('listAgentThreads')
     async listAgentThreads(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Query() allUsers?: boolean,
     ): Promise<ApiAiAgentThreadSummaryListResponse> {
@@ -165,6 +276,7 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgentThread')
     async getAgentThread(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
     ): Promise<ApiAiAgentThreadResponse> {
@@ -185,6 +297,7 @@ export class AiAgentController extends BaseController {
     @OperationId('createAgentThread')
     async createAgentThread(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Body() body: ApiAiAgentThreadCreateRequest,
     ): Promise<ApiAiAgentThreadCreateResponse> {
@@ -205,6 +318,7 @@ export class AiAgentController extends BaseController {
     @OperationId('createAgentThreadMessage')
     async createAgentThreadMessage(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
         @Body() body: ApiAiAgentThreadMessageCreateRequest,
@@ -227,6 +341,7 @@ export class AiAgentController extends BaseController {
     @OperationId('streamAgentThreadResponse')
     async streamAgentThreadResponse(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
     ): Promise<void> {
@@ -251,6 +366,7 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgentThreadMessageViz')
     async getAgentThreadMessageViz(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
         @Path() messageUuid: string,
@@ -277,6 +393,7 @@ export class AiAgentController extends BaseController {
     @OperationId('getAgentThreadMessageVizQuery')
     async getAgentThreadMessageVizQuery(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
         @Path() messageUuid: string,
@@ -299,33 +416,13 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Patch('/messages/{messageUuid}/feedback')
-    @OperationId('updatePromptFeedback')
-    async updatePromptFeedback(
-        @Request() req: express.Request,
-        @Path() messageUuid: string,
-        @Body() body: { humanScore: number },
-    ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
-        await this.getAiAgentService().updateHumanScoreForMessage(
-            req.user!,
-            messageUuid,
-            body.humanScore,
-        );
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/savedQuery',
     )
     @OperationId('updateAgentThreadMessageSavedQuery')
     async updateAgentThreadMessageSavedQuery(
         @Request() req: express.Request,
+        @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
         @Path() messageUuid: string,
@@ -348,200 +445,25 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/projects/{projectUuid}/conversations')
-    @OperationId('getAiAgentConversations')
-    async getAiAgentConversations(
+    @Patch('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/feedback')
+    @OperationId('updatePromptFeedback')
+    async updatePromptFeedback(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-    ): Promise<ApiAiConversations> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().getConversations(
-                req.user!,
-                projectUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/projects/{projectUuid}/conversations/:aiThreadUuid/messages')
-    @OperationId('getAiAgentConversationMessages')
-    async getAiAgentConversationMessages(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() aiThreadUuid: string,
-    ): Promise<ApiAiConversationMessages> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().getConversationMessages(
-                req.user!,
-                projectUuid,
-                aiThreadUuid,
-            ),
-        };
-    }
-
-    protected getAiAgentService() {
-        return this.services.getAiAgentService<AiAgentService>();
-    }
-}
-
-@Route('/api/v1/projects/{projectUuid}/aiAgents/preferences')
-@Hidden()
-@Response<ApiErrorPayload>('default', 'Error')
-export class AiAgentUserPreferencesController extends BaseController {
-    protected getAiAgentService() {
-        return this.services.getAiAgentService<AiAgentService>();
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get()
-    @OperationId('getUserAgentPreferences')
-    async getUserAgentPreferences(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-    ): Promise<ApiGetUserAgentPreferencesResponse> {
-        this.setStatus(200);
-
-        const userPreferences =
-            await this.getAiAgentService().getUserAgentPreferences(
-                req.user!,
-                projectUuid,
-            );
-        return {
-            status: 'ok',
-            results: userPreferences ?? undefined,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post()
-    @OperationId('updateUserAgentPreferences')
-    async setUserDefaultAgent(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body() body: ApiUpdateUserAgentPreferences,
-    ): Promise<ApiUpdateUserAgentPreferencesResponse> {
-        this.setStatus(200);
-        await this.getAiAgentService().updateUserAgentPreferences(
-            req.user!,
-            projectUuid,
-            body,
-        );
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Delete()
-    @OperationId('deleteUserAgentPreferences')
-    async deleteUserAgentPreferences(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+        @Body() body: { humanScore: number },
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await this.getAiAgentService().deleteUserAgentPreferences(
+        await this.getAiAgentService().updateHumanScoreForMessage(
             req.user!,
-            projectUuid,
+            messageUuid,
+            body.humanScore,
         );
         return {
             status: 'ok',
             results: undefined,
-        };
-    }
-}
-
-@Route('/api/v1/projects/{projectUuid}/aiAgents')
-@Hidden()
-@Response<ApiErrorPayload>('default', 'Error')
-export class ProjectAiAgentController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/')
-    @OperationId('listProjectAgents')
-    async listProjectAgents(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-    ): Promise<ApiAiAgentSummaryResponse> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().listAgents(
-                req.user!,
-                projectUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}')
-    @OperationId('getProjectAgent')
-    async getProjectAgent(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-    ): Promise<ApiAiAgentResponse> {
-        this.setStatus(200);
-        const agent = await this.getAiAgentService().getAgent(
-            req.user!,
-            agentUuid,
-            projectUuid,
-        );
-        return {
-            status: 'ok',
-            results: agent,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('201', 'Created')
-    @Post('/')
-    @OperationId('createProjectAgent')
-    async createProjectAgent(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body() body: ApiCreateAiAgent,
-    ): Promise<ApiCreateAiAgentResponse> {
-        this.setStatus(201);
-        const agent = await this.getAiAgentService().createAgent(req.user!, {
-            ...body,
-            projectUuid,
-        });
-        return {
-            status: 'ok',
-            results: agent,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Patch('/{agentUuid}')
-    @OperationId('updateProjectAgent')
-    async updateProjectAgent(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Body() body: ApiUpdateAiAgent,
-    ): Promise<ApiAiAgentResponse> {
-        this.setStatus(200);
-        const agent = await this.getAiAgentService().updateAgent(
-            req.user!,
-            agentUuid,
-            { ...body, projectUuid },
-        );
-        return {
-            status: 'ok',
-            results: agent,
         };
     }
 

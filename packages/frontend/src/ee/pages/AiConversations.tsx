@@ -32,7 +32,7 @@ import slackSvg from '../../svgs/slack.svg';
 
 const getAiAgentConversations = async (projectUuid: string) => {
     const data = await lightdashApi<AiConversation[]>({
-        url: `/aiAgents/projects/${projectUuid}/conversations`,
+        url: `/projects/${projectUuid}/aiAgents/conversations`,
         method: 'GET',
         body: null,
     });
@@ -57,7 +57,7 @@ const getAiAgentConversationMessages = async (
     aiThreadUuid: string,
 ) => {
     const data = await lightdashApi<AiConversationMessage[]>({
-        url: `/aiAgents/projects/${projectUuid}/conversations/${aiThreadUuid}/messages`,
+        url: `/projects/${projectUuid}/aiAgents/conversations/${aiThreadUuid}/messages`,
         method: 'GET',
         body: null,
     });

@@ -33,7 +33,11 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
 }) => {
     const { user } = useApp();
     const { projectUuid } = useParams();
-    const { data: thread, isLoading } = useAiAgentThread(agentUuid, threadUuid);
+    const { data: thread, isLoading } = useAiAgentThread(
+        projectUuid!,
+        agentUuid,
+        threadUuid,
+    );
 
     // Format date function since date-fns is not available
     const formatDate = (dateString: string) => {
