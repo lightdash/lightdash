@@ -1,3 +1,10 @@
+# [0.1895.0](https://github.com/lightdash/lightdash/compare/0.1894.3...0.1895.0) (2025-08-11)
+
+
+### Features
+
+* enable dashboard download csv ([#16301](https://github.com/lightdash/lightdash/issues/16301)) ([02384eb](https://github.com/lightdash/lightdash/commit/02384eb46f12aa8984066dbae664d7a79b6d5ace))
+
 ## [0.1894.3](https://github.com/lightdash/lightdash/compare/0.1894.2...0.1894.3) (2025-08-11)
 
 
