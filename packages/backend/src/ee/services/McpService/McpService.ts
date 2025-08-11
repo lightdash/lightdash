@@ -159,19 +159,12 @@ export class McpService extends BaseService {
             McpToolName.FIND_EXPLORES,
             {
                 description: toolFindExploresArgsSchema.description,
-                inputSchema: {
-                    // Cast to AnyType to avoid slow TypeScript compilation
-                    ...(toolFindExploresArgsSchema.shape as AnyType),
-                    projectUuid: z.string().optional(),
-                },
+                inputSchema: toolFindExploresArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
             },
             async (_args, context) => {
-                const args = _args as ToolFindExploresArgs & {
-                    projectUuid?: string;
-                };
+                const args = _args as ToolFindExploresArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    args,
                     context as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
@@ -209,19 +202,12 @@ export class McpService extends BaseService {
             McpToolName.FIND_FIELDS,
             {
                 description: toolFindFieldsArgsSchema.description,
-                inputSchema: {
-                    // Cast to AnyType to avoid slow TypeScript compilation
-                    ...(toolFindFieldsArgsSchema.shape as AnyType),
-                    projectUuid: z.string().optional(),
-                },
+                inputSchema: toolFindFieldsArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
             },
             async (_args, context) => {
-                const args = _args as ToolFindFieldsArgs & {
-                    projectUuid?: string;
-                };
+                const args = _args as ToolFindFieldsArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    args,
                     context as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
@@ -256,19 +242,12 @@ export class McpService extends BaseService {
             McpToolName.FIND_DASHBOARDS,
             {
                 description: toolFindDashboardsArgsSchema.description,
-                inputSchema: {
-                    // Cast to AnyType to avoid slow TypeScript compilation
-                    ...(toolFindDashboardsArgsSchema.shape as AnyType),
-                    projectUuid: z.string().optional(),
-                },
+                inputSchema: toolFindDashboardsArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
             },
             async (_args, context) => {
-                const args = _args as ToolFindDashboardsArgs & {
-                    projectUuid?: string;
-                };
+                const args = _args as ToolFindDashboardsArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    args,
                     context as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
@@ -307,19 +286,12 @@ export class McpService extends BaseService {
             McpToolName.FIND_CHARTS,
             {
                 description: toolFindChartsArgsSchema.description,
-                inputSchema: {
-                    // Cast to AnyType to avoid slow TypeScript compilation
-                    ...(toolFindChartsArgsSchema.shape as AnyType),
-                    projectUuid: z.string().optional(),
-                },
+                inputSchema: toolFindChartsArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
             },
             async (_args, context) => {
-                const args = _args as ToolFindChartsArgs & {
-                    projectUuid?: string;
-                };
+                const args = _args as ToolFindChartsArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    args,
                     context as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
@@ -518,19 +490,13 @@ export class McpService extends BaseService {
         return contextRow?.context.projectUuid;
     }
 
-    async resolveProjectUuid(
-        args: { projectUuid?: string },
-        context: McpProtocolContext,
-    ): Promise<string> {
+    async resolveProjectUuid(context: McpProtocolContext): Promise<string> {
         // Use projectUuid from args or get from context
-        let { projectUuid } = args;
+        const projectUuid = await this.getProjectUuidFromContext(context);
         if (!projectUuid) {
-            projectUuid = await this.getProjectUuidFromContext(context);
-            if (!projectUuid) {
-                throw new ForbiddenError(
-                    'No project context set. Use set_project or provide projectUuid parameter.',
-                );
-            }
+            throw new ForbiddenError(
+                'No project context set. Use set_project or provide projectUuid parameter.',
+            );
         }
         return projectUuid;
     }
