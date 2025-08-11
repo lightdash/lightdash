@@ -43,8 +43,10 @@ export default defineConfig(async () => {
                     disable: true,
                 },
             }),
-            spotlight(),
-            spotlightSidecar(),
+            ...(process.env.SENTRY_SPOTLIGHT === '1' &&
+            process.env.NODE_ENV === 'development'
+                ? [spotlight(), spotlightSidecar()]
+                : []),
         ],
         css: {
             transformer: 'lightningcss',
