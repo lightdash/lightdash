@@ -1,3 +1,15 @@
+# [0.1894.0](https://github.com/lightdash/lightdash/compare/0.1893.0...0.1894.0) (2025-08-11)
+
+
+### Bug Fixes
+
+* unlock csv file attachment ([#16325](https://github.com/lightdash/lightdash/issues/16325)) ([deb5983](https://github.com/lightdash/lightdash/commit/deb59834c0f0bf94364a543d65735a9ec9edfbf6))
+
+
+### Features
+
+* introduce tool schema builder ([#16261](https://github.com/lightdash/lightdash/issues/16261)) ([a844c6c](https://github.com/lightdash/lightdash/commit/a844c6c5445080891fad0f965acaaa8491c82ec1))
+
 # [0.1893.0](https://github.com/lightdash/lightdash/compare/0.1892.2...0.1893.0) (2025-08-11)
 
 
