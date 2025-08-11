@@ -3,6 +3,7 @@ import {
     type LightdashProjectParameter,
     type ParametersValuesMap,
 } from '@lightdash/common';
+import { MantineProvider } from '@mantine-8/core';
 import {
     ActionIcon,
     Center,
@@ -16,8 +17,9 @@ import { IconPencil, IconRotate2 } from '@tabler/icons-react';
 import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { ParameterInput } from '../../../features/parameters/components/ParameterInput';
 import { useParameters } from '../../../hooks/parameters/useParameters';
+import { getMantine8ThemeOverride } from '../../../mantine8Theme';
+import { ParameterInput } from '../../parameters/components/ParameterInput';
 
 type SchedulerParameterItemProps = {
     paramKey: string;
@@ -225,34 +227,36 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
 
     return (
         <Stack>
-            {Object.entries(availableParameters).map(
-                ([paramKey, parameter]) => {
-                    const schedulerValue = schedulerParameters?.[paramKey];
-                    // Use actual dashboard parameter value, fallback to default if not set
-                    const dashboardValue =
-                        dashboardParameterValues?.[paramKey] ??
-                        parameter.default ??
-                        null;
+            <MantineProvider theme={getMantine8ThemeOverride()}>
+                {Object.entries(availableParameters).map(
+                    ([paramKey, parameter]) => {
+                        const schedulerValue = schedulerParameters?.[paramKey];
+                        // Use actual dashboard parameter value, fallback to default if not set
+                        const dashboardValue =
+                            dashboardParameterValues?.[paramKey] ??
+                            parameter.default ??
+                            null;
 
-                    return (
-                        <ParameterItem
-                            key={paramKey}
-                            paramKey={paramKey}
-                            parameter={parameter}
-                            dashboardValue={dashboardValue}
-                            schedulerValue={schedulerValue}
-                            onChange={handleParameterChange}
-                            onRevert={() => handleRevertParameter(paramKey)}
-                            hasChanged={hasParameterChanged(paramKey)}
-                            projectUuid={dashboard?.projectUuid || ''}
-                            parameterValues={{
-                                ...dashboardParameterValues,
-                                ...schedulerParameters,
-                            }}
-                        />
-                    );
-                },
-            )}
+                        return (
+                            <ParameterItem
+                                key={paramKey}
+                                paramKey={paramKey}
+                                parameter={parameter}
+                                dashboardValue={dashboardValue}
+                                schedulerValue={schedulerValue}
+                                onChange={handleParameterChange}
+                                onRevert={() => handleRevertParameter(paramKey)}
+                                hasChanged={hasParameterChanged(paramKey)}
+                                projectUuid={dashboard?.projectUuid || ''}
+                                parameterValues={{
+                                    ...dashboardParameterValues,
+                                    ...schedulerParameters,
+                                }}
+                            />
+                        );
+                    },
+                )}
+            </MantineProvider>
         </Stack>
     );
 };
