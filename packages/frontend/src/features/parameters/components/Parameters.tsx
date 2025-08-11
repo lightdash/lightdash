@@ -134,6 +134,7 @@ export const Parameters: FC<Props> = ({
                             missingRequiredParameters={
                                 missingRequiredParameters
                             }
+                            isEditMode={isEditMode}
                         />
                     </Box>
                 </Menu.Dropdown>

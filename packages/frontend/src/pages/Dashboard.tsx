@@ -4,6 +4,7 @@ import {
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
+import { MantineProvider } from '@mantine-8/core';
 import { Box, Button, Flex, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
@@ -13,6 +14,7 @@ import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
 import DashboardFilter from '../components/DashboardFilter';
 import DashboardTabs from '../components/DashboardTabs';
+import PinnedParameters from '../components/PinnedParameters';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -33,6 +35,7 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import { useSpaceSummaries } from '../hooks/useSpaces';
+import { getMantine8ThemeOverride } from '../mantine8Theme';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -118,6 +121,16 @@ const Dashboard: FC = () => {
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
     const dashboardParameters = useDashboardContext(
         (c) => c.dashboardParameters,
+    );
+    const pinnedParameters = useDashboardContext((c) => c.pinnedParameters);
+    const havePinnedParametersChanged = useDashboardContext(
+        (c) => c.havePinnedParametersChanged,
+    );
+    const setHavePinnedParametersChanged = useDashboardContext(
+        (c) => c.setHavePinnedParametersChanged,
+    );
+    const setPinnedParameters = useDashboardContext(
+        (c) => c.setPinnedParameters,
     );
 
     const {
@@ -275,6 +288,7 @@ const Dashboard: FC = () => {
         if (isSuccess) {
             setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
+            setHavePinnedParametersChanged(false);
             setDashboardTemporaryFilters({
                 dimensions: [],
                 metrics: [],
@@ -302,6 +316,7 @@ const Dashboard: FC = () => {
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
+        setHavePinnedParametersChanged,
         dashboardTabs,
         activeTab,
     ]);
@@ -449,6 +464,8 @@ const Dashboard: FC = () => {
         setHaveTabsChanged(false);
         setDashboardTabs(dashboard.tabs);
         setSavedParameters(dashboard.parameters ?? {});
+        setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
+        setHavePinnedParametersChanged(false);
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -475,6 +492,8 @@ const Dashboard: FC = () => {
         dashboardTabs,
         activeTab,
         setSavedParameters,
+        setPinnedParameters,
+        setHavePinnedParametersChanged,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -564,7 +583,7 @@ const Dashboard: FC = () => {
     }
 
     return (
-        <>
+        <MantineProvider theme={getMantine8ThemeOverride()}>
             {blocker.state === 'blocked' && (
                 <Modal
                     opened
@@ -631,7 +650,8 @@ const Dashboard: FC = () => {
                             hasTemporaryFilters ||
                             haveTabsChanged ||
                             hasDateZoomDisabledChanged ||
-                            parametersHaveChanged
+                            parametersHaveChanged ||
+                            havePinnedParametersChanged
                         }
                         onAddTiles={handleAddTiles}
                         onSaveDashboard={() => {
@@ -669,6 +689,7 @@ const Dashboard: FC = () => {
                                 tabs: dashboardTabs,
                                 config: {
                                     isDateZoomDisabled,
+                                    pinnedParameters,
                                 },
                                 parameters: dashboardParameters,
                             });
@@ -719,6 +740,7 @@ const Dashboard: FC = () => {
                                     missingRequiredParameters
                                 }
                             />
+                            <PinnedParameters isEditMode={isEditMode} />
                             <DateZoom isEditMode={isEditMode} />
                         </Group>
                     )}
@@ -774,7 +796,7 @@ const Dashboard: FC = () => {
                     />
                 )}
             </Page>
-        </>
+        </MantineProvider>
     );
 };
 
