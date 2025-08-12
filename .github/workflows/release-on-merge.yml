@@ -31,6 +31,7 @@ jobs:
                   NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
             - name: Semantic Release
+              # Config is on release.config.js
               id: semantic
               uses: cycjimmy/semantic-release-action@v4
               env:
