@@ -79,6 +79,8 @@ export const warehouseClientMock: WarehouseClient = {
         switch (metric.type) {
             case MetricType.COUNT:
                 return `COUNT(${sql})`;
+            case MetricType.SUM:
+                return `SUM(${sql})`;
             default:
                 return sql;
         }

@@ -1,9 +1,15 @@
 import {
     BinType,
+    CompiledMetricQuery,
     CustomDimensionType,
+    DimensionType,
+    Explore,
+    FieldType,
     FilterOperator,
     ForbiddenError,
     JoinRelationship,
+    MetricType,
+    SupportedDbtAdapter,
     TimeFrames,
 } from '@lightdash/common';
 import {
@@ -944,6 +950,173 @@ describe('Query builder', () => {
                     ),
                 ),
             ).toBe(true);
+        });
+
+        test('Should handle metrics that reference other metrics from joined tables', () => {
+            // Create a mock explore with customers and orders tables
+            const EXPLORE_WITH_CROSS_TABLE_METRICS: Explore = {
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
+                name: 'customers',
+                label: 'customers',
+                baseTable: 'customers',
+                tags: [],
+                tables: {
+                    customers: {
+                        name: 'customers',
+                        label: 'customers',
+                        database: 'mydb',
+                        schema: 'public',
+                        sqlTable: 'customers',
+                        primaryKey: ['customer_id'],
+                        lineageGraph: {},
+                        dimensions: {
+                            customer_id: {
+                                type: DimensionType.STRING,
+                                name: 'customer_id',
+                                label: 'Customer ID',
+                                table: 'customers',
+                                tableLabel: 'customers',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.customer_id',
+                                compiledSql: '"customers".customer_id',
+                                tablesReferences: ['customers'],
+                                hidden: false,
+                            },
+                        },
+                        metrics: {
+                            total_customers: {
+                                type: MetricType.COUNT,
+                                name: 'total_customers',
+                                label: 'Total Customers',
+                                table: 'customers',
+                                tableLabel: 'customers',
+                                fieldType: FieldType.METRIC,
+                                sql: '${TABLE}.customer_id',
+                                compiledSql: 'COUNT("customers".customer_id)',
+                                tablesReferences: ['customers'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                    orders: {
+                        name: 'orders',
+                        label: 'orders',
+                        database: 'mydb',
+                        schema: 'public',
+                        sqlTable: 'orders',
+                        primaryKey: ['order_id'],
+                        lineageGraph: {},
+                        dimensions: {
+                            order_id: {
+                                type: DimensionType.STRING,
+                                name: 'order_id',
+                                label: 'Order ID',
+                                table: 'orders',
+                                tableLabel: 'orders',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.order_id',
+                                compiledSql: '"orders".order_id',
+                                tablesReferences: ['orders'],
+                                hidden: false,
+                            },
+                        },
+                        metrics: {
+                            total_order_amount: {
+                                type: MetricType.SUM,
+                                name: 'total_order_amount',
+                                label: 'Total Order Amount',
+                                table: 'orders',
+                                tableLabel: 'orders',
+                                fieldType: FieldType.METRIC,
+                                sql: '${TABLE}.amount',
+                                compiledSql: 'SUM("orders".amount)',
+                                tablesReferences: ['orders'],
+                                hidden: false,
+                            },
+                            revenue_per_customer: {
+                                type: MetricType.NUMBER,
+                                name: 'revenue_per_customer',
+                                label: 'Revenue Per Customer',
+                                table: 'orders',
+                                tableLabel: 'orders',
+                                fieldType: FieldType.METRIC,
+                                sql: '${orders.total_order_amount} / ${customers.total_customers}',
+                                compiledSql:
+                                    'SUM("orders".amount) / COUNT("customers".customer_id)',
+                                tablesReferences: ['orders', 'customers'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'orders',
+                        sqlOn: '${customers.customer_id} = ${orders.customer_id}',
+                        compiledSqlOn:
+                            '("customers".customer_id) = ("orders".customer_id)',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['customers', 'orders'],
+                    },
+                ],
+            };
+
+            const METRIC_QUERY_CROSS_TABLE: CompiledMetricQuery = {
+                exploreName: 'customers',
+                dimensions: [],
+                metrics: ['orders_revenue_per_customer'],
+                filters: {},
+                sorts: [],
+                limit: 100,
+                tableCalculations: [],
+                additionalMetrics: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            };
+
+            // Test current behavior - should generate warning about cross-table references
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
+                compiledMetricQuery: METRIC_QUERY_CROSS_TABLE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            console.log('Generated SQL:', result.query);
+            console.log('Warnings:', result.warnings);
+
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(`WITH cte_keys_customers AS (
+    SELECT DISTINCT
+      "customers".customer_id AS "pk_customer_id"
+    FROM customers AS "customers"
+    LEFT OUTER JOIN orders AS "orders"
+      ON ("customers".customer_id) = ("orders".customer_id)
+    ),
+    cte_metrics_customers AS (
+    SELECT
+      COUNT("customers".customer_id) AS "customers_total_customers"
+    FROM cte_keys_customers
+    LEFT JOIN customers AS "customers" ON cte_keys_customers."pk_customer_id" = "customers".customer_id
+    
+    ),
+    cte_unaffected AS (
+    SELECT
+      (SUM("orders".amount)) / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"
+    FROM customers AS "customers"
+    LEFT OUTER JOIN orders AS "orders"
+      ON ("customers".customer_id) = ("orders".customer_id)
+    )
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_customers."customers_total_customers" AS "customers_total_customers"
+    FROM cte_unaffected
+    CROSS JOIN cte_metrics_customers
+    LIMIT 100`),
+            );
         });
     });
 });

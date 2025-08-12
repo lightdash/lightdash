@@ -5,6 +5,7 @@ import {
     CompiledTable,
     createFilterRuleFromModelRequiredFilterRule,
     Explore,
+    ExploreCompiler,
     FieldReferenceError,
     FieldType,
     FilterGroup,
@@ -21,6 +22,7 @@ import {
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
+    isNonAggregateMetric,
     ItemsMap,
     MetricFilterRule,
     parseAllReferences,
@@ -759,6 +761,48 @@ export class MetricQueryBuilder {
         return warnings;
     }
 
+    /**
+     * Helper function to replace metric references in SQL with CTE references
+     */
+    private replaceMetricReferencesWithCteReferences(
+        metric: CompiledMetric,
+        metricCtes: Array<{ name: string; metrics: string[] }>,
+    ): string {
+        const { explore, warehouseSqlBuilder } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+
+        let processedSql = metric.sql; // use original SQL with references;
+
+        // Parse metric references in the format ${table.metric}
+        const metricReferencePattern = /\$\{(\w+)\.(\w+)\}/g;
+        const matches = [...processedSql.matchAll(metricReferencePattern)];
+
+        for (const match of matches) {
+            const [fullMatch, tableName, metricName] = match;
+            const metricId = `${tableName}_${metricName}`;
+
+            // Find the CTE that contains this metric
+            const containingCte = metricCtes.find((cte) =>
+                cte.metrics.includes(metricId),
+            );
+
+            if (containingCte) {
+                // Replace the metric reference with CTE reference
+                const cteReference = `${containingCte.name}.${fieldQuoteChar}${metricId}${fieldQuoteChar}`;
+                processedSql = processedSql.replace(fullMatch, cteReference);
+            }
+        }
+
+        // Handle any remaining reference that isn't in CTEs (example: non-inflated metric)
+        const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
+        const compiledMetric = exploreCompiler.compileMetricSql(
+            { ...metric, sql: processedSql }, // use preprocessed SQL with CTE references resolved
+            explore.tables,
+        );
+
+        return compiledMetric.sql;
+    }
+
     private getExperimentalMetricsCteSQL({
         joinedTables,
         dimensionSelects,
@@ -796,6 +840,36 @@ export class MetricQueryBuilder {
         const metricsObjects = metrics.map((field) =>
             getMetricFromId(field, explore, compiledMetricQuery),
         );
+        const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
+            (acc, metricObject) => {
+                // If non-aggregate metric references joined tables, include referenced metrics
+                // Note: does not handle nested references
+                if (
+                    isNonAggregateMetric(metricObject) &&
+                    metricObject.tablesReferences &&
+                    metricObject.tablesReferences.length > 1
+                ) {
+                    const metricReferences = parseAllReferences(
+                        metricObject.sql,
+                        metricObject.table,
+                    );
+                    metricReferences.forEach((metricReference) => {
+                        acc.push(
+                            getMetricFromId(
+                                getItemId({
+                                    table: metricReference.refTable,
+                                    name: metricReference.refName,
+                                }),
+                                explore,
+                                compiledMetricQuery,
+                            ),
+                        );
+                    });
+                }
+                return acc;
+            },
+            [],
+        );
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];
@@ -809,9 +883,10 @@ export class MetricQueryBuilder {
                 message: `Join **"${tableName}"** is missing a join relationship type. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
                 tables: [tableName],
             });
-            const metricsFromTable = metricsObjects.filter(
-                (metric) => metric.table === tableName,
-            );
+            const metricsFromTable = [
+                ...metricsObjects,
+                ...referencedMetricObjects,
+            ].filter((metric) => metric.table === tableName);
             metricsFromTable.forEach((metric) => {
                 warnings.push({
                     message: `Metric **"${metric.label}"** could be inflated due to missing join relationship type. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
@@ -828,9 +903,10 @@ export class MetricQueryBuilder {
 
         tablesWithMetricInflation.forEach((tableName) => {
             const table = explore.tables[tableName];
-            const metricsFromTable = metricsObjects.filter(
-                (metric) => metric.table === tableName,
-            );
+            const metricsFromTable = [
+                ...metricsObjects,
+                ...referencedMetricObjects,
+            ].filter((metric) => metric.table === tableName);
             const metricsInCte: CompiledMetric[] = [];
 
             if (table?.primaryKey === undefined) {
@@ -854,16 +930,12 @@ export class MetricQueryBuilder {
                 if (isInflationProofMetric(metric.type)) {
                     return;
                 }
-                // Metrics that depend on other tables are not supported atm. See https://github.com/lightdash/lightdash/issues/15423
+                // Handle metrics that depend on other tables
                 if (
                     metric.tablesReferences &&
                     metric.tablesReferences.length > 1
                 ) {
-                    warnings.push({
-                        message: `Metric **"${metric.label}"** that references a joined table might have inflation. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
-                        fields: [getItemId(metric)],
-                        tables: [metric.table],
-                    });
+                    // These will be part of the unaffected metrics CTE. The SQL will be processed later to replace metric references with CTE references
                     return;
                 }
                 // Otherwise, we can calculate metric without fanout
@@ -971,14 +1043,21 @@ export class MetricQueryBuilder {
                 'SELECT',
                 [
                     ...Object.values(dimensionSelects),
-                    ...metricsNotInCtes.map(
-                        (metric) =>
-                            `  ${
-                                metric.compiledSql
-                            } AS ${fieldQuoteChar}${getItemId(
-                                metric,
-                            )}${fieldQuoteChar}`,
-                    ),
+                    ...metricsNotInCtes.map((metric) => {
+                        // For metrics with cross-table references, replace metric references with CTE references
+                        const processedSql =
+                            metric.tablesReferences &&
+                            metric.tablesReferences.length > 1
+                                ? this.replaceMetricReferencesWithCteReferences(
+                                      metric,
+                                      metricCtes,
+                                  )
+                                : metric.compiledSql;
+
+                        return `  ${processedSql} AS ${fieldQuoteChar}${getItemId(
+                            metric,
+                        )}${fieldQuoteChar}`;
+                    }),
                 ].join(',\n'),
                 sqlFrom,
                 ...joins,
