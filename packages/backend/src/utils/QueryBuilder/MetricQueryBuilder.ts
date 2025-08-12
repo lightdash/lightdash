@@ -15,6 +15,7 @@ import {
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
+    getParsedReference,
     IntrinsicUserAttributes,
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
@@ -24,6 +25,7 @@ import {
     isJoinModelRequiredFilter,
     isNonAggregateMetric,
     ItemsMap,
+    lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
     QueryWarning,
@@ -771,29 +773,27 @@ export class MetricQueryBuilder {
         const { explore, warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
-        let processedSql = metric.sql; // use original SQL with references;
+        const processedSql = metric.sql.replace(
+            lightdashVariablePattern,
+            (fullmatch, ref) => {
+                console.log('ref', fullmatch, ref);
+                const { refTable, refName } = getParsedReference(
+                    ref,
+                    metric.table,
+                );
+                const metricId = getItemId({ table: refTable, name: refName });
+                const containingCte = metricCtes.find((cte) =>
+                    cte.metrics.includes(metricId),
+                );
+                if (containingCte) {
+                    // Replace the metric reference with CTE reference
+                    return `${containingCte.name}.${fieldQuoteChar}${metricId}${fieldQuoteChar}`;
+                }
+                return fullmatch;
+            },
+        );
 
-        // Parse metric references in the format ${table.metric}
-        const metricReferencePattern = /\$\{(\w+)\.(\w+)\}/g;
-        const matches = [...processedSql.matchAll(metricReferencePattern)];
-
-        for (const match of matches) {
-            const [fullMatch, tableName, metricName] = match;
-            const metricId = `${tableName}_${metricName}`;
-
-            // Find the CTE that contains this metric
-            const containingCte = metricCtes.find((cte) =>
-                cte.metrics.includes(metricId),
-            );
-
-            if (containingCte) {
-                // Replace the metric reference with CTE reference
-                const cteReference = `${containingCte.name}.${fieldQuoteChar}${metricId}${fieldQuoteChar}`;
-                processedSql = processedSql.replace(fullMatch, cteReference);
-            }
-        }
-
-        // Handle any remaining reference that isn't in CTEs (example: non-inflated metric)
+        // Handle any remaining reference that isn't in CTEs
         const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
         const compiledMetric = exploreCompiler.compileMetricSql(
             { ...metric, sql: processedSql }, // use preprocessed SQL with CTE references resolved
@@ -840,15 +840,23 @@ export class MetricQueryBuilder {
         const metricsObjects = metrics.map((field) =>
             getMetricFromId(field, explore, compiledMetricQuery),
         );
+        const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
+                const hasFilters =
+                    metricObject.filters && metricObject.filters.length > 0;
+                const referencesAnotherTable =
+                    metricObject.tablesReferences?.some(
+                        (table) => table !== metricObject.table,
+                    );
                 // If non-aggregate metric references joined tables, include referenced metrics
                 // Note: does not handle nested references
                 if (
                     isNonAggregateMetric(metricObject) &&
-                    metricObject.tablesReferences &&
-                    metricObject.tablesReferences.length > 1
+                    referencesAnotherTable &&
+                    !hasFilters
                 ) {
+                    metricsWithCteReferences.push(metricObject);
                     const metricReferences = parseAllReferences(
                         metricObject.sql,
                         metricObject.table,
@@ -931,27 +939,14 @@ export class MetricQueryBuilder {
                     return;
                 }
                 // Handle metrics that depend on other tables
-                if (
-                    metric.tablesReferences &&
-                    metric.tablesReferences.length > 1
-                ) {
-                    const hasFilters =
-                        metric.filters && metric.filters.length > 0;
-                    // Generate warning for metrics with filters
-                    if (hasFilters) {
-                        warnings.push({
-                            message: `Metric **"${metric.label}"** that references a joined table in the filters might have inflation. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
-                            fields: [getItemId(metric)],
-                            tables: [metric.table],
-                        });
-                        return;
-                    }
-
+                const referencesAnotherTable = metric.tablesReferences?.some(
+                    (t) => t !== metric.table,
+                );
+                if (referencesAnotherTable) {
                     if (isNonAggregateMetric(metric)) {
-                        // These will be part of the unaffected metrics CTE. The SQL will be processed later to replace metric references with CTE references
+                        // These will be part of the final select. The SQL will be processed later to replace metric references with CTE references
                         return;
                     }
-
                     // We don't support other scenarios yet
                     warnings.push({
                         message: `Metric **"${metric.label}"** that references a joined table might have inflation. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
@@ -1045,14 +1040,20 @@ export class MetricQueryBuilder {
                 });
             }
         });
-
         if (ctes.length > 0) {
-            const metricsNotInCtes = metricsObjects.filter(
-                (metric) =>
-                    !metricCtes.some((metricCte) =>
-                        metricCte.metrics.includes(getItemId(metric)),
-                    ),
-            );
+            const unaffectedMetrics = [
+                ...metricsObjects,
+                ...referencedMetricObjects,
+            ].filter((metric) => {
+                const notInMetricCtes = !metricCtes.some((metricCte) =>
+                    metricCte.metrics.includes(getItemId(metric)),
+                );
+                const notMetricWithCteReferences =
+                    !metricsWithCteReferences.find(
+                        (m) => getItemId(metric) === getItemId(m),
+                    );
+                return notInMetricCtes && notMetricWithCteReferences;
+            });
             /**
              * CTE with all dimensions and metrics that aren't affected by fanouts
              * - We always need to include all dimensions
@@ -1065,21 +1066,14 @@ export class MetricQueryBuilder {
                 'SELECT',
                 [
                     ...Object.values(dimensionSelects),
-                    ...metricsNotInCtes.map((metric) => {
-                        // For metrics with cross-table references, replace metric references with CTE references
-                        const processedSql =
-                            metric.tablesReferences &&
-                            metric.tablesReferences.length > 1
-                                ? this.replaceMetricReferencesWithCteReferences(
-                                      metric,
-                                      metricCtes,
-                                  )
-                                : metric.compiledSql;
-
-                        return `  ${processedSql} AS ${fieldQuoteChar}${getItemId(
-                            metric,
-                        )}${fieldQuoteChar}`;
-                    }),
+                    ...unaffectedMetrics.map(
+                        (metric) =>
+                            `  ${
+                                metric.compiledSql
+                            } AS ${fieldQuoteChar}${getItemId(
+                                metric,
+                            )}${fieldQuoteChar}`,
+                    ),
                 ].join(',\n'),
                 sqlFrom,
                 ...joins,
@@ -1087,9 +1081,41 @@ export class MetricQueryBuilder {
                 dimensionGroupBy,
             ];
             const hasUnaffectedCte: boolean =
-                metricsNotInCtes.length > 0 ||
+                unaffectedMetrics.length > 0 ||
                 Object.keys(dimensionSelects).length > 0 ||
                 !!dimensionFilters;
+
+            const finalMetricSelects = [
+                ...metricsWithCteReferences.map((metric) => {
+                    // For metrics with cross-table references, replace metric references with CTE references
+                    const processedSql =
+                        this.replaceMetricReferencesWithCteReferences(metric, [
+                            ...metricCtes,
+                            // add unaffected metrics CTE to the list, so non-inflation metrics can be referenced
+                            {
+                                name: unaffectedMetricsCteName,
+                                metrics: unaffectedMetrics.map((m) =>
+                                    getItemId(m),
+                                ),
+                            },
+                        ]);
+
+                    return `  ${processedSql} AS ${fieldQuoteChar}${getItemId(
+                        metric,
+                    )}${fieldQuoteChar}`;
+                }),
+                ...metricCtes.flatMap<string>((metricCte) =>
+                    metricCte.metrics
+                        // excludes metrics only used for references
+                        .filter((metric) =>
+                            metricsObjects.find((m) => metric === getItemId(m)),
+                        )
+                        .map(
+                            (metricName) =>
+                                `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
+                        ),
+                ),
+            ];
 
             /**
              * Query to join all CTEs
@@ -1109,13 +1135,7 @@ export class MetricQueryBuilder {
                     `SELECT`,
                     [
                         `  ${unaffectedMetricsCteName}.*`,
-                        ...metricCtes.map((metricCte) => {
-                            const metricSelects = metricCte.metrics.map(
-                                (metricName) =>
-                                    `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
-                            );
-                            return metricSelects.join(',\n');
-                        }),
+                        ...finalMetricSelects,
                     ].join(',\n'),
                     `FROM ${unaffectedMetricsCteName}`,
                     ...metricCtes.map((metricCte) => {
@@ -1134,15 +1154,7 @@ export class MetricQueryBuilder {
                 // If there is no unaffected CTE, cross join metric CTEs
                 finalSelectParts = [
                     `SELECT`,
-                    [
-                        ...metricCtes.map((metricCte) => {
-                            const metricSelects = metricCte.metrics.map(
-                                (metricName) =>
-                                    `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
-                            );
-                            return metricSelects.join(',\n');
-                        }),
-                    ].join(',\n'),
+                    finalMetricSelects.join(',\n'),
                     `FROM ${metricCtes[0].name}`,
                     ...metricCtes
                         .slice(1, metricCtes.length)
