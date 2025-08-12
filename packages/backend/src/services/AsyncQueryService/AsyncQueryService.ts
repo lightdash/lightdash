@@ -1940,6 +1940,22 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private async getDashboardParameters(
+        dashboardUuid: string,
+    ): Promise<ParametersValuesMap | undefined> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const { parameters: rawDashboardParameters } = dashboard;
+
+        // Convert dashboard parameters to ParametersValuesMap format
+        return rawDashboardParameters
+            ? Object.fromEntries(
+                  Object.entries(rawDashboardParameters).map(
+                      ([key, dashboardParam]) => [key, dashboardParam.value],
+                  ),
+              )
+            : undefined;
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -1956,11 +1972,8 @@ export class AsyncQueryService extends ProjectService {
         assertIsAccountWithOrg(account);
 
         const savedChart = await this.savedChartModel.get(chartUuid);
-        const {
-            organizationUuid,
-            projectUuid: savedChartProjectUuid,
-            parameters: savedChartParameters,
-        } = savedChart;
+        const { organizationUuid, projectUuid: savedChartProjectUuid } =
+            savedChart;
 
         if (savedChartProjectUuid !== projectUuid) {
             throw new ForbiddenError('Dashboard does not belong to project');
@@ -2113,23 +2126,15 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        const { parameters: rawDashboardParameters } = dashboard;
+        const dashboardParameters = await this.getDashboardParameters(
+            dashboardUuid,
+        );
 
-        // Convert dashboard parameters to ParametersValuesMap format
-        const dashboardParameters = rawDashboardParameters
-            ? Object.fromEntries(
-                  Object.entries(rawDashboardParameters).map(
-                      ([key, dashboardParam]) => [key, dashboardParam.value],
-                  ),
-              )
-            : undefined;
-
-        // Combine default parameter values, saved chart parameters, dashboard parameters, and request parameters first
+        // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             parameters,
-            savedChartParameters,
+            undefined, // Explicitly empty saved chart parameters, only dashboard parameters are used
             dashboardParameters,
         );
 
@@ -2765,6 +2770,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             tileUuid,
+            dashboardUuid,
             context,
             invalidateCache,
             dashboardFilters,
@@ -2782,10 +2788,16 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError("You don't have access to this chart");
         }
 
+        const dashboardParameters = await this.getDashboardParameters(
+            dashboardUuid,
+        );
+
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             args.parameters,
+            undefined, // Explicitly empty saved chart parameters, only dashboard parameters are used
+            dashboardParameters,
         );
 
         const {
