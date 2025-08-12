@@ -36,6 +36,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     });
     return (
         <CollapsableCard
+            isVisualizationCard
             headingRef={headingRef}
             title="SQL"
             isOpen={sqlIsOpen}
