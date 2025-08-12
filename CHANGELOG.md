@@ -1,3 +1,10 @@
+# [0.1901.0](https://github.com/lightdash/lightdash/compare/0.1900.0...0.1901.0) (2025-08-12)
+
+
+### Features
+
+* replace OAuth redirects with HTML pages for better UX ([#16342](https://github.com/lightdash/lightdash/issues/16342)) ([1dffa0d](https://github.com/lightdash/lightdash/commit/1dffa0d67b81d4903c673fcc8c3d47e2e5c77cfd))
+
 # [0.1900.0](https://github.com/lightdash/lightdash/compare/0.1899.0...0.1900.0) (2025-08-12)
 
 
