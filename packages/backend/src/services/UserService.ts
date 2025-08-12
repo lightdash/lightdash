@@ -6,6 +6,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     BigqueryAuthenticationType,
+    buildEmbedUserUuid,
     CompleteUserArgs,
     CreateInviteLink,
     CreatePasswordResetLink,
@@ -1652,6 +1653,7 @@ export class UserService extends BaseService {
         });
     }
 
+    // eslint-disable-next-line consistent-return
     async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
@@ -1672,7 +1674,6 @@ export class UserService extends BaseService {
                     `Invalid login method ${loginMethod} provided.`,
                 );
         }
-        return true;
     }
 
     /**
@@ -1789,6 +1790,7 @@ export class UserService extends BaseService {
         });
     }
 
+    // eslint-disable-next-line consistent-return
     private getRedirectUri(issuer: OpenIdIdentityIssuerType) {
         switch (issuer) {
             case OpenIdIdentityIssuerType.AZUREAD:
@@ -1811,7 +1813,6 @@ export class UserService extends BaseService {
                     `Invalid login option for issuer ${issuer}`,
                 );
         }
-        return undefined;
     }
 
     private getInstanceLoginOptions() {
@@ -1932,5 +1933,55 @@ export class UserService extends BaseService {
         );
 
         return openId !== undefined;
+    }
+
+    /**
+     * Find or create an embed user based on external ID
+     * Used for embed users with canEdit permissions
+     */
+    async findOrCreateEmbedUser(
+        externalId: string,
+        email: string | undefined,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        const userUuid = buildEmbedUserUuid(externalId);
+
+        try {
+            // Try to find existing user
+            return await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            // User doesn't exist, create new one
+            const org = await this.organizationModel.get(organizationUuid);
+            if (!org) {
+                throw new NotExistsError('Cannot find organization');
+            }
+
+            const user = await this.userModel.createEmbedUser({
+                userUuid,
+                firstName: externalId,
+                lastName: 'Embedded User',
+                email: email?.toLowerCase(),
+                organization: org,
+            });
+
+            this.analytics.track({
+                event: 'user.created',
+                userId: user.user_uuid,
+                properties: {
+                    context: 'embed_user_provisioning',
+                    createdUserId: user.user_uuid,
+                    organizationId: organizationUuid,
+                    userConnectionType: 'embed',
+                },
+            });
+
+            return this.userModel.findSessionUserAndOrgByUuid(
+                user.user_uuid,
+                organizationUuid,
+            );
+        }
     }
 }
