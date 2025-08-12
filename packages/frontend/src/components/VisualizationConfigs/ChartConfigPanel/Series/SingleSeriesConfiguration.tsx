@@ -238,13 +238,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         type === CartesianSeriesType.AREA) && (
                         <Group spacing="xs">
                             <Checkbox
-                                checked={series.showSymbol ?? true}
+                                checked={Boolean(series.showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,
                                         showSymbol: !(
-                                            series.showSymbol ?? true
+                                            Boolean(series.showSymbol)
                                         ),
                                     });
                                 }}
