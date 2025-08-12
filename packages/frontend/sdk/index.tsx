@@ -18,8 +18,6 @@ import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 
-import '@mantine-8/core/styles.css';
-
 type Props = {
     instanceUrl: string;
     token: Promise<string> | string;

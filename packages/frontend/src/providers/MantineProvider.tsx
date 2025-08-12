@@ -1,3 +1,5 @@
+import '@mantine-8/core/styles.css';
+
 import {
     MantineProvider as MantineProviderBase,
     type MantineThemeOverride,
