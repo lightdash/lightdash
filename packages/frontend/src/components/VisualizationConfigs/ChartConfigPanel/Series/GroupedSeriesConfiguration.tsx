@@ -259,8 +259,8 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 label="Show symbol"
                                 onChange={() => {
                                     updateAllGroupedSeries(fieldKey, {
-                                        showSymbol: !(
-                                            Boolean(seriesGroup[0].showSymbol)
+                                        showSymbol: !Boolean(
+                                            seriesGroup[0].showSymbol,
                                         ),
                                     });
                                 }}

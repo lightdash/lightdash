@@ -243,9 +243,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,
-                                        showSymbol: !(
-                                            Boolean(series.showSymbol)
-                                        ),
+                                        showSymbol: !Boolean(series.showSymbol),
                                     });
                                 }}
                             />
