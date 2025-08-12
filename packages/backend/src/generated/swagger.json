@@ -9914,19 +9914,6 @@
                     }
                 ]
             },
-            "SchedulerFilterRule": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardFilterRule"
-                    },
-                    {
-                        "properties": {
-                            "tileTargets": {}
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
             "DashboardScheduler": {
                 "allOf": [
                     {
@@ -9949,7 +9936,7 @@
                             },
                             "filters": {
                                 "items": {
-                                    "$ref": "#/components/schemas/SchedulerFilterRule"
+                                    "$ref": "#/components/schemas/DashboardFilterRule"
                                 },
                                 "type": "array"
                             },
@@ -18453,7 +18440,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1924.0",
+        "version": "0.1925.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

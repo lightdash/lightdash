@@ -1,6 +1,5 @@
 import { type AnyType } from './any';
 import { type DimensionType } from './field';
-import type { SchedulerFilterRule } from './scheduler';
 
 export enum FilterType {
     STRING = 'string',
@@ -348,7 +347,7 @@ export const removeFieldFromFilterGroup = (
 
 export const applyDimensionOverrides = (
     dashboardFilters: DashboardFilters,
-    overrides: DashboardFilters | SchedulerFilterRule[],
+    overrides: DashboardFilters | DashboardFilterRule[],
 ) => {
     const overrideArray =
         overrides instanceof Array ? overrides : overrides.dimensions;
@@ -370,15 +369,11 @@ export const applyDimensionOverrides = (
     );
 
     // Add scheduler filters that don't exist in dashboard saved filters
-    if (overrides instanceof Array) {
-        const existingIds = new Set(
-            dashboardFilters.dimensions.map((d) => d.id),
-        );
-        const newDimensions = overrideArray.filter(
-            (schedulerFilter) => !existingIds.has(schedulerFilter.id),
-        );
-        overriddenDimensions.push(...newDimensions);
-    }
+    const existingIds = new Set(dashboardFilters.dimensions.map((d) => d.id));
+    const newDimensions = overrideArray.filter(
+        (schedulerFilter) => !existingIds.has(schedulerFilter.id),
+    );
+    overriddenDimensions.push(...newDimensions);
 
     return overriddenDimensions;
 };

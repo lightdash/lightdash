@@ -9149,23 +9149,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SchedulerFilterRule: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'DashboardFilterRule' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        tileTargets: { dataType: 'undefined', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardScheduler: {
         dataType: 'refAlias',
         type: {
@@ -9185,7 +9168,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'SchedulerFilterRule',
+                                ref: 'DashboardFilterRule',
                             },
                         },
                         dashboardUuid: { dataType: 'string', required: true },
