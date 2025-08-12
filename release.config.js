@@ -32,7 +32,7 @@ module.exports = {
         [
             '@semantic-release/exec',
             {
-                prepareCmd: 'pnpm build-published-packages',
+                prepareCmd: 'pnpm -F frontend update-sdk-version && pnpm build-published-packages',
                 publishCmd: 'pnpm release-packages',
             },
         ],
