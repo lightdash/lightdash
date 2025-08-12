@@ -935,7 +935,29 @@ export class MetricQueryBuilder {
                     metric.tablesReferences &&
                     metric.tablesReferences.length > 1
                 ) {
-                    // These will be part of the unaffected metrics CTE. The SQL will be processed later to replace metric references with CTE references
+                    const hasFilters =
+                        metric.filters && metric.filters.length > 0;
+                    // Generate warning for metrics with filters
+                    if (hasFilters) {
+                        warnings.push({
+                            message: `Metric **"${metric.label}"** that references a joined table in the filters might have inflation. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
+                            fields: [getItemId(metric)],
+                            tables: [metric.table],
+                        });
+                        return;
+                    }
+
+                    if (isNonAggregateMetric(metric)) {
+                        // These will be part of the unaffected metrics CTE. The SQL will be processed later to replace metric references with CTE references
+                        return;
+                    }
+
+                    // We don't support other scenarios yet
+                    warnings.push({
+                        message: `Metric **"${metric.label}"** that references a joined table might have inflation. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
+                        fields: [getItemId(metric)],
+                        tables: [metric.table],
+                    });
                     return;
                 }
                 // Otherwise, we can calculate metric without fanout
