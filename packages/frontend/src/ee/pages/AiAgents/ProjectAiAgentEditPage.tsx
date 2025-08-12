@@ -41,6 +41,7 @@ import {
     IconBook2,
     IconCheck,
     IconInfoCircle,
+    IconLock,
     IconPlug,
     IconPointFilled,
     IconRefresh,
@@ -540,6 +541,160 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 );
                                             }}
                                         />
+                                    </Stack>
+                                </Paper>
+
+                                <Paper p="xl">
+                                    <Group align="center" gap="xs" mb="md">
+                                        <Paper p="xxs" withBorder radius="sm">
+                                            <MantineIcon
+                                                icon={IconLock}
+                                                size="md"
+                                            />
+                                        </Paper>
+                                        <Title order={5} c="gray.9" fw={700}>
+                                            Access control
+                                        </Title>
+                                    </Group>
+                                    <Stack>
+                                        <MultiSelect
+                                            variant="subtle"
+                                            renderOption={
+                                                renderMultiSelectOption
+                                            }
+                                            hidePickedOptions
+                                            label={
+                                                <Group gap="xs">
+                                                    <Text fz="sm" fw={500}>
+                                                        User Access
+                                                    </Text>
+                                                    <Tooltip
+                                                        label="Admins and developers will always have access."
+                                                        withArrow
+                                                        withinPortal
+                                                        multiline
+                                                        position="right"
+                                                        maw="250px"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                </Group>
+                                            }
+                                            description={`Select specific users from this project who can access this agent. ${
+                                                isGroupsEnabled
+                                                    ? 'If no users are selected, access will be determined by group settings.'
+                                                    : ''
+                                            }`}
+                                            placeholder={
+                                                isLoadingProjectUsers
+                                                    ? 'Loading users...'
+                                                    : userOptions.length === 0
+                                                      ? 'No users available'
+                                                      : 'Select users'
+                                            }
+                                            data={userOptions}
+                                            disabled={
+                                                isLoadingProjectUsers ||
+                                                userOptions.length === 0
+                                            }
+                                            clearable
+                                            searchable
+                                            comboboxProps={{
+                                                transitionProps: {
+                                                    transition: 'pop',
+                                                    duration: 200,
+                                                },
+                                            }}
+                                            {...form.getInputProps(
+                                                'userAccess',
+                                            )}
+                                            value={
+                                                form.getInputProps('userAccess')
+                                                    .value ?? []
+                                            }
+                                            onChange={(value) => {
+                                                form.setFieldValue(
+                                                    'userAccess',
+                                                    value.length > 0
+                                                        ? value
+                                                        : [],
+                                                );
+                                            }}
+                                        />
+
+                                        {isGroupsEnabled && (
+                                            <Stack gap="xs">
+                                                <MultiSelect
+                                                    variant="subtle"
+                                                    label={
+                                                        <Group gap="xs">
+                                                            <Text
+                                                                fz="sm"
+                                                                fw={500}
+                                                            >
+                                                                Group Access
+                                                            </Text>
+                                                            <Tooltip
+                                                                label="Admins and developers will always have access to this agent."
+                                                                withArrow
+                                                                withinPortal
+                                                                multiline
+                                                                position="right"
+                                                                maw="250px"
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconInfoCircle
+                                                                    }
+                                                                />
+                                                            </Tooltip>
+                                                        </Group>
+                                                    }
+                                                    description="Select groups that can access this agent."
+                                                    placeholder={
+                                                        isLoadingGroups
+                                                            ? 'Loading groups...'
+                                                            : groupOptions.length ===
+                                                                0
+                                                              ? 'No groups available'
+                                                              : 'Select groups or leave empty for all users'
+                                                    }
+                                                    data={groupOptions}
+                                                    disabled={
+                                                        isLoadingGroups ||
+                                                        groupOptions.length ===
+                                                            0
+                                                    }
+                                                    comboboxProps={{
+                                                        transitionProps: {
+                                                            transition: 'pop',
+                                                            duration: 200,
+                                                        },
+                                                    }}
+                                                    clearable
+                                                    {...form.getInputProps(
+                                                        'groupAccess',
+                                                    )}
+                                                    value={
+                                                        form.getInputProps(
+                                                            'groupAccess',
+                                                        ).value ?? []
+                                                    }
+                                                    onChange={(value) => {
+                                                        form.setFieldValue(
+                                                            'groupAccess',
+                                                            value.length > 0
+                                                                ? value
+                                                                : [],
+                                                        );
+                                                    }}
+                                                />
+                                            </Stack>
+                                        )}
 
                                         <Box>
                                             <TagsInput
@@ -657,145 +812,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 </Collapse>
                                             ) : null}
                                         </Box>
-
-                                        <MultiSelect
-                                            variant="subtle"
-                                            renderOption={
-                                                renderMultiSelectOption
-                                            }
-                                            hidePickedOptions
-                                            label={
-                                                <Group gap="xs">
-                                                    <Text fz="sm" fw={500}>
-                                                        User Access
-                                                    </Text>
-                                                    <Tooltip
-                                                        label="Admins and developers will always have access."
-                                                        withArrow
-                                                        withinPortal
-                                                        multiline
-                                                        position="right"
-                                                        maw="250px"
-                                                    >
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconInfoCircle
-                                                            }
-                                                        />
-                                                    </Tooltip>
-                                                </Group>
-                                            }
-                                            description={`Select specific users from this project who can access this agent. ${
-                                                isGroupsEnabled
-                                                    ? 'If no users are selected, access will be determined by group settings.'
-                                                    : ''
-                                            }`}
-                                            placeholder={
-                                                isLoadingProjectUsers
-                                                    ? 'Loading users...'
-                                                    : userOptions.length === 0
-                                                    ? 'No users available'
-                                                    : 'Select users'
-                                            }
-                                            data={userOptions}
-                                            disabled={
-                                                isLoadingProjectUsers ||
-                                                userOptions.length === 0
-                                            }
-                                            clearable
-                                            searchable
-                                            comboboxProps={{
-                                                transitionProps: {
-                                                    transition: 'pop',
-                                                    duration: 200,
-                                                },
-                                            }}
-                                            {...form.getInputProps(
-                                                'userAccess',
-                                            )}
-                                            value={
-                                                form.getInputProps('userAccess')
-                                                    .value ?? []
-                                            }
-                                            onChange={(value) => {
-                                                form.setFieldValue(
-                                                    'userAccess',
-                                                    value.length > 0
-                                                        ? value
-                                                        : [],
-                                                );
-                                            }}
-                                        />
-
-                                        {isGroupsEnabled && (
-                                            <Stack gap="xs">
-                                                <MultiSelect
-                                                    variant="subtle"
-                                                    label={
-                                                        <Group gap="xs">
-                                                            <Text
-                                                                fz="sm"
-                                                                fw={500}
-                                                            >
-                                                                Group Access
-                                                            </Text>
-                                                            <Tooltip
-                                                                label="Admins and developers will always have access to this agent."
-                                                                withArrow
-                                                                withinPortal
-                                                                multiline
-                                                                position="right"
-                                                                maw="250px"
-                                                            >
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconInfoCircle
-                                                                    }
-                                                                />
-                                                            </Tooltip>
-                                                        </Group>
-                                                    }
-                                                    description="Select groups that can access this agent."
-                                                    placeholder={
-                                                        isLoadingGroups
-                                                            ? 'Loading groups...'
-                                                            : groupOptions.length ===
-                                                              0
-                                                            ? 'No groups available'
-                                                            : 'Select groups or leave empty for all users'
-                                                    }
-                                                    data={groupOptions}
-                                                    disabled={
-                                                        isLoadingGroups ||
-                                                        groupOptions.length ===
-                                                            0
-                                                    }
-                                                    comboboxProps={{
-                                                        transitionProps: {
-                                                            transition: 'pop',
-                                                            duration: 200,
-                                                        },
-                                                    }}
-                                                    clearable
-                                                    {...form.getInputProps(
-                                                        'groupAccess',
-                                                    )}
-                                                    value={
-                                                        form.getInputProps(
-                                                            'groupAccess',
-                                                        ).value ?? []
-                                                    }
-                                                    onChange={(value) => {
-                                                        form.setFieldValue(
-                                                            'groupAccess',
-                                                            value.length > 0
-                                                                ? value
-                                                                : [],
-                                                        );
-                                                    }}
-                                                />
-                                            </Stack>
-                                        )}
                                     </Stack>
                                 </Paper>
 
@@ -936,8 +952,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                     {!slackInstallation?.organizationUuid
                                                         ? 'Disabled'
                                                         : !slackChannelsConfigured
-                                                        ? 'Channels not configured'
-                                                        : 'Enabled'}
+                                                          ? 'Channels not configured'
+                                                          : 'Enabled'}
                                                 </Text>
                                             </Group>
                                         </Group>
@@ -1051,7 +1067,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                                             type: 'slack',
                                                                             channelId:
                                                                                 v,
-                                                                        } as const),
+                                                                        }) as const,
                                                                 ),
                                                             );
                                                         }}
@@ -1121,6 +1137,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             </Stack>
                         </form>
                     </Tabs.Panel>
+
                     <Tabs.Panel value="conversations" pt="lg">
                         <ConversationsList
                             agentUuid={actualAgentUuid!}
