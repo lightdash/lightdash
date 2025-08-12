@@ -21,11 +21,13 @@ describe('Table calculations', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `RANK() OVER(ORDER BY "payments_total_revenue" ASC) AS "rank_in_column_of_total_revenue"`,
+            `RANK() OVER ( ORDER BY "payments_total_revenue" ASC ) AS "rank_in_column_of_total_revenue"`,
             `FROM metrics`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
     });
 
@@ -45,12 +47,14 @@ describe('Table calculations', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `SUM("payments_total_revenue") OVER(ORDER BY "payments_total_revenue" DESC  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`,
+            `SUM("payments_total_revenue") OVER ( ORDER BY "payments_total_revenue" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW )`,
             `AS "running_total_of_total_revenue"`,
             `FROM metrics`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
     });
 
