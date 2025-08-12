@@ -1,3 +1,10 @@
+## [0.1901.3](https://github.com/lightdash/lightdash/compare/0.1901.2...0.1901.3) (2025-08-12)
+
+
+### Bug Fixes
+
+* missing mantine 8 style import ([#16370](https://github.com/lightdash/lightdash/issues/16370)) ([eaa11bf](https://github.com/lightdash/lightdash/commit/eaa11bf305d657b78f84cfb3d92b583347d96b63))
+
 ## [0.1901.2](https://github.com/lightdash/lightdash/compare/0.1901.1...0.1901.2) (2025-08-12)
 
 
