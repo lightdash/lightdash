@@ -166,10 +166,9 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
                 .replaceAll('\\', '\\\\')
                 .replaceAll("'", "\\'")
                 .replaceAll('"', '\\"')
-                // Remove SQL comments (BigQuery supports --, /* */, and # comments)
+                // Remove SQL comments (BigQuery supports --, /* */ comments)
                 .replace(/--.*$/gm, '')
                 .replace(/\/\*[\s\S]*?\*\//g, '')
-                .replace(/#.*$/gm, '') // BigQuery also supports # comments
                 // Remove null bytes
                 .replaceAll('\0', '')
         );
