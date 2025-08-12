@@ -1,3 +1,10 @@
+# [0.1898.0](https://github.com/lightdash/lightdash/compare/0.1897.1...0.1898.0) (2025-08-12)
+
+
+### Features
+
+* add run_metric_query tool to MCP service ([#16350](https://github.com/lightdash/lightdash/issues/16350)) ([032074a](https://github.com/lightdash/lightdash/commit/032074a07777a8013ebed88e969e32e50401936d))
+
 ## [0.1897.1](https://github.com/lightdash/lightdash/compare/0.1897.0...0.1897.1) (2025-08-11)
 
 
