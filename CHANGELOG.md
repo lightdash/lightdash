@@ -1,3 +1,10 @@
+## [0.1901.2](https://github.com/lightdash/lightdash/compare/0.1901.1...0.1901.2) (2025-08-12)
+
+
+### Bug Fixes
+
+* remove escape of #... in databricks and bigquery ([#16364](https://github.com/lightdash/lightdash/issues/16364)) ([a942be5](https://github.com/lightdash/lightdash/commit/a942be52e9eaaf13d5b32a60aa70979c4a2ee3c5))
+
 ## [0.1901.1](https://github.com/lightdash/lightdash/compare/0.1901.0...0.1901.1) (2025-08-12)
 
 
