@@ -18,6 +18,7 @@ import {
     type CreateSchedulerTarget,
     type Dashboard,
     type ItemsMap,
+    type ParameterDefinitions,
     type ParametersValuesMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
@@ -256,8 +257,8 @@ type Props = {
     confirmText?: string;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
-    parameterReferences?: Set<string> | string[];
     currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
 };
 
 const validateMsTeamsWebhook = (webhook: string): boolean => {
@@ -326,8 +327,8 @@ const SchedulerForm: FC<Props> = ({
     confirmText,
     isThresholdAlert,
     itemsMap,
-    parameterReferences,
     currentParameterValues,
+    availableParameters,
 }) => {
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
@@ -1224,9 +1225,12 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Panel value="parameters" p="md">
                             <SchedulerParameters
                                 dashboard={dashboard}
-                                parameterReferences={parameterReferences}
                                 currentParameterValues={currentParameterValues}
-                                schedulerParameters={form.values.parameters}
+                                schedulerParameterValues={
+                                    form.values.parameters
+                                }
+                                availableParameters={availableParameters}
+                                isLoading={!!loading}
                                 onChange={(schedulerParameters) => {
                                     form.setFieldValue(
                                         'parameters',
