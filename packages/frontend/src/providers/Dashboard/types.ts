@@ -108,4 +108,5 @@ export type DashboardContextType = {
     areAllChartsLoaded: boolean;
     parameterDefinitions: ParameterDefinitions;
     setParameterDefinitions: Dispatch<SetStateAction<ParameterDefinitions>>;
+    missingRequiredParameters: string[];
 };
