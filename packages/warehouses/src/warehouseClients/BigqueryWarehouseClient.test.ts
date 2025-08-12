@@ -67,4 +67,37 @@ describe('BigquerySqlBuilder escaping', () => {
         );
         expect(anotherEscaped).toBe("\\' OR \\'1\\'=\\'1");
     });
+
+    test('Should NOT remove # comments from strings', () => {
+        // Test that # symbols are preserved in strings (not treated as comments)
+        const stringWithHash = 'Column name with # symbol';
+        const escaped = bigquerySqlBuilder.escapeString(stringWithHash);
+        expect(escaped).toBe('Column name with # symbol');
+
+        // Test that # at start of line is preserved
+        const hashAtStart = '#important-tag';
+        const escapedHashStart = bigquerySqlBuilder.escapeString(hashAtStart);
+        expect(escapedHashStart).toBe('#important-tag');
+
+        // Test multiple # symbols are preserved
+        const multipleHashes = 'value1#value2#value3';
+        const escapedMultiple = bigquerySqlBuilder.escapeString(multipleHashes);
+        expect(escapedMultiple).toBe('value1#value2#value3');
+    });
+
+    test('Should still remove -- and /* */ comments', () => {
+        // Test that -- comments are still removed
+        const stringWithDashComment = 'test value -- this is a comment';
+        const escapedDash = bigquerySqlBuilder.escapeString(
+            stringWithDashComment,
+        );
+        expect(escapedDash).toBe('test value ');
+
+        // Test that /* */ comments are still removed
+        const stringWithBlockComment = 'test /* block comment */ value';
+        const escapedBlock = bigquerySqlBuilder.escapeString(
+            stringWithBlockComment,
+        );
+        expect(escapedBlock).toBe('test  value');
+    });
 });
