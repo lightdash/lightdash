@@ -1,3 +1,10 @@
+## [0.1901.1](https://github.com/lightdash/lightdash/compare/0.1901.0...0.1901.1) (2025-08-12)
+
+
+### Bug Fixes
+
+* re-rendering and re-execution of dashboard chart on initial load ([#16361](https://github.com/lightdash/lightdash/issues/16361)) ([4fed426](https://github.com/lightdash/lightdash/commit/4fed42682f1c1e87061f5f6f4a099c31dc94b930))
+
 # [0.1901.0](https://github.com/lightdash/lightdash/compare/0.1900.0...0.1901.0) (2025-08-12)
 
 
