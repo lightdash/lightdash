@@ -901,7 +901,6 @@ export class CsvService extends BaseService {
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
 
         if (schedulerFilters) {
-            // Scheduler filters can only override existing filters from the dashboard
             dashboardFilters.dimensions = applyDimensionOverrides(
                 dashboard.filters,
                 schedulerFilters,

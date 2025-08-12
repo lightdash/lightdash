@@ -492,7 +492,6 @@ export default class SchedulerTask {
                             : undefined;
 
                         if (schedulerFilters) {
-                            // Scheduler filters can only override existing filters from the dashboard
                             dashboardFilters.dimensions =
                                 applyDimensionOverrides(
                                     dashboard.filters,

@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Center,
     Flex,
     Group,
@@ -24,7 +25,7 @@ import {
     IconPencil,
     IconRotate2,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import {
     hasSavedFilterValueChanged,
     isFilterEnabled,
@@ -135,7 +136,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     return (
         <Group spacing="xs" align="flex-start" noWrap>
             <Tooltip
-                label="Reset filter back to original"
+                label="Reset filter to current dashboard value"
                 fz="xs"
                 disabled={!hasChanged}
             >
@@ -306,22 +307,40 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const originalDashboardFilters = dashboard?.filters;
-    const dashboardFilterIds = useMemo(
-        () => new Set(dashboard?.filters.dimensions.map((f) => f.id)),
-        [dashboard?.filters.dimensions],
-    );
 
     const [schedulerFiltersData, setSchedulerFiltersData] = useState<
         SchedulerFilterRule[] | undefined
-        // NOTE: Filter out any filters that are not in the dashboard anymore
-    >(schedulerFilters?.filter((sf) => dashboardFilterIds.has(sf.id)));
+    >(schedulerFilters);
+
+    const savedFiltersNotInDashboard = useMemo(() => {
+        return (
+            schedulerFilters?.filter(
+                (f) => !allFilters.dimensions.some((d) => d.id === f.id),
+            ) ?? []
+        );
+    }, [schedulerFilters, allFilters.dimensions]);
+
+    // Initialize form with live filters if no saved filters exist
+    useEffect(() => {
+        if (
+            allFilters?.dimensions &&
+            allFilters.dimensions.length > 0 &&
+            (!schedulerFilters || schedulerFilters.length === 0)
+        ) {
+            // Convert live filters to scheduler filter format and initialize the form
+            const liveSchedulerFilters = allFilters.dimensions.map(
+                (filter): SchedulerFilterRule => ({
+                    ...filter,
+                    tileTargets: undefined, // Remove tile targets for scheduler context
+                }),
+            );
+            onChange(liveSchedulerFilters);
+        }
+    }, [allFilters?.dimensions, schedulerFilters, onChange]);
 
     const handleUpdateSchedulerFilter = useCallback(
         (schedulerFilter: SchedulerFilterRule) => {
-            if (!originalDashboardFilters) return;
-
-            const originalFilter = originalDashboardFilters.dimensions.find(
+            const originalFilter = allFilters.dimensions.find(
                 (d) => d.id === schedulerFilter.id,
             );
 
@@ -341,7 +360,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                 })) ?? [],
             );
         },
-        [onChange, originalDashboardFilters, schedulerFiltersData],
+        [onChange, allFilters.dimensions, schedulerFiltersData],
     );
 
     if (isInitialLoading || isLoadingDashboardFilters || !project) {
@@ -374,9 +393,10 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={allFilters}
         >
-            {dashboard && dashboard.filters.dimensions.length > 0 ? (
+            {allFilters.dimensions.length + savedFiltersNotInDashboard?.length >
+            0 ? (
                 <Stack>
-                    {dashboard?.filters?.dimensions.map((filter) => {
+                    {allFilters.dimensions.map((filter) => {
                         const schedulerFilter = schedulerFiltersData?.find(
                             (sf) => sf.id === filter.id,
                         );
@@ -397,6 +417,26 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                                         : false
                                 }
                             />
+                        );
+                    })}
+                    {savedFiltersNotInDashboard.length > 0 && (
+                        <Text fz="sm" c="dimmed" fw={500} pt="sm">
+                            The following filters are applied to this scheduled
+                            delivery but no longer exist in the dashboard
+                        </Text>
+                    )}
+                    {savedFiltersNotInDashboard?.map((filter) => {
+                        return (
+                            <Box key={filter.id} pl="md">
+                                <FilterItem
+                                    key={filter.id}
+                                    dashboardFilter={filter}
+                                    schedulerFilter={filter}
+                                    onChange={handleUpdateSchedulerFilter}
+                                    onRevert={() => revertFilter(filter.id)}
+                                    hasChanged={false}
+                                />
+                            </Box>
                         );
                     })}
                 </Stack>
