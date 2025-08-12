@@ -239,4 +239,7 @@ export const lightdashConfigMock: LightdashConfig = {
     mcp: {
         enabled: true,
     },
+    customRoles: {
+        enabled: false,
+    },
 };

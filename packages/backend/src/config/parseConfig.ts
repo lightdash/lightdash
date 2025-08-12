@@ -795,6 +795,9 @@ export type LightdashConfig = {
     mcp: {
         enabled: boolean;
     };
+    customRoles: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1512,6 +1515,9 @@ export const parseConfig = (): LightdashConfig => {
         updateSetup: getUpdateSetupConfig(),
         mcp: {
             enabled: process.env.MCP_ENABLED === 'true',
+        },
+        customRoles: {
+            enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
     };
 };

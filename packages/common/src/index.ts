@@ -1092,6 +1092,7 @@ export type HealthState = {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
     };
+    isCustomRolesEnabled: boolean;
 };
 
 export enum DBFieldTypes {
