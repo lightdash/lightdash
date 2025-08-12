@@ -8,6 +8,7 @@ import {
     FactualityResponse,
     LlmJudgeResult,
 } from './utils/llmAsAJudge';
+import { ToolJudgeResult } from './utils/llmAsJudgeForTools';
 
 interface EvalResult {
     testCase: string;
@@ -25,6 +26,7 @@ interface EvalResult {
     }>;
     toolCalls?: TaskMeta['toolCalls'];
     llmJudgeResults?: TaskMeta['llmJudgeResults'];
+    llmToolJudgeResults?: TaskMeta['llmToolJudgeResults'];
     prompts?: TaskMeta['prompts'];
     responses?: TaskMeta['responses'];
 }
@@ -107,6 +109,7 @@ export default class EvalHtmlReporter implements Reporter {
                     })),
                     toolCalls: taskMeta.toolCalls,
                     llmJudgeResults: taskMeta.llmJudgeResults || [],
+                    llmToolJudgeResults: taskMeta.llmToolJudgeResults || [],
                     prompts: taskMeta.prompts || [],
                     responses: taskMeta.responses || [],
                 };
@@ -477,58 +480,80 @@ export default class EvalHtmlReporter implements Reporter {
     ): string {
         const hasLlmJudgeResults =
             result.llmJudgeResults && result.llmJudgeResults.length > 0;
+        const hasToolJudgeResults =
+            result.llmToolJudgeResults && result.llmToolJudgeResults.length > 0;
         const hasPrompts = result.prompts && result.prompts.length > 0;
         const hasResponses = result.responses && result.responses.length > 0;
 
-        if (!hasLlmJudgeResults && !hasPrompts && !hasResponses) {
-            return '<span style="color: #6c757d;">No LLM judge evaluations</span>';
+        if (
+            !hasLlmJudgeResults &&
+            !hasToolJudgeResults &&
+            !hasPrompts &&
+            !hasResponses
+        ) {
+            return '<span style="color: #6c757d;">No evaluations</span>';
         }
 
-        if (!hasLlmJudgeResults) {
+        if (!hasLlmJudgeResults && !hasToolJudgeResults) {
             const expandButton = `<button id="toggle-${testIndex}" class="expand-toggle" onclick="toggleExpand(${testIndex})">▶</button>`;
             return `<div style="color: #6c757d; font-size: 10px;">None</div><div style="margin-top: 4px;">${expandButton}</div>`;
         }
 
-        const summary = result.llmJudgeResults
-            ?.map((judgeResult) => {
-                const { scorerType, result: judgeData } = judgeResult;
-                let scoreText = '';
-                let scoreClass = '';
+        const llmSummary =
+            result.llmJudgeResults
+                ?.map((judgeResult) => {
+                    const { scorerType, result: judgeData } = judgeResult;
+                    let scoreText = '';
+                    let scoreClass = '';
 
-                switch (scorerType) {
-                    case 'factuality':
-                        const factResult = judgeData as FactualityResponse;
-                        scoreText = `${factResult.answer}`;
-                        scoreClass = judgeResult.passed ? 'pass' : 'fail';
-                        break;
-                    case 'jsonDiff':
-                        const jsonResult = judgeData as Score;
-                        scoreText = `${((jsonResult.score ?? 0) * 100).toFixed(
-                            1,
-                        )}%`;
-                        scoreClass = judgeResult.passed ? 'pass' : 'fail';
-                        break;
-                    case 'contextRelevancy':
-                        const contextResult =
-                            judgeData as ContextRelevancyResponse;
-                        scoreText = `${(contextResult.score * 100).toFixed(
-                            1,
-                        )}%`;
-                        scoreClass = judgeResult.passed ? 'pass' : 'fail';
-                        break;
-                    default:
-                        scoreText = 'N/A';
-                        scoreClass = 'fail';
-                        break;
-                }
+                    switch (scorerType) {
+                        case 'factuality':
+                            const factResult = judgeData as FactualityResponse;
+                            scoreText = `${factResult.answer}`;
+                            scoreClass = judgeResult.passed ? 'pass' : 'fail';
+                            break;
+                        case 'jsonDiff':
+                            const jsonResult = judgeData as Score;
+                            scoreText = `${(
+                                (jsonResult.score ?? 0) * 100
+                            ).toFixed(1)}%`;
+                            scoreClass = judgeResult.passed ? 'pass' : 'fail';
+                            break;
+                        case 'contextRelevancy':
+                            const contextResult =
+                                judgeData as ContextRelevancyResponse;
+                            scoreText = `${(contextResult.score * 100).toFixed(
+                                1,
+                            )}%`;
+                            scoreClass = judgeResult.passed ? 'pass' : 'fail';
+                            break;
+                        default:
+                            scoreText = 'N/A';
+                            scoreClass = 'fail';
+                            break;
+                    }
 
-                return `<span class="llm-judge-score ${scoreClass}">${scorerType}: ${scoreText}</span>`;
-            })
+                    return `<span class="llm-judge-score ${scoreClass}">${scorerType}: ${scoreText}</span>`;
+                })
+                .join('<br>') || '';
+
+        const toolSummary =
+            result.llmToolJudgeResults
+                ?.map((toolResult) => {
+                    const scoreClass = toolResult.passed ? 'pass' : 'fail';
+                    return `<span class="llm-judge-score ${scoreClass}">tools: ${
+                        toolResult.passed ? 'passed' : 'failed'
+                    } (${toolResult.effectiveness})</span>`;
+                })
+                .join('<br>') || '';
+
+        const combinedSummary = [llmSummary, toolSummary]
+            .filter(Boolean)
             .join('<br>');
 
         const expandButton = `<button id="toggle-${testIndex}" class="expand-toggle" onclick="toggleExpand(${testIndex})">▶</button>`;
 
-        return `<div>${summary}</div><div style="margin-top: 4px;">${expandButton}</div>`;
+        return `<div>${combinedSummary}</div><div style="margin-top: 4px;">${expandButton}</div>`;
     }
 
     private static generateExpandableRow(
@@ -537,6 +562,8 @@ export default class EvalHtmlReporter implements Reporter {
     ): string {
         if (
             (!result.llmJudgeResults || result.llmJudgeResults.length === 0) &&
+            (!result.llmToolJudgeResults ||
+                result.llmToolJudgeResults.length === 0) &&
             (!result.prompts || result.prompts.length === 0) &&
             (!result.responses || result.responses.length === 0)
         ) {
@@ -710,6 +737,66 @@ export default class EvalHtmlReporter implements Reporter {
             })
             .join('');
 
+        // Generate tool evaluation details
+        const toolDetailsHtml =
+            result.llmToolJudgeResults
+                ?.map((toolResult) => {
+                    const isPass = toolResult.passed;
+                    return `
+                <div class="llm-judge-item ${isPass ? '' : 'fail'}">
+                    <div class="llm-judge-header">TOOL EVALUATION</div>
+                    <div style="font-size: 12px; color: #6c757d; margin-bottom: 8px;">${new Date(
+                        toolResult.timestamp,
+                    ).toLocaleString()}</div>
+                    <div><strong>Effectiveness:</strong> ${EvalHtmlReporter.escapeHtml(
+                        toolResult.effectiveness,
+                    )}</div>
+                    <div><strong>Appropriate Tools:</strong> ${
+                        toolResult.appropriateTools ? 'Yes' : 'No'
+                    }</div>
+                    <div><strong>Passed:</strong> ${
+                        toolResult.passed ? 'Yes' : 'No'
+                    }</div>
+                    <div><strong>Rationale:</strong> ${EvalHtmlReporter.escapeHtml(
+                        toolResult.rationale,
+                    )}</div>
+                    ${
+                        toolResult.suggestions &&
+                        toolResult.suggestions.length > 0
+                            ? `<div><strong>Suggestions:</strong> ${toolResult.suggestions
+                                  .map((s) => EvalHtmlReporter.escapeHtml(s))
+                                  .join(', ')}</div>`
+                            : ''
+                    }
+                    ${
+                        toolResult.missingTools &&
+                        toolResult.missingTools.length > 0
+                            ? `<div><strong>Missing Tools:</strong> ${toolResult.missingTools
+                                  .map((t) => EvalHtmlReporter.escapeHtml(t))
+                                  .join(', ')}</div>`
+                            : ''
+                    }
+                    ${
+                        toolResult.unnecessaryTools &&
+                        toolResult.unnecessaryTools.length > 0
+                            ? `<div><strong>Unnecessary Tools:</strong> ${toolResult.unnecessaryTools
+                                  .map((t) => EvalHtmlReporter.escapeHtml(t))
+                                  .join(', ')}</div>`
+                            : ''
+                    }
+                    ${
+                        toolResult.toolSequence &&
+                        toolResult.toolSequence.length > 0
+                            ? `<div><strong>Tool Sequence:</strong> ${toolResult.toolSequence
+                                  .map((t) => EvalHtmlReporter.escapeHtml(t))
+                                  .join(' → ')}</div>`
+                            : ''
+                    }
+                </div>
+            `;
+                })
+                .join('') || '';
+
         return `
             <tr id="expand-${testIndex}" class="expandable-row" style="display: none;">
                 <td colspan="6">
@@ -719,6 +806,11 @@ export default class EvalHtmlReporter implements Reporter {
                         ${
                             detailsHtml && detailsHtml.length > 0
                                 ? `<h4 style="color: #495057; margin-top: 16px;">LLM Judge Evaluation Details</h4>${detailsHtml}`
+                                : ''
+                        }
+                        ${
+                            toolDetailsHtml && toolDetailsHtml.length > 0
+                                ? `<h4 style="color: #495057; margin-top: 16px;">Tool Evaluation Details</h4>${toolDetailsHtml}`
                                 : ''
                         }
                     </div>
@@ -734,5 +826,6 @@ declare module 'vitest' {
         prompts: string[];
         responses: string[];
         llmJudgeResults: LlmJudgeResult[];
+        llmToolJudgeResults: ToolJudgeResult[];
     }
 }
