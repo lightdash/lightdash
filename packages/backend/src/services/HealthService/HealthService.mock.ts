@@ -91,6 +91,7 @@ export const BaseResponse: HealthState = {
         overrideColorPaletteName: undefined,
     },
     isServiceAccountEnabled: false,
+    isCustomRolesEnabled: false,
 };
 
 export const userMock = {
