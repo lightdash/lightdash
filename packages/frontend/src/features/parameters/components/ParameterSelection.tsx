@@ -16,7 +16,6 @@ import {
 import { IconInfoCircle, IconPin, IconPinFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { ParameterInput } from './ParameterInput';
 
 type ParameterSelectionProps = {
@@ -37,6 +36,8 @@ type ParameterSelectionProps = {
     loadingMessage?: string;
     disabled?: boolean;
     isEditMode?: boolean;
+    pinnedParameters?: string[];
+    onParameterPin?: (paramKey: string) => void;
 };
 
 export const ParameterSelection: FC<ParameterSelectionProps> = ({
@@ -53,9 +54,9 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     disabled = false,
     missingRequiredParameters,
     isEditMode = false,
+    pinnedParameters = [],
+    onParameterPin,
 }) => {
-    const pinnedParameters = useDashboardContext((c) => c.pinnedParameters);
-    const toggleParameterPin = useDashboardContext((c) => c.toggleParameterPin);
     const parameterKeys = parameters ? Object.keys(parameters) : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
         (value) => value !== null && value !== '',
@@ -116,12 +117,12 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                             <MantineIcon
                                                 icon={IconInfoCircle}
                                                 color="gray.6"
-                                                size={size}
+                                                size="sm"
                                             />
                                         </Tooltip>
                                     )}
                                 </Group>
-                                {isEditMode && (
+                                {isEditMode && onParameterPin && (
                                     <Tooltip
                                         label={
                                             pinnedParameters.includes(paramKey)
@@ -147,7 +148,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                                     : 'gray'
                                             }
                                             onClick={() =>
-                                                toggleParameterPin(paramKey)
+                                                onParameterPin(paramKey)
                                             }
                                         >
                                             <MantineIcon
@@ -158,7 +159,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                                         ? IconPinFilled
                                                         : IconPin
                                                 }
-                                                size="xs"
+                                                size="sm"
                                             />
                                         </ActionIcon>
                                     </Tooltip>

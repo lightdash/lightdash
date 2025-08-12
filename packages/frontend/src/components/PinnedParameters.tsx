@@ -103,7 +103,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
             </Popover.Target>
 
             <Popover.Dropdown>
-                <Box p="sm" miw={280}>
+                <Box p={0} miw={280}>
                     <Text size="sm" fw={500} mb="xs">
                         {parameter.label || parameterKey}
                     </Text>
@@ -118,7 +118,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                         parameter={parameter}
                         value={value}
                         onParameterChange={handleChange}
-                        size="sm"
+                        size="xs"
                         projectUuid={projectUuid || ''}
                         parameterValues={parameterValues}
                     />

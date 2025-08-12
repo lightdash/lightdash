@@ -123,6 +123,7 @@ const Dashboard: FC = () => {
         (c) => c.dashboardParameters,
     );
     const pinnedParameters = useDashboardContext((c) => c.pinnedParameters);
+    const toggleParameterPin = useDashboardContext((c) => c.toggleParameterPin);
     const havePinnedParametersChanged = useDashboardContext(
         (c) => c.havePinnedParametersChanged,
     );
@@ -727,24 +728,28 @@ const Dashboard: FC = () => {
                     {/* DateZoom section will adjust width dynamically */}
                     {hasDashboardTiles && (
                         <Group spacing="xs" style={{ marginLeft: 'auto' }}>
-                            <Parameters
-                                isEditMode={isEditMode}
-                                parameterValues={parameterValues}
-                                onParameterChange={handleParameterChange}
-                                onClearAll={clearAllParameters}
-                                parameterReferences={
-                                    dashboardParameterReferences
-                                }
-                                areAllChartsLoaded={areAllChartsLoaded}
-                                missingRequiredParameters={
-                                    missingRequiredParameters
-                                }
-                            />
-                            <PinnedParameters isEditMode={isEditMode} />
                             <DateZoom isEditMode={isEditMode} />
                         </Group>
                     )}
                 </Group>
+                {hasDashboardTiles && (
+                    <Group spacing="xs" align="flex-start" noWrap px={'lg'}>
+                        <Parameters
+                            isEditMode={isEditMode}
+                            parameterValues={parameterValues}
+                            onParameterChange={handleParameterChange}
+                            onClearAll={clearAllParameters}
+                            parameterReferences={dashboardParameterReferences}
+                            areAllChartsLoaded={areAllChartsLoaded}
+                            missingRequiredParameters={
+                                missingRequiredParameters
+                            }
+                            pinnedParameters={pinnedParameters}
+                            onParameterPin={toggleParameterPin}
+                        />
+                        <PinnedParameters isEditMode={isEditMode} />
+                    </Group>
+                )}
                 <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>
                     <DashboardTabs
                         isEditMode={isEditMode}

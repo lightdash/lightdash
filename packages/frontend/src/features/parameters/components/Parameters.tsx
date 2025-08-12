@@ -20,6 +20,8 @@ type Props = {
     parameterReferences?: Set<string>;
     areAllChartsLoaded?: boolean;
     missingRequiredParameters?: string[];
+    pinnedParameters?: string[];
+    onParameterPin?: (paramKey: string) => void;
 };
 
 /**
@@ -51,6 +53,8 @@ export const Parameters: FC<Props> = ({
     parameterReferences,
     areAllChartsLoaded = true,
     missingRequiredParameters = [],
+    pinnedParameters = [],
+    onParameterPin,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
@@ -73,7 +77,6 @@ export const Parameters: FC<Props> = ({
 
     // Determine button CSS classes based on state
     const buttonClasses = [
-        isEditMode ? styles.parameterButtonEditMode : styles.parameterButton,
         selectedParametersCount > 0 && !isEditMode
             ? styles.parameterButtonActive
             : '',
@@ -86,6 +89,7 @@ export const Parameters: FC<Props> = ({
             <Menu
                 withinPortal
                 withArrow
+                arrowOffset={100}
                 closeOnItemClick={false}
                 closeOnClickOutside
                 offset={-1}
@@ -135,6 +139,8 @@ export const Parameters: FC<Props> = ({
                                 missingRequiredParameters
                             }
                             isEditMode={isEditMode}
+                            pinnedParameters={pinnedParameters}
+                            onParameterPin={onParameterPin}
                         />
                     </Box>
                 </Menu.Dropdown>
