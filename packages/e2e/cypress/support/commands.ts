@@ -24,6 +24,7 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import {
+    AnyType,
     ApiChartSummaryListResponse,
     CreateChartInSpace,
     CreateEmbedJwt,
@@ -118,6 +119,8 @@ declare global {
                     canExplore?: boolean;
                 },
             ): Chainable<string>;
+
+            getMonacoEditorText(): Chainable<string>;
         }
     }
 }
@@ -748,3 +751,20 @@ Cypress.Commands.add(
         });
     },
 );
+
+Cypress.Commands.add('getMonacoEditorText', () => {
+    cy.wait(200); // wait for new SQL to load
+    cy.get('.monaco-editor').should('exist');
+    // NOTE: This is probably the most reliable way to get the SQL from the Monaco editor, without having to target specific classes/ids
+    cy.window().then((win: AnyType) => {
+        expect(win.monaco).to.be.an('object');
+        const editor = win.monaco.editor.getModels()[0];
+        const sqlRunnerText = editor.getValue();
+        // Normalize the text by removing new lines and converting multiple white spaces to single white space
+        const normalizedText = sqlRunnerText
+            .replace(/\n/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        cy.wrap(normalizedText);
+    });
+});

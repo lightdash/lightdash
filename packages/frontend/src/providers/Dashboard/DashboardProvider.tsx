@@ -284,6 +284,18 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles]);
 
+    const missingRequiredParameters = useMemo(() => {
+        // If no parameter references, return empty array
+        if (!dashboardParameterReferences.size) return [];
+
+        // Missing required parameters are the ones that are not set and don't have a default value
+        return Array.from(dashboardParameterReferences).filter(
+            (parameterName) =>
+                !parameters[parameterName] &&
+                !parameterDefinitions[parameterName]?.default,
+        );
+    }, [dashboardParameterReferences, parameters, parameterDefinitions]);
+
     // Remove parameter references for tiles that are no longer in the dashboard
     useEffect(() => {
         if (dashboardTiles) {
@@ -835,6 +847,7 @@ const DashboardProvider: React.FC<
         addParameterReferences,
         tileParameterReferences,
         areAllChartsLoaded,
+        missingRequiredParameters,
     };
     return (
         <DashboardContext.Provider value={value}>

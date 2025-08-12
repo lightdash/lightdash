@@ -5,7 +5,7 @@ import {
     IconChevronUp,
     IconVariable,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getMantine8ThemeOverride } from '../../../mantine8Theme';
@@ -19,6 +19,7 @@ type Props = {
     onClearAll: () => void;
     parameterReferences?: Set<string>;
     areAllChartsLoaded?: boolean;
+    missingRequiredParameters?: string[];
 };
 
 /**
@@ -49,6 +50,7 @@ export const Parameters: FC<Props> = ({
     onClearAll,
     parameterReferences,
     areAllChartsLoaded = true,
+    missingRequiredParameters = [],
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
@@ -61,23 +63,6 @@ export const Parameters: FC<Props> = ({
 
     // Calculate selected parameters count
     const selectedParametersCount = Object.values(parameters ?? {}).length;
-
-    // Apply defaults
-    useEffect(() => {
-        if (parameters) {
-            Object.entries(parameters).forEach(([key, param]) => {
-                if (
-                    param.default &&
-                    (!parameterValues || !parameterValues[key])
-                ) {
-                    const defaultValue = Array.isArray(param.default)
-                        ? param.default[0]
-                        : param.default;
-                    onParameterChange(key, defaultValue);
-                }
-            });
-        }
-    }, [parameterValues, parameters, onParameterChange]);
 
     if (!parameters || selectedParametersCount === 0) {
         return null;
@@ -146,6 +131,9 @@ export const Parameters: FC<Props> = ({
                             showClearAll={selectedParametersCount > 0}
                             onClearAll={onClearAll}
                             projectUuid={projectUuid}
+                            missingRequiredParameters={
+                                missingRequiredParameters
+                            }
                         />
                     </Box>
                 </Menu.Dropdown>

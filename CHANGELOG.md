@@ -1,3 +1,52 @@
+## [0.1901.3](https://github.com/lightdash/lightdash/compare/0.1901.2...0.1901.3) (2025-08-12)
+
+
+### Bug Fixes
+
+* missing mantine 8 style import ([#16370](https://github.com/lightdash/lightdash/issues/16370)) ([eaa11bf](https://github.com/lightdash/lightdash/commit/eaa11bf305d657b78f84cfb3d92b583347d96b63))
+
+## [0.1901.2](https://github.com/lightdash/lightdash/compare/0.1901.1...0.1901.2) (2025-08-12)
+
+
+### Bug Fixes
+
+* remove escape of #... in databricks and bigquery ([#16364](https://github.com/lightdash/lightdash/issues/16364)) ([a942be5](https://github.com/lightdash/lightdash/commit/a942be52e9eaaf13d5b32a60aa70979c4a2ee3c5))
+
+## [0.1901.1](https://github.com/lightdash/lightdash/compare/0.1901.0...0.1901.1) (2025-08-12)
+
+
+### Bug Fixes
+
+* re-rendering and re-execution of dashboard chart on initial load ([#16361](https://github.com/lightdash/lightdash/issues/16361)) ([4fed426](https://github.com/lightdash/lightdash/commit/4fed42682f1c1e87061f5f6f4a099c31dc94b930))
+
+# [0.1901.0](https://github.com/lightdash/lightdash/compare/0.1900.0...0.1901.0) (2025-08-12)
+
+
+### Features
+
+* replace OAuth redirects with HTML pages for better UX ([#16342](https://github.com/lightdash/lightdash/issues/16342)) ([1dffa0d](https://github.com/lightdash/lightdash/commit/1dffa0d67b81d4903c673fcc8c3d47e2e5c77cfd))
+
+# [0.1900.0](https://github.com/lightdash/lightdash/compare/0.1899.0...0.1900.0) (2025-08-12)
+
+
+### Features
+
+* add custom roles configuration ([#16354](https://github.com/lightdash/lightdash/issues/16354)) ([b4ff550](https://github.com/lightdash/lightdash/commit/b4ff550208d4978f0dc8ec4ab3ddfe669654a576))
+
+# [0.1899.0](https://github.com/lightdash/lightdash/compare/0.1898.0...0.1899.0) (2025-08-12)
+
+
+### Features
+
+* replace Prism with Monaco editor for SQL rendering ([#16277](https://github.com/lightdash/lightdash/issues/16277)) ([1050b26](https://github.com/lightdash/lightdash/commit/1050b26437156e348cf42a9b236f2d32981e0a3c))
+
+# [0.1898.0](https://github.com/lightdash/lightdash/compare/0.1897.1...0.1898.0) (2025-08-12)
+
+
+### Features
+
+* add run_metric_query tool to MCP service ([#16350](https://github.com/lightdash/lightdash/issues/16350)) ([032074a](https://github.com/lightdash/lightdash/commit/032074a07777a8013ebed88e969e32e50401936d))
+
 ## [0.1897.1](https://github.com/lightdash/lightdash/compare/0.1897.0...0.1897.1) (2025-08-11)
 
 

@@ -93,6 +93,9 @@ const Dashboard: FC = () => {
         (c) => c.dashboardParameterReferences,
     );
     const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+    const missingRequiredParameters = useDashboardContext(
+        (c) => c.missingRequiredParameters,
+    );
 
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
 
@@ -712,6 +715,9 @@ const Dashboard: FC = () => {
                                     dashboardParameterReferences
                                 }
                                 areAllChartsLoaded={areAllChartsLoaded}
+                                missingRequiredParameters={
+                                    missingRequiredParameters
+                                }
                             />
                             <DateZoom isEditMode={isEditMode} />
                         </Group>

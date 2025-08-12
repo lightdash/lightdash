@@ -18,6 +18,7 @@
         "@types/node": "^20",
         "@types/react": "^19",
         "@types/react-dom": "^19",
+        "postcss": "^8.4.49",
         "typescript": "^5"
     }
 }

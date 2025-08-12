@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
     generateOAuthAuthorizePage,
+    generateOAuthRedirectPage,
     getErrorMessage,
     OAuthIntrospectResponse,
 } from '@lightdash/common';
@@ -88,7 +89,7 @@ oauthRouter.get('/authorize', async (req, res, next) => {
     );
 });
 
-oauthRouter.post('/authorize', async (req, res, next) => {
+oauthRouter.post('/authorize', async (req, res) => {
     if (req.body.approve === 'false') {
         // Denied
         res.set('Content-Type', 'text/html');
@@ -104,7 +105,13 @@ oauthRouter.post('/authorize', async (req, res, next) => {
         if (req.body.state) {
             url.searchParams.set('state', req.body.state);
         }
-        return res.redirect(url.toString());
+        return res.send(
+            generateOAuthRedirectPage({
+                redirectUrl: url.toString(),
+                message:
+                    'Access denied. Redirecting you back to your application...',
+            }),
+        );
     }
     if (!req.user) {
         return res.status(401).send('Unauthorized');
@@ -145,14 +152,28 @@ oauthRouter.post('/authorize', async (req, res, next) => {
         if (req.body.state) {
             url.searchParams.set('state', req.body.state);
         }
-        return res.redirect(url.toString());
+
+        res.set('Content-Type', 'text/html');
+        return res.send(
+            generateOAuthRedirectPage({
+                redirectUrl: url.toString(),
+                message: 'Redirecting you back to your application...',
+            }),
+        );
     } catch (error) {
         Logger.error(`Authorization error: ${error}`);
         const redirectUrl = new URL(req.body.redirect_uri);
         redirectUrl.searchParams.set('error', 'server_error');
         if (req.body.state)
             redirectUrl.searchParams.set('state', req.body.state);
-        return res.redirect(redirectUrl.toString());
+        res.set('Content-Type', 'text/html');
+        return res.send(
+            generateOAuthRedirectPage({
+                redirectUrl: redirectUrl.toString(),
+                message:
+                    'An error occurred. Redirecting you back to your application...',
+            }),
+        );
     }
 });
 
