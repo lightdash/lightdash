@@ -1,3 +1,10 @@
+# [0.1899.0](https://github.com/lightdash/lightdash/compare/0.1898.0...0.1899.0) (2025-08-12)
+
+
+### Features
+
+* replace Prism with Monaco editor for SQL rendering ([#16277](https://github.com/lightdash/lightdash/issues/16277)) ([1050b26](https://github.com/lightdash/lightdash/commit/1050b26437156e348cf42a9b236f2d32981e0a3c))
+
 # [0.1898.0](https://github.com/lightdash/lightdash/compare/0.1897.1...0.1898.0) (2025-08-12)
 
 
