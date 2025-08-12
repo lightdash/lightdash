@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSuccess,
+    type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
     type LightdashProjectConfig,
 } from '@lightdash/common';
@@ -19,6 +20,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -30,6 +32,53 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Parameters')
 export class ParametersController extends BaseController {
+    /**
+     * Get a paginated list of project parameters with search and sorting capabilities.
+     * @summary List project parameters
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/list')
+    @OperationId('getProjectParametersList')
+    async getParametersList(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() search?: string,
+        @Query() sortBy?: 'name' | 'created_at',
+        @Query() sortOrder?: 'asc' | 'desc',
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiSuccess<ApiGetProjectParametersListResults>> {
+        const paginateArgs =
+            page !== undefined && pageSize !== undefined
+                ? { page, pageSize }
+                : undefined;
+
+        const parameters = await this.services
+            .getProjectParametersService()
+            .findProjectParametersPaginated(
+                projectUuid,
+                { search, sortBy, sortOrder },
+                paginateArgs,
+            );
+
+        const results: ApiGetProjectParametersListResults = {
+            data: parameters.data.map((param: DbProjectParameter) => ({
+                name: param.name,
+                label: param.config.label,
+                description: param.config.description,
+                default: param.config.default,
+                createdAt: param.created_at,
+            })),
+            pagination: parameters.pagination,
+        };
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')

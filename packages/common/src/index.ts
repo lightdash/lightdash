@@ -134,7 +134,10 @@ import type {
     EmbedUrl,
 } from './ee';
 import { type AnyType } from './types/any';
-import { type ApiGetProjectParametersResults } from './types/api/parameters';
+import {
+    type ApiGetProjectParametersListResults,
+    type ApiGetProjectParametersResults,
+} from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import { type Account } from './types/auth';
 import {
@@ -937,6 +940,7 @@ type ApiResults =
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
+    | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
     | Account;

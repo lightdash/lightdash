@@ -1,3 +1,4 @@
+import { KnexPaginateArgs, KnexPaginatedData } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import type { DbProjectParameter } from '../database/entities/projectParameters';
@@ -27,5 +28,21 @@ export class ProjectParametersService extends BaseService {
 
     async findProjectParameters(projectUuid: string, names?: string[]) {
         return this.projectParametersModel.find(projectUuid, names);
+    }
+
+    async findProjectParametersPaginated(
+        projectUuid: string,
+        options?: {
+            search?: string;
+            sortBy?: 'name' | 'created_at';
+            sortOrder?: 'asc' | 'desc';
+        },
+        paginateArgs?: KnexPaginateArgs,
+    ) {
+        return this.projectParametersModel.findPaginated(
+            projectUuid,
+            options,
+            paginateArgs,
+        );
     }
 }

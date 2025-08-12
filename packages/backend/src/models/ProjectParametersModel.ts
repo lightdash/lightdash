@@ -1,9 +1,15 @@
-import { LightdashProjectConfig, NotFoundError } from '@lightdash/common';
+import {
+    KnexPaginateArgs,
+    KnexPaginatedData,
+    LightdashProjectConfig,
+    NotFoundError,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     ProjectParametersTableName,
     type DbProjectParameter,
 } from '../database/entities/projectParameters';
+import KnexPaginate from '../database/pagination';
 
 export class ProjectParametersModel {
     private database: Knex;
@@ -23,6 +29,43 @@ export class ProjectParametersModel {
         }
 
         return query.select('*');
+    }
+
+    async findPaginated(
+        projectUuid: string,
+        options?: {
+            search?: string;
+            sortBy?: 'name' | 'created_at';
+            sortOrder?: 'asc' | 'desc';
+        },
+        paginateArgs?: KnexPaginateArgs,
+    ) {
+        let query = this.database(ProjectParametersTableName)
+            .where('project_uuid', projectUuid)
+            .select('*');
+
+        // Add search functionality
+        if (options?.search) {
+            const searchTerm = `%${options.search}%`;
+            query = query.where((builder) => {
+                void builder
+                    .whereILike('name', searchTerm)
+                    .orWhereRaw("config->>'label' ILIKE ?", [searchTerm])
+                    .orWhereRaw("config->>'description' ILIKE ?", [searchTerm]);
+            });
+        }
+
+        // Add sorting
+        const sortBy = options?.sortBy || 'created_at';
+        const sortOrder = options?.sortOrder || 'desc';
+        query = query.orderBy(sortBy, sortOrder);
+
+        // If no sorting by name is specified, add name as secondary sort for consistency
+        if (sortBy !== 'name') {
+            query = query.orderBy('name', 'asc');
+        }
+
+        return KnexPaginate.paginate(query, paginateArgs);
     }
 
     async get(projectUuid: string, name: string): Promise<DbProjectParameter> {
