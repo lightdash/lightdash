@@ -71,6 +71,7 @@ export enum QueryExecutionContext {
     CALCULATE_SUBTOTAL = 'calculateSubtotal',
     EMBED = 'embed',
     AI = 'ai',
+    MCP = 'mcp',
     API = 'api',
     CLI = 'cli',
     METRICS_EXPLORER = 'metricsExplorer',
