@@ -1,3 +1,10 @@
+# [0.1902.0](https://github.com/lightdash/lightdash/compare/0.1901.3...0.1902.0) (2025-08-12)
+
+
+### Features
+
+* update agent edit ui ([#15941](https://github.com/lightdash/lightdash/issues/15941)) ([e513461](https://github.com/lightdash/lightdash/commit/e5134619b740a418a777b0da7ee0b9c1ca29d1c9))
+
 ## [0.1901.3](https://github.com/lightdash/lightdash/compare/0.1901.2...0.1901.3) (2025-08-12)
 
 
