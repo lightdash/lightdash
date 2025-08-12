@@ -1,3 +1,10 @@
+## [0.1899.1-alpha.1](https://github.com/lightdash/lightdash/compare/0.1899.0...0.1899.1-alpha.1) (2025-08-12)
+
+
+### Bug Fixes
+
+* release sdk on merge ([eb4a3ea](https://github.com/lightdash/lightdash/commit/eb4a3ea37280f935fde8f87153439f4210b755f1))
+
 # [0.1899.0](https://github.com/lightdash/lightdash/compare/0.1898.0...0.1899.0) (2025-08-12)
 
 
