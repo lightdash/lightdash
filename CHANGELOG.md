@@ -1,3 +1,10 @@
+# [0.1911.0](https://github.com/lightdash/lightdash/compare/0.1910.0...0.1911.0) (2025-08-13)
+
+
+### Features
+
+* enable useOrgs to work with accounts ([#16204](https://github.com/lightdash/lightdash/issues/16204)) ([17efcb0](https://github.com/lightdash/lightdash/commit/17efcb01e3deb9a3a0c263b67503604689bf2d73))
+
 # [0.1910.0](https://github.com/lightdash/lightdash/compare/0.1909.0...0.1910.0) (2025-08-13)
 
 
