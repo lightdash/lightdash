@@ -1,10 +1,11 @@
 import { getItemId, getMetrics } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine/core';
+import { Button, MantineProvider, Tooltip } from '@mantine-8/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
+import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
@@ -59,7 +60,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     };
 
     return (
-        <>
+        <MantineProvider theme={getMantine8ThemeOverride()}>
             <Tooltip
                 label={
                     'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
@@ -76,7 +77,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
                     color={isExplorer ? 'blue' : 'green.7'}
                     size="xs"
                     loading={update.isLoading}
-                    leftIcon={
+                    leftSection={
                         isExplorer ? (
                             <MantineIcon icon={IconDeviceFloppy} />
                         ) : undefined
@@ -84,7 +85,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
                     {...(isDisabled && {
                         'data-disabled': true,
                     })}
-                    sx={{
+                    style={{
                         '&[data-disabled="true"]': {
                             pointerEvents: 'all',
                         },
@@ -104,7 +105,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
                     defaultSpaceUuid={spaceUuid ?? undefined}
                 />
             )}
-        </>
+        </MantineProvider>
     );
 };
 
