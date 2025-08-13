@@ -20,7 +20,7 @@ import {
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { IconEye, IconSearch, IconX } from '@tabler/icons-react';
 import { format } from 'date-fns';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
 import MantineIcon from '../common/MantineIcon';
@@ -64,10 +64,6 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     const { cx, classes } = useTableStyles();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
-
-    useEffect(() => {
-      setPage(1);
-    }, [debouncedSearch]);
     const [page, setPage] = useState(1);
     const [sortBy, setSortBy] = useState<'name' | 'created_at'>('created_at');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -76,6 +72,10 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
         name: string;
         config: Record<string, any>;
     } | null>(null);
+
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch]);
 
     const { data, isLoading, isError } = useProjectParametersList({
         projectUuid,
