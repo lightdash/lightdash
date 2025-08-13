@@ -3,6 +3,7 @@ import {
     ApiDefaultRoleResponse,
     ApiDeleteRoleResponse,
     ApiErrorPayload,
+    ApiGetProjectAccessResponse,
     ApiGetRolesResponse,
     ApiRemoveScopeFromRoleResponse,
     ApiRoleWithScopesResponse,
@@ -31,13 +32,22 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
-} from '../authentication';
-import { BaseController } from '../baseController';
+} from '../../controllers/authentication';
+import { BaseController } from '../../controllers/baseController';
+import { RolesService } from '../services/RolesService';
 
 @Route('/api/v2/roles')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Roles')
 export class RolesController extends BaseController {
+    /**
+     * Convenience method to access the roles service without having
+     * to specify an interface type.
+     */
+    protected getRolesService() {
+        return this.services.getRolesService<RolesService>();
+    }
+
     /**
      * Get roles for organization
      */
@@ -51,9 +61,11 @@ export class RolesController extends BaseController {
         @Query() load?: string,
     ): Promise<ApiGetRolesResponse | ApiRoleWithScopesResponse> {
         const loadScopes = load === 'scopes';
-        const roles = await this.services
-            .getRolesService()
-            .getRolesByOrganizationUuid(req.user!, orgUuid, loadScopes);
+        const roles = await this.getRolesService().getRolesByOrganizationUuid(
+            req.account!,
+            orgUuid,
+            loadScopes,
+        );
 
         this.setStatus(200);
         return {
@@ -78,9 +90,11 @@ export class RolesController extends BaseController {
         @Path() orgUuid: string,
         @Body() body: CreateRole,
     ): Promise<ApiDefaultRoleResponse> {
-        const role = await this.services
-            .getRolesService()
-            .createRole(req.user!, orgUuid, body);
+        const role = await this.getRolesService().createRole(
+            req.account!,
+            orgUuid,
+            body,
+        );
 
         this.setStatus(201);
         return {
@@ -105,9 +119,11 @@ export class RolesController extends BaseController {
         @Path() roleUuid: string,
         @Body() body: UpdateRole,
     ): Promise<ApiDefaultRoleResponse> {
-        const role = await this.services
-            .getRolesService()
-            .updateRole(req.user!, roleUuid, body);
+        const role = await this.getRolesService().updateRole(
+            req.account!,
+            roleUuid,
+            body,
+        );
 
         this.setStatus(200);
         return {
@@ -131,7 +147,7 @@ export class RolesController extends BaseController {
         @Request() req: express.Request,
         @Path() roleUuid: string,
     ): Promise<ApiDeleteRoleResponse> {
-        await this.services.getRolesService().deleteRole(req.user!, roleUuid);
+        await this.getRolesService().deleteRole(req.account!, roleUuid);
 
         this.setStatus(200);
         return {
@@ -157,9 +173,12 @@ export class RolesController extends BaseController {
         @Path() userId: string,
         @Path() roleId: string,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .assignRoleToUser(req.user!, userId, roleId, orgUuid);
+        await this.getRolesService().assignRoleToUser(
+            req.account!,
+            userId,
+            roleId,
+            orgUuid,
+        );
 
         this.setStatus(200);
         return {
@@ -185,9 +204,12 @@ export class RolesController extends BaseController {
         @Path() roleId: string,
         @Query() projectUuid?: string,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .assignRoleToGroup(req.user!, groupId, roleId, projectUuid);
+        await this.getRolesService().assignRoleToGroup(
+            req.account!,
+            groupId,
+            roleId,
+            projectUuid,
+        );
 
         this.setStatus(200);
         return {
@@ -206,21 +228,16 @@ export class RolesController extends BaseController {
     async getProjectAccess(
         @Request() req: express.Request,
         @Path() projectId: string,
-    ): Promise<{
-        status: 'ok';
-        results: {
-            users: unknown[];
-            groups: unknown[];
-        };
-    }> {
-        const access = await this.services
-            .getRolesService()
-            .getProjectAccess(req.user!, projectId);
+    ): Promise<ApiGetProjectAccessResponse> {
+        const user = await this.getRolesService().getProjectAccess(
+            req.account!,
+            projectId,
+        );
 
         this.setStatus(200);
         return {
             status: 'ok',
-            results: access,
+            results: user,
         };
     }
 
@@ -241,9 +258,12 @@ export class RolesController extends BaseController {
         @Path() projectId: string,
         @Body() body: { roleUuid: string },
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .assignRoleToGroup(req.user!, groupId, body.roleUuid, projectId);
+        await this.getRolesService().assignRoleToGroup(
+            req.account!,
+            groupId,
+            body.roleUuid,
+            projectId,
+        );
 
         this.setStatus(200);
         return {
@@ -268,9 +288,11 @@ export class RolesController extends BaseController {
         @Path() groupId: string,
         @Path() projectId: string,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .unassignRoleFromGroup(req.user!, groupId, projectId);
+        await this.getRolesService().unassignRoleFromGroup(
+            req.account!,
+            groupId,
+            projectId,
+        );
 
         this.setStatus(200);
         return {
@@ -288,22 +310,20 @@ export class RolesController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Patch('/projects/{projectId}/access/{accessId}')
+    @Patch('/projects/{projectId}/user/{userUuid}')
     @OperationId('UpdateUserProjectAccess')
     async updateUserProjectAccess(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Path() accessId: string,
+        @Path() userUuid: string,
         @Body() body: { roleUuid: string },
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .updateUserProjectAccess(
-                req.user!,
-                projectId,
-                accessId,
-                body.roleUuid,
-            );
+        await this.getRolesService().updateUserProjectAccess(
+            req.account!,
+            projectId,
+            userUuid,
+            body.roleUuid,
+        );
 
         this.setStatus(200);
         return {
@@ -321,16 +341,18 @@ export class RolesController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Delete('/projects/{projectId}/access/{accessId}')
+    @Delete('/projects/{projectId}/user/{userUuid}')
     @OperationId('RemoveUserProjectAccess')
     async removeUserProjectAccess(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Path() accessId: string,
+        @Path() userUuid: string,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .removeUserProjectAccess(req.user!, projectId, accessId);
+        await this.getRolesService().removeUserProjectAccess(
+            req.account!,
+            projectId,
+            userUuid,
+        );
 
         this.setStatus(200);
         return {
@@ -355,14 +377,12 @@ export class RolesController extends BaseController {
         @Path() projectId: string,
         @Body() body: { userUuid: string; roleUuid: string },
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .createUserProjectAccess(
-                req.user!,
-                projectId,
-                body.userUuid,
-                body.roleUuid,
-            );
+        await this.getRolesService().createUserProjectAccess(
+            req.account!,
+            projectId,
+            body.userUuid,
+            body.roleUuid,
+        );
 
         this.setStatus(201);
         return {
@@ -387,9 +407,11 @@ export class RolesController extends BaseController {
         @Path() roleUuid: string,
         @Body() body: AddScopesToRole,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.services
-            .getRolesService()
-            .addScopesToRole(req.user!, roleUuid, body);
+        await this.getRolesService().addScopesToRole(
+            req.account!,
+            roleUuid,
+            body,
+        );
 
         this.setStatus(200);
         return {
@@ -414,9 +436,11 @@ export class RolesController extends BaseController {
         @Path() roleUuid: string,
         @Path() scopeName: string,
     ): Promise<ApiRemoveScopeFromRoleResponse> {
-        await this.services
-            .getRolesService()
-            .removeScopeFromRole(req.user!, roleUuid, scopeName);
+        await this.getRolesService().removeScopeFromRole(
+            req.account!,
+            roleUuid,
+            scopeName,
+        );
 
         this.setStatus(200);
         return {

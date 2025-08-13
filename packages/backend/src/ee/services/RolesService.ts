@@ -1,22 +1,22 @@
+import { subject } from '@casl/ability';
 import {
+    Account,
     AddScopesToRole,
     CreateRole,
     ForbiddenError,
-    NotFoundError,
     ParameterError,
     Role,
     RoleWithScopes,
-    SessionUser,
     UpdateRole,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { LightdashConfig } from '../config/parseConfig';
-import { GroupsModel } from '../models/GroupsModel';
-import { OrganizationModel } from '../models/OrganizationModel';
-import { ProjectModel } from '../models/ProjectModel/ProjectModel';
-import { RolesModel } from '../models/RolesModel';
-import { UserModel } from '../models/UserModel';
-import { BaseService } from './BaseService';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { LightdashConfig } from '../../config/parseConfig';
+import { GroupsModel } from '../../models/GroupsModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { RolesModel } from '../../models/RolesModel';
+import { UserModel } from '../../models/UserModel';
+import { BaseService } from '../../services/BaseService';
 
 type RolesServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -63,23 +63,63 @@ export class RolesService extends BaseService {
     }
 
     private static validateOrganizationAccess(
-        user: SessionUser,
-        organizationUuid: string,
+        account: Account,
+        organizationUuid?: string,
     ): void {
+        if (!organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        if (account.organization?.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError();
+        }
+
         if (
-            !user.organizationUuid ||
-            user.organizationUuid !== organizationUuid
+            account.user.ability.cannot(
+                'manage',
+                subject('Organization', {
+                    organizationUuid,
+                }),
+            )
         ) {
             throw new ForbiddenError();
         }
     }
 
-    private static validateRoleOwnership(user: SessionUser, role: Role): void {
+    private static validateRoleOwnership(account: Account, role: Role): void {
+        if (account.organization?.organizationUuid !== role.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
         if (
-            !user.organizationUuid ||
-            user.organizationUuid !== role.organizationUuid
+            account.user.ability.cannot(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: role.organizationUuid,
+                }),
+            )
         ) {
             throw new ForbiddenError();
+        }
+    }
+
+    private async validateProjectAccess(
+        account: Account,
+        projectUuid?: string,
+    ) {
+        if (projectUuid) {
+            const project = await this.projectModel.getSummary(projectUuid);
+            if (
+                account.user.ability.cannot(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
     }
 
@@ -98,11 +138,11 @@ export class RolesService extends BaseService {
     }
 
     async getRolesByOrganizationUuid(
-        user: SessionUser,
+        account: Account,
         organizationUuid: string,
         loadScopes?: boolean,
     ): Promise<Role[] | RoleWithScopes[]> {
-        RolesService.validateOrganizationAccess(user, organizationUuid);
+        RolesService.validateOrganizationAccess(account, organizationUuid);
 
         if (loadScopes) {
             return this.rolesModel.getRolesWithScopesByOrganizationUuid(
@@ -114,26 +154,22 @@ export class RolesService extends BaseService {
     }
 
     async createRole(
-        user: SessionUser,
+        account: Account,
         organizationUuid: string,
         createRoleData: CreateRole,
     ): Promise<Role> {
-        RolesService.validateOrganizationAccess(user, organizationUuid);
+        RolesService.validateOrganizationAccess(account, organizationUuid);
         RolesService.validateRoleName(createRoleData.name);
 
-        const role = await this.rolesModel.createRole(
-            organizationUuid,
-            {
-                name: createRoleData.name,
-                description: createRoleData.description || null,
-                created_by: user.userUuid,
-            },
-            user,
-        );
+        const role = await this.rolesModel.createRole(organizationUuid, {
+            name: createRoleData.name,
+            description: createRoleData.description || null,
+            created_by: account.user?.id,
+        });
 
         this.analytics.track({
             event: 'role.created',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 roleUuid: role.roleUuid,
                 roleName: role.name,
@@ -145,12 +181,12 @@ export class RolesService extends BaseService {
     }
 
     async updateRole(
-        user: SessionUser,
+        account: Account,
         roleUuid: string,
         updateRoleData: UpdateRole,
     ): Promise<Role> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(user, role);
+        RolesService.validateRoleOwnership(account, role);
 
         if (updateRoleData.name) {
             RolesService.validateRoleName(updateRoleData.name);
@@ -163,7 +199,7 @@ export class RolesService extends BaseService {
 
         this.analytics.track({
             event: 'role.updated',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 roleUuid: updatedRole.roleUuid,
                 roleName: updatedRole.name,
@@ -174,15 +210,15 @@ export class RolesService extends BaseService {
         return updatedRole;
     }
 
-    async deleteRole(user: SessionUser, roleUuid: string): Promise<void> {
+    async deleteRole(account: Account, roleUuid: string): Promise<void> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(user, role);
+        RolesService.validateRoleOwnership(account, role);
 
         await this.rolesModel.deleteRole(roleUuid);
 
         this.analytics.track({
             event: 'role.deleted',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 roleUuid,
                 roleName: role.name,
@@ -192,14 +228,15 @@ export class RolesService extends BaseService {
     }
 
     async assignRoleToUser(
-        user: SessionUser,
+        account: Account,
         userUuid: string,
         roleUuid: string,
         organizationUuid?: string,
         projectUuid?: string,
     ): Promise<void> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(user, role);
+        RolesService.validateRoleOwnership(account, role);
+        await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.assignRoleToUser(
             userUuid,
@@ -210,7 +247,7 @@ export class RolesService extends BaseService {
 
         this.analytics.track({
             event: 'role.assigned_to_user',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 roleUuid,
                 targetUserUuid: userUuid,
@@ -221,16 +258,13 @@ export class RolesService extends BaseService {
     }
 
     async unassignRoleFromUser(
-        user: SessionUser,
+        account: Account,
         userUuid: string,
         organizationUuid?: string,
         projectUuid?: string,
     ): Promise<void> {
-        if (organizationUuid) {
-            RolesService.validateOrganizationAccess(user, organizationUuid);
-        } else if (!user.organizationUuid) {
-            throw new ForbiddenError();
-        }
+        RolesService.validateOrganizationAccess(account, organizationUuid);
+        await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.unassignRoleFromUser(
             userUuid,
@@ -240,7 +274,7 @@ export class RolesService extends BaseService {
 
         this.analytics.track({
             event: 'role.unassigned_from_user',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 targetUserUuid: userUuid,
                 organizationUuid,
@@ -250,13 +284,14 @@ export class RolesService extends BaseService {
     }
 
     async assignRoleToGroup(
-        user: SessionUser,
+        account: Account,
         groupUuid: string,
         roleUuid: string,
         projectUuid?: string,
     ): Promise<void> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(user, role);
+        RolesService.validateRoleOwnership(account, role);
+        await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.assignRoleToGroup(
             groupUuid,
@@ -266,7 +301,7 @@ export class RolesService extends BaseService {
 
         this.analytics.track({
             event: 'role.assigned_to_group',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 roleUuid,
                 groupUuid,
@@ -277,19 +312,21 @@ export class RolesService extends BaseService {
     }
 
     async unassignRoleFromGroup(
-        user: SessionUser,
+        account: Account,
         groupUuid: string,
         projectUuid?: string,
     ): Promise<void> {
-        if (!user.organizationUuid) {
-            throw new ForbiddenError();
-        }
+        RolesService.validateOrganizationAccess(
+            account,
+            account.organization?.organizationUuid,
+        );
+        await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.unassignRoleFromGroup(groupUuid, projectUuid);
 
         this.analytics.track({
             event: 'role.unassigned_from_group',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 groupUuid,
                 projectUuid,
@@ -297,9 +334,13 @@ export class RolesService extends BaseService {
         });
     }
 
-    async getProjectAccess(user: SessionUser, projectUuid: string) {
+    async getProjectAccess(account: Account, projectUuid: string) {
         const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(user, project.organizationUuid);
+        RolesService.validateOrganizationAccess(
+            account,
+            project.organizationUuid,
+        );
+        await this.validateProjectAccess(account, projectUuid);
 
         const userAccess = await this.rolesModel.getProjectAccess(projectUuid);
 
@@ -314,13 +355,17 @@ export class RolesService extends BaseService {
     }
 
     async createUserProjectAccess(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         userUuid: string,
         roleUuid: string,
     ): Promise<void> {
         const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(user, project.organizationUuid);
+        RolesService.validateOrganizationAccess(
+            account,
+            project.organizationUuid,
+        );
+        await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.createUserProjectAccess(
             projectUuid,
@@ -330,7 +375,7 @@ export class RolesService extends BaseService {
 
         this.analytics.track({
             event: 'project_access.created',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 projectUuid,
                 targetUserUuid: userUuid,
@@ -340,64 +385,72 @@ export class RolesService extends BaseService {
     }
 
     async updateUserProjectAccess(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
-        accessId: string,
+        userUuid: string,
         roleUuid: string,
     ): Promise<void> {
         const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(user, project.organizationUuid);
+        RolesService.validateOrganizationAccess(
+            account,
+            project.organizationUuid,
+        );
+        await this.validateProjectAccess(account, projectUuid);
 
-        await this.rolesModel.updateUserProjectAccess(accessId, roleUuid);
+        await this.rolesModel.updateUserProjectAccess(userUuid, roleUuid);
 
         this.analytics.track({
             event: 'project_access.updated',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 projectUuid,
-                accessId,
+                userUuid,
                 roleUuid,
             },
         });
     }
 
     async removeUserProjectAccess(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
-        accessId: string,
+        userUuid: string,
     ): Promise<void> {
         const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(user, project.organizationUuid);
+        RolesService.validateOrganizationAccess(
+            account,
+            project.organizationUuid,
+        );
+        await this.validateProjectAccess(account, projectUuid);
 
-        await this.rolesModel.removeUserProjectAccess(accessId);
+        await this.rolesModel.removeUserProjectAccess(userUuid);
 
         this.analytics.track({
             event: 'project_access.removed',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 projectUuid,
-                accessId,
+                userUuid,
             },
         });
     }
 
     async addScopesToRole(
-        user: SessionUser,
+        account: Account,
         roleUuid: string,
         scopeData: AddScopesToRole,
     ): Promise<void> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(user, role);
+        RolesService.validateRoleOwnership(account, role);
 
         await this.rolesModel.addScopesToRole(
             roleUuid,
             scopeData.scopeNames,
-            user.userUuid,
+            account.user?.id,
         );
 
         this.analytics.track({
             event: 'role.scopes_added',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 roleUuid,
                 scopeNames: scopeData.scopeNames,
@@ -407,18 +460,18 @@ export class RolesService extends BaseService {
     }
 
     async removeScopeFromRole(
-        user: SessionUser,
+        account: Account,
         roleUuid: string,
         scopeName: string,
     ): Promise<void> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(user, role);
+        RolesService.validateRoleOwnership(account, role);
 
         await this.rolesModel.removeScopeFromRole(roleUuid, scopeName);
 
         this.analytics.track({
             event: 'role.scope_removed',
-            userId: user.userUuid,
+            userId: account.user?.id,
             properties: {
                 roleUuid,
                 scopeName,

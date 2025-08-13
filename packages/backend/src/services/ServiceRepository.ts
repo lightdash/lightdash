@@ -33,7 +33,6 @@ import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
-import { RolesService } from './RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
@@ -71,7 +70,6 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     projectService: ProjectService;
-    rolesService: RolesService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
     searchService: SearchService;
@@ -105,6 +103,7 @@ interface ServiceManifest {
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
     mcpService: unknown;
+    rolesService: unknown;
 }
 
 /**
@@ -563,22 +562,6 @@ export class ServiceRepository
         );
     }
 
-    public getRolesService(): RolesService {
-        return this.getService(
-            'rolesService',
-            () =>
-                new RolesService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    analytics: this.context.lightdashAnalytics,
-                    rolesModel: this.models.getRolesModel(),
-                    userModel: this.models.getUserModel(),
-                    organizationModel: this.models.getOrganizationModel(),
-                    groupsModel: this.models.getGroupsModel(),
-                    projectModel: this.models.getProjectModel(),
-                }),
-        );
-    }
-
     public getSavedChartService(): SavedChartService {
         return this.getService(
             'savedChartService',
@@ -891,6 +874,10 @@ export class ServiceRepository
 
     public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {
         return this.getService('aiAgentService');
+    }
+
+    public getRolesService<RolesServiceImplT>(): RolesServiceImplT {
+        return this.getService('rolesService');
     }
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {

@@ -1,5 +1,21 @@
 import type { ApiSuccessEmpty } from './api/success';
 
+export type ProjectAccess = {
+    accessId: string;
+    projectUuid: string;
+    userUuid: string;
+    role: string;
+    firstName: string;
+    lastName: string;
+};
+
+export type GroupProjectAccess = {
+    groupUuid: string;
+    projectUuid: string;
+    role: string;
+    groupName: string;
+};
+
 export type Role = {
     roleUuid: string;
     name: string;
@@ -50,3 +66,11 @@ export type ApiDeleteRoleResponse = ApiSuccessEmpty;
 export type ApiRemoveScopeFromRoleResponse = ApiSuccessEmpty;
 
 export type ApiUnassignRoleFromUserResponse = ApiSuccessEmpty;
+
+export type ApiGetProjectAccessResponse = {
+    status: 'ok';
+    results: {
+        users: ProjectAccess[];
+        groups: GroupProjectAccess[];
+    };
+};

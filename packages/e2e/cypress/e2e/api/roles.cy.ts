@@ -11,22 +11,22 @@ const apiUrl = '/api/v2/roles';
 describe('Roles API Tests', () => {
     beforeEach(() => {
         cy.login();
+        cy.wrap(null).as('testRoleUuid'); // placeholder for testRoleUuid alias
     });
 
-    let testRoleUuid: string | undefined;
     const testOrgUuid = SEED_ORG_1.organization_uuid;
 
     afterEach(() => {
         // Clean up test role if it exists
-        if (testRoleUuid) {
-            cy.request({
-                url: `${apiUrl}/${testRoleUuid}`,
-                method: 'DELETE',
-                failOnStatusCode: false,
-            }).then(() => {
-                testRoleUuid = undefined;
-            });
-        }
+        cy.get('@testRoleUuid').then((testRoleUuid) => {
+            if (testRoleUuid) {
+                cy.request({
+                    url: `${apiUrl}/${testRoleUuid}`,
+                    method: 'DELETE',
+                    failOnStatusCode: false,
+                });
+            }
+        });
     });
 
     describe('Organization Roles', () => {
@@ -56,7 +56,7 @@ describe('Roles API Tests', () => {
                 );
 
                 // Store for cleanup
-                testRoleUuid = resp.body.results.roleUuid;
+                cy.wrap(resp.body.results.roleUuid).as('testRoleUuid');
             });
         });
 
@@ -71,7 +71,7 @@ describe('Roles API Tests', () => {
             }).then((createResp) => {
                 expect(createResp.status).to.eq(201);
                 // Store for cleanup
-                testRoleUuid = createResp.body.results.roleUuid;
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
                 cy.request({
                     url: `${apiUrl}/org/${testOrgUuid}`,
@@ -97,11 +97,11 @@ describe('Roles API Tests', () => {
             }).then((createResp) => {
                 expect(createResp.status).to.eq(201);
                 // Store for cleanup
-                testRoleUuid = createResp.body.results.roleUuid;
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
                 // Add scopes to role
                 cy.request({
-                    url: `${apiUrl}/${testRoleUuid}/scopes`,
+                    url: `${apiUrl}/${createResp.body.results.roleUuid}/scopes`,
                     method: 'POST',
                     body: {
                         scopeNames: ['view_project', 'view_dashboard'],
@@ -120,7 +120,9 @@ describe('Roles API Tests', () => {
                         // When loading scopes, each role should have a scopes property
                         expect(resp.body.results.length).to.be.greaterThan(0);
                         const roleWithScopes = resp.body.results.find(
-                            (role: AnyType) => role.roleUuid === testRoleUuid,
+                            (role: AnyType) =>
+                                role.roleUuid ===
+                                createResp.body.results.roleUuid,
                         );
                         expect(roleWithScopes).to.have.property('scopes');
                         expect(roleWithScopes.scopes).to.be.an('array');
@@ -159,7 +161,7 @@ describe('Roles API Tests', () => {
                 },
             }).then((createResp) => {
                 // Store for cleanup
-                testRoleUuid = createResp.body.results.roleUuid;
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
                 const { roleUuid } = createResp.body.results;
                 const updatedDescription = 'Updated description';
@@ -227,7 +229,7 @@ describe('Roles API Tests', () => {
                 },
             }).then((createResp) => {
                 // Store for cleanup
-                testRoleUuid = createResp.body.results.roleUuid;
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
                 const { roleUuid } = createResp.body.results;
 
@@ -255,7 +257,7 @@ describe('Roles API Tests', () => {
                 },
             }).then((createResp) => {
                 // Store for cleanup
-                testRoleUuid = createResp.body.results.roleUuid;
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
                 const { roleUuid } = createResp.body.results;
 
@@ -287,36 +289,31 @@ describe('Roles API Tests', () => {
         });
 
         it('should create user project access', () => {
-            let testUserUuid: string;
+            const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
-            // Get current user UUID
-            cy.request('api/v1/user').then((userResp) => {
-                testUserUuid = userResp.body.results.userUuid;
+            // Create a test role
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: `Project Access Role ${new Date().getTime()}`,
+                    description: 'Role for project access testing',
+                },
+            }).then((roleResp) => {
+                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
 
-                // Create a test role
+                // Create project access
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}`,
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
                     method: 'POST',
                     body: {
-                        name: `Project Access Role ${new Date().getTime()}`,
-                        description: 'Role for project access testing',
+                        userUuid: testUserUuid,
+                        roleUuid: roleResp.body.results.roleUuid,
                     },
-                }).then((roleResp) => {
-                    testRoleUuid = roleResp.body.results.roleUuid;
-
-                    // Create project access
-                    cy.request({
-                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
-                        method: 'POST',
-                        body: {
-                            userUuid: testUserUuid,
-                            roleUuid: testRoleUuid,
-                        },
-                        failOnStatusCode: false, // May fail if user already has access
-                    }).then((accessResp) => {
-                        // May return 409 if user already has access, which is acceptable
-                        expect([200, 201, 409]).to.include(accessResp.status);
-                    });
+                    failOnStatusCode: false, // May fail if user already has access
+                }).then((accessResp) => {
+                    // May return 409 if user already has access, which is acceptable
+                    expect([200, 201, 409]).to.include(accessResp.status);
                 });
             });
         });
@@ -331,14 +328,14 @@ describe('Roles API Tests', () => {
                     description: 'Role for group project assignment',
                 },
             }).then((roleResp) => {
-                testRoleUuid = roleResp.body.results.roleUuid;
+                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
 
                 // Assign group to project
                 cy.request({
                     url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
                     method: 'PATCH',
                     body: {
-                        roleUuid: testRoleUuid,
+                        roleUuid: roleResp.body.results.roleUuid,
                     },
                 }).then((assignResp) => {
                     expect(assignResp.status).to.eq(200);
@@ -371,7 +368,7 @@ describe('Roles API Tests', () => {
                 },
             }).then((createResp) => {
                 // Store for cleanup
-                testRoleUuid = createResp.body.results.roleUuid;
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
                 const { roleUuid } = createResp.body.results;
 
@@ -452,6 +449,205 @@ describe('Roles API Tests', () => {
                         expect([403, 404]).to.include(deleteResp.status);
                     });
                 }
+            });
+        });
+    });
+
+    describe('Project Permission Checks', () => {
+        it('should forbid viewer from creating roles', () => {
+            cy.loginWithPermissions('member', [
+                {
+                    role: 'viewer',
+                    projectUuid: SEED_PROJECT.project_uuid,
+                },
+            ]).then(() => {
+                cy.request({
+                    url: `${apiUrl}/org/${testOrgUuid}`,
+                    method: 'POST',
+                    body: {
+                        name: `Unauthorized Role ${new Date().getTime()}`,
+                        description: 'This should fail',
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(403);
+                });
+            });
+        });
+        it('should forbid viewer from getting project access', () => {
+            cy.loginWithPermissions('member', [
+                {
+                    role: 'viewer',
+                    projectUuid: SEED_PROJECT.project_uuid,
+                },
+            ]).then(() => {
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
+                    method: 'GET',
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(403);
+                });
+            });
+        });
+
+        it('should forbid viewer from creating user project access', () => {
+            // First create a role as admin
+            cy.login();
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: `Test Role ${new Date().getTime()}`,
+                    description: 'Test role for permission testing',
+                },
+            }).then((roleResp) => {
+                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
+
+                const { roleUuid } = roleResp.body.results;
+
+                cy.loginWithPermissions('member', [
+                    {
+                        role: 'viewer',
+                        projectUuid: SEED_PROJECT.project_uuid,
+                    },
+                ]).then(() => {
+                    cy.request({
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
+                        method: 'POST',
+                        body: {
+                            userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                            roleUuid,
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        expect(resp.status).to.eq(403);
+                    });
+                });
+
+                // Try to create project access as viewer
+            });
+        });
+
+        it('should forbid viewer from updating user project access', () => {
+            // First create a role as admin
+            cy.login();
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: `Update Test Role ${new Date().getTime()}`,
+                    description: 'Test role for update permission testing',
+                },
+            }).then((roleResp) => {
+                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
+
+                const { roleUuid } = roleResp.body.results;
+
+                cy.loginWithPermissions('member', [
+                    {
+                        role: 'viewer',
+                        projectUuid: SEED_PROJECT.project_uuid,
+                    },
+                ]).then(() => {
+                    // Try to update project access as viewer
+                    cy.request({
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+                        method: 'PATCH',
+                        body: {
+                            roleUuid,
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        expect(resp.status).to.eq(403);
+                    });
+                });
+            });
+        });
+
+        it('should forbid viewer from removing user project access', () => {
+            cy.loginWithPermissions('member', [
+                {
+                    role: 'viewer',
+                    projectUuid: SEED_PROJECT.project_uuid,
+                },
+            ]).then(() => {
+                // Try to remove project access as viewer
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+                    method: 'DELETE',
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(403);
+                });
+            });
+        });
+
+        it('should forbid viewer from assigning group to project', () => {
+            // First create a role as admin
+            cy.login();
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: `Group Test Role ${new Date().getTime()}`,
+                    description: 'Test role for group permission testing',
+                },
+            }).then((roleResp) => {
+                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
+
+                const { roleUuid } = roleResp.body.results;
+
+                cy.loginWithPermissions('member', [
+                    {
+                        role: 'viewer',
+                        projectUuid: SEED_PROJECT.project_uuid,
+                    },
+                ]).then(() => {
+                    cy.request({
+                        url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                        method: 'PATCH',
+                        body: {
+                            roleUuid,
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        expect(resp.status).to.eq(403);
+                    });
+                });
+            });
+        });
+
+        it('should forbid viewer from removing group from project', () => {
+            cy.loginWithPermissions('member', [
+                {
+                    role: 'viewer',
+                    projectUuid: SEED_PROJECT.project_uuid,
+                },
+            ]).then(() => {
+                // Try to remove group from project as viewer
+                cy.request({
+                    url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
+                    method: 'DELETE',
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(403);
+                });
+            });
+        });
+
+        it('should allow admin to manage project access', () => {
+            cy.login(); // Switch back to admin
+
+            // Admin should be able to get project access
+            cy.request({
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
+                method: 'GET',
+            }).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+                expect(resp.body.results).to.have.property('users');
+                expect(resp.body.results).to.have.property('groups');
             });
         });
     });

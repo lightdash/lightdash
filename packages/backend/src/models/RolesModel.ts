@@ -1,13 +1,12 @@
 import {
+    GroupProjectAccess,
     NotFoundError,
-    NotImplementedError,
+    ProjectAccess,
     ProjectMemberRole,
     Role,
     RoleWithScopes,
-    SessionUser,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
@@ -23,22 +22,6 @@ import { UserTableName } from '../database/entities/users';
 
 type DbRoleWithScopes = DbRole & {
     scopes: string;
-};
-
-type ProjectAccess = {
-    accessId: string;
-    projectUuid: string;
-    userUuid: string;
-    role: string;
-    firstName: string;
-    lastName: string;
-};
-
-type GroupProjectAccess = {
-    groupUuid: string;
-    projectUuid: string;
-    role: string;
-    groupName: string;
 };
 
 export class RolesModel {
@@ -114,7 +97,7 @@ export class RolesModel {
     async getRolesWithScopesByOrganizationUuid(
         organizationUuid: string,
     ): Promise<RoleWithScopes[]> {
-        const query = this.database(RolesTableName)
+        const roles = await this.database(RolesTableName)
             .leftJoin(
                 ScopedRolesTableName,
                 `${RolesTableName}.role_uuid`,
@@ -130,7 +113,6 @@ export class RolesModel {
             .orWhere(`${RolesTableName}.owner_type`, 'system')
             .groupBy(`${RolesTableName}.role_uuid`);
 
-        const roles = await query;
         return roles.map(RolesModel.mapDbRoleWithScopesToRoleWithScopes);
     }
 
@@ -149,14 +131,13 @@ export class RolesModel {
     async createRole(
         organizationUuid: string,
         roleData: Omit<DbRoleInsert, 'organization_uuid'>,
-        user: SessionUser,
     ): Promise<Role> {
         const [role] = await this.database(RolesTableName)
             .insert({
                 name: roleData.name,
                 description: roleData.description,
                 organization_uuid: organizationUuid,
-                created_by: user.userUuid,
+                created_by: roleData.created_by,
             })
             .returning('*');
 
@@ -396,25 +377,25 @@ export class RolesModel {
     }
 
     async updateUserProjectAccess(
-        accessId: string,
+        userUuid: string,
         roleUuid: string,
     ): Promise<void> {
         const updatedCount = await this.database(ProjectMembershipsTableName)
-            .where('user_uuid', accessId)
+            .where('user_uuid', userUuid)
             .update({ role_uuid: roleUuid });
 
         if (updatedCount === 0) {
-            throw new NotFoundError(`Access with id ${accessId} not found`);
+            throw new NotFoundError(`Access with id ${userUuid} not found`);
         }
     }
 
-    async removeUserProjectAccess(accessId: string): Promise<void> {
+    async removeUserProjectAccess(userUuid: string): Promise<void> {
         const deletedCount = await this.database(ProjectMembershipsTableName)
-            .where('user_uuid', accessId)
+            .where('user_uuid', userUuid)
             .delete();
 
         if (deletedCount === 0) {
-            throw new NotFoundError(`Access with id ${accessId} not found`);
+            throw new NotFoundError(`Access with id ${userUuid} not found`);
         }
     }
 
