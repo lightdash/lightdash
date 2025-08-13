@@ -41,6 +41,7 @@ import {
     IconBook2,
     IconCheck,
     IconInfoCircle,
+    IconLock,
     IconPlug,
     IconPointFilled,
     IconRefresh,
@@ -540,124 +541,22 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 );
                                             }}
                                         />
+                                    </Stack>
+                                </Paper>
 
-                                        <Box>
-                                            <TagsInput
-                                                variant="subtle"
-                                                label={
-                                                    <Group gap="xs">
-                                                        <Text fz="sm" fw={500}>
-                                                            Tags
-                                                        </Text>
-                                                        <HoverCard
-                                                            position="right"
-                                                            withArrow
-                                                        >
-                                                            <HoverCard.Target>
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconInfoCircle
-                                                                    }
-                                                                />
-                                                            </HoverCard.Target>
-                                                            <HoverCard.Dropdown maw="250px">
-                                                                <Text fz="xs">
-                                                                    Add tags to
-                                                                    control
-                                                                    which
-                                                                    metrics and
-                                                                    dimensions
-                                                                    your AI
-                                                                    agent can
-                                                                    access. See
-                                                                    more in our{' '}
-                                                                    <Anchor
-                                                                        fz="xs"
-                                                                        c="dimmed"
-                                                                        underline="always"
-                                                                        href="https://docs.lightdash.com/guides/ai-agents#limiting-access-to-specific-explores-and-fields"
-                                                                        target="_blank"
-                                                                    >
-                                                                        docs
-                                                                    </Anchor>
-                                                                </Text>
-                                                            </HoverCard.Dropdown>
-                                                        </HoverCard>
-                                                    </Group>
-                                                }
-                                                placeholder="Select tags"
-                                                inputWrapperOrder={[
-                                                    'label',
-                                                    'input',
-                                                    'description',
-                                                ]}
-                                                description={
-                                                    exploreAccessSummaryQuery.isSuccess ? (
-                                                        exploreAccessSummaryQuery
-                                                            .data.length ===
-                                                        0 ? (
-                                                            'No explorers are available for this tag selection. Make sure to use the correct tags, or tag the project with the correct tags and redeploy the project.'
-                                                        ) : (
-                                                            <>
-                                                                {
-                                                                    exploreAccessSummaryQuery
-                                                                        .data
-                                                                        .length
-                                                                }{' '}
-                                                                explores will be
-                                                                available to
-                                                                this agent.{' '}
-                                                                <Anchor
-                                                                    size="xs"
-                                                                    onClick={
-                                                                        toggleExploreAccessSummary
-                                                                    }
-                                                                >
-                                                                    Click here
-                                                                </Anchor>{' '}
-                                                                to see detailed
-                                                                list with
-                                                                metrics and
-                                                                dimensions.
-                                                            </>
-                                                        )
-                                                    ) : (
-                                                        `Loading AI access information...`
-                                                    )
-                                                }
-                                                {...form.getInputProps('tags')}
-                                                value={
-                                                    form.getInputProps('tags')
-                                                        .value ?? []
-                                                }
-                                                onChange={(value) => {
-                                                    form.setFieldValue(
-                                                        'tags',
-                                                        value.length > 0
-                                                            ? value
-                                                            : null,
-                                                    );
-                                                }}
+                                <Paper p="xl">
+                                    <Group align="center" gap="xs" mb="md">
+                                        <Paper p="xxs" withBorder radius="sm">
+                                            <MantineIcon
+                                                icon={IconLock}
+                                                size="md"
                                             />
-
-                                            {exploreAccessSummaryQuery.isSuccess ? (
-                                                <Collapse
-                                                    mt="xs"
-                                                    in={
-                                                        isExploreAccessSummaryOpen
-                                                    }
-                                                >
-                                                    <Card>
-                                                        <AiExploreAccessTree
-                                                            exploreAccessSummary={
-                                                                exploreAccessSummaryQuery.data
-                                                            }
-                                                        />
-                                                    </Card>
-                                                </Collapse>
-                                            ) : null}
-                                        </Box>
-
+                                        </Paper>
+                                        <Title order={5} c="gray.9" fw={700}>
+                                            Access control
+                                        </Title>
+                                    </Group>
+                                    <Stack>
                                         <MultiSelect
                                             variant="subtle"
                                             renderOption={
@@ -796,6 +695,123 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 />
                                             </Stack>
                                         )}
+
+                                        <Box>
+                                            <TagsInput
+                                                variant="subtle"
+                                                label={
+                                                    <Group gap="xs">
+                                                        <Text fz="sm" fw={500}>
+                                                            Tags
+                                                        </Text>
+                                                        <HoverCard
+                                                            position="right"
+                                                            withArrow
+                                                        >
+                                                            <HoverCard.Target>
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconInfoCircle
+                                                                    }
+                                                                />
+                                                            </HoverCard.Target>
+                                                            <HoverCard.Dropdown maw="250px">
+                                                                <Text fz="xs">
+                                                                    Add tags to
+                                                                    control
+                                                                    which
+                                                                    metrics and
+                                                                    dimensions
+                                                                    your AI
+                                                                    agent can
+                                                                    access. See
+                                                                    more in our{' '}
+                                                                    <Anchor
+                                                                        fz="xs"
+                                                                        c="dimmed"
+                                                                        underline="always"
+                                                                        href="https://docs.lightdash.com/guides/ai-agents#limiting-access-to-specific-explores-and-fields"
+                                                                        target="_blank"
+                                                                    >
+                                                                        docs
+                                                                    </Anchor>
+                                                                </Text>
+                                                            </HoverCard.Dropdown>
+                                                        </HoverCard>
+                                                    </Group>
+                                                }
+                                                placeholder="Select tags"
+                                                inputWrapperOrder={[
+                                                    'label',
+                                                    'input',
+                                                    'description',
+                                                ]}
+                                                description={
+                                                    exploreAccessSummaryQuery.isSuccess ? (
+                                                        exploreAccessSummaryQuery
+                                                            .data.length ===
+                                                        0 ? (
+                                                            'No explorers are available for this tag selection. Make sure to use the correct tags, or tag the project with the correct tags and redeploy the project.'
+                                                        ) : (
+                                                            <>
+                                                                {
+                                                                    exploreAccessSummaryQuery
+                                                                        .data
+                                                                        .length
+                                                                }{' '}
+                                                                explores will be
+                                                                available to
+                                                                this agent.{' '}
+                                                                <Anchor
+                                                                    size="xs"
+                                                                    onClick={
+                                                                        toggleExploreAccessSummary
+                                                                    }
+                                                                >
+                                                                    Click here
+                                                                </Anchor>{' '}
+                                                                to see detailed
+                                                                list with
+                                                                metrics and
+                                                                dimensions.
+                                                            </>
+                                                        )
+                                                    ) : (
+                                                        `Loading AI access information...`
+                                                    )
+                                                }
+                                                {...form.getInputProps('tags')}
+                                                value={
+                                                    form.getInputProps('tags')
+                                                        .value ?? []
+                                                }
+                                                onChange={(value) => {
+                                                    form.setFieldValue(
+                                                        'tags',
+                                                        value.length > 0
+                                                            ? value
+                                                            : null,
+                                                    );
+                                                }}
+                                            />
+
+                                            {exploreAccessSummaryQuery.isSuccess ? (
+                                                <Collapse
+                                                    mt="xs"
+                                                    in={
+                                                        isExploreAccessSummaryOpen
+                                                    }
+                                                >
+                                                    <Card>
+                                                        <AiExploreAccessTree
+                                                            exploreAccessSummary={
+                                                                exploreAccessSummaryQuery.data
+                                                            }
+                                                        />
+                                                    </Card>
+                                                </Collapse>
+                                            ) : null}
+                                        </Box>
                                     </Stack>
                                 </Paper>
 
@@ -1121,6 +1137,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             </Stack>
                         </form>
                     </Tabs.Panel>
+
                     <Tabs.Panel value="conversations" pt="lg">
                         <ConversationsList
                             agentUuid={actualAgentUuid!}
