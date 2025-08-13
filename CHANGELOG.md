@@ -1,3 +1,10 @@
+# [0.1904.0](https://github.com/lightdash/lightdash/compare/0.1903.0...0.1904.0) (2025-08-13)
+
+
+### Features
+
+* use llmAsJudgeForTools in current tests ([#16306](https://github.com/lightdash/lightdash/issues/16306)) ([e194530](https://github.com/lightdash/lightdash/commit/e194530718feb44316e790599c635608bcfbcf98))
+
 # [0.1903.0](https://github.com/lightdash/lightdash/compare/0.1902.0...0.1903.0) (2025-08-12)
 
 
