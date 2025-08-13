@@ -50,7 +50,10 @@ export const RenderedSql = () => {
                 language: getLanguage(project?.warehouseConnection?.type),
             });
         } catch (e) {
-            console.error('Error rendering SQL:', e.message || 'Unknown error occurred');
+            console.error(
+                'Error rendering SQL:',
+                e instanceof Error ? e.message : 'Unknown error occurred',
+            );
             return data.query;
         }
     }, [data?.query, project?.warehouseConnection?.type]);
