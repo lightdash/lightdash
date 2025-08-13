@@ -1,3 +1,10 @@
+# [0.1912.0](https://github.com/lightdash/lightdash/compare/0.1911.0...0.1912.0) (2025-08-13)
+
+
+### Features
+
+* **slack:** add onReady callback for slack app initialization ([#16401](https://github.com/lightdash/lightdash/issues/16401)) ([21deabb](https://github.com/lightdash/lightdash/commit/21deabbb0354586a94c7e051419975ea89806c55))
+
 # [0.1911.0](https://github.com/lightdash/lightdash/compare/0.1910.0...0.1911.0) (2025-08-13)
 
 
