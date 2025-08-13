@@ -1474,6 +1474,12 @@
             },
             "DashboardConfig": {
                 "properties": {
+                    "pinnedParameters": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "isDateZoomDisabled": {
                         "type": "boolean"
                     }
@@ -12369,6 +12375,12 @@
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/Pick_UpdatedByUser.userUuid_"
+                    },
+                    "pinnedParameters": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"

@@ -109,4 +109,9 @@ export type DashboardContextType = {
     parameterDefinitions: ParameterDefinitions;
     setParameterDefinitions: Dispatch<SetStateAction<ParameterDefinitions>>;
     missingRequiredParameters: string[];
+    pinnedParameters: string[];
+    setPinnedParameters: (parameters: string[]) => void;
+    toggleParameterPin: (parameterKey: string) => void;
+    havePinnedParametersChanged: boolean;
+    setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
 };
