@@ -107,7 +107,7 @@ export type DashboardContextType = {
     tileParameterReferences: Record<string, string[]>;
     areAllChartsLoaded: boolean;
     parameterDefinitions: ParameterDefinitions;
-    setParameterDefinitions: Dispatch<SetStateAction<ParameterDefinitions>>;
+    addParameterDefinitions: (parameters: ParameterDefinitions) => void;
     missingRequiredParameters: string[];
     pinnedParameters: string[];
     setPinnedParameters: (parameters: string[]) => void;

@@ -104,6 +104,7 @@ type DbtModelLightdashConfig = ExploreConfig & {
     };
     explores?: Record<string, ExploreConfig>;
     ai_hint?: string | string[];
+    parameters?: LightdashProjectConfig['parameters'];
 };
 
 export type DbtModelGroup = {
