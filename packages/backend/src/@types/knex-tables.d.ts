@@ -127,8 +127,8 @@ import {
     CatalogTableName,
     CatalogTagsTable,
     CatalogTagsTableName,
-    MetricsTreeEdgesTableName,
     type MetricsTreeEdgesTable,
+    MetricsTreeEdgesTableName,
 } from '../database/entities/catalog';
 import {
     DashboardTileCommentsTable,
@@ -177,6 +177,12 @@ import {
     QueryHistoryTable,
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
+import {
+    RolesTableName,
+    RoleTable,
+    ScopedRolesTableName,
+    ScopedRoleTable,
+} from '../database/entities/roles';
 import {
     SavedSqlTable,
     SavedSqlTableName,
@@ -366,5 +372,7 @@ declare module 'knex/types/tables' {
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [ProjectParametersTableName]: ProjectParametersTable;
+        [RolesTableName]: RoleTable;
+        [ScopedRolesTableName]: ScopedRoleTable;
     }
 }
