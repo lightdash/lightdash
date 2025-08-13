@@ -59,6 +59,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
+import { getDashboardParametersValuesMap } from '../../../services/ProjectService/getDashboardParametersValuesMap';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -820,11 +821,13 @@ export class EmbedService extends BaseService {
             },
         });
 
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+
         // No parameters are passed in embed requests, just combine the saved parameters
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             {},
-            chart.parameters,
+            dashboardParameters,
         );
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
@@ -962,11 +965,14 @@ export class EmbedService extends BaseService {
                 warehouseClient,
             );
 
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+
         // No parameters are passed in embed requests, just combine the saved parameters
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             {},
-            chart.parameters,
+            dashboardParameters,
         );
 
         const { rows } = await this._runEmbedQuery({
@@ -1020,11 +1026,14 @@ export class EmbedService extends BaseService {
             ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
         ];
 
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+
         // No parameters are passed in embed requests, just combine the saved parameters
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
             {},
-            chart.parameters,
+            dashboardParameters,
         );
 
         return this._calculateSubtotalsForEmbed(

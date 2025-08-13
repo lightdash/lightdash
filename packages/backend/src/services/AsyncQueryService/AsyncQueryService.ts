@@ -19,6 +19,7 @@ import {
     CreateWarehouseCredentials,
     type CustomDimension,
     CustomSqlQueryForbiddenError,
+    type DashboardDAO,
     DashboardFilters,
     DEFAULT_RESULTS_PAGE_SIZE,
     Dimension,
@@ -102,6 +103,7 @@ import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getDashboardParametersValuesMap } from '../ProjectService/getDashboardParametersValuesMap';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -1940,22 +1942,6 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async getDashboardParameters(
-        dashboardUuid: string,
-    ): Promise<ParametersValuesMap | undefined> {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        const { parameters: rawDashboardParameters } = dashboard;
-
-        // Convert dashboard parameters to ParametersValuesMap format
-        return rawDashboardParameters
-            ? Object.fromEntries(
-                  Object.entries(rawDashboardParameters).map(
-                      ([key, dashboardParam]) => [key, dashboardParam.value],
-                  ),
-              )
-            : undefined;
-    }
-
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -2126,15 +2112,13 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboardParameters = await this.getDashboardParameters(
-            dashboardUuid,
-        );
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             parameters,
-            undefined, // Explicitly empty saved chart parameters, only dashboard parameters are used
             dashboardParameters,
         );
 
@@ -2788,15 +2772,13 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError("You don't have access to this chart");
         }
 
-        const dashboardParameters = await this.getDashboardParameters(
-            dashboardUuid,
-        );
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
-        // Combine default parameter values with request parameters first
+        // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             args.parameters,
-            undefined, // Explicitly empty saved chart parameters, only dashboard parameters are used
             dashboardParameters,
         );
 
