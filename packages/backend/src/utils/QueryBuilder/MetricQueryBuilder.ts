@@ -842,8 +842,6 @@ export class MetricQueryBuilder {
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
-                const hasFilters =
-                    metricObject.filters && metricObject.filters.length > 0;
                 const referencesAnotherTable =
                     metricObject.tablesReferences?.some(
                         (table) => table !== metricObject.table,
@@ -852,8 +850,7 @@ export class MetricQueryBuilder {
                 // Note: does not handle nested references
                 if (
                     isNonAggregateMetric(metricObject) &&
-                    referencesAnotherTable &&
-                    !hasFilters
+                    referencesAnotherTable
                 ) {
                     metricsWithCteReferences.push(metricObject);
                     const metricReferences = parseAllReferences(
