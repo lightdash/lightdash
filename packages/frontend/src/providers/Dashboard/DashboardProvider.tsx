@@ -168,12 +168,27 @@ const DashboardProvider: React.FC<
     const [parametersHaveChanged, setParametersHaveChanged] =
         useState<boolean>(false);
 
+    // Pinned parameters state
+    const [pinnedParameters, setPinnedParametersState] = useState<string[]>([]);
+    const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
+        useState<boolean>(false);
+
     // Set parameters to saved parameters when they are loaded
     useEffect(() => {
         if (savedParameters) {
             setParameters(savedParameters);
         }
     }, [savedParameters]);
+
+    // Set pinned parameters when dashboard is loaded
+    useEffect(() => {
+        if (dashboard?.config?.pinnedParameters !== undefined) {
+            setPinnedParametersState(dashboard.config.pinnedParameters);
+        } else if (dashboard?.config !== undefined) {
+            // Initialize empty array if dashboard has config but no pinnedParameters
+            setPinnedParametersState([]);
+        }
+    }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
 
     // Apply scheduler parameters when provided (for scheduled deliveries)
     useEffect(() => {
@@ -227,6 +242,22 @@ const DashboardProvider: React.FC<
 
     const clearAllParameters = useCallback(() => {
         setParameters({});
+    }, []);
+
+    const setPinnedParameters = useCallback((pinnedParams: string[]) => {
+        setPinnedParametersState(pinnedParams);
+        setHavePinnedParametersChanged(true);
+    }, []);
+
+    const toggleParameterPin = useCallback((parameterKey: string) => {
+        setPinnedParametersState((prev) => {
+            const isCurrentlyPinned = prev.includes(parameterKey);
+            const newPinnedParams = isCurrentlyPinned
+                ? prev.filter((key) => key !== parameterKey)
+                : [...prev, parameterKey];
+            return newPinnedParams;
+        });
+        setHavePinnedParametersChanged(true);
     }, []);
 
     const parameterValues = useMemo(() => {
@@ -848,6 +879,11 @@ const DashboardProvider: React.FC<
         tileParameterReferences,
         areAllChartsLoaded,
         missingRequiredParameters,
+        pinnedParameters,
+        setPinnedParameters,
+        toggleParameterPin,
+        havePinnedParametersChanged,
+        setHavePinnedParametersChanged,
     };
     return (
         <DashboardContext.Provider value={value}>
