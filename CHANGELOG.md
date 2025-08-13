@@ -1,3 +1,10 @@
+# [0.1908.0](https://github.com/lightdash/lightdash/compare/0.1907.0...0.1908.0) (2025-08-13)
+
+
+### Features
+
+* support cross-table metric references in CTEs ([#16383](https://github.com/lightdash/lightdash/issues/16383)) ([44cebfe](https://github.com/lightdash/lightdash/commit/44cebfeaf383211a81f22c3fcafaf0d02060563f))
+
 # [0.1907.0](https://github.com/lightdash/lightdash/compare/0.1906.0...0.1907.0) (2025-08-13)
 
 
