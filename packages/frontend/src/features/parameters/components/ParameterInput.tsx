@@ -6,7 +6,13 @@ import {
     type LightdashProjectParameter,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { Box, Group, MultiSelect, Select } from '@mantine-8/core';
+import {
+    Box,
+    Group,
+    MultiSelect,
+    Select,
+    type ComboboxItemGroup,
+} from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import React, {
@@ -134,30 +140,25 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         [value],
     );
 
-    // Combine static options with fetched results
     const optionsData = useMemo(() => {
-        let baseOptions: string[] = [];
-
-        if (shouldFetch) {
-            // Use fetched results
-            baseOptions = fetchedResults;
-        } else {
-            // Use static options
-            baseOptions = parameter.options ?? [];
-        }
+        const parameterOptions = parameter.options ?? [];
 
         // Add custom values if allowed
         if (parameter.allow_custom_values) {
-            baseOptions = uniq([...baseOptions, ...currentValues]);
+            // Needed because current values are not in the same group as parameter options
+            const filteredCurrentValues = currentValues.filter(
+                (option) => !fetchedResults.includes(option),
+            );
+
+            return uniq([...parameterOptions, ...filteredCurrentValues]);
         }
 
-        return baseOptions;
+        return parameterOptions;
     }, [
-        shouldFetch,
-        fetchedResults,
         parameter.options,
         parameter.allow_custom_values,
         currentValues,
+        fetchedResults,
     ]);
 
     // Handler for creating custom values when allow_custom_values is true
@@ -186,16 +187,33 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
     const selectData = useMemo(() => {
         const baseItems = shouldFetch
-            ? uniq([...optionsData, ...currentValues]).filter(
+            ? optionsData.filter(
                   (option) =>
                       option !== '__refresh__' && option !== '__create__',
               )
             : optionsData;
 
-        const regularItems = baseItems.map((option) => ({
-            value: option,
-            label: formatDisplayValue(option),
-        }));
+        const regularItems = baseItems
+            .sort((a, b) => a.localeCompare(b))
+            .map((option) => ({
+                value: option,
+                label: formatDisplayValue(option),
+            }));
+
+        const fetchedItems =
+            fetchedResults.length > 0
+                ? [
+                      {
+                          group: 'Dimension values',
+                          items: fetchedResults
+                              .sort((a, b) => a.localeCompare(b))
+                              .map((option) => ({
+                                  value: option,
+                                  label: formatDisplayValue(option),
+                              })),
+                      } satisfies ComboboxItemGroup,
+                  ]
+                : [];
 
         const specialItems = [];
 
@@ -205,6 +223,9 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             search &&
             search.trim() &&
             !baseItems.some(
+                (option) => option.toLowerCase() === search.toLowerCase(),
+            ) &&
+            !fetchedResults.some(
                 (option) => option.toLowerCase() === search.toLowerCase(),
             )
         ) {
@@ -222,11 +243,11 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             });
         }
 
-        return [...regularItems, ...specialItems];
+        return [...regularItems, ...fetchedItems, ...specialItems];
     }, [
+        fetchedResults,
         shouldFetch,
         optionsData,
-        currentValues,
         parameter.allow_custom_values,
         search,
     ]);
