@@ -1,3 +1,10 @@
+## [0.1905.1](https://github.com/lightdash/lightdash/compare/0.1905.0...0.1905.1) (2025-08-13)
+
+
+### Bug Fixes
+
+* catch error in sql formatter ([#16379](https://github.com/lightdash/lightdash/issues/16379)) ([39dc5c6](https://github.com/lightdash/lightdash/commit/39dc5c6a6566d13d8205bab4e8d397ccdf478738))
+
 # [0.1905.0](https://github.com/lightdash/lightdash/compare/0.1904.0...0.1905.0) (2025-08-13)
 
 
