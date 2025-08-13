@@ -24,7 +24,7 @@ import { setTaskMeta } from './utils/taskMeta';
 const hasApiKey = !!process.env.OPENAI_API_KEY;
 const describeOrSkip = hasApiKey ? describe : describe.skip;
 
-describeOrSkip('agent integration tests', () => {
+describeOrSkip.concurrent('agent integration tests', () => {
     let context: IntegrationTestContext;
     const TIMEOUT = 60_000;
     let createdAgent: AiAgent | null = null;
@@ -179,6 +179,9 @@ describeOrSkip('agent integration tests', () => {
                 callOptions,
             });
 
+            // ================================
+            // Report creation
+            // ================================
             setTaskMeta(task.meta, 'llmJudgeResults', [
                 { ...factualityMeta, passed: isFactualityPassing },
             ]);
@@ -192,6 +195,9 @@ describeOrSkip('agent integration tests', () => {
             setTaskMeta(task.meta, 'responses', [response]);
             setTaskMeta(task.meta, 'llmToolJudgeResults', [toolsEvaluation]);
 
+            // ================================
+            // Assertions
+            // ================================
             expect(isFactualityPassing).toBe(true);
             expect(toolsEvaluation.passed).toBe(true);
         },
@@ -239,6 +245,9 @@ describeOrSkip('agent integration tests', () => {
             callOptions,
         });
 
+        // ================================
+        // Report creation
+        // ================================
         setTaskMeta(task.meta, 'llmJudgeResults', [
             { ...factualityMeta, passed: isFactualityPassing },
         ]);
@@ -251,6 +260,9 @@ describeOrSkip('agent integration tests', () => {
         setTaskMeta(task.meta, 'responses', [response]);
         setTaskMeta(task.meta, 'llmToolJudgeResults', [toolUsageEvaluation]);
 
+        // ================================
+        // Assertions
+        // ================================
         expect(isFactualityPassing).toBe(true);
         expect(toolUsageEvaluation.passed).toBe(true);
     });
@@ -269,15 +281,6 @@ describeOrSkip('agent integration tests', () => {
             .db<DbAiAgentToolCall>('ai_agent_tool_call')
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
-
-        expect(toolCalls.length).toBeGreaterThan(0);
-
-        const generateTimeSeriesVizConfigToolCallParsed =
-            toolTimeSeriesArgsSchema.safeParse(toolCalls[2].tool_args);
-        expect(generateTimeSeriesVizConfigToolCallParsed.success).toBe(true);
-
-        const vizConfig =
-            generateTimeSeriesVizConfigToolCallParsed.data?.vizConfig;
 
         const { result: factualityEvaluation, meta: factualityMeta } =
             await llmAsAJudge({
@@ -298,49 +301,44 @@ describeOrSkip('agent integration tests', () => {
             factualityEvaluation.answer === 'A' ||
             factualityEvaluation.answer === 'B';
 
+        const toolUsageEvaluation = await llmAsJudgeForTools({
+            prompt: promptQueryText,
+            toolCalls,
+            expectedOutcome:
+                'It should have used the appropriated tools to find information about revenue over time. It must have used the time series tool to generate the chart',
+            expectedArgsValidation: [
+                {
+                    toolName: 'generateTimeSeriesVizConfig',
+                    expectedArgs: {
+                        vizConfig: {
+                            limit: 1000,
+                            sorts: [
+                                {
+                                    fieldId: 'orders_order_date_month',
+                                    descending: false,
+                                },
+                            ],
+                            lineType: 'line',
+                            yMetrics: ['payments_total_revenue'],
+                            xAxisLabel: 'Order date month',
+                            xDimension: 'orders_order_date_month',
+                            yAxisLabel: 'Total revenue',
+                            exploreName: 'payments',
+                            breakdownByDimension: null,
+                        },
+                    },
+                },
+            ],
+            model,
+            callOptions,
+        });
+
+        // ================================
+        // Report creation
+        // ================================
         setTaskMeta(task.meta, 'llmJudgeResults', [
             { ...factualityMeta, passed: isFactualityPassing },
         ]);
-        expect(isFactualityPassing).toBe(true);
-
-        const vizConfigExpected = {
-            limit: 1000,
-            sorts: [{ fieldId: 'orders_order_date_month', descending: false }],
-            lineType: 'line',
-            yMetrics: ['payments_total_revenue'],
-            xAxisLabel: 'Order date month',
-            xDimension: 'orders_order_date_month',
-            yAxisLabel: 'Total revenue',
-            exploreName: 'payments',
-            breakdownByDimension: null,
-        };
-
-        const {
-            result: vizConfigJsonDiffEvaluation,
-            meta: vizConfigJsonDiffMeta,
-        } = await llmAsAJudge({
-            model,
-            callOptions,
-            query: promptQueryText,
-            response: JSON.stringify(vizConfig),
-            expectedAnswer: JSON.stringify(vizConfigExpected),
-            scorerType: 'jsonDiff',
-        });
-
-        if (!vizConfigJsonDiffEvaluation) {
-            throw new Error('JSON diff evaluation not found');
-        }
-
-        const isJsonDiffPassing =
-            (vizConfigJsonDiffEvaluation?.score ?? 0) >= 0.9;
-
-        setTaskMeta(task.meta, 'llmJudgeResults', [
-            ...task.meta.llmJudgeResults,
-            { ...vizConfigJsonDiffMeta, passed: isJsonDiffPassing },
-        ]);
-
-        expect(isJsonDiffPassing).toBe(true);
-
         setTaskMeta(
             task.meta,
             'toolCalls',
@@ -348,6 +346,13 @@ describeOrSkip('agent integration tests', () => {
         );
         setTaskMeta(task.meta, 'prompts', [promptQueryText]);
         setTaskMeta(task.meta, 'responses', [response]);
+        setTaskMeta(task.meta, 'llmToolJudgeResults', [toolUsageEvaluation]);
+
+        // ================================
+        // Assertions
+        // ================================
+        expect(isFactualityPassing).toBe(true);
+        expect(toolUsageEvaluation.passed).toBe(true);
     });
 
     it(
@@ -419,10 +424,12 @@ describeOrSkip('agent integration tests', () => {
             const isContextRelevancyPassing =
                 contextRelevancyEvaluation.score >= 0.7;
 
+            // ================================
+            // Report creation
+            // ================================
             setTaskMeta(task.meta, 'llmJudgeResults', [
                 { ...contextRelevancyMeta, passed: isContextRelevancyPassing },
             ]);
-            expect(isContextRelevancyPassing).toBe(true);
 
             setTaskMeta(
                 task.meta,
@@ -431,6 +438,11 @@ describeOrSkip('agent integration tests', () => {
             );
             setTaskMeta(task.meta, 'prompts', [promptQueryText]);
             setTaskMeta(task.meta, 'responses', [response]);
+
+            // ================================
+            // Assertions
+            // ================================
+            expect(isContextRelevancyPassing).toBe(true);
         },
         TIMEOUT,
     );
@@ -469,11 +481,13 @@ describeOrSkip('agent integration tests', () => {
                 factualityEvaluation.answer === 'A' ||
                 factualityEvaluation.answer === 'B';
 
+            // ================================
+            // Report creation
+            // ================================
+
             setTaskMeta(task.meta, 'llmJudgeResults', [
                 { ...factualityMeta, passed: isFactualityPassing },
             ]);
-            expect(isFactualityPassing).toBe(true);
-
             setTaskMeta(
                 task.meta,
                 'toolCalls',
@@ -481,6 +495,11 @@ describeOrSkip('agent integration tests', () => {
             );
             setTaskMeta(task.meta, 'prompts', [promptQueryText]);
             setTaskMeta(task.meta, 'responses', [response]);
+
+            // ================================
+            // Assertions
+            // ================================
+            expect(isFactualityPassing).toBe(true);
         },
         TIMEOUT,
     );
@@ -501,12 +520,6 @@ describeOrSkip('agent integration tests', () => {
             .db<DbAiAgentToolCall>('ai_agent_tool_call')
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
-
-        setTaskMeta(
-            task.meta,
-            'toolCalls',
-            toolCalls.map((tc) => tc.tool_name),
-        );
 
         const availableExplores = await getServices(
             context.app,
@@ -545,11 +558,17 @@ describeOrSkip('agent integration tests', () => {
             factualityEvaluation.answer === 'A' ||
             factualityEvaluation.answer === 'B';
 
+        // ================================
+        // Report creation
+        // ================================
+        setTaskMeta(
+            task.meta,
+            'toolCalls',
+            toolCalls.map((tc) => tc.tool_name),
+        );
         setTaskMeta(task.meta, 'llmJudgeResults', [
             { ...factualityMeta, passed: isFactualityPassing },
         ]);
-        expect(isFactualityPassing).toBe(true);
-
         setTaskMeta(
             task.meta,
             'toolCalls',
@@ -557,9 +576,14 @@ describeOrSkip('agent integration tests', () => {
         );
         setTaskMeta(task.meta, 'prompts', [promptQueryText]);
         setTaskMeta(task.meta, 'responses', [response]);
+
+        // ================================
+        // Assertions
+        // ================================
+        expect(isFactualityPassing).toBe(true);
     });
 
-    it(
+    it.sequential(
         'should handle multiple consecutive prompts in the same thread maintaining context',
         async ({ task }) => {
             if (!createdAgent) {
@@ -588,6 +612,9 @@ describeOrSkip('agent integration tests', () => {
                 .where('ai_prompt_uuid', webPrompt3!.promptUuid)
                 .select('*');
 
+            // ================================
+            // Report creation
+            // ================================
             setTaskMeta(
                 task.meta,
                 'toolCalls',
@@ -635,75 +662,53 @@ describeOrSkip('agent integration tests', () => {
                 ],
             },
             expectedVisualization: 'vertical_bar_chart',
-            maxToolCalls: 4,
+            maxToolCalls: 3,
         },
     ].forEach((testCase) => {
-        describe(`Evaluating answer for question: ${testCase.question}`, () => {
-            let toolCalls: DbAiAgentToolCall[] = [];
-            let response: string = '';
-            let prompt: AiWebAppPrompt | undefined;
+        describe.concurrent(
+            `Evaluating answer for question: ${testCase.question}`,
+            () => {
+                let toolCalls: DbAiAgentToolCall[] = [];
+                let response: string = '';
+                let prompt: AiWebAppPrompt | undefined;
 
-            beforeAll(async () => {
-                const agentResponse = await promptAgent(testCase.question);
+                beforeAll(async () => {
+                    const agentResponse = await promptAgent(testCase.question);
 
-                response = agentResponse.response;
-                prompt = agentResponse.prompt;
+                    response = agentResponse.response;
+                    prompt = agentResponse.prompt;
 
-                toolCalls = await context
-                    .db<DbAiAgentToolCall>('ai_agent_tool_call')
-                    .leftJoin(
-                        'ai_agent_tool_result',
-                        'ai_agent_tool_call.tool_call_id',
-                        'ai_agent_tool_result.tool_call_id',
-                    )
-                    .where(
-                        'ai_agent_tool_call.ai_prompt_uuid',
-                        prompt!.promptUuid,
-                    )
-                    .select('*');
-            });
+                    toolCalls = await context
+                        .db<DbAiAgentToolCall>('ai_agent_tool_call')
+                        .leftJoin(
+                            'ai_agent_tool_result',
+                            'ai_agent_tool_call.tool_call_id',
+                            'ai_agent_tool_result.tool_call_id',
+                        )
+                        .where(
+                            'ai_agent_tool_call.ai_prompt_uuid',
+                            prompt!.promptUuid,
+                        )
+                        .select('*');
+                });
 
-            it('should not use more than the max number of tool calls', () => {
-                expect(toolCalls.length).toBeLessThanOrEqual(
-                    testCase.maxToolCalls,
-                );
-            });
-
-            it(
-                `should get relevant information to answer the question: ${testCase.question}`,
-                async ({ task }) => {
-                    if (!createdAgent) throw new Error('Agent not created');
-
-                    const relevancyEvaluation = await llmAsAJudge({
-                        query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
-                        response: JSON.stringify(toolCalls),
+                it('should use appropriate tools and not exceed max tool calls', async ({
+                    task,
+                }) => {
+                    const toolsEvaluation = await llmAsJudgeForTools({
+                        prompt: testCase.question,
+                        toolCalls,
+                        expectedOutcome: `Should use appropriate tools to answer "${testCase.question}". Expected to use findExplores to find the ${testCase.expectedExplore} explore, findFields to get relevant fields, and it MUST use the ${testCase.expectedVisualization} tool for visualization. Should not use more than ${testCase.maxToolCalls} tool calls total.`,
                         model,
                         callOptions,
-                        scorerType: 'contextRelevancy',
-                        context: [
-                            JSON.stringify(
-                                await getServices(
-                                    context.app,
-                                ).projectService.getExplore(
-                                    context.testUserSessionAccount,
-                                    createdAgent.projectUuid!,
-                                    testCase.expectedExplore,
-                                ),
-                            ),
-                        ],
                     });
-                    const isRelevancyPassing =
-                        relevancyEvaluation.result.score === 1;
 
-                    expect(isRelevancyPassing).toBe(true);
-
-                    setTaskMeta(task.meta, 'llmJudgeResults', [
-                        {
-                            ...relevancyEvaluation.meta,
-                            passed: isRelevancyPassing,
-                        },
+                    // ================================
+                    // Report creation
+                    // ================================
+                    setTaskMeta(task.meta, 'llmToolJudgeResults', [
+                        toolsEvaluation,
                     ]);
-
                     setTaskMeta(
                         task.meta,
                         'toolCalls',
@@ -711,50 +716,111 @@ describeOrSkip('agent integration tests', () => {
                     );
                     setTaskMeta(task.meta, 'prompts', [testCase.question]);
                     setTaskMeta(task.meta, 'responses', [response]);
-                },
-                TIMEOUT,
-            );
 
-            it('should answer the question with correct factual information', async ({
-                task,
-            }) => {
-                const factualEvaluation = await llmAsAJudge({
-                    query: testCase.question,
-                    response,
-                    expectedAnswer: [
-                        `The explore is ${testCase.expectedExplore}.`,
-                        `The dimensions are ${testCase.expectedFields.dimensions.join()}.`,
-                        `The metrics are ${testCase.expectedFields.metrics.join()}.`,
-                        `The breakdown by dimension is ${testCase.expectedFields.breakdownByDimension}.`,
-                        `The filters are ${testCase.expectedFields.filters.join()}.`,
-                        `The visualization is a ${testCase.expectedVisualization}.`,
-                    ].join('\n'),
-                    scorerType: 'factuality',
-                    model,
-                    callOptions,
+                    // ================================
+                    // Assertions
+                    // ================================
+                    expect(toolsEvaluation.passed).toBe(true);
                 });
 
-                const isFactualityPassing =
-                    factualEvaluation.result.answer === 'A' ||
-                    factualEvaluation.result.answer === 'B';
+                it(
+                    `should get relevant information to answer the question: ${testCase.question}`,
+                    async ({ task }) => {
+                        if (!createdAgent) throw new Error('Agent not created');
 
-                expect(isFactualityPassing).toBe(true);
+                        const relevancyEvaluation = await llmAsAJudge({
+                            query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
+                            response: JSON.stringify(toolCalls),
+                            model,
+                            callOptions,
+                            scorerType: 'contextRelevancy',
+                            context: [
+                                JSON.stringify(
+                                    await getServices(
+                                        context.app,
+                                    ).projectService.getExplore(
+                                        context.testUserSessionAccount,
+                                        createdAgent.projectUuid!,
+                                        testCase.expectedExplore,
+                                    ),
+                                ),
+                            ],
+                        });
+                        const isRelevancyPassing =
+                            relevancyEvaluation.result.score === 1;
 
-                setTaskMeta(task.meta, 'llmJudgeResults', [
-                    {
-                        ...factualEvaluation.meta,
-                        passed: isFactualityPassing,
+                        // ================================
+                        // Report creation
+                        // ================================
+                        setTaskMeta(task.meta, 'llmJudgeResults', [
+                            {
+                                ...relevancyEvaluation.meta,
+                                passed: isRelevancyPassing,
+                            },
+                        ]);
+                        setTaskMeta(
+                            task.meta,
+                            'toolCalls',
+                            toolCalls.map((tc) => tc.tool_name),
+                        );
+                        setTaskMeta(task.meta, 'prompts', [testCase.question]);
+                        setTaskMeta(task.meta, 'responses', [response]);
+
+                        // ================================
+                        // Assertions
+                        // ================================
+                        expect(isRelevancyPassing).toBe(true);
                     },
-                ]);
-
-                setTaskMeta(
-                    task.meta,
-                    'toolCalls',
-                    toolCalls.map((tc) => tc.tool_name),
+                    TIMEOUT,
                 );
-                setTaskMeta(task.meta, 'prompts', [testCase.question]);
-                setTaskMeta(task.meta, 'responses', [response]);
-            });
-        });
+
+                it('should answer the question with correct factual information', async ({
+                    task,
+                }) => {
+                    const factualEvaluation = await llmAsAJudge({
+                        query: testCase.question,
+                        response,
+                        expectedAnswer: [
+                            `The explore is ${testCase.expectedExplore}.`,
+                            `The dimensions are ${testCase.expectedFields.dimensions.join()}.`,
+                            `The metrics are ${testCase.expectedFields.metrics.join()}.`,
+                            `The breakdown by dimension is ${testCase.expectedFields.breakdownByDimension}.`,
+                            `The filters are ${testCase.expectedFields.filters.join()}.`,
+                            `The visualization is a ${testCase.expectedVisualization}.`,
+                        ].join('\n'),
+                        scorerType: 'factuality',
+                        model,
+                        callOptions,
+                    });
+
+                    const isFactualityPassing =
+                        factualEvaluation.result.answer === 'A' ||
+                        factualEvaluation.result.answer === 'B';
+
+                    // ================================
+                    // Report creation
+                    // ================================
+
+                    setTaskMeta(task.meta, 'llmJudgeResults', [
+                        {
+                            ...factualEvaluation.meta,
+                            passed: isFactualityPassing,
+                        },
+                    ]);
+                    setTaskMeta(
+                        task.meta,
+                        'toolCalls',
+                        toolCalls.map((tc) => tc.tool_name),
+                    );
+                    setTaskMeta(task.meta, 'prompts', [testCase.question]);
+                    setTaskMeta(task.meta, 'responses', [response]);
+
+                    // ================================
+                    // Assertions
+                    // ================================
+                    expect(isFactualityPassing).toBe(true);
+                });
+            },
+        );
     });
 });
