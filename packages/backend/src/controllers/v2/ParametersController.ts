@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSuccess,
+    KnexPaginateArgs,
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
     type LightdashProjectConfig,
@@ -48,13 +49,14 @@ export class ParametersController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
     ): Promise<ApiSuccess<ApiGetProjectParametersListResults>> {
-        const paginateArgs =
-            page !== undefined && pageSize !== undefined
-                ? {
-                      page,
-                      pageSize: Math.min(pageSize, 100), // Limit to max 100 items per page
-                  }
-                : undefined;
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize: Math.min(pageSize, 100), // Limit to max 100 items per page
+            };
+        }
 
         const parameters = await this.services
             .getProjectParametersService()
