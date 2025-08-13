@@ -1,3 +1,10 @@
+# [0.1907.0](https://github.com/lightdash/lightdash/compare/0.1906.0...0.1907.0) (2025-08-13)
+
+
+### Features
+
+* add pinned parameters to dashboard ([#16346](https://github.com/lightdash/lightdash/issues/16346)) ([1ca7cdb](https://github.com/lightdash/lightdash/commit/1ca7cdb24cf5ca484920058aa4f687ecc0d61bd4))
+
 # [0.1906.0](https://github.com/lightdash/lightdash/compare/0.1905.1...0.1906.0) (2025-08-13)
 
 
