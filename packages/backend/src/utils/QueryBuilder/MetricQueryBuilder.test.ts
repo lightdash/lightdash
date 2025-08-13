@@ -14,6 +14,7 @@ import {
 import {
     bigqueryClientMock,
     EXPECTED_SQL_WITH_CROSS_JOIN,
+    EXPECTED_SQL_WITH_CROSS_TABLE_METRICS,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_NUMBER,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH,
@@ -25,6 +26,7 @@ import {
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
@@ -32,6 +34,7 @@ import {
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
+    METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
@@ -944,6 +947,20 @@ describe('Query builder', () => {
                     ),
                 ),
             ).toBe(true);
+        });
+
+        test('Should handle metrics that reference other metrics from joined tables', () => {
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
+                compiledMetricQuery: METRIC_QUERY_CROSS_TABLE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_WITH_CROSS_TABLE_METRICS),
+            );
         });
     });
 });
