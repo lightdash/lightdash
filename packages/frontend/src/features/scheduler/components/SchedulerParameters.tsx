@@ -1,6 +1,7 @@
 import {
     type Dashboard,
     type LightdashProjectParameter,
+    type ParameterDefinitions,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine-8/core';
@@ -17,7 +18,6 @@ import { IconPencil, IconRotate2 } from '@tabler/icons-react';
 import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useParameters } from '../../../hooks/parameters/useParameters';
 import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import { ParameterInput } from '../../parameters/components/ParameterInput';
 
@@ -134,40 +134,24 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
 
 type SchedulerParametersProps = {
     dashboard?: Dashboard;
-    parameterReferences?: Set<string> | string[];
     currentParameterValues?: ParametersValuesMap;
     onChange: (schedulerParameters: ParametersValuesMap) => void;
-    schedulerParameters: ParametersValuesMap | undefined;
+    schedulerParameterValues: ParametersValuesMap | undefined;
+    availableParameters: ParameterDefinitions | undefined;
+    isLoading: boolean;
 };
 
 const SchedulerParameters: FC<SchedulerParametersProps> = ({
     dashboard,
-    parameterReferences,
     currentParameterValues = {},
-    schedulerParameters,
+    schedulerParameterValues,
+    availableParameters,
     onChange,
+    isLoading,
 }) => {
-    // Convert array to Set if needed
-    const parameterReferencesSet = useMemo(() => {
-        if (!parameterReferences) return new Set<string>();
-        return Array.isArray(parameterReferences)
-            ? new Set(parameterReferences)
-            : parameterReferences;
-    }, [parameterReferences]);
-
-    // Use the explicitly passed parameter values
-    const dashboardParameterValues = currentParameterValues;
-    // Get parameters that are referenced in the dashboard
-    const { data: availableParameters, isInitialLoading } = useParameters(
-        dashboard?.projectUuid,
-        parameterReferencesSet.size > 0
-            ? Array.from(parameterReferencesSet)
-            : undefined,
-    );
-
     const handleParameterChange = useCallback(
         (paramKey: string, value: string | string[] | null) => {
-            const updated = { ...schedulerParameters };
+            const updated = { ...schedulerParameterValues };
 
             if (
                 value === null ||
@@ -183,30 +167,30 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
 
             onChange(updated);
         },
-        [schedulerParameters, onChange],
+        [schedulerParameterValues, onChange],
     );
 
     const handleRevertParameter = useCallback(
         (paramKey: string) => {
-            const updated = { ...schedulerParameters };
+            const updated = { ...schedulerParameterValues };
             delete updated[paramKey];
             onChange(updated);
         },
-        [schedulerParameters, onChange],
+        [schedulerParameterValues, onChange],
     );
 
     const hasParameterChanged = useCallback(
         (paramKey: string) => {
-            const schedulerValue = schedulerParameters?.[paramKey];
+            const schedulerValue = schedulerParameterValues?.[paramKey];
             if (!schedulerValue) return false;
 
-            const dashboardValue = dashboardParameterValues?.[paramKey];
-            return !isEqual(schedulerValue, dashboardValue);
+            const parameterValue = currentParameterValues?.[paramKey];
+            return !isEqual(schedulerValue, parameterValue);
         },
-        [schedulerParameters, dashboardParameterValues],
+        [schedulerParameterValues, currentParameterValues],
     );
 
-    if (isInitialLoading) {
+    if (isLoading) {
         return (
             <Center component={Stack} h={100}>
                 <Loader color="gray" />
@@ -230,10 +214,11 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
             <MantineProvider theme={getMantine8ThemeOverride()}>
                 {Object.entries(availableParameters).map(
                     ([paramKey, parameter]) => {
-                        const schedulerValue = schedulerParameters?.[paramKey];
+                        const schedulerValue =
+                            schedulerParameterValues?.[paramKey];
                         // Use actual dashboard parameter value, fallback to default if not set
                         const dashboardValue =
-                            dashboardParameterValues?.[paramKey] ??
+                            currentParameterValues?.[paramKey] ??
                             parameter.default ??
                             null;
 
@@ -249,8 +234,8 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
                                 hasChanged={hasParameterChanged(paramKey)}
                                 projectUuid={dashboard?.projectUuid || ''}
                                 parameterValues={{
-                                    ...dashboardParameterValues,
-                                    ...schedulerParameters,
+                                    ...currentParameterValues,
+                                    ...schedulerParameterValues,
                                 }}
                             />
                         );

@@ -28,11 +28,11 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const createMutation = useDashboardSchedulerCreateMutation();
 
     // Extract parameter data from dashboard context
-    const parameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
     const currentParameterValues = useDashboardContext(
         (c) => c.parameterValues,
+    );
+    const availableParameters = useDashboardContext(
+        (c) => c.parameterDefinitions,
     );
 
     return (
@@ -42,8 +42,8 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
             schedulersQuery={schedulersQuery}
             createMutation={createMutation}
             isChart={false}
-            parameterReferences={parameterReferences}
             currentParameterValues={currentParameterValues}
+            availableParameters={availableParameters}
             {...modalProps}
         />
     );
@@ -67,15 +67,12 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     const createMutation = useChartSchedulerCreateMutation();
 
     // Extract parameter data from explorer context
-    const explorerParameterReferences = useExplorerContext(
-        (c) => c.state.parameterReferences,
-    );
     const currentParameterValues = useExplorerContext(
         (c) => c.state.unsavedChartVersion.parameters || {},
     );
-
-    // Convert null to undefined and array to proper format
-    const parameterReferences = explorerParameterReferences || undefined;
+    const availableParameters = useExplorerContext(
+        (c) => c.state.parameterDefinitions,
+    );
 
     return (
         <SchedulerModal
@@ -84,8 +81,8 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
             schedulersQuery={chartSchedulersQuery}
             createMutation={createMutation}
             isChart
-            parameterReferences={parameterReferences}
             currentParameterValues={currentParameterValues}
+            availableParameters={availableParameters}
             {...modalProps}
         />
     );

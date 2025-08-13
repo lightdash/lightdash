@@ -76,6 +76,7 @@ export type Explore = {
         categories?: string[]; // yaml_reference
     };
     aiHint?: string | string[];
+    parameters?: LightdashProjectConfig['parameters'];
 };
 
 export enum InlineErrorType {

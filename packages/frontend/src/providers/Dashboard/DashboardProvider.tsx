@@ -29,6 +29,7 @@ import {
     useGetComments,
     type useDashboardCommentsCheck,
 } from '../../features/comments';
+import { useParameters } from '../../features/parameters';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
@@ -158,6 +159,16 @@ const DashboardProvider: React.FC<
 
     const [parameterDefinitions, setParameterDefinitions] =
         useState<ParameterDefinitions>({});
+
+    const addParameterDefinitions = useCallback(
+        (parameters: ParameterDefinitions) => {
+            setParameterDefinitions((prev) => ({
+                ...prev,
+                ...parameters,
+            }));
+        },
+        [],
+    );
 
     // Saved parameters are the parameters that are saved on the server
     const [savedParameters, setSavedParameters] = useState<DashboardParameters>(
@@ -303,6 +314,20 @@ const DashboardProvider: React.FC<
         const allReferences = Object.values(tileParameterReferences).flat();
         return new Set(allReferences);
     }, [tileParameterReferences]);
+
+    const { data: projectParameters } = useParameters(
+        projectUuid,
+        Array.from(dashboardParameterReferences ?? []),
+        {
+            enabled: !!projectUuid && !!dashboardParameterReferences,
+        },
+    );
+
+    useEffect(() => {
+        if (projectParameters) {
+            addParameterDefinitions(projectParameters);
+        }
+    }, [projectParameters, addParameterDefinitions]);
 
     // Determine if all chart tiles have loaded their parameter references
     const areAllChartsLoaded = useMemo(() => {
@@ -871,7 +896,6 @@ const DashboardProvider: React.FC<
         parameterValues,
         selectedParametersCount,
         setParameter,
-        setParameterDefinitions,
         parameterDefinitions,
         clearAllParameters,
         dashboardParameterReferences,
@@ -884,6 +908,7 @@ const DashboardProvider: React.FC<
         toggleParameterPin,
         havePinnedParametersChanged,
         setHavePinnedParametersChanged,
+        addParameterDefinitions,
     };
     return (
         <DashboardContext.Provider value={value}>
