@@ -1,4 +1,5 @@
 import {
+    ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
@@ -464,6 +465,27 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/explore-access-summary')
+    @OperationId('getAgentExploreAccessSummary')
+    async getAgentExploreAccessSummary(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: { tags: string[] | null },
+    ): Promise<ApiAiAgentExploreAccessSummaryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().getAgentExploreAccessSummary(
+                    req.account!,
+                    projectUuid,
+                    body.tags,
+                ),
         };
     }
 

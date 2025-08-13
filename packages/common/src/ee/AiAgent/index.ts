@@ -272,3 +272,14 @@ export type AiAgentToolCall = {
     toolName: string; // ToolName zod enum
     toolArgs: object;
 };
+
+export type AiAgentExploreAccessSummary = {
+    exploreName: string;
+    joinedTables: string[];
+    dimensions: string[];
+    metrics: string[];
+};
+
+export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
+    AiAgentExploreAccessSummary[]
+>;
