@@ -1686,6 +1686,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseSqlBuilder: WarehouseSqlBuilder,
+        availableParameters: string[],
         dateZoom?: DateZoom,
     ): Explore {
         if (dateZoom?.granularity) {
@@ -1723,6 +1724,7 @@ export class ProjectService extends BaseService {
                     dimToOverride.timeInterval && baseDimensionId
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
+
                 const dimWithGranularityOverride =
                     createDimensionWithGranularity(
                         dimToOverride.name,
@@ -1730,6 +1732,7 @@ export class ProjectService extends BaseService {
                         explore,
                         warehouseSqlBuilder,
                         dateZoom?.granularity,
+                        availableParameters,
                     );
 
                 return replaceDimensionInExplore(
@@ -1741,21 +1744,34 @@ export class ProjectService extends BaseService {
         return explore;
     }
 
-    static async _compileQuery(
-        metricQuery: MetricQuery,
-        explore: Explore,
-        warehouseSqlBuilder: WarehouseSqlBuilder,
-        intrinsicUserAttributes: IntrinsicUserAttributes,
-        userAttributes: UserAttributeValueMap,
-        timezone: string,
-        dateZoom?: DateZoom,
-        useExperimentalMetricCtes?: boolean,
-        parameters?: ParametersValuesMap,
-    ): Promise<CompiledQuery> {
+    static async _compileQuery({
+        metricQuery,
+        explore,
+        warehouseSqlBuilder,
+        intrinsicUserAttributes,
+        userAttributes,
+        timezone,
+        dateZoom,
+        useExperimentalMetricCtes,
+        parameters,
+        availableParameters,
+    }: {
+        metricQuery: MetricQuery;
+        explore: Explore;
+        warehouseSqlBuilder: WarehouseSqlBuilder;
+        intrinsicUserAttributes: IntrinsicUserAttributes;
+        userAttributes: UserAttributeValueMap;
+        timezone: string;
+        dateZoom?: DateZoom;
+        useExperimentalMetricCtes?: boolean;
+        parameters?: ParametersValuesMap;
+        availableParameters: string[];
+    }): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
             metricQuery,
             warehouseSqlBuilder,
+            availableParameters,
             dateZoom,
         );
 
@@ -1763,6 +1779,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             metricQuery,
             warehouseSqlBuilder,
+            availableParameters,
         });
 
         const queryBuilder = new MetricQueryBuilder({
@@ -1773,6 +1790,7 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
             parameters,
+            availableParameters,
         });
 
         return wrapSentryTransactionSync(
@@ -1849,17 +1867,25 @@ export class ProjectService extends BaseService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
-        const compiledQuery = await ProjectService._compileQuery(
+        const projectParameters = await this.projectParametersModel.find(
+            projectUuid,
+        );
+        const availableParameters = Object.keys(
+            explore.parameters || {},
+        ).concat(Object.keys(projectParameters || {}));
+
+        const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            undefined,
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
             useExperimentalMetricCtes,
             parameters,
-        );
+            availableParameters,
+        });
+
         await sshTunnel.disconnect();
 
         return {
@@ -2688,17 +2714,23 @@ export class ProjectService extends BaseService {
                             account,
                         });
 
-                    const fullQuery = await ProjectService._compileQuery(
-                        metricQueryWithLimit,
+                    const projectParameters =
+                        await this.projectParametersModel.find(projectUuid);
+                    const availableParameters = Object.keys(
+                        explore.parameters || {},
+                    ).concat(Object.keys(projectParameters || {}));
+
+                    const fullQuery = await ProjectService._compileQuery({
+                        metricQuery: metricQueryWithLimit,
                         explore,
-                        warehouseClient,
+                        warehouseSqlBuilder: warehouseClient,
                         intrinsicUserAttributes,
                         userAttributes,
-                        this.lightdashConfig.query.timezone || 'UTC',
+                        timezone: this.lightdashConfig.query.timezone || 'UTC',
                         dateZoom,
-                        undefined,
                         parameters,
-                    );
+                        availableParameters,
+                    });
 
                     const { query } = fullQuery;
 
@@ -3414,17 +3446,23 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ user });
 
-        const { query } = await ProjectService._compileQuery(
+        const projectParameters = await this.projectParametersModel.find(
+            projectUuid,
+        );
+        const availableParameters = Object.keys(
+            explore.parameters || {},
+        ).concat(Object.keys(projectParameters || {}));
+
+        const { query } = await ProjectService._compileQuery({
             metricQuery,
             explore,
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            undefined,
-            undefined,
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
-        );
+            availableParameters,
+        });
 
         // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
         const queryHashKey = metricQuery.timezone
@@ -5168,6 +5206,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
+        availableParameters: string[],
         useExperimentalMetricCtes?: boolean,
         parameters?: ParametersValuesMap,
     ) {
@@ -5182,17 +5221,17 @@ export class ProjectService extends BaseService {
             additionalMetrics: metricQuery.additionalMetrics,
         };
 
-        const { query } = await ProjectService._compileQuery(
-            totalQuery,
+        const { query } = await ProjectService._compileQuery({
+            metricQuery: totalQuery,
             explore,
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            undefined,
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
             useExperimentalMetricCtes,
             parameters,
-        );
+            availableParameters,
+        });
 
         return { query, totalQuery };
     }
@@ -5238,12 +5277,20 @@ export class ProjectService extends BaseService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
+        const projectParameters = await this.projectParametersModel.find(
+            projectUuid,
+        );
+        const availableParameters = Object.keys(
+            explore.parameters || {},
+        ).concat(Object.keys(projectParameters || {}));
+
         const { query } = await this._getCalculateTotalQuery(
             userAttributes,
             intrinsicUserAttributes,
             explore,
             metricQuery,
             warehouseClient,
+            availableParameters,
             useExperimentalMetricCtes,
             parameters,
         );
@@ -5286,12 +5333,20 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
+        const projectParameters = await this.projectParametersModel.find(
+            projectUuid,
+        );
+        const availableParameters = Object.keys(
+            explore.parameters || {},
+        ).concat(Object.keys(projectParameters || {}));
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             userAttributes,
             intrinsicUserAttributes,
             explore,
             metricQuery,
             warehouseClient,
+            availableParameters,
             undefined,
             parameters,
         );

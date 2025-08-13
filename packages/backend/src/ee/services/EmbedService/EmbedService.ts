@@ -657,21 +657,27 @@ export class EmbedService extends BaseService {
         // Filter the explore access and fields based on the user attributes
         const filteredExplore = getFilteredExplore(explore, userAttributes);
 
-        const compiledQuery = await ProjectService._compileQuery(
+        const projectParameters =
+            await this.projectService.projectParametersModel.find(projectUuid);
+        const availableParameters = Object.keys(
+            explore.parameters || {},
+        ).concat(Object.keys(projectParameters || {}));
+
+        const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
-            filteredExplore,
-            warehouseClient,
+            explore: filteredExplore,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            dateZoomGranularity
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            dateZoom: dateZoomGranularity
                 ? {
                       granularity: dateZoomGranularity,
                   }
                 : undefined,
-            undefined,
-            combinedParameters,
-        );
+            parameters: combinedParameters,
+            availableParameters,
+        });
 
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
@@ -956,15 +962,6 @@ export class EmbedService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
 
-        const { totalQuery: totalMetricQuery } =
-            await this.projectService._getCalculateTotalQuery(
-                userAttributes,
-                intrinsicUserAttributes,
-                explore,
-                metricQuery,
-                warehouseClient,
-            );
-
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
@@ -974,6 +971,24 @@ export class EmbedService extends BaseService {
             {},
             dashboardParameters,
         );
+
+        const projectParameters =
+            await this.projectService.projectParametersModel.find(projectUuid);
+        const availableParameters = Object.keys(
+            explore.parameters || {},
+        ).concat(Object.keys(projectParameters || {}));
+
+        const { totalQuery: totalMetricQuery } =
+            await this.projectService._getCalculateTotalQuery(
+                userAttributes,
+                intrinsicUserAttributes,
+                explore,
+                metricQuery,
+                warehouseClient,
+                availableParameters,
+                undefined,
+                combinedParameters,
+            );
 
         const { rows } = await this._runEmbedQuery({
             projectUuid,

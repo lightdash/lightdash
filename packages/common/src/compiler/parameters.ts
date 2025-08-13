@@ -2,6 +2,8 @@
  * Utility functions for handling SQL parameter references
  */
 
+import { CompileError } from '../types/errors';
+
 export const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameters)\.(\w+)\}/g;
 
 /**
@@ -23,4 +25,23 @@ export const getParameterReferences = (sql: string): string[] => {
 
     // Return unique parameter names
     return [...new Set(parameterNames)];
+};
+
+export const validateParameterReferences = (
+    tableName: string,
+    parameterReferences: string[],
+    availableParameters: string[],
+) => {
+    const missingParameters = parameterReferences.filter(
+        (p) => !availableParameters.includes(p),
+    );
+
+    if (missingParameters.length > 0) {
+        throw new CompileError(
+            `Failed to compile explore "${tableName}". Missing parameters: ${missingParameters.join(
+                ', ',
+            )}`,
+            {},
+        );
+    }
 };

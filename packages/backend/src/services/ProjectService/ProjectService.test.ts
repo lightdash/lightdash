@@ -146,7 +146,9 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
         featureFlagModel: {} as FeatureFlagModel,
-        projectParametersModel: {} as ProjectParametersModel,
+        projectParametersModel: {
+            find: jest.fn(async () => ({})),
+        } as unknown as ProjectParametersModel,
     });
 
 const account = buildAccount({
