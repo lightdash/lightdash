@@ -42,7 +42,10 @@ type Reference = {
     refTable: string;
     refName: string;
 };
-const getParsedReference = (ref: string, currentTable: string): Reference => {
+export const getParsedReference = (
+    ref: string,
+    currentTable: string,
+): Reference => {
     // Reference to another dimension
     const split = ref.split('.');
     if (split.length > 2) {
