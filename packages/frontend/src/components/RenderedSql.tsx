@@ -43,6 +43,21 @@ export const RenderedSql = () => {
         [language],
     );
 
+    const formattedSql = useMemo(() => {
+        if (!data?.query) return '';
+        try {
+            return format(data.query, {
+                language: getLanguage(project?.warehouseConnection?.type),
+            });
+        } catch (e) {
+            console.error(
+                'Error rendering SQL:',
+                e instanceof Error ? e.message : 'Unknown error occurred',
+            );
+            return data.query;
+        }
+    }, [data?.query, project?.warehouseConnection?.type]);
+
     if (isInitialLoading) {
         return (
             <Stack my="xs" align="center">
@@ -94,9 +109,7 @@ export const RenderedSql = () => {
             loading={<Loader color="gray" size="xs" />}
             language={language}
             beforeMount={beforeMount}
-            value={format(data?.query || '', {
-                language: getLanguage(project?.warehouseConnection?.type),
-            })}
+            value={formattedSql}
             options={MONACO_READ_ONLY}
             theme="lightdash"
         />
