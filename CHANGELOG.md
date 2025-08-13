@@ -1,3 +1,10 @@
+# [0.1905.0](https://github.com/lightdash/lightdash/compare/0.1904.0...0.1905.0) (2025-08-13)
+
+
+### Features
+
+* add explore access summary for AI agents ([#16374](https://github.com/lightdash/lightdash/issues/16374)) ([94da037](https://github.com/lightdash/lightdash/commit/94da0370298e53e49cfdf2b8ff13a0cc23ce5f9c)), closes [#16314](https://github.com/lightdash/lightdash/issues/16314)
+
 # [0.1904.0](https://github.com/lightdash/lightdash/compare/0.1903.0...0.1904.0) (2025-08-13)
 
 
