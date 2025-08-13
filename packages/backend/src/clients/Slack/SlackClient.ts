@@ -84,6 +84,8 @@ export class SlackClient {
         { lastCached: Date; channels: SlackChannel[] }
     > = new Map();
 
+    private readyCallbacks: Array<(app: App) => void> = [];
+
     constructor({
         slackAuthenticationModel,
         lightdashConfig,
@@ -95,6 +97,27 @@ export class SlackClient {
 
         if (this.lightdashConfig.slack?.clientId) {
             this.isEnabled = true;
+        }
+    }
+
+    /**
+     * Register a callback to be executed when the Slack app is ready.
+     * If the app is already ready, the callback will be called immediately.
+     * Otherwise, the callback will be queued and called when the app is ready.
+     *
+     * @param callback
+     */
+    public onReady(callback: (app: App) => void): void {
+        if (this.slackApp) {
+            // App is already initialized, call immediately
+            try {
+                callback(this.slackApp);
+            } catch (error) {
+                Logger.error('Error in Slack onReady callback:', error);
+            }
+        } else {
+            // Queue the callback for when the app is ready
+            this.readyCallbacks.push(callback);
         }
     }
 
@@ -710,6 +733,15 @@ export class SlackClient {
         if (app) {
             this.slackApp = app;
             Logger.info(`Slack app started`);
+            // Execute all queued callbacks
+            this.readyCallbacks.forEach((callback) => {
+                try {
+                    callback(app);
+                } catch (error) {
+                    Logger.error('Error in Slack onReady callback:', error);
+                }
+            });
+            this.readyCallbacks = []; // Clear the queue
         }
     }
 }
