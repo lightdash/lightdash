@@ -1,0 +1,15 @@
+.root {
+    background-color: white;
+}
+
+.unsetRequiredFilter {
+    border-style: solid;
+    border-width: 3px;
+}
+
+.inactiveFilter {
+    border-style: dashed;
+    border-width: 1px;
+    border-color: rgba(173, 181, 189, 0.7);
+    background-color: rgba(255, 255, 255, 0.7);
+}

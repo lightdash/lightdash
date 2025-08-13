@@ -2,12 +2,14 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import {
     Button,
     CloseButton,
+    MantineProvider,
     Text,
     Tooltip,
     useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { getMantine8ThemeOverride } from '../../mantine8Theme';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
@@ -19,47 +21,49 @@ type Props = {
 const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
     const theme = useMantineTheme();
     return (
-        <Tooltip
-            position="top-start"
-            withinPortal
-            offset={0}
-            arrowOffset={16}
-            label={
-                <Text span>
-                    <Text span color="gray.6">
-                        Tried to reference field with unknown id:
+        <MantineProvider theme={getMantine8ThemeOverride()}>
+            <Tooltip
+                position="top-start"
+                withinPortal
+                offset={0}
+                arrowOffset={16}
+                label={
+                    <Text span>
+                        <Text span c="gray.6">
+                            Tried to reference field with unknown id:
+                        </Text>
+                        <Text span> {filterRule.target.fieldId}</Text>
                     </Text>
-                    <Text span> {filterRule.target.fieldId}</Text>
-                </Text>
-            }
-        >
-            <Button
-                size="xs"
-                variant="default"
-                data-disabled
-                leftIcon={
-                    <MantineIcon
-                        icon={IconAlertTriangle}
-                        color="red.6"
-                        style={{ color: theme.colors.red[6] }}
-                    />
-                }
-                sx={{
-                    '&[data-disabled="true"]': {
-                        pointerEvents: 'all',
-                    },
-                }}
-                rightIcon={
-                    isEditMode && <CloseButton size="sm" onClick={onRemove} />
                 }
             >
-                <Text fz="xs">
-                    <Text fw={600} span>
-                        Invalid filter
+                <Button
+                    size="xs"
+                    variant="default"
+                    data-disabled
+                    leftSection={
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            color="red.6"
+                            style={{ color: theme.colors.red[6] }}
+                        />
+                    }
+                    style={{
+                        pointerEvents: 'all',
+                    }}
+                    rightSection={
+                        isEditMode && (
+                            <CloseButton size="sm" onClick={onRemove} />
+                        )
+                    }
+                >
+                    <Text fz="inherit">
+                        <Text fw={600} span fz="inherit">
+                            Invalid filter
+                        </Text>
                     </Text>
-                </Text>
-            </Button>
-        </Tooltip>
+                </Button>
+            </Tooltip>
+        </MantineProvider>
     );
 };
 

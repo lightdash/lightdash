@@ -80,7 +80,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                     rightSection={
                         isEditMode ? (
                             <CloseButton
-                                size="xs"
+                                size="sm"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleUnpin();

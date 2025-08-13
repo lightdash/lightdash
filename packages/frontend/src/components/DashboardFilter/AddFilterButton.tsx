@@ -1,8 +1,15 @@
 import { type DashboardFilterRule } from '@lightdash/common';
-import { Button, Popover, Text, Tooltip } from '@mantine/core';
+import {
+    Button,
+    MantineProvider,
+    Popover,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC, useCallback, useMemo } from 'react';
+import { getMantine8ThemeOverride } from '../../mantine8Theme';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import FilterConfiguration from './FilterConfiguration';
@@ -68,7 +75,7 @@ const AddFilterButton: FC<Props> = ({
     );
 
     return (
-        <>
+        <MantineProvider theme={getMantine8ThemeOverride()}>
             <Popover
                 position="bottom-start"
                 trapFocus
@@ -94,7 +101,7 @@ const AddFilterButton: FC<Props> = ({
                         label={
                             <Text fz="xs">
                                 Only filters added in{' '}
-                                <Text span fw={600}>
+                                <Text span fw={600} fz="inherit">
                                     'edit'
                                 </Text>{' '}
                                 mode will be saved
@@ -104,7 +111,7 @@ const AddFilterButton: FC<Props> = ({
                         <Button
                             size="xs"
                             variant="default"
-                            leftIcon={
+                            leftSection={
                                 <MantineIcon color="blue" icon={IconFilter} />
                             }
                             disabled={disabled}
@@ -144,7 +151,7 @@ const AddFilterButton: FC<Props> = ({
                     )}
                 </Popover.Dropdown>
             </Popover>
-        </>
+        </MantineProvider>
     );
 };
 
