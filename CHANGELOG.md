@@ -1,3 +1,66 @@
+# [0.1912.0](https://github.com/lightdash/lightdash/compare/0.1911.0...0.1912.0) (2025-08-13)
+
+
+### Features
+
+* **slack:** add onReady callback for slack app initialization ([#16401](https://github.com/lightdash/lightdash/issues/16401)) ([21deabb](https://github.com/lightdash/lightdash/commit/21deabbb0354586a94c7e051419975ea89806c55))
+
+# [0.1911.0](https://github.com/lightdash/lightdash/compare/0.1910.0...0.1911.0) (2025-08-13)
+
+
+### Features
+
+* enable useOrgs to work with accounts ([#16204](https://github.com/lightdash/lightdash/issues/16204)) ([17efcb0](https://github.com/lightdash/lightdash/commit/17efcb01e3deb9a3a0c263b67503604689bf2d73))
+
+# [0.1910.0](https://github.com/lightdash/lightdash/compare/0.1909.0...0.1910.0) (2025-08-13)
+
+
+### Features
+
+* model level parameters ([#16378](https://github.com/lightdash/lightdash/issues/16378)) ([b0c1f93](https://github.com/lightdash/lightdash/commit/b0c1f937856a6a67e566b17df39f1b5cbab59dd2))
+
+# [0.1909.0](https://github.com/lightdash/lightdash/compare/0.1908.0...0.1909.0) (2025-08-13)
+
+
+### Features
+
+* combine options and options from dimensions ([#16382](https://github.com/lightdash/lightdash/issues/16382)) ([56d8330](https://github.com/lightdash/lightdash/commit/56d8330edeab37cead3ddc8cf10ea9d1b8577dc3))
+
+# [0.1908.0](https://github.com/lightdash/lightdash/compare/0.1907.0...0.1908.0) (2025-08-13)
+
+
+### Features
+
+* support cross-table metric references in CTEs ([#16383](https://github.com/lightdash/lightdash/issues/16383)) ([44cebfe](https://github.com/lightdash/lightdash/commit/44cebfeaf383211a81f22c3fcafaf0d02060563f))
+
+# [0.1907.0](https://github.com/lightdash/lightdash/compare/0.1906.0...0.1907.0) (2025-08-13)
+
+
+### Features
+
+* add pinned parameters to dashboard ([#16346](https://github.com/lightdash/lightdash/issues/16346)) ([1ca7cdb](https://github.com/lightdash/lightdash/commit/1ca7cdb24cf5ca484920058aa4f687ecc0d61bd4))
+
+# [0.1906.0](https://github.com/lightdash/lightdash/compare/0.1905.1...0.1906.0) (2025-08-13)
+
+
+### Features
+
+* enable CORS for OAuth discovery endpoints ([#16373](https://github.com/lightdash/lightdash/issues/16373)) ([08f35f0](https://github.com/lightdash/lightdash/commit/08f35f0635fd250328a7cfa02f08b57eb65fff06))
+
+## [0.1905.1](https://github.com/lightdash/lightdash/compare/0.1905.0...0.1905.1) (2025-08-13)
+
+
+### Bug Fixes
+
+* catch error in sql formatter ([#16379](https://github.com/lightdash/lightdash/issues/16379)) ([39dc5c6](https://github.com/lightdash/lightdash/commit/39dc5c6a6566d13d8205bab4e8d397ccdf478738))
+
+# [0.1905.0](https://github.com/lightdash/lightdash/compare/0.1904.0...0.1905.0) (2025-08-13)
+
+
+### Features
+
+* add explore access summary for AI agents ([#16374](https://github.com/lightdash/lightdash/issues/16374)) ([94da037](https://github.com/lightdash/lightdash/commit/94da0370298e53e49cfdf2b8ff13a0cc23ce5f9c)), closes [#16314](https://github.com/lightdash/lightdash/issues/16314)
+
 # [0.1904.0](https://github.com/lightdash/lightdash/compare/0.1903.0...0.1904.0) (2025-08-13)
 
 

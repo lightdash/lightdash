@@ -1,12 +1,3 @@
-/* Parameter button with dynamic border color and margin for edit mode */
-.parameterButton {
-    margin-right: auto;
-}
-
-.parameterButtonEditMode {
-    margin-right: 10px;
-}
-
 .parameterButtonActive {
     border-color: var(--mantine-color-blue-6);
 }

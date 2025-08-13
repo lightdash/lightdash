@@ -1,4 +1,7 @@
-import { type ParametersValuesMap } from '@lightdash/common';
+import {
+    type ParameterDefinitions,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 import { Box, Button, MantineProvider, Menu } from '@mantine-8/core';
 import {
     IconChevronDown,
@@ -9,7 +12,7 @@ import { useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getMantine8ThemeOverride } from '../../../mantine8Theme';
-import { ParameterSelection, useParameters } from '../index';
+import { ParameterSelection } from '../index';
 import styles from './Parameters.module.css';
 
 type Props = {
@@ -17,49 +20,28 @@ type Props = {
     parameterValues: ParametersValuesMap;
     onParameterChange: (key: string, value: string | string[] | null) => void;
     onClearAll: () => void;
-    parameterReferences?: Set<string>;
-    areAllChartsLoaded?: boolean;
+    parameters?: ParameterDefinitions;
     missingRequiredParameters?: string[];
+    pinnedParameters?: string[];
+    onParameterPin?: (paramKey: string) => void;
+    isLoading?: boolean;
+    isError?: boolean;
 };
 
-/**
- * @example
- * // Dashboard usage (with filtering)
- * <Parameters
- *   isEditMode={false}
- *   parameterValues={parameterValues}
- *   onParameterChange={handleParameterChange}
- *   onClearAll={clearAllParameters}
- *   parameterReferences={dashboardParameterReferences}
- *   areAllChartsLoaded={areAllChartsLoaded}
- * />
- *
- * @example
- * // Standalone usage (shows all parameters)
- * <Parameters
- *   isEditMode={false}
- *   parameterValues={parameterValues}
- *   onParameterChange={handleParameterChange}
- *   onClearAll={clearAllParameters}
- * />
- */
 export const Parameters: FC<Props> = ({
     isEditMode,
     parameterValues,
     onParameterChange,
     onClearAll,
-    parameterReferences,
-    areAllChartsLoaded = true,
+    parameters,
+    isLoading,
+    isError,
     missingRequiredParameters = [],
+    pinnedParameters = [],
+    onParameterPin,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
-
-    const {
-        data: parameters,
-        isLoading,
-        isError,
-    } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     // Calculate selected parameters count
     const selectedParametersCount = Object.values(parameters ?? {}).length;
@@ -68,12 +50,8 @@ export const Parameters: FC<Props> = ({
         return null;
     }
 
-    // Determine if we're in a loading state (either API loading or charts still loading)
-    const isLoadingState = isLoading || !areAllChartsLoaded;
-
     // Determine button CSS classes based on state
     const buttonClasses = [
-        isEditMode ? styles.parameterButtonEditMode : styles.parameterButton,
         selectedParametersCount > 0 && !isEditMode
             ? styles.parameterButtonActive
             : '',
@@ -86,11 +64,12 @@ export const Parameters: FC<Props> = ({
             <Menu
                 withinPortal
                 withArrow
+                arrowOffset={100}
                 closeOnItemClick={false}
                 closeOnClickOutside
                 offset={-1}
                 position="bottom-end"
-                disabled={isLoadingState}
+                disabled={isLoading}
                 onOpen={() => setShowOpenIcon(true)}
                 onClose={() => setShowOpenIcon(false)}
             >
@@ -98,8 +77,8 @@ export const Parameters: FC<Props> = ({
                     <Button
                         size="xs"
                         variant="default"
-                        loading={isLoadingState}
-                        disabled={isLoadingState}
+                        loading={isLoading}
+                        disabled={isLoading}
                         className={buttonClasses}
                         leftSection={<MantineIcon icon={IconVariable} />}
                         rightSection={
@@ -123,7 +102,7 @@ export const Parameters: FC<Props> = ({
                     <Box p="sm" miw={200}>
                         <ParameterSelection
                             parameters={parameters}
-                            isLoading={isLoading || !areAllChartsLoaded}
+                            isLoading={isLoading}
                             isError={isError}
                             parameterValues={parameterValues}
                             onParameterChange={onParameterChange}
@@ -134,6 +113,9 @@ export const Parameters: FC<Props> = ({
                             missingRequiredParameters={
                                 missingRequiredParameters
                             }
+                            isEditMode={isEditMode}
+                            pinnedParameters={pinnedParameters}
+                            onParameterPin={onParameterPin}
                         />
                     </Box>
                 </Menu.Dropdown>

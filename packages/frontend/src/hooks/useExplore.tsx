@@ -6,12 +6,10 @@ import useQueryError from './useQueryError';
 
 const getExplore = async (projectUuid: string, exploreId: string) => {
     try {
-        const t = await lightdashApi<ApiExploreResults>({
+        return await lightdashApi<ApiExploreResults>({
             url: `/projects/${projectUuid}/explores/${exploreId}`,
             method: 'GET',
         });
-        console.log('t', t);
-        return t;
     } catch (error) {
         console.error(error);
         throw error;

@@ -1474,6 +1474,12 @@
             },
             "DashboardConfig": {
                 "properties": {
+                    "pinnedParameters": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "isDateZoomDisabled": {
                         "type": "boolean"
                     }
@@ -4440,8 +4446,68 @@
                 "enum": ["virtual", "default"],
                 "type": "string"
             },
+            "LightdashProjectParameter": {
+                "properties": {
+                    "options_from_dimension": {
+                        "properties": {
+                            "dimension": {
+                                "type": "string"
+                            },
+                            "model": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dimension", "model"],
+                        "type": "object"
+                    },
+                    "options": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allow_custom_values": {
+                        "type": "boolean"
+                    },
+                    "multiple": {
+                        "type": "boolean"
+                    },
+                    "default": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label"],
+                "type": "object"
+            },
+            "Record_string.LightdashProjectParameter_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/LightdashProjectParameter"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "Explore": {
                 "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
                     "aiHint": {
                         "anyOf": [
                             {
@@ -6168,6 +6234,58 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "AiAgentExploreAccessSummary": {
+                "properties": {
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "joinedTables": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "metrics",
+                    "dimensions",
+                    "joinedTables",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentExploreAccessSummary-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentExploreAccessSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentExploreAccessSummaryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentExploreAccessSummary-Array_"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -12329,6 +12447,12 @@
                     "updatedByUser": {
                         "$ref": "#/components/schemas/Pick_UpdatedByUser.userUuid_"
                     },
+                    "pinnedParameters": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/DashboardParameters"
                     },
@@ -12973,22 +13097,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -15712,6 +15836,9 @@
                         },
                         "type": "array"
                     },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
                     "warehouse": {
                         "type": "string"
                     },
@@ -16905,6 +17032,7 @@
                     "calculateSubtotal",
                     "embed",
                     "ai",
+                    "mcp",
                     "api",
                     "cli",
                     "metricsExplorer"
@@ -17482,65 +17610,11 @@
                 "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "LightdashProjectParameter": {
-                "properties": {
-                    "options_from_dimension": {
-                        "properties": {
-                            "dimension": {
-                                "type": "string"
-                            },
-                            "model": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["dimension", "model"],
-                        "type": "object"
-                    },
-                    "options": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "allow_custom_values": {
-                        "type": "boolean"
-                    },
-                    "multiple": {
-                        "type": "boolean"
-                    },
-                    "default": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        ]
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "required": ["label"],
-                "type": "object"
-            },
-            "Record_string.LightdashProjectParameter_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/LightdashProjectParameter"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
+            "ParameterDefinitions": {
+                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
             },
             "ApiGetProjectParametersResults": {
-                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                "$ref": "#/components/schemas/ParameterDefinitions"
             },
             "ApiSuccess_ApiGetProjectParametersResults_": {
                 "properties": {
@@ -18223,7 +18297,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1897.1",
+        "version": "0.1906.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

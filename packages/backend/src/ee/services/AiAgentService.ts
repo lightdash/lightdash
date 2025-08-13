@@ -193,16 +193,24 @@ export class AiAgentService {
     private initSlackListeners() {
         if (!this.lightdashConfig.ai.copilot.enabled) return;
 
-        const { slackApp } = this.slackClient;
-        if (slackApp) {
-            slackApp.event('app_mention', (m) => this.handleAppMention(m));
-            this.handlePromptUpvote(slackApp);
-            this.handlePromptDownvote(slackApp);
-            AiAgentService.handleClickExploreButton(slackApp);
-            AiAgentService.handleClickOAuthButton(slackApp);
-        } else {
-            Logger.warn('Slack app not found');
-        }
+        this.slackClient.onReady((app) => {
+            try {
+                app.event('app_mention', (m) => this.handleAppMention(m));
+                this.handlePromptUpvote(app);
+                this.handlePromptDownvote(app);
+                AiAgentService.handleClickExploreButton(app);
+                AiAgentService.handleClickOAuthButton(app);
+                this.handleExecuteFollowUpTool(app);
+                Logger.info(
+                    'AiAgentService Slack event listeners attached successfully',
+                );
+            } catch (error) {
+                Logger.error(
+                    'Failed to attach AiAgentService Slack event listeners:',
+                    error,
+                );
+            }
+        });
     }
 
     private async getIsCopilotEnabled(
@@ -2920,5 +2928,49 @@ export class AiAgentService {
         }
 
         return undefined;
+    }
+
+    public async getAgentExploreAccessSummary(
+        account: Account,
+        projectUuid: string,
+        tags: string[] | null,
+    ) {
+        const exploreSummaries =
+            await this.projectService.getAllExploresSummary(
+                account,
+                projectUuid,
+                false,
+            );
+
+        const allExplores = await Promise.all(
+            exploreSummaries.map((explore) =>
+                this.projectService.getExplore(
+                    account,
+                    projectUuid,
+                    explore.name,
+                ),
+            ),
+        );
+
+        const filteredExplores = allExplores
+            .map((explore) =>
+                filterExploreByTags({ availableTags: tags, explore }),
+            )
+            .filter((explore) => explore !== undefined);
+
+        const exploreAccessSummary = filteredExplores.map((explore) => ({
+            exploreName: explore.label,
+            joinedTables: explore.joinedTables.map(
+                (table) => explore.tables[table.table].label,
+            ),
+            dimensions: Object.values(
+                explore.tables[explore.baseTable].dimensions,
+            ).map((dimension) => dimension.label),
+            metrics: Object.values(
+                explore.tables[explore.baseTable].metrics,
+            ).map((metric) => metric.label),
+        }));
+
+        return exploreAccessSummary;
     }
 }
