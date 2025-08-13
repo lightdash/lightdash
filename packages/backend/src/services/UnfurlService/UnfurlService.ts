@@ -177,12 +177,19 @@ export class UnfurlService extends BaseService {
     }
 
     private initSlackListeners() {
-        const { slackApp } = this.slackClient;
-        if (slackApp) {
-            slackApp.event('link_shared', (m) => this.unfurlSlackUrls(m));
-        } else {
-            Logger.warn('Slack app not found');
-        }
+        this.slackClient.onReady((app) => {
+            try {
+                app.event('link_shared', (m) => this.unfurlSlackUrls(m));
+                Logger.info(
+                    'UnfurlService link_shared Slack event listener attached successfully',
+                );
+            } catch (error) {
+                Logger.error(
+                    'Failed to attach UnfurlService Slack event listeners:',
+                    error,
+                );
+            }
+        });
     }
 
     private async waitForAllPaginatedResultsResponse(
@@ -200,7 +207,7 @@ export class UnfurlService extends BaseService {
             `Waiting for ${expectedResponses} paginated responses with timeout ${timeout}ms`,
         );
 
-        const responsePromise = new Promise<void>((resolve, reject) => {
+        const responsePromise = new Promise<void>((resolve) => {
             const responseHandler = async (response: playwright.Response) => {
                 if (response.url().match(paginatedQueryEndpointRegex)) {
                     this.logger.debug(
@@ -1140,8 +1147,7 @@ export class UnfurlService extends BaseService {
         const exploreUrl = new RegExp(`/projects/${uuid}/tables/`);
 
         if (url.match(dashboardUrl) !== null) {
-            const [projectUuid, dashboardUuid] =
-                (await url.match(uuidRegex)) || [];
+            const [projectUuid, dashboardUuid] = url.match(uuidRegex) || [];
 
             const { searchParams } = new URL(url);
             return {
@@ -1156,7 +1162,7 @@ export class UnfurlService extends BaseService {
             };
         }
         if (url.match(chartUrl) !== null) {
-            const [projectUuid, chartUuid] = (await url.match(uuidRegex)) || [];
+            const [projectUuid, chartUuid] = url.match(uuidRegex) || [];
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.CHART,
@@ -1170,7 +1176,7 @@ export class UnfurlService extends BaseService {
             };
         }
         if (url.match(exploreUrl) !== null) {
-            const [projectUuid] = (await url.match(uuidRegex)) || [];
+            const [projectUuid] = url.match(uuidRegex) || [];
 
             const urlWithoutParams = url.split('?')[0];
             const exploreModel = urlWithoutParams.split('/tables/')[1];
