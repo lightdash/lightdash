@@ -126,8 +126,6 @@ import type {
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
-    ApiAiConversationMessages,
-    ApiAiConversations,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -899,8 +897,6 @@ type ApiResults =
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
-    | ApiAiConversations['results']
-    | ApiAiConversationMessages['results']
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results']

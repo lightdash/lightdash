@@ -18,8 +18,10 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconArrowRight,
+    IconBug,
     IconCheck,
     IconCopy,
     IconExclamationCircle,
@@ -46,6 +48,7 @@ import {
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import styles from './AgentChatAssistantBubble.module.css';
+import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiChartVisualization } from './AiChartVisualization';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
@@ -259,199 +262,241 @@ const AssistantBubbleContent: FC<{
     );
 };
 
-export const AssistantBubble: FC<{
+type Props = {
     message: AiAgentMessageAssistant;
     isPreview?: boolean;
-}> = memo(({ message, isPreview = false }) => {
-    const { agentUuid, projectUuid } = useParams();
-    if (!projectUuid) throw new Error(`Project Uuid not found`);
-    if (!agentUuid) throw new Error(`Agent Uuid not found`);
+    isActive?: boolean;
+    debug?: boolean;
+};
 
-    const vizConfig = useMemo(
-        () => parseVizConfig(message.vizConfigOutput),
-        [message.vizConfigOutput],
-    );
+export const AssistantBubble: FC<Props> = memo(
+    ({ message, isPreview = false, isActive = false, debug = false }) => {
+        const { agentUuid, projectUuid } = useParams();
+        if (!projectUuid) throw new Error(`Project Uuid not found`);
+        if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
-    const hasVizConfig = !!vizConfig;
-    const isChartVisualization =
-        hasVizConfig && vizConfig.type !== AiResultType.TABLE_RESULT;
-    const isTableVisualization =
-        hasVizConfig &&
-        vizConfig.type === AiResultType.TABLE_RESULT &&
-        vizConfig.vizTool.vizConfig.limit !== 1;
-    const isVisualizationAvailable =
-        hasVizConfig && (isChartVisualization || isTableVisualization);
+        const vizConfig = useMemo(
+            () => parseVizConfig(message.vizConfigOutput),
+            [message.vizConfigOutput],
+        );
 
-    const queryExecutionHandle = useAiAgentThreadMessageVizQuery(
-        {
+        const hasVizConfig = !!vizConfig;
+        const isChartVisualization =
+            hasVizConfig && vizConfig.type !== AiResultType.TABLE_RESULT;
+        const isTableVisualization =
+            hasVizConfig &&
+            vizConfig.type === AiResultType.TABLE_RESULT &&
+            vizConfig.vizTool.vizConfig.limit !== 1;
+        const isVisualizationAvailable =
+            hasVizConfig && (isChartVisualization || isTableVisualization);
+
+        const queryExecutionHandle = useAiAgentThreadMessageVizQuery(
+            {
+                projectUuid,
+                agentUuid,
+                threadUuid: message.threadUuid,
+                messageUuid: message.uuid,
+            },
+            { enabled: isVisualizationAvailable },
+        );
+
+        const queryResults = useInfiniteQueryResults(
+            projectUuid,
+            queryExecutionHandle?.data?.query.queryUuid,
+        );
+
+        const isQueryLoading =
+            queryExecutionHandle.isLoading || queryResults.isFetchingRows;
+        const isQueryError = queryExecutionHandle.isError || queryResults.error;
+
+        const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
+            useDisclosure(debug);
+
+        const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
             projectUuid,
             agentUuid,
-            threadUuid: message.threadUuid,
-            messageUuid: message.uuid,
-        },
-        { enabled: isVisualizationAvailable },
-    );
+            message.threadUuid,
+        );
 
-    const queryResults = useInfiniteQueryResults(
-        projectUuid,
-        queryExecutionHandle?.data?.query.queryUuid,
-    );
+        const upVoted = message.humanScore === 1;
+        const downVoted = message.humanScore === -1;
+        const hasRating = upVoted || downVoted;
 
-    const isQueryLoading =
-        queryExecutionHandle.isLoading || queryResults.isFetchingRows;
-    const isQueryError = queryExecutionHandle.isError || queryResults.error;
+        const handleUpvote = useCallback(() => {
+            if (hasRating) return;
+            updateFeedbackMutation.mutate({
+                messageUuid: message.uuid,
+                humanScore: 1,
+            });
+        }, [hasRating, updateFeedbackMutation, message.uuid]);
 
-    const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
-        projectUuid,
-        agentUuid,
-        message.threadUuid,
-    );
+        const handleDownvote = useCallback(() => {
+            if (hasRating) return;
+            updateFeedbackMutation.mutate({
+                messageUuid: message.uuid,
+                humanScore: -1,
+            });
+        }, [hasRating, updateFeedbackMutation, message.uuid]);
 
-    const upVoted = message.humanScore === 1;
-    const downVoted = message.humanScore === -1;
-    const hasRating = upVoted || downVoted;
+        const isLoading = useAiAgentThreadMessageStreaming(
+            message.threadUuid,
+            message.uuid,
+        );
 
-    const handleUpvote = useCallback(() => {
-        if (hasRating) return;
-        updateFeedbackMutation.mutate({
-            messageUuid: message.uuid,
-            humanScore: 1,
-        });
-    }, [hasRating, updateFeedbackMutation, message.uuid]);
+        return (
+            <Stack
+                pos="relative"
+                w="100%"
+                gap="xs"
+                bg={isActive ? 'gray.0' : 'transparent'}
+                style={{
+                    overflow: 'unset',
+                    borderStartStartRadius: '0px',
+                }}
+            >
+                <AssistantBubbleContent
+                    message={message}
+                    metricQuery={queryExecutionHandle.data?.query.metricQuery}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                />
 
-    const handleDownvote = useCallback(() => {
-        if (hasRating) return;
-        updateFeedbackMutation.mutate({
-            messageUuid: message.uuid,
-            humanScore: -1,
-        });
-    }, [hasRating, updateFeedbackMutation, message.uuid]);
-
-    const isLoading = useAiAgentThreadMessageStreaming(
-        message.threadUuid,
-        message.uuid,
-    );
-
-    return (
-        <Stack
-            pos="relative"
-            w="100%"
-            gap="xs"
-            style={{
-                overflow: 'unset',
-                borderStartStartRadius: '0px',
-            }}
-        >
-            <AssistantBubbleContent
-                message={message}
-                metricQuery={queryExecutionHandle.data?.query.metricQuery}
-                projectUuid={projectUuid}
-                agentUuid={agentUuid}
-            />
-
-            {isVisualizationAvailable && (
-                <Paper
-                    withBorder
-                    radius="md"
-                    p="md"
-                    h="500px"
-                    shadow="none"
-                    {...((queryExecutionHandle.isError ||
-                        queryExecutionHandle.isLoading) && {
-                        bg: 'gray.0',
-                        style: {
-                            borderStyle: 'dashed',
-                        },
-                    })}
-                >
-                    {isQueryLoading ? (
-                        <Center h="100%">
-                            <Loader
-                                type="dots"
-                                color="gray"
-                                delayedMessage="Loading visualization..."
+                {isVisualizationAvailable && (
+                    <Paper
+                        withBorder
+                        radius="md"
+                        p="md"
+                        h="500px"
+                        shadow="none"
+                        {...((queryExecutionHandle.isError ||
+                            queryExecutionHandle.isLoading) && {
+                            bg: 'gray.0',
+                            style: {
+                                borderStyle: 'dashed',
+                            },
+                        })}
+                    >
+                        {isQueryLoading ? (
+                            <Center h="100%">
+                                <Loader
+                                    type="dots"
+                                    color="gray"
+                                    delayedMessage="Loading visualization..."
+                                />
+                            </Center>
+                        ) : isQueryError ? (
+                            <Stack
+                                gap="xs"
+                                align="center"
+                                justify="center"
+                                h="100%"
+                            >
+                                <MantineIcon
+                                    icon={IconExclamationCircle}
+                                    color="gray"
+                                />
+                                <Text size="xs" c="dimmed" ta="center">
+                                    Something went wrong generating the
+                                    visualization, please try again
+                                </Text>
+                            </Stack>
+                        ) : (
+                            <AiChartVisualization
+                                results={queryResults}
+                                message={message}
+                                queryExecutionHandle={queryExecutionHandle}
+                                projectUuid={projectUuid}
                             />
-                        </Center>
-                    ) : isQueryError ? (
-                        <Stack
-                            gap="xs"
-                            align="center"
-                            justify="center"
-                            h="100%"
-                        >
-                            <MantineIcon
-                                icon={IconExclamationCircle}
+                        )}
+                    </Paper>
+                )}
+                <Group gap={0} display={isPreview ? 'none' : 'flex'}>
+                    <CopyButton value={message.message ?? ''}>
+                        {({ copied, copy }) => (
+                            <ActionIcon
+                                variant="subtle"
                                 color="gray"
-                            />
-                            <Text size="xs" c="dimmed" ta="center">
-                                Something went wrong generating the
-                                visualization, please try again
-                            </Text>
-                        </Stack>
-                    ) : (
-                        <AiChartVisualization
-                            results={queryResults}
-                            message={message}
-                            queryExecutionHandle={queryExecutionHandle}
-                            projectUuid={projectUuid}
-                        />
-                    )}
-                </Paper>
-            )}
-            <Group gap={0} display={isPreview ? 'none' : 'flex'}>
-                <CopyButton value={message.message ?? ''}>
-                    {({ copied, copy }) => (
+                                aria-label="copy"
+                                onClick={copy}
+                                style={{
+                                    display: isLoading ? 'none' : 'block',
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={copied ? IconCheck : IconCopy}
+                                />
+                            </ActionIcon>
+                        )}
+                    </CopyButton>
+
+                    {(!hasRating || upVoted) && (
                         <ActionIcon
                             variant="subtle"
                             color="gray"
-                            aria-label="copy"
-                            onClick={copy}
-                            style={{ display: isLoading ? 'none' : 'block' }}
+                            aria-label="upvote"
+                            onClick={handleUpvote}
+                            display={isLoading ? 'none' : 'block'}
                         >
-                            <MantineIcon icon={copied ? IconCheck : IconCopy} />
+                            <Tooltip
+                                label="Feedback sent"
+                                position="top"
+                                withinPortal
+                                withArrow
+                                // Hack to only render tooltip (on hover) when `hasRating` is false
+                                opened={hasRating ? undefined : false}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        upVoted
+                                            ? IconThumbUpFilled
+                                            : IconThumbUp
+                                    }
+                                />
+                            </Tooltip>
                         </ActionIcon>
                     )}
-                </CopyButton>
 
-                {(!hasRating || upVoted) && (
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="upvote"
-                        onClick={handleUpvote}
-                        display={isLoading ? 'none' : 'block'}
-                    >
-                        <Tooltip
-                            label="Feedback sent"
-                            position="top"
-                            withinPortal
-                            withArrow
-                            // Hack to only render tooltip (on hover) when `hasRating` is false
-                            opened={hasRating ? undefined : false}
+                    {(!hasRating || downVoted) && (
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label="downvote"
+                            onClick={handleDownvote}
+                            display={isLoading ? 'none' : 'block'}
                         >
                             <MantineIcon
-                                icon={upVoted ? IconThumbUpFilled : IconThumbUp}
+                                icon={
+                                    downVoted
+                                        ? IconThumbDownFilled
+                                        : IconThumbDown
+                                }
                             />
-                        </Tooltip>
-                    </ActionIcon>
-                )}
+                        </ActionIcon>
+                    )}
 
-                {(!hasRating || downVoted) && (
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="downvote"
-                        onClick={handleDownvote}
-                        display={isLoading ? 'none' : 'block'}
-                    >
-                        <MantineIcon
-                            icon={
-                                downVoted ? IconThumbDownFilled : IconThumbDown
-                            }
-                        />
-                    </ActionIcon>
-                )}
-            </Group>
-        </Stack>
-    );
-});
+                    {isVisualizationAvailable && (
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Debug information"
+                            onClick={openDrawer}
+                        >
+                            <MantineIcon icon={IconBug} color="gray" />
+                        </ActionIcon>
+                    )}
+                </Group>
+
+                <AgentChatDebugDrawer
+                    isVisualizationAvailable={isVisualizationAvailable}
+                    isDrawerOpen={isDrawerOpen}
+                    closeDrawer={closeDrawer}
+                    toolCalls={message.toolCalls}
+                    vizConfig={vizConfig}
+                    metricQuery={
+                        queryExecutionHandle.data?.query.metricQuery || null
+                    }
+                />
+            </Stack>
+        );
+    },
+);
