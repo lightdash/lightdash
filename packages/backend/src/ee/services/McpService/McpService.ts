@@ -1084,7 +1084,7 @@ export class McpService extends BaseService {
                 properties: {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
-                    toolName: `mcp_tool_call.${toolName}`,
+                    toolName,
                 },
             });
         } catch (error) {
