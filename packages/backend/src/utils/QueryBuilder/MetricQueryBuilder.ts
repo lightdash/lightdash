@@ -776,7 +776,6 @@ export class MetricQueryBuilder {
         const processedSql = metric.sql.replace(
             lightdashVariablePattern,
             (fullmatch, ref) => {
-                console.log('ref', fullmatch, ref);
                 const { refTable, refName } = getParsedReference(
                     ref,
                     metric.table,

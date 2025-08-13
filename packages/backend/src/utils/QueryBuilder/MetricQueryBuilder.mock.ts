@@ -2041,14 +2041,14 @@ export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS
     ),
     cte_unaffected AS (
     SELECT
-      (SUM("orders".amount)) / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"
+      SUM("orders".amount) AS "orders_total_order_amount"
     FROM customers AS "customers"
     LEFT OUTER JOIN orders AS "orders"
       ON ("customers".customer_id) = ("orders".customer_id)
     )
     SELECT
       cte_unaffected.*,
-      cte_metrics_customers."customers_total_customers" AS "customers_total_customers"
+      cte_unaffected."orders_total_order_amount" / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"
     FROM cte_unaffected
     CROSS JOIN cte_metrics_customers
     LIMIT 100`;

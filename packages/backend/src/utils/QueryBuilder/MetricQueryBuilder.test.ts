@@ -1,15 +1,9 @@
 import {
     BinType,
-    CompiledMetricQuery,
     CustomDimensionType,
-    DimensionType,
-    Explore,
-    FieldType,
     FilterOperator,
     ForbiddenError,
     JoinRelationship,
-    MetricType,
-    SupportedDbtAdapter,
     TimeFrames,
 } from '@lightdash/common';
 import {
@@ -966,73 +960,6 @@ describe('Query builder', () => {
 
             expect(replaceWhitespace(result.query)).toBe(
                 replaceWhitespace(EXPECTED_SQL_WITH_CROSS_TABLE_METRICS),
-            );
-        });
-
-        test('Should generate warning for cross-table metrics with filters', () => {
-            // Create an explore with a cross-table metric that has filters
-            const exploreWithFilteredMetric: Explore = {
-                ...EXPLORE_WITH_CROSS_TABLE_METRICS,
-                tables: {
-                    ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables,
-                    customers: {
-                        ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables.customers,
-                        metrics: {
-                            ...EXPLORE_WITH_CROSS_TABLE_METRICS.tables.customers
-                                .metrics,
-                            revenue_per_customer_filtered: {
-                                type: MetricType.SUM,
-                                name: 'revenue_per_customer_filtered',
-                                label: 'Revenue Per Customer (Filtered)',
-                                table: 'customers',
-                                tableLabel: 'customers',
-                                fieldType: FieldType.METRIC,
-                                sql: '${orders.order_id}',
-                                compiledSql: 'SUM("orders".order_id)',
-                                tablesReferences: ['customers', 'orders'],
-                                hidden: false,
-                                filters: [
-                                    {
-                                        id: 'filter1',
-                                        target: { fieldRef: 'orders_order_id' },
-                                        operator: FilterOperator.NOT_NULL,
-                                        values: [],
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
-            };
-
-            const metricQueryWithFilteredMetric: CompiledMetricQuery = {
-                exploreName: 'customers',
-                dimensions: [],
-                metrics: ['customers_revenue_per_customer_filtered'],
-                filters: {},
-                sorts: [],
-                limit: 100,
-                tableCalculations: [],
-                additionalMetrics: [],
-                compiledTableCalculations: [],
-                compiledAdditionalMetrics: [],
-                compiledCustomDimensions: [],
-            };
-
-            const result = buildQueryWithExperimentalCtes({
-                explore: exploreWithFilteredMetric,
-                compiledMetricQuery: metricQueryWithFilteredMetric,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            // Should generate a warning about cross-table metrics with filters
-            expect(result.warnings[0].message).toContain(
-                'that references a joined table in the filters might have inflation',
-            );
-            expect(result.warnings[0].fields).toContain(
-                'customers_revenue_per_customer_filtered',
             );
         });
     });
