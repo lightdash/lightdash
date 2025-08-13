@@ -3,6 +3,7 @@ import {
     type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
     type ItemsMap,
+    type ParameterDefinitions,
     type ParametersValuesMap,
     type SchedulerAndTargets,
     type UpdateSchedulerAndTargetsWithoutId,
@@ -80,8 +81,8 @@ const CreateStateContent: FC<{
     isChart: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
-    parameterReferences?: Set<string> | string[];
     currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
     onBack: () => void;
 }> = ({
     resourceUuid,
@@ -89,8 +90,8 @@ const CreateStateContent: FC<{
     isChart,
     isThresholdAlert,
     itemsMap,
-    parameterReferences,
     currentParameterValues,
+    availableParameters,
     onBack,
 }) => {
     useEffect(() => {
@@ -158,8 +159,8 @@ const CreateStateContent: FC<{
                 loading={createMutation.isLoading}
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
-                parameterReferences={parameterReferences}
                 currentParameterValues={currentParameterValues}
+                availableParameters={availableParameters}
             />
         </>
     );
@@ -168,17 +169,17 @@ const CreateStateContent: FC<{
 const UpdateStateContent: FC<{
     schedulerUuid: string;
     itemsMap?: ItemsMap;
-    parameterReferences?: Set<string> | string[];
     currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
     onBack: () => void;
     isThresholdAlert?: boolean;
 }> = ({
     schedulerUuid,
     itemsMap,
-    parameterReferences,
     currentParameterValues,
     onBack,
     isThresholdAlert,
+    availableParameters,
 }) => {
     const scheduler = useScheduler(schedulerUuid);
 
@@ -263,8 +264,8 @@ const UpdateStateContent: FC<{
                 onSendNow={handleSendNow}
                 loading={mutation.isLoading || scheduler.isInitialLoading}
                 itemsMap={itemsMap}
-                parameterReferences={parameterReferences}
                 currentParameterValues={currentParameterValues}
+                availableParameters={availableParameters}
             />
         </>
     );
@@ -282,8 +283,8 @@ interface Props {
     isChart: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
-    parameterReferences?: Set<string> | string[];
     currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
 }
 
 const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
@@ -293,8 +294,8 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     isChart,
     isThresholdAlert,
     itemsMap,
-    parameterReferences,
     currentParameterValues,
+    availableParameters,
     onClose = () => {},
 }) => {
     const [state, setState] = useState<States>(States.LIST);
@@ -360,8 +361,8 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     createMutation={createMutation}
                     isChart={isChart}
                     itemsMap={itemsMap}
-                    parameterReferences={parameterReferences}
                     currentParameterValues={currentParameterValues}
+                    availableParameters={availableParameters}
                     onBack={() => setState(States.LIST)}
                     isThresholdAlert={isThresholdAlert}
                 />
@@ -370,8 +371,8 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                 <UpdateStateContent
                     schedulerUuid={schedulerUuid}
                     itemsMap={itemsMap}
-                    parameterReferences={parameterReferences}
                     currentParameterValues={currentParameterValues}
+                    availableParameters={availableParameters}
                     onBack={() => setState(States.LIST)}
                     isThresholdAlert={isThresholdAlert}
                 />
