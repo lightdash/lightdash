@@ -193,16 +193,24 @@ export class AiAgentService {
     private initSlackListeners() {
         if (!this.lightdashConfig.ai.copilot.enabled) return;
 
-        const { slackApp } = this.slackClient;
-        if (slackApp) {
-            slackApp.event('app_mention', (m) => this.handleAppMention(m));
-            this.handlePromptUpvote(slackApp);
-            this.handlePromptDownvote(slackApp);
-            AiAgentService.handleClickExploreButton(slackApp);
-            AiAgentService.handleClickOAuthButton(slackApp);
-        } else {
-            Logger.warn('Slack app not found');
-        }
+        this.slackClient.onReady((app) => {
+            try {
+                app.event('app_mention', (m) => this.handleAppMention(m));
+                this.handlePromptUpvote(app);
+                this.handlePromptDownvote(app);
+                AiAgentService.handleClickExploreButton(app);
+                AiAgentService.handleClickOAuthButton(app);
+                this.handleExecuteFollowUpTool(app);
+                Logger.info(
+                    'AiAgentService Slack event listeners attached successfully',
+                );
+            } catch (error) {
+                Logger.error(
+                    'Failed to attach AiAgentService Slack event listeners:',
+                    error,
+                );
+            }
+        });
     }
 
     private async getIsCopilotEnabled(
