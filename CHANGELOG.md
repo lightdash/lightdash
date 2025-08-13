@@ -1,3 +1,10 @@
+# [0.1906.0](https://github.com/lightdash/lightdash/compare/0.1905.1...0.1906.0) (2025-08-13)
+
+
+### Features
+
+* enable CORS for OAuth discovery endpoints ([#16373](https://github.com/lightdash/lightdash/issues/16373)) ([08f35f0](https://github.com/lightdash/lightdash/commit/08f35f0635fd250328a7cfa02f08b57eb65fff06))
+
 ## [0.1905.1](https://github.com/lightdash/lightdash/compare/0.1905.0...0.1905.1) (2025-08-13)
 
 
