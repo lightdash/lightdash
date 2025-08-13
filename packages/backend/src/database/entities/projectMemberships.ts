@@ -7,17 +7,20 @@ export type DbProjectMembership = {
     project_id: number;
     user_id: number;
     created_at: Date;
-    role: ProjectMemberRole;
+    role: ProjectMemberRole | null;
+    role_uuid?: string | null;
 };
 
 export type DbProjectMembershipIn = {
     user_id: number;
     project_id: number;
-    role: ProjectMemberRole;
+    role: ProjectMemberRole | null;
+    role_uuid?: string | null;
 };
 
 export type DbProjectMembershipUpdate = {
-    role: ProjectMemberRole;
+    role?: ProjectMemberRole;
+    role_uuid?: string | null;
 };
 
 export type ProjectMembershipsTable = Knex.CompositeTableType<
