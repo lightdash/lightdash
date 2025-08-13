@@ -64,6 +64,10 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     const { cx, classes } = useTableStyles();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
+
+    useEffect(() => {
+      setPage(1);
+    }, [debouncedSearch]);
     const [page, setPage] = useState(1);
     const [sortBy, setSortBy] = useState<'name' | 'created_at'>('created_at');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
