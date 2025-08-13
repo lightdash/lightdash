@@ -1,7 +1,16 @@
 import { type LightdashProjectParameter } from '@lightdash/common';
-import { Box, Button, CloseButton, Group, Popover, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    CloseButton,
+    Group,
+    MantineProvider,
+    Popover,
+    Text,
+} from '@mantine-8/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
+import { getMantine8ThemeOverride } from '../mantine8Theme';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 
 interface PinnedParameterProps {
@@ -44,10 +53,6 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
         onUnpin(parameterKey);
     }, [onUnpin, parameterKey]);
 
-    const hasValue = Boolean(
-        value && (Array.isArray(value) ? value.length > 0 : true),
-    );
-
     return (
         <Popover
             position="bottom-start"
@@ -72,7 +77,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                             textOverflow: 'ellipsis',
                         },
                     }}
-                    rightIcon={
+                    rightSection={
                         isEditMode ? (
                             <CloseButton
                                 size="xs"
@@ -84,21 +89,14 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                         ) : undefined
                     }
                 >
-                    <Box
-                        sx={{
-                            maxWidth: '100%',
-                            overflow: 'hidden',
-                        }}
-                    >
-                        <Text fz="xs" truncate>
-                            <Text fw={600} span truncate>
-                                {parameter.label || parameterKey}:{' '}
-                            </Text>
-                            <Text fw={hasValue ? 700 : 400} span truncate>
-                                {displayValue}
-                            </Text>
+                    <Text fz="inherit" truncate>
+                        <Text fz="inherit" span>
+                            {parameter.label || parameterKey}:
+                        </Text>{' '}
+                        <Text fz="inherit" fw={700} span>
+                            {displayValue}
                         </Text>
-                    </Box>
+                    </Text>
                 </Button>
             </Popover.Target>
 
@@ -173,20 +171,22 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
     }
 
     return (
-        <Group spacing="xs">
-            {pinnedParametersList.map(({ key, parameter }) => (
-                <PinnedParameter
-                    key={key}
-                    parameterKey={key}
-                    parameter={parameter}
-                    value={parameterValues[key] ?? null}
-                    onChange={handleParameterChange}
-                    onUnpin={handleUnpin}
-                    isEditMode={isEditMode}
-                    projectUuid={dashboard?.projectUuid}
-                />
-            ))}
-        </Group>
+        <MantineProvider theme={getMantine8ThemeOverride()}>
+            <Group gap="xs">
+                {pinnedParametersList.map(({ key, parameter }) => (
+                    <PinnedParameter
+                        key={key}
+                        parameterKey={key}
+                        parameter={parameter}
+                        value={parameterValues[key] ?? null}
+                        onChange={handleParameterChange}
+                        onUnpin={handleUnpin}
+                        isEditMode={isEditMode}
+                        projectUuid={dashboard?.projectUuid}
+                    />
+                ))}
+            </Group>
+        </MantineProvider>
     );
 };
 
