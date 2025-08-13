@@ -5,6 +5,7 @@ import {
     toolFindChartsArgsSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import moment from 'moment';
 import type { FindChartsFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -34,6 +35,7 @@ const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
         <Name>${chart.name}</Name>
         <SearchRank>${chart.search_rank}</SearchRank>
         <ChartType>${chart.chartType}</ChartType>
+        <ChartSource>${chart.chartSource}</ChartSource>
         ${
             chart.description
                 ? `<Description>${chart.description}</Description>`
@@ -41,6 +43,26 @@ const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
         }
         ${chartUrl ? `<Url>${chartUrl}</Url>` : ''}
         <SpaceUuid>${chart.spaceUuid}</SpaceUuid>
+        <ViewsCount>${chart.viewsCount}</ViewsCount>
+        ${
+            chart.firstViewedAt
+                ? `<FirstViewedAt>${moment(
+                      chart.firstViewedAt,
+                  ).fromNow()}</FirstViewedAt>`
+                : ''
+        }
+        ${
+            chart.lastModified
+                ? `<LastModified>${moment(
+                      chart.lastModified,
+                  ).fromNow()}</LastModified>`
+                : ''
+        }
+        ${
+            chart.createdBy
+                ? `<CreatedBy>${chart.createdBy.firstName} ${chart.createdBy.lastName}</CreatedBy>`
+                : ''
+        }
     </Chart>
     `.trim();
 };
