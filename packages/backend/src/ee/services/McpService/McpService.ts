@@ -3,12 +3,15 @@ import {
     AnyType,
     CatalogFilter,
     CatalogType,
+    DashboardSearchResult,
     ForbiddenError,
     MissingConfigError,
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
+    SavedChartSearchResult,
     SessionUser,
+    SqlChartSearchResult,
     ToolFindChartsArgs,
     toolFindChartsArgsSchema,
     ToolFindDashboardsArgs,
@@ -50,6 +53,7 @@ import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
 import { getFindCharts } from '../ai/tools/findCharts';
+import { getFindContent } from '../ai/tools/findContent';
 import { getFindDashboards } from '../ai/tools/findDashboards';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -69,6 +73,7 @@ export enum McpToolName {
     FIND_FIELDS = 'find_fields',
     FIND_DASHBOARDS = 'find_dashboards',
     FIND_CHARTS = 'find_charts',
+    FIND_CONTENT = 'find_content',
     LIST_PROJECTS = 'list_projects',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
@@ -355,6 +360,47 @@ export class McpService extends BaseService {
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await findChartsTool.execute(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: result,
+                        },
+                    ],
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.FIND_CONTENT,
+            {
+                description:
+                    'Search across all content types (dashboards and charts) with unified ranking by relevance. This enables hierarchy-free search where results are ranked by relevance rather than content type.',
+                inputSchema: toolFindDashboardsArgsSchema.shape as AnyType,
+            },
+            async (_args, context) => {
+                const args = _args as ToolFindDashboardsArgs;
+
+                const projectUuid = await this.resolveProjectUuid(
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
+
+                const findContent = await this.getFindContentFunction(
+                    argsWithProject,
+                    context as McpProtocolContext,
+                );
+
+                const findContentTool = getFindContent({
+                    findContent,
+                    pageSize: 15,
+                    siteUrl: this.lightdashConfig.siteUrl,
+                });
+                const result = await findContentTool.execute(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -1018,6 +1064,86 @@ export class McpService extends BaseService {
             });
 
         return { getExplore, runMiniMetricQuery };
+    }
+
+    async getFindContentFunction(
+        toolArgs: ToolFindDashboardsArgs & { projectUuid: string },
+        context: McpProtocolContext,
+    ): Promise<
+        (args: {
+            searchQuery: string;
+            page: number;
+            pageSize: number;
+        }) => Promise<{
+            results: Array<
+                | (DashboardSearchResult & { contentType: 'dashboard' })
+                | (SavedChartSearchResult & { contentType: 'chart' })
+                | (SqlChartSearchResult & { contentType: 'chart' })
+            >;
+            pagination: {
+                page: number;
+                pageSize: number;
+                totalResults: number;
+                totalPageCount: number;
+            };
+        }>
+    > {
+        const { user, account } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+        const { projectUuid } = toolArgs;
+
+        if (!user || !organizationUuid || !account) {
+            throw new ForbiddenError();
+        }
+
+        const project = await this.projectService.getProject(
+            projectUuid,
+            account,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const findContent = (args: {
+            searchQuery: string;
+            page: number;
+            pageSize: number;
+        }) =>
+            wrapSentryTransaction('McpService.findContent', args, async () => {
+                const results = await this.searchModel.searchUnifiedContent(
+                    projectUuid,
+                    args.searchQuery,
+                    args.pageSize,
+                );
+
+                // Filter by space access
+                const filteredResults =
+                    await this.spaceService.filterBySpaceAccess(user, results);
+
+                const totalResults = filteredResults.length;
+                const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+                return {
+                    results: filteredResults,
+                    pagination: {
+                        page: args.page,
+                        pageSize: args.pageSize,
+                        totalResults,
+                        totalPageCount,
+                    },
+                };
+            });
+
+        return findContent;
     }
 
     public getServer(): McpServer {
