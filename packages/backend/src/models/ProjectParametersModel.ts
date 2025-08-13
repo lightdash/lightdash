@@ -1,6 +1,5 @@
 import {
     KnexPaginateArgs,
-    KnexPaginatedData,
     LightdashProjectConfig,
     NotFoundError,
 } from '@lightdash/common';
@@ -40,19 +39,25 @@ export class ProjectParametersModel {
         },
         paginateArgs?: KnexPaginateArgs,
     ) {
-        let query = this.database(ProjectParametersTableName)
-            .where('project_uuid', projectUuid)
-            .select('*');
+        let query = this.database(ProjectParametersTableName).where(
+            'project_uuid',
+            projectUuid,
+        );
 
         // Add search functionality
         if (options?.search) {
-            const searchTerm = `%${options.search}%`;
-            query = query.where((builder) => {
-                void builder
-                    .whereILike('name', searchTerm)
-                    .orWhereRaw("config->>'label' ILIKE ?", [searchTerm])
-                    .orWhereRaw("config->>'description' ILIKE ?", [searchTerm]);
-            });
+            const trimmedSearch = options.search.trim();
+            if (trimmedSearch.length > 0) {
+                const searchTerm = `%${trimmedSearch}%`;
+                query = query.where((builder) => {
+                    void builder
+                        .whereILike('name', searchTerm)
+                        .orWhereRaw("config->>'label' ILIKE ?", [searchTerm])
+                        .orWhereRaw("config->>'description' ILIKE ?", [
+                            searchTerm,
+                        ]);
+                });
+            }
         }
 
         // Add sorting
@@ -65,7 +70,10 @@ export class ProjectParametersModel {
             query = query.orderBy('name', 'asc');
         }
 
-        return KnexPaginate.paginate(query, paginateArgs);
+        return KnexPaginate.paginate(
+            query.select<DbProjectParameter[]>(),
+            paginateArgs,
+        );
     }
 
     async get(projectUuid: string, name: string): Promise<DbProjectParameter> {

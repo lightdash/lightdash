@@ -20,7 +20,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -51,7 +50,10 @@ export class ParametersController extends BaseController {
     ): Promise<ApiSuccess<ApiGetProjectParametersListResults>> {
         const paginateArgs =
             page !== undefined && pageSize !== undefined
-                ? { page, pageSize }
+                ? {
+                      page,
+                      pageSize: Math.min(pageSize, 100), // Limit to max 100 items per page
+                  }
                 : undefined;
 
         const parameters = await this.services
@@ -63,12 +65,10 @@ export class ParametersController extends BaseController {
             );
 
         const results: ApiGetProjectParametersListResults = {
-            data: parameters.data.map((param: DbProjectParameter) => ({
+            data: parameters.data.map((param) => ({
                 name: param.name,
-                label: param.config.label,
-                description: param.config.description,
-                default: param.config.default,
                 createdAt: param.created_at,
+                config: param.config,
             })),
             pagination: parameters.pagination,
         };

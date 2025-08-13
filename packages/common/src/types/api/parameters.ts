@@ -5,10 +5,8 @@ export type ApiGetProjectParametersResults = ParameterDefinitions;
 
 export type ProjectParameterSummary = {
     name: string;
-    label: string;
-    description?: string;
-    default?: string | string[];
     createdAt: Date;
+    config: LightdashProjectParameter;
 };
 
 export type ApiGetProjectParametersListResults = KnexPaginatedData<
