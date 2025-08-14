@@ -3,7 +3,6 @@ import {
     ApiDefaultRoleResponse,
     ApiDeleteRoleResponse,
     ApiErrorPayload,
-    ApiGetProjectAccessResponse,
     ApiGetRolesResponse,
     ApiRemoveScopeFromRoleResponse,
     ApiRoleAssignmentListResponse,
@@ -41,35 +40,22 @@ import { BaseController } from '../../controllers/baseController';
 import { RolesService } from '../services/RolesService';
 
 /**
-
-UNIFIED API VISION:
-
-1. Consistent Resource Hierarchy:
-    GET    /api/v2/roles/org/{orgId}
-    POST   /api/v2/roles/org/{orgId}
-    GET    /api/v2/roles/{roleId}
-    PATCH  /api/v2/roles/{roleId}
-    DELETE /api/v2/roles/{roleId}
-
-    POST   /api/v2/roles/{roleId}/scopes
-    DELETE /api/v2/roles/{roleId}/scopes/{scopeName}
-
-2. Unified Assignment Pattern:
-    GET    /api/v2/roles/org/{orgId}/role-assignments
-    POST   /api/v2/roles/org/{orgId}/role-assignments (users only - groups not supported at org level)
-    DELETE /api/v2/roles/org/{orgId}/role-assignments/user/{userId}/{roleId}
-    
-    GET    /api/v2/roles/projects/{projectId}/role-assignments
-    POST   /api/v2/roles/projects/{projectId}/role-assignments
-    PATCH  /api/v2/roles/projects/{projectId}/role-assignments/user/{userId}
-    PATCH  /api/v2/roles/projects/{projectId}/role-assignments/group/{groupId}
-    DELETE /api/v2/roles/projects/{projectId}/role-assignments/user/{userId}
-    DELETE /api/v2/roles/projects/{projectId}/role-assignments/group/{groupId}
-
-3. Consistent Request Body:
-    POST assignments: { "roleId": "uuid", "assigneeType": "user" | "group", "assigneeId": "uuid" }
-    PATCH assignments: { "roleId": "uuid" }
-
+ * Unified Roles API
+ *
+ * This controller handles all role management operations with the new namespace structure:
+ *
+ * Role Management: /api/v2/roles
+ * - Creating, reading, updating, and deleting roles
+ * - Managing role scopes (permissions)
+ *
+ * Organization Role Assignments: /api/v2/orgs/{orgId}/roles
+ * - Listing roles for an organization
+ * - Creating roles in an organization
+ * - Managing role assignments within an organization
+ *
+ * Project Role Assignments: /api/v2/projects/{projectId}/roles
+ * - Managing role assignments within a project
+ * - Assigning users and groups to projects with specific roles
  */
 @Route('/api/v2/roles')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -83,60 +69,9 @@ export class RolesController extends BaseController {
         return this.services.getRolesService<RolesService>();
     }
 
-    /**
-     * Get roles for organization
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/org/{orgUuid}')
-    @OperationId('GetRolesByOrganization')
-    async getRolesByOrganization(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Query() load?: string,
-    ): Promise<ApiGetRolesResponse | ApiRoleWithScopesResponse> {
-        const loadScopes = load === 'scopes';
-        const roles = await this.getRolesService().getRolesByOrganizationUuid(
-            req.account!,
-            orgUuid,
-            loadScopes,
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: roles,
-        };
-    }
-
-    /**
-     * Create a new role
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/org/{orgUuid}')
-    @OperationId('CreateRole')
-    async createRole(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Body() body: CreateRole,
-    ): Promise<ApiDefaultRoleResponse> {
-        const role = await this.getRolesService().createRole(
-            req.account!,
-            orgUuid,
-            body,
-        );
-
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: role,
-        };
-    }
+    // =====================================
+    // ROLE MANAGEMENT
+    // =====================================
 
     /**
      * Get role by ID
@@ -206,278 +141,6 @@ export class RolesController extends BaseController {
         @Path() roleUuid: string,
     ): Promise<ApiDeleteRoleResponse> {
         await this.getRolesService().deleteRole(req.account!, roleUuid);
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    // =====================================
-    // UNIFIED ORGANIZATION ROLE ASSIGNMENTS
-    // =====================================
-
-    /**
-     * List organization role assignments
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/org/{orgUuid}/role-assignments')
-    @OperationId('GetOrganizationRoleAssignments')
-    async getOrganizationRoleAssignments(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-    ): Promise<ApiRoleAssignmentListResponse> {
-        const assignments =
-            await this.getRolesService().getOrganizationRoleAssignments(
-                req.account!,
-                orgUuid,
-            );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: assignments,
-        };
-    }
-
-    /**
-     * Create organization role assignment
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/org/{orgUuid}/role-assignments')
-    @OperationId('CreateOrganizationRoleAssignment')
-    async createOrganizationRoleAssignment(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Body() body: CreateRoleAssignmentRequest,
-    ): Promise<ApiRoleAssignmentResponse> {
-        const assignment =
-            await this.getRolesService().createOrganizationRoleAssignment(
-                req.account!,
-                orgUuid,
-                body,
-            );
-
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Delete organization role assignment for user
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/org/{orgUuid}/role-assignments/user/{userId}')
-    @OperationId('DeleteOrganizationUserRoleAssignment')
-    async deleteOrganizationUserRoleAssignment(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() userId: string,
-    ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.getRolesService().deleteOrganizationRoleAssignment(
-            req.account!,
-            orgUuid,
-            userId,
-            'user',
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    // =====================================
-    // UNIFIED PROJECT ROLE ASSIGNMENTS
-    // =====================================
-
-    /**
-     * List project role assignments
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/projects/{projectId}/role-assignments')
-    @OperationId('GetProjectRoleAssignments')
-    async getProjectRoleAssignments(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-    ): Promise<ApiRoleAssignmentListResponse> {
-        const assignments =
-            await this.getRolesService().getProjectRoleAssignments(
-                req.account!,
-                projectId,
-            );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: assignments,
-        };
-    }
-
-    /**
-     * Create project role assignment
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/projects/{projectId}/role-assignments')
-    @OperationId('CreateProjectRoleAssignment')
-    async createProjectRoleAssignment(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-        @Body() body: CreateRoleAssignmentRequest,
-    ): Promise<ApiRoleAssignmentResponse> {
-        const assignment =
-            await this.getRolesService().createProjectRoleAssignment(
-                req.account!,
-                projectId,
-                body,
-            );
-
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Update project role assignment for user
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Patch('/projects/{projectId}/role-assignments/user/{userId}')
-    @OperationId('UpdateProjectUserRoleAssignment')
-    async updateProjectUserRoleAssignment(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-        @Path() userId: string,
-        @Body() body: UpdateRoleAssignmentRequest,
-    ): Promise<ApiRoleAssignmentResponse> {
-        const assignment =
-            await this.getRolesService().updateProjectRoleAssignment(
-                req.account!,
-                projectId,
-                userId,
-                'user',
-                body,
-            );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Update project role assignment for group
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Patch('/projects/{projectId}/role-assignments/group/{groupId}')
-    @OperationId('UpdateProjectGroupRoleAssignment')
-    async updateProjectGroupRoleAssignment(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-        @Path() groupId: string,
-        @Body() body: UpdateRoleAssignmentRequest,
-    ): Promise<ApiRoleAssignmentResponse> {
-        const assignment =
-            await this.getRolesService().updateProjectRoleAssignment(
-                req.account!,
-                projectId,
-                groupId,
-                'group',
-                body,
-            );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Delete project role assignment for user
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/projects/{projectId}/role-assignments/user/{userId}')
-    @OperationId('DeleteProjectUserRoleAssignment')
-    async deleteProjectUserRoleAssignment(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-        @Path() userId: string,
-    ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.getRolesService().deleteProjectRoleAssignment(
-            req.account!,
-            projectId,
-            userId,
-            'user',
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    /**
-     * Delete project role assignment for group
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/projects/{projectId}/role-assignments/group/{groupId}')
-    @OperationId('DeleteProjectGroupRoleAssignment')
-    async deleteProjectGroupRoleAssignment(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-        @Path() groupId: string,
-    ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.getRolesService().deleteProjectRoleAssignment(
-            req.account!,
-            projectId,
-            groupId,
-            'group',
-        );
 
         this.setStatus(200);
         return {

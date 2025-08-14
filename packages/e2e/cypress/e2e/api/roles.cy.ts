@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 
 const apiUrl = '/api/v2/roles';
+const orgRolesApiUrl = '/api/v2/orgs';
+const projectRolesApiUrl = '/api/v2/projects';
 
 describe('Roles API Tests', () => {
     beforeEach(() => {
@@ -35,7 +37,7 @@ describe('Roles API Tests', () => {
             const roleDescription = 'Test role created by integration test';
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -62,7 +64,7 @@ describe('Roles API Tests', () => {
 
         it('should list organization roles without scopes', () => {
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: `Custom Role ${new Date().getTime()}`,
@@ -74,7 +76,7 @@ describe('Roles API Tests', () => {
                 cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                     method: 'GET',
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
@@ -88,7 +90,7 @@ describe('Roles API Tests', () => {
 
         it('should list organization roles with scopes', () => {
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: `Custom Role ${new Date().getTime()}`,
@@ -111,7 +113,7 @@ describe('Roles API Tests', () => {
                     expect(scopeResp.body).to.have.property('status', 'ok');
 
                     cy.request({
-                        url: `${apiUrl}/org/${testOrgUuid}?load=scopes`,
+                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles?load=scopes`,
                         method: 'GET',
                     }).then((resp) => {
                         expect(resp.status).to.eq(200);
@@ -140,7 +142,7 @@ describe('Roles API Tests', () => {
         it('should forbid listing roles from different organization', () => {
             cy.anotherLogin();
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'GET',
                 failOnStatusCode: false,
             }).then((resp) => {
@@ -153,7 +155,7 @@ describe('Roles API Tests', () => {
             const roleName = `Updatable Role ${new Date().getTime()}`;
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -168,7 +170,7 @@ describe('Roles API Tests', () => {
 
                 // Update the role
                 cy.request({
-                    url: `${apiUrl}/${roleUuid}`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
                     method: 'PATCH',
                     body: {
                         description: updatedDescription,
@@ -192,7 +194,7 @@ describe('Roles API Tests', () => {
             const roleName = `Deletable Role ${new Date().getTime()}`;
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -203,7 +205,7 @@ describe('Roles API Tests', () => {
 
                 // Delete the role
                 cy.request({
-                    url: `${apiUrl}/${roleUuid}`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
                     method: 'DELETE',
                 }).then((deleteResp) => {
                     expect(deleteResp.status).to.eq(200);
@@ -218,7 +220,7 @@ describe('Roles API Tests', () => {
 
         it('should list organization role assignments', () => {
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
                 method: 'GET',
                 failOnStatusCode: false, // May not be implemented yet
             }).then((resp) => {
@@ -234,7 +236,7 @@ describe('Roles API Tests', () => {
             const roleName = `Unified User Assignment Role ${new Date().getTime()}`;
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -248,7 +250,7 @@ describe('Roles API Tests', () => {
 
                 // Assign role to user using unified API
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
                     method: 'POST',
                     body: {
                         roleId: roleUuid,
@@ -277,7 +279,7 @@ describe('Roles API Tests', () => {
 
                     // Clean up assignment
                     cy.request({
-                        url: `${apiUrl}/org/${testOrgUuid}/role-assignments/user/${testUserUuid}/${roleUuid}`,
+                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
                         method: 'DELETE',
                         failOnStatusCode: false,
                     });
@@ -290,7 +292,7 @@ describe('Roles API Tests', () => {
             const roleName = `Unified Group Assignment Role ${new Date().getTime()}`;
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -304,7 +306,7 @@ describe('Roles API Tests', () => {
 
                 // Try to assign role to group using unified API - should fail
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
                     method: 'POST',
                     body: {
                         roleId: roleUuid,
@@ -329,7 +331,7 @@ describe('Roles API Tests', () => {
             const roleName = `Delete User Assignment Role ${new Date().getTime()}`;
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -343,7 +345,7 @@ describe('Roles API Tests', () => {
 
                 // Create assignment first
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
                     method: 'POST',
                     body: {
                         roleId: roleUuid,
@@ -355,7 +357,7 @@ describe('Roles API Tests', () => {
 
                     // Delete the assignment
                     cy.request({
-                        url: `${apiUrl}/org/${testOrgUuid}/role-assignments/user/${testUserUuid}`,
+                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
                         method: 'DELETE',
                     }).then((deleteResp) => {
                         expect(deleteResp.status).to.eq(200);
@@ -368,12 +370,12 @@ describe('Roles API Tests', () => {
             });
         });
 
-        it('should get 404 (missing route) when trying to delete group from org', () => {
+        it('should get 400 when trying to delete group from org', () => {
             // First create a test role
             const roleName = `Delete Group Assignment Role ${new Date().getTime()}`;
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -385,11 +387,11 @@ describe('Roles API Tests', () => {
 
                 // Try to delete group assignment - should fail
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments/group/${SEED_GROUP.groupUuid}`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
                     method: 'DELETE',
                     failOnStatusCode: false,
                 }).then((deleteResp) => {
-                    expect(deleteResp.status).to.eq(404);
+                    expect(deleteResp.status).to.eq(400);
                 });
             });
         });
@@ -398,7 +400,7 @@ describe('Roles API Tests', () => {
     describe('Project Access Management', () => {
         it('should get project access information', () => {
             cy.request({
-                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
+                url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
                 method: 'GET',
             }).then((resp) => {
                 expect(resp.status).to.eq(200);
@@ -412,7 +414,7 @@ describe('Roles API Tests', () => {
 
             // Create a test role
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: `Project Access Role ${new Date().getTime()}`,
@@ -423,7 +425,7 @@ describe('Roles API Tests', () => {
 
                 // Create project access
                 cy.request({
-                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
                     method: 'POST',
                     body: {
                         roleId: roleResp.body.results.roleUuid,
@@ -445,7 +447,7 @@ describe('Roles API Tests', () => {
             const roleName = `Scoped Role ${new Date().getTime()}`;
 
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
@@ -487,7 +489,7 @@ describe('Roles API Tests', () => {
 
             // Try to create a role in the original org
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: 'Unauthorized Role',
@@ -501,7 +503,7 @@ describe('Roles API Tests', () => {
 
         it('should validate role creation with empty name', () => {
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: '',
@@ -516,7 +518,7 @@ describe('Roles API Tests', () => {
         it('should prevent deleting system roles', () => {
             // Get system roles first
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'GET',
             }).then((resp) => {
                 const systemRole = resp.body.results.find(
@@ -527,7 +529,7 @@ describe('Roles API Tests', () => {
                 if (systemRole) {
                     // Try to delete system role
                     cy.request({
-                        url: `${apiUrl}/${systemRole.roleUuid}`,
+                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`,
                         method: 'DELETE',
                         failOnStatusCode: false,
                     }).then((deleteResp) => {
@@ -547,7 +549,7 @@ describe('Roles API Tests', () => {
                 },
             ]).then(() => {
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                     method: 'POST',
                     body: {
                         name: `Unauthorized Role ${new Date().getTime()}`,
@@ -567,7 +569,7 @@ describe('Roles API Tests', () => {
                 },
             ]).then(() => {
                 cy.request({
-                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
                     method: 'GET',
                     failOnStatusCode: false,
                 }).then((resp) => {
@@ -580,7 +582,7 @@ describe('Roles API Tests', () => {
             // First create a role as admin
             cy.login();
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: `Test Role ${new Date().getTime()}`,
@@ -598,7 +600,7 @@ describe('Roles API Tests', () => {
                     },
                 ]).then(() => {
                     cy.request({
-                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
+                        url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
                         method: 'POST',
                         body: {
                             roleId: roleUuid,
@@ -619,7 +621,7 @@ describe('Roles API Tests', () => {
             // First create a role as admin
             cy.login();
             cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: `Update Test Role ${new Date().getTime()}`,
@@ -638,7 +640,7 @@ describe('Roles API Tests', () => {
                 ]).then(() => {
                     // Try to update project access as viewer
                     cy.request({
-                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+                        url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
                         method: 'PATCH',
                         body: {
                             roleId: roleUuid,
@@ -660,7 +662,7 @@ describe('Roles API Tests', () => {
             ]).then(() => {
                 // Try to remove project access as viewer
                 cy.request({
-                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
                     method: 'DELETE',
                     failOnStatusCode: false,
                 }).then((resp) => {
