@@ -5,6 +5,9 @@ import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import { defineConfig } from 'vitest/config';
 
+const FE_PORT = process.env.FE_PORT ? parseInt(process.env.FE_PORT) : 3000;
+const BE_PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
+
 // @ts-expect-error - Vitest is not typed correctly
 export default defineConfig(async () => {
     const { default: spotlight } = await import(
@@ -117,7 +120,7 @@ export default defineConfig(async () => {
             setupFiles: './src/testing/vitest.setup.ts',
         },
         server: {
-            port: 3000,
+            port: FE_PORT,
             host: true,
             hmr: {
                 overlay: true,
@@ -131,16 +134,16 @@ export default defineConfig(async () => {
             },
             proxy: {
                 '/api': {
-                    target: 'http://localhost:8080',
+                    target: `http://localhost:${BE_PORT}`,
                     changeOrigin: true,
                 },
                 '/.well-known': {
                     // MCP inspector requires .well-known to be on the root, but according to RFC 9728 (OAuth 2.0 Protected Resource Metadata) the .well-known endpoint is not required to be at the root level.
-                    target: 'http://localhost:8080/api/v1/oauth',
+                    target: `http://localhost:${BE_PORT}/api/v1/oauth`,
                     changeOrigin: true,
                 },
                 '/slack/events': {
-                    target: 'http://localhost:8080',
+                    target: `http://localhost:${BE_PORT}`,
                     changeOrigin: true,
                 },
             },
