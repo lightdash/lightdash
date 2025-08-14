@@ -1,3 +1,58 @@
+# [0.1917.0](https://github.com/lightdash/lightdash/compare/0.1916.1...0.1917.0) (2025-08-14)
+
+
+### Features
+
+* project parameters api ([#16369](https://github.com/lightdash/lightdash/issues/16369)) ([a707f31](https://github.com/lightdash/lightdash/commit/a707f3187ba54b4b07559a17c905a0434053998e))
+
+## [0.1916.1](https://github.com/lightdash/lightdash/compare/0.1916.0...0.1916.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* include errored filtered tables for ai tag summary ([#16412](https://github.com/lightdash/lightdash/issues/16412)) ([b032e8a](https://github.com/lightdash/lightdash/commit/b032e8ae87bf780d3daee46b2617d5491f893bf5))
+
+# [0.1916.0](https://github.com/lightdash/lightdash/compare/0.1915.0...0.1916.0) (2025-08-14)
+
+
+### Features
+
+* make dashboard tools UI more consistent ([#16400](https://github.com/lightdash/lightdash/issues/16400)) ([a5c3795](https://github.com/lightdash/lightdash/commit/a5c379591413b54546fa9b65bea18da61dd8fce3))
+
+# [0.1915.0](https://github.com/lightdash/lightdash/compare/0.1914.1...0.1915.0) (2025-08-14)
+
+
+### Features
+
+* check for parameter existence at the compilation level ([#16404](https://github.com/lightdash/lightdash/issues/16404)) ([7605532](https://github.com/lightdash/lightdash/commit/7605532cb80d588edecb5ff21bb7320c1f8de0d2))
+
+## [0.1914.1](https://github.com/lightdash/lightdash/compare/0.1914.0...0.1914.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* emit event to attach slack listeners ([#16413](https://github.com/lightdash/lightdash/issues/16413)) ([b0e982b](https://github.com/lightdash/lightdash/commit/b0e982b552083b223ae4f8fcd484716ecd753025))
+
+# [0.1914.0](https://github.com/lightdash/lightdash/compare/0.1913.3...0.1914.0) (2025-08-14)
+
+
+### Bug Fixes
+
+* remove Group from embedded tabbed dashboard ([#16402](https://github.com/lightdash/lightdash/issues/16402)) ([1807f5b](https://github.com/lightdash/lightdash/commit/1807f5bb8ef635d4bb4fc867ac586f6902f11783))
+
+
+### Features
+
+* add 'viewUnderlyingData' to JWT claims ([#16206](https://github.com/lightdash/lightdash/issues/16206)) ([ff09fe3](https://github.com/lightdash/lightdash/commit/ff09fe3924d6d7d65ece44833fee1cffd1389deb))
+* add CASL based scopes ([#16353](https://github.com/lightdash/lightdash/issues/16353)) ([b12c60b](https://github.com/lightdash/lightdash/commit/b12c60bbd24eb51d2d4888aed4e60dd13d0e7e75))
+
+## [0.1913.3](https://github.com/lightdash/lightdash/compare/0.1913.2...0.1913.3) (2025-08-14)
+
+
+### Bug Fixes
+
+* update `showSymbol` checkbox unchecked by default ([#16360](https://github.com/lightdash/lightdash/issues/16360)) ([40f9281](https://github.com/lightdash/lightdash/commit/40f92815f871e566dd79f3479db618dd76daa60c))
+
 ## [0.1913.2](https://github.com/lightdash/lightdash/compare/0.1913.1...0.1913.2) (2025-08-14)
 
 

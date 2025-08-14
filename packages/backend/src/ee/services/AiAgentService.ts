@@ -193,24 +193,39 @@ export class AiAgentService {
     private initSlackListeners() {
         if (!this.lightdashConfig.ai.copilot.enabled) return;
 
-        this.slackClient.onReady((app) => {
-            try {
-                app.event('app_mention', (m) => this.handleAppMention(m));
-                this.handlePromptUpvote(app);
-                this.handlePromptDownvote(app);
-                AiAgentService.handleClickExploreButton(app);
-                AiAgentService.handleClickOAuthButton(app);
-                this.handleExecuteFollowUpTool(app);
-                Logger.info(
-                    'AiAgentService Slack event listeners attached successfully',
-                );
-            } catch (error) {
-                Logger.error(
-                    'Failed to attach AiAgentService Slack event listeners:',
-                    error,
-                );
+        if (this.slackClient.isReady()) {
+            const slackApp = this.slackClient.getApp();
+            if (slackApp) {
+                this.registerSlackEventHandlers(slackApp);
             }
-        });
+        } else {
+            this.slackClient.once('slackAppReady', (slackApp: App) => {
+                this.registerSlackEventHandlers(slackApp);
+            });
+        }
+    }
+
+    private registerSlackEventHandlers(slackApp: App) {
+        try {
+            slackApp.event(
+                'app_mention',
+                (
+                    m: SlackEventMiddlewareArgs<'app_mention'> &
+                        AllMiddlewareArgs,
+                ) => this.handleAppMention(m),
+            );
+            this.handlePromptUpvote(slackApp);
+            this.handlePromptDownvote(slackApp);
+            AiAgentService.handleClickExploreButton(slackApp);
+            AiAgentService.handleClickOAuthButton(slackApp);
+            this.handleExecuteFollowUpTool(slackApp);
+            Logger.info('AiAgentService: Slack event listeners registered');
+        } catch (error) {
+            Logger.error(
+                'AiAgentService: Failed to register Slack listeners:',
+                error,
+            );
+        }
     }
 
     private async getIsCopilotEnabled(
@@ -2939,7 +2954,8 @@ export class AiAgentService {
             await this.projectService.getAllExploresSummary(
                 account,
                 projectUuid,
-                false,
+                true,
+                true,
             );
 
         const allExplores = await Promise.all(

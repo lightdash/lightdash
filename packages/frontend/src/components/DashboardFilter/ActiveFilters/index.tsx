@@ -233,6 +233,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     <Button
                         size="xs"
                         variant="default"
+                        radius="md"
                         color="gray"
                         onClick={() => {
                             setHaveFiltersChanged(false);

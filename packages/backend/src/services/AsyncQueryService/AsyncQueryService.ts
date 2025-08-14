@@ -103,7 +103,7 @@ import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
-import { getDashboardParametersValuesMap } from '../ProjectService/getDashboardParametersValuesMap';
+import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -1341,9 +1341,10 @@ export class AsyncQueryService extends ProjectService {
         explore,
         warehouseSqlBuilder,
         parameters,
+        projectUuid,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
-        'account' | 'metricQuery' | 'dateZoom' | 'parameters'
+        'account' | 'metricQuery' | 'dateZoom' | 'parameters' | 'projectUuid'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -1363,18 +1364,24 @@ export class AsyncQueryService extends ProjectService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
-        const fullQuery = await ProjectService._compileQuery(
+        const availableParameters = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+        );
+
+        const fullQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
             dateZoom,
             useExperimentalMetricCtes,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
-        );
+            availableParameters,
+        });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
             Object.entries(fullQuery.fields).map(([key, value]) => {
@@ -1754,6 +1761,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             warehouseSqlBuilder,
             parameters: combinedParameters,
+            projectUuid,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -1912,6 +1920,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             warehouseSqlBuilder,
             parameters: combinedParameters,
+            projectUuid,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2135,6 +2144,7 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
             warehouseSqlBuilder,
             parameters: combinedParameters,
+            projectUuid,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2322,6 +2332,7 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
             warehouseSqlBuilder,
             parameters: combinedParameters,
+            projectUuid,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =

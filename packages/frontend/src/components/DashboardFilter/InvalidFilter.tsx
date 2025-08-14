@@ -36,6 +36,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
             <Button
                 size="xs"
                 variant="default"
+                radius="md"
                 data-disabled
                 leftIcon={
                     <MantineIcon
