@@ -1,3 +1,16 @@
+# [0.1914.0](https://github.com/lightdash/lightdash/compare/0.1913.3...0.1914.0) (2025-08-14)
+
+
+### Bug Fixes
+
+* remove Group from embedded tabbed dashboard ([#16402](https://github.com/lightdash/lightdash/issues/16402)) ([1807f5b](https://github.com/lightdash/lightdash/commit/1807f5bb8ef635d4bb4fc867ac586f6902f11783))
+
+
+### Features
+
+* add 'viewUnderlyingData' to JWT claims ([#16206](https://github.com/lightdash/lightdash/issues/16206)) ([ff09fe3](https://github.com/lightdash/lightdash/commit/ff09fe3924d6d7d65ece44833fee1cffd1389deb))
+* add CASL based scopes ([#16353](https://github.com/lightdash/lightdash/issues/16353)) ([b12c60b](https://github.com/lightdash/lightdash/commit/b12c60bbd24eb51d2d4888aed4e60dd13d0e7e75))
+
 ## [0.1913.3](https://github.com/lightdash/lightdash/compare/0.1913.2...0.1913.3) (2025-08-14)
 
 
