@@ -1,3 +1,10 @@
+# [0.1918.0](https://github.com/lightdash/lightdash/compare/0.1917.0...0.1918.0) (2025-08-14)
+
+
+### Features
+
+* make frontend and backend ports configurable via environment variables ([#16397](https://github.com/lightdash/lightdash/issues/16397)) ([9a4926c](https://github.com/lightdash/lightdash/commit/9a4926c0d6f749fecff068717992e15f82b7e2d5))
+
 # [0.1917.0](https://github.com/lightdash/lightdash/compare/0.1916.1...0.1917.0) (2025-08-14)
 
 
