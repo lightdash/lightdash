@@ -1,4 +1,5 @@
 import type { KnexPaginatedData } from '../knex-paginate';
+import type { LightdashProjectParameter } from '../lightdashProjectConfig';
 import type { ParameterDefinitions } from '../parameters';
 
 export type ApiGetProjectParametersResults = ParameterDefinitions;
