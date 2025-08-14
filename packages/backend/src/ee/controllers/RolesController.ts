@@ -33,22 +33,16 @@ import { BaseController } from '../../controllers/baseController';
 import { RolesService } from '../services/RolesService';
 
 /**
- * Unified Roles API
- *
  * This controller handles all role management operations with the new namespace structure:
+ * Check ProjectRolesController.ts and OrganizationRolesController.ts for using these roles.
  *
  * Role Management: /api/v2/roles
  * - Creating, reading, updating, and deleting roles
- * - Managing role scopes (permissions)
  *
- * Organization Role Assignments: /api/v2/orgs/{orgId}/roles
- * - Listing roles for an organization
- * - Creating roles in an organization
- * - Managing role assignments within an organization
+ * Role scope management: /api/v2/roles/{roleUuid}/scopes
+ * - Adding scopes to roles
+ * - Removing scopes from roles
  *
- * Project Role Assignments: /api/v2/projects/{projectId}/roles
- * - Managing role assignments within a project
- * - Assigning users and groups to projects with specific roles
  */
 @Route('/api/v2/roles')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -61,10 +55,6 @@ export class RolesController extends BaseController {
     protected getRolesService() {
         return this.services.getRolesService<RolesService>();
     }
-
-    // =====================================
-    // ROLE MANAGEMENT
-    // =====================================
 
     /**
      * Get role by ID

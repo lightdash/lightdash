@@ -38,10 +38,18 @@ import { RolesService } from '../services/RolesService';
 /**
  * Organization Roles API
  *
- * This controller handles organization-level role operations:
+ * Organization Role Assignments: /api/v2/orgs/{orgId}/roles
  * - Listing roles for an organization
  * - Creating roles in an organization
  * - Managing role assignments within an organization
+ *
+ * /api/v2/orgs/{orgId}/roles/assignments
+ * - Listing role assignments for an organization
+ * - Creating role assignments for an organization
+ * - Managing role assignments within an organization
+ *
+ * /api/v2/orgs/{orgId}/roles/assignments/user/{userId}
+ * - Listing role assignments for a user
  */
 @Route('/api/v2/orgs/{orgUuid}/roles')
 @Response<ApiErrorPayload>('default', 'Error')

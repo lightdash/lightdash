@@ -33,9 +33,17 @@ import { RolesService } from '../services/RolesService';
 /**
  * Project Roles API
  *
- * This controller handles project-level role assignment operations:
+ * Project Role Assignments: /api/v2/projects/{projectId}/roles
  * - Managing role assignments within a project
  * - Assigning users and groups to projects with specific roles
+ *
+ * /api/v2/projects/{projectId}/roles/assignments
+ * - Listing role assignments for a project
+ * - Creating role assignments for a project
+ * - Managing role assignments within a project
+ *
+ * /api/v2/projects/{projectId}/roles/assignments/user/{userId}
+ * - Listing role assignments for a user
  */
 @Route('/api/v2/projects/{projectId}/roles')
 @Response<ApiErrorPayload>('default', 'Error')
