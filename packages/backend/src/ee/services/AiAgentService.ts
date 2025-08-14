@@ -2954,7 +2954,8 @@ export class AiAgentService {
             await this.projectService.getAllExploresSummary(
                 account,
                 projectUuid,
-                false,
+                true,
+                true,
             );
 
         const allExplores = await Promise.all(
