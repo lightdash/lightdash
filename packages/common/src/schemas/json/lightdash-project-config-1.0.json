@@ -64,6 +64,7 @@
                         "options": {
                             "description": "A list of possible values for the parameter",
                             "type": "array",
+                            "minItems": 1,
                             "items": {
                                 "type": "string"
                             }
@@ -104,7 +105,26 @@
                             "required": ["model", "dimension"]
                         }
                     },
-                    "required": ["label"]
+                    "required": ["label"],
+                    "anyOf": [
+                        {
+                            "required": ["options_from_dimension"],
+                            "errorMessage": "Must have one of the following properties: allow_custom_values, options, options_from_dimension"
+                        },
+                        {
+                            "required": ["options"],
+                            "errorMessage": "Must have one of the following properties: allow_custom_values, options, options_from_dimension"
+                        },
+                        {
+                            "properties": {
+                                "allow_custom_values": {
+                                    "enum": [true]
+                                }
+                            },
+                            "required": ["allow_custom_values"],
+                            "errorMessage": "Must have one of the following properties: allow_custom_values, options, options_from_dimension"
+                        }
+                    ]
                 }
             }
         }
