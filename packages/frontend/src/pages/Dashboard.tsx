@@ -25,7 +25,7 @@ import DashboardDuplicateModal from '../components/common/modal/DashboardDuplica
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
-import { Parameters, useParameters } from '../features/parameters';
+import { Parameters } from '../features/parameters';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -92,9 +92,6 @@ const Dashboard: FC = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
-    const dashboardParameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
-    );
     const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
     const missingRequiredParameters = useDashboardContext(
         (c) => c.missingRequiredParameters,
@@ -108,10 +105,6 @@ const Dashboard: FC = () => {
     );
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
-    const setParameterDefinitions = useDashboardContext(
-        (c) => c.setParameterDefinitions,
-    );
-
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
             (dashboard?.config?.isDateZoomDisabled || false) !==
@@ -133,6 +126,22 @@ const Dashboard: FC = () => {
     const setPinnedParameters = useDashboardContext(
         (c) => c.setPinnedParameters,
     );
+
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+
+    const parameterReferences = useDashboardContext(
+        (c) => c.dashboardParameterReferences,
+    );
+
+    const referencedParameters = useMemo(() => {
+        return Object.fromEntries(
+            Object.entries(parameterDefinitions).filter(([key]) =>
+                parameterReferences.has(key),
+            ),
+        );
+    }, [parameterDefinitions, parameterReferences]);
 
     const {
         enabled: isFullScreenFeatureEnabled,
@@ -171,20 +180,6 @@ const Dashboard: FC = () => {
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
 
     const defaultTab = dashboardTabs?.[0];
-
-    const { data: parameterDefinitions } = useParameters(
-        projectUuid,
-        Array.from(dashboardParameterReferences ?? []),
-        {
-            enabled: !!projectUuid && !!dashboardParameterReferences,
-        },
-    );
-
-    useEffect(() => {
-        if (parameterDefinitions) {
-            setParameterDefinitions(parameterDefinitions);
-        }
-    }, [parameterDefinitions, setParameterDefinitions]);
 
     useEffect(() => {
         if (isDashboardLoading) return;
@@ -739,8 +734,8 @@ const Dashboard: FC = () => {
                             parameterValues={parameterValues}
                             onParameterChange={handleParameterChange}
                             onClearAll={clearAllParameters}
-                            parameterReferences={dashboardParameterReferences}
-                            areAllChartsLoaded={areAllChartsLoaded}
+                            parameters={referencedParameters}
+                            isLoading={!areAllChartsLoaded}
                             missingRequiredParameters={
                                 missingRequiredParameters
                             }

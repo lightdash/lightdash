@@ -42,7 +42,10 @@ type Reference = {
     refTable: string;
     refName: string;
 };
-const getParsedReference = (ref: string, currentTable: string): Reference => {
+export const getParsedReference = (
+    ref: string,
+    currentTable: string,
+): Reference => {
     // Reference to another dimension
     const split = ref.split('.');
     if (split.length > 2) {
@@ -86,6 +89,7 @@ export type UncompiledExplore = {
     aiHint?: string | string[];
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
+    projectParameters?: LightdashProjectConfig['parameters'];
 };
 
 const getReferencedTable = (
@@ -123,6 +127,7 @@ export class ExploreCompiler {
         meta,
         databricksCompute,
         aiHint,
+        projectParameters,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -149,6 +154,22 @@ export class ExploreCompiler {
                 {},
             );
         }
+
+        const hasDuplicateParameterDefinitions = Object.keys(
+            projectParameters || {},
+        ).some((projectParamName) =>
+            Object.keys(meta.parameters || {}).some(
+                (modelParamName) => modelParamName === projectParamName,
+            ),
+        );
+
+        if (hasDuplicateParameterDefinitions) {
+            throw new CompileError(
+                `Failed to compile explore "${name}". Cannot have duplicate parameter definitions in model and \`lightdash.config.yml\``,
+                {},
+            );
+        }
+
         const includedTables = joinedTables.reduce<Record<string, Table>>(
             (prev, join) => {
                 const joinTableName = join.alias || tables[join.table].name;
@@ -286,6 +307,9 @@ export class ExploreCompiler {
                 spotlightVisibility,
                 spotlightCategories,
             ),
+            ...(meta.parameters && Object.keys(meta.parameters).length > 0
+                ? { parameters: meta.parameters }
+                : {}),
         };
     }
 

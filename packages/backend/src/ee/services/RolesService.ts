@@ -3,11 +3,14 @@ import {
     Account,
     AddScopesToRole,
     CreateRole,
+    CreateRoleAssignmentRequest,
     ForbiddenError,
     ParameterError,
     Role,
+    RoleAssignment,
     RoleWithScopes,
     UpdateRole,
+    UpdateRoleAssignmentRequest,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -208,6 +211,311 @@ export class RolesService extends BaseService {
         });
 
         return updatedRole;
+    }
+
+    async getRoleByUuid(
+        account: Account,
+        roleUuid: string,
+    ): Promise<RoleWithScopes> {
+        const role = await this.rolesModel.getRoleWithScopesByUuid(roleUuid);
+        RolesService.validateRoleOwnership(account, role);
+
+        return role;
+    }
+
+    // =====================================
+    // UNIFIED ORGANIZATION ROLE ASSIGNMENTS
+    // =====================================
+
+    async getOrganizationRoleAssignments(
+        account: Account,
+        orgUuid: string,
+    ): Promise<RoleAssignment[]> {
+        RolesService.validateOrganizationAccess(account, orgUuid);
+
+        // Query organization memberships with role information
+        const userAssignments = await this.rolesModel
+            .db('organization_memberships')
+            .join('users', 'organization_memberships.user_id', 'users.user_id')
+            .join(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .leftJoin(
+                'roles',
+                'organization_memberships.role_uuid',
+                'roles.role_uuid',
+            )
+            .select(
+                'roles.role_uuid as roleId',
+                'roles.name as roleName',
+                'users.user_uuid as assigneeId',
+                this.rolesModel.db.raw(
+                    "CONCAT(users.first_name, ' ', users.last_name) as assigneeName",
+                ),
+                'organizations.organization_uuid as organizationId',
+                'organization_memberships.created_at as createdAt',
+            )
+            .where('organizations.organization_uuid', orgUuid)
+            .whereNotNull('organization_memberships.role_uuid');
+
+        // Format user assignments
+        const formattedUserAssignments: RoleAssignment[] = userAssignments.map(
+            (assignment) => ({
+                roleId: assignment.roleId,
+                roleName: assignment.roleName || 'Unknown Role',
+                assigneeType: 'user' as const,
+                assigneeId: assignment.assigneeId,
+                assigneeName: assignment.assigneeName,
+                organizationId: assignment.organizationId,
+                createdAt: assignment.createdAt,
+                updatedAt: assignment.createdAt, // Use createdAt since updatedAt doesn't exist
+            }),
+        );
+
+        // Note: Groups don't have organization-level role assignments
+        // Groups only have project-level and space-level access
+
+        return formattedUserAssignments;
+    }
+
+    async createOrganizationRoleAssignment(
+        account: Account,
+        orgUuid: string,
+        request: CreateRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        const { roleId, assigneeType, assigneeId } = request;
+
+        // Validate role ownership and get role details
+        const role = await this.rolesModel.getRoleByUuid(roleId);
+        RolesService.validateRoleOwnership(account, role);
+
+        if (assigneeType === 'user') {
+            await this.assignRoleToUser(account, assigneeId, roleId, orgUuid);
+
+            // Get user details for response
+            const user = await this.userModel.getUserDetailsByUuid(assigneeId);
+
+            return {
+                roleId,
+                roleName: role.name,
+                assigneeType: 'user',
+                assigneeId,
+                assigneeName: `${user.firstName} ${user.lastName}`,
+                organizationId: orgUuid,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+        }
+        if (assigneeType === 'group') {
+            // Organization-level group role assignments are not supported
+            // Groups only have project-level and space-level access
+            throw new ParameterError(
+                'Organization-level group role assignments are not supported',
+            );
+        } else {
+            throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
+        }
+    }
+
+    async deleteOrganizationRoleAssignment(
+        account: Account,
+        orgUuid: string,
+        roleId: string,
+        assigneeId: string,
+        assigneeType: 'user' | 'group',
+    ): Promise<void> {
+        if (assigneeType === 'user') {
+            await this.unassignRoleFromUser(account, assigneeId, orgUuid);
+        } else if (assigneeType === 'group') {
+            // Organization-level group role assignments are not supported
+            // Groups only have project-level and space-level access
+            throw new ParameterError(
+                'Organization-level group role assignments are not supported',
+            );
+        } else {
+            throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
+        }
+    }
+
+    // =====================================
+    // UNIFIED PROJECT ROLE ASSIGNMENTS
+    // =====================================
+
+    async getProjectRoleAssignments(
+        account: Account,
+        projectId: string,
+    ): Promise<RoleAssignment[]> {
+        await this.validateProjectAccess(account, projectId);
+
+        // Get existing project access data
+        const projectAccess = await this.getProjectAccess(account, projectId);
+
+        const assignments: RoleAssignment[] = [];
+
+        // Convert user access to unified format
+        for (const userAccess of projectAccess.users) {
+            assignments.push({
+                roleId: userAccess.role, // This might be role name for legacy, need to handle
+                roleName: userAccess.role,
+                assigneeType: 'user',
+                assigneeId: userAccess.userUuid,
+                assigneeName: `${userAccess.firstName} ${userAccess.lastName}`,
+                projectId: userAccess.projectUuid,
+                createdAt: new Date(), // TODO: Get actual dates from DB
+                updatedAt: new Date(),
+            });
+        }
+
+        // Convert group access to unified format
+        for (const groupAccess of projectAccess.groups) {
+            assignments.push({
+                roleId: groupAccess.role, // This might be role name for legacy
+                roleName: groupAccess.role,
+                assigneeType: 'group',
+                assigneeId: groupAccess.groupUuid,
+                assigneeName: groupAccess.groupName,
+                projectId: groupAccess.projectUuid,
+                createdAt: new Date(), // TODO: Get actual dates from DB
+                updatedAt: new Date(),
+            });
+        }
+
+        return assignments;
+    }
+
+    async createProjectRoleAssignment(
+        account: Account,
+        projectId: string,
+        request: CreateRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        const { roleId, assigneeType, assigneeId } = request;
+
+        // Validate role ownership and get role details
+        const role = await this.rolesModel.getRoleByUuid(roleId);
+        RolesService.validateRoleOwnership(account, role);
+
+        if (assigneeType === 'user') {
+            await this.createUserProjectAccess(
+                account,
+                projectId,
+                assigneeId,
+                roleId,
+            );
+
+            // Get user details for response
+            const user = await this.userModel.getUserDetailsByUuid(assigneeId);
+
+            return {
+                roleId,
+                roleName: role.name,
+                assigneeType: 'user',
+                assigneeId,
+                assigneeName: `${user.firstName} ${user.lastName}`,
+                projectId,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+        }
+        if (assigneeType === 'group') {
+            await this.assignRoleToGroup(
+                account,
+                assigneeId,
+                roleId,
+                projectId,
+            );
+
+            // Get group details for response
+            const group = await this.groupsModel.getGroup(assigneeId);
+
+            return {
+                roleId,
+                roleName: role.name,
+                assigneeType: 'group',
+                assigneeId,
+                assigneeName: group.name,
+                projectId,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+        }
+        throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
+    }
+
+    async updateProjectRoleAssignment(
+        account: Account,
+        projectId: string,
+        assigneeId: string,
+        assigneeType: 'user' | 'group',
+        request: UpdateRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        const { roleId } = request;
+
+        // Validate role ownership and get role details
+        const role = await this.rolesModel.getRoleByUuid(roleId);
+        RolesService.validateRoleOwnership(account, role);
+
+        if (assigneeType === 'user') {
+            await this.updateUserProjectAccess(
+                account,
+                projectId,
+                assigneeId,
+                roleId,
+            );
+
+            // Get user details for response
+            const user = await this.userModel.getUserDetailsByUuid(assigneeId);
+
+            return {
+                roleId,
+                roleName: role.name,
+                assigneeType: 'user',
+                assigneeId,
+                assigneeName: `${user.firstName} ${user.lastName}`,
+                projectId,
+                createdAt: new Date(), // TODO: Get actual dates from DB
+                updatedAt: new Date(),
+            };
+        }
+        if (assigneeType === 'group') {
+            await this.assignRoleToGroup(
+                account,
+                assigneeId,
+                roleId,
+                projectId,
+            );
+
+            // Get group details for response
+            const group = await this.groupsModel.getGroup(assigneeId);
+
+            return {
+                roleId,
+                roleName: role.name,
+                assigneeType: 'group',
+                assigneeId,
+                assigneeName: group.name,
+                projectId,
+                createdAt: new Date(), // TODO: Get actual dates from DB
+                updatedAt: new Date(),
+            };
+        }
+        throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
+    }
+
+    async deleteProjectRoleAssignment(
+        account: Account,
+        projectId: string,
+        assigneeId: string,
+        assigneeType: 'user' | 'group',
+    ): Promise<void> {
+        if (assigneeType === 'user') {
+            await this.removeUserProjectAccess(account, projectId, assigneeId);
+        } else if (assigneeType === 'group') {
+            await this.unassignRoleFromGroup(account, assigneeId, projectId);
+        } else {
+            throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
+        }
     }
 
     async deleteRole(account: Account, roleUuid: string): Promise<void> {

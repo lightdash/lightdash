@@ -809,6 +809,7 @@ export const convertExplores = async (
                             ? { description: exploreToCreate.description }
                             : {}),
                     },
+                    projectParameters: lightdashProjectConfig.parameters,
                 });
             } catch (e: unknown) {
                 return {

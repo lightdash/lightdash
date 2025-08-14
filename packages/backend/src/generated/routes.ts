@@ -4023,11 +4023,51 @@ const models: TsoaRoute.Models = {
         enums: ['virtual', 'default'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LightdashProjectParameter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                options_from_dimension: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dimension: { dataType: 'string', required: true },
+                        model: { dataType: 'string', required: true },
+                    },
+                },
+                options: { dataType: 'array', array: { dataType: 'string' } },
+                allow_custom_values: { dataType: 'boolean' },
+                multiple: { dataType: 'boolean' },
+                default: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'array', array: { dataType: 'string' } },
+                    ],
+                },
+                description: { dataType: 'string' },
+                label: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.LightdashProjectParameter_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'LightdashProjectParameter' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Explore: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parameters: { ref: 'Record_string.LightdashProjectParameter_' },
                 aiHint: {
                     dataType: 'union',
                     subSchemas: [
@@ -5735,9 +5775,94 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccessEmpty', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoleAssignment: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                updatedAt: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                projectId: { dataType: 'string' },
+                organizationId: { dataType: 'string' },
+                assigneeName: { dataType: 'string', required: true },
+                assigneeId: { dataType: 'string', required: true },
+                assigneeType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['user'] },
+                        { dataType: 'enum', enums: ['group'] },
+                    ],
+                    required: true,
+                },
+                roleName: { dataType: 'string', required: true },
+                roleId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRoleAssignmentListResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'RoleAssignment' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRoleAssignmentResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'RoleAssignment', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateRoleAssignmentRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                assigneeId: { dataType: 'string', required: true },
+                assigneeType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['user'] },
+                        { dataType: 'enum', enums: ['group'] },
+                    ],
+                    required: true,
+                },
+                roleId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiUnassignRoleFromUserResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccessEmpty', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateRoleAssignmentRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                roleId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectAccess: {
@@ -5750,7 +5875,6 @@ const models: TsoaRoute.Models = {
                 role: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
-                accessId: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -12441,7 +12565,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -12451,7 +12575,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -12461,7 +12585,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -12474,7 +12598,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -15064,6 +15188,13 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
+                parameters: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.LightdashProjectParameter_' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 warehouse: {
                     dataType: 'union',
                     subSchemas: [
@@ -16955,51 +17086,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    LightdashProjectParameter: {
+    ParameterDefinitions: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                options_from_dimension: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        dimension: { dataType: 'string', required: true },
-                        model: { dataType: 'string', required: true },
-                    },
-                },
-                options: { dataType: 'array', array: { dataType: 'string' } },
-                allow_custom_values: { dataType: 'boolean' },
-                multiple: { dataType: 'boolean' },
-                default: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'array', array: { dataType: 'string' } },
-                    ],
-                },
-                description: { dataType: 'string' },
-                label: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.LightdashProjectParameter_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'LightdashProjectParameter' },
+            ref: 'Record_string.LightdashProjectParameter_',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetProjectParametersResults: {
         dataType: 'refAlias',
-        type: {
-            ref: 'Record_string.LightdashProjectParameter_',
-            validators: {},
-        },
+        type: { ref: 'ParameterDefinitions', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSuccess_ApiGetProjectParametersResults_: {
@@ -21436,6 +21533,66 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_getRoleById: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        roleUuid: {
+            in: 'path',
+            name: 'roleUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v2/roles/:roleUuid',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.getRoleById,
+        ),
+
+        async function RolesController_getRoleById(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_getRoleById,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getRoleById',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsRolesController_updateRole: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -21545,6 +21702,678 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteRole',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_getOrganizationRoleAssignments: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        orgUuid: {
+            in: 'path',
+            name: 'orgUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v2/roles/org/:orgUuid/role-assignments',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.getOrganizationRoleAssignments,
+        ),
+
+        async function RolesController_getOrganizationRoleAssignments(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_getOrganizationRoleAssignments,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getOrganizationRoleAssignments',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_createOrganizationRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        orgUuid: {
+            in: 'path',
+            name: 'orgUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateRoleAssignmentRequest',
+        },
+    };
+    app.post(
+        '/api/v2/roles/org/:orgUuid/role-assignments',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.createOrganizationRoleAssignment,
+        ),
+
+        async function RolesController_createOrganizationRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_createOrganizationRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createOrganizationRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_deleteOrganizationUserRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        orgUuid: {
+            in: 'path',
+            name: 'orgUuid',
+            required: true,
+            dataType: 'string',
+        },
+        userId: {
+            in: 'path',
+            name: 'userId',
+            required: true,
+            dataType: 'string',
+        },
+        roleId: {
+            in: 'path',
+            name: 'roleId',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v2/roles/org/:orgUuid/role-assignments/user/:userId/:roleId',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.deleteOrganizationUserRoleAssignment,
+        ),
+
+        async function RolesController_deleteOrganizationUserRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_deleteOrganizationUserRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteOrganizationUserRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_deleteOrganizationGroupRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        orgUuid: {
+            in: 'path',
+            name: 'orgUuid',
+            required: true,
+            dataType: 'string',
+        },
+        groupId: {
+            in: 'path',
+            name: 'groupId',
+            required: true,
+            dataType: 'string',
+        },
+        roleId: {
+            in: 'path',
+            name: 'roleId',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v2/roles/org/:orgUuid/role-assignments/group/:groupId/:roleId',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.deleteOrganizationGroupRoleAssignment,
+        ),
+
+        async function RolesController_deleteOrganizationGroupRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_deleteOrganizationGroupRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteOrganizationGroupRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_getProjectRoleAssignments: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectId: {
+            in: 'path',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v2/roles/projects/:projectId/role-assignments',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.getProjectRoleAssignments,
+        ),
+
+        async function RolesController_getProjectRoleAssignments(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_getProjectRoleAssignments,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getProjectRoleAssignments',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_createProjectRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectId: {
+            in: 'path',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateRoleAssignmentRequest',
+        },
+    };
+    app.post(
+        '/api/v2/roles/projects/:projectId/role-assignments',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.createProjectRoleAssignment,
+        ),
+
+        async function RolesController_createProjectRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_createProjectRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createProjectRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_updateProjectUserRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectId: {
+            in: 'path',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+        userId: {
+            in: 'path',
+            name: 'userId',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateRoleAssignmentRequest',
+        },
+    };
+    app.patch(
+        '/api/v2/roles/projects/:projectId/role-assignments/user/:userId',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.updateProjectUserRoleAssignment,
+        ),
+
+        async function RolesController_updateProjectUserRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_updateProjectUserRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateProjectUserRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_updateProjectGroupRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectId: {
+            in: 'path',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+        groupId: {
+            in: 'path',
+            name: 'groupId',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateRoleAssignmentRequest',
+        },
+    };
+    app.patch(
+        '/api/v2/roles/projects/:projectId/role-assignments/group/:groupId',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.updateProjectGroupRoleAssignment,
+        ),
+
+        async function RolesController_updateProjectGroupRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_updateProjectGroupRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateProjectGroupRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_deleteProjectUserRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectId: {
+            in: 'path',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+        userId: {
+            in: 'path',
+            name: 'userId',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v2/roles/projects/:projectId/role-assignments/user/:userId',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.deleteProjectUserRoleAssignment,
+        ),
+
+        async function RolesController_deleteProjectUserRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_deleteProjectUserRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteProjectUserRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRolesController_deleteProjectGroupRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectId: {
+            in: 'path',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+        groupId: {
+            in: 'path',
+            name: 'groupId',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v2/roles/projects/:projectId/role-assignments/group/:groupId',
+        ...fetchMiddlewares<RequestHandler>(RolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            RolesController.prototype.deleteProjectGroupRoleAssignment,
+        ),
+
+        async function RolesController_deleteProjectGroupRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRolesController_deleteProjectGroupRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RolesController>(
+                    RolesController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteProjectGroupRoleAssignment',
                     controller,
                     response,
                     next,

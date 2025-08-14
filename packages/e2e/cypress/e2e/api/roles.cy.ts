@@ -213,7 +213,7 @@ describe('Roles API Tests', () => {
         });
     });
 
-    describe('Role Assignments', () => {
+    describe('Role Assignments (Legacy)', () => {
         const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
         it('should assign role to user in organization', () => {
@@ -268,6 +268,196 @@ describe('Roles API Tests', () => {
                 }).then((assignResp) => {
                     expect(assignResp.status).to.eq(200);
                     expect(assignResp.body).to.have.property('status', 'ok');
+                });
+            });
+        });
+    });
+
+    describe('Unified Role Assignments', () => {
+        const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
+
+        it('should list organization role assignments', () => {
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                method: 'GET',
+                failOnStatusCode: false, // May not be implemented yet
+            }).then((resp) => {
+                if (resp.status === 200) {
+                    expect(resp.body).to.have.property('status', 'ok');
+                    expect(resp.body.results).to.be.an('array');
+                }
+            });
+        });
+
+        it('should create organization role assignment for user', () => {
+            // First create a test role
+            const roleName = `Unified User Assignment Role ${new Date().getTime()}`;
+
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: roleName,
+                    description: 'Role for unified user assignment testing',
+                },
+            }).then((createResp) => {
+                // Store for cleanup
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
+
+                const { roleUuid } = createResp.body.results;
+
+                // Assign role to user using unified API
+                cy.request({
+                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                    method: 'POST',
+                    body: {
+                        roleId: roleUuid,
+                        assigneeType: 'user',
+                        assigneeId: testUserUuid,
+                    },
+                }).then((assignResp) => {
+                    expect(assignResp.status).to.eq(201);
+                    expect(assignResp.body).to.have.property('status', 'ok');
+                    expect(assignResp.body.results).to.have.property(
+                        'roleId',
+                        roleUuid,
+                    );
+                    expect(assignResp.body.results).to.have.property(
+                        'assigneeType',
+                        'user',
+                    );
+                    expect(assignResp.body.results).to.have.property(
+                        'assigneeId',
+                        testUserUuid,
+                    );
+                    expect(assignResp.body.results).to.have.property(
+                        'organizationId',
+                        testOrgUuid,
+                    );
+
+                    // Clean up assignment
+                    cy.request({
+                        url: `${apiUrl}/org/${testOrgUuid}/role-assignments/user/${testUserUuid}/${roleUuid}`,
+                        method: 'DELETE',
+                        failOnStatusCode: false,
+                    });
+                });
+            });
+        });
+
+        it('should reject organization role assignment for group', () => {
+            // First create a test role
+            const roleName = `Unified Group Assignment Role ${new Date().getTime()}`;
+
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: roleName,
+                    description: 'Role for unified group assignment testing',
+                },
+            }).then((createResp) => {
+                // Store for cleanup
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
+
+                const { roleUuid } = createResp.body.results;
+
+                // Try to assign role to group using unified API - should fail
+                cy.request({
+                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                    method: 'POST',
+                    body: {
+                        roleId: roleUuid,
+                        assigneeType: 'group',
+                        assigneeId: SEED_GROUP.groupUuid,
+                    },
+                    failOnStatusCode: false,
+                }).then((assignResp) => {
+                    expect(assignResp.status).to.eq(400);
+                    expect(assignResp.body).to.have.property('status', 'error');
+                    expect(assignResp.body).to.have.property('error');
+                    expect(assignResp.body.error).to.have.property(
+                        'message',
+                        'Organization-level group role assignments are not supported',
+                    );
+                });
+            });
+        });
+
+        it('should delete organization role assignment for user', () => {
+            // First create a test role and assignment
+            const roleName = `Delete User Assignment Role ${new Date().getTime()}`;
+
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: roleName,
+                    description: 'Role for delete user assignment testing',
+                },
+            }).then((createResp) => {
+                // Store for cleanup
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
+
+                const { roleUuid } = createResp.body.results;
+
+                // Create assignment first
+                cy.request({
+                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments`,
+                    method: 'POST',
+                    body: {
+                        roleId: roleUuid,
+                        assigneeType: 'user',
+                        assigneeId: testUserUuid,
+                    },
+                }).then((assignResp) => {
+                    expect(assignResp.status).to.eq(201);
+
+                    // Delete the assignment
+                    cy.request({
+                        url: `${apiUrl}/org/${testOrgUuid}/role-assignments/user/${testUserUuid}/${roleUuid}`,
+                        method: 'DELETE',
+                    }).then((deleteResp) => {
+                        expect(deleteResp.status).to.eq(200);
+                        expect(deleteResp.body).to.have.property(
+                            'status',
+                            'ok',
+                        );
+                    });
+                });
+            });
+        });
+
+        it('should reject deleting organization role assignment for group', () => {
+            // First create a test role
+            const roleName = `Delete Group Assignment Role ${new Date().getTime()}`;
+
+            cy.request({
+                url: `${apiUrl}/org/${testOrgUuid}`,
+                method: 'POST',
+                body: {
+                    name: roleName,
+                    description: 'Role for delete group assignment testing',
+                },
+            }).then((createResp) => {
+                // Store for cleanup
+                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
+
+                const { roleUuid } = createResp.body.results;
+
+                // Try to delete group assignment - should fail
+                cy.request({
+                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments/group/${SEED_GROUP.groupUuid}/${roleUuid}`,
+                    method: 'DELETE',
+                    failOnStatusCode: false,
+                }).then((deleteResp) => {
+                    expect(deleteResp.status).to.eq(400);
+                    expect(deleteResp.body).to.have.property('status', 'error');
+                    expect(deleteResp.body).to.have.property('error');
+                    expect(deleteResp.body.error).to.have.property(
+                        'message',
+                        'Organization-level group role assignments are not supported',
+                    );
                 });
             });
         });

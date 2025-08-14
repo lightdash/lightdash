@@ -62,6 +62,9 @@ export const useDashboardChartReadyQuery = (
     const setChartsWithDateZoomApplied = useDashboardContext(
         (c) => c.setChartsWithDateZoomApplied,
     );
+    const addParameterDefinitions = useDashboardContext(
+        (c) => c.addParameterDefinitions,
+    );
 
     const sortKey =
         dashboardSorts
@@ -77,6 +80,12 @@ export const useDashboardChartReadyQuery = (
     const { data: explore } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,
     );
+
+    useEffect(() => {
+        if (explore && explore.parameters) {
+            addParameterDefinitions(explore.parameters);
+        }
+    }, [explore, addParameterDefinitions]);
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);

@@ -14,6 +14,7 @@ import {
     type Metric,
     type MetricQuery,
     type MetricType,
+    type ParameterDefinitions,
     type PieChartConfig,
     type ReplaceCustomFields,
     type SavedChart,
@@ -266,6 +267,7 @@ export interface ExplorerReduceState {
      * If empty array, this means we know the missing parameters, but they are all optional, so we can run the query.
      */
     parameterReferences: string[] | null;
+    parameterDefinitions: ParameterDefinitions;
     modals: {
         format: {
             isOpen: boolean;

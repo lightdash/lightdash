@@ -1,7 +1,6 @@
 import type { ApiSuccessEmpty } from './api/success';
 
 export type ProjectAccess = {
-    accessId: string;
     projectUuid: string;
     userUuid: string;
     role: string;
@@ -73,4 +72,38 @@ export type ApiGetProjectAccessResponse = {
         users: ProjectAccess[];
         groups: GroupProjectAccess[];
     };
+};
+
+// Unified Assignment Types
+export type RoleAssignment = {
+    roleId: string;
+    roleName: string;
+    assigneeType: 'user' | 'group';
+    assigneeId: string;
+    assigneeName: string;
+    organizationId?: string; // for org-level assignments
+    projectId?: string; // for project-level assignments
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CreateRoleAssignmentRequest = {
+    roleId: string;
+    assigneeType: 'user' | 'group';
+    assigneeId: string;
+};
+
+export type UpdateRoleAssignmentRequest = {
+    roleId: string;
+};
+
+// API Response Types for Unified Assignments
+export type ApiRoleAssignmentResponse = {
+    status: 'ok';
+    results: RoleAssignment;
+};
+
+export type ApiRoleAssignmentListResponse = {
+    status: 'ok';
+    results: RoleAssignment[];
 };

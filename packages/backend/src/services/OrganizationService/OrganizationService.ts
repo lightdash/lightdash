@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AllowedEmailDomains,
+    assertIsAccountWithOrg,
     convertProjectRoleToOrganizationRole,
     CreateColorPalette,
     CreateGroup,
@@ -98,16 +99,15 @@ export class OrganizationService extends BaseService {
         this.groupsModel = groupsModel;
     }
 
-    async get(user: SessionUser): Promise<Organization> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+    async get(account: Account): Promise<Organization> {
+        assertIsAccountWithOrg(account);
+
         const needsProject = !(await this.projectModel.hasProjects(
-            user.organizationUuid,
+            account.organization.organizationUuid,
         ));
 
         const organization = await this.organizationModel.get(
-            user.organizationUuid,
+            account.organization.organizationUuid,
         );
         return {
             ...organization,

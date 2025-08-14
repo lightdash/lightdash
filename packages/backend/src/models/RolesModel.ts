@@ -128,6 +128,30 @@ export class RolesModel {
         return RolesModel.mapDbRoleToRole(role);
     }
 
+    async getRoleWithScopesByUuid(roleUuid: string): Promise<RoleWithScopes> {
+        const role = await this.database(RolesTableName)
+            .leftJoin(
+                ScopedRolesTableName,
+                `${RolesTableName}.role_uuid`,
+                `${ScopedRolesTableName}.role_uuid`,
+            )
+            .select(
+                `${RolesTableName}.*`,
+                this.database.raw(
+                    `STRING_AGG(${ScopedRolesTableName}.scope_name, ',') as scopes`,
+                ),
+            )
+            .where(`${RolesTableName}.role_uuid`, roleUuid)
+            .groupBy(`${RolesTableName}.role_uuid`)
+            .first();
+
+        if (!role) {
+            throw new NotFoundError(`Role with uuid ${roleUuid} not found`);
+        }
+
+        return RolesModel.mapDbRoleWithScopesToRoleWithScopes(role);
+    }
+
     async createRole(
         organizationUuid: string,
         roleData: Omit<DbRoleInsert, 'organization_uuid'>,
@@ -301,7 +325,6 @@ export class RolesModel {
                 `${RolesTableName}.role_uuid`,
             )
             .select(
-                `${UserTableName}.user_uuid as accessId`,
                 `${ProjectTableName}.project_uuid as projectUuid`,
                 `${UserTableName}.user_uuid as userUuid`,
                 this.database.raw(
@@ -380,8 +403,11 @@ export class RolesModel {
         userUuid: string,
         roleUuid: string,
     ): Promise<void> {
+        // Convert userUuid to user_id since the table uses user_id not user_uuid
+        const userId = await this.getUserId(userUuid);
+
         const updatedCount = await this.database(ProjectMembershipsTableName)
-            .where('user_uuid', userUuid)
+            .where('user_id', userId)
             .update({ role_uuid: roleUuid });
 
         if (updatedCount === 0) {
@@ -390,8 +416,11 @@ export class RolesModel {
     }
 
     async removeUserProjectAccess(userUuid: string): Promise<void> {
+        // Convert userUuid to user_id since the table uses user_id not user_uuid
+        const userId = await this.getUserId(userUuid);
+
         const deletedCount = await this.database(ProjectMembershipsTableName)
-            .where('user_uuid', userUuid)
+            .where('user_id', userId)
             .delete();
 
         if (deletedCount === 0) {

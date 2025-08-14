@@ -4446,8 +4446,68 @@
                 "enum": ["virtual", "default"],
                 "type": "string"
             },
+            "LightdashProjectParameter": {
+                "properties": {
+                    "options_from_dimension": {
+                        "properties": {
+                            "dimension": {
+                                "type": "string"
+                            },
+                            "model": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dimension", "model"],
+                        "type": "object"
+                    },
+                    "options": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allow_custom_values": {
+                        "type": "boolean"
+                    },
+                    "multiple": {
+                        "type": "boolean"
+                    },
+                    "default": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label"],
+                "type": "object"
+            },
+            "Record_string.LightdashProjectParameter_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/LightdashProjectParameter"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "Explore": {
                 "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
                     "aiHint": {
                         "anyOf": [
                             {
@@ -6361,8 +6421,108 @@
             "ApiDeleteRoleResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
+            "RoleAssignment": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectId": {
+                        "type": "string"
+                    },
+                    "organizationId": {
+                        "type": "string"
+                    },
+                    "assigneeName": {
+                        "type": "string"
+                    },
+                    "assigneeId": {
+                        "type": "string"
+                    },
+                    "assigneeType": {
+                        "type": "string",
+                        "enum": ["user", "group"]
+                    },
+                    "roleName": {
+                        "type": "string"
+                    },
+                    "roleId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "assigneeName",
+                    "assigneeId",
+                    "assigneeType",
+                    "roleName",
+                    "roleId"
+                ],
+                "type": "object"
+            },
+            "ApiRoleAssignmentListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/RoleAssignment"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiRoleAssignmentResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoleAssignment"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateRoleAssignmentRequest": {
+                "properties": {
+                    "assigneeId": {
+                        "type": "string"
+                    },
+                    "assigneeType": {
+                        "type": "string",
+                        "enum": ["user", "group"]
+                    },
+                    "roleId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["assigneeId", "assigneeType", "roleId"],
+                "type": "object"
+            },
             "ApiUnassignRoleFromUserResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "UpdateRoleAssignmentRequest": {
+                "properties": {
+                    "roleId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["roleId"],
+                "type": "object"
             },
             "ProjectAccess": {
                 "properties": {
@@ -6380,9 +6540,6 @@
                     },
                     "projectUuid": {
                         "type": "string"
-                    },
-                    "accessId": {
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -6390,8 +6547,7 @@
                     "firstName",
                     "role",
                     "userUuid",
-                    "projectUuid",
-                    "accessId"
+                    "projectUuid"
                 ],
                 "type": "object"
             },
@@ -13267,22 +13423,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -16005,6 +16161,9 @@
                         },
                         "type": "array"
                     },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
                     "warehouse": {
                         "type": "string"
                     },
@@ -17776,65 +17935,11 @@
                 "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "LightdashProjectParameter": {
-                "properties": {
-                    "options_from_dimension": {
-                        "properties": {
-                            "dimension": {
-                                "type": "string"
-                            },
-                            "model": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["dimension", "model"],
-                        "type": "object"
-                    },
-                    "options": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "allow_custom_values": {
-                        "type": "boolean"
-                    },
-                    "multiple": {
-                        "type": "boolean"
-                    },
-                    "default": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        ]
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "required": ["label"],
-                "type": "object"
-            },
-            "Record_string.LightdashProjectParameter_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/LightdashProjectParameter"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
+            "ParameterDefinitions": {
+                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
             },
             "ApiGetProjectParametersResults": {
-                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                "$ref": "#/components/schemas/ParameterDefinitions"
             },
             "ApiSuccess_ApiGetProjectParametersResults_": {
                 "properties": {
@@ -18517,7 +18622,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1907.0",
+        "version": "0.1913.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -18663,6 +18768,44 @@
             }
         },
         "/api/v2/roles/{roleUuid}": {
+            "get": {
+                "operationId": "GetRoleById",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleWithScopesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get role by ID",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "roleUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
             "patch": {
                 "operationId": "UpdateRole",
                 "responses": {
@@ -18742,6 +18885,502 @@
                     {
                         "in": "path",
                         "name": "roleUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/roles/org/{orgUuid}/role-assignments": {
+            "get": {
+                "operationId": "GetOrganizationRoleAssignments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List organization role assignments",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "CreateOrganizationRoleAssignment",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create organization role assignment",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRoleAssignmentRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/roles/org/{orgUuid}/role-assignments/user/{userId}/{roleId}": {
+            "delete": {
+                "operationId": "DeleteOrganizationUserRoleAssignment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUnassignRoleFromUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete organization role assignment for user",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "roleId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/roles/org/{orgUuid}/role-assignments/group/{groupId}/{roleId}": {
+            "delete": {
+                "operationId": "DeleteOrganizationGroupRoleAssignment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUnassignRoleFromUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete organization role assignment for group",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "roleId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/roles/projects/{projectId}/role-assignments": {
+            "get": {
+                "operationId": "GetProjectRoleAssignments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List project role assignments",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "CreateProjectRoleAssignment",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create project role assignment",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRoleAssignmentRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/roles/projects/{projectId}/role-assignments/user/{userId}": {
+            "patch": {
+                "operationId": "UpdateProjectUserRoleAssignment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update project role assignment for user",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateRoleAssignmentRequest"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteProjectUserRoleAssignment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUnassignRoleFromUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete project role assignment for user",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/roles/projects/{projectId}/role-assignments/group/{groupId}": {
+            "patch": {
+                "operationId": "UpdateProjectGroupRoleAssignment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update project role assignment for group",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateRoleAssignmentRequest"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteProjectGroupRoleAssignment",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUnassignRoleFromUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete project role assignment for group",
+                "tags": ["v2", "Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
                         "required": true,
                         "schema": {
                             "type": "string"

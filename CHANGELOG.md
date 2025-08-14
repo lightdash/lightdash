@@ -1,3 +1,59 @@
+## [0.1913.2](https://github.com/lightdash/lightdash/compare/0.1913.1...0.1913.2) (2025-08-14)
+
+
+### Bug Fixes
+
+* move Mantine styles import to entry points ([#16403](https://github.com/lightdash/lightdash/issues/16403)) ([3fb1ae0](https://github.com/lightdash/lightdash/commit/3fb1ae08ecd1912f2995cae9c445bd103a060296))
+
+## [0.1913.1](https://github.com/lightdash/lightdash/compare/0.1913.0...0.1913.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* release sdk on merge ([#16359](https://github.com/lightdash/lightdash/issues/16359)) ([2225605](https://github.com/lightdash/lightdash/commit/2225605baaa783e1adcdfaacdcf157c2cb19cccd))
+
+# [0.1913.0](https://github.com/lightdash/lightdash/compare/0.1912.0...0.1913.0) (2025-08-13)
+
+
+### Features
+
+* add migration for custom roles ([#16319](https://github.com/lightdash/lightdash/issues/16319)) ([606b200](https://github.com/lightdash/lightdash/commit/606b2000d9c57bbf6eaa17e30bb4b088adf2f147))
+
+# [0.1912.0](https://github.com/lightdash/lightdash/compare/0.1911.0...0.1912.0) (2025-08-13)
+
+
+### Features
+
+* **slack:** add onReady callback for slack app initialization ([#16401](https://github.com/lightdash/lightdash/issues/16401)) ([21deabb](https://github.com/lightdash/lightdash/commit/21deabbb0354586a94c7e051419975ea89806c55))
+
+# [0.1911.0](https://github.com/lightdash/lightdash/compare/0.1910.0...0.1911.0) (2025-08-13)
+
+
+### Features
+
+* enable useOrgs to work with accounts ([#16204](https://github.com/lightdash/lightdash/issues/16204)) ([17efcb0](https://github.com/lightdash/lightdash/commit/17efcb01e3deb9a3a0c263b67503604689bf2d73))
+
+# [0.1910.0](https://github.com/lightdash/lightdash/compare/0.1909.0...0.1910.0) (2025-08-13)
+
+
+### Features
+
+* model level parameters ([#16378](https://github.com/lightdash/lightdash/issues/16378)) ([b0c1f93](https://github.com/lightdash/lightdash/commit/b0c1f937856a6a67e566b17df39f1b5cbab59dd2))
+
+# [0.1909.0](https://github.com/lightdash/lightdash/compare/0.1908.0...0.1909.0) (2025-08-13)
+
+
+### Features
+
+* combine options and options from dimensions ([#16382](https://github.com/lightdash/lightdash/issues/16382)) ([56d8330](https://github.com/lightdash/lightdash/commit/56d8330edeab37cead3ddc8cf10ea9d1b8577dc3))
+
+# [0.1908.0](https://github.com/lightdash/lightdash/compare/0.1907.0...0.1908.0) (2025-08-13)
+
+
+### Features
+
+* support cross-table metric references in CTEs ([#16383](https://github.com/lightdash/lightdash/issues/16383)) ([44cebfe](https://github.com/lightdash/lightdash/commit/44cebfeaf383211a81f22c3fcafaf0d02060563f))
+
 # [0.1907.0](https://github.com/lightdash/lightdash/compare/0.1906.0...0.1907.0) (2025-08-13)
 
 
