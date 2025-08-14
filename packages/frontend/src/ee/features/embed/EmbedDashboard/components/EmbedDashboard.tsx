@@ -366,19 +366,16 @@ const EmbedDashboard: FC<{
                             </Tabs.Tab>
                         ))}
                     </Tabs.List>
-                    <Group style={{ position: 'relative' }}>
-                        {/* div container required to respect the position inside the Embed SDK */}
-                        <EmbedDashboardGrid
-                            filteredTiles={filteredTiles}
-                            layouts={layouts}
-                            dashboard={dashboard}
-                            projectUuid={projectUuid}
-                            hasRequiredDashboardFiltersToSet={
-                                hasRequiredDashboardFiltersToSet
-                            }
-                            isTabEmpty={isTabEmpty}
-                        />
-                    </Group>
+                    <EmbedDashboardGrid
+                        filteredTiles={filteredTiles}
+                        layouts={layouts}
+                        dashboard={dashboard}
+                        projectUuid={projectUuid}
+                        hasRequiredDashboardFiltersToSet={
+                            hasRequiredDashboardFiltersToSet
+                        }
+                        isTabEmpty={isTabEmpty}
+                    />
                 </Tabs>
             ) : (
                 <EmbedDashboardGrid
