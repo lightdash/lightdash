@@ -6,8 +6,9 @@ import {
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
     ApiUnassignRoleFromUserResponse,
+    CreateGroupRoleAssignmentRequest,
     CreateRole,
-    CreateRoleAssignmentRequest,
+    CreateUserRoleAssignmentRequest,
     UpdateRole,
 } from '@lightdash/common';
 import {
@@ -198,7 +199,7 @@ export class OrganizationRolesController extends BaseController {
     }
 
     /**
-     * Create organization role assignment
+     * Create organization role assignment for user
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -206,18 +207,58 @@ export class OrganizationRolesController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('201', 'Created')
-    @Post('/assignments')
-    @OperationId('CreateOrganizationRoleAssignment')
-    async createOrganizationRoleAssignment(
+    @Post('/assignments/user/{userId}')
+    @OperationId('CreateOrganizationUserRoleAssignment')
+    async createOrganizationUserRoleAssignment(
         @Request() req: express.Request,
         @Path() orgUuid: string,
-        @Body() body: CreateRoleAssignmentRequest,
+        @Path() userId: string,
+        @Body() body: CreateUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
             await this.getRolesService().createOrganizationRoleAssignment(
                 req.account!,
                 orgUuid,
-                body,
+                {
+                    roleId: body.roleId,
+                    assigneeType: 'user',
+                    assigneeId: userId,
+                },
+            );
+
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: assignment,
+        };
+    }
+
+    /**
+     * Create organization role assignment for group
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/assignments/group/{groupId}')
+    @OperationId('CreateOrganizationGroupRoleAssignment')
+    async createOrganizationGroupRoleAssignment(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Path() groupId: string,
+        @Body() body: CreateGroupRoleAssignmentRequest,
+    ): Promise<ApiRoleAssignmentResponse> {
+        const assignment =
+            await this.getRolesService().createOrganizationRoleAssignment(
+                req.account!,
+                orgUuid,
+                {
+                    roleId: body.roleId,
+                    assigneeType: 'group',
+                    assigneeId: groupId,
+                },
             );
 
         this.setStatus(201);

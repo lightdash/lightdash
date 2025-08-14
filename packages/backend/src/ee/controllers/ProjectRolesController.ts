@@ -3,7 +3,8 @@ import {
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiUnassignRoleFromUserResponse,
-    CreateRoleAssignmentRequest,
+    CreateGroupRoleAssignmentRequest,
+    CreateUserRoleAssignmentRequest,
     UpdateRoleAssignmentRequest,
 } from '@lightdash/common';
 import {
@@ -82,7 +83,7 @@ export class ProjectRolesController extends BaseController {
     }
 
     /**
-     * Create project role assignment
+     * Create project role assignment for user
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -90,18 +91,58 @@ export class ProjectRolesController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('201', 'Created')
-    @Post('/assignments')
-    @OperationId('CreateProjectRoleAssignment')
-    async createProjectRoleAssignment(
+    @Post('/assignments/user/{userId}')
+    @OperationId('CreateProjectUserRoleAssignment')
+    async createProjectUserRoleAssignment(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Body() body: CreateRoleAssignmentRequest,
+        @Path() userId: string,
+        @Body() body: CreateUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
             await this.getRolesService().createProjectRoleAssignment(
                 req.account!,
                 projectId,
-                body,
+                {
+                    roleId: body.roleId,
+                    assigneeType: 'user',
+                    assigneeId: userId,
+                },
+            );
+
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: assignment,
+        };
+    }
+
+    /**
+     * Create project role assignment for group
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/assignments/group/{groupId}')
+    @OperationId('CreateProjectGroupRoleAssignment')
+    async createProjectGroupRoleAssignment(
+        @Request() req: express.Request,
+        @Path() projectId: string,
+        @Path() groupId: string,
+        @Body() body: CreateGroupRoleAssignmentRequest,
+    ): Promise<ApiRoleAssignmentResponse> {
+        const assignment =
+            await this.getRolesService().createProjectRoleAssignment(
+                req.account!,
+                projectId,
+                {
+                    roleId: body.roleId,
+                    assigneeType: 'group',
+                    assigneeId: groupId,
+                },
             );
 
         this.setStatus(201);

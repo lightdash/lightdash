@@ -51,13 +51,13 @@ POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles
 Content-Type: application/json
 
 {
-  "name": "Data Analyst 4",
+  "name": "Data Analyst 5",
   "description": "Can view projects and dashboards with limited access"
 }
 
 ### STEP 3: Extract role ID from created role response
 ### Copy the roleId from the response above and set it here:
-@roleId = cf076455-6c59-4ceb-a32d-2f524ffffc62
+@roleId = f1e22530-44c0-440f-a4d7-91c01fbdb0a2
 
 ### STEP 4: Get specific role details
 GET {{baseUrl}}/api/v2/roles/{{roleId}}
@@ -119,15 +119,13 @@ DELETE {{baseUrl}}/api/v2/roles/{{roleId}}/scopes/manage_space
 ### STEP 10: List current organization role assignments (NEW NAMESPACE)
 GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments
 
-### STEP 11: Assign role to a user (organization-level) - NEW NAMESPACE!
+### STEP 11: Assign role to a user (organization-level) - NEW SEPARATE ENDPOINT!
 # @name assignUserToOrg
-POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments
+POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments/user/{{userId}}
 Content-Type: application/json
 
 {
-  "roleId": "{{roleId}}",
-  "assigneeType": "user",
-  "assigneeId": "{{userId}}"
+  "roleId": "{{roleId}}"
 }
 
 ### STEP 12: NOTE - Group organization assignments are not supported
@@ -143,26 +141,22 @@ DELETE {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments/user/{{userId}}
 ### STEP 16: List current project role assignments (NEW NAMESPACE)
 GET {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments
 
-### STEP 17: Grant user access to specific project with role (NEW NAMESPACE)
+### STEP 17: Grant user access to specific project with role (NEW SEPARATE ENDPOINT)
 # @name assignUserToProject
-POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
 Content-Type: application/json
 
 {
-  "roleId": "{{roleId}}",
-  "assigneeType": "user",
-  "assigneeId": "{{userId}}"
+  "roleId": "{{roleId}}"
 }
 
-### STEP 18: Assign group to project with specific role (NEW NAMESPACE)
+### STEP 18: Assign group to project with specific role (NEW SEPARATE ENDPOINT)
 # @name assignGroupToProject
-POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/group/{{groupId}}
 Content-Type: application/json
 
 {
-  "roleId": "{{roleId}}",
-  "assigneeType": "group",
-  "assigneeId": "{{groupId}}"
+  "roleId": "{{roleId}}"
 }
 
 ### STEP 20: Update user's role on project (change permissions) - NEW NAMESPACE

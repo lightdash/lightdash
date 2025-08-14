@@ -93,6 +93,14 @@ export type CreateRoleAssignmentRequest = {
     assigneeId: string;
 };
 
+export type CreateUserRoleAssignmentRequest = {
+    roleId: string;
+};
+
+export type CreateGroupRoleAssignmentRequest = {
+    roleId: string;
+};
+
 export type UpdateRoleAssignmentRequest = {
     roleId: string;
 };

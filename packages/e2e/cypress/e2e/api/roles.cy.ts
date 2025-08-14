@@ -233,14 +233,14 @@ describe('Roles API Tests', () => {
 
         it('should create organization role assignment for user', () => {
             // First create a test role
-            const roleName = `Unified User Assignment Role ${new Date().getTime()}`;
+            const roleName = `User Assignment Role ${new Date().getTime()}`;
 
             cy.request({
                 url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
-                    description: 'Role for unified user assignment testing',
+                    description: 'Role for user assignment testing',
                 },
             }).then((createResp) => {
                 // Store for cleanup
@@ -248,14 +248,12 @@ describe('Roles API Tests', () => {
 
                 const { roleUuid } = createResp.body.results;
 
-                // Assign role to user using unified API
+                // Assign role to user using separate API endpoint
                 cy.request({
-                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
                     method: 'POST',
                     body: {
                         roleId: roleUuid,
-                        assigneeType: 'user',
-                        assigneeId: testUserUuid,
                     },
                 }).then((assignResp) => {
                     expect(assignResp.status).to.eq(201);
@@ -289,14 +287,14 @@ describe('Roles API Tests', () => {
 
         it('should reject organization role assignment for group', () => {
             // First create a test role
-            const roleName = `Unified Group Assignment Role ${new Date().getTime()}`;
+            const roleName = `Group Assignment Role ${new Date().getTime()}`;
 
             cy.request({
                 url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 method: 'POST',
                 body: {
                     name: roleName,
-                    description: 'Role for unified group assignment testing',
+                    description: 'Role for group assignment testing',
                 },
             }).then((createResp) => {
                 // Store for cleanup
@@ -304,14 +302,12 @@ describe('Roles API Tests', () => {
 
                 const { roleUuid } = createResp.body.results;
 
-                // Try to assign role to group using unified API - should fail
+                // Try to assign role to group using separate endpoint API - should fail
                 cy.request({
-                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
                     method: 'POST',
                     body: {
                         roleId: roleUuid,
-                        assigneeType: 'group',
-                        assigneeId: SEED_GROUP.groupUuid,
                     },
                     failOnStatusCode: false,
                 }).then((assignResp) => {
@@ -345,12 +341,10 @@ describe('Roles API Tests', () => {
 
                 // Create assignment first
                 cy.request({
-                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
                     method: 'POST',
                     body: {
                         roleId: roleUuid,
-                        assigneeType: 'user',
-                        assigneeId: testUserUuid,
                     },
                 }).then((assignResp) => {
                     expect(assignResp.status).to.eq(201);
@@ -423,18 +417,43 @@ describe('Roles API Tests', () => {
             }).then((roleResp) => {
                 cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
 
-                // Create project access
+                // Create project access using separate endpoint
                 cy.request({
-                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
                     method: 'POST',
                     body: {
                         roleId: roleResp.body.results.roleUuid,
-                        assigneeType: 'user',
-                        assigneeId: testUserUuid,
                     },
                     failOnStatusCode: false, // May fail if user already has access
                 }).then((accessResp) => {
                     // May return 409 if user already has access, which is acceptable
+                    expect([200, 201, 409]).to.include(accessResp.status);
+                });
+            });
+        });
+
+        it('should create group project access', () => {
+            // Create a test role
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                method: 'POST',
+                body: {
+                    name: `Group Project Access Role ${new Date().getTime()}`,
+                    description: 'Role for group project access testing',
+                },
+            }).then((roleResp) => {
+                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
+
+                // Create project access for group using separate endpoint
+                cy.request({
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
+                    method: 'POST',
+                    body: {
+                        roleId: roleResp.body.results.roleUuid,
+                    },
+                    failOnStatusCode: false, // May fail if group already has access
+                }).then((accessResp) => {
+                    // May return 409 if group already has access, which is acceptable
                     expect([200, 201, 409]).to.include(accessResp.status);
                 });
             });
@@ -600,12 +619,10 @@ describe('Roles API Tests', () => {
                     },
                 ]).then(() => {
                     cy.request({
-                        url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+                        url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
                         method: 'POST',
                         body: {
                             roleId: roleUuid,
-                            assigneeType: 'user',
-                            assigneeId: SEED_ORG_1_ADMIN.user_uuid,
                         },
                         failOnStatusCode: false,
                     }).then((resp) => {

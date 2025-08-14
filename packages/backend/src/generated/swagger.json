@@ -6485,20 +6485,22 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "CreateRoleAssignmentRequest": {
+            "CreateUserRoleAssignmentRequest": {
                 "properties": {
-                    "assigneeId": {
-                        "type": "string"
-                    },
-                    "assigneeType": {
-                        "type": "string",
-                        "enum": ["user", "group"]
-                    },
                     "roleId": {
                         "type": "string"
                     }
                 },
-                "required": ["assigneeId", "assigneeType", "roleId"],
+                "required": ["roleId"],
+                "type": "object"
+            },
+            "CreateGroupRoleAssignmentRequest": {
+                "properties": {
+                    "roleId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["roleId"],
                 "type": "object"
             },
             "UpdateRoleAssignmentRequest": {
@@ -18852,9 +18854,11 @@
                         }
                     }
                 ]
-            },
+            }
+        },
+        "/api/v2/projects/{projectId}/roles/assignments/user/{userId}": {
             "post": {
-                "operationId": "CreateProjectRoleAssignment",
+                "operationId": "CreateProjectUserRoleAssignment",
                 "responses": {
                     "201": {
                         "description": "Created",
@@ -18877,13 +18881,21 @@
                         }
                     }
                 },
-                "description": "Create project role assignment",
+                "description": "Create project role assignment for user",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
                 "parameters": [
                     {
                         "in": "path",
                         "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -18895,14 +18907,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateRoleAssignmentRequest"
+                                "$ref": "#/components/schemas/CreateUserRoleAssignmentRequest"
                             }
                         }
                     }
                 }
-            }
-        },
-        "/api/v2/projects/{projectId}/roles/assignments/user/{userId}": {
+            },
             "patch": {
                 "operationId": "UpdateProjectUserRoleAssignment",
                 "responses": {
@@ -19007,6 +19017,62 @@
             }
         },
         "/api/v2/projects/{projectId}/roles/assignments/group/{groupId}": {
+            "post": {
+                "operationId": "CreateProjectGroupRoleAssignment",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create project role assignment for group",
+                "tags": ["v2", "Project Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateGroupRoleAssignmentRequest"
+                            }
+                        }
+                    }
+                }
+            },
             "patch": {
                 "operationId": "UpdateProjectGroupRoleAssignment",
                 "responses": {
@@ -19172,7 +19238,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiRoleWithScopesResponse"
+                                    "$ref": "#/components/schemas/ApiDefaultRoleResponse"
                                 }
                             }
                         }
@@ -19222,7 +19288,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiRoleWithScopesResponse"
+                                    "$ref": "#/components/schemas/ApiDefaultRoleResponse"
                                 }
                             }
                         }
@@ -19355,9 +19421,11 @@
                         }
                     }
                 ]
-            },
+            }
+        },
+        "/api/v2/orgs/{orgUuid}/roles/assignments/user/{userId}": {
             "post": {
-                "operationId": "CreateOrganizationRoleAssignment",
+                "operationId": "CreateOrganizationUserRoleAssignment",
                 "responses": {
                     "201": {
                         "description": "Created",
@@ -19380,13 +19448,21 @@
                         }
                     }
                 },
-                "description": "Create organization role assignment",
+                "description": "Create organization role assignment for user",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
                 "parameters": [
                     {
                         "in": "path",
                         "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "userId",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -19398,14 +19474,12 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateRoleAssignmentRequest"
+                                "$ref": "#/components/schemas/CreateUserRoleAssignmentRequest"
                             }
                         }
                     }
                 }
-            }
-        },
-        "/api/v2/orgs/{orgUuid}/roles/assignments/user/{userId}": {
+            },
             "delete": {
                 "operationId": "DeleteOrganizationUserRoleAssignment",
                 "responses": {
@@ -19454,6 +19528,62 @@
             }
         },
         "/api/v2/orgs/{orgUuid}/roles/assignments/group/{groupId}": {
+            "post": {
+                "operationId": "CreateOrganizationGroupRoleAssignment",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleAssignmentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create organization role assignment for group",
+                "tags": ["v2", "Organization Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "groupId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateGroupRoleAssignmentRequest"
+                            }
+                        }
+                    }
+                }
+            },
             "delete": {
                 "operationId": "DeleteOrganizationGroupRoleAssignment",
                 "responses": {

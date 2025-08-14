@@ -5830,20 +5830,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateRoleAssignmentRequest: {
+    CreateUserRoleAssignmentRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                assigneeId: { dataType: 'string', required: true },
-                assigneeType: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['user'] },
-                        { dataType: 'enum', enums: ['group'] },
-                    ],
-                    required: true,
-                },
+                roleId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateGroupRoleAssignmentRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
                 roleId: { dataType: 'string', required: true },
             },
             validators: {},
@@ -21727,7 +21729,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsProjectRolesController_createProjectRoleAssignment: Record<
+    const argsProjectRolesController_createProjectUserRoleAssignment: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -21738,21 +21740,27 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        userId: {
+            in: 'path',
+            name: 'userId',
+            required: true,
+            dataType: 'string',
+        },
         body: {
             in: 'body',
             name: 'body',
             required: true,
-            ref: 'CreateRoleAssignmentRequest',
+            ref: 'CreateUserRoleAssignmentRequest',
         },
     };
     app.post(
-        '/api/v2/projects/:projectId/roles/assignments',
+        '/api/v2/projects/:projectId/roles/assignments/user/:userId',
         ...fetchMiddlewares<RequestHandler>(ProjectRolesController),
         ...fetchMiddlewares<RequestHandler>(
-            ProjectRolesController.prototype.createProjectRoleAssignment,
+            ProjectRolesController.prototype.createProjectUserRoleAssignment,
         ),
 
-        async function ProjectRolesController_createProjectRoleAssignment(
+        async function ProjectRolesController_createProjectUserRoleAssignment(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -21762,7 +21770,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsProjectRolesController_createProjectRoleAssignment,
+                    args: argsProjectRolesController_createProjectUserRoleAssignment,
                     request,
                     response,
                 });
@@ -21781,7 +21789,80 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'createProjectRoleAssignment',
+                    methodName: 'createProjectUserRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectRolesController_createProjectGroupRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectId: {
+            in: 'path',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+        groupId: {
+            in: 'path',
+            name: 'groupId',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateGroupRoleAssignmentRequest',
+        },
+    };
+    app.post(
+        '/api/v2/projects/:projectId/roles/assignments/group/:groupId',
+        ...fetchMiddlewares<RequestHandler>(ProjectRolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectRolesController.prototype.createProjectGroupRoleAssignment,
+        ),
+
+        async function ProjectRolesController_createProjectGroupRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectRolesController_createProjectGroupRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectRolesController>(
+                        ProjectRolesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createProjectGroupRoleAssignment',
                     controller,
                     response,
                     next,
@@ -22395,7 +22476,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsOrganizationRolesController_createOrganizationRoleAssignment: Record<
+    const argsOrganizationRolesController_createOrganizationUserRoleAssignment: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -22406,22 +22487,28 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        userId: {
+            in: 'path',
+            name: 'userId',
+            required: true,
+            dataType: 'string',
+        },
         body: {
             in: 'body',
             name: 'body',
             required: true,
-            ref: 'CreateRoleAssignmentRequest',
+            ref: 'CreateUserRoleAssignmentRequest',
         },
     };
     app.post(
-        '/api/v2/orgs/:orgUuid/roles/assignments',
+        '/api/v2/orgs/:orgUuid/roles/assignments/user/:userId',
         ...fetchMiddlewares<RequestHandler>(OrganizationRolesController),
         ...fetchMiddlewares<RequestHandler>(
             OrganizationRolesController.prototype
-                .createOrganizationRoleAssignment,
+                .createOrganizationUserRoleAssignment,
         ),
 
-        async function OrganizationRolesController_createOrganizationRoleAssignment(
+        async function OrganizationRolesController_createOrganizationUserRoleAssignment(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -22431,7 +22518,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsOrganizationRolesController_createOrganizationRoleAssignment,
+                    args: argsOrganizationRolesController_createOrganizationUserRoleAssignment,
                     request,
                     response,
                 });
@@ -22450,7 +22537,81 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'createOrganizationRoleAssignment',
+                    methodName: 'createOrganizationUserRoleAssignment',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationRolesController_createOrganizationGroupRoleAssignment: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        orgUuid: {
+            in: 'path',
+            name: 'orgUuid',
+            required: true,
+            dataType: 'string',
+        },
+        groupId: {
+            in: 'path',
+            name: 'groupId',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateGroupRoleAssignmentRequest',
+        },
+    };
+    app.post(
+        '/api/v2/orgs/:orgUuid/roles/assignments/group/:groupId',
+        ...fetchMiddlewares<RequestHandler>(OrganizationRolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationRolesController.prototype
+                .createOrganizationGroupRoleAssignment,
+        ),
+
+        async function OrganizationRolesController_createOrganizationGroupRoleAssignment(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationRolesController_createOrganizationGroupRoleAssignment,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationRolesController>(
+                        OrganizationRolesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createOrganizationGroupRoleAssignment',
                     controller,
                     response,
                     next,
