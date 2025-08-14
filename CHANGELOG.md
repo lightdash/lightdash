@@ -1,3 +1,10 @@
+## [0.1913.2](https://github.com/lightdash/lightdash/compare/0.1913.1...0.1913.2) (2025-08-14)
+
+
+### Bug Fixes
+
+* move Mantine styles import to entry points ([#16403](https://github.com/lightdash/lightdash/issues/16403)) ([3fb1ae0](https://github.com/lightdash/lightdash/commit/3fb1ae08ecd1912f2995cae9c445bd103a060296))
+
 ## [0.1913.1](https://github.com/lightdash/lightdash/compare/0.1913.0...0.1913.1) (2025-08-14)
 
 
