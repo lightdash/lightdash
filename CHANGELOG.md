@@ -1,3 +1,10 @@
+## [0.1914.1](https://github.com/lightdash/lightdash/compare/0.1914.0...0.1914.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* emit event to attach slack listeners ([#16413](https://github.com/lightdash/lightdash/issues/16413)) ([b0e982b](https://github.com/lightdash/lightdash/commit/b0e982b552083b223ae4f8fcd484716ecd753025))
+
 # [0.1914.0](https://github.com/lightdash/lightdash/compare/0.1913.3...0.1914.0) (2025-08-14)
 
 
