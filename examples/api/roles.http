@@ -53,7 +53,7 @@ POST {{baseUrl}}/api/v2/roles/org/{{orgId}}
 Content-Type: application/json
 
 {
-  "name": "Data Analyst 2",
+  "name": "Data Analyst 3",
   "description": "Can view projects and dashboards with limited access"
 }
 
@@ -79,9 +79,6 @@ Content-Type: application/json
 ### ROLE SCOPES (PERMISSIONS) MANAGEMENT
 ###
 
-### STEP 6: Get current scopes for the role
-GET {{baseUrl}}/api/v2/roles/{{roleId}}/scopes
-
 
 ### STEP 7: Add scopes to define what the role can do
 POST {{baseUrl}}/api/v2/roles/{{roleId}}/scopes
@@ -89,7 +86,7 @@ Content-Type: application/json
 
 {
   "scopeNames": [
-    "view_project",
+    "view_projects",
     "view_dashboard"
   ]
 }
@@ -136,7 +133,7 @@ Content-Type: application/json
 ### Groups only have project-level and space-level access, not organization-level access
 
 ### STEP 14: Remove user's organization role assignment - UNIFIED DELETION!
-DELETE {{baseUrl}}/api/v2/roles/org/{{orgId}}/role-assignments/user/{{userId}}/{{roleId}}
+DELETE {{baseUrl}}/api/v2/roles/org/{{orgId}}/role-assignments/user/{{userId}}
 
 
 ###

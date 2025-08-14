@@ -322,7 +322,6 @@ export class RolesService extends BaseService {
     async deleteOrganizationRoleAssignment(
         account: Account,
         orgUuid: string,
-        roleId: string,
         assigneeId: string,
         assigneeType: 'user' | 'group',
     ): Promise<void> {

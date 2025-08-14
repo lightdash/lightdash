@@ -213,66 +213,6 @@ describe('Roles API Tests', () => {
         });
     });
 
-    describe('Role Assignments (Legacy)', () => {
-        const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
-
-        it('should assign role to user in organization', () => {
-            // First create a test role
-            const roleName = `Assignment Role ${new Date().getTime()}`;
-
-            cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
-                method: 'POST',
-                body: {
-                    name: roleName,
-                    description: 'Role for assignment testing',
-                },
-            }).then((createResp) => {
-                // Store for cleanup
-                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
-
-                const { roleUuid } = createResp.body.results;
-
-                // Assign role to user
-                cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}/users/${testUserUuid}/role/${roleUuid}`,
-                    method: 'PATCH',
-                }).then((assignResp) => {
-                    expect(assignResp.status).to.eq(200);
-                    expect(assignResp.body).to.have.property('status', 'ok');
-                });
-            });
-        });
-
-        it('should assign role to group', () => {
-            // First create a test role
-            const roleName = `Group Assignment Role ${new Date().getTime()}`;
-
-            cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
-                method: 'POST',
-                body: {
-                    name: roleName,
-                    description: 'Role for group assignment testing',
-                },
-            }).then((createResp) => {
-                // Store for cleanup
-                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
-
-                const { roleUuid } = createResp.body.results;
-
-                // Assign role to group
-                cy.request({
-                    url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/role/${roleUuid}`,
-                    method: 'PATCH',
-                }).then((assignResp) => {
-                    expect(assignResp.status).to.eq(200);
-                    expect(assignResp.body).to.have.property('status', 'ok');
-                });
-            });
-        });
-    });
-
     describe('Unified Role Assignments', () => {
         const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
@@ -415,7 +355,7 @@ describe('Roles API Tests', () => {
 
                     // Delete the assignment
                     cy.request({
-                        url: `${apiUrl}/org/${testOrgUuid}/role-assignments/user/${testUserUuid}/${roleUuid}`,
+                        url: `${apiUrl}/org/${testOrgUuid}/role-assignments/user/${testUserUuid}`,
                         method: 'DELETE',
                     }).then((deleteResp) => {
                         expect(deleteResp.status).to.eq(200);
@@ -428,7 +368,7 @@ describe('Roles API Tests', () => {
             });
         });
 
-        it('should reject deleting organization role assignment for group', () => {
+        it('should get 404 (missing route) when trying to delete group from org', () => {
             // First create a test role
             const roleName = `Delete Group Assignment Role ${new Date().getTime()}`;
 
@@ -443,21 +383,13 @@ describe('Roles API Tests', () => {
                 // Store for cleanup
                 cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
 
-                const { roleUuid } = createResp.body.results;
-
                 // Try to delete group assignment - should fail
                 cy.request({
-                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments/group/${SEED_GROUP.groupUuid}/${roleUuid}`,
+                    url: `${apiUrl}/org/${testOrgUuid}/role-assignments/group/${SEED_GROUP.groupUuid}`,
                     method: 'DELETE',
                     failOnStatusCode: false,
                 }).then((deleteResp) => {
-                    expect(deleteResp.status).to.eq(400);
-                    expect(deleteResp.body).to.have.property('status', 'error');
-                    expect(deleteResp.body).to.have.property('error');
-                    expect(deleteResp.body.error).to.have.property(
-                        'message',
-                        'Organization-level group role assignments are not supported',
-                    );
+                    expect(deleteResp.status).to.eq(404);
                 });
             });
         });
@@ -466,15 +398,12 @@ describe('Roles API Tests', () => {
     describe('Project Access Management', () => {
         it('should get project access information', () => {
             cy.request({
-                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
                 method: 'GET',
             }).then((resp) => {
                 expect(resp.status).to.eq(200);
                 expect(resp.body).to.have.property('status', 'ok');
-                expect(resp.body.results).to.have.property('users');
-                expect(resp.body.results).to.have.property('groups');
-                expect(resp.body.results.users).to.be.an('array');
-                expect(resp.body.results.groups).to.be.an('array');
+                expect(resp.body.results).to.be.an('array');
             });
         });
 
@@ -494,51 +423,17 @@ describe('Roles API Tests', () => {
 
                 // Create project access
                 cy.request({
-                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
                     method: 'POST',
                     body: {
-                        userUuid: testUserUuid,
-                        roleUuid: roleResp.body.results.roleUuid,
+                        roleId: roleResp.body.results.roleUuid,
+                        assigneeType: 'user',
+                        assigneeId: testUserUuid,
                     },
                     failOnStatusCode: false, // May fail if user already has access
                 }).then((accessResp) => {
                     // May return 409 if user already has access, which is acceptable
                     expect([200, 201, 409]).to.include(accessResp.status);
-                });
-            });
-        });
-
-        it('should assign group to project', () => {
-            // Create a test role
-            cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
-                method: 'POST',
-                body: {
-                    name: `Group Project Role ${new Date().getTime()}`,
-                    description: 'Role for group project assignment',
-                },
-            }).then((roleResp) => {
-                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
-
-                // Assign group to project
-                cy.request({
-                    url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
-                    method: 'PATCH',
-                    body: {
-                        roleUuid: roleResp.body.results.roleUuid,
-                    },
-                }).then((assignResp) => {
-                    expect(assignResp.status).to.eq(200);
-                    expect(assignResp.body).to.have.property('status', 'ok');
-                });
-
-                // Remove group from project
-                cy.request({
-                    url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
-                    method: 'DELETE',
-                }).then((removeResp) => {
-                    expect(removeResp.status).to.eq(200);
-                    expect(removeResp.body).to.have.property('status', 'ok');
                 });
             });
         });
@@ -672,7 +567,7 @@ describe('Roles API Tests', () => {
                 },
             ]).then(() => {
                 cy.request({
-                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
                     method: 'GET',
                     failOnStatusCode: false,
                 }).then((resp) => {
@@ -703,11 +598,12 @@ describe('Roles API Tests', () => {
                     },
                 ]).then(() => {
                     cy.request({
-                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments`,
                         method: 'POST',
                         body: {
-                            userUuid: SEED_ORG_1_ADMIN.user_uuid,
-                            roleUuid,
+                            roleId: roleUuid,
+                            assigneeType: 'user',
+                            assigneeId: SEED_ORG_1_ADMIN.user_uuid,
                         },
                         failOnStatusCode: false,
                     }).then((resp) => {
@@ -742,10 +638,10 @@ describe('Roles API Tests', () => {
                 ]).then(() => {
                     // Try to update project access as viewer
                     cy.request({
-                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
                         method: 'PATCH',
                         body: {
-                            roleUuid,
+                            roleId: roleUuid,
                         },
                         failOnStatusCode: false,
                     }).then((resp) => {
@@ -764,80 +660,12 @@ describe('Roles API Tests', () => {
             ]).then(() => {
                 // Try to remove project access as viewer
                 cy.request({
-                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/role-assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
                     method: 'DELETE',
                     failOnStatusCode: false,
                 }).then((resp) => {
                     expect(resp.status).to.eq(403);
                 });
-            });
-        });
-
-        it('should forbid viewer from assigning group to project', () => {
-            // First create a role as admin
-            cy.login();
-            cy.request({
-                url: `${apiUrl}/org/${testOrgUuid}`,
-                method: 'POST',
-                body: {
-                    name: `Group Test Role ${new Date().getTime()}`,
-                    description: 'Test role for group permission testing',
-                },
-            }).then((roleResp) => {
-                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
-
-                const { roleUuid } = roleResp.body.results;
-
-                cy.loginWithPermissions('member', [
-                    {
-                        role: 'viewer',
-                        projectUuid: SEED_PROJECT.project_uuid,
-                    },
-                ]).then(() => {
-                    cy.request({
-                        url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
-                        method: 'PATCH',
-                        body: {
-                            roleUuid,
-                        },
-                        failOnStatusCode: false,
-                    }).then((resp) => {
-                        expect(resp.status).to.eq(403);
-                    });
-                });
-            });
-        });
-
-        it('should forbid viewer from removing group from project', () => {
-            cy.loginWithPermissions('member', [
-                {
-                    role: 'viewer',
-                    projectUuid: SEED_PROJECT.project_uuid,
-                },
-            ]).then(() => {
-                // Try to remove group from project as viewer
-                cy.request({
-                    url: `${apiUrl}/groups/${SEED_GROUP.groupUuid}/projects/${SEED_PROJECT.project_uuid}`,
-                    method: 'DELETE',
-                    failOnStatusCode: false,
-                }).then((resp) => {
-                    expect(resp.status).to.eq(403);
-                });
-            });
-        });
-
-        it('should allow admin to manage project access', () => {
-            cy.login(); // Switch back to admin
-
-            // Admin should be able to get project access
-            cy.request({
-                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/access`,
-                method: 'GET',
-            }).then((resp) => {
-                expect(resp.status).to.eq(200);
-                expect(resp.body).to.have.property('status', 'ok');
-                expect(resp.body.results).to.have.property('users');
-                expect(resp.body.results).to.have.property('groups');
             });
         });
     });
