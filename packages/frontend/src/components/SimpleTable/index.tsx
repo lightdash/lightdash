@@ -34,8 +34,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
     minimal = false,
     ...rest
 }) => {
-    const { columnOrder, itemsMap, visualizationConfig, resultsData } =
-        useVisualizationContext();
+    const {
+        columnOrder,
+        itemsMap,
+        visualizationConfig,
+        resultsData,
+        isLoading,
+    } = useVisualizationContext();
 
     const shouldPaginateResults = useMemo(() => {
         return Boolean(
@@ -52,6 +57,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return 'loading';
         }
 
+        if (
+            !isLoading &&
+            resultsData.rows.length === 0 &&
+            !resultsData.hasFetchedAllRows
+        ) {
+            return 'idle';
+        }
+
         // When paginated, it's success as soon as there are rows
         // When not paginated, it's success as soon as all rows have been fetched
         const isSuccess = shouldPaginateResults
@@ -59,7 +72,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             : resultsData.hasFetchedAllRows;
 
         return isSuccess ? 'success' : 'loading';
-    }, [resultsData, shouldPaginateResults]);
+    }, [resultsData, shouldPaginateResults, isLoading]);
 
     const showColumnCalculation = useMemo(() => {
         if (!isTableVisualizationConfig(visualizationConfig)) {
