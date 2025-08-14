@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AnyType,
     ApiGetAsyncQueryResults,
     assertUnreachable,
     AuthorizationError,
@@ -21,6 +20,14 @@ import {
     snakeCaseName,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import {
+    AllMiddlewareArgs,
+    App,
+    LinkSharedEvent,
+    SlackEventMiddlewareArgs,
+} from '@slack/bolt';
+import { StringIndexed } from '@slack/bolt/dist/types/helpers';
+import { WebClient } from '@slack/web-api';
 import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
@@ -86,8 +93,8 @@ export type ParsedUrl = {
 const notifySlackError = async (
     error: unknown,
     url: string,
-    client: AnyType,
-    event: AnyType,
+    client: WebClient,
+    event: LinkSharedEvent,
     { appProfilePhotoUrl }: { appProfilePhotoUrl?: string },
 ): Promise<void> => {
     /** Expected slack errors:
@@ -177,19 +184,36 @@ export class UnfurlService extends BaseService {
     }
 
     private initSlackListeners() {
-        this.slackClient.onReady((app) => {
-            try {
-                app.event('link_shared', (m) => this.unfurlSlackUrls(m));
-                Logger.info(
-                    'UnfurlService link_shared Slack event listener attached successfully',
-                );
-            } catch (error) {
-                Logger.error(
-                    'Failed to attach UnfurlService Slack event listeners:',
-                    error,
-                );
+        if (!this.slackClient.isEnabled) return;
+
+        if (this.slackClient.isReady()) {
+            const slackApp = this.slackClient.getApp();
+            if (slackApp) {
+                this.registerSlackEventHandlers(slackApp);
             }
-        });
+        } else {
+            this.slackClient.once('slackAppReady', (slackApp: App) => {
+                this.registerSlackEventHandlers(slackApp);
+            });
+        }
+    }
+
+    private registerSlackEventHandlers(slackApp: App) {
+        try {
+            slackApp.event(
+                'link_shared',
+                (
+                    m: SlackEventMiddlewareArgs<'link_shared'> &
+                        AllMiddlewareArgs<StringIndexed>,
+                ) => this.unfurlSlackUrls(m),
+            );
+            Logger.info('UnfurlService: Slack link_shared listener registered');
+        } catch (error) {
+            Logger.error(
+                'UnfurlService: Failed to register Slack listeners:',
+                error,
+            );
+        }
     }
 
     private async waitForAllPaginatedResultsResponse(
@@ -1238,10 +1262,10 @@ export class UnfurlService extends BaseService {
     }
 
     private async sendUnfurl(
-        event: AnyType,
+        event: LinkSharedEvent,
         originalUrl: string,
         unfurl: Unfurl,
-        client: AnyType,
+        client: WebClient,
     ) {
         const unfurlBlocks = getUnfurlBlocks(originalUrl, unfurl);
         await client.chat
@@ -1266,7 +1290,10 @@ export class UnfurlService extends BaseService {
             });
     }
 
-    private async unfurlSlackUrls(message: AnyType) {
+    private async unfurlSlackUrls(
+        message: SlackEventMiddlewareArgs<'link_shared'> &
+            AllMiddlewareArgs<StringIndexed>,
+    ) {
         const { event, client, context } = message;
         let appProfilePhotoUrl: string | undefined;
 
@@ -1274,7 +1301,7 @@ export class UnfurlService extends BaseService {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
-        event.links.map(async (l: AnyType) => {
+        event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {
@@ -1298,7 +1325,9 @@ export class UnfurlService extends BaseService {
 
                     const imageId = `slack-image-${useNanoid()}`;
                     const authUserUuid =
-                        await this.slackAuthenticationModel.getUserUuid(teamId);
+                        await this.slackAuthenticationModel.getUserUuid(
+                            teamId ?? '',
+                        );
 
                     const installation =
                         await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
