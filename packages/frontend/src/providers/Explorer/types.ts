@@ -30,61 +30,14 @@ import {
     type useInfiniteQueryResults,
 } from '../../hooks/useQueryResults';
 
-export enum ExplorerSection {
-    FILTERS = 'FILTERS',
-    VISUALIZATION = 'VISUALIZATION',
-    CUSTOMVISUALIZATION = 'CUSTOMVISUALIZATION',
-    RESULTS = 'RESULTS',
-    SQL = 'SQL',
-    PARAMETERS = 'PARAMETERS',
-}
+export enum ExplorerSection
 
 interface SwapSortFieldsPayload {
     sourceIndex: number;
     destinationIndex: number;
 }
 
-export enum ActionType {
-    RESET,
-    SET_TABLE_NAME,
-    REMOVE_FIELD,
-    TOGGLE_DIMENSION,
-    TOGGLE_METRIC,
-    TOGGLE_SORT_FIELD,
-    SET_SORT_FIELDS,
-    ADD_SORT_FIELD,
-    REMOVE_SORT_FIELD,
-    MOVE_SORT_FIELDS,
-    SET_ROW_LIMIT,
-    SET_TIME_ZONE,
-    SET_FILTERS,
-    SET_COLUMN_ORDER,
-    SET_PARAMETER,
-    CLEAR_ALL_PARAMETERS,
-    ADD_TABLE_CALCULATION,
-    UPDATE_TABLE_CALCULATION,
-    DELETE_TABLE_CALCULATION,
-    SET_PREVIOUSLY_FETCHED_STATE,
-    ADD_ADDITIONAL_METRIC,
-    EDIT_ADDITIONAL_METRIC,
-    REMOVE_ADDITIONAL_METRIC,
-    TOGGLE_ADDITIONAL_METRIC_MODAL,
-    TOGGLE_WRITE_BACK_MODAL,
-    SET_PIVOT_FIELDS,
-    SET_CHART_TYPE,
-    SET_CHART_CONFIG,
-    TOGGLE_EXPANDED_SECTION,
-    ADD_CUSTOM_DIMENSION,
-    EDIT_CUSTOM_DIMENSION,
-    REMOVE_CUSTOM_DIMENSION,
-    TOGGLE_CUSTOM_DIMENSION_MODAL,
-    TOGGLE_FORMAT_MODAL,
-    UPDATE_METRIC_FORMAT,
-    REPLACE_FIELDS,
-    OPEN_VISUALIZATION_CONFIG,
-    CLOSE_VISUALIZATION_CONFIG,
-    SET_PARAMETER_REFERENCES,
-}
+export enum ActionType
 
 export type ConfigCacheMap = {
     [ChartType.PIE]: PieChartConfig['config'];
@@ -321,7 +274,7 @@ export interface ExplorerContextType {
         removeSortField: (fieldId: FieldId) => void;
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
         setRowLimit: (limit: number) => void;
-        setTimeZone: (timezone: TimeZone) => void;
+        setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;
         setParameter: (key: string, value: string | string[] | null) => void;
         clearAllParameters: () => void;
