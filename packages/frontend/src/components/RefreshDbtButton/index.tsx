@@ -5,7 +5,6 @@ import {
     Box,
     Button,
     Group,
-    MantineProvider,
     Popover,
     Text,
     Tooltip,
@@ -16,7 +15,6 @@ import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useProject } from '../../hooks/useProject';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
-import { getMantine8ThemeOverride } from '../../mantine8Theme';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -76,67 +74,65 @@ const RefreshDbtButton: FC<{
             return null;
         }
         return (
-            <MantineProvider theme={getMantine8ThemeOverride()}>
-                <Popover withinPortal withArrow width={300}>
-                    <Popover.Target>
-                        <Box
-                            style={{
-                                cursor: 'pointer',
-                            }}
+            <Popover withinPortal withArrow width={300}>
+                <Popover.Target>
+                    <Box
+                        style={{
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <Button
+                            size="xs"
+                            variant="outline"
+                            leftSection={<MantineIcon icon={IconRefresh} />}
+                            disabled
                         >
-                            <Button
-                                size="xs"
-                                variant="outline"
-                                leftSection={<MantineIcon icon={IconRefresh} />}
-                                disabled
-                            >
-                                Refresh dbt
-                            </Button>
-                        </Box>
-                    </Popover.Target>
-                    <Popover.Dropdown>
-                        <Text>
-                            You're still connected to a dbt project created from
-                            the CLI.
-                            <br />
-                            To keep your Lightdash project in sync with your dbt
-                            project,
-                            <br /> you need to either{' '}
-                            <Anchor
-                                href={
-                                    'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project'
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                change your connection type
-                            </Anchor>
-                            , setup a{' '}
-                            <Anchor
-                                href={
-                                    'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action'
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                GitHub action
-                            </Anchor>
-                            <br />
-                            or, run{' '}
-                            <Anchor
-                                href={
-                                    'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash'
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                lightdash deploy
-                            </Anchor>
-                            ) from your command line.
-                        </Text>
-                    </Popover.Dropdown>
-                </Popover>
-            </MantineProvider>
+                            Refresh dbt
+                        </Button>
+                    </Box>
+                </Popover.Target>
+                <Popover.Dropdown>
+                    <Text>
+                        You're still connected to a dbt project created from the
+                        CLI.
+                        <br />
+                        To keep your Lightdash project in sync with your dbt
+                        project,
+                        <br /> you need to either{' '}
+                        <Anchor
+                            href={
+                                'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project'
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            change your connection type
+                        </Anchor>
+                        , setup a{' '}
+                        <Anchor
+                            href={
+                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action'
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            GitHub action
+                        </Anchor>
+                        <br />
+                        or, run{' '}
+                        <Anchor
+                            href={
+                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash'
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            lightdash deploy
+                        </Anchor>
+                        ) from your command line.
+                    </Text>
+                </Popover.Dropdown>
+            </Popover>
         );
     }
 
@@ -150,42 +146,38 @@ const RefreshDbtButton: FC<{
     };
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <Group gap="xs">
+        <Group gap="xs">
+            <Tooltip
+                withinPortal
+                multiline
+                w={320}
+                position="bottom"
+                label="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button."
+            >
+                <Button
+                    size="xs"
+                    variant="default"
+                    leftSection={leftIcon ?? <MantineIcon icon={IconRefresh} />}
+                    loading={isLoading}
+                    onClick={handleRefresh}
+                    style={buttonStyles}
+                >
+                    {!isLoading
+                        ? defaultTextOverride ?? 'Refresh dbt'
+                        : refreshingTextOverride ?? 'Refreshing dbt'}
+                </Button>
+            </Tooltip>
+            {data?.type === ProjectType.PREVIEW && (
                 <Tooltip
                     withinPortal
-                    multiline
-                    w={320}
-                    position="bottom"
-                    label="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button."
+                    label={`Developer previews are temporary Lightdash projects`}
                 >
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={
-                            leftIcon ?? <MantineIcon icon={IconRefresh} />
-                        }
-                        loading={isLoading}
-                        onClick={handleRefresh}
-                        style={buttonStyles}
-                    >
-                        {!isLoading
-                            ? defaultTextOverride ?? 'Refresh dbt'
-                            : refreshingTextOverride ?? 'Refreshing dbt'}
-                    </Button>
+                    <Badge color="yellow" size="lg" radius="sm">
+                        Developer preview
+                    </Badge>
                 </Tooltip>
-                {data?.type === ProjectType.PREVIEW && (
-                    <Tooltip
-                        withinPortal
-                        label={`Developer previews are temporary Lightdash projects`}
-                    >
-                        <Badge color="yellow" size="lg" radius="sm">
-                            Developer preview
-                        </Badge>
-                    </Tooltip>
-                )}
-            </Group>
-        </MantineProvider>
+            )}
+        </Group>
     );
 };
 

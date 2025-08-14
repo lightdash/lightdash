@@ -1,10 +1,9 @@
-import { ActionIcon, MantineProvider } from '@mantine-8/core';
+import { ActionIcon } from '@mantine-8/core';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
 import { useAsyncClipboard } from '../../../hooks/useAsyncClipboard';
 import { useCreateShareMutation } from '../../../hooks/useShare';
-import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import MantineIcon from '../MantineIcon';
 
 const ShareShortLinkButton: FC<{
@@ -26,19 +25,17 @@ const ShareShortLinkButton: FC<{
     const { handleCopy, copied } = useAsyncClipboard(getSharedUrl);
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <ActionIcon
-                variant="default"
-                onClick={handleCopy}
-                disabled={isDisabled}
-                color="gray"
-            >
-                <MantineIcon
-                    icon={copied ? IconCheck : IconLink}
-                    color={copied ? 'green' : undefined}
-                />
-            </ActionIcon>
-        </MantineProvider>
+        <ActionIcon
+            variant="default"
+            onClick={handleCopy}
+            disabled={isDisabled}
+            color="gray"
+        >
+            <MantineIcon
+                icon={copied ? IconCheck : IconLink}
+                color={copied ? 'green' : undefined}
+            />
+        </ActionIcon>
     );
 };
 
