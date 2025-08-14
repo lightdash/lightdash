@@ -1,3 +1,10 @@
+# [0.1916.0](https://github.com/lightdash/lightdash/compare/0.1915.0...0.1916.0) (2025-08-14)
+
+
+### Features
+
+* make dashboard tools UI more consistent ([#16400](https://github.com/lightdash/lightdash/issues/16400)) ([a5c3795](https://github.com/lightdash/lightdash/commit/a5c379591413b54546fa9b65bea18da61dd8fce3))
+
 # [0.1915.0](https://github.com/lightdash/lightdash/compare/0.1914.1...0.1915.0) (2025-08-14)
 
 
