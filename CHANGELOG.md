@@ -1,3 +1,10 @@
+# [0.1915.0](https://github.com/lightdash/lightdash/compare/0.1914.1...0.1915.0) (2025-08-14)
+
+
+### Features
+
+* check for parameter existence at the compilation level ([#16404](https://github.com/lightdash/lightdash/issues/16404)) ([7605532](https://github.com/lightdash/lightdash/commit/7605532cb80d588edecb5ff21bb7320c1f8de0d2))
+
 ## [0.1914.1](https://github.com/lightdash/lightdash/compare/0.1914.0...0.1914.1) (2025-08-14)
 
 
