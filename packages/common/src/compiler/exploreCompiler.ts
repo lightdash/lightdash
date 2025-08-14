@@ -32,7 +32,11 @@ import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
-import { getParameterReferences } from './parameters';
+import {
+    getAvailableParameterNames,
+    getParameterReferences,
+    validateParameterReferences,
+} from './parameters';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -170,6 +174,13 @@ export class ExploreCompiler {
             );
         }
 
+        // available parameters are the combination of project parameters and model parameters
+        // used for validating parameter references
+        const availableParameters = getAvailableParameterNames(
+            projectParameters,
+            meta.parameters,
+        );
+
         const includedTables = joinedTables.reduce<Record<string, Table>>(
             (prev, join) => {
                 const joinTableName = join.alias || tables[join.table].name;
@@ -270,13 +281,14 @@ export class ExploreCompiler {
                 [tableName]: this.compileTable(
                     includedTables[tableName],
                     includedTables,
+                    availableParameters,
                 ),
             }),
             {},
         );
 
         const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
-            this.compileJoin(j, includedTables),
+            this.compileJoin(j, includedTables, availableParameters),
         );
 
         const spotlightVisibility =
@@ -313,7 +325,11 @@ export class ExploreCompiler {
         };
     }
 
-    compileTable(table: Table, tables: Record<string, Table>): CompiledTable {
+    compileTable(
+        table: Table,
+        tables: Record<string, Table>,
+        availableParameters: string[],
+    ): CompiledTable {
         const dimensions: Record<string, CompiledDimension> = Object.keys(
             table.dimensions,
         ).reduce(
@@ -322,6 +338,7 @@ export class ExploreCompiler {
                 [dimensionKey]: this.compileDimension(
                     table.dimensions[dimensionKey],
                     tables,
+                    availableParameters,
                 ),
             }),
             {},
@@ -334,6 +351,7 @@ export class ExploreCompiler {
                 [metricKey]: this.compileMetric(
                     table.metrics[metricKey],
                     tables,
+                    availableParameters,
                 ),
             }),
             {},
@@ -357,6 +375,12 @@ export class ExploreCompiler {
             ? getParameterReferences(compiledSqlWhere)
             : [];
 
+        validateParameterReferences(
+            table.name,
+            parameterReferences,
+            availableParameters,
+        );
+
         return {
             ...table,
             uncompiledSqlWhere: table.sqlWhere,
@@ -370,8 +394,13 @@ export class ExploreCompiler {
     compileMetric(
         metric: Metric,
         tables: Record<string, Table>,
+        availableParameters: string[],
     ): CompiledMetric {
-        const compiledMetric = this.compileMetricSql(metric, tables);
+        const compiledMetric = this.compileMetricSql(
+            metric,
+            tables,
+            availableParameters,
+        );
         metric.showUnderlyingValues?.forEach((dimReference) => {
             const { refTable, refName } = getParsedReference(
                 dimReference,
@@ -403,6 +432,12 @@ export class ExploreCompiler {
         // Extract parameter references from metric sql
         const parameterReferences = getParameterReferences(compiledSql);
 
+        validateParameterReferences(
+            metric.table,
+            parameterReferences,
+            availableParameters,
+        );
+
         return {
             ...metric,
             compiledSql,
@@ -417,6 +452,7 @@ export class ExploreCompiler {
     compileMetricSql(
         metric: Metric,
         tables: Record<string, Table>,
+        availableParameters: string[],
     ): { sql: string; tablesReferences: Set<string> } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
@@ -439,7 +475,12 @@ export class ExploreCompiler {
                 }
 
                 const compiledReference = isNonAggregateMetric(metric)
-                    ? this.compileMetricReference(p1, tables, metric.table)
+                    ? this.compileMetricReference(
+                          p1,
+                          tables,
+                          metric.table,
+                          availableParameters,
+                      )
                     : this.compileDimensionReference(p1, tables, metric.table);
                 tablesReferences = new Set([
                     ...tablesReferences,
@@ -489,6 +530,7 @@ export class ExploreCompiler {
                 const compiledDimension = this.compileDimension(
                     dimensionField,
                     tables,
+                    availableParameters,
                 );
                 if (compiledDimension.tablesReferences) {
                     tablesReferences = new Set([
@@ -523,6 +565,7 @@ export class ExploreCompiler {
     compileDimension(
         dimension: Dimension,
         tables: Record<string, Table>,
+        availableParameters: string[],
     ): CompiledDimension {
         const compiledDimension = this.compileDimensionSql(dimension, tables);
         const tablesRequiredAttributes = Array.from(
@@ -541,6 +584,12 @@ export class ExploreCompiler {
         const compiledSql = compiledDimension.sql;
         // Extract parameter references from dimension sql
         const parameterReferences = getParameterReferences(compiledSql);
+
+        validateParameterReferences(
+            dimension.table,
+            parameterReferences,
+            availableParameters,
+        );
 
         return {
             ...dimension,
@@ -587,6 +636,7 @@ export class ExploreCompiler {
     compileCustomDimensionSql(
         dimension: CustomSqlDimension,
         tables: Record<string, Table>,
+        availableParameters: string[],
     ): Pick<
         CompiledCustomSqlDimension,
         'compiledSql' | 'tablesReferences' | 'parameterReferences'
@@ -619,6 +669,12 @@ export class ExploreCompiler {
         // Extract parameter references from custom dimension sql
         const parameterReferences = getParameterReferences(compiledSql);
 
+        validateParameterReferences(
+            dimension.table,
+            parameterReferences,
+            availableParameters,
+        );
+
         return {
             compiledSql,
             tablesReferences: Array.from(tablesReferences),
@@ -629,6 +685,7 @@ export class ExploreCompiler {
     compileCustomDimension(
         customDimension: CustomDimension,
         tables: Record<string, Table>,
+        availableParameters: string[],
     ): CompiledCustomDimension {
         if (isCustomBinDimension(customDimension)) {
             return customDimension;
@@ -637,6 +694,7 @@ export class ExploreCompiler {
         const compiledCustomDimensionSql = this.compileCustomDimensionSql(
             customDimension,
             tables,
+            availableParameters,
         );
 
         return {
@@ -689,6 +747,7 @@ export class ExploreCompiler {
         ref: string,
         tables: Record<string, Table>,
         currentTable: string,
+        availableParameters: string[],
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
@@ -715,7 +774,11 @@ export class ExploreCompiler {
         }
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        const compiledMetric = this.compileMetricSql(referencedMetric, tables);
+        const compiledMetric = this.compileMetricSql(
+            referencedMetric,
+            tables,
+            availableParameters,
+        );
         return {
             sql: `(${compiledMetric.sql})`,
             tablesReferences: new Set([
@@ -749,6 +812,7 @@ export class ExploreCompiler {
     compileJoin(
         join: ExploreJoin,
         tables: Record<string, Table>,
+        availableParameters: string[],
     ): CompiledExploreJoin {
         const { sql, tablesReferences } = this.compileExploreJoinSql(
             {
@@ -760,6 +824,12 @@ export class ExploreCompiler {
 
         // Extract parameter references from sqlOn
         const parameterReferences = getParameterReferences(sql);
+
+        validateParameterReferences(
+            join.table,
+            parameterReferences,
+            availableParameters,
+        );
 
         return {
             table: join.alias || join.table,
@@ -781,6 +851,7 @@ export const createDimensionWithGranularity = (
     explore: Explore,
     warehouseSqlBuilder: WarehouseSqlBuilder,
     granularity: DateGranularity,
+    availableParameters: string[],
 ) => {
     const newTimeInterval = dateGranularityToTimeFrameMap[granularity];
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
@@ -808,5 +879,6 @@ export const createDimensionWithGranularity = (
             ),
         },
         explore.tables,
+        availableParameters,
     );
 };

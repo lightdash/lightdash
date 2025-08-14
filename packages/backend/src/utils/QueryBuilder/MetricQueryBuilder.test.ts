@@ -83,12 +83,19 @@ import {
 const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
 
 // Wrapper around class to simplify test calls
-const buildQuery = (args: BuildQueryProps): CompiledQuery =>
-    new MetricQueryBuilder(args).compileQuery();
+const buildQuery = (
+    args: Omit<BuildQueryProps, 'availableParameters'>,
+): CompiledQuery =>
+    new MetricQueryBuilder({ ...args, availableParameters: [] }).compileQuery();
 
 // Wrapper around class to simplify test calls with useExperimentalMetricCtes=true
-const buildQueryWithExperimentalCtes = (args: BuildQueryProps): CompiledQuery =>
-    new MetricQueryBuilder(args).compileQuery(true);
+const buildQueryWithExperimentalCtes = (
+    args: Omit<BuildQueryProps, 'availableParameters'>,
+): CompiledQuery =>
+    new MetricQueryBuilder({
+        ...args,
+        availableParameters: [],
+    }).compileQuery(true);
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
@@ -817,6 +824,7 @@ describe('Query builder', () => {
                     region: 'EU',
                     unused: 'parameter',
                 },
+                availableParameters: ['status', 'region', 'unused'],
             });
 
             const compiledQuery = queryBuilder.compileQuery();

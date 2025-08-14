@@ -49,13 +49,14 @@ const compileTableCalculation = (
 type CompileAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
     explore: Pick<Explore, 'tables' | 'targetDatabase'>;
-
     warehouseSqlBuilder: WarehouseSqlBuilder;
+    availableParameters: string[];
 };
 const compileAdditionalMetric = ({
     additionalMetric,
     explore,
     warehouseSqlBuilder,
+    availableParameters,
 }: CompileAdditionalMetricArgs): CompiledMetric => {
     const table = explore.tables[additionalMetric.table];
     if (table === undefined) {
@@ -70,6 +71,7 @@ const compileAdditionalMetric = ({
     const compiledMetric = exploreCompiler.compileMetricSql(
         metric,
         explore.tables,
+        availableParameters,
     );
     return {
         ...metric,
@@ -79,15 +81,16 @@ const compileAdditionalMetric = ({
 };
 
 type CompileMetricQueryArgs = {
-    explore: Pick<Explore, 'targetDatabase' | 'tables'>;
+    explore: Pick<Explore, 'targetDatabase' | 'tables' | 'parameters'>;
     metricQuery: MetricQuery;
-
     warehouseSqlBuilder: WarehouseSqlBuilder;
+    availableParameters: string[];
 };
 export const compileMetricQuery = ({
     explore,
     metricQuery,
     warehouseSqlBuilder,
+    availableParameters,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const compiledTableCalculations = metricQuery.tableCalculations.map(
@@ -104,13 +107,18 @@ export const compileMetricQuery = ({
                 additionalMetric,
                 explore,
                 warehouseSqlBuilder,
+                availableParameters,
             }),
     );
 
     const compiler = new ExploreCompiler(warehouseSqlBuilder);
     const compiledCustomDimensions = (metricQuery.customDimensions || []).map(
         (customDimension) =>
-            compiler.compileCustomDimension(customDimension, explore.tables),
+            compiler.compileCustomDimension(
+                customDimension,
+                explore.tables,
+                availableParameters,
+            ),
     );
 
     return {

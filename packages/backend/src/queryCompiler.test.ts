@@ -26,6 +26,7 @@ test('Should compile without table calculations', () => {
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_NO_CALCS,
             warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
         }),
     ).toStrictEqual(expected);
 });
@@ -36,6 +37,7 @@ test('Should compile table calculations', () => {
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_VALID_REFERENCES,
             warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
         }),
     ).toStrictEqual(METRIC_QUERY_VALID_REFERENCES_COMPILED);
 });
@@ -46,6 +48,7 @@ test('Should throw error when table calculation contains missing reference', () 
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_MISSING_REFERENCE,
             warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
         }),
     ).toThrowError(CompileError);
 });
@@ -56,6 +59,7 @@ test('Should throw error when table calculation has invalid reference format', (
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_INVALID_REFERENCE_FORMAT,
             warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
         }),
     ).toThrowError(CompileError);
 });
@@ -66,6 +70,7 @@ test('Should throw error when table calculation has duplicate name', () => {
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_DUPLICATE_NAME,
             warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
         }),
     ).toThrowError(CompileError);
 });
@@ -76,6 +81,7 @@ test('Should compile query with additional metrics', () => {
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRICS,
             warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
         }),
     ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED);
 });
@@ -86,6 +92,7 @@ test('Should throw compile error if metric in non existent table', () => {
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_WITH_INVALID_ADDITIONAL_METRIC,
             warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
         }),
     ).toThrowError(CompileError);
 });
