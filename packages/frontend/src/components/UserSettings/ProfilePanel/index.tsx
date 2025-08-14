@@ -3,7 +3,6 @@ import {
     Anchor,
     Button,
     Flex,
-    MantineProvider,
     Stack,
     Text,
     TextInput,
@@ -19,7 +18,6 @@ import {
     useOneTimePassword,
 } from '../../../hooks/useEmailVerification';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
-import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
@@ -108,107 +106,102 @@ const ProfilePanel: FC = () => {
     const isLoading = isLoadingUser || isUpdatingUser || !form.initialized;
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <form onSubmit={handleOnSubmit}>
-                <Stack mt="md">
-                    <TextInput
-                        placeholder="First name"
-                        label="First name"
-                        type="text"
-                        required
-                        disabled={isLoading}
-                        {...form.getInputProps('firstName')}
-                    />
+        <form onSubmit={handleOnSubmit}>
+            <Stack mt="md">
+                <TextInput
+                    placeholder="First name"
+                    label="First name"
+                    type="text"
+                    required
+                    disabled={isLoading}
+                    {...form.getInputProps('firstName')}
+                />
 
-                    <TextInput
-                        placeholder="Last name"
-                        label="Last name"
-                        type="text"
-                        required
-                        disabled={isLoading}
-                        {...form.getInputProps('lastName')}
-                    />
+                <TextInput
+                    placeholder="Last name"
+                    label="Last name"
+                    type="text"
+                    required
+                    disabled={isLoading}
+                    {...form.getInputProps('lastName')}
+                />
 
-                    <TextInput
-                        placeholder="Email"
-                        label="Email"
-                        type="email"
-                        required
-                        disabled={isLoading}
-                        inputWrapperOrder={[
-                            'label',
-                            'input',
-                            'error',
-                            'description',
-                        ]}
-                        {...form.getInputProps('email')}
-                        rightSection={
-                            isEmailServerConfigured && data?.isVerified ? (
-                                <Tooltip label="This e-mail has been verified">
-                                    <MantineIcon
-                                        size="lg"
-                                        icon={IconCircleCheck}
-                                        color="green.6"
-                                    />
-                                </Tooltip>
-                            ) : (
+                <TextInput
+                    placeholder="Email"
+                    label="Email"
+                    type="email"
+                    required
+                    disabled={isLoading}
+                    inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'error',
+                        'description',
+                    ]}
+                    {...form.getInputProps('email')}
+                    rightSection={
+                        isEmailServerConfigured && data?.isVerified ? (
+                            <Tooltip label="This e-mail has been verified">
                                 <MantineIcon
                                     size="lg"
-                                    icon={IconAlertCircle}
-                                    color="gray.6"
+                                    icon={IconCircleCheck}
+                                    color="green.6"
                                 />
-                            )
-                        }
-                        descriptionProps={{ mt: 'xs' }}
-                        description={
-                            isEmailServerConfigured && !data?.isVerified ? (
-                                <Text c="dimmed">
-                                    This email has not been verified.{' '}
-                                    <Anchor
-                                        component="span"
-                                        onClick={() => {
-                                            if (!data?.otp) {
-                                                sendVerificationEmail();
-                                            }
-                                            setShowVerifyEmailModal(true);
-                                        }}
-                                    >
-                                        Click here to verify it
-                                    </Anchor>
-                                    .
-                                </Text>
-                            ) : null
-                        }
-                    />
+                            </Tooltip>
+                        ) : (
+                            <MantineIcon
+                                size="lg"
+                                icon={IconAlertCircle}
+                                color="gray.6"
+                            />
+                        )
+                    }
+                    descriptionProps={{ mt: 'xs' }}
+                    description={
+                        isEmailServerConfigured && !data?.isVerified ? (
+                            <Text c="dimmed">
+                                This email has not been verified.{' '}
+                                <Anchor
+                                    component="span"
+                                    onClick={() => {
+                                        if (!data?.otp) {
+                                            sendVerificationEmail();
+                                        }
+                                        setShowVerifyEmailModal(true);
+                                    }}
+                                >
+                                    Click here to verify it
+                                </Anchor>
+                                .
+                            </Text>
+                        ) : null
+                    }
+                />
 
-                    <Flex justify="flex-end" gap="sm">
-                        {form.isDirty() && !isUpdatingUser && (
-                            <Button
-                                variant="outline"
-                                onClick={() => form.reset()}
-                            >
-                                Cancel
-                            </Button>
-                        )}
-                        <Button
-                            type="submit"
-                            loading={isLoading}
-                            disabled={!form.isDirty()}
-                        >
-                            Update
+                <Flex justify="flex-end" gap="sm">
+                    {form.isDirty() && !isUpdatingUser && (
+                        <Button variant="outline" onClick={() => form.reset()}>
+                            Cancel
                         </Button>
-                    </Flex>
+                    )}
+                    <Button
+                        type="submit"
+                        loading={isLoading}
+                        disabled={!form.isDirty()}
+                    >
+                        Update
+                    </Button>
+                </Flex>
 
-                    <VerifyEmailModal
-                        opened={showVerifyEmailModal}
-                        onClose={() => {
-                            setShowVerifyEmailModal(false);
-                        }}
-                        isLoading={statusLoading || emailLoading}
-                    />
-                </Stack>
-            </form>
-        </MantineProvider>
+                <VerifyEmailModal
+                    opened={showVerifyEmailModal}
+                    onClose={() => {
+                        setShowVerifyEmailModal(false);
+                    }}
+                    isLoading={statusLoading || emailLoading}
+                />
+            </Stack>
+        </form>
     );
 };
 

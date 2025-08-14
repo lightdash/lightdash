@@ -2,7 +2,6 @@ import {
     Button,
     Group,
     Kbd,
-    MantineProvider,
     Text,
     Tooltip,
     rgba,
@@ -12,7 +11,6 @@ import { useHotkeys, useOs } from '@mantine-8/hooks';
 import { IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import useHealth from '../hooks/health/useHealth';
-import { getMantine8ThemeOverride } from '../mantine8Theme';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -65,85 +63,83 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <Button.Group>
+        <Button.Group>
+            <Tooltip
+                label={
+                    <Group gap="xxs">
+                        <Kbd fw={600}>
+                            {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                        </Kbd>
+
+                        <Text fw={600}>+</Text>
+
+                        <Kbd fw={600}>Enter</Kbd>
+                    </Group>
+                }
+                position="bottom"
+                withArrow
+                withinPortal
+                disabled={isLoading || !isValidQuery}
+            >
+                <Button
+                    size={size}
+                    pr={limit ? 'xs' : undefined}
+                    disabled={!isValidQuery}
+                    leftSection={<MantineIcon icon={IconPlayerPlay} />}
+                    loading={isLoading}
+                    onClick={onClick}
+                    style={(theme) => ({
+                        flex: 1,
+                        borderRight: isValidQuery
+                            ? `1px solid ${rgba(theme.colors.gray[5], 0.6)}`
+                            : undefined,
+                        borderTopRightRadius: 0,
+                        borderBottomRightRadius: 0,
+                    })}
+                >
+                    Run query ({limit})
+                </Button>
+            </Tooltip>
+
+            {isLoading ? (
                 <Tooltip
-                    label={
-                        <Group gap="xxs">
-                            <Kbd fw={600}>
-                                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                            </Kbd>
-
-                            <Text fw={600}>+</Text>
-
-                            <Kbd fw={600}>Enter</Kbd>
-                        </Group>
-                    }
+                    label={'Cancel query'}
                     position="bottom"
                     withArrow
                     withinPortal
-                    disabled={isLoading || !isValidQuery}
                 >
                     <Button
                         size={size}
-                        pr={limit ? 'xs' : undefined}
-                        disabled={!isValidQuery}
-                        leftSection={<MantineIcon icon={IconPlayerPlay} />}
-                        loading={isLoading}
-                        onClick={onClick}
-                        style={(theme) => ({
-                            flex: 1,
-                            borderRight: isValidQuery
-                                ? `1px solid ${rgba(theme.colors.gray[5], 0.6)}`
-                                : undefined,
-                            borderTopRightRadius: 0,
-                            borderBottomRightRadius: 0,
-                        })}
+                        p="xs"
+                        onClick={() =>
+                            startTransition(() => {
+                                cancelQuery();
+                            })
+                        }
+                        style={{
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                        }}
                     >
-                        Run query ({limit})
+                        <MantineIcon icon={IconX} size="sm" />
                     </Button>
                 </Tooltip>
-
-                {isLoading ? (
-                    <Tooltip
-                        label={'Cancel query'}
-                        position="bottom"
-                        withArrow
-                        withinPortal
-                    >
-                        <Button
-                            size={size}
-                            p="xs"
-                            onClick={() =>
-                                startTransition(() => {
-                                    cancelQuery();
-                                })
-                            }
-                            style={{
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            }}
-                        >
-                            <MantineIcon icon={IconX} size="sm" />
-                        </Button>
-                    </Tooltip>
-                ) : (
-                    <RunQuerySettings
-                        disabled={!isValidQuery}
-                        size={size}
-                        maxLimit={maxLimit}
-                        limit={limit}
-                        onLimitChange={setRowLimit}
-                        showAutoFetchSetting
-                        targetProps={{
-                            style: {
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            },
-                        }}
-                    />
-                )}
-            </Button.Group>
-        </MantineProvider>
+            ) : (
+                <RunQuerySettings
+                    disabled={!isValidQuery}
+                    size={size}
+                    maxLimit={maxLimit}
+                    limit={limit}
+                    onLimitChange={setRowLimit}
+                    showAutoFetchSetting
+                    targetProps={{
+                        style: {
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                        },
+                    }}
+                />
+            )}
+        </Button.Group>
     );
 });

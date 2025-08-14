@@ -1,12 +1,5 @@
 import { DateGranularity } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    MantineProvider,
-    Menu,
-} from '@mantine-8/core';
+import { ActionIcon, Box, Button, Group, Menu } from '@mantine-8/core';
 import {
     IconCalendarSearch,
     IconCheck,
@@ -16,7 +9,6 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -48,136 +40,130 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     if (isDateZoomDisabled) {
         if (isEditMode)
             return (
-                <MantineProvider theme={getMantine8ThemeOverride()}>
-                    <Button
-                        variant="outline"
-                        size="xs"
-                        leftSection={<MantineIcon icon={IconCalendarSearch} />}
-                        onClick={() => setIsDateZoomDisabled(false)}
-                        classNames={{ root: styles.addDateZoomButton }}
-                    >
-                        + Add date zoom
-                    </Button>
-                </MantineProvider>
+                <Button
+                    variant="outline"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconCalendarSearch} />}
+                    onClick={() => setIsDateZoomDisabled(false)}
+                    classNames={{ root: styles.addDateZoomButton }}
+                >
+                    + Add date zoom
+                </Button>
             );
         return null;
     }
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <Menu
-                withinPortal
-                withArrow
-                closeOnItemClick
-                closeOnClickOutside
-                offset={-1}
-                position="bottom-end"
-                disabled={isEditMode}
-                onOpen={() => setShowOpenIcon(true)}
-                onClose={() => setShowOpenIcon(false)}
-            >
-                <Menu.Target>
-                    <Group gap={0} pos="relative">
-                        {isEditMode && (
-                            <ActionIcon
-                                size="xs"
-                                variant="subtle"
-                                onClick={() => setIsDateZoomDisabled(true)}
-                                className={styles.closeButton}
-                            >
-                                <MantineIcon icon={IconX} size={12} />
-                            </ActionIcon>
-                        )}
-                        <Button
+        <Menu
+            withinPortal
+            withArrow
+            closeOnItemClick
+            closeOnClickOutside
+            offset={-1}
+            position="bottom-end"
+            disabled={isEditMode}
+            onOpen={() => setShowOpenIcon(true)}
+            onClose={() => setShowOpenIcon(false)}
+        >
+            <Menu.Target>
+                <Group gap={0} pos="relative">
+                    {isEditMode && (
+                        <ActionIcon
                             size="xs"
-                            variant="default"
-                            disabled={isEditMode}
-                            classNames={
-                                dateZoomGranularity
-                                    ? { root: styles.activeDateZoomButton }
-                                    : undefined
-                            }
-                            leftSection={
-                                <MantineIcon icon={IconCalendarSearch} />
-                            }
-                            rightSection={
-                                <MantineIcon
-                                    icon={
-                                        showOpenIcon
-                                            ? IconChevronUp
-                                            : IconChevronDown
-                                    }
-                                />
-                            }
+                            variant="subtle"
+                            onClick={() => setIsDateZoomDisabled(true)}
+                            className={styles.closeButton}
                         >
-                            Date Zoom
-                            {dateZoomGranularity ? `:` : null}{' '}
-                            {dateZoomGranularity ? (
-                                <Box fw={500} ml="xxs">
-                                    {dateZoomGranularity}
-                                </Box>
-                            ) : null}
-                        </Button>
-                    </Group>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Label fz={10}>Granularity</Menu.Label>
+                            <MantineIcon icon={IconX} size={12} />
+                        </ActionIcon>
+                    )}
+                    <Button
+                        size="xs"
+                        variant="default"
+                        disabled={isEditMode}
+                        classNames={
+                            dateZoomGranularity
+                                ? { root: styles.activeDateZoomButton }
+                                : undefined
+                        }
+                        leftSection={<MantineIcon icon={IconCalendarSearch} />}
+                        rightSection={
+                            <MantineIcon
+                                icon={
+                                    showOpenIcon
+                                        ? IconChevronUp
+                                        : IconChevronDown
+                                }
+                            />
+                        }
+                    >
+                        Date Zoom
+                        {dateZoomGranularity ? `:` : null}{' '}
+                        {dateZoomGranularity ? (
+                            <Box fw={500} ml="xxs">
+                                {dateZoomGranularity}
+                            </Box>
+                        ) : null}
+                    </Button>
+                </Group>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Label fz={10}>Granularity</Menu.Label>
+                <Menu.Item
+                    fz="xs"
+                    onClick={() => {
+                        track({
+                            name: EventName.DATE_ZOOM_CLICKED,
+                            properties: {
+                                granularity: 'default',
+                            },
+                        });
+
+                        setDateZoomGranularity(undefined);
+                    }}
+                    disabled={dateZoomGranularity === undefined}
+                    className={
+                        dateZoomGranularity === undefined
+                            ? styles.menuItemDisabled
+                            : ''
+                    }
+                    rightSection={
+                        dateZoomGranularity === undefined ? (
+                            <MantineIcon icon={IconCheck} size={14} />
+                        ) : null
+                    }
+                >
+                    Default
+                </Menu.Item>
+                {Object.values(DateGranularity).map((granularity) => (
                     <Menu.Item
                         fz="xs"
+                        key={granularity}
                         onClick={() => {
                             track({
                                 name: EventName.DATE_ZOOM_CLICKED,
                                 properties: {
-                                    granularity: 'default',
+                                    granularity,
                                 },
                             });
-
-                            setDateZoomGranularity(undefined);
+                            setDateZoomGranularity(granularity);
                         }}
-                        disabled={dateZoomGranularity === undefined}
+                        disabled={dateZoomGranularity === granularity}
                         className={
-                            dateZoomGranularity === undefined
+                            dateZoomGranularity === granularity
                                 ? styles.menuItemDisabled
                                 : ''
                         }
                         rightSection={
-                            dateZoomGranularity === undefined ? (
+                            dateZoomGranularity === granularity ? (
                                 <MantineIcon icon={IconCheck} size={14} />
                             ) : null
                         }
                     >
-                        Default
+                        {granularity}
                     </Menu.Item>
-                    {Object.values(DateGranularity).map((granularity) => (
-                        <Menu.Item
-                            fz="xs"
-                            key={granularity}
-                            onClick={() => {
-                                track({
-                                    name: EventName.DATE_ZOOM_CLICKED,
-                                    properties: {
-                                        granularity,
-                                    },
-                                });
-                                setDateZoomGranularity(granularity);
-                            }}
-                            disabled={dateZoomGranularity === granularity}
-                            className={
-                                dateZoomGranularity === granularity
-                                    ? styles.menuItemDisabled
-                                    : ''
-                            }
-                            rightSection={
-                                dateZoomGranularity === granularity ? (
-                                    <MantineIcon icon={IconCheck} size={14} />
-                                ) : null
-                            }
-                        >
-                            {granularity}
-                        </Menu.Item>
-                    ))}
-                </Menu.Dropdown>
-            </Menu>
-        </MantineProvider>
+                ))}
+            </Menu.Dropdown>
+        </Menu>
     );
 };

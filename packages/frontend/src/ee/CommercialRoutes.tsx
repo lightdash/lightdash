@@ -1,8 +1,6 @@
-import { MantineProvider } from '@mantine-8/core';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
 import NavBar from '../components/NavBar';
 import PrivateRoute from '../components/PrivateRoute';
-import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import { AiAgentThreadStreamStoreProvider } from './features/aiCopilot/streaming/AiAgentThreadStreamStoreProvider';
@@ -57,11 +55,9 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
         element: (
             <PrivateRoute>
                 <NavBar />
-                <MantineProvider theme={getMantine8ThemeOverride()}>
-                    <AiAgentThreadStreamStoreProvider>
-                        <Outlet />
-                    </AiAgentThreadStreamStoreProvider>
-                </MantineProvider>
+                <AiAgentThreadStreamStoreProvider>
+                    <Outlet />
+                </AiAgentThreadStreamStoreProvider>
             </PrivateRoute>
         ),
         children: [
