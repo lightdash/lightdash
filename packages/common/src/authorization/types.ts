@@ -41,7 +41,6 @@ export type CaslSubjectNames =
     | 'PersonalAccessToken'
     | 'PinnedItems'
     | 'Project'
-    | 'Role'
     | 'SavedChart'
     | 'ScheduledDeliveries'
     | 'SemanticViewer'

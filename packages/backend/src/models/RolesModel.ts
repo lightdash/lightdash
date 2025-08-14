@@ -454,4 +454,42 @@ export class RolesModel {
             .where('scope_name', scopeName)
             .delete();
     }
+
+    async getOrganizationRoleAssignments(orgUuid: string): Promise<
+        Array<{
+            roleId: string;
+            roleName: string;
+            assigneeId: string;
+            assigneeName: string;
+            organizationId: string;
+            createdAt: Date;
+        }>
+    > {
+        const userAssignments = await this.database('organization_memberships')
+            .join('users', 'organization_memberships.user_id', 'users.user_id')
+            .join(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .leftJoin(
+                'roles',
+                'organization_memberships.role_uuid',
+                'roles.role_uuid',
+            )
+            .select(
+                'roles.role_uuid as roleId',
+                'roles.name as roleName',
+                'users.user_uuid as assigneeId',
+                this.database.raw(
+                    "CONCAT(users.first_name, ' ', users.last_name) as assigneeName",
+                ),
+                'organizations.organization_uuid as organizationId',
+                'organization_memberships.created_at as createdAt',
+            )
+            .where('organizations.organization_uuid', orgUuid)
+            .whereNotNull('organization_memberships.role_uuid');
+
+        return userAssignments;
+    }
 }

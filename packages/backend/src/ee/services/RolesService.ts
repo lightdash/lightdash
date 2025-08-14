@@ -233,32 +233,9 @@ export class RolesService extends BaseService {
     ): Promise<RoleAssignment[]> {
         RolesService.validateOrganizationAccess(account, orgUuid);
 
-        // Query organization memberships with role information
-        const userAssignments = await this.rolesModel
-            .db('organization_memberships')
-            .join('users', 'organization_memberships.user_id', 'users.user_id')
-            .join(
-                'organizations',
-                'organization_memberships.organization_id',
-                'organizations.organization_id',
-            )
-            .leftJoin(
-                'roles',
-                'organization_memberships.role_uuid',
-                'roles.role_uuid',
-            )
-            .select(
-                'roles.role_uuid as roleId',
-                'roles.name as roleName',
-                'users.user_uuid as assigneeId',
-                this.rolesModel.db.raw(
-                    "CONCAT(users.first_name, ' ', users.last_name) as assigneeName",
-                ),
-                'organizations.organization_uuid as organizationId',
-                'organization_memberships.created_at as createdAt',
-            )
-            .where('organizations.organization_uuid', orgUuid)
-            .whereNotNull('organization_memberships.role_uuid');
+        // Get organization role assignments from model
+        const userAssignments =
+            await this.rolesModel.getOrganizationRoleAssignments(orgUuid);
 
         // Format user assignments
         const formattedUserAssignments: RoleAssignment[] = userAssignments.map(
