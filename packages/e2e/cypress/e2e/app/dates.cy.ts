@@ -478,9 +478,7 @@ describe('Date tests', () => {
 
         // Change date operator
         cy.get('[role="combobox"]').find('input[value="is"]').click();
-        cy.get('[role="listbox"]')
-            .findByRole('option', { name: 'is not' })
-            .click();
+        cy.findByRole('option', { name: 'is not' }).click();
         cy.get('[role="combobox"]')
             .find('input[value="is"]')
             .should('not.exist');
