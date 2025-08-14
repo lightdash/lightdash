@@ -103,7 +103,7 @@ import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
-import { getDashboardParametersValuesMap } from '../ProjectService/getDashboardParametersValuesMap';
+import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -1364,12 +1364,10 @@ export class AsyncQueryService extends ProjectService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
-        const projectParameters = await this.projectParametersModel.find(
+        const availableParameters = await this.getAvailableParameters(
             projectUuid,
+            explore,
         );
-        const availableParameters = Object.keys(
-            explore.parameters || {},
-        ).concat(Object.keys(projectParameters || {}));
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,

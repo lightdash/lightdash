@@ -147,7 +147,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         userModel: {} as UserModel,
         featureFlagModel: {} as FeatureFlagModel,
         projectParametersModel: {
-            find: jest.fn(async () => ({})),
+            find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,
     });
 

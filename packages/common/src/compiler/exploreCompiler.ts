@@ -33,6 +33,7 @@ import {
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
 import {
+    getAvailableParameterNames,
     getParameterReferences,
     validateParameterReferences,
 } from './parameters';
@@ -175,8 +176,9 @@ export class ExploreCompiler {
 
         // available parameters are the combination of project parameters and model parameters
         // used for validating parameter references
-        const availableParameters = Object.keys(projectParameters || {}).concat(
-            Object.keys(meta.parameters || {}),
+        const availableParameters = getAvailableParameterNames(
+            projectParameters,
+            meta.parameters,
         );
 
         const includedTables = joinedTables.reduce<Record<string, Table>>(

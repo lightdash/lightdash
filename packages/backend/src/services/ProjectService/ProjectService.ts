@@ -235,6 +235,7 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import { ValidationService } from '../ValidationService/ValidationService';
+import { combineProjectAndExploreParameters } from './parameters';
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1800,6 +1801,26 @@ export class ProjectService extends BaseService {
         );
     }
 
+    /**
+     * Get all available parameters for a project and explore
+     * @param projectUuid - The UUID of the project
+     * @param explore - The explore to get the parameters for
+     * @returns An array of available parameters
+     */
+    protected async getAvailableParameters(
+        projectUuid: string,
+        explore: Explore,
+    ): Promise<string[]> {
+        const projectParameters = await this.projectParametersModel.find(
+            projectUuid,
+        );
+
+        return combineProjectAndExploreParameters(
+            projectParameters,
+            explore.parameters,
+        );
+    }
+
     async compileQuery(
         args: {
             account: Account;
@@ -1867,12 +1888,10 @@ export class ProjectService extends BaseService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
-        const projectParameters = await this.projectParametersModel.find(
+        const availableParameters = await this.getAvailableParameters(
             projectUuid,
+            explore,
         );
-        const availableParameters = Object.keys(
-            explore.parameters || {},
-        ).concat(Object.keys(projectParameters || {}));
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -2714,11 +2733,8 @@ export class ProjectService extends BaseService {
                             account,
                         });
 
-                    const projectParameters =
-                        await this.projectParametersModel.find(projectUuid);
-                    const availableParameters = Object.keys(
-                        explore.parameters || {},
-                    ).concat(Object.keys(projectParameters || {}));
+                    const availableParameters =
+                        await this.getAvailableParameters(projectUuid, explore);
 
                     const fullQuery = await ProjectService._compileQuery({
                         metricQuery: metricQueryWithLimit,
@@ -3446,12 +3462,10 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ user });
 
-        const projectParameters = await this.projectParametersModel.find(
+        const availableParameters = await this.getAvailableParameters(
             projectUuid,
+            explore,
         );
-        const availableParameters = Object.keys(
-            explore.parameters || {},
-        ).concat(Object.keys(projectParameters || {}));
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,
@@ -5277,12 +5291,10 @@ export class ProjectService extends BaseService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
-        const projectParameters = await this.projectParametersModel.find(
+        const availableParameters = await this.getAvailableParameters(
             projectUuid,
+            explore,
         );
-        const availableParameters = Object.keys(
-            explore.parameters || {},
-        ).concat(Object.keys(projectParameters || {}));
 
         const { query } = await this._getCalculateTotalQuery(
             userAttributes,
@@ -5333,12 +5345,10 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const projectParameters = await this.projectParametersModel.find(
+        const availableParameters = await this.getAvailableParameters(
             projectUuid,
+            explore,
         );
-        const availableParameters = Object.keys(
-            explore.parameters || {},
-        ).concat(Object.keys(projectParameters || {}));
 
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             userAttributes,
