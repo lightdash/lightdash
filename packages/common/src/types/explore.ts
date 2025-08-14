@@ -48,6 +48,7 @@ export type CompiledTable = TableBase & {
     source?: Source | undefined;
     uncompiledSqlWhere?: string;
     parameterReferences?: string[];
+    parameters?: LightdashProjectConfig['parameters'];
 };
 
 export enum ExploreType {
@@ -122,6 +123,7 @@ export type Table = TableBase & {
     metrics: { [fieldName: string]: Metric }; //
     lineageGraph: LineageGraph; // DAG structure representing the lineage of the table
     source?: Source;
+    parameters?: LightdashProjectConfig['parameters'];
 };
 
 export enum CustomViewType {

@@ -33,6 +33,7 @@ import {
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
 import {
+    getAllExploreParameters,
     getAvailableParameterNames,
     getParameterReferences,
     validateParameterReferences,
@@ -174,13 +175,6 @@ export class ExploreCompiler {
             );
         }
 
-        // available parameters are the combination of project parameters and model parameters
-        // used for validating parameter references
-        const availableParameters = getAvailableParameterNames(
-            projectParameters,
-            meta.parameters,
-        );
-
         const includedTables = joinedTables.reduce<Record<string, Table>>(
             (prev, join) => {
                 const joinTableName = join.alias || tables[join.table].name;
@@ -275,20 +269,33 @@ export class ExploreCompiler {
             { [baseTable]: tables[baseTable] },
         );
 
+        // get all available parameters from the explore and included tables
+        const exploreAvailableParameters = getAllExploreParameters(
+            meta.parameters,
+            Object.values(includedTables),
+        );
+
+        // available parameters are the combination of project parameters and model parameters
+        // used for validating parameter references
+        const availableParametersNames = getAvailableParameterNames(
+            projectParameters,
+            exploreAvailableParameters,
+        );
+
         const compiledTables: Record<string, CompiledTable> = aliases.reduce(
             (prev, tableName) => ({
                 ...prev,
                 [tableName]: this.compileTable(
                     includedTables[tableName],
                     includedTables,
-                    availableParameters,
+                    availableParametersNames,
                 ),
             }),
             {},
         );
 
         const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
-            this.compileJoin(j, includedTables, availableParameters),
+            this.compileJoin(j, includedTables, availableParametersNames),
         );
 
         const spotlightVisibility =
@@ -388,6 +395,9 @@ export class ExploreCompiler {
             dimensions,
             metrics,
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
+            ...(table.parameters && Object.keys(table.parameters).length > 0
+                ? { parameters: table.parameters }
+                : {}),
         };
     }
 

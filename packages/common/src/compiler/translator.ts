@@ -608,6 +608,7 @@ export const convertTable = (
               }
             : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
+        ...(meta.parameters ? { parameters: meta.parameters } : {}),
     };
 };
 

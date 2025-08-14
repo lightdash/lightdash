@@ -3,6 +3,7 @@
  */
 
 import { CompileError } from '../types/errors';
+import type { Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
 
 export const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameters)\.(\w+)\}/g;
@@ -60,3 +61,40 @@ export const getAvailableParameterNames = (
     Object.keys(projectParameters || {}).concat(
         Object.keys(exploreParameters || {}),
     );
+
+/**
+ * Get all available parameter names for a project and explore
+ * @param projectParameters - The project parameters
+ * @param exploreParameters - The explore parameters
+ * @returns An array of available parameter names
+ */
+export const getAllExploreParameters = (
+    exploreParameters: Record<string, LightdashProjectParameter> | undefined,
+    includedTables: Table[],
+): Record<string, LightdashProjectParameter> => {
+    const includedTablesParameters: Record<string, LightdashProjectParameter> =
+        includedTables.reduce((acc, table) => {
+            const tableParameters = Object.keys(table.parameters || {}).reduce<
+                Record<string, LightdashProjectParameter>
+            >((acc2, p) => {
+                const parameter = table.parameters?.[p];
+                if (!parameter) {
+                    return acc2;
+                }
+                return {
+                    ...acc2,
+                    [`${table.name}.${p}`]: parameter,
+                };
+            }, {});
+
+            return {
+                ...acc,
+                ...tableParameters,
+            };
+        }, {});
+
+    return {
+        ...(exploreParameters ?? {}),
+        ...includedTablesParameters,
+    };
+};

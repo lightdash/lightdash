@@ -2,11 +2,18 @@ version: 2
 models:
   - name: customers
     config:
-      tags: ['ai']
+      tags: ["ai"]
       meta:
+        parameters:
+          customer_name:
+            label: "Customer name"
+            description: "Filter subscriptions by customer name"
+            options_from_dimension:
+              dimension: "first_name"
+              model: "customers"
         primary_key: customer_id
         spotlight:
-          categories: [ "experimental" ]
+          categories: ["experimental"]
         joins:
           - join: membership
             hidden: true
@@ -33,12 +40,12 @@ models:
           meta:
             metrics:
               unique_customer_count:
-                tags: ['ai']
+                tags: ["ai"]
                 type: count_distinct
                 label: Unique customer count
                 description: Total number of customers
                 spotlight:
-                  categories: [ "core" ]
+                  categories: ["core"]
                 ai_hint: Unique customer count.
         meta:
           dimension:
@@ -58,10 +65,16 @@ models:
                 - label: "URL from value"
                   url: "https://example.com/company/${value.formatted | url_encode }"
                 - label: "URL from row value"
-                  url: "https://example.com/company/${row.customers.customer_id.raw | url_encode
+                  url:
+                    "https://example.com/company/${row.customers.customer_id.raw | url_encode
                     }"
                 - label: "Invalid URL with bad reference"
                   url: "https://example.com/company/${row.customer_id.raw | url_encode }"
+            additional_dimensions:
+              customer_name_test:
+                type: string
+                description: Customer name
+                sql: ${ld.parameters.customers.customer_name}
         meta:
           dimension:
             type: string
@@ -97,23 +110,23 @@ models:
           meta:
             metrics:
               date_of_first_created_customer:
-                tags: ['ai']
+                tags: ["ai"]
                 type: min
               date_of_most_recent_created_customer:
-                tags: ['ai']
+                tags: ["ai"]
                 spotlight:
                   visibility: hide
                 type: max
         meta:
           dimension:
-            tags: ['ai']
+            tags: ["ai"]
             type: timestamp
       - name: first_order
         description: Date of the customers first order
         config:
           meta:
             dimension:
-              tags: ['ai']
+              tags: ["ai"]
               hidden: true
         meta:
           dimension:
@@ -122,7 +135,7 @@ models:
         description: Date of the customers most recent order
         config:
           meta:
-            tags: ['ai']
+            tags: ["ai"]
             dimension:
               hidden: true
         meta:
@@ -132,7 +145,7 @@ models:
         description: Number of days since the customers last order
         config:
           meta:
-            tags: ['ai']
+            tags: ["ai"]
             dimension:
               hidden: true
         meta:
@@ -144,7 +157,7 @@ models:
           first order
         config:
           meta:
-            tags: ['ai']
+            tags: ["ai"]
             dimension:
               hidden: true
         meta:
@@ -154,7 +167,7 @@ models:
         description: ""
         config:
           meta:
-            tags: ['ai']
+            tags: ["ai"]
             dimension:
               hidden: true
         meta:
@@ -164,7 +177,7 @@ models:
         description: ""
         config:
           meta:
-            tags: ['ai']
+            tags: ["ai"]
             dimension:
               hidden: true
         meta:
