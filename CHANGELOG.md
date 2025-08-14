@@ -1,3 +1,10 @@
+## [0.1913.3](https://github.com/lightdash/lightdash/compare/0.1913.2...0.1913.3) (2025-08-14)
+
+
+### Bug Fixes
+
+* update `showSymbol` checkbox unchecked by default ([#16360](https://github.com/lightdash/lightdash/issues/16360)) ([40f9281](https://github.com/lightdash/lightdash/commit/40f92815f871e566dd79f3479db618dd76daa60c))
+
 ## [0.1913.2](https://github.com/lightdash/lightdash/compare/0.1913.1...0.1913.2) (2025-08-14)
 
 
