@@ -1,3 +1,10 @@
+## [0.1913.1](https://github.com/lightdash/lightdash/compare/0.1913.0...0.1913.1) (2025-08-14)
+
+
+### Bug Fixes
+
+* release sdk on merge ([#16359](https://github.com/lightdash/lightdash/issues/16359)) ([2225605](https://github.com/lightdash/lightdash/commit/2225605baaa783e1adcdfaacdcf157c2cb19cccd))
+
 # [0.1913.0](https://github.com/lightdash/lightdash/compare/0.1912.0...0.1913.0) (2025-08-13)
 
 
