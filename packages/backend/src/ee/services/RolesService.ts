@@ -2,8 +2,10 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AddScopesToRole,
+    CreateGroupRoleAssignmentRequest,
     CreateRole,
     CreateRoleAssignmentRequest,
+    CreateUserRoleAssignmentRequest,
     ForbiddenError,
     ParameterError,
     Role,
@@ -316,6 +318,53 @@ export class RolesService extends BaseService {
     }
 
     // =====================================
+    // SEPARATE ORGANIZATION ROLE ASSIGNMENTS
+    // =====================================
+
+    async createOrganizationUserRoleAssignment(
+        account: Account,
+        orgUuid: string,
+        userId: string,
+        request: CreateUserRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        const { roleId } = request;
+
+        // Validate role ownership and get role details
+        const role = await this.rolesModel.getRoleByUuid(roleId);
+        RolesService.validateRoleOwnership(account, role);
+
+        await this.assignRoleToUser(account, userId, roleId, orgUuid);
+
+        // Get user details for response
+        const user = await this.userModel.getUserDetailsByUuid(userId);
+
+        return {
+            roleId,
+            roleName: role.name,
+            assigneeType: 'user',
+            assigneeId: userId,
+            assigneeName: `${user.firstName} ${user.lastName}`,
+            organizationId: orgUuid,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    async createOrganizationGroupRoleAssignment(
+        account: Account,
+        orgUuid: string,
+        groupId: string,
+        request: CreateGroupRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        // Organization-level group role assignments are not supported
+        // Groups only have project-level and space-level access
+        throw new ParameterError(
+            'Organization-level group role assignments are not supported',
+        );
+    }
+
+    // =====================================
     // UNIFIED PROJECT ROLE ASSIGNMENTS
     // =====================================
 
@@ -492,6 +541,68 @@ export class RolesService extends BaseService {
         } else {
             throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
         }
+    }
+
+    // =====================================
+    // SEPARATE PROJECT ROLE ASSIGNMENTS
+    // =====================================
+
+    async createProjectUserRoleAssignment(
+        account: Account,
+        projectId: string,
+        userId: string,
+        request: CreateUserRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        const { roleId } = request;
+
+        // Validate role ownership and get role details
+        const role = await this.rolesModel.getRoleByUuid(roleId);
+        RolesService.validateRoleOwnership(account, role);
+
+        await this.createUserProjectAccess(account, projectId, userId, roleId);
+
+        // Get user details for response
+        const user = await this.userModel.getUserDetailsByUuid(userId);
+
+        return {
+            roleId,
+            roleName: role.name,
+            assigneeType: 'user',
+            assigneeId: userId,
+            assigneeName: `${user.firstName} ${user.lastName}`,
+            projectId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+    }
+
+    async createProjectGroupRoleAssignment(
+        account: Account,
+        projectId: string,
+        groupId: string,
+        request: CreateGroupRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        const { roleId } = request;
+
+        // Validate role ownership and get role details
+        const role = await this.rolesModel.getRoleByUuid(roleId);
+        RolesService.validateRoleOwnership(account, role);
+
+        await this.assignRoleToGroup(account, groupId, roleId, projectId);
+
+        // Get group details for response
+        const group = await this.groupsModel.getGroup(groupId);
+
+        return {
+            roleId,
+            roleName: role.name,
+            assigneeType: 'group',
+            assigneeId: groupId,
+            assigneeName: group.name,
+            projectId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
     }
 
     async deleteRole(account: Account, roleUuid: string): Promise<void> {

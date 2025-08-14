@@ -100,14 +100,11 @@ export class ProjectRolesController extends BaseController {
         @Body() body: CreateUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
-            await this.getRolesService().createProjectRoleAssignment(
+            await this.getRolesService().createProjectUserRoleAssignment(
                 req.account!,
                 projectId,
-                {
-                    roleId: body.roleId,
-                    assigneeType: 'user',
-                    assigneeId: userId,
-                },
+                userId,
+                body,
             );
 
         this.setStatus(201);
@@ -135,14 +132,11 @@ export class ProjectRolesController extends BaseController {
         @Body() body: CreateGroupRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
-            await this.getRolesService().createProjectRoleAssignment(
+            await this.getRolesService().createProjectGroupRoleAssignment(
                 req.account!,
                 projectId,
-                {
-                    roleId: body.roleId,
-                    assigneeType: 'group',
-                    assigneeId: groupId,
-                },
+                groupId,
+                body,
             );
 
         this.setStatus(201);
