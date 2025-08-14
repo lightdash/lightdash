@@ -48,6 +48,7 @@ module.exports = {
                     'packages/e2e/package.json',
                     'packages/frontend/package.json',
                     'packages/warehouses/package.json',
+                    'packages/frontend/sdk/package.json',
                 ],
                 message:
                     'chore(release): ${nextRelease.version} \n\n${nextRelease.notes}',

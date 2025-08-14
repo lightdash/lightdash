@@ -5,7 +5,8 @@
     "license": "MIT",
     "private": true,
     "workspaces": [
-        "packages/*"
+        "packages/*",
+        "packages/frontend/sdk"
     ],
     "resolutions": {
         "react-is": "19.0.0",
@@ -112,8 +113,8 @@
         "test": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend -F e2e -F cli test",
         "dev": "pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev",
         "build": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend build",
-        "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli build",
-        "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli release",
+        "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli build && pnpm frontend-build-sdk",
+        "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli -F frontend release",
         "start": "pnpm run backend-start",
         "prepare": "husky || true",
         "load:env": "dotenv -c -e .env.development.local",
