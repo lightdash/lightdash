@@ -1295,12 +1295,26 @@ const ExplorerProvider: FC<
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
+    const joinedTablesParameterDefinitions = useMemo(() => {
+        return explore?.joinedTables.reduce((acc, join) => {
+            return {
+                ...acc,
+                ...(explore?.tables[join.table]?.parameters ?? {}),
+            };
+        }, {});
+    }, [explore]);
+
     const parameterDefinitions = useMemo(() => {
         return {
             ...projectParameters,
             ...(explore?.parameters ?? {}),
+            ...joinedTablesParameterDefinitions,
         };
-    }, [projectParameters, explore?.parameters]);
+    }, [
+        projectParameters,
+        explore?.parameters,
+        joinedTablesParameterDefinitions,
+    ]);
 
     const missingRequiredParameters = useMemo(() => {
         // If no required parameters are set, return null, this will disable query execution
@@ -1382,9 +1396,8 @@ const ExplorerProvider: FC<
                           invalidateCache: minimal,
                       }
                     : null;
-                const downloadQuery = await executeQueryAndWaitForResults(
-                    queryArgsWithLimit,
-                );
+                const downloadQuery =
+                    await executeQueryAndWaitForResults(queryArgsWithLimit);
                 queryUuid = downloadQuery.queryUuid;
             }
             if (!queryUuid) {
