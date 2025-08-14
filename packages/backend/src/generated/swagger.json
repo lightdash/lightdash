@@ -17689,6 +17689,13 @@
             },
             "ProjectParameterSummary": {
                 "properties": {
+                    "modelName": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["config", "model"]
+                    },
                     "config": {
                         "$ref": "#/components/schemas/LightdashProjectParameter"
                     },
@@ -17700,7 +17707,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["config", "createdAt", "name"],
+                "required": ["source", "config", "createdAt", "name"],
                 "type": "object"
             },
             "KnexPaginatedData_ProjectParameterSummary-Array_": {

@@ -70,8 +70,10 @@ export class ParametersController extends BaseController {
         const results: ApiGetProjectParametersListResults = {
             data: parameters.data.map((param) => ({
                 name: param.name,
-                createdAt: param.created_at,
+                createdAt: param.createdAt,
                 config: param.config,
+                source: param.source,
+                modelName: param.modelName,
             })),
             pagination: parameters.pagination,
         };
