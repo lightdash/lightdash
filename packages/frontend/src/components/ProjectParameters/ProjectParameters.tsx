@@ -2,6 +2,7 @@ import type { ProjectParameterSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Badge,
     Box,
     Code,
     Group,
@@ -20,7 +21,6 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
-import { format } from 'date-fns';
 import React, {
     useCallback,
     useEffect,
@@ -80,8 +80,8 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [page, setPage] = useState(1);
-    const [sortBy, setSortBy] = useState<'name' | 'created_at'>('created_at');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [configModal, configModalHandlers] = useDisclosure();
     const [selectedParameter, setSelectedParameter] = useState<{
         name: string;
@@ -136,17 +136,28 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     const tableRows = useMemo(
         () =>
             parameters.map((parameter: ProjectParameterSummary) => (
-                <tr key={parameter.name}>
+                <tr
+                    key={`${parameter.source}-${parameter.name}-${
+                        parameter.modelName || ''
+                    }`}
+                >
                     <td>
-                        <Code>{parameter.name}</Code>
+                        <Group gap="xs">
+                            <Code>{parameter.name}</Code>
+                        </Group>
                     </td>
                     <td>
-                        <Text size="sm" c="dimmed">
-                            {format(
-                                new Date(parameter.createdAt),
-                                'MMM d, yyyy',
-                            )}
-                        </Text>
+                        <Badge
+                            size="sm"
+                            variant="light"
+                            color={
+                                parameter.source === 'config' ? 'blue' : 'green'
+                            }
+                        >
+                            {parameter.source === 'config'
+                                ? 'Lightdash Config'
+                                : `${parameter.modelName} Model`}
+                        </Badge>
                     </td>
                     <td>
                         <Tooltip label="View configuration">
@@ -201,7 +212,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                         <Box mt="sm">
                             <TextInput
                                 size="xs"
-                                placeholder="Search parameters by name, label, or description"
+                                placeholder="Search parameters by name, label, description, or model"
                                 onChange={(e) => setSearch(e.target.value)}
                                 value={search}
                                 w={380}
@@ -220,60 +231,50 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                         </Box>
                     </Paper>
 
-                    <Table
-                        className={cx(classes.root, classes.alignLastTdRight)}
-                    >
-                        <thead>
+                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                    <thead>
+                        <tr>
+                            <th
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleSort('name')}
+                            >
+                                <Group gap="xs">
+                                    <Text>Parameter</Text>
+                                    <Text>{getSortIcon('name')}</Text>
+                                </Group>
+                            </th>
+                            <th>
+                                <Text>Source</Text>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody style={{ position: 'relative' }}>
+                        {!isLoading && parameters && parameters.length ? (
+                            tableRows
+                        ) : isLoading ? (
                             <tr>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort('name')}
-                                >
-                                    <Group gap="xs">
-                                        <Text>Parameter Name</Text>
-                                        <Text>{getSortIcon('name')}</Text>
-                                    </Group>
-                                </th>
-                                <th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort('created_at')}
-                                >
-                                    <Group gap="xs">
-                                        <Text>Created</Text>
-                                        <Text>{getSortIcon('created_at')}</Text>
-                                    </Group>
-                                </th>
-                                <th></th>
+                                <td colSpan={3}>
+                                    <Box py="lg">
+                                        <LoadingOverlay
+                                            visible={true}
+                                        />
+                                    </Box>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody style={{ position: 'relative' }}>
-                            {!isLoading && parameters && parameters.length ? (
-                                tableRows
-                            ) : isLoading ? (
-                                <tr>
-                                    <td colSpan={3}>
-                                        <Box py="lg">
-                                            <LoadingOverlay visible={true} />
-                                        </Box>
-                                    </td>
-                                </tr>
-                            ) : (
-                                <tr>
-                                    <td colSpan={3}>
-                                        <Text
-                                            c="gray.6"
-                                            fs="italic"
-                                            ta="center"
-                                        >
-                                            {debouncedSearch
-                                                ? 'No parameters found matching your search'
-                                                : 'No parameters configured for this project'}
-                                        </Text>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </Table>
+                        ) : (
+                            <tr>
+                                <td colSpan={3}>
+                                    <Text c="gray.6" fs="italic" ta="center">
+                                        {debouncedSearch
+                                            ? 'No parameters found matching your search'
+                                            : 'No parameters configured for this project'}
+                                    </Text>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </Table>
 
                     {pagination && pagination.totalPageCount > 1 && (
                         <Paper p="sm">

@@ -17036,6 +17036,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                modelName: { dataType: 'string' },
+                source: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['config'] },
+                        { dataType: 'enum', enums: ['model'] },
+                    ],
+                    required: true,
+                },
                 config: { ref: 'LightdashProjectParameter', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 name: { dataType: 'string', required: true },
