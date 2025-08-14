@@ -15,14 +15,12 @@ import { getTabUuidsForFilterRules } from '@lightdash/common';
 import {
     Button,
     Group,
-    MantineProvider,
     Skeleton,
     Tooltip,
     useMantineTheme,
-} from '@mantine-8/core';
+} from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
-import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../../common/MantineIcon';
 import InvalidFilter from '../InvalidFilter';
@@ -193,7 +191,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
         return (
-            <Group gap="xs" ml="xs">
+            <Group spacing="xs" ml="xs">
                 <Skeleton h={30} w={100} radius={4} />
                 <Skeleton h={30} w={100} radius={4} />
                 <Skeleton h={30} w={100} radius={4} />
@@ -229,12 +227,13 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     };
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
+        <>
             {!isEditMode && haveFiltersChanged && (
                 <Tooltip label="Reset all filters">
                     <Button
                         size="xs"
                         variant="default"
+                        radius="md"
                         color="gray"
                         onClick={() => {
                             setHaveFiltersChanged(false);
@@ -344,7 +343,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     />
                 );
             })}
-        </MantineProvider>
+        </>
     );
 };
 
