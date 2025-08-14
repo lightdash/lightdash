@@ -23,6 +23,7 @@ import {
     WebClient,
     type FilesUploadV2Arguments,
 } from '@slack/web-api';
+import { EventEmitter } from 'events';
 import { Express } from 'express';
 import { without } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -68,7 +69,7 @@ const lightdashLogLevelToSlackLogLevel = (
     }
 };
 
-export class SlackClient {
+export class SlackClient extends EventEmitter {
     slackAuthenticationModel: SlackAuthenticationModel;
 
     lightdashConfig: LightdashConfig;
@@ -84,13 +85,12 @@ export class SlackClient {
         { lastCached: Date; channels: SlackChannel[] }
     > = new Map();
 
-    private readyCallbacks: Array<(app: App) => void> = [];
-
     constructor({
         slackAuthenticationModel,
         lightdashConfig,
         analytics,
     }: SlackClientArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
@@ -100,25 +100,12 @@ export class SlackClient {
         }
     }
 
-    /**
-     * Register a callback to be executed when the Slack app is ready.
-     * If the app is already ready, the callback will be called immediately.
-     * Otherwise, the callback will be queued and called when the app is ready.
-     *
-     * @param callback
-     */
-    public onReady(callback: (app: App) => void): void {
-        if (this.slackApp) {
-            // App is already initialized, call immediately
-            try {
-                callback(this.slackApp);
-            } catch (error) {
-                Logger.error('Error in Slack onReady callback:', error);
-            }
-        } else {
-            // Queue the callback for when the app is ready
-            this.readyCallbacks.push(callback);
-        }
+    public getApp(): App | undefined {
+        return this.slackApp;
+    }
+
+    public isReady(): boolean {
+        return !!this.slackApp;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -732,16 +719,8 @@ export class SlackClient {
 
         if (app) {
             this.slackApp = app;
-            Logger.info(`Slack app started`);
-            // Execute all queued callbacks
-            this.readyCallbacks.forEach((callback) => {
-                try {
-                    callback(app);
-                } catch (error) {
-                    Logger.error('Error in Slack onReady callback:', error);
-                }
-            });
-            this.readyCallbacks = []; // Clear the queue
+            Logger.info('Slack app initialized successfully');
+            this.emit('slackAppReady', app);
         }
     }
 }
