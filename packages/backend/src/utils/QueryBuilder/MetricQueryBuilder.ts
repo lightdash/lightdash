@@ -75,6 +75,7 @@ export type BuildQueryProps = {
     warehouseSqlBuilder: WarehouseSqlBuilder;
     userAttributes?: UserAttributeValueMap;
     parameters?: ParametersValuesMap;
+    availableParameters: string[];
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
 };
@@ -797,6 +798,7 @@ export class MetricQueryBuilder {
         const compiledMetric = exploreCompiler.compileMetricSql(
             { ...metric, sql: processedSql }, // use preprocessed SQL with CTE references resolved
             explore.tables,
+            this.args.availableParameters,
         );
 
         return compiledMetric.sql;
