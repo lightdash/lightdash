@@ -39,6 +39,7 @@ export type DashboardChartReadyQuery = {
 export const useDashboardChartReadyQuery = (
     tileUuid: string,
     chartUuid: string | null,
+    contextOverride?: QueryExecutionContext,
 ) => {
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
@@ -62,6 +63,9 @@ export const useDashboardChartReadyQuery = (
     const setChartsWithDateZoomApplied = useDashboardContext(
         (c) => c.setChartsWithDateZoomApplied,
     );
+    const addParameterDefinitions = useDashboardContext(
+        (c) => c.addParameterDefinitions,
+    );
 
     const sortKey =
         dashboardSorts
@@ -77,6 +81,12 @@ export const useDashboardChartReadyQuery = (
     const { data: explore } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,
     );
+
+    useEffect(() => {
+        if (explore && explore.parameters) {
+            addParameterDefinitions(explore.parameters);
+        }
+    }, [explore, addParameterDefinitions]);
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
@@ -128,7 +138,7 @@ export const useDashboardChartReadyQuery = (
             timezoneFixFilters,
             dashboardSorts,
             sortKey,
-            context,
+            contextOverride || context,
             autoRefresh,
             hasADateDimension ? granularity : null,
             invalidateCache,
@@ -141,6 +151,7 @@ export const useDashboardChartReadyQuery = (
             timezoneFixFilters,
             dashboardSorts,
             sortKey,
+            contextOverride,
             context,
             autoRefresh,
             hasADateDimension,
@@ -162,7 +173,9 @@ export const useDashboardChartReadyQuery = (
                 {
                     context: autoRefresh
                         ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                        : context || QueryExecutionContext.DASHBOARD,
+                        : contextOverride ||
+                          context ||
+                          QueryExecutionContext.DASHBOARD,
                     chartUuid: chartUuid!,
                     dashboardUuid: dashboardUuid!,
                     dashboardFilters: timezoneFixFilters,

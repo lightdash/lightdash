@@ -420,13 +420,13 @@ const restoreStringsFromPlaceholders = (
         (_, p1) => placeholders[Number(p1)],
     );
 
-interface LimitOffsetClause {
+export interface LimitOffsetClause {
     limit: number;
     offset?: number;
 }
 
 // Extract the outer limit and offset clauses from a SQL query
-const extractOuterLimitOffsetFromSQL = (
+export const extractOuterLimitOffsetFromSQL = (
     sql: string,
 ): LimitOffsetClause | undefined => {
     let s = sql.trim();
@@ -459,7 +459,7 @@ const extractOuterLimitOffsetFromSQL = (
 };
 
 // Remove the outermost limit and offset clauses from SQL
-const removeCommentsAndOuterLimitOffset = (sql: string): string => {
+export const removeCommentsAndOuterLimitOffset = (sql: string): string => {
     let s = sql.trim();
     // remove comments
     s = removeComments(s);

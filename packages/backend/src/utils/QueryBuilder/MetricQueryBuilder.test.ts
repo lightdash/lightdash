@@ -6,29 +6,35 @@ import {
     JoinRelationship,
     TimeFrames,
 } from '@lightdash/common';
-import { BigquerySqlBuilder, PostgresSqlBuilder } from '@lightdash/warehouses';
 import {
     BuildQueryProps,
     CompiledQuery,
     MetricQueryBuilder,
-} from './queryBuilder';
+} from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    EXPECTED_SQL_WITH_CROSS_JOIN,
+    EXPECTED_SQL_WITH_CROSS_TABLE_METRICS,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_NUMBER,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH_ON_POSTGRES,
     EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION,
+    EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN,
     EXPECTED_SQL_WITH_SORTED_CUSTOM_DIMENSION,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
+    EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
+    EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
+    METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
@@ -72,13 +78,24 @@ import {
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
-} from './queryBuilder.mock';
+} from './MetricQueryBuilder.mock';
 
 const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
 
 // Wrapper around class to simplify test calls
-const buildQuery = (args: BuildQueryProps): CompiledQuery =>
-    new MetricQueryBuilder(args).compileQuery();
+const buildQuery = (
+    args: Omit<BuildQueryProps, 'availableParameters'>,
+): CompiledQuery =>
+    new MetricQueryBuilder({ ...args, availableParameters: [] }).compileQuery();
+
+// Wrapper around class to simplify test calls with useExperimentalMetricCtes=true
+const buildQueryWithExperimentalCtes = (
+    args: Omit<BuildQueryProps, 'availableParameters'>,
+): CompiledQuery =>
+    new MetricQueryBuilder({
+        ...args,
+        availableParameters: [],
+    }).compileQuery(true);
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
@@ -807,6 +824,7 @@ describe('Query builder', () => {
                     region: 'EU',
                     unused: 'parameter',
                 },
+                availableParameters: ['status', 'region', 'unused'],
             });
 
             const compiledQuery = queryBuilder.compileQuery();
@@ -821,20 +839,141 @@ describe('Query builder', () => {
             expect(compiledQuery.usedParameters).not.toHaveProperty('unused');
         });
     });
+
+    describe('Query builder with useExperimentalMetricCtes=true', () => {
+        test('Should build query with CTEs for metrics to prevent inflation', () => {
+            // Use the imported explore mock with MANY_TO_ONE relationship to trigger metric inflation
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    metrics: ['table1_metric1', 'table2_metric3'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings).toHaveLength(0);
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN),
+            );
+        });
+
+        test('Should build query with CTEs for metrics and CROSS join', () => {
+            // Use the imported explore mock with MANY_TO_ONE relationship to trigger metric inflation
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: [], // no dimensions in the query causes a CROSS join
+                    metrics: ['table1_metric1', 'table2_metric3'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings).toHaveLength(0);
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_WITH_CROSS_JOIN),
+            );
+        });
+
+        test('Should handle inflation-proof metrics correctly', () => {
+            // Create a metric query that includes both the count distinct metric and the sum metric
+            const metricQueryWithMixedMetrics = {
+                ...METRIC_QUERY_TWO_TABLES,
+                metrics: [
+                    'table2_metric2',
+                    'table1_metric1',
+                    'table1_metric_that_references_dim_from_table2',
+                ],
+            };
+
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE,
+                compiledMetricQuery: metricQueryWithMixedMetrics,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings).toHaveLength(0);
+            expect(result.query).not.toContain('cte_keys_');
+            expect(result.query).not.toContain('cte_metrics_');
+            expect(result.query).not.toContain('cte_unaffected');
+        });
+
+        test('Should generate warnings for tables without primary keys', () => {
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITHOUT_PRIMARY_KEYS,
+                compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should have warnings about missing primary keys
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a primary key definition'),
+                ),
+            ).toBe(true);
+
+            // Should have warnings about metrics that could be inflated
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes(
+                        'could be inflated due to table missing primary key definition',
+                    ),
+                ),
+            ).toBe(true);
+        });
+
+        test('Should generate warnings for joins without relationship type', () => {
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
+                compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should have warnings about missing relationship type
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a join relationship type'),
+                ),
+            ).toBe(true);
+
+            // Should have warnings about metrics that could be inflated
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes(
+                        'could be inflated due to missing join relationship type',
+                    ),
+                ),
+            ).toBe(true);
+        });
+
+        test('Should handle metrics that reference other metrics from joined tables', () => {
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
+                compiledMetricQuery: METRIC_QUERY_CROSS_TABLE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_WITH_CROSS_TABLE_METRICS),
+            );
+        });
+    });
 });
 
-describe('Escaping in postgres', () => {
-    const postgresSqlBuilder = new PostgresSqlBuilder();
-    const bigquerySqlBuilder = new BigquerySqlBuilder();
-
-    const postgresClientWithReplace = {
-        ...warehouseClientMock,
-        escapeString: postgresSqlBuilder.escapeString.bind(postgresSqlBuilder),
-    };
-    const bigqueryClientWithReplace = {
-        ...bigqueryClientMock,
-        escapeString: bigquerySqlBuilder.escapeString.bind(bigquerySqlBuilder),
-    };
+describe('Escaping filters', () => {
     test('Should return valid SQL filter', () => {
         expect(
             replaceWhitespace(
@@ -856,7 +995,7 @@ describe('Escaping in postgres', () => {
                             },
                         },
                     },
-                    warehouseSqlBuilder: postgresClientWithReplace,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -885,7 +1024,7 @@ describe('Escaping in postgres', () => {
                             },
                         },
                     },
-                    warehouseSqlBuilder: postgresClientWithReplace,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -895,50 +1034,7 @@ describe('Escaping in postgres', () => {
         );
     });
 
-    test('Should return valid SQL filter with unicode characters in postgres', () => {
-        expect(
-            postgresClientWithReplace.escapeString('single\u2019quote'),
-        ).toBe("single''quote");
-
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY,
-                        filters: {
-                            dimensions: {
-                                id: '7e750e7c-8098-4a90-b364-4e935ad7a7e9',
-                                and: [
-                                    {
-                                        id: 'd69d3ba0-6ff5-4437-9ef3-4ed69006ea2e',
-                                        target: { fieldId: 'table1_shared' },
-                                        operator: FilterOperator.EQUALS,
-                                        values: ['\\\u2019) OR (1=1) --'],
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                    warehouseSqlBuilder: postgresClientWithReplace,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toContain(
-            replaceWhitespace(
-                `WHERE (( ("table1".shared) IN ('\\\\'') OR (1=1) ') ))`,
-            ),
-        );
-    });
-
     test('Should return valid SQL filter with escaped quotes in postgres', () => {
-        // 1. \ -> \\
-        // 2. ' -> ''
-
-        expect(postgresClientWithReplace.escapeString("\\') OR (1=1) --")).toBe(
-            "\\\\'') OR (1=1) ",
-        );
         expect(
             replaceWhitespace(
                 buildQuery({
@@ -959,7 +1055,7 @@ describe('Escaping in postgres', () => {
                             },
                         },
                     },
-                    warehouseSqlBuilder: postgresClientWithReplace,
+                    warehouseSqlBuilder: warehouseClientMock,
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
@@ -967,84 +1063,6 @@ describe('Escaping in postgres', () => {
         ).toContain(
             replaceWhitespace(
                 `WHERE (( ("table1".shared) IN ('\\\\'') OR (1=1) ') ))`,
-            ),
-        );
-    });
-    test('Should return valid SQL filter with escaped quotes in bigquery', () => {
-        // 1. \ -> \\
-        // 2. ' -> \'
-        expect(bigqueryClientWithReplace.escapeString("\\') OR (1=1) --")).toBe(
-            "\\\\\\') OR (1=1) ",
-        );
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY,
-                        filters: {
-                            dimensions: {
-                                id: '7e750e7c-8098-4a90-b364-4e935ad7a7e9',
-                                and: [
-                                    {
-                                        id: 'd69d3ba0-6ff5-4437-9ef3-4ed69006ea2e',
-                                        target: { fieldId: 'table1_shared' },
-                                        operator: FilterOperator.EQUALS,
-                                        values: ["\\') OR (1=1) --"],
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                    warehouseSqlBuilder: bigqueryClientWithReplace,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toContain(
-            replaceWhitespace(
-                `WHERE (( ("table1".shared) IN ('\\\\\\') OR (1=1) ') ))`,
-            ),
-        );
-    });
-
-    test('Should not escape regular characters in postgres', () => {
-        expect(postgresClientWithReplace.escapeString('%')).toBe('%');
-        expect(postgresClientWithReplace.escapeString('_')).toBe('_');
-        expect(postgresClientWithReplace.escapeString('?')).toBe('?');
-        expect(postgresClientWithReplace.escapeString('!')).toBe('!');
-        expect(postgresClientWithReplace.escapeString('credit_card')).toBe(
-            'credit_card',
-        );
-
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY,
-                        filters: {
-                            dimensions: {
-                                id: '7e750e7c-8098-4a90-b364-4e935ad7a7e9',
-                                and: [
-                                    {
-                                        id: 'd69d3ba0-6ff5-4437-9ef3-4ed69006ea2e',
-                                        target: { fieldId: 'table1_shared' },
-                                        operator: FilterOperator.EQUALS,
-                                        values: ['credit_card'],
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                    warehouseSqlBuilder: postgresClientWithReplace,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toContain(
-            replaceWhitespace(
-                `WHERE (( ("table1".shared) IN ('credit_card') ))`,
             ),
         );
     });

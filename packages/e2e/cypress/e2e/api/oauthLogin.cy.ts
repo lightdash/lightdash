@@ -9,6 +9,15 @@ describe('OAuth API Integration Tests', () => {
         codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
     };
 
+    // Helper to extract redirect URL from HTML response
+    const extractRedirectUrlFromHtml = (html: string): string => {
+        const match = /window\.location\.href = "([^"]+)"/.exec(html);
+        if (!match) {
+            throw new Error('No redirect URL found in HTML response');
+        }
+        return match[1];
+    };
+
     // No global login - each test will handle its own authentication state
 
     describe('OAuth Discovery', () => {
@@ -137,29 +146,19 @@ describe('OAuth API Integration Tests', () => {
                 body: formData,
                 followRedirect: false,
             }).then((postResponse) => {
-                expect(postResponse.status).to.eq(302);
-                const { location } = postResponse.headers;
-                let code = '';
-                if (typeof location === 'string') {
-                    const redirectUrl = new URL(location);
-                    code = redirectUrl.searchParams.get('code') || '';
+                expect(postResponse.status).to.eq(200);
+                // Extract redirect URL from HTML response
+                const location = extractRedirectUrlFromHtml(postResponse.body);
+                const redirectUrl = new URL(location);
+                const code = redirectUrl.searchParams.get('code') || '';
 
-                    expect(
-                        code,
-                        `Authorization code should not be empty. Redirect: ${location}`,
-                    ).to.not.eq('');
-                    expect(redirectUrl.searchParams.get('state')).to.eq(
-                        'test-state',
-                    );
-                } else {
-                    cy.log(
-                        'DEBUG: No redirect location header found after POST /authorize',
-                    );
-                    // eslint-disable-next-line no-console
-                    throw new Error(
-                        'No redirect location header found after POST /authorize',
-                    );
-                }
+                expect(
+                    code,
+                    `Authorization code should not be empty. Redirect: ${location}`,
+                ).to.not.eq('');
+                expect(redirectUrl.searchParams.get('state')).to.eq(
+                    'test-state',
+                );
             });
         });
     });
@@ -185,72 +184,53 @@ describe('OAuth API Integration Tests', () => {
                 body: formData,
                 followRedirect: false,
             }).then((postResponse) => {
-                expect(postResponse.status).to.eq(302);
-                const { location } = postResponse.headers;
-                let code = '';
-                if (typeof location === 'string') {
-                    const redirectUrl = new URL(location);
-                    code = redirectUrl.searchParams.get('code') || '';
+                expect(postResponse.status).to.eq(200);
+                const location = extractRedirectUrlFromHtml(postResponse.body);
+                const redirectUrl = new URL(location);
+                const code = redirectUrl.searchParams.get('code') || '';
 
-                    expect(
-                        code,
-                        `Authorization code should not be empty. Redirect: ${location}`,
-                    ).to.not.eq('');
-                    expect(redirectUrl.searchParams.get('state')).to.eq(
-                        'test-state',
+                expect(
+                    code,
+                    `Authorization code should not be empty. Redirect: ${location}`,
+                ).to.not.eq('');
+                expect(redirectUrl.searchParams.get('state')).to.eq(
+                    'test-state',
+                );
+
+                // Exchange code for token
+                const tokenRequest: OAuthTokenRequest = {
+                    grant_type: 'authorization_code',
+                    code,
+                    client_id: 'lightdash-cli',
+                    client_secret: '',
+                    redirect_uri: 'http://localhost:8100/callback',
+                    code_verifier: PKCE_TEST_VALUES.codeVerifier,
+                };
+
+                cy.request({
+                    method: 'POST',
+                    url: `${apiUrl}/token`,
+                    body: tokenRequest,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                }).then((tokenResponse) => {
+                    expect(tokenResponse.status).to.eq(200);
+                    expect(tokenResponse.body).to.have.property('access_token');
+                    expect(tokenResponse.body).to.have.property(
+                        'token_type',
+                        'Bearer',
                     );
-
-                    // Exchange code for token
-                    const tokenRequest: OAuthTokenRequest = {
-                        grant_type: 'authorization_code',
-                        code,
-                        client_id: 'lightdash-cli',
-                        client_secret: '',
-                        redirect_uri: 'http://localhost:8100/callback',
-                        code_verifier: PKCE_TEST_VALUES.codeVerifier,
-                    };
-
-                    cy.request({
-                        method: 'POST',
-                        url: `${apiUrl}/token`,
-                        body: tokenRequest,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    }).then((tokenResponse) => {
-                        expect(tokenResponse.status).to.eq(200);
-                        expect(tokenResponse.body).to.have.property(
-                            'access_token',
-                        );
-                        expect(tokenResponse.body).to.have.property(
-                            'token_type',
-                            'Bearer',
-                        );
-                        expect(tokenResponse.body).to.have.property(
-                            'expires_in',
-                        );
-                        expect(tokenResponse.body).to.have.property(
-                            'refresh_token',
-                        );
-                        expect(tokenResponse.body).to.have.property('scope');
-
-                        // OAuth2 endpoints should not have the {status, results} wrapper
-                        expect(tokenResponse.body).to.not.have.property(
-                            'status',
-                        );
-                        expect(tokenResponse.body).to.not.have.property(
-                            'results',
-                        );
-                    });
-                } else {
-                    cy.log(
-                        'DEBUG: No redirect location header found after POST /authorize',
+                    expect(tokenResponse.body).to.have.property('expires_in');
+                    expect(tokenResponse.body).to.have.property(
+                        'refresh_token',
                     );
-                    // eslint-disable-next-line no-console
-                    throw new Error(
-                        'No redirect location header found after POST /authorize',
-                    );
-                }
+                    expect(tokenResponse.body).to.have.property('scope');
+
+                    // OAuth2 endpoints should not have the {status, results} wrapper
+                    expect(tokenResponse.body).to.not.have.property('status');
+                    expect(tokenResponse.body).to.not.have.property('results');
+                });
             });
         });
 
@@ -275,90 +255,76 @@ describe('OAuth API Integration Tests', () => {
                 body: formData,
                 followRedirect: false,
             }).then((postResponse) => {
-                expect(postResponse.status).to.eq(302);
-                const { location } = postResponse.headers;
-                let code = '';
-                if (typeof location === 'string') {
-                    const redirectUrl = new URL(location);
-                    code = redirectUrl.searchParams.get('code') || '';
+                expect(postResponse.status).to.eq(200);
+                const location = extractRedirectUrlFromHtml(postResponse.body);
+                const redirectUrl = new URL(location);
+                const code = redirectUrl.searchParams.get('code') || '';
 
-                    expect(
-                        code,
-                        `Authorization code should not be empty. Redirect: ${location}`,
-                    ).to.not.eq('');
-                    expect(redirectUrl.searchParams.get('state')).to.eq(
-                        'test-state',
-                    );
+                expect(
+                    code,
+                    `Authorization code should not be empty. Redirect: ${location}`,
+                ).to.not.eq('');
+                expect(redirectUrl.searchParams.get('state')).to.eq(
+                    'test-state',
+                );
 
-                    // Exchange code for token
-                    const tokenRequest: OAuthTokenRequest = {
-                        grant_type: 'authorization_code',
-                        code,
+                // Exchange code for token
+                const tokenRequest: OAuthTokenRequest = {
+                    grant_type: 'authorization_code',
+                    code,
+                    client_id: 'lightdash-cli',
+                    client_secret: '',
+                    redirect_uri: 'http://localhost:8100/callback',
+                    code_verifier: PKCE_TEST_VALUES.codeVerifier,
+                };
+
+                cy.request({
+                    method: 'POST',
+                    url: `${apiUrl}/token`,
+                    body: tokenRequest,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                }).then((tokenResponse) => {
+                    expect(tokenResponse.status).to.eq(200);
+                    expect(tokenResponse.body).to.have.property('access_token');
+
+                    const refreshTokenRequest: OAuthTokenRequest = {
+                        grant_type: 'refresh_token',
+                        refresh_token: tokenResponse.body.refresh_token,
                         client_id: 'lightdash-cli',
-                        client_secret: '',
-                        redirect_uri: 'http://localhost:8100/callback',
-                        code_verifier: PKCE_TEST_VALUES.codeVerifier,
+                        client_secret: '', // No secret is required for refresh token
                     };
-
                     cy.request({
                         method: 'POST',
                         url: `${apiUrl}/token`,
-                        body: tokenRequest,
+                        body: refreshTokenRequest,
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                    }).then((tokenResponse) => {
-                        expect(tokenResponse.status).to.eq(200);
-                        expect(tokenResponse.body).to.have.property(
+                    }).then((refreshResponse) => {
+                        expect(refreshResponse.status).to.eq(200);
+                        expect(refreshResponse.body).to.have.property(
                             'access_token',
                         );
-
-                        const refreshTokenRequest: OAuthTokenRequest = {
-                            grant_type: 'refresh_token',
-                            refresh_token: tokenResponse.body.refresh_token,
-                            client_id: 'lightdash-cli',
-                            client_secret: '', // No secret is required for refresh token
-                        };
-                        cy.request({
-                            method: 'POST',
-                            url: `${apiUrl}/token`,
-                            body: refreshTokenRequest,
-                            headers: {
-                                'Content-Type':
-                                    'application/x-www-form-urlencoded',
-                            },
-                        }).then((refreshResponse) => {
-                            expect(refreshResponse.status).to.eq(200);
-                            expect(refreshResponse.body).to.have.property(
-                                'access_token',
-                            );
-                            expect(refreshResponse.body).to.have.property(
-                                'token_type',
-                                'Bearer',
-                            );
-                            expect(refreshResponse.body).to.have.property(
-                                'expires_in',
-                            );
-                            expect(refreshResponse.body.access_token).to.not.eq(
-                                tokenResponse.body.access_token,
-                            );
-                            expect(refreshResponse.body).to.not.have.property(
-                                'status',
-                            );
-                            expect(refreshResponse.body).to.not.have.property(
-                                'results',
-                            );
-                        });
+                        expect(refreshResponse.body).to.have.property(
+                            'token_type',
+                            'Bearer',
+                        );
+                        expect(refreshResponse.body).to.have.property(
+                            'expires_in',
+                        );
+                        expect(refreshResponse.body.access_token).to.not.eq(
+                            tokenResponse.body.access_token,
+                        );
+                        expect(refreshResponse.body).to.not.have.property(
+                            'status',
+                        );
+                        expect(refreshResponse.body).to.not.have.property(
+                            'results',
+                        );
                     });
-                } else {
-                    cy.log(
-                        'DEBUG: No redirect location header found after POST /authorize',
-                    );
-                    // eslint-disable-next-line no-console
-                    throw new Error(
-                        'No redirect location header found after POST /authorize',
-                    );
-                }
+                });
             });
         });
 
@@ -436,106 +402,91 @@ describe('OAuth API Integration Tests', () => {
                 body: formData,
                 followRedirect: false,
             }).then((postResponse) => {
-                expect(postResponse.status).to.eq(302);
-                const { location } = postResponse.headers;
-                let code = '';
-                if (typeof location === 'string') {
-                    const redirectUrl = new URL(location);
-                    code = redirectUrl.searchParams.get('code') || '';
+                expect(postResponse.status).to.eq(200);
+                const location = extractRedirectUrlFromHtml(postResponse.body);
+                const redirectUrl = new URL(location);
+                const code = redirectUrl.searchParams.get('code') || '';
 
-                    expect(
-                        code,
-                        `Authorization code should not be empty. Redirect: ${location}`,
-                    ).to.not.eq('');
-                    expect(redirectUrl.searchParams.get('state')).to.eq(
-                        'test-state',
-                    );
+                expect(
+                    code,
+                    `Authorization code should not be empty. Redirect: ${location}`,
+                ).to.not.eq('');
+                expect(redirectUrl.searchParams.get('state')).to.eq(
+                    'test-state',
+                );
 
-                    // Exchange code for token
-                    const tokenRequest: OAuthTokenRequest = {
-                        grant_type: 'authorization_code',
-                        code,
-                        client_id: 'lightdash-cli',
-                        client_secret: '',
-                        redirect_uri: 'http://localhost:8100/callback',
-                        code_verifier: PKCE_TEST_VALUES.codeVerifier,
+                // Exchange code for token
+                const tokenRequest: OAuthTokenRequest = {
+                    grant_type: 'authorization_code',
+                    code,
+                    client_id: 'lightdash-cli',
+                    client_secret: '',
+                    redirect_uri: 'http://localhost:8100/callback',
+                    code_verifier: PKCE_TEST_VALUES.codeVerifier,
+                };
+
+                cy.request({
+                    method: 'POST',
+                    url: `${apiUrl}/token`,
+                    body: tokenRequest,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                }).then((tokenResponse) => {
+                    expect(tokenResponse.status).to.eq(200);
+                    expect(tokenResponse.body).to.have.property('access_token');
+
+                    const introspectRequest: OAuthIntrospectRequest = {
+                        token: tokenResponse.body.access_token,
+                        token_type_hint: 'access_token',
                     };
-
                     cy.request({
                         method: 'POST',
-                        url: `${apiUrl}/token`,
-                        body: tokenRequest,
+                        url: `${apiUrl}/introspect`,
+                        body: introspectRequest,
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${tokenResponse.body.access_token}`,
                         },
-                    }).then((tokenResponse) => {
-                        expect(tokenResponse.status).to.eq(200);
-                        expect(tokenResponse.body).to.have.property(
-                            'access_token',
+                    }).then((introspectResponse) => {
+                        expect(introspectResponse.status).to.eq(200);
+                        expect(introspectResponse.body).to.have.property(
+                            'active',
+                            true,
                         );
 
-                        const introspectRequest: OAuthIntrospectRequest = {
-                            token: tokenResponse.body.access_token,
-                            token_type_hint: 'access_token',
-                        };
-                        cy.request({
-                            method: 'POST',
-                            url: `${apiUrl}/introspect`,
-                            body: introspectRequest,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${tokenResponse.body.access_token}`,
-                            },
-                        }).then((introspectResponse) => {
-                            expect(introspectResponse.status).to.eq(200);
-                            expect(introspectResponse.body).to.have.property(
-                                'active',
-                                true,
-                            );
+                        expect(introspectResponse.body).to.have.property(
+                            'scope',
+                        );
+                        expect(introspectResponse.body).to.have.property(
+                            'client_id',
+                        );
+                        expect(introspectResponse.body).to.have.property(
+                            'username',
+                        );
+                        expect(introspectResponse.body).to.have.property(
+                            'token_type',
+                            'access_token',
+                        );
+                        expect(introspectResponse.body).to.have.property('exp');
+                        expect(introspectResponse.body).to.have.property('iat');
+                        expect(introspectResponse.body).to.have.property('sub');
+                        expect(introspectResponse.body).to.have.property('aud');
+                        expect(introspectResponse.body).to.have.property(
+                            'iss',
+                            'lightdash',
+                        );
+                        expect(introspectResponse.body).to.have.property('jti');
 
-                            expect(introspectResponse.body).to.have.property(
-                                'scope',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'client_id',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'username',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'token_type',
-                                'access_token',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'exp',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'iat',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'sub',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'aud',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'iss',
-                                'lightdash',
-                            );
-                            expect(introspectResponse.body).to.have.property(
-                                'jti',
-                            );
-
-                            // OAuth2 endpoints should not have the {status, results} wrapper
-                            expect(
-                                introspectResponse.body,
-                            ).to.not.have.property('status');
-                            expect(
-                                introspectResponse.body,
-                            ).to.not.have.property('results');
-                        });
+                        // OAuth2 endpoints should not have the {status, results} wrapper
+                        expect(introspectResponse.body).to.not.have.property(
+                            'status',
+                        );
+                        expect(introspectResponse.body).to.not.have.property(
+                            'results',
+                        );
                     });
-                }
+                });
             });
         });
 
@@ -625,12 +576,13 @@ describe('OAuth API Integration Tests', () => {
                     body: formData,
                     followRedirect: false,
                 }).then((postResponse) => {
-                    const { location } = postResponse.headers;
-                    let code = '';
-                    if (typeof location === 'string') {
-                        const redirectUrl = new URL(location);
-                        code = redirectUrl.searchParams.get('code') || '';
-                    }
+                    expect(postResponse.status).to.eq(200);
+                    const location = extractRedirectUrlFromHtml(
+                        postResponse.body,
+                    );
+                    const redirectUrl = new URL(location);
+                    const code = redirectUrl.searchParams.get('code') || '';
+
                     expect(
                         code,
                         'Authorization code should not be empty',
@@ -735,12 +687,13 @@ describe('OAuth API Integration Tests', () => {
                     body: formData,
                     followRedirect: false,
                 }).then((postResponse) => {
-                    const { location } = postResponse.headers;
-                    let code = '';
-                    if (typeof location === 'string') {
-                        const redirectUrl = new URL(location);
-                        code = redirectUrl.searchParams.get('code') || '';
-                    }
+                    expect(postResponse.status).to.eq(200);
+                    const location = extractRedirectUrlFromHtml(
+                        postResponse.body,
+                    );
+                    const redirectUrl = new URL(location);
+                    const code = redirectUrl.searchParams.get('code') || '';
+
                     expect(
                         code,
                         'Authorization code should not be empty',

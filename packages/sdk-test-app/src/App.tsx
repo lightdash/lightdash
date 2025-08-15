@@ -1,4 +1,5 @@
 import Lightdash from '@lightdash/sdk';
+import '@lightdash/sdk/sdk.css';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SavedChart } from '../../common/src';
@@ -239,7 +240,9 @@ function App() {
                                     }}
                                     contentOverrides={i18n.getResourceBundle(
                                         i18n.language,
-                                        'analytics',
+                                        // Namespace is the name of the file in the locales folder
+                                        // (or the file in Locize)
+                                        'translation',
                                     )}
                                     onExplore={handleExploreClick}
                                 />

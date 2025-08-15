@@ -42,9 +42,10 @@ import { useNavigate, useParams } from 'react-router';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
-} from '../../components/AutoFetchResultsButton/defaults';
+} from '../../components/RunQuerySettings/defaults';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
+import { useExplore } from '../../hooks/useExplore';
 import {
     executeQueryAndWaitForResults,
     useCancelQuery,
@@ -1284,13 +1285,22 @@ const ExplorerProvider: FC<
     }>();
     const projectUuid = propProjectUuid || projectUuidFromParams;
 
-    const { data: parametersData } = useParameters(
+    const { data: projectParameters } = useParameters(
         projectUuid,
         reducerState.parameterReferences ?? undefined,
         {
             enabled: !!reducerState.parameterReferences?.length,
         },
     );
+
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
+
+    const parameterDefinitions = useMemo(() => {
+        return {
+            ...projectParameters,
+            ...(explore?.parameters ?? {}),
+        };
+    }, [projectParameters, explore?.parameters]);
 
     const missingRequiredParameters = useMemo(() => {
         // If no required parameters are set, return null, this will disable query execution
@@ -1310,10 +1320,10 @@ const ExplorerProvider: FC<
         return reducerState.parameterReferences.filter(
             (parameter) =>
                 !unsavedChartVersion.parameters?.[parameter] &&
-                !parametersData?.[parameter]?.default,
+                !parameterDefinitions?.[parameter]?.default,
         );
     }, [
-        parametersData,
+        parameterDefinitions,
         reducerState.parameterReferences,
         unsavedChartVersion.parameters,
         validQueryArgs?.parameters,
@@ -1328,6 +1338,7 @@ const ExplorerProvider: FC<
             hasUnsavedChanges,
             savedChart,
             missingRequiredParameters,
+            parameterDefinitions,
         }),
         [
             isEditMode,
@@ -1337,6 +1348,7 @@ const ExplorerProvider: FC<
             hasUnsavedChanges,
             savedChart,
             missingRequiredParameters,
+            parameterDefinitions,
         ],
     );
 

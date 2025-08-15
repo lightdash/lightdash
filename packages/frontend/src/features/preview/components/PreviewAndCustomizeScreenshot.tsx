@@ -1,5 +1,6 @@
 import { type ApiError, type Dashboard } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Card,
@@ -11,7 +12,11 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconEye, IconEyeClosed } from '@tabler/icons-react';
+import {
+    IconArrowsDiagonal,
+    IconEye,
+    IconEyeClosed,
+} from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -89,38 +94,58 @@ export const PreviewAndCustomizeScreenshot: FC<
 
                     <Stack>
                         <Card withBorder p={0}>
-                            <Image
-                                src={currentPreview}
-                                onClick={() => {
-                                    if (currentPreview)
-                                        setIsImageModalOpen(true);
-                                }}
-                                width={350}
-                                height={350}
-                                styles={{
-                                    root: {
-                                        objectPosition: 'top',
-                                        cursor: currentPreview
-                                            ? 'pointer'
-                                            : 'default',
-                                    },
-                                }}
-                                withPlaceholder
-                                placeholder={
-                                    <Flex
-                                        gap="md"
-                                        align="center"
-                                        direction="column"
+                            <Box pos="relative">
+                                <Image
+                                    src={currentPreview}
+                                    onClick={() => {
+                                        if (currentPreview)
+                                            setIsImageModalOpen(true);
+                                    }}
+                                    width={350}
+                                    height={350}
+                                    styles={{
+                                        root: {
+                                            objectPosition: 'top',
+                                            cursor: currentPreview
+                                                ? 'pointer'
+                                                : 'default',
+                                        },
+                                    }}
+                                    withPlaceholder
+                                    placeholder={
+                                        <Flex
+                                            gap="md"
+                                            align="center"
+                                            direction="column"
+                                        >
+                                            <MantineIcon
+                                                icon={IconEyeClosed}
+                                                size={30}
+                                            />
+
+                                            <Text>No preview yet</Text>
+                                        </Flex>
+                                    }
+                                />
+                                {currentPreview && (
+                                    <ActionIcon
+                                        pos="absolute"
+                                        top={5}
+                                        right={5}
+                                        variant="light"
+                                        color="blue"
+                                        size="sm"
+                                        onClick={() => {
+                                            if (currentPreview)
+                                                setIsImageModalOpen(true);
+                                        }}
                                     >
                                         <MantineIcon
-                                            icon={IconEyeClosed}
-                                            size={30}
+                                            icon={IconArrowsDiagonal}
                                         />
-
-                                        <Text>No preview yet</Text>
-                                    </Flex>
-                                }
-                            />
+                                    </ActionIcon>
+                                )}
+                            </Box>
                         </Card>
                         <Button
                             mx="auto"

@@ -126,15 +126,16 @@ import type {
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
-    ApiAiConversationMessages,
-    ApiAiConversations,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
     EmbedUrl,
 } from './ee';
 import { type AnyType } from './types/any';
-import { type ApiGetProjectParametersResults } from './types/api/parameters';
+import {
+    type ApiGetProjectParametersListResults,
+    type ApiGetProjectParametersResults,
+} from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import { type Account } from './types/auth';
 import {
@@ -187,6 +188,7 @@ import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
+export * from './authorization/scopes';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
@@ -260,10 +262,12 @@ export * from './types/queryHistory';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
+export * from './types/roles';
 export * from './types/savedCharts';
 export * from './types/scheduler';
 export * from './types/schedulerLog';
 export * from './types/schedulerTaskList';
+export * from './types/scopes';
 export * from './types/search';
 export * from './types/share';
 export * from './types/slack';
@@ -895,8 +899,6 @@ type ApiResults =
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
-    | ApiAiConversations['results']
-    | ApiAiConversationMessages['results']
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results']
@@ -936,6 +938,7 @@ type ApiResults =
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
+    | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
     | Account;
@@ -1094,6 +1097,7 @@ export type HealthState = {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
     };
+    isCustomRolesEnabled: boolean;
 };
 
 export enum DBFieldTypes {

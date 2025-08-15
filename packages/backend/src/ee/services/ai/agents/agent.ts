@@ -10,6 +10,9 @@ import {
 import type { ZodType } from 'zod';
 import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
+import { getFindCharts } from '../tools/findCharts';
+import { getFindDashboards } from '../tools/findDashboards';
+// eslint-disable-next-line import/extensions
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
@@ -25,7 +28,6 @@ export const defaultAgentOptions = {
     toolChoice: 'auto',
     maxSteps: 10,
     maxRetries: 3,
-    temperature: 0.2,
 } as const;
 
 const getAgentTelemetryConfig = (
@@ -34,13 +36,17 @@ const getAgentTelemetryConfig = (
         agentSettings,
         threadUuid,
         promptUuid,
-    }: Pick<AiAgentArgs, 'agentSettings' | 'threadUuid' | 'promptUuid'>,
+        telemetryEnabled,
+    }: Pick<
+        AiAgentArgs,
+        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
+    >,
 ) =>
     ({
         functionId,
         isEnabled: true,
-        recordInputs: false,
-        recordOutputs: false,
+        recordInputs: telemetryEnabled,
+        recordOutputs: telemetryEnabled,
         metadata: {
             agentUuid: agentSettings.uuid,
             threadUuid,
@@ -69,6 +75,18 @@ const getAgentTools = (
     const findFields = getFindFields({
         findFields: dependencies.findFields,
         pageSize: args.findFieldsPageSize,
+    });
+
+    const findDashboards = getFindDashboards({
+        findDashboards: dependencies.findDashboards,
+        pageSize: args.findDashboardsPageSize,
+        siteUrl: args.siteUrl,
+    });
+
+    const findCharts = getFindCharts({
+        findCharts: dependencies.findCharts,
+        pageSize: args.findChartsPageSize,
+        siteUrl: args.siteUrl,
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
@@ -102,6 +120,8 @@ const getAgentTools = (
     });
 
     const tools = {
+        findCharts,
+        findDashboards,
         findExplores,
         findFields,
         generateBarVizConfig,
@@ -202,6 +222,7 @@ export const generateAgentResponse = async ({
         }
         const result = await generateText({
             ...defaultAgentOptions,
+            ...args.callOptions,
             model: args.model,
             tools,
             messages,
@@ -399,6 +420,7 @@ export const streamAgentResponse = async ({
         }
         const result = streamText({
             ...defaultAgentOptions,
+            ...args.callOptions,
             model: args.model,
             tools,
             messages,

@@ -3,6 +3,7 @@ import {
     BinType,
     CompiledCustomSqlDimension,
     CompiledDimension,
+    CompiledMetric,
     CompiledMetricQuery,
     CompiledTable,
     CreateWarehouseCredentials,
@@ -22,7 +23,6 @@ import {
     WarehouseTables,
     WarehouseTypes,
 } from '@lightdash/common';
-import { BigquerySqlBuilder, PostgresSqlBuilder } from '@lightdash/warehouses';
 
 export const warehouseClientMock: WarehouseClient = {
     credentials: {
@@ -79,6 +79,8 @@ export const warehouseClientMock: WarehouseClient = {
         switch (metric.type) {
             case MetricType.COUNT:
                 return `COUNT(${sql})`;
+            case MetricType.SUM:
+                return `SUM(${sql})`;
             default:
                 return sql;
         }
@@ -109,7 +111,17 @@ export const warehouseClientMock: WarehouseClient = {
     parseError: (error: Error) => {
         throw error;
     },
-    escapeString: (value) => value, // Initializing PostgresSqlBuilder here will cause issues on ProjectService.test.ts
+    escapeString: (value) => {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return value
+            .replaceAll("'", "''")
+            .replaceAll('\\', '\\\\')
+            .replace(/--.*$/gm, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '');
+    },
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -1809,3 +1821,234 @@ GROUP BY 1,2
 ORDER BY "table1_metric1" DESC LIMIT 10`;
 
 export const QUERY_BUILDER_UTC_TIMEZONE = 'UTC';
+
+export const EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN = `WITH cte_keys_table2 AS (
+    SELECT DISTINCT "table1".dim1 AS "table1_dim1", "table2".dim2 AS "pk_dim2"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+),
+cte_metrics_table2 AS (
+    SELECT cte_keys_table2."table1_dim1", SUM("table2".number_column) AS "table2_metric3"
+    FROM cte_keys_table2
+    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+    GROUP BY 1
+),
+cte_unaffected AS (
+    SELECT "table1".dim1 AS "table1_dim1", MAX("table1".number_column) AS "table1_metric1"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    GROUP BY 1
+),
+metrics AS (
+    SELECT cte_unaffected.*, cte_metrics_table2."table2_metric3" AS "table2_metric3"
+    FROM cte_unaffected
+    INNER JOIN cte_metrics_table2 ON ( cte_unaffected."table1_dim1" = cte_metrics_table2."table1_dim1" OR ( cte_unaffected."table1_dim1" IS NULL AND cte_metrics_table2."table1_dim1" IS NULL ) )
+)
+SELECT
+  *,
+  table1_dim1 + table2_metric2 AS "calc3"
+FROM metrics
+ORDER BY "table2_metric2" DESC
+LIMIT 10`;
+
+export const EXPECTED_SQL_WITH_CROSS_JOIN = `WITH cte_keys_table2 AS ( 
+    SELECT DISTINCT "table2".dim2 AS "pk_dim2" 
+    FROM "db"."schema"."table1" AS "table1" 
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared) 
+), cte_metrics_table2 AS ( 
+    SELECT SUM("table2".number_column) AS "table2_metric3" 
+    FROM cte_keys_table2 
+    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2 
+), cte_unaffected AS ( 
+    SELECT MAX("table1".number_column) AS "table1_metric1" 
+    FROM "db"."schema"."table1" AS "table1" 
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared) 
+), metrics AS ( 
+    SELECT cte_unaffected.*, cte_metrics_table2."table2_metric3" AS "table2_metric3" 
+    FROM cte_unaffected 
+    CROSS JOIN cte_metrics_table2 
+) 
+SELECT *, table1_dim1 + table2_metric2 AS "calc3" FROM metrics ORDER BY "table2_metric2" DESC LIMIT 10`;
+
+// Explore without primary keys
+export const EXPLORE_WITHOUT_PRIMARY_KEYS: Explore = {
+    ...EXPLORE,
+    tables: {
+        ...EXPLORE.tables,
+        table1: {
+            ...EXPLORE.tables.table1,
+            primaryKey: undefined,
+        },
+        table2: {
+            ...EXPLORE.tables.table2,
+            primaryKey: undefined,
+        },
+    },
+};
+
+// Explore without relationship type
+export const EXPLORE_WITHOUT_JOIN_RELATIONSHIPS: Explore = {
+    ...EXPLORE,
+    joinedTables: [
+        {
+            table: 'table2',
+            sqlOn: '${table1.shared} = ${table2.shared}',
+            compiledSqlOn: '("table1".shared) = ("table2".shared)',
+            type: undefined,
+            tablesReferences: ['table1', 'table2'],
+            // No relationship defined
+        },
+    ],
+};
+
+// Explore with cross-table metric references
+export const EXPLORE_WITH_CROSS_TABLE_METRICS: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'customers',
+    label: 'customers',
+    baseTable: 'customers',
+    tags: [],
+    tables: {
+        customers: {
+            name: 'customers',
+            label: 'customers',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'customers',
+            primaryKey: ['customer_id'],
+            lineageGraph: {},
+            dimensions: {
+                customer_id: {
+                    type: DimensionType.STRING,
+                    name: 'customer_id',
+                    label: 'Customer ID',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.customer_id',
+                    compiledSql: '"customers".customer_id',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_customers: {
+                    type: MetricType.COUNT,
+                    name: 'total_customers',
+                    label: 'Total Customers',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.customer_id',
+                    compiledSql: 'COUNT("customers".customer_id)',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+            },
+        },
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'orders',
+            primaryKey: ['order_id'],
+            lineageGraph: {},
+            dimensions: {
+                order_id: {
+                    type: DimensionType.STRING,
+                    name: 'order_id',
+                    label: 'Order ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_order_amount: {
+                    type: MetricType.SUM,
+                    name: 'total_order_amount',
+                    label: 'Total Order Amount',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                revenue_per_customer: {
+                    type: MetricType.NUMBER,
+                    name: 'revenue_per_customer',
+                    label: 'Revenue Per Customer',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.METRIC,
+                    sql: '${orders.total_order_amount} / ${customers.total_customers}',
+                    compiledSql:
+                        'SUM("orders".amount) / COUNT("customers".customer_id)',
+                    tablesReferences: ['orders', 'customers'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+    joinedTables: [
+        {
+            table: 'orders',
+            sqlOn: '${customers.customer_id} = ${orders.customer_id}',
+            compiledSqlOn: '("customers".customer_id) = ("orders".customer_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['customers', 'orders'],
+        },
+    ],
+};
+
+// Metric query with cross-table metric references
+export const METRIC_QUERY_CROSS_TABLE: CompiledMetricQuery = {
+    exploreName: 'customers',
+    dimensions: [],
+    metrics: ['orders_revenue_per_customer'],
+    filters: {},
+    sorts: [],
+    limit: 100,
+    tableCalculations: [],
+    additionalMetrics: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Expected SQL for cross-table metric references with CTEs
+export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS (
+    SELECT DISTINCT
+      "customers".customer_id AS "pk_customer_id"
+    FROM customers AS "customers"
+    LEFT OUTER JOIN orders AS "orders"
+      ON ("customers".customer_id) = ("orders".customer_id)
+    ),
+    cte_metrics_customers AS (
+    SELECT
+      COUNT("customers".customer_id) AS "customers_total_customers"
+    FROM cte_keys_customers
+    LEFT JOIN customers AS "customers" ON cte_keys_customers."pk_customer_id" = "customers".customer_id
+    
+    ),
+    cte_unaffected AS (
+    SELECT
+      SUM("orders".amount) AS "orders_total_order_amount"
+    FROM customers AS "customers"
+    LEFT OUTER JOIN orders AS "orders"
+      ON ("customers".customer_id) = ("orders".customer_id)
+    )
+    SELECT
+      cte_unaffected.*,
+      cte_unaffected."orders_total_order_amount" / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"
+    FROM cte_unaffected
+    CROSS JOIN cte_metrics_customers
+    LIMIT 100`;

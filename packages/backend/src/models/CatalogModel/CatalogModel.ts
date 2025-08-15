@@ -58,6 +58,7 @@ export enum CatalogSearchContext {
     CATALOG = 'catalog',
     METRICS_EXPLORER = 'metricsExplorer',
     AI_AGENT = 'aiAgent',
+    MCP = 'mcp',
 }
 
 export type CatalogModelArguments = {
@@ -248,6 +249,7 @@ export class CatalogModel {
         paginateArgs,
         sortArgs,
         context,
+        fullTextSearchOperator = 'AND',
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -258,6 +260,7 @@ export class CatalogModel {
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
         context: CatalogSearchContext;
+        fullTextSearchOperator?: 'OR' | 'AND';
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
@@ -278,6 +281,7 @@ export class CatalogModel {
                             searchVectorColumn: `${CatalogTableName}.search_vector`,
                             searchQuery,
                         },
+                        fullTextSearchOperator,
                     }),
                 },
             )
@@ -575,7 +579,7 @@ export class CatalogModel {
         if (excludeUnmatched && searchQuery) {
             catalogItemsQuery = catalogItemsQuery.andWhereRaw(
                 `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
-                getFullTextSearchQuery(searchQuery),
+                getFullTextSearchQuery(searchQuery, fullTextSearchOperator),
             );
         }
 

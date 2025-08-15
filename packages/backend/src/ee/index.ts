@@ -3,6 +3,7 @@ import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
+import { McpContextModel } from '../models/McpContextModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
@@ -24,6 +25,7 @@ import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { McpService } from './services/McpService/McpService';
+import { RolesService } from './services/RolesService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { SupportService } from './services/SupportService/SupportService';
@@ -96,6 +98,18 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     userAttributesModel: models.getUserAttributesModel(),
+                    searchModel: models.getSearchModel(),
+                    spaceService: repository.getSpaceService(),
+                }),
+            rolesService: ({ repository, context, models }) =>
+                new RolesService({
+                    lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    rolesModel: models.getRolesModel(),
+                    userModel: models.getUserModel(),
+                    organizationModel: models.getOrganizationModel(),
+                    groupsModel: models.getGroupsModel(),
+                    projectModel: models.getProjectModel(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
@@ -237,14 +251,24 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     storageClient: clients.getResultsFileStorageClient(),
                 }),
-            mcpService: ({ context }) =>
+            mcpService: ({ context, repository, models }) =>
                 new McpService({
                     lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    catalogService: repository.getCatalogService(),
+                    projectService: repository.getProjectService(),
+                    userAttributesModel: models.getUserAttributesModel(),
+                    searchModel: models.getSearchModel(),
+                    spaceModel: models.getSpaceModel(),
+                    spaceService: repository.getSpaceService(),
+                    mcpContextModel: models.getMcpContextModel(),
+                    projectModel: models.getProjectModel(),
                 }),
         },
         modelProviders: {
             aiAgentModel: ({ database }) => new AiAgentModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
+            mcpContextModel: ({ database }) => new McpContextModel(database),
             dashboardSummaryModel: ({ database }) =>
                 new DashboardSummaryModel({ database }),
             slackAuthenticationModel: ({ database }) =>

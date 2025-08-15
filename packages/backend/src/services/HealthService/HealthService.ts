@@ -164,6 +164,7 @@ export class HealthService extends BaseService {
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
             isServiceAccountEnabled:
                 this.lightdashConfig.serviceAccount.enabled,
+            isCustomRolesEnabled: this.lightdashConfig.customRoles.enabled,
         };
     }
 

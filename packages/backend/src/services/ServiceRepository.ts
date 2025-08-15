@@ -107,6 +107,7 @@ interface ServiceManifest {
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
     mcpService: unknown;
+    rolesService: unknown;
 }
 
 /**
@@ -894,6 +895,10 @@ export class ServiceRepository
         return this.getService('aiAgentService');
     }
 
+    public getRolesService<RolesServiceImplT>(): RolesServiceImplT {
+        return this.getService('rolesService');
+    }
+
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
         return this.getService('scimService');
     }
@@ -956,6 +961,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

@@ -54,7 +54,8 @@ type BaseLlmAsJudgeParams = {
     response: string;
     expectedAnswer?: string;
     context?: string[];
-    model: ReturnType<typeof getOpenaiGptmodel>;
+    model: ReturnType<typeof getOpenaiGptmodel>['model'];
+    callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'];
 };
 
 // Function overloads for type safety
@@ -93,6 +94,7 @@ export async function llmAsAJudge({
     expectedAnswer,
     context,
     model,
+    callOptions,
     scorerType,
 }: BaseLlmAsJudgeParams & {
     scorerType: 'factuality' | 'jsonDiff' | 'contextRelevancy';
@@ -134,6 +136,7 @@ export async function llmAsAJudge({
             const { object } = await generateObject({
                 model,
                 ...defaultAgentOptions,
+                ...callOptions,
                 schema: z.object({
                     answer: z
                         .enum(['A', 'B', 'C', 'D', 'E'])

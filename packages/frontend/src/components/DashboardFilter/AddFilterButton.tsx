@@ -104,6 +104,7 @@ const AddFilterButton: FC<Props> = ({
                         <Button
                             size="xs"
                             variant="default"
+                            radius="md"
                             leftIcon={
                                 <MantineIcon color="blue" icon={IconFilter} />
                             }

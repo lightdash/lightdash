@@ -1,6 +1,7 @@
 import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import { get } from 'lodash';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import {
@@ -26,7 +27,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
     embedToken = window.location.hash.replace('#', ''),
     filters,
-    projectUuid,
+    projectUuid: projectUuidFromProps,
     contentOverrides,
     onExplore,
     onBackToDashboard,
@@ -36,6 +37,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
+    const params = useParams();
+    const projectUuid = projectUuidFromProps || params.projectUuid;
 
     // Set ability rules for the embedded user. We should only get abilities from abilityContext
     // rather than directly on the user or account.
@@ -51,7 +54,10 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     // this initialization in a useEffect, we will not have the hash token in the URL by the time
     // the effect runs.
     if (!isInitialized) {
-        setToInMemoryStorage(EMBED_KEY, { projectUuid, token: embedToken });
+        setToInMemoryStorage(EMBED_KEY, {
+            projectUuid,
+            token: embedToken,
+        });
         setIsInitialized(true);
     }
 

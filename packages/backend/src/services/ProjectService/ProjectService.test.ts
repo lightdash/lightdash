@@ -37,7 +37,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     METRIC_QUERY,
     warehouseClientMock,
-} from '../../utils/QueryBuilder/queryBuilder.mock';
+} from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -146,7 +146,9 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
         featureFlagModel: {} as FeatureFlagModel,
-        projectParametersModel: {} as ProjectParametersModel,
+        projectParametersModel: {
+            find: jest.fn(async () => []),
+        } as unknown as ProjectParametersModel,
     });
 
 const account = buildAccount({

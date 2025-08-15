@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/sdk",
-    "version": "0.1855.1",
+    "version": "0.1925.0",
     "private": false,
     "files": [
         "dist"
@@ -9,13 +9,13 @@
         ".": {
             "types": "./dist/sdk.d.ts",
             "require": "./dist/sdk.cjs.js",
-            "import": "./dist/sdk.es.js"
+            "import": "./dist/sdk.es.js",
+            "default": "./dist/sdk.cjs.js"
         },
-        "./style.css": "./dist/style.css"
+        "./sdk.css": {
+            "default": "./dist/sdk.css"
+        }
     },
-    "main": "./dist/sdk.cjs.js",
-    "module": "./dist/sdk.es.js",
-    "types": "./dist/sdk.d.ts",
     "peerDependencies": {
         "react": "^18.x || ^19.x",
         "react-dom": "^18.x || ^19.x"

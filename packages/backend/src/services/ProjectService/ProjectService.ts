@@ -40,6 +40,7 @@ import {
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
+    type DashboardDAO,
     DashboardFilters,
     DateZoom,
     DbtExposure,
@@ -76,6 +77,7 @@ import {
     getMetrics,
     getSubtotalKey,
     getTimezoneLabel,
+    GroupByColumn,
     hasIntersection,
     hasWarehouseCredentials,
     IntrinsicUserAttributes,
@@ -102,12 +104,14 @@ import {
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
+    normalizeIndexColumns,
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
     ParameterError,
     type ParametersValuesMap,
     PivotChartData,
+    PivotChartLayout,
     PivotValuesColumn,
     Project,
     ProjectCatalog,
@@ -146,7 +150,9 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    ValuesColumn,
     VizColumn,
+    VizIndexType,
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseCredentials,
@@ -214,7 +220,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     CompiledQuery,
     MetricQueryBuilder,
-} from '../../utils/QueryBuilder/queryBuilder';
+} from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { BaseService } from '../BaseService';
@@ -229,6 +235,7 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import { ValidationService } from '../ValidationService/ValidationService';
+import { combineProjectAndExploreParameters } from './parameters';
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1680,6 +1687,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseSqlBuilder: WarehouseSqlBuilder,
+        availableParameters: string[],
         dateZoom?: DateZoom,
     ): Explore {
         if (dateZoom?.granularity) {
@@ -1717,6 +1725,7 @@ export class ProjectService extends BaseService {
                     dimToOverride.timeInterval && baseDimensionId
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
+
                 const dimWithGranularityOverride =
                     createDimensionWithGranularity(
                         dimToOverride.name,
@@ -1724,6 +1733,7 @@ export class ProjectService extends BaseService {
                         explore,
                         warehouseSqlBuilder,
                         dateZoom?.granularity,
+                        availableParameters,
                     );
 
                 return replaceDimensionInExplore(
@@ -1735,21 +1745,34 @@ export class ProjectService extends BaseService {
         return explore;
     }
 
-    static async _compileQuery(
-        metricQuery: MetricQuery,
-        explore: Explore,
-        warehouseSqlBuilder: WarehouseSqlBuilder,
-        intrinsicUserAttributes: IntrinsicUserAttributes,
-        userAttributes: UserAttributeValueMap,
-        timezone: string,
-        dateZoom?: DateZoom,
-        useExperimentalMetricCtes?: boolean,
-        parameters?: ParametersValuesMap,
-    ): Promise<CompiledQuery> {
+    static async _compileQuery({
+        metricQuery,
+        explore,
+        warehouseSqlBuilder,
+        intrinsicUserAttributes,
+        userAttributes,
+        timezone,
+        dateZoom,
+        useExperimentalMetricCtes,
+        parameters,
+        availableParameters,
+    }: {
+        metricQuery: MetricQuery;
+        explore: Explore;
+        warehouseSqlBuilder: WarehouseSqlBuilder;
+        intrinsicUserAttributes: IntrinsicUserAttributes;
+        userAttributes: UserAttributeValueMap;
+        timezone: string;
+        dateZoom?: DateZoom;
+        useExperimentalMetricCtes?: boolean;
+        parameters?: ParametersValuesMap;
+        availableParameters: string[];
+    }): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
             metricQuery,
             warehouseSqlBuilder,
+            availableParameters,
             dateZoom,
         );
 
@@ -1757,6 +1780,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             metricQuery,
             warehouseSqlBuilder,
+            availableParameters,
         });
 
         const queryBuilder = new MetricQueryBuilder({
@@ -1767,12 +1791,33 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
             parameters,
+            availableParameters,
         });
 
         return wrapSentryTransactionSync(
             'QueryBuilder.buildQuery',
             { useExperimentalMetricCtes },
             () => queryBuilder.compileQuery(useExperimentalMetricCtes),
+        );
+    }
+
+    /**
+     * Get all available parameters for a project and explore
+     * @param projectUuid - The UUID of the project
+     * @param explore - The explore to get the parameters for
+     * @returns An array of available parameters
+     */
+    protected async getAvailableParameters(
+        projectUuid: string,
+        explore: Explore,
+    ): Promise<string[]> {
+        const projectParameters = await this.projectParametersModel.find(
+            projectUuid,
+        );
+
+        return combineProjectAndExploreParameters(
+            projectParameters,
+            explore.parameters,
         );
     }
 
@@ -1843,17 +1888,23 @@ export class ProjectService extends BaseService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
-        const compiledQuery = await ProjectService._compileQuery(
+        const availableParameters = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+        );
+
+        const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            undefined,
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
             useExperimentalMetricCtes,
             parameters,
-        );
+            availableParameters,
+        });
+
         await sshTunnel.disconnect();
 
         return {
@@ -2682,17 +2733,20 @@ export class ProjectService extends BaseService {
                             account,
                         });
 
-                    const fullQuery = await ProjectService._compileQuery(
-                        metricQueryWithLimit,
+                    const availableParameters =
+                        await this.getAvailableParameters(projectUuid, explore);
+
+                    const fullQuery = await ProjectService._compileQuery({
+                        metricQuery: metricQueryWithLimit,
                         explore,
-                        warehouseClient,
+                        warehouseSqlBuilder: warehouseClient,
                         intrinsicUserAttributes,
                         userAttributes,
-                        this.lightdashConfig.query.timezone || 'UTC',
+                        timezone: this.lightdashConfig.query.timezone || 'UTC',
                         dateZoom,
-                        undefined,
                         parameters,
-                    );
+                        availableParameters,
+                    });
 
                     const { query } = fullQuery;
 
@@ -2932,12 +2986,17 @@ export class ProjectService extends BaseService {
         | 'groupByColumns'
         | 'sortBy'
     > & { warehouseType: WarehouseTypes }): string {
-        if (!indexColumn) throw new ParameterError('Index column is required');
+        const indexColumns = normalizeIndexColumns(indexColumn);
+        if (indexColumns.length === 0) {
+            throw new ParameterError(
+                'At least one valid index column is required',
+            );
+        }
         const q = getFieldQuoteChar(warehouseType);
         const userSql = sql.replace(/;\s*$/, '');
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
-            `${q}${indexColumn.reference}${q}`,
+            ...indexColumns.map((col) => `${q}${col.reference}${q}`),
         ];
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map((col) => {
@@ -2957,7 +3016,7 @@ export class ProjectService extends BaseService {
         ).join(', ')}`;
 
         const selectReferences = [
-            indexColumn.reference,
+            ...indexColumns.map((col) => col.reference),
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
             ...(valuesColumns || []).map(
                 (col) => `${q}${col.reference}_${col.aggregation}${q}`,
@@ -2970,16 +3029,21 @@ export class ProjectService extends BaseService {
                   .join(', ')}`
             : ``;
 
-        const sortDirectionForIndexColumn =
-            sortBy?.find((s) => s.reference === indexColumn.reference)
-                ?.direction === SortByDirection.DESC
-                ? 'DESC'
-                : 'ASC';
+        // Create ORDER BY clause for multiple index columns with their sort directions
+        const indexColumnsOrderBy = indexColumns
+            .map((col) => {
+                const sortDirection =
+                    sortBy?.find((s) => s.reference === col.reference)
+                        ?.direction === SortByDirection.DESC
+                        ? 'DESC'
+                        : 'ASC';
+                return `${q}${col.reference}${q} ${sortDirection}`;
+            })
+            .join(', ');
+
         const pivotQuery = `SELECT ${selectReferences.join(
             ', ',
-        )}, dense_rank() over (order by ${q}${
-            indexColumn.reference
-        }${q} ${sortDirectionForIndexColumn}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
+        )}, dense_rank() over (order by ${indexColumnsOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
         }${q}) as ${q}column_index${q} FROM group_by_query`;
 
@@ -3041,7 +3105,10 @@ export class ProjectService extends BaseService {
     }: SqlRunnerPivotQueryPayload): Promise<
         Omit<PivotChartData, 'results' | 'columns'>
     > {
-        if (!indexColumn) throw new ParameterError('Index column is required');
+        const indexColumns = normalizeIndexColumns(indexColumn);
+        if (indexColumns.length === 0) {
+            throw new ParameterError('Index column is required');
+        }
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -3056,7 +3123,7 @@ export class ProjectService extends BaseService {
             warehouseType: warehouseCredentials.type,
             sql,
             limit,
-            indexColumn,
+            indexColumn: indexColumns,
             valuesColumns,
             groupByColumns,
             sortBy,
@@ -3128,10 +3195,17 @@ export class ProjectService extends BaseService {
                                     if (currentTransformedRow) {
                                         writer(currentTransformedRow);
                                     }
-                                    currentTransformedRow = {
-                                        [indexColumn.reference]:
-                                            row[indexColumn.reference],
-                                    };
+
+                                    currentTransformedRow =
+                                        indexColumns.reduce<ResultRow>(
+                                            (acc, indexCol) => {
+                                                acc[indexCol.reference] =
+                                                    row[indexCol.reference];
+                                                return acc;
+                                            },
+                                            {},
+                                        );
+
                                     currentRowIndex = row.row_index;
                                 }
                                 // Suffix the value column with the group by columns to avoid collisions.
@@ -3198,7 +3272,7 @@ export class ProjectService extends BaseService {
             queryUuid: undefined,
             fileUrl,
             valuesColumns: processedColumns,
-            indexColumn,
+            indexColumn: indexColumns,
             columnCount: Number(columnCount) || undefined,
         };
     }
@@ -3388,17 +3462,21 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ user });
 
-        const { query } = await ProjectService._compileQuery(
+        const availableParameters = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+        );
+
+        const { query } = await ProjectService._compileQuery({
             metricQuery,
             explore,
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            undefined,
-            undefined,
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
-        );
+            availableParameters,
+        });
 
         // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
         const queryHashKey = metricQuery.timezone
@@ -5142,6 +5220,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
+        availableParameters: string[],
         useExperimentalMetricCtes?: boolean,
         parameters?: ParametersValuesMap,
     ) {
@@ -5156,17 +5235,17 @@ export class ProjectService extends BaseService {
             additionalMetrics: metricQuery.additionalMetrics,
         };
 
-        const { query } = await ProjectService._compileQuery(
-            totalQuery,
+        const { query } = await ProjectService._compileQuery({
+            metricQuery: totalQuery,
             explore,
-            warehouseClient,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            undefined,
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
             useExperimentalMetricCtes,
             parameters,
-        );
+            availableParameters,
+        });
 
         return { query, totalQuery };
     }
@@ -5212,12 +5291,18 @@ export class ProjectService extends BaseService {
                 featureFlagId: FeatureFlags.ShowQueryWarnings,
             });
 
+        const availableParameters = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+        );
+
         const { query } = await this._getCalculateTotalQuery(
             userAttributes,
             intrinsicUserAttributes,
             explore,
             metricQuery,
             warehouseClient,
+            availableParameters,
             useExperimentalMetricCtes,
             parameters,
         );
@@ -5260,12 +5345,18 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
+        const availableParameters = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+        );
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             userAttributes,
             intrinsicUserAttributes,
             explore,
             metricQuery,
             warehouseClient,
+            availableParameters,
             undefined,
             parameters,
         );
@@ -6458,13 +6549,13 @@ export class ProjectService extends BaseService {
     /**
      * Combines parameter values from multiple sources in order of priority:
      * 1. Request parameters (highest priority)
-     * 2. Saved chart parameters
+     * 2. Saved chart/dashboard parameters
      * 3. Default parameter values (lowest priority)
      */
     public async combineParameters(
         projectUuid: string,
         requestParameters?: ParametersValuesMap,
-        savedChartParameters?: ParametersValuesMap,
+        savedParameters?: ParametersValuesMap,
     ): Promise<ParametersValuesMap> {
         // Get default values for parameters
         const defaultParameters: ParametersValuesMap = {};
@@ -6480,10 +6571,10 @@ export class ProjectService extends BaseService {
             }
         }
 
-        // Combine in order of priority: defaults < saved chart < request
+        // Combine in order of priority: defaults < saved chart < dashboard < request
         return {
             ...defaultParameters,
-            ...(savedChartParameters || {}),
+            ...(savedParameters || {}),
             ...(requestParameters || {}),
         };
     }

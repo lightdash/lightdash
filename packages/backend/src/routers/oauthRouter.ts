@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
     generateOAuthAuthorizePage,
+    generateOAuthRedirectPage,
     getErrorMessage,
     OAuthIntrospectResponse,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import cors from 'cors';
 import express from 'express';
 import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
@@ -14,6 +16,17 @@ import {
 } from '../services/OAuthService/OAuthService';
 
 const oauthRouter = express.Router({ mergeParams: true });
+
+// Always allow CORS for .well-known routes (required for OAuth discovery)
+oauthRouter.use(
+    '/.well-known/*',
+    cors({
+        methods: 'OPTIONS, GET, HEAD',
+        allowedHeaders: '*',
+        credentials: false,
+        origin: true, // Allow all origins for .well-known endpoints
+    }),
+);
 
 // Get OAuth service from request
 function getOAuthService(req: express.Request): OAuthService {
@@ -36,9 +49,10 @@ oauthRouter.get('/authorize', async (req, res, next) => {
         code_challenge,
         code_challenge_method,
     } = req.query;
-    if (!client_id || !redirect_uri || !scope) {
+    if (!client_id || !redirect_uri) {
         return res.status(400).send('Missing required parameters');
     }
+
     // Render authorize page using Handlebars template
     res.set('Content-Type', 'text/html');
     return res.send(
@@ -87,7 +101,7 @@ oauthRouter.get('/authorize', async (req, res, next) => {
     );
 });
 
-oauthRouter.post('/authorize', async (req, res, next) => {
+oauthRouter.post('/authorize', async (req, res) => {
     if (req.body.approve === 'false') {
         // Denied
         res.set('Content-Type', 'text/html');
@@ -103,7 +117,13 @@ oauthRouter.post('/authorize', async (req, res, next) => {
         if (req.body.state) {
             url.searchParams.set('state', req.body.state);
         }
-        return res.redirect(url.toString());
+        return res.send(
+            generateOAuthRedirectPage({
+                redirectUrl: url.toString(),
+                message:
+                    'Access denied. Redirecting you back to your application...',
+            }),
+        );
     }
     if (!req.user) {
         return res.status(401).send('Unauthorized');
@@ -144,14 +164,28 @@ oauthRouter.post('/authorize', async (req, res, next) => {
         if (req.body.state) {
             url.searchParams.set('state', req.body.state);
         }
-        return res.redirect(url.toString());
+
+        res.set('Content-Type', 'text/html');
+        return res.send(
+            generateOAuthRedirectPage({
+                redirectUrl: url.toString(),
+                message: 'Redirecting you back to your application...',
+            }),
+        );
     } catch (error) {
         Logger.error(`Authorization error: ${error}`);
         const redirectUrl = new URL(req.body.redirect_uri);
         redirectUrl.searchParams.set('error', 'server_error');
         if (req.body.state)
             redirectUrl.searchParams.set('state', req.body.state);
-        return res.redirect(redirectUrl.toString());
+        res.set('Content-Type', 'text/html');
+        return res.send(
+            generateOAuthRedirectPage({
+                redirectUrl: redirectUrl.toString(),
+                message:
+                    'An error occurred. Redirecting you back to your application...',
+            }),
+        );
     }
 });
 
@@ -266,6 +300,10 @@ oauthRouter.post('/register', async (req, res) => {
     try {
         const { client_name, redirect_uris, scope, grantTypes } = req.body;
 
+        Logger.info(
+            `Registering Oauth client ${client_name} with redirect_uris ${redirect_uris} and scopes ${scope}`,
+        );
+
         // Validate required fields
         if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
             return res.status(400).json({
@@ -275,8 +313,10 @@ oauthRouter.post('/register', async (req, res) => {
         }
 
         const scopes = typeof scope === 'string' ? scope.split(' ') : [];
+        /*
+        // Do not enforce client scopes for now until more MCP clients support this
         const invalidScopes = scopes.filter((sc) => !sc.startsWith('mcp:'));
-        if (invalidScopes.length > 0) {
+        if (invalidScopes.length > 0 || scopes.length === 0) {
             return res.status(400).json({
                 error: 'invalid_scope',
                 error_description: `Only scopes starting with 'mcp:' are allowed. Invalid scopes: ${invalidScopes.join(
@@ -284,10 +324,7 @@ oauthRouter.post('/register', async (req, res) => {
                 )}`,
             });
         }
-
-        Logger.info(
-            `Registering Oauth client ${client_name} with redirect_uris ${redirect_uris} and scopes ${scope}`,
-        );
+        */
 
         const client = await getOAuthService(req).registerClient({
             clientName: client_name,
@@ -319,10 +356,8 @@ oauthRouter.post('/register', async (req, res) => {
 // This endpoint should only be used for the MCP server to discover the OAuth2 server
 // To create new clients
 // We limit the scopes to MCP_READ and MCP_WRITE for now
-oauthRouter.get('/.well-known/oauth-authorization-server', (req, res) => {
-    const baseUrl = getOAuthService(req).getSiteUrl();
-
-    res.json({
+export function oauthConfig(baseUrl: string) {
+    return {
         issuer: baseUrl,
         authorization_endpoint: `${baseUrl}/api/v1/oauth/authorize`,
         token_endpoint: `${baseUrl}/api/v1/oauth/token`,
@@ -339,10 +374,63 @@ oauthRouter.get('/.well-known/oauth-authorization-server', (req, res) => {
             'client_secret_basic',
             'client_secret_post',
         ],
-        scopes_supported: [OAuthScope.MCP_READ, OAuthScope.MCP_WRITE],
         code_challenge_methods_supported: ['S256', 'plain'],
+        scopes_supported: [OAuthScope.MCP_READ, OAuthScope.MCP_WRITE],
         pkce_required: false, // PKCE is optional but recommended
-    });
-});
+    };
+}
+
+// Export the handler for reuse at root level
+export const oauthAuthorizationServerHandler = (
+    req: express.Request,
+    res: express.Response,
+) => {
+    const baseUrl = getOAuthService(req).getSiteUrl();
+    res.json(oauthConfig(baseUrl));
+};
+
+oauthRouter.get(
+    '/.well-known/oauth-authorization-server',
+    oauthAuthorizationServerHandler,
+);
+
+// MCP server discovery endpoint
+// This endpoint is used to discover the MCP server
+// Required by some tools
+oauthRouter.get(
+    '/.well-known/oauth-authorization-server/api/v1/mcp',
+    oauthAuthorizationServerHandler,
+);
+
+// OAuth2 Protected Resource configuration
+export function oauthProtectedResourceConfig(baseUrl: string) {
+    return {
+        resource: `${baseUrl}/api/v1/mcp`,
+        authorization_servers: [baseUrl],
+        bearer_methods_supported: ['header'],
+        scopes_supported: [OAuthScope.MCP_READ, OAuthScope.MCP_WRITE],
+        resource_documentation: `${baseUrl}/api/v1/oauth/.well-known/oauth-authorization-server`,
+        introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
+        revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
+    };
+}
+
+// OAuth2 Protected Resource Discovery endpoint
+// This endpoint provides metadata about the protected resource server
+// This will be requested by the MCP client if authentication fails,
+// The endpoint is provided by the returnHeaderIfUnauthenticated method in mcpRouter.ts
+// Export the handler for reuse at root level
+export const oauthProtectedResourceHandler = (
+    req: express.Request,
+    res: express.Response,
+) => {
+    const baseUrl = getOAuthService(req).getSiteUrl();
+    res.json(oauthProtectedResourceConfig(baseUrl));
+};
+
+oauthRouter.get(
+    '/.well-known/oauth-protected-resource',
+    oauthProtectedResourceHandler,
+);
 
 export default oauthRouter;

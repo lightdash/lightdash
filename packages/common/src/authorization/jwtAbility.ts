@@ -14,7 +14,7 @@ type EmbeddedAbilityBuilder = (
     options: EmbeddedAbilityBuilderPayload,
 ) => EmbeddedAbilityBuilderPayload;
 
-const addBaseAbilities: EmbeddedAbilityBuilder = ({
+const dashboardAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
     organization,
@@ -24,6 +24,24 @@ const addBaseAbilities: EmbeddedAbilityBuilder = ({
     can('view', 'Dashboard', {
         dashboardUuid,
         organizationUuid: organization.organizationUuid,
+    });
+
+    if (embedUser.content.canDateZoom) {
+        can('view', 'Dashboard', {
+            dateZoom: true,
+            organizationUuid: organization.organizationUuid,
+        });
+    }
+
+    can('view', 'SavedChart', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embedUser.content.projectUuid,
+        isPrivate: false,
+    });
+
+    can('view', 'Project', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embedUser.content.projectUuid,
     });
 
     return { embedUser, dashboardUuid, organization, builder };
@@ -38,14 +56,17 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
     const { content } = embedUser;
     const { can } = builder;
 
+    if (content.canExplore || content.canViewUnderlyingData) {
+        can('view', 'UnderlyingData', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: content.projectUuid,
+        });
+    }
+
     if (content.canExplore) {
         can('view', 'Explore', {
             organizationUuid: organization.organizationUuid,
-            projectUuid: embedUser.content.projectUuid,
-        });
-        can('view', 'Project', {
-            organizationUuid: organization.organizationUuid,
-            projectUuid: embedUser.content.projectUuid,
+            projectUuid: content.projectUuid,
         });
     }
 
@@ -85,26 +106,9 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     return { embedUser, dashboardUuid, organization, builder };
 };
 
-const dashboardAbilities: EmbeddedAbilityBuilder = ({
-    embedUser,
-    dashboardUuid,
-    organization,
-    builder,
-}) => {
-    const { content } = embedUser;
-    const { can } = builder;
-
-    can('view', 'Dashboard', {
-        dateZoom: content.canDateZoom ?? false,
-        organizationUuid: organization.organizationUuid,
-    });
-    return { embedUser, dashboardUuid, organization, builder };
-};
-
 const applyAbilities = flow(
-    addBaseAbilities,
-    exportAbilities,
     dashboardAbilities,
+    exportAbilities,
     exploreAbilities,
 );
 

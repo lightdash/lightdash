@@ -1,5 +1,7 @@
 import { type ItemsMap } from '@lightdash/common';
 import React, { type FC } from 'react';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,
@@ -25,6 +27,14 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const schedulersQuery = useDashboardSchedulers(dashboardUuid);
     const createMutation = useDashboardSchedulerCreateMutation();
 
+    // Extract parameter data from dashboard context
+    const currentParameterValues = useDashboardContext(
+        (c) => c.parameterValues,
+    );
+    const availableParameters = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+
     return (
         <SchedulerModal
             resourceUuid={dashboardUuid}
@@ -32,6 +42,8 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
             schedulersQuery={schedulersQuery}
             createMutation={createMutation}
             isChart={false}
+            currentParameterValues={currentParameterValues}
+            availableParameters={availableParameters}
             {...modalProps}
         />
     );
@@ -54,6 +66,14 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     const chartSchedulersQuery = useChartSchedulers(chartUuid);
     const createMutation = useChartSchedulerCreateMutation();
 
+    // Extract parameter data from explorer context
+    const currentParameterValues = useExplorerContext(
+        (c) => c.state.unsavedChartVersion.parameters || {},
+    );
+    const availableParameters = useExplorerContext(
+        (c) => c.state.parameterDefinitions,
+    );
+
     return (
         <SchedulerModal
             resourceUuid={chartUuid}
@@ -61,6 +81,8 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
             schedulersQuery={chartSchedulersQuery}
             createMutation={createMutation}
             isChart
+            currentParameterValues={currentParameterValues}
+            availableParameters={availableParameters}
             {...modalProps}
         />
     );

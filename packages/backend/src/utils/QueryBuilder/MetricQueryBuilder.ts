@@ -4,8 +4,8 @@ import {
     CompiledMetricQuery,
     CompiledTable,
     createFilterRuleFromModelRequiredFilterRule,
-    DimensionType,
     Explore,
+    ExploreCompiler,
     FieldReferenceError,
     FieldType,
     FilterGroup,
@@ -15,6 +15,7 @@ import {
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
+    getParsedReference,
     IntrinsicUserAttributes,
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
@@ -22,24 +23,23 @@ import {
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
+    isNonAggregateMetric,
     ItemsMap,
+    lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
     QueryWarning,
-    renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
     SupportedDbtAdapter,
     TimeFrames,
     UserAttributeValueMap,
-    WeekDay,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import {
-    replaceParameters,
-    replaceParametersAsString,
+    safeReplaceParametersWithSqlBuilder,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
 import {
@@ -54,8 +54,6 @@ import {
     getJoinType,
     getMetricFromId,
     isInflationProofMetric,
-    removeComments,
-    removeTrailingSemicolon,
     replaceUserAttributesAsStrings,
     replaceUserAttributesRaw,
     sortDayOfWeekName,
@@ -77,6 +75,7 @@ export type BuildQueryProps = {
     warehouseSqlBuilder: WarehouseSqlBuilder;
     userAttributes?: UserAttributeValueMap;
     parameters?: ParametersValuesMap;
+    availableParameters: string[];
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
 };
@@ -765,6 +764,46 @@ export class MetricQueryBuilder {
         return warnings;
     }
 
+    /**
+     * Helper function to replace metric references in SQL with CTE references
+     */
+    private replaceMetricReferencesWithCteReferences(
+        metric: CompiledMetric,
+        metricCtes: Array<{ name: string; metrics: string[] }>,
+    ): string {
+        const { explore, warehouseSqlBuilder } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+
+        const processedSql = metric.sql.replace(
+            lightdashVariablePattern,
+            (fullmatch, ref) => {
+                const { refTable, refName } = getParsedReference(
+                    ref,
+                    metric.table,
+                );
+                const metricId = getItemId({ table: refTable, name: refName });
+                const containingCte = metricCtes.find((cte) =>
+                    cte.metrics.includes(metricId),
+                );
+                if (containingCte) {
+                    // Replace the metric reference with CTE reference
+                    return `${containingCte.name}.${fieldQuoteChar}${metricId}${fieldQuoteChar}`;
+                }
+                return fullmatch;
+            },
+        );
+
+        // Handle any remaining reference that isn't in CTEs
+        const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
+        const compiledMetric = exploreCompiler.compileMetricSql(
+            { ...metric, sql: processedSql }, // use preprocessed SQL with CTE references resolved
+            explore.tables,
+            this.args.availableParameters,
+        );
+
+        return compiledMetric.sql;
+    }
+
     private getExperimentalMetricsCteSQL({
         joinedTables,
         dimensionSelects,
@@ -802,6 +841,41 @@ export class MetricQueryBuilder {
         const metricsObjects = metrics.map((field) =>
             getMetricFromId(field, explore, compiledMetricQuery),
         );
+        const metricsWithCteReferences: Array<CompiledMetric> = [];
+        const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
+            (acc, metricObject) => {
+                const referencesAnotherTable =
+                    metricObject.tablesReferences?.some(
+                        (table) => table !== metricObject.table,
+                    );
+                // If non-aggregate metric references joined tables, include referenced metrics
+                // Note: does not handle nested references
+                if (
+                    isNonAggregateMetric(metricObject) &&
+                    referencesAnotherTable
+                ) {
+                    metricsWithCteReferences.push(metricObject);
+                    const metricReferences = parseAllReferences(
+                        metricObject.sql,
+                        metricObject.table,
+                    );
+                    metricReferences.forEach((metricReference) => {
+                        acc.push(
+                            getMetricFromId(
+                                getItemId({
+                                    table: metricReference.refTable,
+                                    name: metricReference.refName,
+                                }),
+                                explore,
+                                compiledMetricQuery,
+                            ),
+                        );
+                    });
+                }
+                return acc;
+            },
+            [],
+        );
 
         // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];
@@ -815,9 +889,10 @@ export class MetricQueryBuilder {
                 message: `Join **"${tableName}"** is missing a join relationship type. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
                 tables: [tableName],
             });
-            const metricsFromTable = metricsObjects.filter(
-                (metric) => metric.table === tableName,
-            );
+            const metricsFromTable = [
+                ...metricsObjects,
+                ...referencedMetricObjects,
+            ].filter((metric) => metric.table === tableName);
             metricsFromTable.forEach((metric) => {
                 warnings.push({
                     message: `Metric **"${metric.label}"** could be inflated due to missing join relationship type. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
@@ -834,9 +909,10 @@ export class MetricQueryBuilder {
 
         tablesWithMetricInflation.forEach((tableName) => {
             const table = explore.tables[tableName];
-            const metricsFromTable = metricsObjects.filter(
-                (metric) => metric.table === tableName,
-            );
+            const metricsFromTable = [
+                ...metricsObjects,
+                ...referencedMetricObjects,
+            ].filter((metric) => metric.table === tableName);
             const metricsInCte: CompiledMetric[] = [];
 
             if (table?.primaryKey === undefined) {
@@ -860,11 +936,16 @@ export class MetricQueryBuilder {
                 if (isInflationProofMetric(metric.type)) {
                     return;
                 }
-                // Metrics that depend on other tables are not supported atm. See https://github.com/lightdash/lightdash/issues/15423
-                if (
-                    metric.tablesReferences &&
-                    metric.tablesReferences.length > 1
-                ) {
+                // Handle metrics that depend on other tables
+                const referencesAnotherTable = metric.tablesReferences?.some(
+                    (t) => t !== metric.table,
+                );
+                if (referencesAnotherTable) {
+                    if (isNonAggregateMetric(metric)) {
+                        // These will be part of the final select. The SQL will be processed later to replace metric references with CTE references
+                        return;
+                    }
+                    // We don't support other scenarios yet
                     warnings.push({
                         message: `Metric **"${metric.label}"** that references a joined table might have inflation. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
                         fields: [getItemId(metric)],
@@ -957,14 +1038,20 @@ export class MetricQueryBuilder {
                 });
             }
         });
-
         if (ctes.length > 0) {
-            const metricsNotInCtes = metricsObjects.filter(
-                (metric) =>
-                    !metricCtes.some((metricCte) =>
-                        metricCte.metrics.includes(getItemId(metric)),
-                    ),
-            );
+            const unaffectedMetrics = [
+                ...metricsObjects,
+                ...referencedMetricObjects,
+            ].filter((metric) => {
+                const notInMetricCtes = !metricCtes.some((metricCte) =>
+                    metricCte.metrics.includes(getItemId(metric)),
+                );
+                const notMetricWithCteReferences =
+                    !metricsWithCteReferences.find(
+                        (m) => getItemId(metric) === getItemId(m),
+                    );
+                return notInMetricCtes && notMetricWithCteReferences;
+            });
             /**
              * CTE with all dimensions and metrics that aren't affected by fanouts
              * - We always need to include all dimensions
@@ -977,7 +1064,7 @@ export class MetricQueryBuilder {
                 'SELECT',
                 [
                     ...Object.values(dimensionSelects),
-                    ...metricsNotInCtes.map(
+                    ...unaffectedMetrics.map(
                         (metric) =>
                             `  ${
                                 metric.compiledSql
@@ -992,9 +1079,41 @@ export class MetricQueryBuilder {
                 dimensionGroupBy,
             ];
             const hasUnaffectedCte: boolean =
-                metricsNotInCtes.length > 0 ||
+                unaffectedMetrics.length > 0 ||
                 Object.keys(dimensionSelects).length > 0 ||
                 !!dimensionFilters;
+
+            const finalMetricSelects = [
+                ...metricsWithCteReferences.map((metric) => {
+                    // For metrics with cross-table references, replace metric references with CTE references
+                    const processedSql =
+                        this.replaceMetricReferencesWithCteReferences(metric, [
+                            ...metricCtes,
+                            // add unaffected metrics CTE to the list, so non-inflation metrics can be referenced
+                            {
+                                name: unaffectedMetricsCteName,
+                                metrics: unaffectedMetrics.map((m) =>
+                                    getItemId(m),
+                                ),
+                            },
+                        ]);
+
+                    return `  ${processedSql} AS ${fieldQuoteChar}${getItemId(
+                        metric,
+                    )}${fieldQuoteChar}`;
+                }),
+                ...metricCtes.flatMap<string>((metricCte) =>
+                    metricCte.metrics
+                        // excludes metrics only used for references
+                        .filter((metric) =>
+                            metricsObjects.find((m) => metric === getItemId(m)),
+                        )
+                        .map(
+                            (metricName) =>
+                                `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
+                        ),
+                ),
+            ];
 
             /**
              * Query to join all CTEs
@@ -1014,13 +1133,7 @@ export class MetricQueryBuilder {
                     `SELECT`,
                     [
                         `  ${unaffectedMetricsCteName}.*`,
-                        ...metricCtes.map((metricCte) => {
-                            const metricSelects = metricCte.metrics.map(
-                                (metricName) =>
-                                    `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
-                            );
-                            return metricSelects.join(',\n');
-                        }),
+                        ...finalMetricSelects,
                     ].join(',\n'),
                     `FROM ${unaffectedMetricsCteName}`,
                     ...metricCtes.map((metricCte) => {
@@ -1039,15 +1152,7 @@ export class MetricQueryBuilder {
                 // If there is no unaffected CTE, cross join metric CTEs
                 finalSelectParts = [
                     `SELECT`,
-                    [
-                        ...metricCtes.map((metricCte) => {
-                            const metricSelects = metricCte.metrics.map(
-                                (metricName) =>
-                                    `  ${metricCte.name}.${fieldQuoteChar}${metricName}${fieldQuoteChar} AS ${fieldQuoteChar}${metricName}${fieldQuoteChar}`,
-                            );
-                            return metricSelects.join(',\n');
-                        }),
-                    ].join(',\n'),
+                    finalMetricSelects.join(',\n'),
                     `FROM ${metricCtes[0].name}`,
                     ...metricCtes
                         .slice(1, metricCtes.length)
@@ -1167,7 +1272,7 @@ export class MetricQueryBuilder {
             replacedSql,
             references: parameterReferences,
             missingReferences: missingParameterReferences,
-        } = replaceParametersAsString(
+        } = safeReplaceParametersWithSqlBuilder(
             query,
             this.args.parameters ?? {},
             this.args.warehouseSqlBuilder,
@@ -1196,189 +1301,5 @@ export class MetricQueryBuilder {
             missingParameterReferences,
             usedParameters,
         };
-    }
-}
-
-type ReferenceObject = { type: DimensionType; sql: string };
-export type ReferenceMap = Record<string, ReferenceObject> | undefined;
-type From = { name: string; sql?: string };
-
-export class QueryBuilder {
-    // Column references, to be used in select, filters, etc
-    private readonly referenceMap: ReferenceMap;
-
-    // Select values are references
-    private readonly select: string[];
-
-    private readonly from: From;
-
-    private readonly filters: FilterGroup | undefined;
-
-    private readonly parameters?: ParametersValuesMap;
-
-    private readonly limit: number | undefined;
-
-    constructor(
-        args: {
-            referenceMap: ReferenceMap;
-            select: string[];
-            from: From;
-            filters?: FilterGroup;
-            parameters?: ParametersValuesMap;
-            limit: number | undefined;
-        },
-        private config: {
-            fieldQuoteChar: string;
-            stringQuoteChar: string;
-            escapeStringQuoteChar: string;
-            escapeString: (string: string) => string;
-            startOfWeek: WeekDay | null | undefined;
-            adapterType: SupportedDbtAdapter;
-            timezone?: string;
-        },
-    ) {
-        this.select = args.select;
-        this.from = args.from;
-        this.filters = args.filters;
-        this.referenceMap = args.referenceMap;
-        this.parameters = args.parameters;
-        this.limit = args.limit;
-    }
-
-    private quotedName(value: string) {
-        return `${this.config.fieldQuoteChar}${value}${this.config.fieldQuoteChar}`;
-    }
-
-    private getReference(reference: string): ReferenceObject {
-        const referenceObject = this.referenceMap?.[reference];
-        if (!referenceObject) {
-            throw new FieldReferenceError(`Unknown reference: ${reference}`);
-        }
-        return referenceObject;
-    }
-
-    private selectsToSql(): string | undefined {
-        let selectSQL = '*';
-        if (this.select.length > 0) {
-            selectSQL = this.select
-                .map((reference) => {
-                    const referenceObject = this.getReference(reference);
-                    return `${referenceObject.sql} AS ${this.quotedName(
-                        reference,
-                    )}`;
-                })
-                .join(',\n');
-        }
-        return `SELECT\n${selectSQL}`;
-    }
-
-    private fromToSql(): string {
-        if (this.from.sql) {
-            // strip any trailing semicolons and comments
-            let sanitizedSql = removeComments(this.from.sql);
-            sanitizedSql = removeTrailingSemicolon(sanitizedSql);
-            return `FROM (\n${sanitizedSql}\n) AS ${this.quotedName(
-                this.from.name,
-            )}`;
-        }
-        return `FROM ${this.quotedName(this.from.name)}`;
-    }
-
-    private filtersToSql() {
-        // Recursive function to convert filters to SQL
-        const getNestedFilterSQLFromGroup = (
-            filterGroup: FilterGroup | undefined,
-        ): string | undefined => {
-            if (filterGroup) {
-                const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
-                const items = isAndFilterGroup(filterGroup)
-                    ? filterGroup.and
-                    : filterGroup.or;
-                if (items.length === 0) return undefined;
-                const filterRules: string[] = items.reduce<string[]>(
-                    (sum, item) => {
-                        // Handle nested filters
-                        if (isFilterGroup(item)) {
-                            const nestedFilterSql =
-                                getNestedFilterSQLFromGroup(item);
-                            return nestedFilterSql
-                                ? [...sum, nestedFilterSql]
-                                : sum;
-                        }
-                        // Handle filter rule
-                        const reference = this.getReference(
-                            item.target.fieldId,
-                        );
-                        const filterSQl = `(\n${renderFilterRuleSql(
-                            item,
-                            reference.type,
-                            reference.sql,
-                            this.config.stringQuoteChar,
-                            this.config.escapeString,
-                            this.config.startOfWeek,
-                            this.config.adapterType,
-                            this.config.timezone,
-                        )}\n)`;
-                        return [...sum, filterSQl];
-                    },
-                    [],
-                );
-                return filterRules.length > 0
-                    ? `(${filterRules.join(` ${operator} `)})`
-                    : undefined;
-            }
-            return undefined;
-        };
-
-        const filtersSql = getNestedFilterSQLFromGroup(this.filters);
-        if (filtersSql) {
-            return `WHERE ${filtersSql}`;
-        }
-        return undefined;
-    }
-
-    private limitToSql() {
-        if (this.limit) {
-            return `LIMIT ${this.limit}`;
-        }
-        return undefined;
-    }
-
-    getSqlAndReferences() {
-        // Combine all parts of the query
-        const sql = [
-            this.selectsToSql(),
-            this.fromToSql(),
-            this.filtersToSql(),
-            this.limitToSql(),
-        ]
-            .filter((l) => l !== undefined)
-            .join('\n');
-
-        const { replacedSql, references, missingReferences } =
-            replaceParameters(
-                sql,
-                this.parameters ?? {},
-                this.config.escapeString,
-                this.config.stringQuoteChar,
-            );
-
-        // Filter parameters to only include those that are referenced in the query
-        const usedParameters: ParametersValuesMap = Object.fromEntries(
-            Object.entries(this.parameters ?? {}).filter(([key]) =>
-                references.has(key),
-            ),
-        );
-
-        return {
-            sql: replacedSql,
-            parameterReferences: references,
-            missingParameterReferences: missingReferences,
-            usedParameters,
-        };
-    }
-
-    toSql(): string {
-        return this.getSqlAndReferences().sql;
     }
 }

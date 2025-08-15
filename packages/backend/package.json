@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1876.1",
+    "version": "0.1925.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -167,6 +167,7 @@
         "test-sequential": "TZ=UTC NODE_ENV=test jest --config jest.config.js --runInBand",
         "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch",
         "test:integration": "vitest run --config vitest.config.integration.ts",
+        "test:integration:dev": "vitest run --config vitest.config.integration.ts --watch",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",

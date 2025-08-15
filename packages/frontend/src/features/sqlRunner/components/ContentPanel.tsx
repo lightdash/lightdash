@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    getFirstIndexColumns,
     getParameterReferences,
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
@@ -56,7 +57,7 @@ import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
-import { Parameters } from '../../parameters';
+import { Parameters, useParameters } from '../../parameters';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -328,7 +329,8 @@ export const ContentPanel: FC = () => {
             (acc, col) => {
                 if (
                     isPivoted &&
-                    pivotedChartInfo.data?.indexColumn?.reference !== col
+                    getFirstIndexColumns(pivotedChartInfo.data?.indexColumn)
+                        ?.reference !== col
                 ) {
                     return acc;
                 }
@@ -375,6 +377,12 @@ export const ContentPanel: FC = () => {
         }
         return pivotedChartInfo?.data?.queryUuid;
     }, [pivotedChartInfo]);
+
+    const {
+        data: projectParameters,
+        isLoading: isProjectParametersLoading,
+        isError: isProjectParametersError,
+    } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
@@ -477,10 +485,12 @@ export const ContentPanel: FC = () => {
                         <Group spacing="xs">
                             <Parameters
                                 isEditMode={false}
-                                parameterReferences={parameterReferences}
+                                parameters={projectParameters}
                                 parameterValues={parameterValues}
                                 onParameterChange={handleParameterChange}
                                 onClearAll={clearAllParameters}
+                                isLoading={isProjectParametersLoading}
+                                isError={isProjectParametersError}
                             />
                             {activeEditorTab === EditorTabs.SQL && (
                                 <SqlQueryHistory />

@@ -1,6 +1,8 @@
 import { AiAgent } from '@lightdash/common';
 import { CoreMessage, LanguageModelV1 } from 'ai';
 import {
+    FindChartsFn,
+    FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
     GetExploreFn,
@@ -23,6 +25,8 @@ export type AiAgentArgs = {
     organizationId: string;
     userId: string;
     debugLoggingEnabled: boolean;
+    telemetryEnabled: boolean;
+    callOptions: { temperature: number };
 
     availableExploresPageSize: number;
     findExploresPageSize: number;
@@ -30,10 +34,15 @@ export type AiAgentArgs = {
     findExploresFieldSearchSize: number;
     findExploresMaxDescriptionLength: number;
     findFieldsPageSize: number;
+    findDashboardsPageSize: number;
+    findChartsPageSize: number;
     maxQueryLimit: number;
+    siteUrl?: string;
 };
 
 export type AiAgentDependencies = {
+    findCharts: FindChartsFn;
+    findDashboards: FindDashboardsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
     getExplore: GetExploreFn;

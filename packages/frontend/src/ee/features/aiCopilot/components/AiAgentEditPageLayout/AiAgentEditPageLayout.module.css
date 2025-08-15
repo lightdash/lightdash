@@ -1,0 +1,36 @@
+.aiAgentEditPageLayoutHeader {
+    position: fixed;
+    background: rgba(248, 249, 250, 0.52);
+    backdrop-filter: blur(7px);
+    left: 0;
+    right: 0;
+    z-index: 1;
+    transition: transform 400ms ease-in-out;
+}
+
+.aiAgentEditPageLayoutHeader::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    box-shadow: var(--mantine-shadow-sm);
+    opacity: 0;
+    transition: opacity 300ms ease-in-out;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.aiAgentEditPageLayoutHeader[data-pinned='true'] {
+    transform: translate3d(0, 0, 0);
+}
+
+.aiAgentEditPageLayoutHeader[data-pinned='false'] {
+    transform: translate3d(0, -100%, 0);
+}
+
+.aiAgentEditPageLayoutHeader[data-fixed='true']::before {
+    opacity: 0;
+}
+
+.aiAgentEditPageLayoutHeader[data-fixed='false']::before {
+    opacity: 1;
+}

@@ -63,6 +63,7 @@ const SavedExplorer = () => {
                           parameterReferences: Object.keys(
                               data.parameters ?? {},
                           ),
+                          parameterDefinitions: {},
                           expandedSections: [ExplorerSection.VISUALIZATION],
                           unsavedChartVersion: {
                               tableName: data.tableName,

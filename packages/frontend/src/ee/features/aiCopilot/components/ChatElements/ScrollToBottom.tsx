@@ -53,12 +53,12 @@ const ThreadScrollToBottom = ({
 }: {
     scrollAreaRef: React.RefObject<HTMLDivElement | null>;
 }) => {
-    const { agentUuid, threadUuid } = useParams();
-    if (!agentUuid || !threadUuid)
-        throw new Error('Agent and thread UUIDs are required');
+    const { agentUuid, threadUuid, projectUuid } = useParams();
+    if (!agentUuid || !threadUuid || !projectUuid)
+        throw new Error('Agent, thread and project UUIDs are required');
 
     const streamingState = useAiAgentThreadStreamQuery(threadUuid);
-    const thread = useAiAgentThread(agentUuid, threadUuid);
+    const thread = useAiAgentThread(projectUuid, agentUuid, threadUuid);
 
     const { messagesEndRef, scrollToBottom } = useAutoScroll(scrollAreaRef);
 
@@ -76,6 +76,7 @@ const ThreadScrollToBottom = ({
     }, [
         streamingState?.content,
         streamingState?.toolCalls?.length,
+        streamingState?.error,
         scrollToBottom,
     ]);
 

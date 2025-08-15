@@ -1,3 +1,5 @@
+import '@mantine-8/core/styles.css';
+
 import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -15,6 +17,8 @@ import MantineProvider from '../src/providers/MantineProvider';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
+
+import { ModalsProvider } from '@mantine/modals';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 
@@ -67,6 +71,9 @@ const SdkProviders: FC<
     return (
         <ReactQueryProvider>
             <MantineProvider
+                withGlobalStyles
+                withNormalizeCSS
+                withCSSVariables
                 themeOverride={{
                     fontFamily: styles?.fontFamily,
                     other: {
@@ -76,25 +83,27 @@ const SdkProviders: FC<
                 }}
                 notificationsLimit={0}
             >
-                <AppProvider>
-                    <FullscreenProvider enabled={false}>
-                        <ThirdPartyServicesProvider enabled={false}>
-                            <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                <MemoryRouter>
-                                    <TrackingProvider enabled={true}>
-                                        <AbilityProvider>
-                                            <ChartColorMappingContextProvider>
-                                                <ActiveJobProvider>
-                                                    {children}
-                                                </ActiveJobProvider>
-                                            </ChartColorMappingContextProvider>
-                                        </AbilityProvider>
-                                    </TrackingProvider>
-                                </MemoryRouter>
-                            </ErrorBoundary>
-                        </ThirdPartyServicesProvider>
-                    </FullscreenProvider>
-                </AppProvider>
+                <ModalsProvider>
+                    <AppProvider>
+                        <FullscreenProvider enabled={false}>
+                            <ThirdPartyServicesProvider enabled={false}>
+                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                    <MemoryRouter>
+                                        <TrackingProvider enabled={true}>
+                                            <AbilityProvider>
+                                                <ChartColorMappingContextProvider>
+                                                    <ActiveJobProvider>
+                                                        {children}
+                                                    </ActiveJobProvider>
+                                                </ChartColorMappingContextProvider>
+                                            </AbilityProvider>
+                                        </TrackingProvider>
+                                    </MemoryRouter>
+                                </ErrorBoundary>
+                            </ThirdPartyServicesProvider>
+                        </FullscreenProvider>
+                    </AppProvider>
+                </ModalsProvider>
             </MantineProvider>
         </ReactQueryProvider>
     );

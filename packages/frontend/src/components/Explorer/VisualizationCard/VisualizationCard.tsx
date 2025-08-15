@@ -130,6 +130,23 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         (context) => context.actions.closeVisualizationConfig,
     );
 
+    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+    useLayoutEffect(() => {
+        if (isVisualizationConfigOpen) {
+            const target = document.getElementById(VisualizationConfigPortalId);
+            setPortalTarget(target);
+        } else {
+            setPortalTarget(null);
+        }
+    }, [isVisualizationConfigOpen]);
+
+    useLayoutEffect(() => {
+        if (!isEditMode) {
+            closeVisualizationConfig();
+        }
+    }, [isEditMode, closeVisualizationConfig]);
+
     useLayoutEffect(() => {
         if (!isOpen) {
             closeVisualizationConfig();
@@ -239,7 +256,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                         }
                                         rightIcon={
                                             <MantineIcon
-                                                color="gray"
                                                 icon={
                                                     isVisualizationConfigOpen
                                                         ? IconLayoutSidebarLeftCollapse
@@ -258,7 +274,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                  * NOTE: not using Portal from mantine-8 because this page lacks MantineProvider from Mantine 8
                                  * TODO: use mantine-8 portal with reuseTargetNode flag to avoid rendering additional divs
                                  */}
-                                {isVisualizationConfigOpen &&
+                                {portalTarget &&
                                     createPortal(
                                         <VisualizationConfig
                                             chartType={
@@ -267,9 +283,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                             }
                                             onClose={closeVisualizationConfig}
                                         />,
-                                        document.getElementById(
-                                            VisualizationConfigPortalId,
-                                        )!,
+                                        portalTarget,
                                     )}
 
                                 <Can

@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1876.1",
+    "version": "0.1925.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -19,7 +19,8 @@
         "fix-format": "pnpm run formatter ./src --write",
         "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='build/.*' --ignoreFiles='sdk/dist/.*' --ignoreFiles='.*/__mocks__/.*' --ignoreFiles='src/stories/.*'",
         "storybook": "storybook dev -p 6006 --no-open",
-        "build-storybook": "storybook build"
+        "build-storybook": "storybook build",
+        "release": "(cd sdk && pnpm publish --no-git-checks)"
     },
     "dependencies": {
         "@casl/ability": "^5.4.4",
@@ -80,6 +81,7 @@
         "echarts-for-react": "^3.0.2",
         "emoji-picker-react": "^4.12.0",
         "fuse.js": "^6.5.3",
+        "hast": "^1.0.0",
         "html2canvas": "^1.4.1",
         "immer": "^10.1.1",
         "js-yaml": "^4.1.0",
@@ -117,6 +119,7 @@
         "tippy.js": "^6.3.7",
         "type-fest": "^4.32.0",
         "unique-names-generator": "^4.7.1",
+        "unist-util-visit": "^5.0.0",
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
@@ -126,6 +129,8 @@
     "devDependencies": {
         "@chromatic-com/storybook": "^3",
         "@mantine/styles": "6.0.21",
+        "@spotlightjs/sidecar": "^1.11.4",
+        "@spotlightjs/spotlight": "^3.0.1",
         "@storybook/addon-essentials": "^8.6.6",
         "@storybook/addon-interactions": "^8.6.6",
         "@storybook/addon-onboarding": "^8.6.6",
@@ -139,6 +144,7 @@
         "@types/canvas-confetti": "^1.6.0",
         "@types/d3-scale": "^4.0.8",
         "@types/d3-time": "^3.0.4",
+        "@types/hast": "^3.0.4",
         "@types/isomorphic-fetch": "^0.0.39",
         "@types/js-yaml": "^4.0.1",
         "@types/lodash": "^4.14.202",
