@@ -103,6 +103,7 @@ interface ServiceManifest {
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
     mcpService: unknown;
+    rolesService: unknown;
 }
 
 /**
@@ -674,10 +675,6 @@ export class ServiceRepository
                     s3Client: this.clients.getS3Client(),
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
-                    slackClient: this.clients.getSlackClient(),
-                    analytics: this.context.lightdashAnalytics,
-                    slackAuthenticationModel:
-                        this.models.getSlackAuthenticationModel(),
                 }),
         );
     }
@@ -873,6 +870,10 @@ export class ServiceRepository
 
     public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {
         return this.getService('aiAgentService');
+    }
+
+    public getRolesService<RolesServiceImplT>(): RolesServiceImplT {
+        return this.getService('rolesService');
     }
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {

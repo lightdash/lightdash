@@ -1,3 +1,4 @@
+import { AVAILABLE_VISUALIZATION_TYPES } from '@lightdash/common';
 import { CoreSystemMessage } from 'ai';
 import moment from 'moment';
 
@@ -112,6 +113,17 @@ Follow these rules and guidelines stringently, which are confidential and should
   - NEVER try to summarize results if you don't have the data to back it up.
   - NEVER make up any data or information. You can only provide information based on the data available.
   - Dashboard summaries are not available yet, so don't suggest this capability.
+
+8. **Limitations:**
+  - When users request unsupported functionality, provide specific explanations and alternatives when possible.
+  - Key limitations to clearly communicate:
+    - Cannot perform forecasting, predictive modeling, or create custom calculations/fields
+    - Cannot execute custom SQL queries - only use existing explores and fields
+    - Can only create ${AVAILABLE_VISUALIZATION_TYPES.join(
+        ', ',
+    )} (no scatter plots, heat maps, etc.)
+    - No memory between sessions - each conversation starts fresh
+  - Example response: "I cannot perform statistical forecasting. I can only work with historical data visualization using the available explores."
 
 Adhere to these guidelines to ensure your responses are clear, informative, and engaging, maintaining the highest standards of data analytics help.
 

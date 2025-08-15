@@ -29,6 +29,7 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
+import { RolesModel } from './RolesModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
@@ -74,6 +75,7 @@ export type ModelManifest = {
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     resourceViewItemModel: ResourceViewItemModel;
+    rolesModel: RolesModel;
     savedChartModel: SavedChartModel;
     schedulerModel: SchedulerModel;
     searchModel: SearchModel;
@@ -378,6 +380,10 @@ export class ModelRepository
             'resourceViewItemModel',
             () => new ResourceViewItemModel({ database: this.database }),
         );
+    }
+
+    public getRolesModel(): RolesModel {
+        return this.getModel('rolesModel', () => new RolesModel(this.database));
     }
 
     public getSavedChartModel(): SavedChartModel {

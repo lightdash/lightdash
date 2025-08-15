@@ -1,3 +1,64 @@
+# [0.1925.0](https://github.com/lightdash/lightdash/compare/0.1924.0...0.1925.0) (2025-08-15)
+
+
+### Bug Fixes
+
+* Revert "feat: make frontend and backend ports configurable via environment va…" ([#16446](https://github.com/lightdash/lightdash/issues/16446)) ([0602b05](https://github.com/lightdash/lightdash/commit/0602b0508cea81c9322035cfab4a5b15f2e14735))
+
+
+### Features
+
+* enable 'viewUnderlyingData' for iframe and SDK embeds ([#16208](https://github.com/lightdash/lightdash/issues/16208)) ([56a9d95](https://github.com/lightdash/lightdash/commit/56a9d95a21dc025e88245aca6c0876ce917d2df5))
+
+# [0.1924.0](https://github.com/lightdash/lightdash/compare/0.1923.1...0.1924.0) (2025-08-15)
+
+
+### Features
+
+* convert findExplores tool to use JSX for XML generation ([#16248](https://github.com/lightdash/lightdash/issues/16248)) ([9252f1c](https://github.com/lightdash/lightdash/commit/9252f1c79cb01c6a370e260a859a767319b0a5c4))
+
+## [0.1923.1](https://github.com/lightdash/lightdash/compare/0.1923.0...0.1923.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* Revert "refactor: move Slack client functionality to service layer" ([#16432](https://github.com/lightdash/lightdash/issues/16432)) ([5ae3d75](https://github.com/lightdash/lightdash/commit/5ae3d7553f85755d206d5ba6106fa4e053ba87a7))
+
+# [0.1923.0](https://github.com/lightdash/lightdash/compare/0.1922.0...0.1923.0) (2025-08-15)
+
+
+### Features
+
+* AI Agent limitations transparency ([#16348](https://github.com/lightdash/lightdash/issues/16348)) ([e8c0a24](https://github.com/lightdash/lightdash/commit/e8c0a24b75b3ce9b134d3a125b7548f5a8c6dff4)), closes [#16250](https://github.com/lightdash/lightdash/issues/16250)
+
+# [0.1922.0](https://github.com/lightdash/lightdash/compare/0.1921.0...0.1922.0) (2025-08-15)
+
+
+### Features
+
+* add validation for project config parameters ([#16416](https://github.com/lightdash/lightdash/issues/16416)) ([cfca1ab](https://github.com/lightdash/lightdash/commit/cfca1ab6f5ccf73f3557d36721601b89a44b0ce8))
+
+# [0.1921.0](https://github.com/lightdash/lightdash/compare/0.1920.0...0.1921.0) (2025-08-15)
+
+
+### Features
+
+* add metadata to chart/dashboard search results ([#16391](https://github.com/lightdash/lightdash/issues/16391)) ([07b0fc0](https://github.com/lightdash/lightdash/commit/07b0fc08255a810cdfee85c584a716b6d61dcdcd)), closes [#16313](https://github.com/lightdash/lightdash/issues/16313)
+
+# [0.1920.0](https://github.com/lightdash/lightdash/compare/0.1919.0...0.1920.0) (2025-08-15)
+
+
+### Features
+
+* add analytics tracking for MCP tool calls ([#16386](https://github.com/lightdash/lightdash/issues/16386)) ([4c3dc17](https://github.com/lightdash/lightdash/commit/4c3dc17c0aa0af080a7051029443ed8886e2e638)), closes [#16336](https://github.com/lightdash/lightdash/issues/16336)
+
+# [0.1919.0](https://github.com/lightdash/lightdash/compare/0.1918.0...0.1919.0) (2025-08-15)
+
+
+### Features
+
+* add custom roles and permissions management ([#16380](https://github.com/lightdash/lightdash/issues/16380)) ([2647233](https://github.com/lightdash/lightdash/commit/2647233d9beb42fc6cc6a609f5236381510603e4))
+
 # [0.1918.0](https://github.com/lightdash/lightdash/compare/0.1917.0...0.1918.0) (2025-08-14)
 
 

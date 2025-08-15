@@ -3,6 +3,7 @@ import {
     toolFindDashboardsArgsSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import moment from 'moment';
 import type { FindDashboardsFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -31,6 +32,43 @@ const getDashboardText = (
         }
         ${dashboardUrl ? `<Url>${dashboardUrl}</Url>` : ''}
         <SpaceUuid>${dashboard.spaceUuid}</SpaceUuid>
+        <ViewsCount>${dashboard.viewsCount}</ViewsCount>
+        ${
+            dashboard.firstViewedAt
+                ? `<FirstViewedAt>${moment(
+                      dashboard.firstViewedAt,
+                  ).fromNow()}</FirstViewedAt>`
+                : ''
+        }
+        ${
+            dashboard.lastModified
+                ? `<LastModified>${moment(
+                      dashboard.lastModified,
+                  ).fromNow()}</LastModified>`
+                : ''
+        }
+        ${
+            dashboard.createdBy
+                ? `<CreatedBy>${dashboard.createdBy.firstName} ${dashboard.createdBy.lastName}</CreatedBy>`
+                : ''
+        }
+        <Charts count="${dashboard.charts.length}">
+            ${dashboard.charts
+                .map(
+                    (chart) =>
+                        `<Chart>
+                            <Name>${chart.name}</Name>
+                            <ChartType>${chart.chartType}</ChartType>
+                            ${
+                                chart.description
+                                    ? `<Description>${chart.description}</Description>`
+                                    : ''
+                            }
+                            <ViewsCount>${chart.viewsCount}</ViewsCount>
+                        </Chart>`,
+                )
+                .join('\n            ')}
+        </Charts>
         ${
             dashboard.validationErrors && dashboard.validationErrors.length > 0
                 ? `<ValidationErrors count="${dashboard.validationErrors.length}"/>`

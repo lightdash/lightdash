@@ -10,8 +10,6 @@ import {
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
-    ApiAiConversationMessages,
-    ApiAiConversations,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiErrorPayload,
@@ -128,46 +126,6 @@ export class AiAgentController extends BaseController {
             results: undefined,
         };
     }
-
-    // Legacy routes
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/conversations')
-    @OperationId('getAiAgentConversations')
-    async getAiAgentConversations(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-    ): Promise<ApiAiConversations> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().getConversations(
-                req.user!,
-                projectUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/conversations/:aiThreadUuid/messages')
-    @OperationId('getAiAgentConversationMessages')
-    async getAiAgentConversationMessages(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() aiThreadUuid: string,
-    ): Promise<ApiAiConversationMessages> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().getConversationMessages(
-                req.user!,
-                projectUuid,
-                aiThreadUuid,
-            ),
-        };
-    }
-    // End of legacy routes
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

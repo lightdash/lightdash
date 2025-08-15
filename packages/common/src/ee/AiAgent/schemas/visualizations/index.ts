@@ -4,13 +4,17 @@ export * from './tableViz';
 export * from './timeSeriesViz';
 export * from './verticalBarViz';
 
-// define tool names
-export const ToolNameSchema = z.enum([
-    'findExplores',
-    'findFields',
+const VisualizationTools = [
     'generateBarVizConfig',
     'generateTableVizConfig',
     'generateTimeSeriesVizConfig',
+] as const;
+
+// define tool names
+export const ToolNameSchema = z.enum([
+    ...VisualizationTools,
+    'findExplores',
+    'findFields',
     'findDashboards',
     'findCharts',
 ]);
@@ -44,3 +48,5 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         generateTimeSeriesVizConfig: 'Generated a line chart',
         findCharts: 'Found relevant charts',
     });
+
+export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;
