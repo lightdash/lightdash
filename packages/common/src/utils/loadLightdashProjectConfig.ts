@@ -1,4 +1,5 @@
 import Ajv from 'ajv';
+import AjvErrors from 'ajv-errors';
 import betterAjvErrors from 'better-ajv-errors';
 import * as yaml from 'js-yaml';
 import lightdashProjectConfigSchema from '../schemas/json/lightdash-project-config-1.0.json';
@@ -27,7 +28,9 @@ export const loadLightdashProjectConfig = async (
         ...defaultConfig,
         ...loadedConfig,
     };
-    const ajv = new Ajv({ coerceTypes: true });
+    const ajv = new Ajv({ coerceTypes: true, allErrors: true });
+    // This method call extends JSON schema to utilize AJV Errors
+    AjvErrors(ajv);
     const validate = ajv.compile<LightdashProjectConfig>(
         lightdashProjectConfigSchema,
     );
