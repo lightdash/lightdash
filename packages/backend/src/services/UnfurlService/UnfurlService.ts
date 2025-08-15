@@ -179,41 +179,6 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
-
-        this.initSlackListeners();
-    }
-
-    private initSlackListeners() {
-        if (!this.slackClient.isEnabled) return;
-
-        if (this.slackClient.isReady()) {
-            const slackApp = this.slackClient.getApp();
-            if (slackApp) {
-                this.registerSlackEventHandlers(slackApp);
-            }
-        } else {
-            this.slackClient.once('slackAppReady', (slackApp: App) => {
-                this.registerSlackEventHandlers(slackApp);
-            });
-        }
-    }
-
-    private registerSlackEventHandlers(slackApp: App) {
-        try {
-            slackApp.event(
-                'link_shared',
-                (
-                    m: SlackEventMiddlewareArgs<'link_shared'> &
-                        AllMiddlewareArgs<StringIndexed>,
-                ) => this.unfurlSlackUrls(m),
-            );
-            Logger.info('UnfurlService: Slack link_shared listener registered');
-        } catch (error) {
-            Logger.error(
-                'UnfurlService: Failed to register Slack listeners:',
-                error,
-            );
-        }
     }
 
     private async waitForAllPaginatedResultsResponse(
@@ -1290,7 +1255,7 @@ export class UnfurlService extends BaseService {
             });
     }
 
-    private async unfurlSlackUrls(
+    public async unfurlSlackUrls(
         message: SlackEventMiddlewareArgs<'link_shared'> &
             AllMiddlewareArgs<StringIndexed>,
     ) {

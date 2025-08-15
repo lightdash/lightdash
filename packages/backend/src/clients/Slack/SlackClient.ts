@@ -23,7 +23,6 @@ import {
     WebClient,
     type FilesUploadV2Arguments,
 } from '@slack/web-api';
-import { EventEmitter } from 'events';
 import { Express } from 'express';
 import { without } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -69,7 +68,7 @@ const lightdashLogLevelToSlackLogLevel = (
     }
 };
 
-export class SlackClient extends EventEmitter {
+export class SlackClient {
     slackAuthenticationModel: SlackAuthenticationModel;
 
     lightdashConfig: LightdashConfig;
@@ -78,7 +77,7 @@ export class SlackClient extends EventEmitter {
 
     public isEnabled: boolean = false;
 
-    public slackApp: App | undefined;
+    private slackApp: App | undefined;
 
     private channelsCache: Map<
         string,
@@ -90,7 +89,6 @@ export class SlackClient extends EventEmitter {
         lightdashConfig,
         analytics,
     }: SlackClientArguments) {
-        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
@@ -102,10 +100,6 @@ export class SlackClient extends EventEmitter {
 
     public getApp(): App | undefined {
         return this.slackApp;
-    }
-
-    public isReady(): boolean {
-        return !!this.slackApp;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -720,7 +714,6 @@ export class SlackClient extends EventEmitter {
         if (app) {
             this.slackApp = app;
             Logger.info('Slack app initialized successfully');
-            this.emit('slackAppReady', app);
         }
     }
 }
