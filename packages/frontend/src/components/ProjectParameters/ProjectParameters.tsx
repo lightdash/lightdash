@@ -136,17 +136,17 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     const tableRows = useMemo(
         () =>
             parameters.map((parameter: ProjectParameterSummary) => (
-                <tr
+                <Table.Tr
                     key={`${parameter.source}-${parameter.name}-${
                         parameter.modelName || ''
                     }`}
                 >
-                    <td>
+                    <Table.Td>
                         <Group gap="xs">
                             <Code>{parameter.name}</Code>
                         </Group>
-                    </td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td>
                         <Badge
                             size="sm"
                             variant="light"
@@ -158,8 +158,8 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                                 ? 'Lightdash Config'
                                 : `${parameter.modelName} Model`}
                         </Badge>
-                    </td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td>
                         <Tooltip label="View configuration">
                             <ActionIcon
                                 variant="subtle"
@@ -173,8 +173,8 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                                 <MantineIcon icon={IconEye} />
                             </ActionIcon>
                         </Tooltip>
-                    </td>
-                </tr>
+                    </Table.Td>
+                </Table.Tr>
             )),
         [parameters, handleViewConfig],
     );
@@ -204,7 +204,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                 </Text>
 
                 <SettingsCard shadow="none" p={0}>
-                    <Paper p="sm">
+                    <Paper p="sm" bd={0}>
                         <Group gap="md" align="center">
                             <Title order={5}>Parameters</Title>
                         </Group>
@@ -231,50 +231,55 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                         </Box>
                     </Paper>
 
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
-                    <thead>
-                        <tr>
-                            <th
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => handleSort('name')}
-                            >
-                                <Group gap="xs">
-                                    <Text>Parameter</Text>
-                                    <Text>{getSortIcon('name')}</Text>
-                                </Group>
-                            </th>
-                            <th>
-                                <Text>Source</Text>
-                            </th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody style={{ position: 'relative' }}>
-                        {!isLoading && parameters && parameters.length ? (
-                            tableRows
-                        ) : isLoading ? (
-                            <tr>
-                                <td colSpan={3}>
-                                    <Box py="lg">
-                                        <LoadingOverlay
-                                            visible={true}
-                                        />
-                                    </Box>
-                                </td>
-                            </tr>
-                        ) : (
-                            <tr>
-                                <td colSpan={3}>
-                                    <Text c="gray.6" fs="italic" ta="center">
-                                        {debouncedSearch
-                                            ? 'No parameters found matching your search'
-                                            : 'No parameters configured for this project'}
-                                    </Text>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </Table>
+                    <Table
+                        withRowBorders
+                        className={cx(classes.root, classes.alignLastTdRight)}
+                    >
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort('name')}
+                                >
+                                    <Group gap="xs">
+                                        <Text>Parameter</Text>
+                                        <Text>{getSortIcon('name')}</Text>
+                                    </Group>
+                                </Table.Th>
+                                <Table.Th>
+                                    <Text ta="left">Source</Text>
+                                </Table.Th>
+                                <Table.Th></Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody style={{ position: 'relative' }}>
+                            {!isLoading && parameters && parameters.length ? (
+                                tableRows
+                            ) : isLoading ? (
+                                <Table.Tr>
+                                    <Table.Td colSpan={3}>
+                                        <Box py="lg">
+                                            <LoadingOverlay visible={true} />
+                                        </Box>
+                                    </Table.Td>
+                                </Table.Tr>
+                            ) : (
+                                <Table.Tr>
+                                    <Table.Td colSpan={3}>
+                                        <Text
+                                            c="gray.6"
+                                            fs="italic"
+                                            ta="center"
+                                        >
+                                            {debouncedSearch
+                                                ? 'No parameters found matching your search'
+                                                : 'No parameters configured for this project'}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                            )}
+                        </Table.Tbody>
+                    </Table>
 
                     {pagination && pagination.totalPageCount > 1 && (
                         <Paper p="sm">
