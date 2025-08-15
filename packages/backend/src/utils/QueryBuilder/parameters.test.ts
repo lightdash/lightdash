@@ -1,7 +1,7 @@
 import { warehouseClientMock } from './MetricQueryBuilder.mock';
 import {
-    replaceParameters,
-    replaceParametersAsString,
+    safeReplaceParameters,
+    safeReplaceParametersWithSqlBuilder,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
 
@@ -11,17 +11,17 @@ describe('replaceParameters', () => {
     it('should replace lightdash parameter placeholders with values', () => {
         const sql =
             'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
-        const parameters = { status: ['active', 'pending'] };
+        const parameterValuesMap = { status: ['active', 'pending'] };
         const quoteChar = "'";
         const wrapChar = '(';
 
-        const result = replaceParameters(
+        const result = safeReplaceParameters({
             sql,
-            parameters,
-            mockSqlBuilder.escapeString,
+            parameterValuesMap,
+            escapeString: mockSqlBuilder.escapeString,
             quoteChar,
             wrapChar,
-        );
+        });
 
         expect(result.replacedSql).toBe(
             "(SELECT * FROM users WHERE status = 'active', 'pending')",
@@ -35,13 +35,13 @@ describe('replaceParameters', () => {
         const quoteChar = '"';
         const wrapChar = '';
 
-        const result = replaceParameters(
+        const result = safeReplaceParameters({
             sql,
-            parameters,
-            mockSqlBuilder.escapeString,
+            parameterValuesMap: parameters,
+            escapeString: mockSqlBuilder.escapeString,
             quoteChar,
             wrapChar,
-        );
+        });
 
         expect(result.replacedSql).toBe(
             'SELECT * FROM orders WHERE region = "US", "EU"',
@@ -55,13 +55,13 @@ describe('replaceParameters', () => {
         const quoteChar = "'";
         const wrapChar = '(';
 
-        const result = replaceParameters(
+        const result = safeReplaceParameters({
             sql,
-            parameters,
-            mockSqlBuilder.escapeString,
+            parameterValuesMap: parameters,
+            escapeString: mockSqlBuilder.escapeString,
             quoteChar,
             wrapChar,
-        );
+        });
 
         expect(result.missingReferences.has('status')).toBe(true);
         expect(result.replacedSql).toBe(
@@ -69,22 +69,19 @@ describe('replaceParameters', () => {
         );
     });
 
-    it('should handle empty quote character', () => {
+    it('should handle empty quote character using unsafeReplaceParametersAsRaw', () => {
         const sql =
             'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
         const parameters = { status: ['active', 'pending'] };
-        const wrapChar = '(';
 
-        const result = replaceParameters(
+        const result = unsafeReplaceParametersAsRaw(
             sql,
             parameters,
-            mockSqlBuilder.escapeString,
-            '',
-            wrapChar,
+            mockSqlBuilder,
         );
 
         expect(result.replacedSql).toBe(
-            '(SELECT * FROM users WHERE status = active, pending)',
+            'SELECT * FROM users WHERE status = active, pending',
         );
     });
 
@@ -92,15 +89,11 @@ describe('replaceParameters', () => {
         const sql =
             'SELECT * FROM users WHERE name = ${lightdash.parameters.name}';
         const parameters = { name: "O'Reilly" };
-        const quoteChar = "'";
-        const wrapChar = '';
 
-        const result = replaceParameters(
+        const result = safeReplaceParametersWithSqlBuilder(
             sql,
             parameters,
-            mockSqlBuilder.escapeString,
-            quoteChar,
-            wrapChar,
+            mockSqlBuilder,
         );
 
         // SnowflakeSqlBuilder doubles single quotes
@@ -110,13 +103,13 @@ describe('replaceParameters', () => {
     });
 });
 
-describe('replaceParametersAsString', () => {
+describe('safeReplaceParametersWithSqlBuilder', () => {
     it('should escape single quote in string parameter to prevent SQL injection', () => {
         const sql =
             'SELECT * FROM users WHERE name = ${lightdash.parameters.name}';
         const parameters = { name: "O'Reilly" };
 
-        const result = replaceParametersAsString(
+        const result = safeReplaceParametersWithSqlBuilder(
             sql,
             parameters,
             mockSqlBuilder,
@@ -135,7 +128,7 @@ describe('replaceParametersAsString', () => {
             status: ['active', "pending'; DROP TABLE users; --"],
         };
 
-        const result = replaceParametersAsString(
+        const result = safeReplaceParametersWithSqlBuilder(
             sql,
             parameters,
             mockSqlBuilder,
