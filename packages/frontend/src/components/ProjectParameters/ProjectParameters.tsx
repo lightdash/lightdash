@@ -59,7 +59,7 @@ const ConfigModal: FC<ConfigModalProps> = ({
             <Group gap="xs">
                 <MantineIcon size="lg" icon={IconVariable} />
                 <Title order={4}>
-                    Parameter configuration: ${parameterName}
+                    Parameter configuration: {parameterName}
                 </Title>
             </Group>
         }
