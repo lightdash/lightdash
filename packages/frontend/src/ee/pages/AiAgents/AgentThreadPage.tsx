@@ -11,8 +11,8 @@ import {
 import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
 
-const AiAgentThreadPage = () => {
-    const { agentUuid, threadUuid, projectUuid } = useParams();
+const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
+    const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
     const { user } = useApp();
     const { data: thread, isLoading: isLoadingThread } = useAiAgentThread(
         projectUuid!,
@@ -52,7 +52,9 @@ const AiAgentThreadPage = () => {
             thread={thread}
             agentName={agentQuery.data?.name ?? 'AI'}
             enableAutoScroll={true}
+            promptUuid={promptUuid}
             mode="interactive"
+            debug={debug}
         >
             <AgentChatInput
                 disabled={
