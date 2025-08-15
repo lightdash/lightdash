@@ -1,3 +1,10 @@
+# [0.1924.0](https://github.com/lightdash/lightdash/compare/0.1923.1...0.1924.0) (2025-08-15)
+
+
+### Features
+
+* convert findExplores tool to use JSX for XML generation ([#16248](https://github.com/lightdash/lightdash/issues/16248)) ([9252f1c](https://github.com/lightdash/lightdash/commit/9252f1c79cb01c6a370e260a859a767319b0a5c4))
+
 ## [0.1923.1](https://github.com/lightdash/lightdash/compare/0.1923.0...0.1923.1) (2025-08-15)
 
 
