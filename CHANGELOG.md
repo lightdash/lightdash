@@ -1,3 +1,10 @@
+# [0.1923.0](https://github.com/lightdash/lightdash/compare/0.1922.0...0.1923.0) (2025-08-15)
+
+
+### Features
+
+* AI Agent limitations transparency ([#16348](https://github.com/lightdash/lightdash/issues/16348)) ([e8c0a24](https://github.com/lightdash/lightdash/commit/e8c0a24b75b3ce9b134d3a125b7548f5a8c6dff4)), closes [#16250](https://github.com/lightdash/lightdash/issues/16250)
+
 # [0.1922.0](https://github.com/lightdash/lightdash/compare/0.1921.0...0.1922.0) (2025-08-15)
 
 
