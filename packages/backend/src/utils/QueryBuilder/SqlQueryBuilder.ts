@@ -9,7 +9,7 @@ import {
     WeekDay,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { replaceParameters } from './parameters';
+import { safeReplaceParameters } from './parameters';
 import {
     extractOuterLimitOffsetFromSQL,
     removeCommentsAndOuterLimitOffset,
@@ -201,12 +201,12 @@ export class SqlQueryBuilder {
             .join('\n');
 
         const { replacedSql, references, missingReferences } =
-            replaceParameters(
+            safeReplaceParameters({
                 sql,
-                this.parameters ?? {},
-                this.config.escapeString,
-                this.config.stringQuoteChar,
-            );
+                parameterValuesMap: this.parameters ?? {},
+                escapeString: this.config.escapeString,
+                quoteChar: this.config.stringQuoteChar,
+            });
 
         // Filter parameters to only include those that are referenced in the query
         const usedParameters: ParametersValuesMap = Object.fromEntries(
