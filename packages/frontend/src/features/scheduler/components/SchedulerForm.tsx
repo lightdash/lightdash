@@ -17,6 +17,7 @@ import {
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
+    type DashboardFilterRule,
     type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -101,7 +102,7 @@ const DEFAULT_VALUES = {
     emailTargets: [] as string[],
     slackTargets: [] as string[],
     msTeamsTargets: [] as string[],
-    filters: undefined,
+    filters: [] as DashboardFilterRule[],
     parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: undefined,
@@ -557,7 +558,12 @@ const SchedulerForm: FC<Props> = ({
                     </Tabs.Tab>
                     {isDashboard && dashboard ? (
                         <>
-                            <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                            <Tabs.Tab value="filters">{`Filters ${
+                                form.values.filters &&
+                                form.values.filters.length > 0
+                                    ? `(${form.values.filters.length})`
+                                    : ''
+                            }`}</Tabs.Tab>
                             <Tabs.Tab value="parameters">Parameters</Tabs.Tab>
                         </>
                     ) : null}
@@ -1212,7 +1218,14 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Panel value="filters" p="md">
                             <SchedulerFilters
                                 dashboard={dashboard}
-                                schedulerFilters={form.values.filters}
+                                draftFilters={form.values.filters}
+                                isEditMode={savedSchedulerData !== undefined}
+                                savedFilters={
+                                    savedSchedulerData &&
+                                    'filters' in savedSchedulerData
+                                        ? savedSchedulerData.filters
+                                        : []
+                                }
                                 onChange={(schedulerFilters) => {
                                     form.setFieldValue(
                                         'filters',

@@ -114,4 +114,5 @@ export type DashboardContextType = {
     toggleParameterPin: (parameterKey: string) => void;
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
+    tileNamesById: Record<string, string>;
 };

@@ -124,14 +124,10 @@ export const isDashboardScheduler = (
     scheduler: Scheduler | CreateSchedulerAndTargets,
 ): scheduler is DashboardScheduler => scheduler.dashboardUuid !== undefined;
 
-export type SchedulerFilterRule = DashboardFilterRule & {
-    tileTargets: undefined;
-};
-
 export type DashboardScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: string;
-    filters?: SchedulerFilterRule[];
+    filters?: DashboardFilterRule[];
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs?: string[];

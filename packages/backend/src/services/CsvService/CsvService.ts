@@ -5,6 +5,7 @@ import {
     ApiSqlQueryResults,
     applyDimensionOverrides,
     CustomSqlQueryForbiddenError,
+    DashboardFilterRule,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -40,7 +41,6 @@ import {
     QueryExecutionContext,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
-    SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
     type RunQueryTags,
@@ -889,7 +889,7 @@ export class CsvService extends BaseService {
         dashboardUuid: string;
         options: SchedulerCsvOptions | undefined;
         jobId?: string;
-        schedulerFilters?: SchedulerFilterRule[];
+        schedulerFilters?: DashboardFilterRule[];
         selectedTabs?: string[] | undefined;
         overrideDashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
@@ -901,7 +901,6 @@ export class CsvService extends BaseService {
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
 
         if (schedulerFilters) {
-            // Scheduler filters can only override existing filters from the dashboard
             dashboardFilters.dimensions = applyDimensionOverrides(
                 dashboard.filters,
                 schedulerFilters,
