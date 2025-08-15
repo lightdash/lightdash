@@ -860,16 +860,38 @@ export class MetricQueryBuilder {
                         metricObject.table,
                     );
                     metricReferences.forEach((metricReference) => {
-                        acc.push(
-                            getMetricFromId(
+                        const isInMetricsObjects = metricsObjects.some(
+                            (metric) =>
+                                getItemId(metric) ===
                                 getItemId({
                                     table: metricReference.refTable,
                                     name: metricReference.refName,
                                 }),
-                                explore,
-                                compiledMetricQuery,
-                            ),
                         );
+                        const isInReferencedMetricObjects = acc.some(
+                            (metric) =>
+                                getItemId(metric) ===
+                                getItemId({
+                                    table: metricReference.refTable,
+                                    name: metricReference.refName,
+                                }),
+                        );
+                        // Only add if doesn't exist in metricsObjects or referencedMetricObjects
+                        if (
+                            !isInMetricsObjects &&
+                            !isInReferencedMetricObjects
+                        ) {
+                            acc.push(
+                                getMetricFromId(
+                                    getItemId({
+                                        table: metricReference.refTable,
+                                        name: metricReference.refName,
+                                    }),
+                                    explore,
+                                    compiledMetricQuery,
+                                ),
+                            );
+                        }
                     });
                 }
                 return acc;
