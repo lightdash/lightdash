@@ -1,3 +1,10 @@
+## [0.1923.1](https://github.com/lightdash/lightdash/compare/0.1923.0...0.1923.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* Revert "refactor: move Slack client functionality to service layer" ([#16432](https://github.com/lightdash/lightdash/issues/16432)) ([5ae3d75](https://github.com/lightdash/lightdash/commit/5ae3d7553f85755d206d5ba6106fa4e053ba87a7))
+
 # [0.1923.0](https://github.com/lightdash/lightdash/compare/0.1922.0...0.1923.0) (2025-08-15)
 
 
