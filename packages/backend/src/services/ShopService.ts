@@ -1,10 +1,10 @@
-import { AlreadyExistsError, NotFoundError, OrganizationMemberRole, ParameterError, SessionUser } from '@lightdash/common';
+import { AlreadyExistsError, NotFoundError, ParameterError, SessionUser } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { DbShop, ShopTableName } from '../database/entities/shopifyShop';
-import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { DbConnection } from '../database/entities/connections';
 
 
 const SITE_URL = process.env.SITE_URL; // e.g. 'https://shopify-gdpr-webhooks-969022814225.us-central1.run.app'
@@ -129,7 +129,7 @@ export class ShopService {
         return result.user_id;
     }
 
-    async setupUserForShop(shop: DbShop, user: SessionUser, orgId = 1): Promise<void> {
+    async setupUserForShop(shop: DbConnection, user: SessionUser, orgId = 1): Promise<void> {
         if (!shop.shop_url) {
             throw new ParameterError('Shop must have a URL');
         }
@@ -162,7 +162,7 @@ export class ShopService {
                 'Auto-created attribute',
             );
 
-            const shop_name = shop.shop_url.replace('.myshopify.com', '');
+            const shop_name = shop.shop_url ? shop.shop_url.replace('.myshopify.com', '') : '';
 
             await trx('organization_member_user_attributes').insert({
                 user_id,
@@ -171,7 +171,7 @@ export class ShopService {
                 value: shop_name,
             });
 
-            await this.linkUserToShop(shop.shop_url, user.userUuid, trx);
+            await this.linkUserToShop(shop.shop_url || '', user.userUuid, trx);
         });
     }
 

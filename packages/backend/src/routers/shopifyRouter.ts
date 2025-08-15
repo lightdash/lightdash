@@ -4,7 +4,9 @@ import { Request, Response } from 'express';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { normalizeShopDomain, generateAuthUrl } from '../utils/ShopifyUtils';
-import { runShopifyDataIngestion } from '../services/ShopifyDataIngestion';
+import { runDataIngestion } from '../services/ShopifyDataIngestion';
+import { ConnectionType } from '@lightdash/common';
+
 
 // /auth/shopify/start
 export const shopifyInstallRedirect = (req: Request, res: Response): void => {
@@ -63,22 +65,17 @@ export const shopifyAuthCallback = async (req: Request, res: Response) => {
 
         const isCurrentUser = req.user?.userUuid ? true : false;
 
-        const { shop_, isNew } = await shopService.createOrUpdate({
-            shop_uuid: uuidv4(),
+        const connectionService = req.services.getConnectionsService();
+
+        const [shop_, isNew] = await connectionService.createOrUpdate({
+            connection_uuid: uuidv4(),
+            type: ConnectionType.SHOPIFY,
+            user_uuid: req.user?.userUuid || null,
             shop_url: normalizedShop,
             access_token: data.access_token,
-            user_uuid: req.user?.userUuid || null,
-            is_first_login: true,
-            is_uninstalled: false,
-            is_beta: false,
-            subscription_id: null,
-            subscription_period_start: new Date(),
-            subscription_period_end: null,
-            name: '',
-            domains: null,
         });
 
-        runShopifyDataIngestion({ shopUrl: normalizedShop, accessToken: data.access_token });
+        runDataIngestion({ airbyteSource: 'source-shopify', shopUrl: normalizedShop, accessToken: data.access_token, userId: req.user?.userId });
 
 
         // TODO: May not want to run every time. This may run on every login

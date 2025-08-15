@@ -1,6 +1,5 @@
 import {
     ApiErrorPayload,
-    ApiSuccessEmpty,
     Connection,
     ConnectionType,
 } from '@lightdash/common';
@@ -21,26 +20,19 @@ import {
     isAuthenticated,
 } from './authentication';
 import { BaseController } from './baseController';
+import { DbConnection } from '../database/entities/connections';
 
 type ConnApiSuccess<T> = {
     status: 'ok';
     results: T;
 };
 
-
-
-const integrations = [
-    { name: ConnectionType.SHOPIFY, icon: '/logos/shopify.svg' },
-    { name: ConnectionType.GOOGLE_ANALYTICS, icon: '/logos/google-analytics.svg' },
-    // { name: ConnectionType.META_ADS, icon: '/logos/meta-ads.svg' },
-    // { name: ConnectionType.GOOGLE_ADS, icon: '/logos/google-ads.svg' },
-    // { name: ConnectionType.POSTHOG, icon: '/logos/posthog.svg' },
-];
-
-const integrationIconMap = integrations.reduce<Record<string, string>>((acc, curr) => {
-    acc[curr.name] = curr.icon;
-    return acc;
-}, {});
+export const mapDbConnectionToConnection = (row: DbConnection): Connection => ({
+  connectionUuid: row.connection_uuid,
+  type: row.type as ConnectionType,
+  userUuid: row.user_uuid,
+  shopUrl: row.shop_url,
+});
 
 
 @Route('/api/v1/connections')
@@ -58,30 +50,11 @@ export class ConnectionsController extends BaseController {
     async getConnections(
         @Request() req: express.Request,
     ): Promise<ConnApiSuccess<Connection[]>> {
-        const shopService = req.services.getShopService();
-        const connections: Connection[] = [];
 
-        // Check Shopify connection
-        const shop = await shopService.getShopByUserUuid(req.user!.userUuid);
-        connections.push({
-            connection_type: ConnectionType.SHOPIFY,
-            user_uuid: req.user!.userUuid,
-            name: shop ? shop.shop_url : '',
-            is_connected: shop && !shop.is_uninstalled && !!shop.access_token ? true : false,
-            icon: integrationIconMap[ConnectionType.SHOPIFY],
-        });
+        const connectionsService = req.services.getConnectionsService();
+        const connectionsInDb: DbConnection[] = await connectionsService.getConnectionsByUserUuid(req.user!.userUuid);
+        const connections: Connection[] = connectionsInDb.map((row) => mapDbConnectionToConnection(row));
 
-
-        // TODO: Add Google Analytics connection check here
-        // const googleAnalyticsService = req.services.getGoogleAnalyticsService();
-        const gaConnection = false;
-        connections.push({
-            connection_type: ConnectionType.GOOGLE_ANALYTICS,
-            user_uuid: req.user!.userUuid,
-            name: '',
-            is_connected: false,
-            icon: integrationIconMap[ConnectionType.GOOGLE_ANALYTICS],
-        });
 
         this.setStatus(200);
         return {

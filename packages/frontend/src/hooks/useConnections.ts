@@ -1,7 +1,7 @@
   import { useQuery } from '@tanstack/react-query';
   import { lightdashApi } from '../api';
   import useUser from './user/useUser';
-  import { Connection} from '@lightdash/common';
+  import { Connection } from '@lightdash/common';
 
 
   const getConnections = async (): Promise<Connection[]> => {

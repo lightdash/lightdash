@@ -1,0 +1,11 @@
+options:
+  machineType: 'E2_HIGHCPU_8'  # or E2_HIGHMEM_8 for more memory
+  diskSizeGb: '100'
+
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  env:
+  - 'DOCKER_BUILDKIT=1'
+  args: ['build', '-f', 'dockerfile', '-t', 'gcr.io/shopifyanalytics-448415/lightdash-custom:latest', '.']
+images:
+- 'gcr.io/shopifyanalytics-448415/lightdash-custom:latest'

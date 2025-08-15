@@ -17,7 +17,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { BaseController } from './baseController';
-import { runShopifyDataIngestion } from '../services/ShopifyDataIngestion';
+import { runDataIngestion } from '../services/ShopifyDataIngestion';
 
 @Route('/api/v1/auth/shopify')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -54,9 +54,12 @@ export class ShopifyAuthController extends BaseController {
             console.log(`Found shop: ${JSON.stringify(shop)}`);
             await shopService.setupUserForShop(shop, user);
             console.log(`User ${userUuid} setup for shop ${shopUrl}`);
-            runShopifyDataIngestion({
+            runDataIngestion({
+                airbyteSource: 'source-shopify',
                 shopUrl,
                 accessToken: shop.access_token,
+                userId: user.userId
+
             });
             console.log(`Started data ingestion for shop ${shopUrl}`);
 
@@ -85,6 +88,8 @@ export class ShopifyAuthController extends BaseController {
             const shopService = req.services.getShopService();
 
             const shop = await shopService.getByShopUrl(shopUrl);
+            const user = req.user;
+            
             console.log(`Found shop: ${JSON.stringify(shop)}`);
 
             if (!shop) {
@@ -92,7 +97,7 @@ export class ShopifyAuthController extends BaseController {
             }
 
             console.log(`Starting data ingestion for shop ${shopUrl}`);
-            runShopifyDataIngestion({ shopUrl, accessToken: shop.access_token });
+            runDataIngestion({ airbyteSource: 'source-shopify', shopUrl, accessToken: shop.access_token, userId: user?.userId });
             console.log(`Started data ingestion for shop ${shopUrl}`);
 
             return { status: 'ok', results: undefined };

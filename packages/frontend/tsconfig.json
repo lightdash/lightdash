@@ -33,6 +33,6 @@
     "include": [
         "./src",
         "./sdk/index.tsx",
-        "./vite-env.d.ts",
+        "./vite-env.d.ts", "../common/src/connectors_registry.ts",
     ],
 }

@@ -3,6 +3,8 @@
 import { Request, Response } from 'express';
 import { google } from 'googleapis';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { ConnectionType } from '@lightdash/common';
+import { runDataIngestion } from '../services/ShopifyDataIngestion';
 // import { runGoogleAnalyticsIngestion } from '../services/GoogleAnalyticsIngestion';
 
 const oauth2Client = new google.auth.OAuth2(
@@ -23,47 +25,31 @@ export const googleAnalyticsAuthStart = (req: Request, res: Response) => {
     res.redirect(url);
 };
 
-// STEP 2: Handle OAuth callback
+
 export const googleAnalyticsAuthCallback = async (req: Request, res: Response) => {
     const { code, state } = req.query;
     if (!code) return res.status(400).send('Missing code');
 
     try {
         const { tokens } = await oauth2Client.getToken(code.toString());
-
         if (!tokens.access_token) {
             return res.status(401).send('OAuth token exchange failed.');
         }
-
         oauth2Client.setCredentials(tokens);
 
-        const analytics = google.analyticsadmin({ version: 'v1', auth: oauth2Client });
-        const accountsRes = await analytics.accounts.list();
-
-        const accounts = accountsRes.data.accounts || [];
-
-        if (!accounts.length) {
-            return res.status(400).send('No GA accounts found.');
-        }
-
-        // Store account info and token in your DB
-        const connectionService = req.services.getConnectionService();
-
+                // Step 3: Save connection
+        const connectionService = req.services.getConnectionsService();
         await connectionService.createOrUpdate({
-            user_uuid: req.user?.userUuid || state || null,
-            type: 'GOOGLE_ANALYTICS',
+            user_uuid: req.user?.userUuid || null,
+            type: ConnectionType.GOOGLE_ANALYTICS,
+            property_id: null, // Store numeric ID
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
             expires_at: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
-            metadata: {
-                accounts,
-            },
         });
 
-        // Optional: kick off ingestion
-        await runGoogleAnalyticsIngestion(tokens.access_token);
+        return res.redirect('/connections/ga/select');
 
-        return res.redirect('/');
     } catch (e: any) {
         console.error('Google Analytics OAuth error:', e);
         return res.status(500).send(`OAuth error: ${e.message}`);

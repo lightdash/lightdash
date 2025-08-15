@@ -1,13 +1,22 @@
 import { GoogleAuth } from 'google-auth-library';
 
-export const runShopifyDataIngestion = async ({
+export const runDataIngestion = async ({
     shopUrl,
     tables,
     accessToken,
+    refreshToken,
+    userId,
+    propertyId,
+    airbyteSource = 'source-shopify',
 }: {
-    shopUrl: string;
+    airbyteSource: string;
+    shopUrl?: string;
     tables?: string[];
     accessToken?: string;
+    refreshToken?: string;
+    userId?: Number;
+    propertyId?: string | null;
+    
 }): Promise<string> => {
     const projectId = process.env.GCP_PROJECT_ID || 'shopifyanalytics-448415';
     const region = process.env.CLOUD_RUN_REGION || 'us-central1';
@@ -28,6 +37,19 @@ export const runShopifyDataIngestion = async ({
 
     if (accessToken) {
         args.push(`--access_token=${accessToken}`);
+    }
+    if (userId) {
+        args.push(`--user_id=${userId}`);
+    }
+
+    if (propertyId) {
+        args.push(`--property_id=${propertyId}`);
+    }
+    if (airbyteSource) {
+        args.push(`--airbyte_source=${airbyteSource}`);
+    }
+    if (refreshToken) {
+        args.push(`--refresh_token=${refreshToken}`);
     }
 
     const auth = new GoogleAuth({

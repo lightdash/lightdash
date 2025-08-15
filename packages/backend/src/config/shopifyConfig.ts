@@ -5,16 +5,20 @@ export type ShopifyAuthConfig = {
     apiSecret: string;
     scopes: string;
     redirectUri: string;
+    oauthStart: string;
+    ingestEndpoint: string;
 };
 
 export const parseShopifyConfig = (): ShopifyAuthConfig => {
+    const siteUrl = process.env.VITE_SITE_URL || '';
     const apiKey = process.env.SHOPIFY_API_KEY || '';
     const apiSecret = process.env.SHOPIFY_API_SECRET || '';
     const scopes = process.env.SHOPIFY_SCOPES || 'read_orders,read_products';
-    const redirectUri = process.env.SHOPIFY_REDIRECT_URI || '';
-  //  const redirectFrontend = process.env.SHOPIFY_REDIRECT_FRONTEND;
+    const redirectUri = `${siteUrl}/api/v1/auth/shopify/callback`;
+    const oauthStart = `${siteUrl}/api/v1/auth/shopify/start`;
+    const ingestEndpoint = `${siteUrl}/auth/shopify/refresh`;
 
-    if (!apiKey || !apiSecret || !redirectUri ) {
+    if (!apiKey || !apiSecret ) {
         throw new ParseError('Missing required Shopify config environment variables');
     }
 
@@ -23,6 +27,7 @@ export const parseShopifyConfig = (): ShopifyAuthConfig => {
         apiSecret,
         scopes,
         redirectUri,
-     //   redirectFrontend,
+        oauthStart,
+        ingestEndpoint,
     };
 };

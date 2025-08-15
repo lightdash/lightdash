@@ -1,12 +1,12 @@
 export enum ConnectionType {
-    SHOPIFY = 'Shopify',
-    GOOGLE_ANALYTICS = 'Google Analytics',
+    SHOPIFY = 'shopify',
+    GOOGLE_ANALYTICS = 'ga',
 }
 
 export interface Connection {
-    connection_type: ConnectionType;
-    user_uuid: string;
-    name: string;
-    is_connected: boolean;
-    icon?: string; // Optional icon URL for the connection
+    connectionUuid: string;
+    type: ConnectionType;
+    userUuid: string | null;
+    propertyId?: string | null; // e.g., for Google Analytics
+    shopUrl?: string | null; // e.g., for Shopify
 }
