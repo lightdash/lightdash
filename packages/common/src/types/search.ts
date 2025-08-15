@@ -33,6 +33,7 @@ export type DashboardSearchResult = Pick<
         userUuid: string;
     } | null;
     charts: {
+        uuid: string;
         name: string;
         description?: string;
         chartType: ChartKind;
