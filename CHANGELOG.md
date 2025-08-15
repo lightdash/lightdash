@@ -1,3 +1,15 @@
+# [0.1925.0](https://github.com/lightdash/lightdash/compare/0.1924.0...0.1925.0) (2025-08-15)
+
+
+### Bug Fixes
+
+* Revert "feat: make frontend and backend ports configurable via environment va…" ([#16446](https://github.com/lightdash/lightdash/issues/16446)) ([0602b05](https://github.com/lightdash/lightdash/commit/0602b0508cea81c9322035cfab4a5b15f2e14735))
+
+
+### Features
+
+* enable 'viewUnderlyingData' for iframe and SDK embeds ([#16208](https://github.com/lightdash/lightdash/issues/16208)) ([56a9d95](https://github.com/lightdash/lightdash/commit/56a9d95a21dc025e88245aca6c0876ce917d2df5))
+
 # [0.1924.0](https://github.com/lightdash/lightdash/compare/0.1923.1...0.1924.0) (2025-08-15)
 
 
