@@ -116,6 +116,8 @@ const schedulerWorkerFactory = (context: {
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
+        // SlackClient should initialize before UnfurlService and AiAgentService
+        slackClient: context.clients.getSlackClient(),
         unfurlService: context.serviceRepository.getUnfurlService(),
         csvService: context.serviceRepository.getCsvService(),
         dashboardService: context.serviceRepository.getDashboardService(),
@@ -127,25 +129,11 @@ const schedulerWorkerFactory = (context: {
         googleDriveClient: context.clients.getGoogleDriveClient(),
         s3Client: context.clients.getS3Client(),
         schedulerClient: context.clients.getSchedulerClient(),
-        slackClient: context.clients.getSlackClient(),
         msTeamsClient: context.clients.getMsTeamsClient(),
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),
         renameService: context.serviceRepository.getRenameService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
-    });
-
-const slackClientFactory = (context: {
-    lightdashConfig: LightdashConfig;
-    analytics: LightdashAnalytics;
-    serviceRepository: ServiceRepository;
-    models: ModelRepository;
-    clients: ClientRepository;
-}) =>
-    new SlackClient({
-        lightdashConfig: context.lightdashConfig,
-        slackAuthenticationModel: context.models.getSlackAuthenticationModel(),
-        analytics: context.analytics,
     });
 
 export type AppArguments = {
@@ -786,6 +774,9 @@ export default class App {
     private async initSlack(expressApp: Express) {
         const slackClient = this.clients.getSlackClient();
         await slackClient.start(expressApp);
+
+        const slackService = this.serviceRepository.getSlackService();
+        slackService.setupEventListeners();
     }
 
     private initSchedulerWorker() {

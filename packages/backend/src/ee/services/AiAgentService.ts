@@ -162,8 +162,6 @@ export class AiAgentService {
 
     private readonly searchModel: SearchModel;
 
-    private readonly spaceModel: SpaceModel;
-
     private readonly userModel: UserModel;
 
     private readonly spaceService: SpaceService;
@@ -174,7 +172,6 @@ export class AiAgentService {
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
         this.searchModel = dependencies.searchModel;
-        this.spaceModel = dependencies.spaceModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.groupsModel = dependencies.groupsModel;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -186,46 +183,6 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
-
-        this.initSlackListeners();
-    }
-
-    private initSlackListeners() {
-        if (!this.lightdashConfig.ai.copilot.enabled) return;
-
-        if (this.slackClient.isReady()) {
-            const slackApp = this.slackClient.getApp();
-            if (slackApp) {
-                this.registerSlackEventHandlers(slackApp);
-            }
-        } else {
-            this.slackClient.once('slackAppReady', (slackApp: App) => {
-                this.registerSlackEventHandlers(slackApp);
-            });
-        }
-    }
-
-    private registerSlackEventHandlers(slackApp: App) {
-        try {
-            slackApp.event(
-                'app_mention',
-                (
-                    m: SlackEventMiddlewareArgs<'app_mention'> &
-                        AllMiddlewareArgs,
-                ) => this.handleAppMention(m),
-            );
-            this.handlePromptUpvote(slackApp);
-            this.handlePromptDownvote(slackApp);
-            AiAgentService.handleClickExploreButton(slackApp);
-            AiAgentService.handleClickOAuthButton(slackApp);
-            this.handleExecuteFollowUpTool(slackApp);
-            Logger.info('AiAgentService: Slack event listeners registered');
-        } catch (error) {
-            Logger.error(
-                'AiAgentService: Failed to register Slack listeners:',
-                error,
-            );
-        }
     }
 
     private async getIsCopilotEnabled(
@@ -2411,13 +2368,15 @@ export class AiAgentService {
     }
 
     // TODO: remove this once we have analytics tracking
-    static handleClickExploreButton(app: App) {
+    // eslint-disable-next-line class-methods-use-this
+    public handleClickExploreButton(app: App) {
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
             await ack();
         });
     }
 
-    static handleClickOAuthButton(app: App) {
+    // eslint-disable-next-line class-methods-use-this
+    public handleClickOAuthButton(app: App) {
         app.action(
             'actions.oauth_button_click',
             async ({ ack, body, respond }) => {
@@ -2441,7 +2400,7 @@ export class AiAgentService {
         );
     }
 
-    private handlePromptUpvote(app: App) {
+    public handlePromptUpvote(app: App) {
         app.action(
             'prompt_human_score.upvote',
             async ({ ack, body, respond, context }) => {
@@ -2494,7 +2453,7 @@ export class AiAgentService {
         );
     }
 
-    private handlePromptDownvote(app: App) {
+    public handlePromptDownvote(app: App) {
         app.action(
             'prompt_human_score.downvote',
             async ({ ack, body, respond, context }) => {
@@ -2548,7 +2507,8 @@ export class AiAgentService {
         );
     }
 
-    private handleExecuteFollowUpTool(app: App) {
+    // eslint-disable-next-line class-methods-use-this
+    public handleExecuteFollowUpTool(app: App) {
         Object.values(FollowUpTools).forEach((tool) => {
             app.action(
                 `execute_follow_up_tool.${tool}`,
@@ -2723,7 +2683,7 @@ export class AiAgentService {
     }
 
     // WARNING: Needs - channels:history scope for all slack apps
-    private async handleAppMention({
+    public async handleAppMention({
         event,
         context,
         say,

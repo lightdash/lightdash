@@ -28,6 +28,7 @@ import { McpService } from './services/McpService/McpService';
 import { RolesService } from './services/RolesService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
+import { CommercialSlackService } from './services/SlackService/SlackService';
 import { SupportService } from './services/SupportService/SupportService';
 
 type EnterpriseAppArguments = Pick<
@@ -269,6 +270,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     mcpContextModel: models.getMcpContextModel(),
                     projectModel: models.getProjectModel(),
                 }),
+            slackService: ({ repository, clients }) =>
+                new CommercialSlackService({
+                    slackClient: clients.getSlackClient(),
+                    unfurlService: repository.getUnfurlService(),
+                    aiAgentService: repository.getAiAgentService(),
+                }),
         },
         modelProviders: {
             aiAgentModel: ({ database }) => new AiAgentModel({ database }),
@@ -297,6 +304,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             new CommercialSchedulerWorker({
                 lightdashConfig: context.lightdashConfig,
                 analytics: context.analytics,
+                slackClient: context.clients.getSlackClient(),
                 unfurlService: context.serviceRepository.getUnfurlService(),
                 csvService: context.serviceRepository.getCsvService(),
                 dashboardService:
@@ -311,7 +319,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 googleDriveClient: context.clients.getGoogleDriveClient(),
                 s3Client: context.clients.getS3Client(),
                 schedulerClient: context.clients.getSchedulerClient(),
-                slackClient: context.clients.getSlackClient(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
