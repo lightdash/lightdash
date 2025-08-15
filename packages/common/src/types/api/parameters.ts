@@ -6,8 +6,9 @@ export type ApiGetProjectParametersResults = ParameterDefinitions;
 
 export type ProjectParameterSummary = {
     name: string;
-    createdAt: Date;
     config: LightdashProjectParameter;
+    source: 'config' | 'model';
+    modelName?: string;
 };
 
 export type ApiGetProjectParametersListResults = KnexPaginatedData<
