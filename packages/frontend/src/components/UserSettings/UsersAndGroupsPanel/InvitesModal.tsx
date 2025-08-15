@@ -6,7 +6,6 @@ import {
 import {
     Button,
     Group,
-    MantineProvider,
     Modal,
     Select,
     TextInput,
@@ -17,7 +16,6 @@ import { IconUser } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { z } from 'zod';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
-import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import useApp from '../../../providers/App/useApp';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -63,78 +61,73 @@ const InvitesModal: FC<{
     };
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <Modal
-                opened={opened}
-                onClose={onClose}
-                title={
-                    <Group gap="xs">
-                        <MantineIcon size="lg" icon={IconUser} />
-                        <Title order={4}>Add user</Title>
-                    </Group>
-                }
-                size="lg"
+        <Modal
+            opened={opened}
+            onClose={onClose}
+            title={
+                <Group gap="xs">
+                    <MantineIcon size="lg" icon={IconUser} />
+                    <Title order={4}>Add user</Title>
+                </Group>
+            }
+            size="lg"
+        >
+            <TrackPage
+                name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                type={PageType.MODAL}
+                category={CategoryName.SETTINGS}
             >
-                <TrackPage
-                    name={PageName.INVITE_MANAGEMENT_SETTINGS}
-                    type={PageType.MODAL}
-                    category={CategoryName.SETTINGS}
+                <form
+                    name="invite_user"
+                    onSubmit={form.onSubmit((values: SendInviteFormProps) =>
+                        handleSubmit(values),
+                    )}
                 >
-                    <form
-                        name="invite_user"
-                        onSubmit={form.onSubmit((values: SendInviteFormProps) =>
-                            handleSubmit(values),
-                        )}
-                    >
-                        <Group gap="xs" align="start" wrap="nowrap">
-                            <TextInput
-                                name="email"
-                                label="Enter user email address"
-                                placeholder="example@gmail.com"
-                                required
-                                disabled={isLoading}
-                                style={{ flex: 1 }}
-                                {...form.getInputProps('email')}
-                            />
-                            {user.data?.ability?.can(
-                                'manage',
-                                'Organization',
-                            ) && (
-                                <Select
-                                    data={Object.values(
-                                        OrganizationMemberRole,
-                                    ).map((orgMemberRole) => ({
+                    <Group gap="xs" align="start" wrap="nowrap">
+                        <TextInput
+                            name="email"
+                            label="Enter user email address"
+                            placeholder="example@gmail.com"
+                            required
+                            disabled={isLoading}
+                            style={{ flex: 1 }}
+                            {...form.getInputProps('email')}
+                        />
+                        {user.data?.ability?.can('manage', 'Organization') && (
+                            <Select
+                                data={Object.values(OrganizationMemberRole).map(
+                                    (orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
-                                    }))}
-                                    disabled={isLoading}
-                                    required
-                                    placeholder="Select role"
-                                    comboboxProps={{
-                                        position: 'bottom',
-                                        withinPortal: true,
-                                    }}
-                                    style={{ marginTop: 20, width: 180 }}
-                                    {...form.getInputProps('role')}
-                                />
-                            )}
-                            <Button
+                                    }),
+                                )}
                                 disabled={isLoading}
-                                type="submit"
-                                style={{ marginTop: 20 }}
-                            >
-                                {health.data?.hasEmailClient
-                                    ? 'Send invite'
-                                    : 'Generate invite'}
-                            </Button>
-                        </Group>
-                    </form>
-                    {inviteLink && (
-                        <InviteSuccess invite={inviteLink} hasMarginTop />
-                    )}
-                </TrackPage>
-            </Modal>
-        </MantineProvider>
+                                required
+                                placeholder="Select role"
+                                comboboxProps={{
+                                    position: 'bottom',
+                                    withinPortal: true,
+                                }}
+                                style={{ marginTop: 20, width: 180 }}
+                                {...form.getInputProps('role')}
+                            />
+                        )}
+                        <Button
+                            disabled={isLoading}
+                            type="submit"
+                            style={{ marginTop: 20 }}
+                        >
+                            {health.data?.hasEmailClient
+                                ? 'Send invite'
+                                : 'Generate invite'}
+                        </Button>
+                    </Group>
+                </form>
+                {inviteLink && (
+                    <InviteSuccess invite={inviteLink} hasMarginTop />
+                )}
+            </TrackPage>
+        </Modal>
     );
 };
 

@@ -1,10 +1,4 @@
-import {
-    Box,
-    MantineProvider,
-    Tree as MantineTree,
-    rem,
-    useTree,
-} from '@mantine-8/core';
+import { Box, Tree as MantineTree, rem, useTree } from '@mantine-8/core';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
@@ -102,76 +96,74 @@ const Tree: React.FC<Props> = ({
     }, [withRootSelectable, tree]);
 
     return (
-        <MantineProvider>
-            <Box px="sm" py="xs">
-                <TreeItem
-                    withRootSelectable={withRootSelectable}
-                    selected={!value}
-                    label={topLevelLabel}
-                    isRoot={true}
-                    onClick={handleSelectTopLevel}
+        <Box px="sm" py="xs">
+            <TreeItem
+                withRootSelectable={withRootSelectable}
+                selected={!value}
+                label={topLevelLabel}
+                isRoot={true}
+                onClick={handleSelectTopLevel}
+            />
+
+            <Box ml={rem(6)} pl={rem(13.5)}>
+                <MantineTree
+                    data={treeData}
+                    tree={tree}
+                    levelOffset={rem(23)}
+                    renderNode={({
+                        node,
+                        selected,
+                        expanded,
+                        hasChildren,
+                        elementProps,
+                        tree: nTree,
+                    }) => {
+                        const nodeItem = data.find(
+                            (i) => i.path === node.value,
+                        );
+
+                        if (!nodeItem) {
+                            throw new Error(
+                                `Item with uuid ${node.value} not found`,
+                            );
+                        }
+
+                        const highlights =
+                            '_fuzzyMatches' in nodeItem
+                                ? nodeItem._fuzzyMatches
+                                : [];
+
+                        return (
+                            <div {...elementProps}>
+                                <TreeItem
+                                    expanded={expanded}
+                                    selected={selected}
+                                    label={node.label}
+                                    matchHighlights={highlights}
+                                    hasChildren={hasChildren}
+                                    onClick={() =>
+                                        nTree.toggleSelected(node.value)
+                                    }
+                                    onClickExpand={() =>
+                                        nTree.toggleExpanded(node.value)
+                                    }
+                                />
+                            </div>
+                        );
+                    }}
+                    allowRangeSelection={false}
+                    checkOnSpace={false}
+                    clearSelectionOnOutsideClick={false}
+                    expandOnClick={false}
+                    expandOnSpace={false}
+                    selectOnClick={false}
+                    classNames={{
+                        node: classes.node,
+                        label: classes.label,
+                    }}
                 />
-
-                <Box ml={rem(6)} pl={rem(13.5)}>
-                    <MantineTree
-                        data={treeData}
-                        tree={tree}
-                        levelOffset={rem(23)}
-                        renderNode={({
-                            node,
-                            selected,
-                            expanded,
-                            hasChildren,
-                            elementProps,
-                            tree: nTree,
-                        }) => {
-                            const nodeItem = data.find(
-                                (i) => i.path === node.value,
-                            );
-
-                            if (!nodeItem) {
-                                throw new Error(
-                                    `Item with uuid ${node.value} not found`,
-                                );
-                            }
-
-                            const highlights =
-                                '_fuzzyMatches' in nodeItem
-                                    ? nodeItem._fuzzyMatches
-                                    : [];
-
-                            return (
-                                <div {...elementProps}>
-                                    <TreeItem
-                                        expanded={expanded}
-                                        selected={selected}
-                                        label={node.label}
-                                        matchHighlights={highlights}
-                                        hasChildren={hasChildren}
-                                        onClick={() =>
-                                            nTree.toggleSelected(node.value)
-                                        }
-                                        onClickExpand={() =>
-                                            nTree.toggleExpanded(node.value)
-                                        }
-                                    />
-                                </div>
-                            );
-                        }}
-                        allowRangeSelection={false}
-                        checkOnSpace={false}
-                        clearSelectionOnOutsideClick={false}
-                        expandOnClick={false}
-                        expandOnSpace={false}
-                        selectOnClick={false}
-                        classNames={{
-                            node: classes.node,
-                            label: classes.label,
-                        }}
-                    />
-                </Box>
             </Box>
-        </MantineProvider>
+        </Box>
     );
 };
 

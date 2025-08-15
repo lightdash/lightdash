@@ -4,7 +4,6 @@ import {
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { MantineProvider } from '@mantine-8/core';
 import { Box, Button, Flex, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
@@ -35,7 +34,6 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import { useSpaceSummaries } from '../hooks/useSpaces';
-import { getMantine8ThemeOverride } from '../mantine8Theme';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -579,7 +577,7 @@ const Dashboard: FC = () => {
     }
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
+        <>
             {blocker.state === 'blocked' && (
                 <Modal
                     opened
@@ -796,7 +794,7 @@ const Dashboard: FC = () => {
                     />
                 )}
             </Page>
-        </MantineProvider>
+        </>
     );
 };
 

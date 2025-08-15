@@ -8,15 +8,14 @@
 
 When creating/updating components:
 
-- [ ] Use `@mantine-8/core` imports
-- [ ] Wrap top level component with `MantineProvider` and pass the theme provider `getMantine8ThemeOverride()` to its prop: 'theme'
-- [ ] Follow Quick Migration Guide below and then make reasoning in section ###  When to Override Styles
-- [ ] Confirm you know the guidelines in section ### 1. Theme Extensions (For Repeated Patterns) and section ### 2. Context-Specific Overrides (for simple overrides)
-- [ ] No `style` or `styles` or `sx` props
-- [ ] Check Mantine docs/types for available component props
-- [ ] Use inline-style component props for styling when available (and follow <=3 props rule; if more than 3 props, use CSS modules)
-- [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
-- [ ] Theme values('md', 'lg', 'xl', or 'gray.1', 'gray.2', etc) instead of magic numbers
+-   [ ] Use `@mantine-8/core` imports
+-   [ ] Follow Quick Migration Guide below and then make reasoning in section ### When to Override Styles
+-   [ ] Confirm you know the guidelines in section ### 1. Theme Extensions (For Repeated Patterns) and section ### 2. Context-Specific Overrides (for simple overrides)
+-   [ ] No `style` or `styles` or `sx` props
+-   [ ] Check Mantine docs/types for available component props
+-   [ ] Use inline-style component props for styling when available (and follow <=3 props rule; if more than 3 props, use CSS modules)
+-   [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
+-   [ ] Theme values('md', 'lg', 'xl', or 'gray.1', 'gray.2', etc) instead of magic numbers
 
 ### Quick Migration Guide
 
@@ -25,27 +24,24 @@ When creating/updating components:
 import { Button, Group } from '@mantine/core';
 
 <Group spacing="xs" noWrap>
-    <Button sx={{mt: 20}}>Click</Button>
-</Group>
+    <Button sx={{ mt: 20 }}>Click</Button>
+</Group>;
 
 // ✅ Mantine 8
-import { Button, Group, MantineProvider } from '@mantine-8/core';
-import { getMantine8ThemeOverride } from '../../../mantine8Theme';
+import { Button, Group } from '@mantine-8/core';
 
-<MantineProvider theme={getMantine8ThemeOverride()}>
-    <Group gap="xs" wrap="nowrap">
-        <Button mt={20}>Click</Button>
-    </Group>
-</MantineProvider>
+<Group gap="xs" wrap="nowrap">
+    <Button mt={20}>Click</Button>
+</Group>;
 ```
 
 ### Key Prop Changes
 
-- `spacing` → `gap`
-- `noWrap` → `wrap="nowrap"`
-- `sx` → Component props (e.g., `mt`, `w`, `c`) or CSS modules if it's not possible to use component props. Also follow the best practices below in section ### When to Override Styles.
-- `leftIcon` → `leftSection`
-- `rightIcon` → `rightSection`
+-   `spacing` → `gap`
+-   `noWrap` → `wrap="nowrap"`
+-   `sx` → Component props (e.g., `mt`, `w`, `c`) or CSS modules if it's not possible to use component props. Also follow the best practices below in section ### When to Override Styles.
+-   `leftIcon` → `leftSection`
+-   `rightIcon` → `rightSection`
 
 ## Styling Best Practices
 
@@ -86,9 +82,9 @@ Only override styles when there's a clear contextual need:
 
 **❌ NEVER use:**
 
-- `styles` prop (always use CSS modules instead)
-- `sx` prop (it's a v6 prop)
-- `style` prop (inline styles)
+-   `styles` prop (always use CSS modules instead)
+-   `sx` prop (it's a v6 prop)
+-   `style` prop (inline styles)
 
 ### 1. Theme Extensions (For Repeated Patterns)
 
@@ -138,13 +134,13 @@ When hitting more than 3 props, use CSS modules instead.
 
 Common inline-style component props examples:
 
-- Layout: `mt`, `mb`, `ml`, `mr`, `m`, `p`, `pt`, `pb`, `pl`, `pr`
-- Sizing: `w`, `h`, `maw`, `mah`, `miw`, `mih`
-- Colors: `c` (color), `bg` (background)
-- Display: `display`, `pos` (position)
-- Font: `ff` (font family), `fs` (font size), `fw` (font weight)
-- Text: `ta` (text align), `lh` (line height)
-- Shadow: `shadow` (shadow)
+-   Layout: `mt`, `mb`, `ml`, `mr`, `m`, `p`, `pt`, `pb`, `pl`, `pr`
+-   Sizing: `w`, `h`, `maw`, `mah`, `miw`, `mih`
+-   Colors: `c` (color), `bg` (background)
+-   Display: `display`, `pos` (position)
+-   Font: `ff` (font family), `fs` (font size), `fw` (font weight)
+-   Text: `ta` (text align), `lh` (line height)
+-   Shadow: `shadow` (shadow)
 
 #### CSS Modules (complex styles)
 
@@ -167,14 +163,12 @@ Use CSS modules when component props aren't available or for complex styling (wh
 ```tsx
 import styles from './Component.module.css';
 
-<Card className={styles.customCard}>
-    {/* Card content */}
-</Card>
+<Card className={styles.customCard}>{/* Card content */}</Card>;
 ```
 
 Do not include a `<file>.css.d.ts` file for css modules. We are using Vite and don't need them.
 
-In CSS modules, avoid using `!important` where possible. It's better to use the `classNames` API for increased specificity. 
+In CSS modules, avoid using `!important` where possible. It's better to use the `classNames` API for increased specificity.
 
 ### 3. Important Guidelines
 
@@ -197,10 +191,10 @@ Before moving styles to CSS modules, analyze if they're actually needed:
 
 **When to remove styles entirely:**
 
-- The style has no visual effect in its context
-- It's overridden by parent layout (e.g., flex/grid children)
-- It's redundant with the theme
-- It's legacy code from previous v6 implementations
+-   The style has no visual effect in its context
+-   It's overridden by parent layout (e.g., flex/grid children)
+-   It's redundant with the theme
+-   It's legacy code from previous v6 implementations
 
 **Always verify:** Test the component with and without the style to confirm it has no effect before removing.
 
@@ -221,11 +215,10 @@ styles.
 
 Component props and APIs can be found in the official docs:
 
-- **Pattern**: `https://mantine.dev/core/[component-name]/`
-- **Examples**:
-    - Select: https://mantine.dev/core/select/
-    - SegmentedControl: https://mantine.dev/core/segmented-control/
-    - SemiCircleProgress: https://mantine.dev/core/semi-circle-progress/
+-   **Pattern**: `https://mantine.dev/core/[component-name]/`
+-   **Examples**:
+    -   Select: https://mantine.dev/core/select/
+    -   SegmentedControl: https://mantine.dev/core/segmented-control/
+    -   SemiCircleProgress: https://mantine.dev/core/semi-circle-progress/
 
 **Tip**: In your IDE, hover over a component or use Go to Definition to see all available props in the TypeScript interface.
-
