@@ -80,7 +80,6 @@ import { InstanceConfigurationService } from './services/InstanceConfigurationSe
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
-import { AiAgentService } from './ee/services/AiAgentService';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -117,6 +116,8 @@ const schedulerWorkerFactory = (context: {
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
+        // SlackClient should initialize before UnfurlService and AiAgentService
+        slackClient: context.clients.getSlackClient(),
         unfurlService: context.serviceRepository.getUnfurlService(),
         csvService: context.serviceRepository.getCsvService(),
         dashboardService: context.serviceRepository.getDashboardService(),
@@ -128,25 +129,11 @@ const schedulerWorkerFactory = (context: {
         googleDriveClient: context.clients.getGoogleDriveClient(),
         s3Client: context.clients.getS3Client(),
         schedulerClient: context.clients.getSchedulerClient(),
-        slackClient: context.clients.getSlackClient(),
         msTeamsClient: context.clients.getMsTeamsClient(),
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),
         renameService: context.serviceRepository.getRenameService(),
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
-    });
-
-const slackClientFactory = (context: {
-    lightdashConfig: LightdashConfig;
-    analytics: LightdashAnalytics;
-    serviceRepository: ServiceRepository;
-    models: ModelRepository;
-    clients: ClientRepository;
-}) =>
-    new SlackClient({
-        lightdashConfig: context.lightdashConfig,
-        slackAuthenticationModel: context.models.getSlackAuthenticationModel(),
-        analytics: context.analytics,
     });
 
 export type AppArguments = {
@@ -161,7 +148,6 @@ export type AppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
-    slackClientFactory?: typeof slackClientFactory;
     schedulerWorkerFactory?: typeof schedulerWorkerFactory;
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
 };
@@ -186,8 +172,6 @@ export default class App {
     private readonly models: ModelRepository;
 
     private readonly database: Knex;
-
-    private readonly slackClientFactory: typeof slackClientFactory;
 
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
@@ -250,7 +234,6 @@ export default class App {
             utils: this.utils,
             prometheusMetrics: this.prometheusMetrics,
         });
-        this.slackClientFactory = args.slackClientFactory || slackClientFactory;
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
@@ -785,25 +768,11 @@ export default class App {
     }
 
     private async initSlack(expressApp: Express) {
-        let aiAgentService: AiAgentService | undefined;
-        try {
-            aiAgentService = this.serviceRepository.getAiAgentService();
-        } catch (e) {
-            // ai agent service is not available for OSS
-        }
+        const slackClient = this.clients.getSlackClient();
+        await slackClient.start(expressApp);
 
-        const slackClient = this.slackClientFactory({
-            lightdashConfig: this.lightdashConfig,
-            analytics: this.analytics,
-            serviceRepository: this.serviceRepository,
-            models: this.models,
-            clients: this.clients,
-        });
-        await slackClient.start(
-            expressApp,
-            this.serviceRepository.getUnfurlService(),
-            aiAgentService,
-        );
+        const slackService = this.serviceRepository.getSlackService();
+        slackService.setupEventListeners();
     }
 
     private initSchedulerWorker() {
