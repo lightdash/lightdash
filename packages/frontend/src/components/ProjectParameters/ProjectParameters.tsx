@@ -7,6 +7,7 @@ import {
     Group,
     JsonInput,
     LoadingOverlay,
+    MantineProvider,
     Modal,
     Pagination,
     Paper,
@@ -16,13 +17,20 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
-import { IconEye, IconSearch, IconX } from '@tabler/icons-react';
+import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
 import { format } from 'date-fns';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
+import { getMantine8ThemeOverride } from '../../mantine8Theme';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
@@ -47,7 +55,14 @@ const ConfigModal: FC<ConfigModalProps> = ({
     <Modal
         opened={opened}
         onClose={onClose}
-        title={`Parameter Configuration: ${parameterName}`}
+        title={
+            <Group gap="xs">
+                <MantineIcon size="lg" icon={IconVariable} />
+                <Title order={4}>
+                    Parameter configuration: ${parameterName}
+                </Title>
+            </Group>
+        }
         size="lg"
     >
         <JsonInput
@@ -126,7 +141,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                         <Code>{parameter.name}</Code>
                     </td>
                     <td>
-                        <Text size="sm" color="dimmed">
+                        <Text size="sm" c="dimmed">
                             {format(
                                 new Date(parameter.createdAt),
                                 'MMM d, yyyy',
@@ -136,6 +151,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     <td>
                         <Tooltip label="View configuration">
                             <ActionIcon
+                                variant="subtle"
                                 onClick={() =>
                                     handleViewConfig(
                                         parameter.name,
@@ -155,126 +171,134 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     if (isError) {
         return (
             <SettingsCard>
-                <Text color="red">Failed to load parameters</Text>
+                <Text c="red">Failed to load parameters</Text>
             </SettingsCard>
         );
     }
 
     return (
-        <Stack>
-            <Text color="dimmed">
-                Learn more about parameters in our{' '}
-                <Anchor
-                    role="button"
-                    href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    docs
-                </Anchor>
-                .
-            </Text>
+        <MantineProvider theme={getMantine8ThemeOverride()}>
+            <Stack>
+                <Text c="dimmed">
+                    Learn more about parameters in our{' '}
+                    <Anchor
+                        role="button"
+                        href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        docs
+                    </Anchor>
+                    .
+                </Text>
 
-            <SettingsCard shadow="none" p={0}>
-                <Paper p="sm">
-                    <Group spacing="md" align="center">
-                        <Title order={5}>Parameters</Title>
-                    </Group>
-
-                    <Box mt="sm">
-                        <TextInput
-                            size="xs"
-                            placeholder="Search parameters by name, label, or description"
-                            onChange={(e) => setSearch(e.target.value)}
-                            value={search}
-                            w={380}
-                            icon={<MantineIcon icon={IconSearch} />}
-                            rightSection={
-                                search.length > 0 && (
-                                    <ActionIcon onClick={() => setSearch('')}>
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                )
-                            }
-                        />
-                    </Box>
-                </Paper>
-
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
-                    <thead>
-                        <tr>
-                            <th
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => handleSort('name')}
-                            >
-                                <Group spacing="xs">
-                                    <Text>Parameter Name</Text>
-                                    <Text>{getSortIcon('name')}</Text>
-                                </Group>
-                            </th>
-                            <th
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => handleSort('created_at')}
-                            >
-                                <Group spacing="xs">
-                                    <Text>Created</Text>
-                                    <Text>{getSortIcon('created_at')}</Text>
-                                </Group>
-                            </th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody style={{ position: 'relative' }}>
-                        {!isLoading && parameters && parameters.length ? (
-                            tableRows
-                        ) : isLoading ? (
-                            <tr>
-                                <td colSpan={3}>
-                                    <Box py="lg">
-                                        <LoadingOverlay
-                                            visible={true}
-                                            transitionDuration={200}
-                                        />
-                                    </Box>
-                                </td>
-                            </tr>
-                        ) : (
-                            <tr>
-                                <td colSpan={3}>
-                                    <Text c="gray.6" fs="italic" ta="center">
-                                        {debouncedSearch
-                                            ? 'No parameters found matching your search'
-                                            : 'No parameters configured for this project'}
-                                    </Text>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </Table>
-
-                {pagination && pagination.totalPageCount > 1 && (
+                <SettingsCard shadow="none" p={0}>
                     <Paper p="sm">
-                        <Group position="center">
-                            <Pagination
-                                value={page}
-                                onChange={setPage}
-                                total={pagination.totalPageCount}
-                                size="sm"
-                            />
+                        <Group gap="md" align="center">
+                            <Title order={5}>Parameters</Title>
                         </Group>
-                    </Paper>
-                )}
-            </SettingsCard>
 
-            {selectedParameter && (
-                <ConfigModal
-                    parameterName={selectedParameter.name}
-                    config={selectedParameter.config}
-                    opened={configModal}
-                    onClose={configModalHandlers.close}
-                />
-            )}
-        </Stack>
+                        <Box mt="sm">
+                            <TextInput
+                                size="xs"
+                                placeholder="Search parameters by name, label, or description"
+                                onChange={(e) => setSearch(e.target.value)}
+                                value={search}
+                                w={380}
+                                leftSection={<MantineIcon icon={IconSearch} />}
+                                rightSection={
+                                    search.length > 0 && (
+                                        <ActionIcon
+                                            variant="subtle"
+                                            onClick={() => setSearch('')}
+                                        >
+                                            <MantineIcon icon={IconX} />
+                                        </ActionIcon>
+                                    )
+                                }
+                            />
+                        </Box>
+                    </Paper>
+
+                    <Table
+                        className={cx(classes.root, classes.alignLastTdRight)}
+                    >
+                        <thead>
+                            <tr>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort('name')}
+                                >
+                                    <Group gap="xs">
+                                        <Text>Parameter Name</Text>
+                                        <Text>{getSortIcon('name')}</Text>
+                                    </Group>
+                                </th>
+                                <th
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleSort('created_at')}
+                                >
+                                    <Group gap="xs">
+                                        <Text>Created</Text>
+                                        <Text>{getSortIcon('created_at')}</Text>
+                                    </Group>
+                                </th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody style={{ position: 'relative' }}>
+                            {!isLoading && parameters && parameters.length ? (
+                                tableRows
+                            ) : isLoading ? (
+                                <tr>
+                                    <td colSpan={3}>
+                                        <Box py="lg">
+                                            <LoadingOverlay visible={true} />
+                                        </Box>
+                                    </td>
+                                </tr>
+                            ) : (
+                                <tr>
+                                    <td colSpan={3}>
+                                        <Text
+                                            c="gray.6"
+                                            fs="italic"
+                                            ta="center"
+                                        >
+                                            {debouncedSearch
+                                                ? 'No parameters found matching your search'
+                                                : 'No parameters configured for this project'}
+                                        </Text>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </Table>
+
+                    {pagination && pagination.totalPageCount > 1 && (
+                        <Paper p="sm">
+                            <Group justify="center">
+                                <Pagination
+                                    value={page}
+                                    onChange={setPage}
+                                    total={pagination.totalPageCount}
+                                    size="sm"
+                                />
+                            </Group>
+                        </Paper>
+                    )}
+                </SettingsCard>
+
+                {selectedParameter && (
+                    <ConfigModal
+                        parameterName={selectedParameter.name}
+                        config={selectedParameter.config}
+                        opened={configModal}
+                        onClose={configModalHandlers.close}
+                    />
+                )}
+            </Stack>
+        </MantineProvider>
     );
 };
 
