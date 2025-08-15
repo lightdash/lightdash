@@ -213,6 +213,7 @@ export class AnalyticsModel {
             count: userData.count || undefined,
         });
 
+        // TODO replace with ability check
         return {
             numberUsers: usersInProject.length,
             numberInteractiveViewers: usersInProject.filter(

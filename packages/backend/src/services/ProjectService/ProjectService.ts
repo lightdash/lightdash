@@ -89,6 +89,7 @@ import {
     isFilterableDimension,
     isFilterRule,
     isNotNull,
+    isSystemProjectRole,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -5169,7 +5170,9 @@ export class ProjectService extends BaseService {
                         this.projectModel.createProjectAccess(
                             previewProjectUuid,
                             projectAccess.email,
-                            projectAccess.role,
+                            isSystemProjectRole(projectAccess.role)
+                                ? projectAccess.role
+                                : ProjectMemberRole.VIEWER, // TODO support custom roles
                         ),
                 );
                 const insertGroupAccessPromises = groupAccesses.map(

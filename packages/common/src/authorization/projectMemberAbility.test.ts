@@ -1,5 +1,9 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import {
+    isSystemProjectRole,
+    ProjectMemberRole,
+} from '../types/projectMemberRole';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { projectMemberAbilities } from './projectMemberAbility';
@@ -21,7 +25,12 @@ const defineAbilityForProjectMember = (
 ): MemberAbility => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (member) {
-        projectMemberAbilities[member.role](member, builder);
+        if (isSystemProjectRole(member.role)) {
+            projectMemberAbilities[member.role](member, builder);
+        } else {
+            // TODO implement custom role ability builder
+            projectMemberAbilities[ProjectMemberRole.VIEWER](member, builder);
+        }
     }
     return builder.build();
 };

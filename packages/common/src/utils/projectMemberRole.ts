@@ -12,6 +12,8 @@ import {
 import { SpaceMemberRole } from '../types/space';
 import assertUnreachable from './assertUnreachable';
 
+// TODO include custom roles
+
 export const convertOrganizationRoleToProjectRole = (
     organizationRole: OrganizationMemberRole,
 ): ProjectMemberRole | undefined => {
@@ -110,6 +112,8 @@ export const convertProjectRoleToSpaceRole = (
             );
     }
 };
+
+// TODO include custom roles
 
 export const convertProjectRoleToOrganizationRole = (
     projectRole: ProjectMemberRole,

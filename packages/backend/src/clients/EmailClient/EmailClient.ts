@@ -270,6 +270,7 @@ export default class EmailClient {
         projectUrl: string,
     ) {
         let roleAction = 'view';
+        // TODO replace with ability check
         switch (projectMember.role) {
             case ProjectMemberRole.VIEWER:
                 roleAction = 'view';

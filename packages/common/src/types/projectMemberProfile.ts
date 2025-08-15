@@ -3,7 +3,7 @@ import { type ProjectMemberRole } from './projectMemberRole';
 export type ProjectMemberProfile = {
     userUuid: string;
     projectUuid: string;
-    role: ProjectMemberRole;
+    role: ProjectMemberRole | string;
     email: string;
     firstName: string;
     lastName: string;

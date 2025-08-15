@@ -789,7 +789,7 @@ export type InviteLink = {
 };
 export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
     email: string;
-    role?: OrganizationMemberRole;
+    role?: OrganizationMemberRole; // TODO Support custom roles
 };
 
 export type ApiCreateProjectResults = {

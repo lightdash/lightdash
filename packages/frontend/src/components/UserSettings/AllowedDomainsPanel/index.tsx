@@ -157,6 +157,8 @@ const AllowedDomainsPanel: FC = () => {
                 ? values.role
                 : OrganizationMemberRole.VIEWER;
 
+        // TODO replace with ability check
+
         const newProjects =
             role === OrganizationMemberRole.MEMBER ? values.projects : [];
 
@@ -273,7 +275,7 @@ const AllowedDomainsPanel: FC = () => {
                                 }
                             }}
                         />
-
+                        {/* TODO replace with ability check  */}
                         {form.values.role === OrganizationMemberRole.MEMBER ? (
                             <div>
                                 <Title order={5} mb="md">

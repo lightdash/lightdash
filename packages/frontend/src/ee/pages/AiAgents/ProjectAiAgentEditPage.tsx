@@ -216,6 +216,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                           )
                         : undefined;
 
+                    // TODO replace with ability check
+
                     const canCreateAiAgents =
                         highestRole &&
                         (highestRole.role === ProjectMemberRole.ADMIN ||

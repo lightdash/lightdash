@@ -8,6 +8,11 @@ export enum ProjectMemberRole {
     ADMIN = 'admin',
 }
 
+export const isSystemProjectRole = (
+    role: ProjectMemberRole | string,
+): role is ProjectMemberRole =>
+    Object.values(ProjectMemberRole).includes(role as ProjectMemberRole);
+
 export const ProjectMemberRoleLabels: Record<ProjectMemberRole, string> = {
     [ProjectMemberRole.VIEWER]: 'Viewer',
     [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive Viewer',

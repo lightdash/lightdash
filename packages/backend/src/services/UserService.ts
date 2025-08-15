@@ -1457,6 +1457,7 @@ export class UserService extends BaseService {
                 'User is not allowed to join this organization',
             );
         }
+        // TODO replace with ability check
         await this.userModel.joinOrg(
             user.userUuid,
             orgUuid,
@@ -1909,6 +1910,7 @@ export class UserService extends BaseService {
                     },
                 );
 
+            // TODO replace with ability check
             const adminUser = members.data.find(
                 (member) => member.role === 'admin',
             );
