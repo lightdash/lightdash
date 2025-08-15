@@ -1,3 +1,10 @@
+# [0.1922.0](https://github.com/lightdash/lightdash/compare/0.1921.0...0.1922.0) (2025-08-15)
+
+
+### Features
+
+* add validation for project config parameters ([#16416](https://github.com/lightdash/lightdash/issues/16416)) ([cfca1ab](https://github.com/lightdash/lightdash/commit/cfca1ab6f5ccf73f3557d36721601b89a44b0ce8))
+
 # [0.1921.0](https://github.com/lightdash/lightdash/compare/0.1920.0...0.1921.0) (2025-08-15)
 
 
