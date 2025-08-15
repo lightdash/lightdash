@@ -1,8 +1,8 @@
 import {
     applyDimensionOverrides,
     type Dashboard,
+    type DashboardFilterRule,
     type DashboardScheduler,
-    type SchedulerFilterRule,
 } from '@lightdash/common';
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
@@ -14,7 +14,7 @@ import { CUSTOM_WIDTH_OPTIONS } from '../constants';
 
 type Props = {
     dashboard: Dashboard;
-    schedulerFilters: SchedulerFilterRule[] | undefined;
+    schedulerFilters: DashboardFilterRule[] | undefined;
     customViewportWidth: DashboardScheduler['customViewportWidth'];
     onChange: (previewChoice: string | undefined) => void;
 };

@@ -6,6 +6,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
+    DashboardFilterRule,
     DashboardParameterValue,
     DownloadCsvPayload,
     DownloadFileType,
@@ -35,7 +36,6 @@ import {
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerCreateProjectWithCompilePayload,
-    SchedulerFilterRule,
     SchedulerFormat,
     type SchedulerIndexCatalogJobPayload,
     SchedulerJobStatus,
@@ -217,7 +217,7 @@ export default class SchedulerTask {
         chartUuid: string | null,
         dashboardUuid: string | null,
         schedulerUuid: string | undefined,
-        sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
+        sendNowSchedulerFilters: DashboardFilterRule[] | undefined,
         sendNowSchedulerParameters: ParametersValuesMap | undefined,
         context: DownloadCsv['properties']['context'],
         selectedTabs: string[] | undefined,
@@ -492,7 +492,6 @@ export default class SchedulerTask {
                             : undefined;
 
                         if (schedulerFilters) {
-                            // Scheduler filters can only override existing filters from the dashboard
                             dashboardFilters.dimensions =
                                 applyDimensionOverrides(
                                     dashboard.filters,
