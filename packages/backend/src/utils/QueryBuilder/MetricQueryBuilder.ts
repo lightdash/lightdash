@@ -39,7 +39,7 @@ import {
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import {
-    replaceParametersAsString,
+    safeReplaceParametersWithSqlBuilder,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
 import {
@@ -1272,7 +1272,7 @@ export class MetricQueryBuilder {
             replacedSql,
             references: parameterReferences,
             missingReferences: missingParameterReferences,
-        } = replaceParametersAsString(
+        } = safeReplaceParametersWithSqlBuilder(
             query,
             this.args.parameters ?? {},
             this.args.warehouseSqlBuilder,

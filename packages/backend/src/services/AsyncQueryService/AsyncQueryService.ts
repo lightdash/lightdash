@@ -92,7 +92,7 @@ import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import PrometheusMetrics from '../../prometheus';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
-import { replaceParametersAsString } from '../../utils/QueryBuilder/parameters';
+import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import {
     ReferenceMap,
     SqlQueryBuilder,
@@ -2492,11 +2492,12 @@ export class AsyncQueryService extends ProjectService {
         const columns: { name: string; type: DimensionType }[] = [];
 
         // Replace parameters in SQL before running column discovery query
-        const { replacedSql: columnDiscoverySql } = replaceParametersAsString(
-            sql,
-            parameters ?? {},
-            warehouseConnection.warehouseClient,
-        );
+        const { replacedSql: columnDiscoverySql } =
+            safeReplaceParametersWithSqlBuilder(
+                sql,
+                parameters ?? {},
+                warehouseConnection.warehouseClient,
+            );
 
         await warehouseConnection.warehouseClient.streamQuery(
             applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
