@@ -1,3 +1,10 @@
+# [0.1919.0](https://github.com/lightdash/lightdash/compare/0.1918.0...0.1919.0) (2025-08-15)
+
+
+### Features
+
+* add custom roles and permissions management ([#16380](https://github.com/lightdash/lightdash/issues/16380)) ([2647233](https://github.com/lightdash/lightdash/commit/2647233d9beb42fc6cc6a609f5236381510603e4))
+
 # [0.1918.0](https://github.com/lightdash/lightdash/compare/0.1917.0...0.1918.0) (2025-08-14)
 
 
