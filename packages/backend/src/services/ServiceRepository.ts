@@ -675,6 +675,10 @@ export class ServiceRepository
                     s3Client: this.clients.getS3Client(),
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    slackClient: this.clients.getSlackClient(),
+                    analytics: this.context.lightdashAnalytics,
+                    slackAuthenticationModel:
+                        this.models.getSlackAuthenticationModel(),
                 }),
         );
     }
