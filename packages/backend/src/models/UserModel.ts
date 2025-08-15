@@ -487,7 +487,7 @@ export class UserModel {
 
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
-            role: membership.role,
+            role: membership.role || ProjectMemberRole.VIEWER,
             userUuid,
         }));
     }

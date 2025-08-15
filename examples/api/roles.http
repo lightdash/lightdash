@@ -1,0 +1,184 @@
+
+### Login
+// @no-log
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+###
+### Roles API Examples - NEW NAMESPACE STRUCTURE
+### Organization UUID: 172a2270-000f-42be-9c68-c4752c23ae51
+### Project UUID: 3675b69e-8324-4110-bdca-059031aa8da3
+###
+### This file demonstrates the NEW NAMESPACE role management API:
+### 1. Role Management: /api/v2/roles
+### 2. Organization Role Assignments: /api/v2/orgs/{orgId}/roles
+### 3. Project Role Assignments: /api/v2/projects/{projectId}/roles
+### 4. Renamed role-assignments to assignments
+###
+
+@orgId = 172a2270-000f-42be-9c68-c4752c23ae51
+@projectId = 3675b69e-8324-4110-bdca-059031aa8da3
+@baseUrl = http://localhost:8080
+@userId = b264d83a-9000-426a-85ec-3f9c20f368ce
+@groupId = 2ffed772-e03c-4097-a7e1-08460fd06fa0
+
+### STEP 0 : create a group for testing 
+POST {{baseUrl}}/api/v1/org/groups
+Content-Type: application/json
+
+{
+  "name": "Group role test"
+}
+
+###
+### ROLE MANAGEMENT JOURNEY
+###
+
+### STEP 1: List existing roles in organization (NEW NAMESPACE)
+GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles
+
+### STEP 1b: List roles with their scopes (shows what permissions each role has)
+GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles?load=scopes
+
+### STEP 2: Create a new custom role (NEW NAMESPACE)
+# @name createRole
+POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles
+Content-Type: application/json
+
+{
+  "name": "Data Analyst 5",
+  "description": "Can view projects and dashboards with limited access"
+}
+
+### STEP 3: Extract role ID from created role response
+### Copy the roleId from the response above and set it here:
+@roleId = f1e22530-44c0-440f-a4d7-91c01fbdb0a2
+
+### STEP 4: Get specific role details
+GET {{baseUrl}}/api/v2/roles/{{roleId}}
+
+### STEP 5: Update role details (name/description)
+PATCH {{baseUrl}}/api/v2/roles/{{roleId}}
+Content-Type: application/json
+
+{
+  "name": "Senior Data Analyst",
+  "description": "Enhanced permissions for experienced data analysts"
+}
+
+### STEP 6: Update role in organization context (NEW NAMESPACE)
+PATCH {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
+Content-Type: application/json
+
+{
+  "name": "Senior Data Analyst",
+  "description": "Enhanced permissions for experienced data analysts"
+}
+
+###
+### ROLE SCOPES (PERMISSIONS) MANAGEMENT
+###
+
+### STEP 7: Add scopes to define what the role can do
+POST {{baseUrl}}/api/v2/roles/{{roleId}}/scopes
+Content-Type: application/json
+
+{
+  "scopeNames": [
+    "view_projects",
+    "view_dashboard"
+  ]
+}
+
+### STEP 7b: Get specific role details again to see new scopes
+GET {{baseUrl}}/api/v2/roles/{{roleId}}
+
+### STEP 8: Add more scopes to expand role permissions
+POST {{baseUrl}}/api/v2/roles/{{roleId}}/scopes
+Content-Type: application/json
+
+{
+  "scopeNames": [
+    "create_saved_chart",
+    "manage_space"
+  ]
+}
+
+### STEP 9: Remove a specific scope to restrict permissions
+DELETE {{baseUrl}}/api/v2/roles/{{roleId}}/scopes/manage_space
+
+###
+### ORGANIZATION-LEVEL ROLE ASSIGNMENTS (NEW NAMESPACE)
+###
+
+### STEP 10: List current organization role assignments (NEW NAMESPACE)
+GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments
+
+### STEP 11: Assign role to a user (organization-level) - NEW SEPARATE ENDPOINT!
+# @name assignUserToOrg
+POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments/user/{{userId}}
+Content-Type: application/json
+
+{
+  "roleId": "{{roleId}}"
+}
+
+### STEP 12: NOTE - Group organization assignments are not supported
+### Groups only have project-level and space-level access, not organization-level access
+
+### STEP 14: Remove user's organization role assignment - NEW NAMESPACE!
+DELETE {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments/user/{{userId}}
+
+###
+### PROJECT-LEVEL ROLE ASSIGNMENTS (NEW NAMESPACE)
+###
+
+### STEP 16: List current project role assignments (NEW NAMESPACE)
+GET {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments
+
+### STEP 17: Grant user access to specific project with role (NEW SEPARATE ENDPOINT)
+# @name assignUserToProject
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
+Content-Type: application/json
+
+{
+  "roleId": "{{roleId}}"
+}
+
+### STEP 18: Assign group to project with specific role (NEW SEPARATE ENDPOINT)
+# @name assignGroupToProject
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/group/{{groupId}}
+Content-Type: application/json
+
+{
+  "roleId": "{{roleId}}"
+}
+
+### STEP 20: Update user's role on project (change permissions) - NEW NAMESPACE
+PATCH {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
+Content-Type: application/json
+
+{
+  "roleId": "{{roleId}}"
+}
+
+### STEP 21: Remove user's project access (NEW NAMESPACE)
+DELETE {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
+
+### STEP 22: Remove group from project (NEW NAMESPACE)
+DELETE {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/group/{{groupId}}
+
+###
+### CLEANUP
+###
+
+### STEP 23: NOTE - No group organization assignments to clean up
+### (Groups don't have organization-level role assignments)
+
+### STEP 24: Delete the custom role (final cleanup) - NEW NAMESPACE
+DELETE {{baseUrl}}/api/v2/roles/{{roleId}}
