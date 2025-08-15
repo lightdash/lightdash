@@ -7,6 +7,7 @@ import {
 import { Installation, InstallationQuery } from '@slack/bolt';
 import { Knex } from 'knex';
 import isNil from 'lodash/isNil';
+import { DbOrganization } from '../database/entities/organizations';
 import {
     DbSlackAuthTokens,
     SlackAuthTokensTableName,

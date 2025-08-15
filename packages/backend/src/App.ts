@@ -80,6 +80,7 @@ import { InstanceConfigurationService } from './services/InstanceConfigurationSe
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
+import { AiAgentService } from './ee/services/AiAgentService';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -160,6 +161,7 @@ export type AppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
+    slackClientFactory?: typeof slackClientFactory;
     schedulerWorkerFactory?: typeof schedulerWorkerFactory;
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
 };
@@ -184,6 +186,8 @@ export default class App {
     private readonly models: ModelRepository;
 
     private readonly database: Knex;
+
+    private readonly slackClientFactory: typeof slackClientFactory;
 
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
@@ -246,6 +250,7 @@ export default class App {
             utils: this.utils,
             prometheusMetrics: this.prometheusMetrics,
         });
+        this.slackClientFactory = args.slackClientFactory || slackClientFactory;
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
@@ -784,8 +789,25 @@ export default class App {
     }
 
     private async initSlack(expressApp: Express) {
-        const slackClient = this.clients.getSlackClient();
-        await slackClient.start(expressApp);
+        let aiAgentService: AiAgentService | undefined;
+        try {
+            aiAgentService = this.serviceRepository.getAiAgentService();
+        } catch (e) {
+            // ai agent service is not available for OSS
+        }
+
+        const slackClient = this.slackClientFactory({
+            lightdashConfig: this.lightdashConfig,
+            analytics: this.analytics,
+            serviceRepository: this.serviceRepository,
+            models: this.models,
+            clients: this.clients,
+        });
+        await slackClient.start(
+            expressApp,
+            this.serviceRepository.getUnfurlService(),
+            aiAgentService,
+        );
     }
 
     private initSchedulerWorker() {
