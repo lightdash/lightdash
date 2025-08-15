@@ -1,3 +1,10 @@
+# [0.1920.0](https://github.com/lightdash/lightdash/compare/0.1919.0...0.1920.0) (2025-08-15)
+
+
+### Features
+
+* add analytics tracking for MCP tool calls ([#16386](https://github.com/lightdash/lightdash/issues/16386)) ([4c3dc17](https://github.com/lightdash/lightdash/commit/4c3dc17c0aa0af080a7051029443ed8886e2e638)), closes [#16336](https://github.com/lightdash/lightdash/issues/16336)
+
 # [0.1919.0](https://github.com/lightdash/lightdash/compare/0.1918.0...0.1919.0) (2025-08-15)
 
 
