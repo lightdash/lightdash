@@ -1,6 +1,7 @@
 import {
     AiAgent,
     AiWebAppPrompt,
+    AVAILABLE_VISUALIZATION_TYPES,
     CatalogType,
     isDateItem,
     toolTimeSeriesArgsSchema,
@@ -822,5 +823,95 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 });
             },
         );
+    });
+
+    describe('Limitation response quality', () => {
+        const limitationTestCases = [
+            {
+                name: 'forecasting request',
+                prompt: 'Can you forecast the revenue for next quarter?',
+                expectedResponse:
+                    'I cannot perform statistical forecasting or predictive modeling. I can only work with historical data visualization and aggregation using the explores available this project',
+            },
+            {
+                name: 'unsupported calculated metric request',
+                prompt: 'Create a table showing each customer, their total spending on orders, total shipping fees paid, total taxes paid, and the sum of all these costs combined.',
+                expectedResponse:
+                    'I cannot perform this request exactly as stated because I am unable to create new calculated columns or metrics that combine multiple fields directly in the table output. I can only display existing fields and metrics defined in your data model.',
+            },
+            {
+                name: 'unsupported calculated field request',
+                prompt: 'Create a table showing each customer, their customer id, and their full name (first name + last name).',
+                expectedResponse:
+                    'I cannot perform this request exactly as stated because I am unable to create new calculated columns or fields. I can only display existing fields and metrics defined in your data model.',
+            },
+            {
+                name: 'unsupported custom sql request',
+                prompt: 'Write a custom SQL query to join customers and orders and calculate lifetime value (sum of all purchases for each customer over time).',
+                expectedResponse:
+                    'I cannot perform this request because I am unable to create or execute custom SQL queries directly. I can only use the existing explores, fields, and metrics defined in your data model.',
+            },
+            {
+                name: 'unsupported visualization request',
+                prompt: 'Create a scatter chart of total order amount versus region',
+                expectedResponse: `I can only create ${AVAILABLE_VISUALIZATION_TYPES.join(
+                    ', ',
+                )}. I cannot create scatter plots or other advanced visualization types`,
+            },
+            {
+                name: 'conversation history request',
+                prompt: 'What did we talk about yesterday?',
+                expectedResponse:
+                    'I do not have access to previous conversations or memory of past interactions. Each session is stateless, so I can only reference messages from our current conversation.',
+            },
+        ];
+
+        limitationTestCases.forEach((testCase) => {
+            it.concurrent(
+                `should provide specific limitations for ${testCase.name}`,
+                async ({ task }) => {
+                    if (!createdAgent) {
+                        throw new Error('Agent not created');
+                    }
+
+                    const { response } = await promptAgent(testCase.prompt);
+
+                    const { result: limitationQualityEvaluation, meta } =
+                        await llmAsAJudge({
+                            query: testCase.prompt,
+                            response,
+                            expectedAnswer: testCase.expectedResponse,
+                            scorerType: 'factuality',
+                            model,
+                            callOptions,
+                        });
+
+                    if (!limitationQualityEvaluation) {
+                        throw new Error(
+                            'Limitation quality evaluation not found',
+                        );
+                    }
+
+                    const isLimitationQualityPassing =
+                        limitationQualityEvaluation.answer === 'A' ||
+                        limitationQualityEvaluation.answer === 'B';
+
+                    // ==========
+                    // Report generation
+                    // ==========
+                    setTaskMeta(task.meta, 'llmJudgeResults', [
+                        { ...meta, passed: isLimitationQualityPassing },
+                    ]);
+                    setTaskMeta(task.meta, 'prompts', [testCase.prompt]);
+                    setTaskMeta(task.meta, 'responses', [response]);
+
+                    // ==========
+                    // Assertions
+                    // ==========
+                    expect(isLimitationQualityPassing).toBe(true);
+                },
+                TIMEOUT,
+            );
+        });
     });
 });
