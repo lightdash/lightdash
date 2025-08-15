@@ -120,6 +120,16 @@ pnpm generate-api
 ## Code Style Memories
 
 -   Never use duck typing, don't have parameters that can have different types, make types intentional
+-   **Prefer strict object shapes**: Start with required properties and make them optional only when truly needed
+    -   ✅ Good: `{ charts: Chart[] }` - can be empty array
+    -   ❌ Avoid: `{ charts?: Chart[] }` - unclear if missing or empty
+-   **Use null for absent values**: When a value might not exist, prefer explicit null over optional properties
+    -   ✅ Good: `{ createdBy: User | null }` - explicitly absent
+    -   ❌ Avoid: `{ createdBy?: User }` - ambiguous presence
+-   **When optional properties are acceptable**:
+    -   Backwards compatibility requirements
+    -   API design patterns where omission has semantic meaning
+    -   Configuration objects with sensible defaults
 
 ## Development Troubleshooting
 

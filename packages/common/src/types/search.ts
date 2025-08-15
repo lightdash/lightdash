@@ -24,6 +24,20 @@ export type DashboardSearchResult = Pick<
     validationErrors: {
         validationId: ValidationErrorDashboardResponse['validationId'];
     }[];
+    viewsCount: number;
+    firstViewedAt: string | null;
+    lastModified: string | null;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+    charts: {
+        name: string;
+        description?: string;
+        chartType: ChartKind;
+        viewsCount: number;
+    }[];
 } & RankedItem;
 
 export type SavedChartSearchResult = Pick<
@@ -35,6 +49,14 @@ export type SavedChartSearchResult = Pick<
         validationId: ValidationErrorChartResponse['validationId'];
     }[];
     chartSource: 'saved';
+    viewsCount: number;
+    firstViewedAt: string | null;
+    lastModified: string | null;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
 } & RankedItem;
 
 export type SqlChartSearchResult = Pick<
@@ -46,6 +68,14 @@ export type SqlChartSearchResult = Pick<
     spaceUuid: SqlChart['space']['uuid'];
     projectUuid: SqlChart['project']['projectUuid'];
     chartSource: 'sql';
+    viewsCount: number;
+    firstViewedAt: string | null;
+    lastModified: string | null;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
 } & RankedItem;
 
 export type AllChartsSearchResult = Pick<
@@ -55,6 +85,14 @@ export type AllChartsSearchResult = Pick<
     Partial<Pick<SqlChartSearchResult, 'slug'>> & {
         chartType: ChartKind;
         chartSource: 'saved' | 'sql';
+        viewsCount: number;
+        firstViewedAt: string | null;
+        lastModified: string | null;
+        createdBy: {
+            firstName: string;
+            lastName: string;
+            userUuid: string;
+        } | null;
     } & RankedItem;
 
 export type TableSearchResult = Pick<
