@@ -293,6 +293,7 @@ export class SearchModel {
         const directChartsQuery = this.database(SavedChartsTableName)
             .select(
                 'dashboard_uuid',
+                { uuid: 'saved_query_uuid' },
                 'name',
                 'description',
                 { chartType: 'last_version_chart_kind' },
@@ -329,6 +330,7 @@ export class SearchModel {
             )
             .select(
                 'dashboards.dashboard_uuid',
+                { uuid: `${SavedChartsTableName}.saved_query_uuid` },
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.description`,
                 {
@@ -359,6 +361,7 @@ export class SearchModel {
             Record<
                 string,
                 Array<{
+                    uuid: string;
                     name: string;
                     description: string;
                     chartType: string;
@@ -370,6 +373,7 @@ export class SearchModel {
                 acc[chart.dashboard_uuid] = [];
             }
             acc[chart.dashboard_uuid].push({
+                uuid: chart.uuid,
                 name: chart.name,
                 description: chart.description,
                 chartType: chart.chartType,

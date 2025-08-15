@@ -54,9 +54,12 @@ const getDashboardText = (
         }
         <Charts count="${dashboard.charts.length}">
             ${dashboard.charts
-                .map(
-                    (chart) =>
-                        `<Chart>
+                .map((chart) => {
+                    const chartUrl = siteUrl
+                        ? `${siteUrl}/projects/${dashboard.projectUuid}/saved/${chart.uuid}/view#chart-link#chart-type-${chart.chartType}`
+                        : undefined;
+
+                    return `<Chart chartUuid="${chart.uuid}">
                             <Name>${chart.name}</Name>
                             <ChartType>${chart.chartType}</ChartType>
                             ${
@@ -64,9 +67,10 @@ const getDashboardText = (
                                     ? `<Description>${chart.description}</Description>`
                                     : ''
                             }
+                            ${chartUrl ? `<Url>${chartUrl}</Url>` : ''}
                             <ViewsCount>${chart.viewsCount}</ViewsCount>
-                        </Chart>`,
-                )
+                        </Chart>`;
+                })
                 .join('\n            ')}
         </Charts>
         ${
