@@ -5,8 +5,6 @@ import {
     AiAgentThread,
     AiAgentThreadSummary,
     AiAgentUserPreferences,
-    AiConversation,
-    AiConversationMessage,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
     AiResultType,
@@ -2048,10 +2046,9 @@ export class AiAgentService {
             throw new Error('Thread not found');
         }
 
-        let name: string | undefined;
+        let agent: AiAgent | undefined;
         if (thread.agentUuid) {
-            const agent = await this.getAgent(user, thread.agentUuid);
-            name = agent.name;
+            agent = await this.getAgent(user, thread.agentUuid);
         }
 
         let response: string | undefined;
@@ -2073,7 +2070,7 @@ export class AiAgentService {
                 text: `🔴 Co-pilot failed to generate a response 😥 Please try again.`,
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
-                username: name,
+                username: agent?.name,
             });
 
             Logger.error('Failed to generate response:', e);
@@ -2104,10 +2101,13 @@ export class AiAgentService {
             this.lightdashConfig.siteUrl,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
-        const historyBlocks = getDeepLinkBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
-        );
+        const historyBlocks = agent
+            ? getDeepLinkBlocks(
+                  agent.uuid,
+                  slackPrompt,
+                  this.lightdashConfig.siteUrl,
+              )
+            : undefined;
 
         // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
@@ -2116,7 +2116,7 @@ export class AiAgentService {
         const newResponse = await this.slackClient.postMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: slackifiedMarkdown,
-            username: name,
+            username: agent?.name,
             channel: slackPrompt.slackChannelId,
             thread_ts: slackPrompt.slackThreadTs,
             unfurl_links: false,
@@ -2131,7 +2131,7 @@ export class AiAgentService {
                 ...exploreBlocks,
                 ...followUpToolBlocks,
                 ...feedbackBlocks,
-                ...historyBlocks,
+                ...(historyBlocks || []),
             ],
         });
 
@@ -2146,85 +2146,6 @@ export class AiAgentService {
                 responseSlackTs: newResponse.ts,
             });
         }
-    }
-
-    // TODO: This is to get conversations for the "old" page - remove
-    async getConversations(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<AiConversation[]> {
-        if (!(await this.getIsCopilotEnabled(user))) {
-            throw new Error('AI Copilot is not enabled');
-        }
-
-        if (!user.organizationUuid) {
-            throw new Error('Organization not found');
-        }
-
-        const threads = await this.aiAgentModel.getThreads(
-            user.organizationUuid,
-            projectUuid,
-        );
-
-        return threads.map((thread) => ({
-            threadUuid: thread.ai_thread_uuid,
-            createdAt: thread.created_at,
-            createdFrom: thread.created_from,
-            firstMessage: thread.prompt,
-            user: {
-                uuid: thread.user_uuid,
-                name: thread.user_name,
-            },
-        }));
-    }
-
-    // TODO: this is to get messages for the "old" page - remove
-    async getConversationMessages(
-        user: SessionUser,
-        projectUuid: string,
-        aiThreadUuid: string,
-    ): Promise<AiConversationMessage[]> {
-        if (!(await this.getIsCopilotEnabled(user))) {
-            throw new Error('AI Copilot is not enabled');
-        }
-
-        const { organizationUuid } = user;
-
-        if (!organizationUuid) {
-            throw new Error('Organization not found');
-        }
-
-        const canViewProject = user.ability.can(
-            'view',
-            subject('Project', {
-                organizationUuid,
-                projectUuid,
-            }),
-        );
-
-        if (!canViewProject) {
-            throw new Error('User does not have access to the project!');
-        }
-
-        const messages = await this.aiAgentModel.getThreadMessages(
-            organizationUuid,
-            projectUuid,
-            aiThreadUuid,
-        );
-
-        return messages.map((message) => ({
-            promptUuid: message.ai_prompt_uuid,
-            message: message.prompt,
-            createdAt: message.created_at,
-            response: message.response ?? undefined,
-            respondedAt: message.responded_at ?? undefined,
-            vizConfigOutput: message.viz_config_output ?? undefined,
-            humanScore: message.human_score ?? undefined,
-            user: {
-                uuid: message.user_uuid,
-                name: message.user_name,
-            },
-        }));
     }
 
     async getUserAgentPreferences(
