@@ -383,6 +383,18 @@ const SchedulerForm: FC<Props> = ({
                         : null;
                 },
             },
+            filters: (value: DashboardFilterRule[]) => {
+                const requiredFiltersWithoutValues = value.filter(
+                    (filter) =>
+                        filter.required &&
+                        (!filter.values || filter.values.length === 0),
+                );
+
+                if (requiredFiltersWithoutValues.length > 0) {
+                    return `Required filters must have values`;
+                }
+                return null;
+            },
             cron: (cronExpression) => {
                 return isInvalidCronExpression('Cron expression')(
                     cronExpression,
@@ -541,6 +553,11 @@ const SchedulerForm: FC<Props> = ({
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
 
+    const requiredFiltersWithoutValues = (form.values.filters ?? []).filter(
+        (filter) =>
+            filter.required && (!filter.values || filter.values.length === 0),
+    );
+
     const projectDefaultOffsetString = useMemo(() => {
         if (!project) {
             return;
@@ -558,12 +575,19 @@ const SchedulerForm: FC<Props> = ({
                     </Tabs.Tab>
                     {isDashboard && dashboard ? (
                         <>
-                            <Tabs.Tab value="filters">{`Filters ${
-                                form.values.filters &&
-                                form.values.filters.length > 0
-                                    ? `(${form.values.filters.length})`
-                                    : ''
-                            }`}</Tabs.Tab>
+                            <Tabs.Tab value="filters">
+                                {`Filters ${
+                                    form.values.filters &&
+                                    form.values.filters.length > 0
+                                        ? `(${form.values.filters.length})`
+                                        : ''
+                                }`}
+                                {requiredFiltersWithoutValues.length > 0 && (
+                                    <Text span color="red" ml={4}>
+                                        *
+                                    </Text>
+                                )}
+                            </Tabs.Tab>
                             <Tabs.Tab value="parameters">Parameters</Tabs.Tab>
                         </>
                     ) : null}
@@ -1323,7 +1347,15 @@ const SchedulerForm: FC<Props> = ({
 
             <SchedulersModalFooter
                 confirmText={confirmText}
-                disableConfirm={isThresholdAlertWithNoFields}
+                disableConfirm={
+                    isThresholdAlertWithNoFields ||
+                    requiredFiltersWithoutValues.length > 0
+                }
+                disabledMessage={
+                    requiredFiltersWithoutValues.length > 0
+                        ? 'Some required filters are missing values'
+                        : undefined
+                }
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||

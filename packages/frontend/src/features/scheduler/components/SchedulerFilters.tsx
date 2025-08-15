@@ -166,7 +166,6 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         }}
                         hideTableName
                     />
-
                     <>
                         {isEditing ? null : (
                             <FilterSummaryLabel
@@ -193,6 +192,14 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         )}
+                        {dashboardFilter.required &&
+                            !isEditing &&
+                            (!schedulerFilter?.values ||
+                                schedulerFilter?.values?.length === 0) && (
+                                <Text fz="sm" color="red">
+                                    *
+                                </Text>
+                            )}
                         {tilesWithFilter && tilesWithFilter.length > 0 && (
                             <Tooltip
                                 label={`Applies to: ${tilesWithFilter.join(
@@ -405,6 +412,11 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         );
     }
 
+    const requiredFiltersWithoutValues = (draftFilters ?? []).filter(
+        (filter) =>
+            filter.required && (!filter.values || filter.values.length === 0),
+    );
+
     return (
         <FiltersProvider<Record<string, FilterableDimension>>
             popoverProps={{ withinPortal: true }}
@@ -416,6 +428,11 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
             {(draftFilters?.length ?? 0) + savedFiltersNotInDashboard?.length >
             0 ? (
                 <Stack mb="sm">
+                    {requiredFiltersWithoutValues.length > 0 && (
+                        <Text fz="xs" color="gray.6">
+                            All required filters must have values
+                        </Text>
+                    )}
                     {draftFilters?.map((filter) => {
                         const originalFilter = isEditMode
                             ? savedFiltersInDashboard?.find(
