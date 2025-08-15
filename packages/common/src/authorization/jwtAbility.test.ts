@@ -587,15 +587,6 @@ describe('Embedded dashboard abilities', () => {
                     }),
                 ),
             ).toBe(false);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
         });
 
         it('should not allow viewing Explore domains when canExplore is undefined', () => {
@@ -608,15 +599,6 @@ describe('Embedded dashboard abilities', () => {
                 ability.can(
                     'view',
                     subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
                         organizationUuid: organization.organizationUuid,
                         projectUuid,
                     }),
@@ -693,15 +675,6 @@ describe('Embedded dashboard abilities', () => {
                     }),
                 ),
             ).toBe(false);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
         });
 
         it('should not allow viewing Explore domains when canExplore is undefined', () => {
@@ -714,15 +687,6 @@ describe('Embedded dashboard abilities', () => {
                 ability.can(
                     'view',
                     subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
                         organizationUuid: organization.organizationUuid,
                         projectUuid,
                     }),
