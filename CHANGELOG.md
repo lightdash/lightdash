@@ -1,3 +1,10 @@
+# [0.1926.0](https://github.com/lightdash/lightdash/compare/0.1925.0...0.1926.0) (2025-08-15)
+
+
+### Features
+
+* scheduled delivery filters default to current values ([#16357](https://github.com/lightdash/lightdash/issues/16357)) ([b57deca](https://github.com/lightdash/lightdash/commit/b57deca1f01e21cc053c0c3b67ad5bf364c72101))
+
 # [0.1925.0](https://github.com/lightdash/lightdash/compare/0.1924.0...0.1925.0) (2025-08-15)
 
 

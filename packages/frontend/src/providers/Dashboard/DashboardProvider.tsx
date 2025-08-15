@@ -15,7 +15,6 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SavedChartsInfoForDashboardAvailableFilters,
-    type SchedulerFilterRule,
     type SortField,
 } from '@lightdash/common';
 import { isEqual } from 'lodash';
@@ -49,7 +48,7 @@ const emptyFilters: DashboardFilters = {
 
 const DashboardProvider: React.FC<
     React.PropsWithChildren<{
-        schedulerFilters?: SchedulerFilterRule[] | undefined;
+        schedulerFilters?: DashboardFilterRule[] | undefined;
         schedulerParameters?: ParametersValuesMap | undefined;
         dateZoom?: DateGranularity | undefined;
         projectUuid?: string;
@@ -838,6 +837,27 @@ const DashboardProvider: React.FC<
         [dashboardFilters.dimensions, allFilterableFieldsMap],
     );
 
+    // Memoized mapping of tile UUIDs to their display names
+    const tileNamesById = useMemo(() => {
+        if (!dashboardTiles) return {};
+
+        return dashboardTiles.reduce<Record<string, string>>((acc, tile) => {
+            const tileWithoutTitle =
+                !tile.properties.title || tile.properties.title.length === 0;
+            const isChartTileType = isDashboardChartTileType(tile);
+
+            let tileName = '';
+            if (tileWithoutTitle && isChartTileType) {
+                tileName = tile.properties.chartName || '';
+            } else if (tile.properties.title) {
+                tileName = tile.properties.title;
+            }
+
+            acc[tile.uuid] = tileName;
+            return acc;
+        }, {});
+    }, [dashboardTiles]);
+
     const value = {
         projectUuid,
         isDashboardLoading,
@@ -909,6 +929,7 @@ const DashboardProvider: React.FC<
         havePinnedParametersChanged,
         setHavePinnedParametersChanged,
         addParameterDefinitions,
+        tileNamesById,
     };
     return (
         <DashboardContext.Provider value={value}>
