@@ -1,3 +1,10 @@
+# [0.1921.0](https://github.com/lightdash/lightdash/compare/0.1920.0...0.1921.0) (2025-08-15)
+
+
+### Features
+
+* add metadata to chart/dashboard search results ([#16391](https://github.com/lightdash/lightdash/issues/16391)) ([07b0fc0](https://github.com/lightdash/lightdash/commit/07b0fc08255a810cdfee85c584a716b6d61dcdcd)), closes [#16313](https://github.com/lightdash/lightdash/issues/16313)
+
 # [0.1920.0](https://github.com/lightdash/lightdash/compare/0.1919.0...0.1920.0) (2025-08-15)
 
 
