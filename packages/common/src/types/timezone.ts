@@ -28,3 +28,6 @@ export enum TimeZone {
     'Pacific/Apia' = 'Pacific/Apia',
     'Pacific/Kiritimati' = 'Pacific/Kiritimati',
 }
+
+export const isTimeZone = (timezone: string): timezone is TimeZone =>
+    Object.values(TimeZone).includes(timezone as TimeZone);

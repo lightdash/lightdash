@@ -203,7 +203,9 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             searchable
                             clearable
                             variant="default"
-                            withinPortal
+                            comboboxProps={{
+                                withinPortal: true,
+                            }}
                             {...methods.register('timezone')}
                             onChange={(value) => {
                                 methods.setValue(
