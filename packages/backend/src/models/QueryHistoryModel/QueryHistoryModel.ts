@@ -243,4 +243,51 @@ export class QueryHistoryModel {
             originalColumns: result.original_columns,
         };
     }
+
+    async cleanupBatch(
+        cutoffDate: Date,
+        batchSize: number,
+        delayMs: number,
+        maxBatches?: number,
+        totalDeleted: number = 0,
+        batchCount: number = 0,
+    ): Promise<{ totalDeleted: number; batchCount: number }> {
+        const deletedCount = await this.database(QueryHistoryTableName)
+            .where('created_at', '<', cutoffDate)
+            .limit(batchSize)
+            .del();
+
+        if (deletedCount === 0) {
+            return { totalDeleted, batchCount };
+        }
+
+        const newTotalDeleted = totalDeleted + deletedCount;
+        const newBatchCount = batchCount + 1;
+
+        // Check if we've reached the maximum number of batches
+        if (maxBatches !== undefined && newBatchCount >= maxBatches) {
+            return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
+        }
+
+        // Add delay between batches to prevent database overload
+        if (deletedCount === batchSize) {
+            await new Promise<void>((resolve) => {
+                setTimeout(() => resolve(), delayMs);
+            });
+        }
+
+        // Continue with next batch if we deleted a full batch
+        if (deletedCount === batchSize) {
+            return this.cleanupBatch(
+                cutoffDate,
+                batchSize,
+                delayMs,
+                maxBatches,
+                newTotalDeleted,
+                newBatchCount,
+            );
+        }
+
+        return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
+    }
 }
