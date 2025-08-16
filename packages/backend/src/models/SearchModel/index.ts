@@ -1122,4 +1122,46 @@ export class SearchModel {
             dashboardTabs,
         };
     }
+
+    /**
+     * Unified search that returns mixed content types ranked by relevance rather than by type hierarchy.
+     * This enables hierarchy-free search where a query like "reports" can return both relevant dashboards and charts.
+     */
+    async searchUnifiedContent(
+        projectUuid: string,
+        query: string,
+        limit: number = 20,
+        filters?: SearchFilters,
+    ): Promise<
+        Array<
+            | (DashboardSearchResult & { contentType: 'dashboard' })
+            | (SavedChartSearchResult & { contentType: 'chart' })
+            | (SqlChartSearchResult & { contentType: 'chart' })
+        >
+    > {
+        // Perform all searches in parallel
+        const [dashboards, savedCharts, sqlCharts] = await Promise.all([
+            this.searchDashboards(projectUuid, query, filters),
+            this.searchSavedCharts(projectUuid, query, filters),
+            this.searchSqlCharts(projectUuid, query, filters),
+        ]);
+
+        // Combine all results with content type markers
+        const unifiedResults = [
+            ...dashboards.map((d) => ({
+                ...d,
+                contentType: 'dashboard' as const,
+            })),
+            ...savedCharts.map((c) => ({
+                ...c,
+                contentType: 'chart' as const,
+            })),
+            ...sqlCharts.map((c) => ({ ...c, contentType: 'chart' as const })),
+        ];
+
+        // Sort by search rank (higher is better) and take top results
+        return unifiedResults
+            .sort((a, b) => b.search_rank - a.search_rank)
+            .slice(0, limit);
+    }
 }
