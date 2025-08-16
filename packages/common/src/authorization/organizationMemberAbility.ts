@@ -1,7 +1,8 @@
 import { type AbilityBuilder } from '@casl/ability';
 import {
+    isSystemOrganizationRole,
+    OrganizationMemberRole,
     type OrganizationMemberProfile,
-    type OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
@@ -14,6 +15,7 @@ const applyOrganizationMemberDynamicAbilities = ({
 }: OrganizationMemberAbilitiesArgs) => {
     if (
         permissionsConfig.pat.enabled &&
+        isSystemOrganizationRole(role) && // TODO fix for custom roles
         permissionsConfig.pat.allowedOrgRoles.includes(role)
     ) {
         can('manage', 'PersonalAccessToken', {});
@@ -325,7 +327,7 @@ const applyOrganizationMemberStaticAbilities: Record<
 };
 
 export type OrganizationMemberAbilitiesArgs = {
-    role: OrganizationMemberRole;
+    role: OrganizationMemberRole | string;
     member: Pick<OrganizationMemberProfile, 'organizationUuid' | 'userUuid'>;
     builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
     permissionsConfig: {
@@ -342,11 +344,19 @@ export default function applyOrganizationMemberAbilities({
     builder,
     permissionsConfig,
 }: OrganizationMemberAbilitiesArgs) {
-    applyOrganizationMemberStaticAbilities[role](member, builder);
-    applyOrganizationMemberDynamicAbilities({
-        role,
-        member,
-        builder,
-        permissionsConfig,
-    });
+    if (isSystemOrganizationRole(role)) {
+        applyOrganizationMemberStaticAbilities[role](member, builder);
+        applyOrganizationMemberDynamicAbilities({
+            role,
+            member,
+            builder,
+            permissionsConfig,
+        });
+    } else {
+        // TODO implement custom role ability builder
+        applyOrganizationMemberStaticAbilities[OrganizationMemberRole.VIEWER](
+            member,
+            builder,
+        );
+    }
 }

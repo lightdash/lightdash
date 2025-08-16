@@ -23,7 +23,7 @@ export interface LightdashUser {
     organizationName?: string;
     organizationCreatedAt?: Date;
     userId: number;
-    role?: OrganizationMemberRole;
+    role?: OrganizationMemberRole | string; // String for custom roles
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
@@ -44,7 +44,7 @@ export interface LightdashSessionUser extends AccountUser {
     userId: number;
     firstName: string;
     lastName: string;
-    role?: OrganizationMemberRole;
+    role?: OrganizationMemberRole | string; // String for custom roles
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;

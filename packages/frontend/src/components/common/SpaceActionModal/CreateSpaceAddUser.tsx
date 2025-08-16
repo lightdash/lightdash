@@ -42,6 +42,8 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
         if (organizationUsers === undefined) return [];
         const projectUserUuids =
             projectAccess?.map((project) => project.userUuid) || [];
+        // TODO replace with ability check
+
         const orgUserUuids = organizationUsers
             .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
             .map((user) => user.userUuid);
@@ -92,6 +94,8 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                 );
 
                 if (!user) return null;
+
+                // TODO replace with ability check
 
                 const isAdmin =
                     user.role === OrganizationMemberRole.ADMIN ||

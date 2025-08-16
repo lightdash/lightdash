@@ -36,7 +36,7 @@ const UserListItem: FC<{
     isYou?: boolean;
     firstName: string;
     lastName: string;
-    role: ProjectMemberRole | OrganizationMemberRole;
+    role: ProjectMemberRole | OrganizationMemberRole | string;
 }> = ({ firstName, lastName, isYou, role }) => (
     <Group spacing="sm" position="apart" noWrap>
         <Group>
@@ -85,6 +85,8 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     const { data: projectAccess } = useProjectAccess(projectUuid);
 
     const adminUsers = useMemo(() => {
+        // TODO replace with ability check
+
         const projectUserUuids =
             projectAccess
                 ?.filter((access) => access.role === ProjectMemberRole.ADMIN)

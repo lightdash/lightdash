@@ -935,6 +935,8 @@ export class SpaceModel {
 
                     let spaceRole;
 
+                    // TODO replace with ability check
+
                     if (highestRole.role === ProjectMemberRole.ADMIN) {
                         spaceRole = SpaceMemberRole.ADMIN;
                     } else if (user_with_direct_access) {

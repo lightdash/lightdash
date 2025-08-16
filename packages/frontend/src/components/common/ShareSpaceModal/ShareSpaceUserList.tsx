@@ -75,6 +75,7 @@ const UserAccessSelectItem = forwardRef<HTMLDivElement, AccessOption>(
 
 const sortByRole =
     (sessionUserUuid: string | undefined) => (a: SpaceShare, b: SpaceShare) => {
+        // TODO how can we sort custom roles ?
         const roleOrder = [
             SpaceMemberRole.VIEWER,
             SpaceMemberRole.EDITOR,
@@ -186,6 +187,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
     return (
         <Stack spacing="sm">
             {paginatedList[page - 1]?.map((sharedUser) => {
+                // TODO replace with ability check
                 const needsToBePromotedToInteractiveViewer =
                     sharedUser.projectRole === ProjectMemberRole.VIEWER &&
                     sharedUser.role !== SpaceMemberRole.VIEWER;
