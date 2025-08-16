@@ -4,6 +4,7 @@ import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
 import { DataOps } from '../components/DataOps';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
+import ProjectParameters from '../components/ProjectParameters';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
@@ -55,6 +56,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/dataOps`,
                 element: <DataOps projectUuid={projectUuid} />,
+            },
+            {
+                path: `/parameters`,
+                element: <ProjectParameters projectUuid={projectUuid} />,
             },
             {
                 path: '*',
