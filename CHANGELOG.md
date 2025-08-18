@@ -1,3 +1,10 @@
+# [0.1930.0](https://github.com/lightdash/lightdash/compare/0.1929.1...0.1930.0) (2025-08-18)
+
+
+### Features
+
+* add model-level parameters to project parameters list ([#16418](https://github.com/lightdash/lightdash/issues/16418)) ([a075a3e](https://github.com/lightdash/lightdash/commit/a075a3e8f381927c2e4f2d0f62fb9f17ab0f3596))
+
 ## [0.1929.1](https://github.com/lightdash/lightdash/compare/0.1929.0...0.1929.1) (2025-08-18)
 
 
