@@ -1,20 +1,23 @@
 import {
-    DashboardTileTypes,
-    DateGranularity,
     applyDimensionOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
+    DashboardTileTypes,
+    DateGranularity,
     getItemId,
     isDashboardChartTileType,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameters,
     type FilterableDimension,
+    type ParameterDefinitions,
+    type ParametersValuesMap,
     type SavedChartsInfoForDashboardAvailableFilters,
-    type SchedulerFilterRule,
     type SortField,
 } from '@lightdash/common';
+import { isEqual } from 'lodash';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -25,6 +28,7 @@ import {
     useGetComments,
     type useDashboardCommentsCheck,
 } from '../../features/comments';
+import { useParameters } from '../../features/parameters';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
@@ -44,7 +48,8 @@ const emptyFilters: DashboardFilters = {
 
 const DashboardProvider: React.FC<
     React.PropsWithChildren<{
-        schedulerFilters?: SchedulerFilterRule[] | undefined;
+        schedulerFilters?: DashboardFilterRule[] | undefined;
+        schedulerParameters?: ParametersValuesMap | undefined;
         dateZoom?: DateGranularity | undefined;
         projectUuid?: string;
         embedToken?: string;
@@ -53,6 +58,7 @@ const DashboardProvider: React.FC<
     }>
 > = ({
     schedulerFilters,
+    schedulerParameters,
     dateZoom,
     projectUuid,
     embedToken,
@@ -150,13 +156,82 @@ const DashboardProvider: React.FC<
         }
     }, [dashboard]);
 
-    const [parameters, setParameters] = useState<
-        Record<string, string | string[]>
-    >({});
+    const [parameterDefinitions, setParameterDefinitions] =
+        useState<ParameterDefinitions>({});
+
+    const addParameterDefinitions = useCallback(
+        (parameters: ParameterDefinitions) => {
+            setParameterDefinitions((prev) => ({
+                ...prev,
+                ...parameters,
+            }));
+        },
+        [],
+    );
+
+    // Saved parameters are the parameters that are saved on the server
+    const [savedParameters, setSavedParameters] = useState<DashboardParameters>(
+        {},
+    );
+    // parameters that are currently applied to the dashboard
+    const [parameters, setParameters] = useState<DashboardParameters>({});
+    const [parametersHaveChanged, setParametersHaveChanged] =
+        useState<boolean>(false);
+
+    // Pinned parameters state
+    const [pinnedParameters, setPinnedParametersState] = useState<string[]>([]);
+    const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
+        useState<boolean>(false);
+
+    // Set parameters to saved parameters when they are loaded
+    useEffect(() => {
+        if (savedParameters) {
+            setParameters(savedParameters);
+        }
+    }, [savedParameters]);
+
+    // Set pinned parameters when dashboard is loaded
+    useEffect(() => {
+        if (dashboard?.config?.pinnedParameters !== undefined) {
+            setPinnedParametersState(dashboard.config.pinnedParameters);
+        } else if (dashboard?.config !== undefined) {
+            // Initialize empty array if dashboard has config but no pinnedParameters
+            setPinnedParametersState([]);
+        }
+    }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
+
+    // Apply scheduler parameters when provided (for scheduled deliveries)
+    useEffect(() => {
+        if (schedulerParameters) {
+            // Convert ParametersValuesMap to DashboardParameters format
+            const dashboardParams: DashboardParameters = Object.fromEntries(
+                Object.entries(schedulerParameters).map(([key, value]) => [
+                    key,
+                    {
+                        parameterName: key,
+                        value,
+                    },
+                ]),
+            );
+            setSavedParameters(dashboardParams);
+        }
+    }, [schedulerParameters]);
+
+    // Set parametersHaveChanged to true if parameters have changed
+    useEffect(() => {
+        if (!isEqual(parameters, savedParameters)) {
+            setParametersHaveChanged(true);
+        }
+    }, [parameters, savedParameters]);
 
     const setParameter = useCallback(
         (key: string, value: string | string[] | null) => {
-            if (value === null) {
+            if (
+                value === null ||
+                value === undefined ||
+                value === '' ||
+                (Array.isArray(value) && value.length === 0)
+            ) {
                 setParameters((prev) => {
                     const newParams = { ...prev };
                     delete newParams[key];
@@ -165,12 +240,54 @@ const DashboardProvider: React.FC<
             } else {
                 setParameters((prev) => ({
                     ...prev,
-                    [key]: value,
+                    [key]: {
+                        parameterName: key,
+                        value,
+                    },
                 }));
             }
         },
         [],
     );
+
+    const clearAllParameters = useCallback(() => {
+        setParameters({});
+    }, []);
+
+    const setPinnedParameters = useCallback((pinnedParams: string[]) => {
+        setPinnedParametersState(pinnedParams);
+        setHavePinnedParametersChanged(true);
+    }, []);
+
+    const toggleParameterPin = useCallback((parameterKey: string) => {
+        setPinnedParametersState((prev) => {
+            const isCurrentlyPinned = prev.includes(parameterKey);
+            const newPinnedParams = isCurrentlyPinned
+                ? prev.filter((key) => key !== parameterKey)
+                : [...prev, parameterKey];
+            return newPinnedParams;
+        });
+        setHavePinnedParametersChanged(true);
+    }, []);
+
+    const parameterValues = useMemo(() => {
+        return Object.entries(parameters).reduce((acc, [key, parameter]) => {
+            if (
+                parameter.value !== null &&
+                parameter.value !== undefined &&
+                parameter.value !== ''
+            ) {
+                acc[key] = parameter.value;
+            }
+            return acc;
+        }, {} as ParametersValuesMap);
+    }, [parameters]);
+
+    const selectedParametersCount = useMemo(() => {
+        return Object.values(parameterValues).filter(
+            (value) => value !== null && value !== '' && value !== undefined,
+        ).length;
+    }, [parameterValues]);
 
     // Track parameter references from each tile
     const [tileParameterReferences, setTileParameterReferences] = useState<
@@ -197,6 +314,20 @@ const DashboardProvider: React.FC<
         return new Set(allReferences);
     }, [tileParameterReferences]);
 
+    const { data: projectParameters } = useParameters(
+        projectUuid,
+        Array.from(dashboardParameterReferences ?? []),
+        {
+            enabled: !!projectUuid && !!dashboardParameterReferences,
+        },
+    );
+
+    useEffect(() => {
+        if (projectParameters) {
+            addParameterDefinitions(projectParameters);
+        }
+    }, [projectParameters, addParameterDefinitions]);
+
     // Determine if all chart tiles have loaded their parameter references
     const areAllChartsLoaded = useMemo(() => {
         if (!dashboardTiles) return false;
@@ -208,11 +339,32 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles]);
 
-    // Reset parameter references and loaded tiles when dashboard tiles change
+    const missingRequiredParameters = useMemo(() => {
+        // If no parameter references, return empty array
+        if (!dashboardParameterReferences.size) return [];
+
+        // Missing required parameters are the ones that are not set and don't have a default value
+        return Array.from(dashboardParameterReferences).filter(
+            (parameterName) =>
+                !parameters[parameterName] &&
+                !parameterDefinitions[parameterName]?.default,
+        );
+    }, [dashboardParameterReferences, parameters, parameterDefinitions]);
+
+    // Remove parameter references for tiles that are no longer in the dashboard
     useEffect(() => {
         if (dashboardTiles) {
-            setTileParameterReferences({});
-            setLoadedTiles(new Set());
+            setTileParameterReferences((old) => {
+                if (!dashboardTiles) return {};
+                const tileIds = new Set(
+                    dashboardTiles.map((tile) => tile.uuid),
+                );
+                return Object.fromEntries(
+                    Object.entries(old).filter(([tileId]) =>
+                        tileIds.has(tileId),
+                    ),
+                );
+            });
         }
     }, [dashboardTiles]);
 
@@ -685,6 +837,27 @@ const DashboardProvider: React.FC<
         [dashboardFilters.dimensions, allFilterableFieldsMap],
     );
 
+    // Memoized mapping of tile UUIDs to their display names
+    const tileNamesById = useMemo(() => {
+        if (!dashboardTiles) return {};
+
+        return dashboardTiles.reduce<Record<string, string>>((acc, tile) => {
+            const tileWithoutTitle =
+                !tile.properties.title || tile.properties.title.length === 0;
+            const isChartTileType = isDashboardChartTileType(tile);
+
+            let tileName = '';
+            if (tileWithoutTitle && isChartTileType) {
+                tileName = tile.properties.chartName || '';
+            } else if (tile.properties.title) {
+                tileName = tile.properties.title;
+            }
+
+            acc[tile.uuid] = tileName;
+            return acc;
+        }, {});
+    }, [dashboardTiles]);
+
     const value = {
         projectUuid,
         isDashboardLoading,
@@ -737,11 +910,26 @@ const DashboardProvider: React.FC<
         requiredDashboardFilters,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
-        parameters,
+        setSavedParameters,
+        parametersHaveChanged,
+        dashboardParameters: parameters,
+        parameterValues,
+        selectedParametersCount,
         setParameter,
+        parameterDefinitions,
+        clearAllParameters,
         dashboardParameterReferences,
         addParameterReferences,
+        tileParameterReferences,
         areAllChartsLoaded,
+        missingRequiredParameters,
+        pinnedParameters,
+        setPinnedParameters,
+        toggleParameterPin,
+        havePinnedParametersChanged,
+        setHavePinnedParametersChanged,
+        addParameterDefinitions,
+        tileNamesById,
     };
     return (
         <DashboardContext.Provider value={value}>

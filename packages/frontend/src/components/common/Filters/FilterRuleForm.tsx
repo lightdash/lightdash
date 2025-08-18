@@ -120,7 +120,6 @@ const FilterRuleForm: FC<Props> = ({
                 data={filterOperatorOptions}
                 onChange={(value) => {
                     if (!value) return;
-
                     onChange(
                         getFilterRuleFromFieldWithDefaultValue(
                             activeField,
@@ -128,9 +127,7 @@ const FilterRuleForm: FC<Props> = ({
                                 ...filterRule,
                                 operator: value as FilterRule['operator'],
                             },
-                            (filterRule.values?.length || 0) > 0
-                                ? filterRule.values
-                                : [1],
+                            filterRule.values ?? [],
                         ),
                     );
                 }}
@@ -158,6 +155,7 @@ const FilterRuleForm: FC<Props> = ({
                             <ActionIcon
                                 onClick={onDelete}
                                 disabled={isRequired}
+                                data-testid="delete-filter-rule-button"
                             >
                                 <MantineIcon icon={IconX} size="sm" />
                             </ActionIcon>

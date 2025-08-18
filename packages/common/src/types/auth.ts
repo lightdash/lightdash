@@ -4,11 +4,12 @@ import {
 } from '../ee';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
-import {
-    type AccountUser,
-    type ExternalUser,
-    type IntrinsicUserAttributes,
-    type LightdashSessionUser,
+import type {
+    AccountUser,
+    ExternalUser,
+    IntrinsicUserAttributes,
+    LightdashSessionUser,
+    LightdashUser,
 } from './user';
 import { type UserAttributeValueMap } from './userAttributes';
 
@@ -19,15 +20,16 @@ export enum AuthTokenPrefix {
     SCIM = 'scim_',
     SERVICE_ACCOUNT = 'ldsvc_',
     PERSONAL_ACCESS_TOKEN = 'ldpat_',
+    OAUTH_APP = 'ldapp_',
+    OAUTH_REFRESH = 'ldref_',
 }
 
-export type AuthType =
-    | 'session'
-    | 'pat'
-    | 'service-account'
-    | 'jwt'
-    | 'browserless'
-    | 'scim';
+export type AuthType = 'session' | 'pat' | 'service-account' | 'jwt' | 'oauth';
+
+export type PersonalAccessTokenAuth = {
+    type: 'pat';
+    source: string; // The api key
+};
 
 export type SessionAuth = {
     type: 'session';
@@ -45,7 +47,22 @@ export type ServiceAccountAuth = {
     source: string; // The service account token
 };
 
-export type Authentication = SessionAuth | JwtAuth | ServiceAccountAuth;
+export type OauthAuth = {
+    type: 'oauth';
+    source: string; // The oauth token
+    token: string;
+    clientId: string;
+    scopes: string[];
+    expiresAt?: number;
+    resource?: URL;
+};
+
+export type Authentication =
+    | SessionAuth
+    | JwtAuth
+    | ServiceAccountAuth
+    | PersonalAccessTokenAuth
+    | OauthAuth;
 
 export type UserAccessControls = {
     userAttributes: UserAttributeValueMap;
@@ -72,6 +89,12 @@ export type AccountHelpers = {
     isSessionUser: () => boolean;
     /** Is this account for a JWT user? */
     isJwtUser: () => boolean;
+    /** Is this account for a service account? */
+    isServiceAccount: () => boolean;
+    /** Is this account for a personal access token? */
+    isPatUser: () => boolean;
+    /** Is this account for a oauth user? */
+    isOauthUser: () => boolean;
 };
 
 export type AccountOrganization = Partial<
@@ -97,6 +120,16 @@ export type SessionAccount = BaseAccountWithHelpers & {
     user: LightdashSessionUser;
 };
 
+export type OssEmbed = {
+    projectUuid: string;
+    organization: Pick<Organization, 'organizationUuid' | 'name' | 'createdAt'>;
+    encodedSecret: string;
+    dashboardUuids: string[];
+    allowAllDashboards: boolean;
+    createdAt: string;
+    user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
+};
+
 /**
  * Account for anonymous users with JWT authentication (embeds)
  */
@@ -105,9 +138,36 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     user: ExternalUser;
     /** The access permissions the account has */
     access: DashboardAccess;
+    /** The embed configuration associated with the JWT */
+    embed: OssEmbed;
 };
 
-export type Account = SessionAccount | AnonymousAccount;
+export type ApiKeyAccount = BaseAccountWithHelpers & {
+    authentication: PersonalAccessTokenAuth;
+    user: LightdashSessionUser;
+};
+
+export type ServiceAcctAccount = BaseAccountWithHelpers & {
+    authentication: ServiceAccountAuth;
+    user: LightdashSessionUser;
+};
+
+export type OauthAccount = BaseAccountWithHelpers & {
+    authentication: OauthAuth;
+    user: LightdashSessionUser;
+};
+
+export type Account =
+    | SessionAccount
+    | AnonymousAccount
+    | ApiKeyAccount
+    | ServiceAcctAccount
+    | OauthAccount;
+
+export type AccountWithoutHelpers<T extends Account> = Omit<
+    T,
+    keyof AccountHelpers
+>;
 
 export function assertEmbeddedAuth(
     account: Account | undefined,
@@ -124,3 +184,37 @@ export function assertSessionAuth(
         throw new ForbiddenError('Account is not a session account');
     }
 }
+
+export function isJwtUser(account?: Account): account is AnonymousAccount {
+    if (!account) return false;
+
+    return account.isJwtUser();
+}
+
+export const assertIsAccountWithOrg = (
+    account: Account,
+): asserts account is Account & {
+    organization: {
+        organizationUuid: string;
+        name: string;
+        createdAt: Date;
+    };
+} => {
+    const { organization } = account;
+    const isValidOrg =
+        typeof organization.organizationUuid === 'string' &&
+        typeof organization.name === 'string' &&
+        organization.createdAt instanceof Date;
+
+    if (!isValidOrg) {
+        throw new ForbiddenError('Account is not part of an organization');
+    }
+
+    if (account.isSessionUser()) {
+        const sessionAccount = account as SessionAccount;
+        if (typeof sessionAccount.user.role !== 'string')
+            throw new ForbiddenError(
+                'Session user does not have a role in an organization',
+            );
+    }
+};

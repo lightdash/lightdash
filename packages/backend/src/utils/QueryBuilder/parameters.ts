@@ -1,36 +1,95 @@
 import {
     parameterRegex,
+    UnexpectedServerError,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { replaceLightdashValues } from './utils';
 
-// We need this function so that we can replace when there's no access to the sql builder (e.g. in query builder)
-export const replaceParameters = (
-    sql: string,
+const escapeParameterValues = (
     parameters: ParametersValuesMap,
-    quoteChar: string,
-    wrapChar: string = '', // ! Default to non-wrapped sql
-) =>
-    replaceLightdashValues(
+    escapeString: (value: string) => string,
+): ParametersValuesMap => {
+    const escapedParameters: ParametersValuesMap = {};
+
+    Object.entries(parameters).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+            // Handle array of strings
+            escapedParameters[key] = value.map((item) => escapeString(item));
+        } else {
+            // Handle single string
+            escapedParameters[key] = escapeString(value);
+        }
+    });
+
+    return escapedParameters;
+};
+
+export const safeReplaceParameters = ({
+    sql,
+    parameterValuesMap,
+    escapeString,
+    quoteChar,
+    wrapChar,
+}: {
+    sql: string;
+    parameterValuesMap: ParametersValuesMap;
+    escapeString: (value: string) => string;
+    quoteChar: string;
+    wrapChar?: string;
+}) => {
+    // Don't allow empty quote char
+    if (quoteChar === '') {
+        throw new UnexpectedServerError(
+            'Empty quote character is not allowed when replacing parameters',
+        );
+    }
+
+    return replaceLightdashValues(
         parameterRegex,
         sql,
-        parameters,
+        escapeParameterValues(parameterValuesMap, escapeString),
         quoteChar,
-        wrapChar,
+        wrapChar ?? '', // ! Default to non-wrapped sql
         {
             replacementName: 'parameter',
             throwOnMissing: false,
         },
     );
+};
 
-export const replaceParametersAsString = (
+export const safeReplaceParametersWithSqlBuilder = (
     sql: string,
-    parameters: ParametersValuesMap,
+    parameterValuesMap: ParametersValuesMap,
     sqlBuilder: WarehouseSqlBuilder,
-) => replaceParameters(sql, parameters, sqlBuilder.getStringQuoteChar(), '');
+) =>
+    safeReplaceParameters({
+        sql,
+        parameterValuesMap,
+        escapeString: sqlBuilder.escapeString.bind(sqlBuilder),
+        quoteChar: sqlBuilder.getStringQuoteChar(),
+    });
 
-export const replaceParametersAsRaw = (
+/**
+ * **Warning:** this function does not wrap the parameter values in quotes.
+ * Use it only when you are sure that the parameters are safe. E.g. when in used in filter string compiler it get's wrapped in quotes.
+ */
+export const unsafeReplaceParametersAsRaw = (
     sql: string,
-    parameters: ParametersValuesMap,
-) => replaceParameters(sql, parameters, '', '');
+    parameterValuesMap: ParametersValuesMap,
+    sqlBuilder: WarehouseSqlBuilder,
+) =>
+    replaceLightdashValues(
+        parameterRegex,
+        sql,
+        escapeParameterValues(
+            parameterValuesMap,
+            sqlBuilder.escapeString.bind(sqlBuilder),
+        ),
+        '',
+        '',
+        {
+            replacementName: 'parameter',
+            throwOnMissing: false,
+        },
+    );

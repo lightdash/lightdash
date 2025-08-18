@@ -104,6 +104,7 @@ import { type ResultColumns, type ResultRow } from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
+    type ApiSchedulersResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './types/scheduler';
@@ -125,16 +126,18 @@ import type {
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
-    ApiAiConversationMessages,
-    ApiAiConversations,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
     EmbedUrl,
 } from './ee';
 import { type AnyType } from './types/any';
-import { type ApiGetProjectParametersResults } from './types/api/parameters';
+import {
+    type ApiGetProjectParametersListResults,
+    type ApiGetProjectParametersResults,
+} from './types/api/parameters';
 import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
+import { type Account } from './types/auth';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -156,8 +159,12 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
 import type { ResultsPaginationMetadata } from './types/paginateResults';
+import { type ParametersValuesMap } from './types/parameters';
 import { type ApiPromotionChangesResponse } from './types/promotion';
-import type { QueryHistoryStatus } from './types/queryHistory';
+import {
+    type PivotConfiguration,
+    type QueryHistoryStatus,
+} from './types/queryHistory';
 import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
@@ -177,13 +184,11 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
-import type {
-    PivotIndexColum,
-    PivotValuesColumn,
-} from './visualizations/types';
+import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
+export * from './authorization/scopes';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
@@ -197,6 +202,7 @@ export * from './pivotTable/pivotQueryResults';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
+export * from './types/account';
 export * from './types/analytics';
 export * from './types/any';
 export * from './types/api';
@@ -237,6 +243,7 @@ export * from './types/lightdashProjectConfig';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
+export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
@@ -254,10 +261,12 @@ export * from './types/queryHistory';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
+export * from './types/roles';
 export * from './types/savedCharts';
 export * from './types/scheduler';
 export * from './types/schedulerLog';
 export * from './types/schedulerTaskList';
+export * from './types/scopes';
 export * from './types/search';
 export * from './types/share';
 export * from './types/slack';
@@ -298,6 +307,7 @@ export * from './utils/i18n';
 export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
+export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
@@ -539,7 +549,8 @@ export type ApiQueryResults = {
 type ApiExecuteAsyncQueryResultsCommon = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
-    parameterReferences: string[];
+    parameterReferences: string[]; // params needed for query to run
+    usedParametersValues: ParametersValuesMap; // params values used
 };
 
 export type ApiExecuteAsyncMetricQueryResults =
@@ -576,7 +587,7 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     pivotDetails: {
         // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
         totalColumnCount: number | null;
-        indexColumn: PivotIndexColum;
+        indexColumn: PivotConfiguration['indexColumn'] | undefined;
         valuesColumns: PivotValuesColumn[];
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
@@ -886,8 +897,6 @@ type ApiResults =
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
-    | ApiAiConversations['results']
-    | ApiAiConversationMessages['results']
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results']
@@ -916,6 +925,7 @@ type ApiResults =
     | ApiExecuteAsyncMetricQueryResults
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
+    | ApiSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults
@@ -926,8 +936,10 @@ type ApiResults =
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
+    | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
-    | ApiAiAgentThreadMessageCreateResponse['results'];
+    | ApiAiAgentThreadMessageCreateResponse['results']
+    | Account;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1083,6 +1095,7 @@ export type HealthState = {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
     };
+    isCustomRolesEnabled: boolean;
 };
 
 export enum DBFieldTypes {

@@ -1,5 +1,6 @@
 import { Badge, Loader, Paper, Stack, Table, Text } from '@mantine-8/core';
 import { useState, type FC } from 'react';
+import { useParams } from 'react-router';
 import { useAiAgentThreads } from '../hooks/useOrganizationAiAgents';
 import { ThreadDetailsModal } from './ThreadDetailsModal';
 
@@ -14,7 +15,12 @@ export const ConversationsList: FC<ConversationsListProps> = ({
     agentName,
     allUsers = false,
 }) => {
-    const { data: threads, isLoading } = useAiAgentThreads(agentUuid, allUsers);
+    const { projectUuid } = useParams();
+    const { data: threads, isLoading } = useAiAgentThreads(
+        projectUuid!,
+        agentUuid,
+        allUsers,
+    );
     const [selectedThreadUuid, setSelectedThreadUuid] = useState<string | null>(
         null,
     );

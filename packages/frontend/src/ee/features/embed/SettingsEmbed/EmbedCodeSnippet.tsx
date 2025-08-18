@@ -6,9 +6,12 @@ import {
 } from '@lightdash/common';
 import { Tabs } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import React, { useCallback, type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
+// Not sure why lint-staged is removing the value of this enum.
+// prettier-ignore
+// eslint-disable-next-line
 enum SnippetLanguage {
     NODE = 'node',
     PYTHON = 'python',
@@ -32,6 +35,8 @@ const data = {
         canExportImages: {{canExportImagesEnabled}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
+        canExplore: {{canExploreEnabled}},
+        canViewUnderlyingData: {{canViewUnderlyingData}},
     },
     user: {
         externalId: {{externalId}},
@@ -63,6 +68,8 @@ data = {
         "canExportImages": {{canExportImagesEnabledPython}},
         "canExportPagePdf": {{canExportPagePdfPython}},
         "canDateZoom": {{canDateZoomPython}},
+        "canExplore": {{canExploreEnabledPython}},
+        "canViewUnderlyingData": {{canViewUnderlyingDataPython}},
     },
     "user": {
         "externalId": {{externalIdPython}},
@@ -104,6 +111,8 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            CanExplore bool \`json:"canExplore"\`
+            CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         jwt.StandardClaims
@@ -127,6 +136,8 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            CanExplore bool \`json:"canExplore"\`
+            CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
         }{
             Type:          "dashboard",
             ProjectUuid:   projectUuid,
@@ -142,6 +153,8 @@ func main() {
             CanExportImages: {{canExportImagesEnabled}},
             CanExportPagePdf: {{canExportPagePdf}},
             CanDateZoom: {{canDateZoom}},
+            CanExplore: {{canExploreEnabled}},
+            CanViewUnderlyingData: {{canViewUnderlyingData}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -241,6 +254,10 @@ const getCodeSnippet = (
             data.content.canExportPagePdf ? 'true' : 'false',
         )
         .replace(
+            '{{canViewUnderlyingData}}',
+            data.content.canViewUnderlyingData ? 'true' : 'false',
+        )
+        .replace(
             '{{canExportCsvEnabled}}',
             data.content.canExportCsv ? 'true' : 'false',
         )
@@ -255,6 +272,10 @@ const getCodeSnippet = (
         .replace(
             '{{canExportPagePdfPython}}',
             data.content.canExportPagePdf ? 'True' : 'False',
+        )
+        .replace(
+            '{{canViewUnderlyingDataPython}}',
+            data.content.canViewUnderlyingData ? 'True' : 'False',
         )
         .replace(
             '{{canExportImagesEnabled}}',
@@ -294,7 +315,15 @@ const getCodeSnippet = (
             '{{emailGoDef}}',
             data.user?.email ? `email := "${data.user?.email}"` : '',
         )
-        .replace('{{emailGo}}', data.user?.email ? `&email` : 'nil');
+        .replace('{{emailGo}}', data.user?.email ? `&email` : 'nil')
+        .replace(
+            '{{canExploreEnabled}}',
+            data.content.canExplore ? 'true' : 'false',
+        )
+        .replace(
+            '{{canExploreEnabledPython}}',
+            data.content.canExplore ? 'True' : 'False',
+        );
 };
 
 const EmbedCodeSnippet: FC<{

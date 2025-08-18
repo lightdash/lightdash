@@ -5,7 +5,7 @@ import {
     WarehouseTypes,
     WeekDay,
 } from '@lightdash/common';
-import { getDefaultMetricSql } from '../utils/sql';
+import { getDefaultMetricSql, normalizeUnicode } from '../utils/sql';
 
 export default abstract class WarehouseBaseSqlBuilder
     implements WarehouseSqlBuilder
@@ -40,5 +40,24 @@ export default abstract class WarehouseBaseSqlBuilder
 
     concatString(...args: string[]): string {
         return `CONCAT(${args.join(', ')})`;
+    }
+
+    escapeString(value: string): string {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return (
+            normalizeUnicode(value)
+                // Default: escape single quotes by doubling them
+                .replaceAll("'", "''")
+                // Remove SQL comments (-- and /* */)
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                // Escape backslashes
+                .replaceAll('\\', '\\\\')
+                // Remove null bytes
+                .replaceAll('\0', '')
+        );
     }
 }

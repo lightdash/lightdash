@@ -1,8 +1,10 @@
+import { subject } from '@casl/ability';
 import {
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
+    type ApiErrorDetail,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import {
@@ -10,12 +12,12 @@ import {
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import {
-    type FC,
     memo,
     useCallback,
     useLayoutEffect,
     useMemo,
     useState,
+    type FC,
 } from 'react';
 import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
@@ -23,6 +25,7 @@ import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianCon
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -127,6 +130,23 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         (context) => context.actions.closeVisualizationConfig,
     );
 
+    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+    useLayoutEffect(() => {
+        if (isVisualizationConfigOpen) {
+            const target = document.getElementById(VisualizationConfigPortalId);
+            setPortalTarget(target);
+        } else {
+            setPortalTarget(null);
+        }
+    }, [isVisualizationConfigOpen]);
+
+    useLayoutEffect(() => {
+        if (!isEditMode) {
+            closeVisualizationConfig();
+        }
+    }, [isEditMode, closeVisualizationConfig]);
+
     useLayoutEffect(() => {
         if (!isOpen) {
             closeVisualizationConfig();
@@ -143,6 +163,28 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         },
         [unsavedChartVersion],
     );
+
+    const missingRequiredParameters = useExplorerContext(
+        (context) => context.state.missingRequiredParameters,
+    );
+
+    const apiErrorDetail = useMemo(() => {
+        const queryError = query.error?.error ?? queryResults.error?.error;
+
+        return !missingRequiredParameters?.length
+            ? queryError
+            : // Mimicking an API Error Detail so it can be used in the EmptyState component
+              ({
+                  message: 'Missing required parameters',
+                  name: 'Error',
+                  statusCode: 400,
+                  data: {},
+              } satisfies ApiErrorDetail);
+    }, [
+        query.error?.error,
+        queryResults.error?.error,
+        missingRequiredParameters,
+    ]);
 
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;
@@ -183,7 +225,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 resultsData={resultsData}
-                apiErrorDetail={query.error?.error}
+                apiErrorDetail={apiErrorDetail}
                 isLoading={isLoadingQueryResults}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
@@ -194,6 +236,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 onPivotDimensionsChange={setPivotFields}
                 colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
                 tableCalculationsMetadata={tableCalculationsMetadata}
+                parameters={query.data?.usedParametersValues}
             >
                 <CollapsableCard
                     title="Chart"
@@ -213,7 +256,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                         }
                                         rightIcon={
                                             <MantineIcon
-                                                color="gray"
                                                 icon={
                                                     isVisualizationConfigOpen
                                                         ? IconLayoutSidebarLeftCollapse
@@ -232,7 +274,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                  * NOTE: not using Portal from mantine-8 because this page lacks MantineProvider from Mantine 8
                                  * TODO: use mantine-8 portal with reuseTargetNode flag to avoid rendering additional divs
                                  */}
-                                {isVisualizationConfigOpen &&
+                                {portalTarget &&
                                     createPortal(
                                         <VisualizationConfig
                                             chartType={
@@ -241,21 +283,27 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                             }
                                             onClose={closeVisualizationConfig}
                                         />,
-                                        document.getElementById(
-                                            VisualizationConfigPortalId,
-                                        )!,
+                                        portalTarget,
                                     )}
 
-                                {!!projectUuid && (
-                                    <ChartDownloadMenu
-                                        getDownloadQueryUuid={
-                                            getDownloadQueryUuid
-                                        }
-                                        projectUuid={projectUuid}
-                                        chartName={savedChart?.name}
-                                        getGsheetLink={getGsheetLink}
-                                    />
-                                )}
+                                <Can
+                                    I="manage"
+                                    this={subject('Explore', {
+                                        organizationUuid: org?.organizationUuid,
+                                        projectUuid,
+                                    })}
+                                >
+                                    {!!projectUuid && (
+                                        <ChartDownloadMenu
+                                            getDownloadQueryUuid={
+                                                getDownloadQueryUuid
+                                            }
+                                            projectUuid={projectUuid}
+                                            chartName={savedChart?.name}
+                                            getGsheetLink={getGsheetLink}
+                                        />
+                                    )}
+                                </Can>
                             </>
                         )
                     }

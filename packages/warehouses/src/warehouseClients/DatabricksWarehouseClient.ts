@@ -24,6 +24,7 @@ import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
+import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -189,6 +190,25 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
 
     getFieldQuoteChar(): string {
         return '`';
+    }
+
+    escapeString(value: string): string {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return (
+            normalizeUnicode(value)
+                // Databricks/Spark uses backslash escaping like BigQuery
+                .replaceAll('\\', '\\\\')
+                .replaceAll("'", "\\'")
+                .replaceAll('"', '\\"')
+                // Remove SQL comments (Spark SQL supports --, /* */ comments)
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                // Remove null bytes
+                .replaceAll('\0', '')
+        );
     }
 }
 

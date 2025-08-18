@@ -93,7 +93,7 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getProject(projectUuid, req.user!),
+                .getProject(projectUuid, req.account!),
         };
     }
 
@@ -373,7 +373,7 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         const totalResult = await this.services
             .getProjectService()
-            .calculateTotalFromQuery(req.user!, projectUuid, body);
+            .calculateTotalFromQuery(req.account!, projectUuid, body);
         return {
             status: 'ok',
             results: totalResult,
@@ -392,7 +392,7 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         const subtotalsResult = await this.services
             .getProjectService()
-            .calculateSubtotalsFromQuery(req.user!, projectUuid, body);
+            .calculateSubtotalsFromQuery(req.account!, projectUuid, body);
         return {
             status: 'ok',
             results: subtotalsResult,
@@ -671,7 +671,7 @@ export class ProjectController extends BaseController {
         const { schedulerTimezone: oldDefaultProjectTimezone } =
             await this.services
                 .getProjectService()
-                .getProject(projectUuid, req.user!);
+                .getProject(projectUuid, req.account!);
 
         await this.services
             .getProjectService()

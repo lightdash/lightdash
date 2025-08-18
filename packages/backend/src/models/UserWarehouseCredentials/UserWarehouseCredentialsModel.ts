@@ -145,7 +145,7 @@ export class UserWarehouseCredentialsModel {
             .select('*')
             .where('warehouse_type', warehouseType)
             .andWhere('user_uuid', userUuid)
-            .orderBy('created_at')
+            .orderBy('created_at', 'desc') // Get the most recent credentials
             .first();
     }
 

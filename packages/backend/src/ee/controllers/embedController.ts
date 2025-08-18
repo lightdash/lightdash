@@ -2,6 +2,7 @@ import {
     AdditionalMetric,
     AndFilterGroup,
     AnyType,
+    ApiCalculateSubtotalsResponse,
     ApiCalculateTotalResponse,
     ApiErrorPayload,
     ApiSuccessEmpty,
@@ -267,6 +268,40 @@ export class EmbedController extends BaseController {
                 body.dashboardFilters,
                 body.invalidateCache,
             ),
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/chart/:savedChartUuid/calculate-subtotals')
+    @OperationId('embedCalculateSubtotalsFromSavedChart')
+    async embedCalculateSubtotalsFromSavedChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: string,
+        @Body()
+        body: {
+            dashboardFilters?: DashboardFilters;
+            columnOrder: string[];
+            pivotDimensions?: string[];
+            invalidateCache?: boolean;
+        },
+    ): Promise<ApiCalculateSubtotalsResponse> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        return {
+            status: 'ok',
+            results:
+                await this.getEmbedService().calculateSubtotalsFromSavedChart(
+                    req.account,
+                    projectUuid,
+                    savedChartUuid,
+                    body.dashboardFilters,
+                    body.columnOrder,
+                    body.pivotDimensions,
+                    body.invalidateCache,
+                ),
         };
     }
 

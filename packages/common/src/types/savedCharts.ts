@@ -4,6 +4,7 @@ import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
+import { type ParametersValuesMap } from './parameters';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceShare } from './space';
 import { type LightdashUser, type UpdatedByUser } from './user';
@@ -21,6 +22,7 @@ export enum ChartKind {
     BIG_NUMBER = 'big_number',
     FUNNEL = 'funnel',
     CUSTOM = 'custom',
+    TREEMAP = 'treemap',
 }
 
 export enum ChartType {
@@ -29,6 +31,7 @@ export enum ChartType {
     BIG_NUMBER = 'big_number',
     PIE = 'pie',
     FUNNEL = 'funnel',
+    TREEMAP = 'treemap',
     CUSTOM = 'custom',
 }
 
@@ -100,6 +103,19 @@ export type PieChart = {
     legendPosition?: PieChartLegendPosition;
     legendMaxItemLength?: number;
     metadata?: Record<string, SeriesMetadata>;
+};
+
+export type TreemapChart = {
+    visibleMin?: number;
+    leafDepth?: number;
+    groupFieldIds?: string[];
+    sizeMetricId?: string;
+    colorMetricId?: string;
+    startColor?: string;
+    endColor?: string;
+    useDynamicColors?: boolean;
+    startColorThreshold?: number;
+    endColorThreshold?: number;
 };
 
 export enum FunnelChartDataInput {
@@ -363,13 +379,19 @@ export type TableChartConfig = {
     config?: TableChart;
 };
 
+export type TreemapChartConfig = {
+    type: ChartType.TREEMAP;
+    config?: TreemapChart;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | CartesianChartConfig
     | CustomVisConfig
     | PieChartConfig
     | FunnelChartConfig
-    | TableChartConfig;
+    | TableChartConfig
+    | TreemapChartConfig;
 
 export type SavedChartType = ChartType;
 
@@ -389,6 +411,7 @@ export type SavedChart = {
     tableConfig: {
         columnOrder: string[];
     };
+    parameters?: ParametersValuesMap;
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
     organizationUuid: string;
@@ -413,6 +436,7 @@ type CreateChartBase = Pick<
     | 'pivotConfig'
     | 'chartConfig'
     | 'tableConfig'
+    | 'parameters'
 >;
 
 export type CreateChartInSpace = CreateChartBase & {
@@ -559,6 +583,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.BIG_NUMBER;
         case ChartKind.TABLE:
             return ChartType.TABLE;
+        case ChartKind.TREEMAP:
+            return ChartType.TREEMAP;
         default:
             return ChartType.CARTESIAN;
     }
@@ -611,6 +637,8 @@ export const getChartKind = (
             }
 
             return undefined;
+        case ChartType.TREEMAP:
+            return ChartKind.TREEMAP;
         default:
             return assertUnreachable(
                 chartType,
@@ -719,6 +747,7 @@ export const getHiddenTableFields = (config: ChartConfig) => {
 export type CalculateTotalFromQuery = {
     metricQuery: MetricQueryRequest;
     explore: string;
+    parameters?: ParametersValuesMap;
 };
 
 export type ApiCalculateTotalResponse = {
@@ -729,6 +758,7 @@ export type ApiCalculateTotalResponse = {
 export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
     columnOrder: string[];
     pivotDimensions?: string[];
+    parameters?: ParametersValuesMap;
 };
 
 export type ApiCalculateSubtotalsResponse = {

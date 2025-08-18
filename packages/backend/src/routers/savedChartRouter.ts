@@ -15,7 +15,7 @@ savedChartRouter.get(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .get(getObjectValue(req.params, 'savedQueryUuid'), req.user!)
+            .get(getObjectValue(req.params, 'savedQueryUuid'), req.account!)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -55,7 +55,7 @@ savedChartRouter.get(
         req.services
             .getProjectService()
             .getAvailableFiltersForSavedQuery(
-                req.user!,
+                req.account!,
                 getObjectValue(req.params, 'savedQueryUuid'),
             )
             .then((results) => {

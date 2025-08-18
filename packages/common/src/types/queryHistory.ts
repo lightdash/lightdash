@@ -26,9 +26,36 @@ export enum QueryHistoryStatus {
     CANCELLED = 'cancelled',
 }
 
+export type PivotConfiguration = {
+    indexColumn: PivotIndexColum | PivotIndexColum[] | undefined;
+    valuesColumns: ValuesColumn[];
+    groupByColumns: GroupByColumn[] | undefined;
+    sortBy: SortBy | undefined;
+};
+
+export const normalizeIndexColumns = (
+    indexColumn: PivotConfiguration['indexColumn'],
+): PivotIndexColum[] => {
+    if (!indexColumn) {
+        return [];
+    }
+    if (Array.isArray(indexColumn)) {
+        return indexColumn;
+    }
+    return [indexColumn];
+};
+
+export const getFirstIndexColumns = (
+    indexColumn: PivotConfiguration['indexColumn'],
+): PivotIndexColum | undefined => {
+    const normalizedIndexColumns = normalizeIndexColumns(indexColumn);
+    return normalizedIndexColumns[0];
+};
+
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
+    createdBy: string | null;
     createdByUserUuid: string | null;
     createdByAccount: string | null;
     organizationUuid: string;
@@ -46,12 +73,7 @@ export type QueryHistory = {
     warehouseExecutionTimeMs: number | null;
     error: string | null;
     cacheKey: string;
-    pivotConfiguration: {
-        indexColumn: PivotIndexColum;
-        valuesColumns: ValuesColumn[];
-        groupByColumns: GroupByColumn[] | undefined;
-        sortBy: SortBy | undefined;
-    } | null;
+    pivotConfiguration: PivotConfiguration | null;
     pivotValuesColumns: PivotValuesColumn[] | null;
     pivotTotalColumnCount: number | null;
     resultsFileName: string | null; // S3 file name

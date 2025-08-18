@@ -24,6 +24,7 @@ import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
+import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -142,6 +143,14 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
     return warehouseCatalog;
 };
 
+/*
+    Force lowercase for Trino column names
+    When using trino and snowflake, some columns can be returned uppercase
+    and we can't enforce "ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;"
+    like we do in snowflake client
+*/
+const normalizeColumnName = (columnName: string) => columnName.toLowerCase();
+
 const resultHandler = (
     schema: { [key: string]: AnyType }[],
     data: AnyType[][],
@@ -150,13 +159,7 @@ const resultHandler = (
     return data.map((i) => {
         const item: { [key: string]: AnyType } = {};
         i.map((column, index) => {
-            /* Force lowercase for Trino column names 
-            When using trino and snowflake, some columns can be returned uppercase 
-            and we can't enforce "ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;"
-            like we do in snowflake client
-            */
-            const name: string = s[index].toLowerCase();
-            item[name] = column;
+            item[normalizeColumnName(s[index])] = column;
             return null;
         });
         return item;
@@ -185,6 +188,25 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
             default:
                 return super.getMetricSql(sql, metric);
         }
+    }
+
+    escapeString(value: string): string {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return (
+            normalizeUnicode(value)
+                // Trino uses single quote doubling like PostgreSQL
+                .replaceAll("'", "''")
+                // Escape backslashes first (before LIKE wildcards)
+                .replaceAll('\\', '\\\\')
+                // Remove SQL comments (-- and /* */)
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                // Remove null bytes
+                .replaceAll('\0', '')
+        );
     }
 }
 
@@ -259,7 +281,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             const fields = schema.reduce(
                 (acc, column) => ({
                     ...acc,
-                    [column.name]: {
+                    [normalizeColumnName(column.name)]: {
                         type: convertDataTypeToDimensionType(
                             column.typeSignature.rawType ?? TrinoTypes.VARCHAR,
                         ),
@@ -268,11 +290,13 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 {},
             );
 
-            // stream initial data
-            streamCallback({
-                fields,
-                rows: resultHandler(schema, queryResult.value.data ?? []),
-            });
+            // stream initial data, if available
+            if (queryResult.value.data) {
+                streamCallback({
+                    fields,
+                    rows: resultHandler(schema, queryResult.value.data ?? []),
+                });
+            }
             // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
             // This maintains order and data integrity.
             while (!queryResult.done) {

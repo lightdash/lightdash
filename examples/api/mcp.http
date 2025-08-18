@@ -1,0 +1,39 @@
+### Login
+POST http://localhost:3000/api/v1/login
+Content-Type: application/json
+Accept: application/json"
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### List available tools
+POST http://localhost:3000/api/v1/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list",
+    "params": {}
+  }
+
+
+### Get Lightdash version
+POST http://localhost:3000/api/v1/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+        "name": "get_lightdash_version",
+        "arguments": {}
+    }
+}
+

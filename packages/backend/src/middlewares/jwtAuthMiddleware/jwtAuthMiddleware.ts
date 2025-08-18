@@ -1,13 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 // This rule is failing in CI but passes locally
-import {
-    ForbiddenError,
-    NotFoundError,
-    ParameterError,
-} from '@lightdash/common';
+import { JWT_HEADER_NAME, NotFoundError } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
-import * as Account from '../../auth/account';
-import { decodeLightdashJwt, JWT_HEADER_NAME } from '../../auth/lightdashJwt';
+import { fromJwt } from '../../auth/account';
+import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
 import Logger from '../../logging/logger';
 
@@ -15,8 +11,12 @@ import Logger from '../../logging/logger';
  * We don't have the parsed routes yet, so we get the path params in a
  * cheap and dirty way. Long-term, we'll use org-level JWTs rather than project-level.
  */
-const parseProjectUuid = (path: string) => {
-    const pathParts = path.split('/');
+const parseProjectUuid = (req: Pick<Request, 'query' | 'path'>) => {
+    if (req.query.projectUuid) {
+        return req.query.projectUuid as string;
+    }
+
+    const pathParts = req.path.split('/');
     const projectParams = ['embed', 'projects'];
     const projectUuidIndex =
         pathParts.findIndex((part) => projectParams.includes(part)) + 1;
@@ -27,6 +27,10 @@ const parseProjectUuid = (path: string) => {
 
     return pathParts[projectUuidIndex];
 };
+
+// This is the only embed endpoint that requires a user to be authenticated.
+// All other embed endpoints run off of the JWT.
+const isEmbedRequiringUser = (path: string) => path.includes('get-embed-url');
 
 /**
  * Middleware to authenticate embed tokens
@@ -40,7 +44,14 @@ export async function jwtAuthMiddleware(
     next: NextFunction,
 ): Promise<void> {
     try {
-        if (req.account) {
+        // There are some situations where we'll already have a user and need to still create a
+        // JWT account. One example is when an admin is previewing an embed URL.
+        if (req.account?.isAuthenticated()) {
+            next();
+            return;
+        }
+
+        if (isEmbedRequiringUser(req.path) && req.isAuthenticated()) {
             next();
             return;
         }
@@ -49,7 +60,7 @@ export async function jwtAuthMiddleware(
         // The path will be like /api/v1/embed/{projectUuid}/dashboard
         // TODO: This is a hack to get the project UUID because JWT secrets are bound to the project rather than the organization.
         //       https://github.com/lightdash/lightdash/issues/15661
-        const projectUuid = parseProjectUuid(req.path);
+        const projectUuid = parseProjectUuid(req);
 
         if (!projectUuid) {
             next();
@@ -71,11 +82,13 @@ export async function jwtAuthMiddleware(
         }
 
         // Get embed configuration from database
-        const { encodedSecret, organization } =
-            await embedService.getEmbeddingByProjectId(projectUuid);
-        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
+        const embed = await embedService.getEmbeddingByProjectId(projectUuid);
+        const decodedToken = decodeLightdashJwt(
+            embedToken,
+            embed.encodedSecret,
+        );
         const userAttributesPromise = embedService.getEmbedUserAttributes(
-            organization.organizationUuid,
+            embed.organization.organizationUuid,
             decodedToken,
         );
         const dashboardUuidPromise = embedService.getDashboardUuidFromJwt(
@@ -95,27 +108,23 @@ export async function jwtAuthMiddleware(
             return;
         }
 
-        req.account = Account.fromJwt({
+        req.account = fromJwt({
             decodedToken,
             source: embedToken,
-            organization,
+            embed,
             dashboardUuid,
             userAttributes,
         });
 
+        // Not the greatest, but passport expects this to return a typeguard: this is AuthenticatedRequest.
+        // AuthenticatedRequest is not defined and TS won't let us use `this` in a typeguard outside of a class.
+        // @ts-expect-error - Passport type here is overly restrictive and doesn't allow overriding.
+        req.isAuthenticated = function isAuthenticated() {
+            return this.account?.isAuthenticated() || false;
+        };
+
         next();
     } catch (error) {
-        if (
-            error instanceof ForbiddenError ||
-            error instanceof ParameterError
-        ) {
-            res.status(403).json({
-                status: 'error',
-                message: error.message,
-            });
-        } else {
-            // For unexpected errors, let regular auth handle it
-            next(error);
-        }
+        next(error);
     }
 }

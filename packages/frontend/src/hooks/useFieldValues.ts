@@ -27,9 +27,6 @@ const getEmbedFilterValues = async (options: {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
         method: 'POST',
-        headers: {
-            'Lightdash-Embed-Token': options.embedToken!,
-        },
         body: JSON.stringify({
             search: options.search,
             limit: MAX_AUTOCOMPLETE_RESULTS,
@@ -207,4 +204,75 @@ export const useFieldValues = (
         resultCounts,
         refreshedAt,
     };
+};
+
+// Wrapper hook that returns undefined for all values when field is undefined
+export const useFieldValuesSafely = (
+    search: string,
+    initialData: string[],
+    projectId: string | undefined,
+    field: FilterableItem | undefined,
+    filterId: string | undefined,
+    filters: AndFilterGroup | undefined,
+    debounce: boolean = true,
+    forceRefresh: boolean = false,
+    useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
+    parameterValues?: ParametersValuesMap,
+) => {
+    const fieldValuesResult = useFieldValues(
+        search,
+        initialData,
+        projectId || '',
+        field || {
+            name: '',
+            table: '',
+            fieldType: 'dimension' as any,
+            type: 'string' as any,
+            label: '',
+            tableLabel: '',
+            sql: '',
+            hidden: false,
+        },
+        filterId,
+        filters,
+        debounce,
+        forceRefresh,
+        {
+            ...useQueryOptions,
+            enabled: !!field && useQueryOptions?.enabled !== false,
+        },
+        parameterValues,
+    );
+
+    if (!field) {
+        return {
+            data: undefined,
+            error: undefined,
+            isLoading: undefined,
+            isInitialLoading: undefined,
+            isError: undefined,
+            isSuccess: undefined,
+            status: undefined,
+            dataUpdatedAt: undefined,
+            errorUpdatedAt: undefined,
+            failureCount: undefined,
+            failureReason: undefined,
+            fetchStatus: undefined,
+            isStale: undefined,
+            isFetched: undefined,
+            isFetchedAfterMount: undefined,
+            isRefetching: undefined,
+            isLoadingError: undefined,
+            isRefetchError: undefined,
+            refetch: undefined,
+            remove: undefined,
+            debouncedSearch: undefined,
+            searches: undefined,
+            results: undefined,
+            resultCounts: undefined,
+            refreshedAt: undefined,
+        };
+    }
+
+    return fieldValuesResult;
 };

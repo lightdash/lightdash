@@ -3,6 +3,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
+import PrometheusMetrics from '../prometheus';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
@@ -23,7 +24,9 @@ import { HealthService } from './HealthService/HealthService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
+import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
+import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
@@ -61,6 +64,8 @@ interface ServiceManifest {
     groupService: GroupsService;
     healthService: HealthService;
     notificationService: NotificationsService;
+    oauthService: OAuthService;
+
     organizationService: OrganizationService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
@@ -89,6 +94,7 @@ interface ServiceManifest {
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
+    permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -98,6 +104,8 @@ interface ServiceManifest {
     cacheService: unknown;
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
+    mcpService: unknown;
+    rolesService: unknown;
 }
 
 /**
@@ -113,6 +121,7 @@ type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     models: ModelRepository;
     utils: UtilRepository;
     clients: ClientRepository;
+    prometheusMetrics?: PrometheusMetrics;
 }) => T[keyof T];
 
 /**
@@ -194,24 +203,29 @@ abstract class ServiceRepositoryBase {
 
     protected readonly utils: UtilRepository;
 
+    protected readonly prometheusMetrics?: PrometheusMetrics;
+
     constructor({
         serviceProviders,
         context,
         clients,
         models,
         utils,
+        prometheusMetrics,
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
         clients: ClientRepository;
         models: ModelRepository;
         utils: UtilRepository;
+        prometheusMetrics?: PrometheusMetrics;
     }) {
         this.providers = serviceProviders ?? {};
         this.context = context;
         this.clients = clients;
         this.models = models;
         this.utils = utils;
+        this.prometheusMetrics = prometheusMetrics;
     }
 }
 
@@ -394,6 +408,18 @@ export class ServiceRepository
         );
     }
 
+    public getOauthService(): OAuthService {
+        return this.getService(
+            'oauthService',
+            () =>
+                new OAuthService({
+                    userModel: this.models.getUserModel(),
+                    oauthModel: this.models.getOauthModel(),
+                    lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
+
     public getOrganizationService(): OrganizationService {
         return this.getService(
             'organizationService',
@@ -410,6 +436,16 @@ export class ServiceRepository
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
+                }),
+        );
+    }
+
+    public getPermissionsService(): PermissionsService {
+        return this.getService(
+            'permissionsService',
+            () =>
+                new PermissionsService({
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }
@@ -533,6 +569,8 @@ export class ServiceRepository
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
                     pivotTableService: this.getPivotTableService(),
+                    prometheusMetrics: this.prometheusMetrics,
+                    permissionsService: this.getPermissionsService(),
                 }),
         );
     }
@@ -553,6 +591,7 @@ export class ServiceRepository
                     slackClient: this.clients.getSlackClient(),
                     dashboardModel: this.models.getDashboardModel(),
                     catalogModel: this.models.getCatalogModel(),
+                    permissionsService: this.getPermissionsService(),
                 }),
         );
     }
@@ -847,12 +886,20 @@ export class ServiceRepository
         return this.getService('aiAgentService');
     }
 
+    public getRolesService<RolesServiceImplT>(): RolesServiceImplT {
+        return this.getService('rolesService');
+    }
+
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
         return this.getService('scimService');
     }
 
     public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
         return this.getService('supportService');
+    }
+
+    public getMcpService<McpServiceImplT>(): McpServiceImplT {
+        return this.getService('mcpService');
     }
 
     public getSpotlightService(): SpotlightService {
@@ -905,6 +952,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -930,6 +978,7 @@ export class ServiceRepository
                     models: this.models,
                     clients: this.clients,
                     utils: this.utils,
+                    prometheusMetrics: this.prometheusMetrics,
                 }) as T;
             } else if (factory != null) {
                 serviceInstance = factory();

@@ -3,6 +3,7 @@ import {
     Text,
     Title,
     type DefaultProps,
+    type StackProps,
     type TextProps,
     type TitleProps,
 } from '@mantine/core';
@@ -14,6 +15,7 @@ type EmptyStateProps = DefaultProps & {
     titleProps?: TitleProps;
     description?: ReactNode;
     descriptionProps?: TextProps;
+    justify?: StackProps['justify'];
 };
 
 export const EmptyState: FC<React.PropsWithChildren<EmptyStateProps>> = ({
@@ -24,9 +26,9 @@ export const EmptyState: FC<React.PropsWithChildren<EmptyStateProps>> = ({
     descriptionProps,
     children,
     maw = 400,
-    ...defaultMantineProps
+    ...defaultMantinePropsWithJustify
 }) => (
-    <Stack align="center" pt="4xl" pb="5xl" {...defaultMantineProps}>
+    <Stack align="center" pt="4xl" pb="5xl" {...defaultMantinePropsWithJustify}>
         {icon}
 
         {title ? (

@@ -46,10 +46,25 @@ Content-Type: application/json
     "chartUuid": "e6efe2fa-f884-47ea-ac9b-1e3ebe303b30"
 }
 
-### Generate embed url
+### Generate embed url - use the dashboardUuid you want to embed
+
+@dashboardUuid = e45dcfb9-d5fe-4c0e-9d8c-70871e904aea
+
 POST http://localhost:8080/api/v1/embed/3675b69e-8324-4110-bdca-059031aa8da3/get-embed-url
 Content-Type: application/json
 
 {
-  "dashboardUuid": "53c634a4-203b-48c3-9336-f6e7c3117b0b"
+    "user": {
+        "externalId": "steve@here.com"
+    },
+    "content": {
+        "type": "dashboard",
+        "dashboardUuid": "{{dashboardUuid}}",
+        "canExplore": true,
+        "canExportCsv": true,
+        "canExportImages": true,
+        "canDateZoom": true,
+        "canExportPagePdf": true,
+        "projectUuid": "3675b69e-8324-4110-bdca-059031aa8da3"
+    }
 }

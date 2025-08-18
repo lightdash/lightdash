@@ -15,6 +15,7 @@ import {
     Collapse,
     Group,
     Paper,
+    rem,
     Stack,
     Text,
     Timeline,
@@ -26,6 +27,7 @@ import {
     IconChartDots3,
     IconChartHistogram,
     IconChartLine,
+    IconDashboard,
     IconDatabase,
     IconSearch,
     IconSelector,
@@ -45,6 +47,8 @@ const getToolIcon = (toolName: ToolName) => {
             generateBarVizConfig: IconChartHistogram,
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
+            findDashboards: IconDashboard,
+            findCharts: IconChartDots3,
         };
 
     return iconMap[toolName];
@@ -114,28 +118,32 @@ const ToolCallDescription: FC<{
 
     switch (toolArgs.type) {
         case 'find_explores':
-            return null;
-        case 'find_fields':
-            const { exploreName } = toolArgs;
-
             return (
-                <>
-                    <Text c="dimmed" size="xs">
-                        Found relevant fields in{' '}
+                <Text c="dimmed" size="xs">
+                    Searched relevant explores
+                </Text>
+            );
+        case 'find_fields':
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for fields{' '}
+                    {toolArgs.fieldSearchQueries.map((query) => (
                         <Badge
+                            key={query.label}
                             color="gray"
                             variant="light"
                             size="xs"
+                            mx={rem(2)}
                             radius="sm"
                             style={{
                                 textTransform: 'none',
                                 fontWeight: 400,
                             }}
                         >
-                            {exploreName}
+                            {query.label}
                         </Badge>
-                    </Text>
-                </>
+                    ))}
+                </Text>
             );
         case AiResultType.VERTICAL_BAR_RESULT:
             const barVizConfigToolArgs = toolArgs;
@@ -175,6 +183,54 @@ const ToolCallDescription: FC<{
                     }
                     sql={compiledSql?.query}
                 />
+            );
+        case 'find_dashboards':
+            const findDashboardsToolArgs = toolArgs;
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for dashboards{' '}
+                    {findDashboardsToolArgs.dashboardSearchQueries.map(
+                        (query) => (
+                            <Badge
+                                key={query.label}
+                                color="gray"
+                                variant="light"
+                                size="xs"
+                                mx={rem(2)}
+                                radius="sm"
+                                style={{
+                                    textTransform: 'none',
+                                    fontWeight: 400,
+                                }}
+                            >
+                                {query.label}
+                            </Badge>
+                        ),
+                    )}
+                </Text>
+            );
+        case 'find_charts':
+            const findChartsToolArgs = toolArgs;
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for charts{' '}
+                    {findChartsToolArgs.chartSearchQueries.map((query) => (
+                        <Badge
+                            key={query.label}
+                            color="gray"
+                            variant="light"
+                            size="xs"
+                            mx={rem(2)}
+                            radius="sm"
+                            style={{
+                                textTransform: 'none',
+                                fontWeight: 400,
+                            }}
+                        >
+                            {query.label}
+                        </Badge>
+                    ))}
+                </Text>
             );
         default:
             return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);

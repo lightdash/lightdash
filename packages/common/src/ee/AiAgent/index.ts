@@ -50,6 +50,8 @@ export const baseAgentSchema = z.object({
         .nullable(),
     provider: z.string(),
     model: z.string(),
+    groupAccess: z.array(z.string()),
+    userAccess: z.array(z.string()),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -66,6 +68,8 @@ export type AiAgent = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'groupAccess'
+    | 'userAccess'
 >;
 
 export type AiAgentSummary = Pick<
@@ -80,6 +84,8 @@ export type AiAgentSummary = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'groupAccess'
+    | 'userAccess'
 >;
 
 export type AiAgentUser = {
@@ -156,6 +162,8 @@ export type ApiCreateAiAgent = Pick<
     | 'name'
     | 'instruction'
     | 'imageUrl'
+    | 'groupAccess'
+    | 'userAccess'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -167,6 +175,8 @@ export type ApiUpdateAiAgent = Partial<
         | 'name'
         | 'instruction'
         | 'imageUrl'
+        | 'groupAccess'
+        | 'userAccess'
     >
 > & {
     uuid: string;
@@ -262,3 +272,14 @@ export type AiAgentToolCall = {
     toolName: string; // ToolName zod enum
     toolArgs: object;
 };
+
+export type AiAgentExploreAccessSummary = {
+    exploreName: string;
+    joinedTables: string[];
+    dimensions: string[];
+    metrics: string[];
+};
+
+export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
+    AiAgentExploreAccessSummary[]
+>;

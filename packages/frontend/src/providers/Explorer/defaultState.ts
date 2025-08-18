@@ -4,7 +4,8 @@ import { ExplorerSection, type ExplorerReduceState } from './types';
 
 export const defaultState: ExplorerReduceState = {
     isVisualizationConfigOpen: false,
-    shouldFetchResults: false,
+    parameterReferences: [],
+    parameterDefinitions: {},
     previouslyFetchedState: undefined,
     expandedSections: [ExplorerSection.RESULTS, ExplorerSection.PARAMETERS],
     unsavedChartVersion: {
@@ -43,5 +44,4 @@ export const defaultState: ExplorerReduceState = {
             isOpen: false,
         },
     },
-    parameters: {},
 };

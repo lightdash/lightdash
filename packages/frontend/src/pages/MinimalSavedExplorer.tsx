@@ -56,6 +56,7 @@ const MinimalExplorer: FC = () => {
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={savedChart.uuid}
             colorPalette={savedChart.colorPalette}
+            parameters={query.data?.usedParametersValues}
         >
             <MantineProvider inherit theme={themeOverride}>
                 <Box mih="inherit" h="100%">
@@ -104,7 +105,10 @@ const MinimalSavedExplorer: FC = () => {
             initialState={
                 data
                     ? {
-                          shouldFetchResults: true,
+                          parameterReferences: Object.keys(
+                              data.parameters ?? {},
+                          ),
+                          parameterDefinitions: {},
                           expandedSections: [ExplorerSection.VISUALIZATION],
                           unsavedChartVersion: {
                               tableName: data.tableName,
@@ -112,6 +116,7 @@ const MinimalSavedExplorer: FC = () => {
                               metricQuery: data.metricQuery,
                               tableConfig: data.tableConfig,
                               pivotConfig: data.pivotConfig,
+                              parameters: data.parameters,
                           },
                           modals: {
                               format: {
@@ -127,7 +132,6 @@ const MinimalSavedExplorer: FC = () => {
                                   isOpen: false,
                               },
                           },
-                          parameters: {},
                       }
                     : undefined
             }

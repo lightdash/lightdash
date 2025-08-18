@@ -193,4 +193,8 @@ export default abstract class WarehouseBaseClient<
     parseError(error: Error): Error {
         return error;
     }
+
+    escapeString(value: string): string {
+        return this.sqlBuilder.escapeString(value);
+    }
 }

@@ -1,4 +1,5 @@
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
     AllowedEmailDomainsRoles,
@@ -785,6 +786,12 @@ export type LightdashConfig = {
             expirationTime: Date | null;
         };
     };
+    mcp: {
+        enabled: boolean;
+    };
+    customRoles: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -934,6 +941,10 @@ export type AuthConfig = {
         allowedOrgRoles: OrganizationMemberRole[];
         maxExpirationTimeInDays: number | undefined;
     };
+    oauthServer?: {
+        accessTokenLifetime: number; // in seconds (default = 1 hour)
+        refreshTokenLifetime: number; // in seconds (default = 2 weeks)
+    };
 };
 
 export type SmtpConfig = {
@@ -1022,6 +1033,9 @@ export const parseConfig = (): LightdashConfig => {
                       apiKey: process.env.AZURE_AI_API_KEY,
                       apiVersion: process.env.AZURE_AI_API_VERSION,
                       deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
+                      temperature: getFloatFromEnvironmentVariable(
+                          'AZURE_AI_TEMPERATURE',
+                      ),
                   }
                 : undefined,
             openai: process.env.OPENAI_API_KEY
@@ -1031,6 +1045,8 @@ export const parseConfig = (): LightdashConfig => {
                           process.env.OPENAI_MODEL_NAME ||
                           DEFAULT_OPENAI_MODEL_NAME,
                       baseUrl: process.env.OPENAI_BASE_URL,
+                      temperature:
+                          getFloatFromEnvironmentVariable('OPENAI_TEMPERATURE'),
                   }
                 : undefined,
             anthropic: process.env.ANTHROPIC_API_KEY
@@ -1039,6 +1055,9 @@ export const parseConfig = (): LightdashConfig => {
                       modelName:
                           process.env.ANTHROPIC_MODEL_NAME ||
                           DEFAULT_ANTHROPIC_MODEL_NAME,
+                      temperature: getFloatFromEnvironmentVariable(
+                          'ANTHROPIC_TEMPERATURE',
+                      ),
                   }
                 : undefined,
             openrouter: process.env.OPENROUTER_API_KEY
@@ -1051,9 +1070,15 @@ export const parseConfig = (): LightdashConfig => {
                       allowedProviders: getArrayFromCommaSeparatedList(
                           'OPENROUTER_ALLOWED_PROVIDERS',
                       ),
+                      temperature: getFloatFromEnvironmentVariable(
+                          'OPENROUTER_TEMPERATURE',
+                      ),
                   }
                 : undefined,
         },
+        maxQueryLimit:
+            getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
+            AI_DEFAULT_MAX_QUERY_LIMIT,
     };
 
     const copilotConfigParse =
@@ -1272,6 +1297,16 @@ export const parseConfig = (): LightdashConfig => {
                 loginPath: '/login/snowflake',
                 callbackPath: '/oauth/redirect/snowflake',
             },
+            oauthServer: {
+                accessTokenLifetime:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_ACCESS_TOKEN_LIFETIME',
+                    ) || 60 * 60, // 1 hour
+                refreshTokenLifetime:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_REFRESH_TOKEN_LIFETIME',
+                    ) || 60 * 60 * 24 * 14, // 2 weeks
+            },
         },
         intercom: {
             appId:
@@ -1472,5 +1507,11 @@ export const parseConfig = (): LightdashConfig => {
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
+        mcp: {
+            enabled: process.env.MCP_ENABLED === 'true',
+        },
+        customRoles: {
+            enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
+        },
     };
 };

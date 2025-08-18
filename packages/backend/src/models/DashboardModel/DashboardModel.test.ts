@@ -115,6 +115,72 @@ describe('DashboardModel', () => {
         expect(tracker.history.select).toHaveLength(4);
     });
 
+    test('should order dashboard tiles by y_offset then x_offset when fetching dashboard', async () => {
+        // Create tiles with specific coordinates to test ordering
+        const tile1 = {
+            ...dashboardTileWithSavedChartEntry,
+            y_offset: 1,
+            x_offset: 1,
+            dashboard_tile_uuid: 'uuid-c',
+        };
+        const tile2 = {
+            ...loomTileEntry,
+            y_offset: 1,
+            x_offset: 2,
+            dashboard_tile_uuid: 'uuid-b',
+        };
+        const tile3 = {
+            ...markdownTileEntry,
+            y_offset: 2,
+            x_offset: 1,
+            dashboard_tile_uuid: 'uuid-a',
+        };
+
+        tracker.on
+            .select(
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
+            )
+            .response([
+                {
+                    ...dashboardWithVersionEntry,
+                    space_uuid: 'spaceUuid',
+                    space_name: 'space name',
+                },
+            ]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([tile1, tile2, tile3]); // Provide in expected sorted order: y=1,x=1 → y=1,x=2 → y=2,x=1
+        tracker.on
+            .select(
+                queryMatcher(DashboardTabsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                    dashboardWithVersionEntry.dashboard_id,
+                ]),
+            )
+            .response([]);
+
+        // Fetch the dashboard
+        const dashboard = await model.getById(expectedDashboard.uuid);
+
+        // Assert that tiles are returned in the expected order
+        // First by y_offset (ascending), then x_offset (ascending)
+        expect(dashboard.tiles.length).toBe(3);
+        expect(dashboard.tiles[0].uuid).toBe(tile1.dashboard_tile_uuid); // y=1, x=1
+        expect(dashboard.tiles[1].uuid).toBe(tile2.dashboard_tile_uuid); // y=1, x=2
+        expect(dashboard.tiles[2].uuid).toBe(tile3.dashboard_tile_uuid); // y=2, x=1
+    });
+
     test("should error if dashboard isn't found", async () => {
         tracker.on
             .select(

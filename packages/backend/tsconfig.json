@@ -4,16 +4,14 @@
         /* Visit https://aka.ms/tsconfig.json to read more about this file */
         "resolveJsonModule": true,
         /* Basic Options */
-        // "incremental": true,                         /* Enable incremental compilation */
+        "incremental": true /* Enable incremental compilation */,
         "target": "ES2020" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017', 'ES2018', 'ES2019', 'ES2020', or 'ESNEXT'. */,
         "module": "CommonJS" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', 'es2020', or 'ESNext'. */,
-        "lib": [
-            "ESNext",
-            "DOM"
-        ],
+        "lib": ["ESNext", "DOM"],
         "allowJs": false /* Allow javascript files to be compiled. */,
         // "checkJs": true,                             /* Report errors in .js files. */
-        // "jsx": "preserve",                           /* Specify JSX code generation: 'preserve', 'react-native', 'react', 'react-jsx' or 'react-jsxdev'. */
+        "jsx": "react" /* Specify JSX code generation: 'preserve', 'react-native', 'react', 'react-jsx' or 'react-jsxdev'. */,
+        "jsxFactory": "xmlBuilder" /* Specify the JSX factory function when targeting React JSX emit. */,
         // "declaration": true,                         /* Generates corresponding '.d.ts' file. */
         // "declarationMap": true,                      /* Generates a sourcemap for each corresponding '.d.ts' file. */
         // "sourceMap": true,                           /* Generates corresponding '.map' file. */
@@ -21,12 +19,12 @@
         "outDir": "dist",
         "rootDir": "src",
         // "composite": true,                           /* Enable project compilation */
-        // "tsBuildInfoFile": "./",                     /* Specify file to store incremental compilation information */
+        "tsBuildInfoFile": ".tsbuildinfo" /* Specify file to store incremental compilation information */,
         // "removeComments": true,                      /* Do not emit comments to output. */
         // "noEmit": true,                              /* Do not emit outputs. */
-        "importHelpers": true, /* Import emit helpers from 'tslib'. */
+        "importHelpers": true /* Import emit helpers from 'tslib'. */,
         // "downlevelIteration": true,                  /* Provide full support for iterables in 'for-of', spread, and destructuring when targeting 'ES5' or 'ES3'. */
-        // "isolatedModules": true,                     /* Transpile each file as a separate module (similar to 'ts.transpileModule'). */
+        "isolatedModules": true /* Transpile each file as a separate module (similar to 'ts.transpileModule'). */,
         /* Strict Type-Checking Options */
         "strict": true /* Enable all strict type-checking options. */,
         "strictNullChecks": true /* Enable strict null checks. */,
@@ -43,7 +41,7 @@
         // "noUncheckedIndexedAccess": true,            /* Include 'undefined' in index signature results */
         // "noPropertyAccessFromIndexSignature": true,  /* Require undeclared properties from index signatures to use element accesses. */
         /* Module Resolution Options */
-        "moduleResolution": "Node", /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
+        "moduleResolution": "Node" /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */,
         // "baseUrl": "./",                             /* Base directory to resolve non-absolute module names. */
         // "paths": {},                                 /* A series of entries which re-map imports to lookup locations relative to the 'baseUrl'. */
         // "rootDirs": [],                              /* List of root folders whose combined content represents the structure of the project at runtime. */
@@ -66,10 +64,8 @@
         // "emitDecoratorMetadata": true,               /* Enables experimental support for emitting type metadata for decorators. */
         /* Advanced Options */
         "skipLibCheck": true /* Skip type checking of declaration files. */,
-        "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
+        "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */
     },
-    "include": [
-        "src/**/*.ts",
-        "src/**/*.json"
-    ]
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
+    "exclude": ["dist", "node_modules"]
 }

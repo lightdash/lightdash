@@ -50,6 +50,7 @@ export const AiChartQuickOptions = ({
         pivotDimensions,
     } = useVisualizationContext();
     const { mutate: savePromptQuery } = useSavePromptQuery(
+        projectUuid,
         agentUuid!,
         message.threadUuid,
         message.uuid,

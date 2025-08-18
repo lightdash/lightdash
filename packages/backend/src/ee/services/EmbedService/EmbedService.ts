@@ -20,6 +20,7 @@ import {
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
+    formatRawRows,
     formatRows,
     getDashboardFiltersForTileAndTables,
     getDimensions,
@@ -44,6 +45,7 @@ import {
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
@@ -57,9 +59,14 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
+import {
+    combineProjectAndExploreParameters,
+    getDashboardParametersValuesMap,
+} from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
 
@@ -621,6 +628,25 @@ export class EmbedService extends BaseService {
         return { userAttributes, intrinsicUserAttributes };
     }
 
+    /**
+     * Get all available parameters for a project and explore
+     * @param projectUuid - The UUID of the project
+     * @param explore - The explore to get the parameters for
+     * @returns An array of available parameters
+     */
+    private async getAvailableParameters(
+        projectUuid: string,
+        explore: Explore,
+    ): Promise<string[]> {
+        const projectParameters =
+            await this.projectService.projectParametersModel.find(projectUuid);
+
+        return combineProjectAndExploreParameters(
+            projectParameters,
+            explore.parameters,
+        );
+    }
+
     private async _runEmbedQuery({
         projectUuid,
         metricQuery,
@@ -628,6 +654,7 @@ export class EmbedService extends BaseService {
         queryTags,
         account,
         dateZoomGranularity,
+        combinedParameters,
     }: {
         projectUuid: string;
         metricQuery: MetricQuery;
@@ -639,6 +666,7 @@ export class EmbedService extends BaseService {
         };
         account: AnonymousAccount;
         dateZoomGranularity?: DateGranularity;
+        combinedParameters?: ParametersValuesMap;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -650,19 +678,27 @@ export class EmbedService extends BaseService {
 
         // Filter the explore access and fields based on the user attributes
         const filteredExplore = getFilteredExplore(explore, userAttributes);
-        const compiledQuery = await ProjectService._compileQuery(
-            metricQuery,
+
+        const availableParameters = await this.getAvailableParameters(
+            projectUuid,
             filteredExplore,
-            warehouseClient,
+        );
+
+        const compiledQuery = await ProjectService._compileQuery({
+            metricQuery,
+            explore: filteredExplore,
+            warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            this.lightdashConfig.query.timezone || 'UTC',
-            dateZoomGranularity
+            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            dateZoom: dateZoomGranularity
                 ? {
                       granularity: dateZoomGranularity,
                   }
                 : undefined,
-        );
+            parameters: combinedParameters,
+            availableParameters,
+        });
 
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
@@ -812,6 +848,15 @@ export class EmbedService extends BaseService {
             },
         });
 
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+
+        // No parameters are passed in embed requests, just combine the saved parameters
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            {},
+            dashboardParameters,
+        );
+
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
             metricQuery: metricQueryWithDashboardOverrides,
@@ -828,6 +873,7 @@ export class EmbedService extends BaseService {
             },
             account,
             dateZoomGranularity,
+            combinedParameters,
         });
 
         return {
@@ -845,12 +891,14 @@ export class EmbedService extends BaseService {
         };
     }
 
-    async calculateTotalFromSavedChart(
+    /**
+     * Common setup logic for saved chart calculations in embed context
+     */
+    private async _prepareSavedChartForCalculation(
         account: AnonymousAccount,
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
-        invalidateCache?: boolean,
     ) {
         const dashboardUuid = account.access.dashboardId;
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
@@ -904,6 +952,29 @@ export class EmbedService extends BaseService {
               )
             : chart.metricQuery;
 
+        return {
+            dashboardUuid,
+            chart,
+            explore,
+            metricQuery,
+        };
+    }
+
+    async calculateTotalFromSavedChart(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dashboardFilters?: DashboardFilters,
+        invalidateCache?: boolean,
+    ) {
+        const { dashboardUuid, chart, explore, metricQuery } =
+            await this._prepareSavedChartForCalculation(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dashboardFilters,
+            );
+
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             explore,
@@ -912,6 +983,21 @@ export class EmbedService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
 
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+
+        // No parameters are passed in embed requests, just combine the saved parameters
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            {},
+            dashboardParameters,
+        );
+
+        const availableParameters = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+        );
+
         const { totalQuery: totalMetricQuery } =
             await this.projectService._getCalculateTotalQuery(
                 userAttributes,
@@ -919,6 +1005,9 @@ export class EmbedService extends BaseService {
                 explore,
                 metricQuery,
                 warehouseClient,
+                availableParameters,
+                undefined,
+                combinedParameters,
             );
 
         const { rows } = await this._runEmbedQuery({
@@ -936,6 +1025,7 @@ export class EmbedService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             },
             account,
+            combinedParameters,
         });
 
         if (rows.length === 0) {
@@ -945,6 +1035,143 @@ export class EmbedService extends BaseService {
         const row = rows[0];
 
         return row;
+    }
+
+    async calculateSubtotalsFromSavedChart(
+        account: AnonymousAccount,
+        projectUuid: string,
+        savedChartUuid: string,
+        dashboardFilters?: DashboardFilters,
+        columnOrder?: string[],
+        pivotDimensions?: string[],
+        invalidateCache?: boolean,
+    ) {
+        const { dashboardUuid, chart, explore, metricQuery } =
+            await this._prepareSavedChartForCalculation(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dashboardFilters,
+            );
+
+        // If columnOrder is not provided, derive it from the chart's metricQuery
+        const finalColumnOrder = columnOrder || [
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+            ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
+        ];
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+
+        // No parameters are passed in embed requests, just combine the saved parameters
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            {},
+            dashboardParameters,
+        );
+
+        return this._calculateSubtotalsForEmbed(
+            account,
+            projectUuid,
+            explore,
+            metricQuery,
+            finalColumnOrder,
+            pivotDimensions,
+            chart.organizationUuid,
+            chart.uuid,
+            dashboardUuid,
+            combinedParameters,
+        );
+    }
+
+    private async _calculateSubtotalsForEmbed(
+        account: AnonymousAccount,
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        columnOrder: string[],
+        pivotDimensions?: string[],
+        organizationUuid?: string,
+        chartUuid?: string,
+        dashboardUuid?: string,
+        combinedParameters?: ParametersValuesMap,
+    ) {
+        // Use the shared utility to prepare dimension groups
+        const { dimensionGroupsToSubtotal, analyticsData } =
+            SubtotalsCalculator.prepareDimensionGroups(
+                metricQuery,
+                columnOrder,
+                pivotDimensions,
+            );
+
+        // Track analytics for embed context
+        this.analytics.trackAccount(account, {
+            event: 'embed_query.subtotal',
+            properties: {
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                chartId: chartUuid,
+                organizationId: organizationUuid,
+                exploreName: explore.name,
+                ...analyticsData,
+            },
+        });
+
+        // Run the query for each dimension group using embed query runner
+        const subtotalsPromises = dimensionGroupsToSubtotal.map<
+            Promise<[string, Record<string, unknown>[]]>
+        >(async (subtotalDimensions) => {
+            let subtotals: Record<string, unknown>[] = [];
+
+            try {
+                // Use utility to create properly configured subtotal query
+                const { metricQuery: subtotalMetricQuery } =
+                    SubtotalsCalculator.createSubtotalQueryConfig(
+                        metricQuery,
+                        subtotalDimensions,
+                        pivotDimensions,
+                    );
+
+                const { rows, fields } = await this._runEmbedQuery({
+                    projectUuid,
+                    metricQuery: subtotalMetricQuery,
+                    explore,
+                    queryTags: {
+                        embed: 'true',
+                        external_id: account.user.id,
+                        project_uuid: projectUuid,
+                        organization_uuid: organizationUuid || '',
+                        chart_uuid: chartUuid || '',
+                        dashboard_uuid: dashboardUuid || '',
+                        explore_name: explore.name,
+                        query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                    },
+                    account,
+                    combinedParameters,
+                });
+
+                // Format raw rows (this matches the logic in ProjectService)
+                subtotals = formatRawRows(rows, fields) as Record<
+                    string,
+                    number
+                >[];
+            } catch (e) {
+                this.logger.error(
+                    `Error running subtotal query for dimensions ${subtotalDimensions.join(
+                        ',',
+                    )}`,
+                );
+            }
+
+            return [
+                SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
+                subtotals,
+            ] satisfies [string, Record<string, unknown>[]];
+        });
+
+        const subtotalsEntries = await Promise.all(subtotalsPromises);
+        return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
     }
 
     async searchFilterValues({

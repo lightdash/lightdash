@@ -1,67 +1,128 @@
 import {
-    Explore,
+    assertUnreachable,
+    CatalogField,
+    convertToAiHints,
+    FieldType,
+    getFilterTypeFromItemType,
     getItemId,
+    isEmojiIcon,
     toolFindFieldsArgsSchema,
-    type CompiledField,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { mapValues, pick } from 'lodash';
-import type { GetExploreFn } from '../types/aiAgentDependencies';
-import { serializeData } from '../utils/serializeData';
+import type { FindFieldFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
-    getExplore: GetExploreFn;
+    findFields: FindFieldFn;
+    pageSize: number;
 };
 
-export const getFindFields = ({ getExplore }: Dependencies) => {
-    const schema = toolFindFieldsArgsSchema;
+const fieldKindLabel = (fieldType: FieldType) => {
+    switch (fieldType) {
+        case FieldType.DIMENSION:
+            return 'Dimension';
+        case FieldType.METRIC:
+            return 'Metric';
+        default:
+            return assertUnreachable(fieldType, 'Invalid field type');
+    }
+};
 
-    const getMinimalTableInformation = async ({
-        explore,
-    }: {
-        explore: Explore;
-    }) => {
-        const filterFieldFn = (field: CompiledField) => !field.hidden;
+const getFieldText = (catalogField: CatalogField) => {
+    const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
 
-        const mapFieldFn = (field: CompiledField) => ({
-            fieldId: getItemId(field),
-            ...pick(field, ['label', 'description', 'type']),
-            ...(field.aiHint ? { aiHint: field.aiHint } : {}),
-        });
+    const fieldTypeLabel = fieldKindLabel(catalogField.fieldType);
 
-        const mappedValues = mapValues(explore.tables, (t) => {
-            const dimensions = Object.values(t.dimensions);
-            const metrics = Object.values(t.metrics);
+    if (!catalogField.basicType) {
+        throw new Error('Field basic type is required');
+    }
 
-            return {
-                ...pick(t, ['name', 'label', 'description']),
-                dimensions: dimensions.filter(filterFieldFn).map(mapFieldFn),
-                metrics: metrics.filter(filterFieldFn).map(mapFieldFn),
-                ...(t.aiHint ? { aiHint: t.aiHint } : {}),
-            };
-        });
+    return `
+    <${fieldTypeLabel} fieldId="${getItemId({
+        name: catalogField.name,
+        table: catalogField.tableName,
+    })}" fieldType="${
+        catalogField.fieldValueType
+    }" fieldFilterType="${getFilterTypeFromItemType(
+        catalogField.fieldValueType,
+    )}">
+        <Name>${catalogField.name}</Name>
+        <Label>${catalogField.label}</Label>
+        <SearchRank>${catalogField.searchRank}</SearchRank>
+        ${
+            aiHints && aiHints.length > 0
+                ? `
+        <AI Hints>
+            ${aiHints.map((hint) => `<Hint>${hint}</Hint>`).join('\n')}
+        </AI Hints>`.trim()
+                : ''
+        }
+        ${
+            catalogField.categories && catalogField.categories.length > 0
+                ? `<Categories>${catalogField.categories
+                      .map((c) => c.name)
+                      .join(', ')}</Categories>`
+                : ''
+        }
+        <Table name="${catalogField.tableName}">${
+        catalogField.tableLabel
+    }</Table>
+        <UsageInCharts>${catalogField.chartUsage}</UsageInCharts>
+        ${
+            isEmojiIcon(catalogField.icon)
+                ? `<Emoji>${catalogField.icon.unicode}</Emoji>`
+                : ''
+        }
+        <Description>${catalogField.description}</Description>
+    </${fieldTypeLabel}>
+    `.trim();
+};
 
-        return mappedValues;
-    };
+const getFieldsText = (
+    args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
+) =>
+    `
+<SearchResult searchQuery="${args.searchQuery}" page="${
+        args.pagination?.page
+    }" pageSize="${args.pagination?.pageSize}" totalPageCount="${
+        args.pagination?.totalPageCount
+    }" totalResults="${args.pagination?.totalResults}">
+    ${args.fields.map((field) => getFieldText(field)).join('\n\n')}
+</SearchResult>
+`.trim();
 
-    return tool({
-        description: `Use this tool to find the Fields (Metrics and Dimensions) most relevant to the user's request, once you have information about the available Explores. If the available fields aren't suitable, you can retry the tool with another available Explore.`,
-        parameters: schema,
-        execute: async ({ exploreName }) => {
+export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
+    tool({
+        description: toolFindFieldsArgsSchema.description,
+        parameters: toolFindFieldsArgsSchema,
+        execute: async (args) => {
             try {
-                const explore = await getExplore({ exploreName });
-                const tables = await getMinimalTableInformation({ explore });
+                const fieldSearchQueryResults = await Promise.all(
+                    args.fieldSearchQueries.map(async (fieldSearchQuery) => ({
+                        searchQuery: fieldSearchQuery.label,
+                        ...(await findFields({
+                            table: args.table,
+                            fieldSearchQuery,
+                            page: args.page ?? 1,
+                            pageSize,
+                        })),
+                    })),
+                );
 
-                return `Here are the available Fields (Metrics and Dimensions) for explore named "${exploreName}":
+                const fieldsText = fieldSearchQueryResults
+                    .map((fieldSearchQueryResult) =>
+                        getFieldsText(fieldSearchQueryResult),
+                    )
+                    .join('\n\n');
 
-${serializeData(tables, 'json')}`;
+                return `<SearchResults>${fieldsText}</SearchResults>`;
             } catch (error) {
                 return toolErrorHandler(
                     error,
-                    `Error finding fields for explore "${exploreName}".`,
+                    `Error finding fields for search queries: ${args.fieldSearchQueries
+                        .map((q) => q.label)
+                        .join(', ')}`,
                 );
             }
         },
     });
-};

@@ -89,6 +89,7 @@ export default function mockHealthResponse(
             overrideColorPaletteName: undefined,
         },
         isServiceAccountEnabled: false,
+        isCustomRolesEnabled: false,
         ...overrides,
     };
 }

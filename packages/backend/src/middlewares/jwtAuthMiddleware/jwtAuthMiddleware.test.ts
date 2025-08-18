@@ -1,11 +1,10 @@
 import {
     EmbedJwt,
     ForbiddenError,
+    JWT_HEADER_NAME,
     Organization,
-    ParameterError,
 } from '@lightdash/common';
 import express from 'express';
-import { JWT_HEADER_NAME } from '../../auth/lightdashJwt';
 import { jwtAuthMiddleware } from './jwtAuthMiddleware';
 
 // Mock the JWT utility
@@ -163,22 +162,17 @@ describe('Embed Auth Middleware', () => {
                 mockNext,
             );
 
-            expect(mockResponse.status).toHaveBeenCalledWith(403);
-            expect(mockResponse.json).toHaveBeenCalledWith({
-                status: 'error',
-                message: forbiddenError.message,
-            });
-            expect(mockNext).not.toHaveBeenCalled();
+            expect(mockResponse.status).not.toHaveBeenCalled();
+            const [error] = mockNext.mock.calls[0];
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect(error.message).toBe('Your embed token has expired.');
         });
 
-        it('should return 403 ParameterError when token is invalid', async () => {
+        it('should return 403 ForbiddenError when token is invalid', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
 
-            const parameterError = new ParameterError(
-                'Invalid embed token: malformed',
-            );
             decodeLightdashJwt.mockImplementation(() => {
-                throw parameterError;
+                throw new ForbiddenError('Invalid embed token: malformed');
             });
 
             await jwtAuthMiddleware(
@@ -187,12 +181,10 @@ describe('Embed Auth Middleware', () => {
                 mockNext,
             );
 
-            expect(mockResponse.status).toHaveBeenCalledWith(403);
-            expect(mockResponse.json).toHaveBeenCalledWith({
-                status: 'error',
-                message: parameterError.message,
-            });
-            expect(mockNext).not.toHaveBeenCalled();
+            expect(mockResponse.status).not.toHaveBeenCalled();
+            const [error] = mockNext.mock.calls[0];
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect(error.message).toBe('Invalid embed token: malformed');
         });
 
         it('should pass unexpected errors to next middleware', async () => {

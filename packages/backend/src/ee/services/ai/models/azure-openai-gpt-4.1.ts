@@ -10,7 +10,14 @@ export const getAzureGpt41Model = (
         apiVersion: config.apiVersion,
     });
 
-    return azure(config.deploymentName, {
+    const model = azure(config.deploymentName, {
         structuredOutputs: true,
     });
+
+    return {
+        model,
+        callOptions: {
+            temperature: config.temperature,
+        },
+    };
 };

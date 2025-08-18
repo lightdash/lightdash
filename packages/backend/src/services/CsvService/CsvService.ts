@@ -5,6 +5,7 @@ import {
     ApiSqlQueryResults,
     applyDimensionOverrides,
     CustomSqlQueryForbiddenError,
+    DashboardFilterRule,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -34,12 +35,12 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    ParametersValuesMap,
     PivotConfig,
     pivotResultsAsCsv,
     QueryExecutionContext,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
-    SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
     type RunQueryTags,
@@ -65,6 +66,7 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
+import * as Account from '../../auth/account';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
@@ -600,6 +602,7 @@ export class CsvService extends BaseService {
         dashboardFilters,
         dateZoomGranularity,
         invalidateCache,
+        schedulerParameters,
     }: {
         user: SessionUser;
         chartUuid: string;
@@ -609,6 +612,7 @@ export class CsvService extends BaseService {
         dashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
         invalidateCache?: boolean;
+        schedulerParameters?: ParametersValuesMap;
     }): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const {
@@ -644,8 +648,9 @@ export class CsvService extends BaseService {
             });
         }
 
+        const account = Account.fromSession(user);
         const explore = await this.projectService.getExplore(
-            user,
+            account,
             chart.projectUuid,
             exploreId,
         );
@@ -677,7 +682,7 @@ export class CsvService extends BaseService {
         };
 
         const { rows, fields } = await this.projectService.runMetricQuery({
-            user,
+            account,
             metricQuery: metricQueryWithDashboardFilters,
             projectUuid: chart.projectUuid,
             exploreName: exploreId,
@@ -689,6 +694,7 @@ export class CsvService extends BaseService {
             chartUuid,
             queryTags,
             invalidateCache,
+            parameters: schedulerParameters,
         });
         const numberRows = rows.length;
 
@@ -877,23 +883,24 @@ export class CsvService extends BaseService {
         overrideDashboardFilters,
         dateZoomGranularity,
         invalidateCache,
+        schedulerParameters,
     }: {
         user: SessionUser;
         dashboardUuid: string;
         options: SchedulerCsvOptions | undefined;
         jobId?: string;
-        schedulerFilters?: SchedulerFilterRule[];
+        schedulerFilters?: DashboardFilterRule[];
         selectedTabs?: string[] | undefined;
         overrideDashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
         invalidateCache?: boolean;
+        schedulerParameters?: ParametersValuesMap;
     }): Promise<AttachmentUrl[]> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
 
         if (schedulerFilters) {
-            // Scheduler filters can only override existing filters from the dashboard
             dashboardFilters.dimensions = applyDimensionOverrides(
                 dashboard.filters,
                 schedulerFilters,
@@ -933,6 +940,7 @@ export class CsvService extends BaseService {
                     dashboardFilters,
                     dateZoomGranularity,
                     invalidateCache,
+                    schedulerParameters,
                 }),
         );
         this.logger.info(
@@ -977,8 +985,10 @@ export class CsvService extends BaseService {
             tableConfig,
             chartConfig,
         } = chart;
+
+        const account = Account.fromSession(user);
         const explore = await this.projectService.getExplore(
-            user,
+            account,
             projectUuid,
             tableName,
         );
@@ -1166,8 +1176,9 @@ export class CsvService extends BaseService {
                 explore_name: exploreId,
             };
 
+            const account = Account.fromSession(user);
             const { rows, fields } = await this.projectService.runMetricQuery({
-                user,
+                account,
                 metricQuery,
                 projectUuid,
                 exploreName: exploreId,

@@ -21,6 +21,10 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     );
     const spaceUuid = useSearchParams('fromSpace');
 
+    const missingRequiredParameters = useExplorerContext(
+        (context) => context.state.missingRequiredParameters,
+    );
+
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
 
     const update = useAddVersionMutation();
@@ -45,7 +49,8 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     const isDisabled =
         !unsavedChartVersion.tableName ||
         !hasUnsavedChanges ||
-        foundCustomMetricWithDuplicateId;
+        foundCustomMetricWithDuplicateId ||
+        !!missingRequiredParameters?.length;
 
     const handleSaveChart = () => {
         return savedChart

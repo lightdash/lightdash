@@ -15,6 +15,9 @@ node_modules/
 /packages/e2e/cypress/videos/**/*
 /packages/e2e/cypress/downloads/**/*
 
+# eval reports
+/packages/backend/eval-reports/**/*
+
 # logs
 /packages/backend/logs
 /packages/backend/src/database/logs
@@ -92,3 +95,5 @@ data/
 
 # environment
 .env*
+
+.local/*

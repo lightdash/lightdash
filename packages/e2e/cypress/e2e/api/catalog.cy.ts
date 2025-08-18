@@ -1,4 +1,4 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT } from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
@@ -14,7 +14,7 @@ describe('Lightdash catalog all tables and fields', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?type=table`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(20);
+            expect(resp.body.results).to.have.length.gt(0);
             const userTable = resp.body.results.find(
                 (table) => table.name === 'users',
             );
@@ -28,6 +28,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 categories: [],
                 catalogSearchUuid: '',
                 icon: null,
+                aiHints: null,
             });
         });
     });
@@ -58,6 +59,8 @@ describe('Lightdash catalog all tables and fields', () => {
                 categories: [],
                 catalogSearchUuid: '',
                 icon: null,
+                aiHints: null,
+                fieldValueType: 'string',
             });
 
             const metric = resp.body.results.find(
@@ -78,6 +81,8 @@ describe('Lightdash catalog all tables and fields', () => {
                 categories: [],
                 catalogSearchUuid: '',
                 icon: null,
+                aiHints: null,
+                fieldValueType: 'sum',
             });
         });
     });
@@ -125,23 +130,30 @@ describe('Lightdash catalog search', () => {
         });
     });
 
-    it('Should search for a metric (total_revenue)', () => {
+    it('Should search for a metric (total_revenue) sorted by chartUsage', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=revenue`,
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/metrics?search=total_revenue&sort=chartUsage&order=desc`,
         ).then((resp) => {
+            const { data } = resp.body.results;
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(2);
+            expect(data).to.have.length(2);
 
-            const field1 = resp.body.results[0];
+            const field1 = data[0];
 
             expect(field1).to.have.property('name', 'total_revenue');
+            expect(field1).to.have.property(
+                'description',
+                'Sum of all payments',
+            );
 
-            const field2 = resp.body.results[1];
+            const field2 = data[1];
 
-            expect(field2)
-                .to.have.property('description')
-                .that.match(/revenue/i);
+            expect(field2).to.have.property('name', 'total_revenue');
+            expect(field2).to.have.property(
+                'description',
+                'Sum of Revenue attributed',
+            );
         });
     });
 
@@ -194,7 +206,7 @@ describe('Lightdash catalog search', () => {
     it('Should filter fields with required attributes (age)', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=age`,
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=average_age`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results).to.have.length(0);
@@ -217,10 +229,24 @@ describe('Lightdash catalog search', () => {
         ).then((resp) => {
             expect(resp.status).to.eq(200);
 
-            cy.log('only find the one under fanouts');
-            expect(resp.body.results).to.have.length(1);
-            expect(resp.body.results[0].name).to.eq('plan');
-            expect(resp.body.results[0].tableGroupLabel).to.eq('fanouts');
+            expect(resp.body.results).to.have.length(13);
+            cy.log('find the one under fanouts');
+            const planResult = resp.body.results.find(
+                (r: AnyType) =>
+                    r.name === 'plan' && r.tableGroupLabel === 'fanouts',
+            );
+            expect(planResult).to.have.property('name', 'plan');
+            expect(planResult).to.have.property('tableGroupLabel', 'fanouts');
+            cy.log('find the one under subscriptions');
+            const planNameResult = resp.body.results.find(
+                (r: AnyType) =>
+                    r.name === 'plan_name' && r.tableName === 'subscriptions',
+            );
+            expect(planNameResult).to.have.property('name', 'plan_name');
+            expect(planNameResult).to.have.property(
+                'tableName',
+                'subscriptions',
+            );
         });
     });
 });
@@ -340,6 +366,110 @@ describe('Lightdash analytics', () => {
             );
             expect(chart).to.have.property('uuid');
             expect(chart).to.have.property('spaceUuid');
+        });
+    });
+});
+
+describe('Lightdash catalog search with yaml tags', () => {
+    beforeEach(() => {
+        cy.login();
+    });
+    it('Should be able to find PII fields when no yaml tags are provided', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=first name&type=field`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length(3);
+            expect(resp.body.results[0].name).to.eq('first_name');
+            expect(resp.body.results[0].tableName).to.eq('customers');
+            expect(resp.body.results[1].name).to.eq('first_name');
+            expect(resp.body.results[1].tableName).to.eq('users');
+            expect(resp.body.results[2].name).to.eq('first_name');
+            expect(resp.body.results[2].tableName).to.eq('stg_customers');
+        });
+    });
+
+    it('Should not be able to find any PII fields which does not have the ai tag', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=first_name&yamlTags=ai&type=field`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length(0);
+        });
+    });
+
+    it('Should be able to find tables that have the ai tag when yaml tags are provided', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=events&yamlTags=ai&type=table`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length(1);
+            expect(resp.body.results[0].name).to.eq('events');
+        });
+    });
+
+    it('Should be able to find tagged tables when no yaml tags are provided', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=orders&type=table`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            // search query orders also returns payments (because of FTS)
+            expect(resp.body.results).to.have.length(3);
+            expect(resp.body.results[0].name).to.eq('orders');
+            expect(resp.body.results[1].name).to.eq('stg_orders');
+            expect(resp.body.results[2].name).to.eq('customers');
+        });
+    });
+
+    it('Should not be able to find tables that do not have the ai tag when yaml tags are provided', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=tracks&yamlTags=ai&type=table`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length(0);
+        });
+    });
+
+    it('Should be able to find tagged fields from untagged table', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=total_revenue&yamlTags=ai&type=field`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length(1);
+            expect(resp.body.results[0].name).to.eq('total_revenue');
+            expect(resp.body.results[0].tableName).to.eq('payments');
+        });
+    });
+
+    it('should be able to find fields if table is tagged but field is not', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=total_non_completed_order_amount&yamlTags=ai&type=field`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length(1);
+            expect(resp.body.results[0].name).to.eq(
+                'total_non_completed_order_amount',
+            );
+            expect(resp.body.results[0].tableName).to.eq('orders');
+        });
+    });
+
+    it('should be able to find table if table is untagged but field is tagged', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=payments&yamlTags=ai&type=table`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            // search query payments also returns orders (because of FTS)
+            expect(resp.body.results).to.have.length(2);
+            expect(resp.body.results[0].name).to.eq('payments');
         });
     });
 });

@@ -4,8 +4,11 @@ import {
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameters,
     type DateGranularity,
     type FilterableDimension,
+    type ParameterDefinitions,
+    type ParametersValuesMap,
     type ResultColumn,
     type SortField,
 } from '@lightdash/common';
@@ -93,9 +96,23 @@ export type DashboardContextType = {
     requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
-    parameters: Record<string, string | string[]>;
+    setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
+    parametersHaveChanged: boolean;
+    dashboardParameters: DashboardParameters;
+    parameterValues: ParametersValuesMap;
+    clearAllParameters: () => void;
     setParameter: (key: string, value: string | string[] | null) => void;
     dashboardParameterReferences: Set<string>;
     addParameterReferences: (tileUuid: string, references: string[]) => void;
+    tileParameterReferences: Record<string, string[]>;
     areAllChartsLoaded: boolean;
+    parameterDefinitions: ParameterDefinitions;
+    addParameterDefinitions: (parameters: ParameterDefinitions) => void;
+    missingRequiredParameters: string[];
+    pinnedParameters: string[];
+    setPinnedParameters: (parameters: string[]) => void;
+    toggleParameterPin: (parameterKey: string) => void;
+    havePinnedParametersChanged: boolean;
+    setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
+    tileNamesById: Record<string, string>;
 };

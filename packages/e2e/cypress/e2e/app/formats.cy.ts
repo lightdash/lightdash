@@ -83,6 +83,9 @@ describe('Explore', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreUrlParams}`,
         );
 
+        // run query
+        cy.get('button').contains('Run query').click();
+
         const headers = [
             'In eur',
             'In eur with round 0',

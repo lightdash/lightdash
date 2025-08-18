@@ -1,11 +1,12 @@
 {
     "name": "lightdash",
-    "version": "0.1827.1",
+    "version": "0.1930.3",
     "main": "index.js",
     "license": "MIT",
     "private": true,
     "workspaces": [
-        "packages/*"
+        "packages/*",
+        "packages/frontend/sdk"
     ],
     "resolutions": {
         "react-is": "19.0.0",
@@ -68,6 +69,7 @@
         "backend-fix-lint": "pnpm -F backend fix-lint",
         "backend-fix-format": "pnpm -F backend fix-format",
         "backend-test": "pnpm -F backend test",
+        "backend-test-integration": "pnpm -F backend test:integration",
         "backend-test-sequential": "pnpm -F backend test-sequential",
         "backend-typecheck": "pnpm -F backend typecheck",
         "frontend-dev": "pnpm -F frontend dev",
@@ -111,8 +113,8 @@
         "test": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend -F e2e -F cli test",
         "dev": "pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev",
         "build": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend build",
-        "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli build",
-        "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli release",
+        "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli build && pnpm frontend-build-sdk",
+        "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli -F frontend release",
         "start": "pnpm run backend-start",
         "prepare": "husky || true",
         "load:env": "dotenv -c -e .env.development.local",

@@ -2,10 +2,12 @@ import {
     BinType,
     CompiledExploreJoin,
     CustomDimensionType,
+    Explore,
     ForbiddenError,
     isCustomBinDimension,
     JoinRelationship,
     MetricType,
+    SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
 import {
@@ -22,13 +24,14 @@ import {
     warehouseClientMock,
     WEEK_NAME_SORT_DESCENDING_SQL,
     WEEK_NAME_SORT_SQL,
-} from './queryBuilder.mock';
+} from './MetricQueryBuilder.mock';
 import {
     applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
     findMetricInflationWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
+    getJoinedTables,
     replaceUserAttributesAsStrings,
     sortDayOfWeekName,
     sortMonthName,
@@ -282,7 +285,7 @@ describe('with custom dimensions', () => {
                 customDimensions: [CUSTOM_SQL_DIMENSION],
             }),
         ).toStrictEqual({
-            selects: ['  ("table1".dim1 < 18) AS `is_adult`'],
+            selects: { is_adult: '  ("table1".dim1 < 18) AS `is_adult`' },
             tables: ['table1'],
         });
     });
@@ -312,16 +315,15 @@ describe('with custom dimensions', () => {
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
-            selects: [
-                `CASE
-                        WHEN "table1".dim1 IS NULL THEN NULL
+            selects: {
+                age_range: `CASE
+                    WHEN "table1".dim1 IS NULL THEN NULL
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
 ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
-                        END
-                        AS \`age_range\`
-                    `,
-            ],
+                    END
+                    AS \`age_range\``,
+            },
             tables: ['table1'],
         });
     });
@@ -358,9 +360,9 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
-            selects: [
-                `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
-            ],
+            selects: {
+                age_range: `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
+            },
             tables: ['table1'],
         });
     });
@@ -389,22 +391,22 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 )`,
             ],
             join: 'CROSS JOIN age_range_cte',
-            selects: [
-                `CASE
-                            WHEN "table1".dim1 IS NULL THEN NULL
+            selects: {
+                age_range: `CASE
+                    WHEN "table1".dim1 IS NULL THEN NULL
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 0, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 1)
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 1, ' - ', age_range_cte.min_id + age_range_cte.bin_width * 2)
 ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range_cte.max_id)
-                            END
-                            AS \`age_range\``,
-                `CASE
-                            WHEN "table1".dim1 IS NULL THEN 3
+                    END
+                    AS \`age_range\``,
+                age_range_order: `CASE
+                        WHEN "table1".dim1 IS NULL THEN 3
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 0 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 1 THEN 0
 WHEN "table1".dim1 >= age_range_cte.min_id + age_range_cte.bin_width * 1 AND "table1".dim1 < age_range_cte.min_id + age_range_cte.bin_width * 2 THEN 1
 ELSE 2
-                            END
-                            AS \`age_range_order\``,
-            ],
+                        END
+                        AS \`age_range_order\``,
+            },
             tables: ['table1'],
         });
     });
@@ -1326,5 +1328,119 @@ describe('findMetricInflationWarnings', () => {
                 warning.fields[0] === 'user_products_total_user_products',
         );
         expect(userProductWarning).toBeDefined();
+    });
+});
+
+describe('getJoinedTables', () => {
+    it('should handle join with alias and original name in SQL', () => {
+        const explore: Explore = {
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+            name: 'orders',
+            label: 'orders',
+            baseTable: 'orders',
+            tags: [],
+            joinedTables: [
+                {
+                    table: 'users_alias',
+                    sqlOn: '${users.id} = ${orders.user_id}', // references originalName "users" and another table "orders"
+                    compiledSqlOn: '("users_alias".id) = ("orders".user_id)',
+                    tablesReferences: ['users_alias', 'orders'],
+                },
+            ],
+            tables: {
+                users_alias: {
+                    name: 'users_alias',
+                    label: 'users_alias',
+                    originalName: 'users',
+                    database: 'db',
+                    schema: 'schema',
+                    sqlTable: '"db"."schema"."users"',
+                    primaryKey: ['id'],
+                    dimensions: {},
+                    metrics: {},
+                    lineageGraph: {},
+                },
+                orders: {
+                    name: 'orders',
+                    label: 'orders',
+                    database: 'db',
+                    schema: 'schema',
+                    sqlTable: '"db"."schema"."orders"',
+                    primaryKey: ['id'],
+                    dimensions: {},
+                    metrics: {},
+                    lineageGraph: {},
+                },
+            },
+        };
+
+        const result = getJoinedTables(explore, ['orders', 'users_alias']);
+
+        expect(result).toHaveLength(0); // should not include original table name
+    });
+    it('should return intermediary join table', () => {
+        const explore: Explore = {
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+            name: 'orders',
+            label: 'orders',
+            baseTable: 'orders',
+            tags: [],
+            joinedTables: [
+                {
+                    table: 'intermediary_table',
+                    sqlOn: '${intermediary_table.id} = ${orders.user_id}',
+                    compiledSqlOn:
+                        '("intermediary_table".id) = ("orders".user_id)',
+                    tablesReferences: ['intermediary_table', 'orders'],
+                },
+                {
+                    table: 'users',
+                    sqlOn: '${users.id} = ${intermediary_table.user_id}', // joins via intermediary join
+                    compiledSqlOn:
+                        '("users".id) = ("intermediary_table".user_id)',
+                    tablesReferences: ['users', 'intermediary_table'],
+                },
+            ],
+            tables: {
+                users: {
+                    name: 'users',
+                    label: 'users',
+                    originalName: 'users',
+                    database: 'db',
+                    schema: 'schema',
+                    sqlTable: '"db"."schema"."users"',
+                    primaryKey: ['id'],
+                    dimensions: {},
+                    metrics: {},
+                    lineageGraph: {},
+                },
+                intermediary_table: {
+                    name: 'intermediary_table',
+                    label: 'intermediary_table',
+                    database: 'db',
+                    schema: 'schema',
+                    sqlTable: '"db"."schema"."intermediary_table"',
+                    primaryKey: ['id'],
+                    dimensions: {},
+                    metrics: {},
+                    lineageGraph: {},
+                },
+                orders: {
+                    name: 'orders',
+                    label: 'orders',
+                    database: 'db',
+                    schema: 'schema',
+                    sqlTable: '"db"."schema"."orders"',
+                    primaryKey: ['id'],
+                    dimensions: {},
+                    metrics: {},
+                    lineageGraph: {},
+                },
+            },
+        };
+
+        const result = getJoinedTables(explore, ['orders', 'users']);
+
+        expect(result).toContain('intermediary_table');
     });
 });

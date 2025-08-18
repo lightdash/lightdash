@@ -20,6 +20,7 @@ import { PoolConfig, QueryResult, types } from 'pg';
 import { Writable } from 'stream';
 import * as tls from 'tls';
 import { rootCertificates } from 'tls';
+import { normalizeUnicode } from '../utils/sql';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
@@ -146,6 +147,25 @@ export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
 
     getEscapeStringQuoteChar(): string {
         return "'";
+    }
+
+    escapeString(value: string): string {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return (
+            normalizeUnicode(value)
+                // Escape single quotes by doubling them (PostgreSQL standard)
+                .replaceAll("'", "''")
+                // PostgreSQL LIKE wildcards need to be escaped with backslashes
+                .replaceAll('\\', '\\\\') // Escape backslashes first
+                // Remove SQL comments (-- and /* */)
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                // Remove null bytes
+                .replaceAll('\0', '')
+        );
     }
 
     getMetricSql(sql: string, metric: Metric): string {

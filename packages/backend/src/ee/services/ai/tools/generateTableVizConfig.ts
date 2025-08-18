@@ -45,7 +45,7 @@ export const getGenerateTableVizConfig = ({
     const schema = toolTableVizArgsSchema;
 
     return tool({
-        description: `Use this tool to query data to display in a table or summarized if limit is set to 1.`,
+        description: toolTableVizArgsSchema.description,
         parameters: schema,
         execute: async (toolArgs) => {
             let isOneRow = false;
@@ -61,7 +61,7 @@ export const getGenerateTableVizConfig = ({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
                 const fieldsToValidate = [
-                    ...(vizTool.vizConfig.dimensions ?? []),
+                    ...vizTool.vizConfig.dimensions,
                     ...vizTool.vizConfig.metrics,
                     ...vizTool.vizConfig.sorts.map(
                         (sortField) => sortField.fieldId,
@@ -86,11 +86,7 @@ export const getGenerateTableVizConfig = ({
 
                 isOneRow = results.rows.length === 1;
 
-                if (isOneRow) {
-                    return `Here's the result:
-${serializeData(csv, 'csv')}`;
-                }
-
+                // Always send CSV file to Slack if it's a Slack prompt, regardless of row count
                 if (isSlackPrompt(prompt)) {
                     await sendFile({
                         channelId: prompt.slackChannelId,
@@ -101,6 +97,11 @@ ${serializeData(csv, 'csv')}`;
                         filename: 'lightdash-query-results.csv',
                         file: Buffer.from(csv, 'utf8'),
                     });
+                }
+
+                if (isOneRow) {
+                    return `Here's the result:
+                    ${serializeData(csv, 'csv')}`;
                 }
 
                 return `Success.`;

@@ -98,7 +98,7 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     "dbt-bigquery~=1.9.0" \
     "dbt-databricks~=1.9.0" \
     "dbt-trino~=1.9.0" \
-    && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \ 
+    && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
     "dbt-core~=1.10.0" \
@@ -176,10 +176,11 @@ COPY packages/backend/src/ ./packages/backend/src
 # Conditionally build backend with sourcemaps if Sentry environment variables are set
 RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
     echo "Building backend with sourcemaps for Sentry"; \
+    NODE_OPTIONS="--max-old-space-size=4096" \
     pnpm -F backend build-sourcemaps && pnpm -F backend postbuild; \
     else \
     echo "Building backend without sourcemaps"; \
-    pnpm -F backend build; \
+    NODE_OPTIONS="--max-old-space-size=4096" pnpm -F backend build; \
     fi
 
 # Build frontend

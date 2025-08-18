@@ -37,10 +37,11 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     METRIC_QUERY,
     warehouseClientMock,
-} from '../../utils/QueryBuilder/queryBuilder.mock';
+} from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
+    buildAccount,
     defaultProject,
     expectedAllExploreSummary,
     expectedAllExploreSummaryWithoutErrors,
@@ -56,6 +57,7 @@ import {
     projectWithSensitiveFields,
     resultsWith1Row,
     resultsWith501Rows,
+    sessionAccount,
     spacesWithSavedCharts,
     tablesConfiguration,
     tablesConfigurationWithNames,
@@ -144,8 +146,15 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
         featureFlagModel: {} as FeatureFlagModel,
-        projectParametersModel: {} as ProjectParametersModel,
+        projectParametersModel: {
+            find: jest.fn(async () => []),
+        } as unknown as ProjectParametersModel,
     });
+
+const account = buildAccount({
+    accountType: 'session',
+    userType: 'registered',
+});
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
@@ -172,7 +181,10 @@ describe('ProjectService', () => {
         expect(results).toEqual(expectedCatalog);
     });
     test('should get tables configuration', async () => {
-        const result = await service.getTablesConfiguration(user, projectUuid);
+        const result = await service.getTablesConfiguration(
+            account,
+            projectUuid,
+        );
         expect(result).toEqual(tablesConfiguration);
     });
     test('should update tables configuration', async () => {
@@ -193,7 +205,7 @@ describe('ProjectService', () => {
     describe('runExploreQuery', () => {
         test('should get results with 1 row', async () => {
             const result = await service.runExploreQuery(
-                user,
+                sessionAccount,
                 metricQueryMock,
                 projectUuid,
                 'valid_explore',
@@ -212,7 +224,7 @@ describe('ProjectService', () => {
             }));
 
             const result = await service.runExploreQuery(
-                user,
+                sessionAccount,
                 metricQueryMock,
                 projectUuid,
                 'valid_explore',
@@ -224,7 +236,7 @@ describe('ProjectService', () => {
     describe('getAllExploresSummary', () => {
         test('should get all explores summary without filtering', async () => {
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 false,
             );
@@ -232,7 +244,7 @@ describe('ProjectService', () => {
         });
         test('should get all explores summary with filtering', async () => {
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 true,
             );
@@ -243,7 +255,7 @@ describe('ProjectService', () => {
                 projectModel.getTablesConfiguration as jest.Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithTags);
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 true,
             );
@@ -254,7 +266,7 @@ describe('ProjectService', () => {
                 projectModel.getTablesConfiguration as jest.Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithNames);
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 true,
             );
@@ -262,7 +274,7 @@ describe('ProjectService', () => {
         });
         test('should get all explores summary that do not have errors', async () => {
             const result = await service.getAllExploresSummary(
-                user,
+                account,
                 projectUuid,
                 false,
                 false,
@@ -385,7 +397,7 @@ describe('ProjectService', () => {
             expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
                 replaceWhitespace(`SELECT AS "a_dim1"
                                    FROM test.table AS "a"
-                                   WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IS NOT NULL ))
+                                   WHERE (( true ) AND ( () IS NOT NULL ))
                                    GROUP BY 1
                                    ORDER BY "a_dim1"
                                    LIMIT 10`),
@@ -443,7 +455,7 @@ describe('ProjectService', () => {
                 replaceWhitespace(`SELECT AS "a_dim1"
                                         FROM test.table AS "a"
                                         LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1)
-                                        WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IS NOT NULL ) AND ( () IN ('test') ) AND ( () IN ('test') ))
+                                        WHERE (( true ) AND ( () IS NOT NULL ) AND ( () IN ('test') ) AND ( () IN ('test') ))
                                         GROUP BY 1
                                         ORDER BY "a_dim1"
                                         LIMIT 10`),

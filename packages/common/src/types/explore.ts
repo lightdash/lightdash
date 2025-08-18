@@ -75,7 +75,8 @@ export type Explore = {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
     };
-    aiHint?: string;
+    aiHint?: string | string[];
+    parameters?: LightdashProjectConfig['parameters'];
 };
 
 export enum InlineErrorType {

@@ -77,15 +77,21 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
 );
 const AgentPage = () => {
     const { agentUuid, threadUuid, projectUuid } = useParams();
-    const { data: threads } = useAiAgentThreads(agentUuid);
+    const { data: threads } = useAiAgentThreads(projectUuid!, agentUuid!);
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
     });
 
-    const { data: agentsList } = useProjectAiAgents(projectUuid!);
+    const { data: agentsList } = useProjectAiAgents({
+        projectUuid: projectUuid!,
+        redirectOnUnauthorized: true,
+    });
 
-    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid);
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
+        projectUuid!,
+        agentUuid!,
+    );
 
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 

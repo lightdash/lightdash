@@ -3,46 +3,41 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     Account,
-    AccountHelpers,
     AccountOrganization,
+    AccountWithoutHelpers,
     AnonymousAccount,
+    ApiKeyAccount,
     applyEmbeddedAbility,
+    buildAccountHelpers,
     CreateEmbedJwt,
-    Embed,
     ForbiddenError,
     MemberAbility,
+    OauthAccount,
     Organization,
+    OssEmbed,
+    ServiceAcctAccount,
     SessionAccount,
     SessionUser,
     UserAccessControls,
 } from '@lightdash/common';
 
+/**
+ * Creates an ID for the external user. We prefix the ID to prevent hijacking a real user ID.
+ * For the default ID, we limit the length to under 255 characters as that's the varchar limit for Postgres.
+ */
 const getExternalId = (
     decodedToken: CreateEmbedJwt,
     embedToken: string,
     organization: Pick<Organization, 'organizationUuid' | 'name'>,
-): string =>
-    decodedToken.user?.externalId ||
-    `anonymous-jwt::${organization.organizationUuid}_${embedToken}`;
+): string => {
+    const defaultBase = `${organization.organizationUuid}_${embedToken}`;
+    const baseId = decodedToken.user?.externalId || defaultBase;
+    return `external::${baseId}`.slice(0, 254);
+};
 
-type WithoutHelpers<T extends Account> = Omit<T, keyof AccountHelpers>;
-
-/**
- * Creates a SessionAccount with helper methods
- */
-function createAccount(account: WithoutHelpers<SessionAccount>): SessionAccount;
-/**
- * Creates an AnonymousAccount with helper methods
- */
-function createAccount(
-    account: WithoutHelpers<AnonymousAccount>,
-): AnonymousAccount;
-/**
- * Creates an account with helper methods based on the input type
- */
-function createAccount(
-    account: WithoutHelpers<SessionAccount | AnonymousAccount>,
-): SessionAccount | AnonymousAccount {
+const createAccount = <T extends Account>(
+    account: AccountWithoutHelpers<T>,
+): T => {
     if (!account.user?.ability || !account.user?.abilityRules) {
         throw new ForbiddenError(
             'User ability and abilityRules are required for permissions',
@@ -51,29 +46,52 @@ function createAccount(
 
     return {
         ...account,
-        isAuthenticated: () => !!account.authentication && !!account.user?.id,
-        isRegisteredUser: () => account.user?.type === 'registered',
-        isAnonymousUser: () => account.user?.type === 'anonymous',
-        isSessionUser: () => account.authentication?.type === 'session',
-        isJwtUser: () => account.authentication?.type === 'jwt',
-    } as SessionAccount | AnonymousAccount;
-}
+        ...buildAccountHelpers(account),
+    } as T;
+};
+
+/**
+ * Shared helper function to extract organization data and user data from SessionUser
+ */
+const extractOrganizationFromUser = (
+    sessionUser: SessionUser,
+): [AccountOrganization, SessionUser] => {
+    const {
+        organizationCreatedAt,
+        organizationName,
+        organizationUuid,
+        ...user
+    } = sessionUser;
+    return [
+        {
+            organizationUuid,
+            name: organizationName,
+            createdAt: organizationCreatedAt,
+        },
+        user,
+    ];
+};
 
 export const fromJwt = ({
     decodedToken,
-    organization,
+    embed,
     source,
     dashboardUuid,
     userAttributes,
 }: {
     decodedToken: CreateEmbedJwt;
-    organization: Embed['organization'];
+    embed: OssEmbed;
     source: string;
     dashboardUuid: string;
     userAttributes: UserAccessControls;
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
-    applyEmbeddedAbility(decodedToken, dashboardUuid, organization, builder);
+    applyEmbeddedAbility(
+        decodedToken,
+        dashboardUuid,
+        embed.organization,
+        builder,
+    );
     const abilities = builder.build();
 
     return createAccount({
@@ -82,7 +100,8 @@ export const fromJwt = ({
             data: decodedToken,
             source,
         },
-        organization,
+        organization: embed.organization,
+        embed,
         access: {
             dashboardId: dashboardUuid,
             filtering: decodedToken.content.dashboardFiltersInteractivity,
@@ -90,7 +109,7 @@ export const fromJwt = ({
         },
         // Create the fields we're able to set from the JWT
         user: {
-            id: getExternalId(decodedToken, source, organization),
+            id: getExternalId(decodedToken, source, embed.organization),
             type: 'anonymous',
             ability: abilities,
             abilityRules: abilities.rules,
@@ -100,26 +119,88 @@ export const fromJwt = ({
     });
 };
 
+// TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
+// service-account/principle-user unrelated to a real admin-user.
+// @see https://github.com/lightdash/lightdash/issues/15466
+export const fromServiceAccount = (
+    sessionUser: SessionUser,
+    source: string,
+): ServiceAcctAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+
+    return createAccount({
+        authentication: {
+            type: 'service-account',
+            source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
+export const fromApiKey = (
+    sessionUser: SessionUser,
+    source: string,
+): ApiKeyAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+
+    return createAccount({
+        authentication: {
+            type: 'pat',
+            source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
 export const fromSession = (
     sessionUser: SessionUser,
     source: string = '',
 ): SessionAccount => {
-    const {
-        organizationCreatedAt,
-        organizationName,
-        organizationUuid,
-        ...user
-    } = sessionUser;
-
-    const organization: AccountOrganization = {
-        organizationUuid,
-        name: organizationName,
-    };
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
 
     return createAccount({
         authentication: {
             type: 'session',
             source,
+        },
+        organization,
+        user: {
+            ...user,
+            type: 'registered',
+            id: user.userUuid,
+        },
+    });
+};
+
+export const fromOauth = (
+    sessionUser: SessionUser,
+    token: {
+        accessToken: string;
+        accessTokenExpiresAt?: Date;
+        refreshToken?: string;
+        refreshTokenExpiresAt?: Date;
+        scope?: string[];
+        client: { id: string };
+    },
+): OauthAccount => {
+    const [organization, user] = extractOrganizationFromUser(sessionUser);
+    return createAccount({
+        authentication: {
+            type: 'oauth',
+            source: token.accessToken,
+            token: token.accessToken,
+            clientId: token.client.id,
+            scopes: token.scope || [],
         },
         organization,
         user: {

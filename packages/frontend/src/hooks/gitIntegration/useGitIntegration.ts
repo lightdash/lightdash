@@ -1,6 +1,7 @@
 import type { ApiError, GitIntegrationConfiguration } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
+import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 
 const getGitIntegration = async () =>
     lightdashApi<any>({
@@ -9,9 +10,13 @@ const getGitIntegration = async () =>
         body: undefined,
     });
 
-export const useGitIntegration = () =>
-    useQuery<GitIntegrationConfiguration, ApiError>({
+export const useGitIntegration = () => {
+    const ability = useAbilityContext();
+
+    return useQuery<GitIntegrationConfiguration, ApiError>({
         queryKey: ['git-integration'],
         queryFn: () => getGitIntegration(),
         retry: false,
+        enabled: ability?.can('manage', 'Explore'),
     });
+};

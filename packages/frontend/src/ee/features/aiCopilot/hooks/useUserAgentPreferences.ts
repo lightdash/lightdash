@@ -1,4 +1,5 @@
 import {
+    type ApiAiAgentExploreAccessSummaryResponse,
     type ApiError,
     type ApiGetUserAgentPreferencesResponse,
     type ApiSuccessEmpty,
@@ -148,5 +149,33 @@ export const useDeleteUserAgentPreferences = (projectUuid: string) => {
                 apiError: error,
             });
         },
+    });
+};
+
+const getAgentExploreAccessSummary = (
+    projectUuid: string,
+    payload: { tags: string[] | null },
+) =>
+    lightdashApi<ApiAiAgentExploreAccessSummaryResponse['results']>({
+        url: `/projects/${projectUuid}/aiAgents/explore-access-summary`,
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
+export const useGetAgentExploreAccessSummary = (
+    projectUuid: string,
+    payload: { tags: string[] | null },
+) => {
+    return useQuery<
+        ApiAiAgentExploreAccessSummaryResponse['results'],
+        ApiError
+    >({
+        queryKey: [
+            USER_AGENT_PREFERENCES,
+            projectUuid,
+            'exploreAccessSummary',
+            payload.tags,
+        ],
+        queryFn: () => getAgentExploreAccessSummary(projectUuid, payload),
     });
 };

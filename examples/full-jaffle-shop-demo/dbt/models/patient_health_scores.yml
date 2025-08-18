@@ -1,0 +1,417 @@
+version: 2
+
+models:
+  - name: patient_health_scores
+    description: |
+      Comprehensive health scores and risk assessments for each patient, combining visit history,
+      conditions, vitals, and engagement metrics to provide a 360-degree view of patient health.
+    config:
+      meta:
+        primary_key: patient_id
+        joins:
+          - join: visit_analytics
+            sql_on: ${visit_analytics.patient_id} = ${patient_health_scores.patient_id}
+            relationship: one-to-many
+        metrics:
+          # Core patient metrics
+          total_patients:
+            type: count_distinct
+            sql: patient_id
+            label: "Total Patients"
+          
+          # Risk and engagement metrics
+          avg_health_risk_score:
+            type: average
+            sql: health_risk_score
+            round: 1
+            label: "Average Health Risk Score"
+          
+          avg_engagement_score:
+            type: average
+            sql: engagement_score
+            round: 1
+            label: "Average Engagement Score"
+          
+          avg_patient_age:
+            type: average
+            sql: age
+            round: 1
+            label: "Average Patient Age"
+          
+          # Visit metrics
+          total_visit_count:
+            type: sum
+            sql: total_visits
+            label: "Total Visits"
+          
+          avg_visits_per_patient:
+            type: average
+            sql: total_visits
+            round: 1
+            label: "Average Visits per Patient"
+          
+          total_emergency_visits:
+            type: sum
+            sql: emergency_visits
+            label: "Total Emergency Visits"
+          
+          emergency_visit_rate:
+            type: number
+            sql: SUM(emergency_visits)::NUMERIC / NULLIF(SUM(total_visits), 0)
+            format: percent
+            round: 2
+            label: "Emergency Visit Rate"
+          
+          total_chronic_visits:
+            type: sum
+            sql: chronic_management_visits
+            label: "Chronic Management Visits"
+          
+          # Condition metrics
+          avg_conditions_per_patient:
+            type: average
+            sql: total_conditions
+            round: 1
+            label: "Average Conditions per Patient"
+          
+          patients_with_chronic_conditions:
+            type: count_distinct
+            sql: patient_id
+            filters:
+              - chronic_conditions: "> 0"
+            label: "Patients with Chronic Conditions"
+          
+          patients_overdue_for_visit:
+            type: count_distinct
+            sql: patient_id
+            filters:
+              - days_since_last_visit: "> 180"
+            label: "Patients Overdue for Visit"
+          
+          # Risk stratification metrics
+          high_risk_patient_count:
+            type: count_distinct
+            sql: patient_id
+            filters:
+              - health_risk_score: ">= 70"
+            label: "High Risk Patients"
+          
+          low_engagement_patient_count:
+            type: count_distinct
+            sql: patient_id
+            filters:
+              - engagement_score: "< 40"
+            label: "Low Engagement Patients"
+          
+          # Clinical metrics
+          hypertensive_patients:
+            type: count_distinct
+            sql: patient_id
+            filters:
+              - blood_pressure_category: ["Stage 1 Hypertension", "Stage 2 Hypertension"]
+            label: "Hypertensive Patients"
+          
+          obese_patients:
+            type: count_distinct
+            sql: patient_id
+            filters:
+              - bmi_category: "Obese"
+            label: "Obese Patients"
+          
+          diabetic_risk_patients:
+            type: count_distinct
+            sql: patient_id
+            filters:
+              - glucose_level: "> 125"
+            label: "Diabetic Risk Patients"
+          
+          # Financial metrics
+          total_healthcare_cost:
+            type: sum
+            sql: total_visit_cost
+            format: usd
+            label: "Total Healthcare Cost"
+          
+          avg_cost_per_patient:
+            type: average
+            sql: total_visit_cost
+            format: usd
+            round: 2
+            label: "Average Cost per Patient"
+          
+          patients_by_plan:
+            type: count_distinct
+            sql: patient_id
+            label: "Patients by Plan"
+            
+        default_time_dimension:
+          field: last_visit_date
+          interval: DAY
+          
+    columns:
+      - name: patient_id
+        description: Unique patient identifier
+        tests:
+          - unique
+          - not_null
+        config:
+          meta:
+            dimension:
+              type: number
+              
+      - name: full_name
+        description: Patient's full name
+        config:
+          meta:
+            dimension:
+              type: string
+              
+      - name: age
+        description: Patient's current age in years
+        config:
+          meta:
+            dimension:
+              type: number
+            additional_dimensions:
+              age_group:
+                type: string
+                label: "Age Group"
+                sql: |
+                  CASE 
+                    WHEN ${age} < 18 THEN 'Pediatric'
+                    WHEN ${age} BETWEEN 18 AND 39 THEN 'Young Adult'
+                    WHEN ${age} BETWEEN 40 AND 64 THEN 'Middle Age'
+                    WHEN ${age} >= 65 THEN 'Senior'
+                  END
+                
+      - name: health_plan
+        description: Patient's health insurance plan type
+        config:
+          meta:
+            dimension:
+              type: string
+              
+      - name: risk_category
+        description: Initial risk categorization (Low/Medium/High)
+        config:
+          meta:
+            dimension:
+              type: string
+              
+      - name: primary_care_provider
+        description: Assigned primary care physician
+        config:
+          meta:
+            dimension:
+              type: string
+              
+      - name: total_visits
+        description: Total number of healthcare visits
+        config:
+          meta:
+            dimension:
+              type: number
+            additional_dimensions:
+              visit_frequency_tier:
+                type: string
+                label: "Visit Frequency Tier"
+                sql: |
+                  CASE 
+                    WHEN ${total_visits} <= 2 THEN 'Low (1-2 visits)'
+                    WHEN ${total_visits} <= 5 THEN 'Medium (3-5 visits)'
+                    WHEN ${total_visits} <= 10 THEN 'High (6-10 visits)'
+                    ELSE 'Very High (10+ visits)'
+                  END
+                
+      - name: emergency_visits
+        description: Number of emergency department visits
+        config:
+          meta:
+            dimension:
+              type: number
+                
+      - name: chronic_management_visits
+        description: Visits specifically for chronic condition management
+        config:
+          meta:
+            dimension:
+              type: number
+                
+      - name: last_visit_date
+        description: Date of most recent healthcare visit
+        config:
+          meta:
+            dimension:
+              type: date
+              
+      - name: days_since_last_visit
+        description: Days elapsed since last visit
+        config:
+          meta:
+            dimension:
+              type: number
+            additional_dimensions:
+              visit_recency_status:
+                type: string
+                label: "Visit Recency Status"
+                sql: |
+                  CASE 
+                    WHEN ${days_since_last_visit} IS NULL THEN 'No Previous Visit'
+                    WHEN ${days_since_last_visit} <= 30 THEN 'Recent (≤30 days)'
+                    WHEN ${days_since_last_visit} <= 90 THEN 'Moderate (31-90 days)'
+                    WHEN ${days_since_last_visit} <= 180 THEN 'Overdue (91-180 days)'
+                    ELSE 'Very Overdue (>180 days)'
+                  END
+                  
+      - name: total_conditions
+        description: Total number of diagnosed conditions
+        config:
+          meta:
+            dimension:
+              type: number
+                
+      - name: chronic_conditions
+        description: Number of chronic conditions
+        config:
+          meta:
+            dimension:
+              type: number
+            additional_dimensions:
+              chronic_condition_tier:
+                type: string
+                label: "Chronic Condition Tier"
+                sql: |
+                  CASE 
+                    WHEN ${chronic_conditions} = 0 THEN 'No Chronic Conditions'
+                    WHEN ${chronic_conditions} = 1 THEN 'Single Chronic Condition'
+                    WHEN ${chronic_conditions} <= 3 THEN 'Multiple Chronic Conditions'
+                    ELSE 'Complex Chronic Conditions'
+                  END
+                  
+      - name: severe_conditions
+        description: Number of severe conditions
+        config:
+          meta:
+            dimension:
+              type: number
+              
+      - name: condition_categories
+        description: Categories of conditions affecting the patient
+        config:
+          meta:
+            dimension:
+              type: string
+              
+      - name: blood_pressure_category
+        description: Current blood pressure classification
+        config:
+          meta:
+            dimension:
+              type: string
+              colors:
+                "Normal": "#4CAF50"
+                "Elevated": "#FF9800"
+                "Stage 1 Hypertension": "#FF5722"
+                "Stage 2 Hypertension": "#F44336"
+                  
+      - name: bmi_category
+        description: BMI classification (Underweight/Normal/Overweight/Obese)
+        config:
+          meta:
+            dimension:
+              type: string
+              colors:
+                "Underweight": "#2196F3"
+                "Normal": "#4CAF50"
+                "Overweight": "#FF9800"
+                "Obese": "#F44336"
+                  
+      - name: glucose_level
+        description: Most recent glucose level reading
+        config:
+          meta:
+            dimension:
+              type: number
+            additional_dimensions:
+              diabetes_risk_category:
+                type: string
+                label: "Diabetes Risk Category"
+                sql: |
+                  CASE 
+                    WHEN ${glucose_level} < 100 THEN 'Normal'
+                    WHEN ${glucose_level} < 126 THEN 'Prediabetic'
+                    ELSE 'Diabetic Range'
+                  END
+                colors:
+                  "Normal": "#4CAF50"
+                  "Prediabetic": "#FF9800"
+                  "Diabetic Range": "#F44336"
+                  
+      - name: health_risk_score
+        description: Calculated health risk score (0-100, higher = worse)
+        config:
+          meta:
+            dimension:
+              type: number
+            additional_dimensions:
+              risk_tier:
+                type: string
+                label: "Risk Tier"
+                sql: |
+                  CASE 
+                    WHEN ${health_risk_score} < 40 THEN 'Low Risk'
+                    WHEN ${health_risk_score} < 70 THEN 'Medium Risk'
+                    ELSE 'High Risk'
+                  END
+                colors:
+                  "Low Risk": "#4CAF50"
+                  "Medium Risk": "#FF9800"
+                  "High Risk": "#F44336"
+                  
+      - name: engagement_score
+        description: Patient engagement score (0-100, higher = better)
+        config:
+          meta:
+            dimension:
+              type: number
+            additional_dimensions:
+              engagement_level:
+                type: string
+                label: "Engagement Level"
+                sql: |
+                  CASE 
+                    WHEN ${engagement_score} >= 70 THEN 'Highly Engaged'
+                    WHEN ${engagement_score} >= 40 THEN 'Moderately Engaged'
+                    ELSE 'Low Engagement'
+                  END
+                colors:
+                  "Highly Engaged": "#4CAF50"
+                  "Moderately Engaged": "#FF9800"
+                  "Low Engagement": "#F44336"
+                  
+      - name: total_visit_cost
+        description: Total cost of all visits
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd
+            additional_dimensions:
+              cost_tier:
+                type: string
+                label: "Cost Tier"
+                sql: |
+                  CASE 
+                    WHEN ${total_visit_cost} < 1000 THEN 'Low Cost (<$1K)'
+                    WHEN ${total_visit_cost} < 5000 THEN 'Medium Cost ($1K-$5K)'
+                    WHEN ${total_visit_cost} < 10000 THEN 'High Cost ($5K-$10K)'
+                    ELSE 'Very High Cost (>$10K)'
+                  END
+                  
+      - name: avg_visit_cost
+        description: Average cost per visit
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd

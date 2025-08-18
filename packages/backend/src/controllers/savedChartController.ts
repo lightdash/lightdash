@@ -10,6 +10,7 @@ import {
     DateZoom,
     QueryExecutionContext,
     SortField,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import {
     Body,
@@ -91,7 +92,7 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
-                user: req.user!,
+                account: req.account!,
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
@@ -124,7 +125,7 @@ export class SavedChartController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .getChartAndResults({
-                    user: req.user!,
+                    account: req.account!,
                     chartUuid,
                     dashboardFilters: body.dashboardFilters,
                     invalidateCache: body.invalidateCache,
@@ -225,7 +226,7 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
-                user: req.user!,
+                account: req.account!,
                 chartUuid,
                 versionUuid,
                 context,
@@ -277,6 +278,7 @@ export class SavedChartController extends BaseController {
         body: {
             dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
+            parameters?: ParametersValuesMap;
         },
         @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
@@ -284,10 +286,11 @@ export class SavedChartController extends BaseController {
         const totalResult = await this.services
             .getProjectService()
             .calculateTotalFromSavedChart(
-                req.user!,
+                req.account!,
                 chartUuid,
                 body.dashboardFilters,
                 body.invalidateCache,
+                body.parameters,
             );
         return {
             status: 'ok',

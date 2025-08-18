@@ -74,7 +74,7 @@ export class AnalyticsModel {
 
     async addChartViewEvent(
         chartUuid: string,
-        userUuid: string,
+        userUuid: string | null,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await trx(AnalyticsChartViewsTableName).insert({

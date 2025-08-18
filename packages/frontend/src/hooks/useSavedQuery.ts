@@ -32,6 +32,7 @@ const createSavedQuery = async (
             ...payload.metricQuery,
             filters: convertDateFilters(payload.metricQuery.filters),
         },
+        parameters: payload.parameters,
     };
     return lightdashApi<SavedChart>({
         url: `/projects/${projectUuid}/saved`,

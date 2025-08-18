@@ -29,6 +29,7 @@ describe('Global search', () => {
     it('Should search all result types', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
 
+        cy.contains('Search Jaffle shop').should('be.visible');
         // search and select space
         search('jaffle');
         cy.findByRole('dialog')
@@ -39,18 +40,20 @@ describe('Global search', () => {
             'include',
             `/projects/${SEED_PROJECT.project_uuid}/spaces/`,
         );
+        cy.contains('Spaces').should('be.visible');
 
         // search and select dashboard
         search('jaffle');
         cy.findByRole('dialog')
             .findAllByRole('menuitem', { name: /Jaffle dashboard/ })
-            .scrollIntoView()
             .first()
+            .scrollIntoView()
             .click();
         cy.url().should(
             'include',
             `/projects/${SEED_PROJECT.project_uuid}/dashboards/`,
         );
+        cy.contains('Jaffle dashboard').should('be.visible');
 
         // search and select saved chart
         search('Which');
@@ -65,6 +68,9 @@ describe('Global search', () => {
             `/projects/${SEED_PROJECT.project_uuid}/saved/`,
         );
 
+        //  wait for table to render
+        cy.findAllByText('Customer id').should('have.length', 1);
+
         // search and select table
         search('Customers');
         cy.findByRole('dialog')
@@ -77,19 +83,19 @@ describe('Global search', () => {
             'include',
             `/projects/${SEED_PROJECT.project_uuid}/tables/customers`,
         );
+        cy.contains('Customer id').should('be.visible');
 
         // search and select field
         search('First order');
         cy.findByRole('dialog')
             .findByRole('menuitem', {
-                name: 'Payments - Orders - Date of first order Metric · Min of Order date',
-                exact: false,
+                name: 'Orders - Date of first order Metric · Min of Order date',
             })
             .scrollIntoView()
             .click();
         cy.url().should(
             'include',
-            `/projects/${SEED_PROJECT.project_uuid}/tables/payments?create_saved_chart_version`,
+            `/projects/${SEED_PROJECT.project_uuid}/tables/orders?create_saved_chart_version`,
         );
     });
 });

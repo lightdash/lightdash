@@ -1,4 +1,5 @@
 import {
+    JWT_HEADER_NAME,
     LightdashRequestMethodHeader,
     LightdashVersionHeader,
     RequestMethod,
@@ -8,6 +9,8 @@ import {
 } from '@lightdash/common';
 import { spanToTraceHeader, startSpan } from '@sentry/react';
 import fetch from 'isomorphic-fetch';
+import { EMBED_KEY, type InMemoryEmbed } from './ee/providers/Embed/types';
+import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 
 // TODO: import from common or fix the instantiation of the request module
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
@@ -23,6 +26,47 @@ const defaultHeaders = {
     [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
     [LightdashVersionHeader]: __APP_VERSION__,
 };
+
+const isSafeToAddEmbedHeader = (
+    headers: Record<string, string> | undefined,
+) => {
+    if (!headers) return true;
+
+    const isEmbedHeader = (header: string) =>
+        header.toLowerCase() === JWT_HEADER_NAME.toLowerCase();
+    return !Object.keys(headers).some(isEmbedHeader);
+};
+
+const finalizeHeaders = (
+    headers: Record<string, string> | undefined,
+    embed: InMemoryEmbed | undefined,
+    sentryTrace: string | undefined,
+): Record<string, string> => {
+    const requestHeaders: Record<string, string> = {
+        ...defaultHeaders,
+        ...headers,
+    };
+
+    if (embed?.token && isSafeToAddEmbedHeader(headers)) {
+        requestHeaders[JWT_HEADER_NAME] = embed.token;
+    }
+
+    if (sentryTrace) {
+        requestHeaders['sentry-trace'] = sentryTrace;
+    }
+
+    return requestHeaders;
+};
+
+function finalizeUrl(url: string, embed: InMemoryEmbed | undefined): string {
+    if (embed?.projectUuid && !url.includes('projectUuid')) {
+        const separator = url.includes('?') ? '&' : '?';
+        url += `${separator}projectUuid=${encodeURIComponent(
+            embed.projectUuid,
+        )}`;
+    }
+    return url;
+}
 
 const handleError = (err: any): ApiError => {
     if (err.error?.statusCode && err.error?.name) {
@@ -101,13 +145,10 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         },
     );
 
-    return fetch(`${apiPrefix}${url}`, {
+    const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    return fetch(finalizeUrl(`${apiPrefix}${url}`, embed), {
         method,
-        headers: {
-            ...defaultHeaders,
-            ...headers,
-            ...(sentryTrace ? { 'sentry-trace': sentryTrace } : {}),
-        },
+        headers: finalizeHeaders(headers, embed, sentryTrace),
         body,
         signal,
     })

@@ -34,6 +34,7 @@ import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
+import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -157,6 +158,25 @@ export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
             default:
                 return super.getMetricSql(sql, metric);
         }
+    }
+
+    escapeString(value: string): string {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return (
+            normalizeUnicode(value)
+                // Snowflake uses single quote doubling like PostgreSQL
+                .replaceAll("'", "''")
+                // Escape backslashes first (before LIKE wildcards)
+                .replaceAll('\\', '\\\\')
+                // Remove SQL comments (-- and /* */)
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                // Remove null bytes
+                .replaceAll('\0', '')
+        );
     }
 }
 

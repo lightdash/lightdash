@@ -227,6 +227,7 @@ export type MetricQueryExecutionProperties = {
     virtualViewId?: string;
     metricOverridesCount: number;
     limit: number;
+    parametersCount: number;
 };
 
 type PaginatedMetricQueryExecutionProperties =
@@ -494,6 +495,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
         numCustomSqlDimensions: number;
+        parametersCount: number;
     };
 };
 
@@ -650,6 +652,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         loomTilesCount: number;
         duplicated?: boolean;
         tabsCount?: number;
+        parametersCount: number;
     };
 };
 
@@ -792,11 +795,12 @@ type ShareSlack = BaseTrack & {
 
 type SavedChartView = BaseTrack & {
     event: 'saved_chart.view';
-    userId: string;
+    userId?: string;
     properties: {
         savedChartId: string;
         projectId: string;
         organizationId: string;
+        parametersCount: number;
     };
 };
 
@@ -807,6 +811,7 @@ type DashboardView = BaseTrack & {
         dashboardId: string;
         projectId: string;
         organizationId: string;
+        parametersCount: number;
     };
 };
 
@@ -1356,6 +1361,16 @@ export type SupportShareEvent = BaseTrack & {
     };
 };
 
+export type McpToolCallEvent = BaseTrack & {
+    event: 'mcp_tool_call';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId?: string;
+        toolName: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1449,7 +1464,8 @@ type TypedEvent =
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
     | AiAgentPromptCreatedEvent
-    | AiAgentPromptFeedbackEvent;
+    | AiAgentPromptFeedbackEvent
+    | McpToolCallEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

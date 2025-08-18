@@ -9,6 +9,7 @@ import {
     type ItemsMap,
     type MetricQuery,
     type MetricQueryRequest,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -23,6 +24,7 @@ const calculateTotalFromQuery = async (
     projectUuid: string,
     metricQuery?: MetricQuery,
     explore?: string,
+    parameters?: ParametersValuesMap,
 ): Promise<ApiCalculateTotalResponse['results']> => {
     if (!metricQuery || !explore) {
         throw new Error(
@@ -36,6 +38,7 @@ const calculateTotalFromQuery = async (
             ...metricQuery,
             filters: convertDateFilters(metricQuery.filters),
         },
+        parameters,
     };
     return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/projects/${projectUuid}/calculate-total`,
@@ -48,6 +51,7 @@ const calculateTotalFromSavedChart = async (
     savedChartUuid: string,
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
+    parameters?: ParametersValuesMap,
 ): Promise<ApiCalculateTotalResponse['results']> => {
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
@@ -58,12 +62,12 @@ const calculateTotalFromSavedChart = async (
         body: JSON.stringify({
             dashboardFilters: timezoneFixFilters,
             invalidateCache,
+            parameters,
         }),
     });
 };
 
 const postCalculateTotalForEmbed = async (
-    embedToken: string,
     projectUuid: string,
     savedChartUuid: string,
     dashboardFilters?: DashboardFilters,
@@ -75,9 +79,6 @@ const postCalculateTotalForEmbed = async (
     return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/embed/${projectUuid}/chart/${savedChartUuid}/calculate-total`,
         method: 'POST',
-        headers: {
-            'Lightdash-Embed-Token': embedToken,
-        },
         body: JSON.stringify({
             dashboardFilters: timezoneFixFilters,
             invalidateCache,
@@ -113,6 +114,7 @@ export const useCalculateTotal = ({
     itemsMap,
     showColumnCalculation,
     embedToken,
+    parameters,
 }: {
     metricQuery?: MetricQueryRequest;
     explore?: string;
@@ -123,6 +125,7 @@ export const useCalculateTotal = ({
     fieldIds?: string[];
     showColumnCalculation?: boolean;
     embedToken: string | undefined;
+    parameters?: ParametersValuesMap;
 }) => {
     const metricsWithTotals = useMemo(() => {
         if (!fieldIds || !itemsMap) return [];
@@ -134,11 +137,12 @@ export const useCalculateTotal = ({
 
     // only add relevant fields to the key (filters, metrics)
     const queryKey = savedChartUuid
-        ? { savedChartUuid, dashboardFilters, invalidateCache }
+        ? { savedChartUuid, dashboardFilters, invalidateCache, parameters }
         : {
               filters: metricQuery?.filters,
               metrics: metricQuery?.metrics,
               additionalMetrics: metricQuery?.additionalMetrics,
+              parameters,
           };
 
     return useQuery<ApiCalculateTotalResponse['results'], ApiError>({
@@ -146,7 +150,6 @@ export const useCalculateTotal = ({
         queryFn: () =>
             embedToken && projectUuid && savedChartUuid
                 ? postCalculateTotalForEmbed(
-                      embedToken,
                       projectUuid,
                       savedChartUuid,
                       dashboardFilters,
@@ -157,9 +160,15 @@ export const useCalculateTotal = ({
                       savedChartUuid,
                       dashboardFilters,
                       invalidateCache,
+                      parameters,
                   )
                 : projectUuid
-                ? calculateTotalFromQuery(projectUuid, metricQuery, explore)
+                ? calculateTotalFromQuery(
+                      projectUuid,
+                      metricQuery,
+                      explore,
+                      parameters,
+                  )
                 : Promise.reject(),
         retry: false,
         enabled:

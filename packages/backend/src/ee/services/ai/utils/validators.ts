@@ -1,12 +1,18 @@
 import {
-    AI_DEFAULT_MAX_QUERY_LIMIT,
+    assertUnreachable,
+    booleanFilterSchema,
     CompiledField,
+    dateFilterSchema,
     Explore,
     FilterRule,
+    FilterType,
     getErrorMessage,
     getFields,
+    getFilterTypeFromItemType,
     getItemId,
+    numberFilterSchema,
     renderFilterRuleSqlFromField,
+    stringFilterSchema,
     SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
@@ -44,6 +50,78 @@ ${nonExploreFields.join('\n')}
 }
 
 function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
+    const filterType = getFilterTypeFromItemType(field.type);
+
+    switch (filterType) {
+        case FilterType.BOOLEAN:
+            const parsedBooleanFilterRule = booleanFilterSchema.safeParse({
+                fieldId: filterRule.target.fieldId,
+                fieldType: field.type,
+                fieldFilterType: 'boolean',
+                operator: filterRule.operator,
+                values: filterRule.values,
+            });
+
+            if (!parsedBooleanFilterRule.success) {
+                throw new Error(
+                    `Expected boolean filter rule for field ${filterRule.target.fieldId}. Error: ${parsedBooleanFilterRule.error.message}`,
+                );
+            }
+
+            break;
+        case FilterType.DATE:
+            const parsedDateFilterRule = dateFilterSchema.safeParse({
+                fieldId: filterRule.target.fieldId,
+                fieldType: field.type,
+                fieldFilterType: 'date',
+                operator: filterRule.operator,
+                values: filterRule.values,
+                settings: filterRule.settings,
+            });
+
+            if (!parsedDateFilterRule.success) {
+                throw new Error(
+                    `Expected date filter rule for field ${filterRule.target.fieldId}. Error: ${parsedDateFilterRule.error.message}`,
+                );
+            }
+
+            break;
+        case FilterType.NUMBER:
+            const parsedNumberFilterRule = numberFilterSchema.safeParse({
+                fieldId: filterRule.target.fieldId,
+                fieldType: field.type,
+                fieldFilterType: 'number',
+                operator: filterRule.operator,
+                values: filterRule.values,
+            });
+
+            if (!parsedNumberFilterRule.success) {
+                throw new Error(
+                    `Expected number filter rule for field ${filterRule.target.fieldId}. Error: ${parsedNumberFilterRule.error.message}`,
+                );
+            }
+
+            break;
+        case FilterType.STRING:
+            const parsedStringFilterRule = stringFilterSchema.safeParse({
+                fieldId: filterRule.target.fieldId,
+                fieldType: field.type,
+                fieldFilterType: 'string',
+                operator: filterRule.operator,
+                values: filterRule.values,
+            });
+
+            if (!parsedStringFilterRule.success) {
+                throw new Error(
+                    `Expected string filter rule for field ${filterRule.target.fieldId}. Error: ${parsedStringFilterRule.error.message}`,
+                );
+            }
+
+            break;
+        default:
+            assertUnreachable(filterType, `Invalid field type: ${filterType}`);
+    }
+
     try {
         renderFilterRuleSqlFromField(
             filterRule,
@@ -51,7 +129,7 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
             // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw
             '"',
             "'",
-            '\\',
+            (string: string) => string.replaceAll('\\', '\\\\'),
             WeekDay.SUNDAY,
             SupportedDbtAdapter.BIGQUERY,
         );

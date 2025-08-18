@@ -402,9 +402,73 @@ export const hasMatchingConditionalRules = (
                     // should never happen
                     return false;
 
-                case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.LESS_THAN_OR_EQUAL:
+                    if (shouldCompareFieldToValue) {
+                        return rule.values.some(
+                            (v) =>
+                                isNumericItem(field) &&
+                                typeof v === 'number' &&
+                                typeof convertedValue === 'number' &&
+                                convertedValue <= v,
+                        );
+                    }
+
+                    if (shouldCompareFieldToTarget) {
+                        return (
+                            isNumericItem(field) &&
+                            isNumericItem(compareField) &&
+                            typeof convertedCompareValue === 'number' &&
+                            typeof convertedValue === 'number' &&
+                            convertedValue <= convertedCompareValue
+                        );
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) =>
+                                isNumericItem(compareField) &&
+                                typeof v === 'number' &&
+                                typeof convertedCompareValue === 'number' &&
+                                convertedCompareValue <= v,
+                        );
+                    }
+
+                    throw new NotImplementedError();
+
                 case FilterOperator.GREATER_THAN_OR_EQUAL:
+                    if (shouldCompareFieldToValue) {
+                        return rule.values.some(
+                            (v) =>
+                                isNumericItem(field) &&
+                                typeof v === 'number' &&
+                                typeof convertedValue === 'number' &&
+                                convertedValue >= v,
+                        );
+                    }
+
+                    if (shouldCompareFieldToTarget) {
+                        return (
+                            isNumericItem(field) &&
+                            isNumericItem(compareField) &&
+                            typeof convertedCompareValue === 'number' &&
+                            typeof convertedValue === 'number' &&
+                            convertedValue >= convertedCompareValue
+                        );
+                    }
+
+                    if (shouldCompareTargetToValue) {
+                        return rule.values.some(
+                            (v) =>
+                                isNumericItem(compareField) &&
+                                typeof v === 'number' &&
+                                typeof convertedCompareValue === 'number' &&
+                                convertedCompareValue >= v,
+                        );
+                    }
+
+                    throw new NotImplementedError();
+
+                case FilterOperator.NOT_INCLUDE:
                 case FilterOperator.IN_THE_PAST:
                 case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:

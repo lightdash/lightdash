@@ -10,6 +10,7 @@ import {
     LightdashMode,
     LightdashVersionHeader,
     MissingConfigError,
+    OauthAuthenticationError,
     Project,
     ServiceAccount,
     SessionUser,
@@ -60,6 +61,10 @@ import {
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
+import {
+    oauthAuthorizationServerHandler,
+    oauthProtectedResourceHandler,
+} from './routers/oauthRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import {
     OperationContext,
@@ -75,6 +80,7 @@ import { InstanceConfigurationService } from './services/InstanceConfigurationSe
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
+import { AiAgentService } from './ee/services/AiAgentService';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -229,6 +235,9 @@ export default class App {
             }),
             models: this.models,
         });
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -239,13 +248,11 @@ export default class App {
             clients: this.clients,
             models: this.models,
             utils: this.utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
         this.slackClientFactory = args.slackClientFactory || slackClientFactory;
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
     }
 
@@ -440,6 +447,10 @@ export default class App {
                         "'unsafe-inline'",
                         ...contentSecurityPolicyAllowedDomains,
                     ],
+                    'form-action': [
+                        "'self'",
+                        ...contentSecurityPolicyAllowedDomains,
+                    ],
                     'report-uri': reportUris.map((uri) => uri.href),
                 },
                 reportOnly:
@@ -587,6 +598,29 @@ export default class App {
                 },
             ),
         );
+
+        // Always allow CORS for .well-known routes (required for OAuth discovery)
+        expressApp.use(
+            '/.well-known/*',
+            cors({
+                methods: 'OPTIONS, GET, HEAD',
+                allowedHeaders: '*',
+                credentials: false,
+                origin: true, // Allow all origins for .well-known endpoints
+            }),
+        );
+
+        // Root-level .well-known endpoints for OAuth discovery (required by many MCP clients)
+        // Use the same handlers as the API-level endpoints to ensure consistency
+        expressApp.get(
+            '/.well-known/oauth-authorization-server',
+            oauthAuthorizationServerHandler,
+        );
+        expressApp.get(
+            '/.well-known/oauth-protected-resource',
+            oauthProtectedResourceHandler,
+        );
+
         // frontend static files - no cache
         expressApp.use(
             express.static(path.join(__dirname, '../../frontend/build'), {
@@ -652,6 +686,18 @@ export default class App {
                         method: req.method,
                     },
                 });
+
+                // Check if this is an OAuth endpoint and return OAuth2-compliant error response
+                if (error instanceof OauthAuthenticationError) {
+                    const oauthErrorResponse = {
+                        error: errorResponse.data?.error || 'server_error',
+                        error_description: errorResponse.message,
+                    };
+                    res.status(errorResponse.statusCode).send(
+                        oauthErrorResponse,
+                    );
+                    return;
+                }
 
                 const apiErrorResponse: ApiError = {
                     status: 'error',
@@ -739,6 +785,13 @@ export default class App {
     }
 
     private async initSlack(expressApp: Express) {
+        let aiAgentService: AiAgentService | undefined;
+        try {
+            aiAgentService = this.serviceRepository.getAiAgentService();
+        } catch (e) {
+            // ai agent service is not available for OSS
+        }
+
         const slackClient = this.slackClientFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
@@ -749,7 +802,7 @@ export default class App {
         await slackClient.start(
             expressApp,
             this.serviceRepository.getUnfurlService(),
-            this.serviceRepository.getAiAgentService(),
+            aiAgentService,
         );
     }
 

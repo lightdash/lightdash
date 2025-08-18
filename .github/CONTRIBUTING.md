@@ -4,15 +4,15 @@ Thanks for taking the time to contribute ❤️ all types of contributions are e
 
 ## Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [How to ask for help](#how-to-ask-for-help)
-- Contributing:
-    - [Report a bug](#how-to-report-a-bug)
-    - [Request a feature](#how-to-request-a-new-feature)
-    - [Contribute code](#how-to-contribute-code-to-lightdash)
-- [Opening a Pull Request](#opening-a-pull-request)
-- [Setup Development Environment](#setup-development-environment)
-- [Join The Lightdash Team](#join-the-lightdash-team)
+-   [Code of Conduct](#code-of-conduct)
+-   [How to ask for help](#how-to-ask-for-help)
+-   Contributing:
+    -   [Report a bug](#how-to-report-a-bug)
+    -   [Request a feature](#how-to-request-a-new-feature)
+    -   [Contribute code](#how-to-contribute-code-to-lightdash)
+-   [Opening a Pull Request](#opening-a-pull-request)
+-   [Setup Development Environment](#setup-development-environment)
+-   [Join The Lightdash Team](#join-the-lightdash-team)
 
 ## Code of Conduct
 
@@ -25,8 +25,8 @@ to <support@lightdash.com>.
 
 Useful resources for answering your questions:
 
-- [Documentation](https://docs.lightdash.com)
-- [Issues](https://github.com/lightdash/lightdash/issues)
+-   [Documentation](https://docs.lightdash.com)
+-   [Issues](https://github.com/lightdash/lightdash/issues)
 
 If you cannot find an answer to your question then please join
 our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and head for the `#help` channel.
@@ -37,25 +37,25 @@ our [slack community](https://join.slack.com/t/lightdash-community/shared_invite
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
 
-- Open an [Issue](https://github.com/lightdash/lightdash/issues/new). (Since we can't be sure at this point whether it
-  is a bug or not, we ask you not to talk about a bug yet and not to label the issue.)
-- Explain the behavior you would expect and the actual behavior.
-- Please provide as much context as possible and describe the _reproduction steps_ that someone else can follow to
-  recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem
-  and create a reduced test case.
+-   Open an [Issue](https://github.com/lightdash/lightdash/issues/new). (Since we can't be sure at this point whether it
+    is a bug or not, we ask you not to talk about a bug yet and not to label the issue.)
+-   Explain the behavior you would expect and the actual behavior.
+-   Please provide as much context as possible and describe the _reproduction steps_ that someone else can follow to
+    recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem
+    and create a reduced test case.
 
 ## How to request a new feature
 
 Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightdash/lightdash/issues).
 
-- Use a **clear and descriptive title** for the issue to identify the suggestion.
-- Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
-- **Describe the current behavior** and **explain which behavior you expected to see instead** and why. At this point
-  you can also tell which alternatives do not work for you.
-- You may want to **include screenshots and animated GIFs** which help you demonstrate the steps or point out the part
-  which the suggestion is related to.
-- **Explain why this enhancement would be useful** to most Lightdash users. You may also want to point out the other
-  projects that solved it better and which could serve as inspiration.
+-   Use a **clear and descriptive title** for the issue to identify the suggestion.
+-   Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
+-   **Describe the current behavior** and **explain which behavior you expected to see instead** and why. At this point
+    you can also tell which alternatives do not work for you.
+-   You may want to **include screenshots and animated GIFs** which help you demonstrate the steps or point out the part
+    which the suggestion is related to.
+-   **Explain why this enhancement would be useful** to most Lightdash users. You may also want to point out the other
+    projects that solved it better and which could serve as inspiration.
 
 ## How to contribute code to Lightdash
 
@@ -66,39 +66,26 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 
 Before contributing to Lightdash you must complete the following steps:
 
-- Join
-  our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and introduce yourself in the `#community-contributors` channel
-- Choose an existing labelled `open-contribution`
-- Ask a member of the team to assign you to the issue
+1. **Join our Slack community** Head over to our [Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w) and introduce yourself in the `#community-contributors` channel.
+2. **Pick an issue** Browse through the existing [issues](https://github.com/lightdash/lightdash/issues?q=state%3Aopen%20label%3A%22%F0%9F%91%8B%20open-contribution%22) and choose one that's labeled `open-contribution`.
+3. **Claim your issue** Post in the `#community-contributors` Slack channel using this template: 
 
-Pull requests will not be reviewed unless the previous three steps are completed.
+    ``` Hi Lightdash team, I'd like to work on this open-contribution issue: [paste your issue link here]```
 
----
+4. **Get started** Once you're assigned to the issue, you can get started on your contribution. Make sure you go through our CLAUDE.md files to get a sense of our ways of coding while working on your changes.  
+5. **Submit a PR** When ready, create a pull request with your changes. This will trigger GitHub Actions to validate the changes you made. Please wait for this to complete in full and ensure that you fix any issues highlighted by GitHub Actions.
 
-Working on your first Pull Request? You can learn how from this free video series:
+> Important Note: Pull requests will not be reviewed unless these steps are followed. 
 
-[How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
+> Please bear with us: We're a small team doing our best to review contributions quickly, but it might take us a while to get to your PR - especially if the changes are large or if they don't align with our current development cycle. We appreciate your patience!
 
-To help you get your feet wet and get you familiar with our contribution process, we have a list
-of [good first issues](https://github.com/lightdash/lightdash/issues?q=is%3Aissue+is%3Aopen+label%3A%22%F0%9F%99%8B+good+first+issue%22)
-that contain changes that have a relatively limited scope. This label means that there is already a working solution to
-the issue in the discussion section. Therefore, it is a great place to get started.
 
-Pull requests working on other issues or completely new problems may take a bit longer to review when they don't fit
-into our current development cycle.
-
-If you decide to fix an issue, please be sure to check the comment thread in case somebody is already working on a fix.
-If nobody is working on it at the moment, please leave a comment stating that you have started to work on it so other
-people don't accidentally duplicate your effort.
-
-If somebody claims an issue but doesn't follow up for more than a week, it's fine to take it over but you should still
-leave a comment.
-If there has been no activity on the issue for 7 to 14 days, it is safe to assume that nobody is working on it.
+New to open source? Check out this free series: [How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
 
 ## Opening a Pull Request
 
 Lightdash is a community project, so Pull Requests are always welcome, but, before working on a large change, it is best
-to open an issue first to discuss it with the maintainers.
+to open an issue first to discuss it and get the go-ahead from the maintainers (see required contribution steps [here](#how-to-contribute-code-to-lightdash)).
 
 When in doubt, keep your Pull Requests small. To give a Pull Request the best chance of getting accepted, don't bundle
 more than one feature or bug fix per Pull Request. It's often best to create two smaller Pull Requests than one big one.
@@ -181,28 +168,28 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 Packages overview:
 
-- [`frontend` - React frontend](../packages/frontend/README.md)
-- [`backend` - Node.js backend](../packages/backend/README.md)
-- `common` - Shared code between all the other packages
-- `cli` - Command line interface
-- `e2e` - End-to-end and integration tests
-- `warehouses` - Classes for connecting to different databases
+-   [`frontend` - React frontend](../packages/frontend/README.md)
+-   [`backend` - Node.js backend](../packages/backend/README.md)
+-   `common` - Shared code between all the other packages
+-   `cli` - Command line interface
+-   `e2e` - End-to-end and integration tests
+-   `warehouses` - Classes for connecting to different databases
 
 #### using Github Codespaces / VS Code Remote Containers
 
 The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
 This provides:
 
-- All dependencies
-- A postgres database for development
-- A sample dbt project
-- A pre-configured code editor
+-   All dependencies
+-   A postgres database for development
+-   A sample dbt project
+-   A pre-configured code editor
 
 To get started:
 
-- in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
-- in VS
-  Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+-   in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
+-   in VS
+    Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 Once connected run the following commands in the VS Code terminal:
 
@@ -269,11 +256,11 @@ pnpm dev # http://localhost:3000
 
 Notes:
 
-- If you change files inside `/packages/common` you should run `pnpm common-build` before `pnpm dev`
-- If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
-- If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
-- If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run
-  the `docker compose up` command mentioned above
+-   If you change files inside `/packages/common` you should run `pnpm common-build` before `pnpm dev`
+-   If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
+-   If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
+-   If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run
+    the `docker compose up` command mentioned above
 
 When you want to stop:
 
@@ -292,31 +279,66 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 To test an SSH tunnel with Lightdash in your local development environment:
 
 1. **Go to Project Connection Advanced Settings**
-   - In the Lightdash UI, navigate to your project connection settings.
-   - Expand the advanced settings and set `Use SSH tunnel` to **true**.
+
+    - In the Lightdash UI, navigate to your project connection settings.
+    - Expand the advanced settings and set `Use SSH tunnel` to **true**.
 
 2. **Add the SSH Tunnel config**
-   - SSH Remote host: `ssh-server`
-   - SSH Remote port: `2222`
-   - SSH Username: `sshuser`
+
+    - SSH Remote host: `ssh-server`
+    - SSH Remote port: `2222`
+    - SSH Username: `sshuser`
 
 3. **Generate a Key Pair**
-   - Use the UI to generate a new SSH key pair for the tunnel.
+
+    - Use the UI to generate a new SSH key pair for the tunnel.
 
 4. **Copy the Public Key**
-   - Copy the generated public key from the UI.
-   - Open your `.env.development.local` file and set:
-     ```
-     DEV_SSH_PUBLIC_KEY="<paste your public key here>"
-     ```
+
+    - Copy the generated public key from the UI.
+    - Open your `.env.development.local` file and set:
+        ```
+        DEV_SSH_PUBLIC_KEY="<paste your public key here>"
+        ```
 
 5. **Restart Docker Compose**
-   - Re-run the following command to apply the new SSH key:
-     ```sh
-     docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
-     ```
+    - Re-run the following command to apply the new SSH key:
+        ```sh
+        docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+        ```
 
 This will update the SSH server container with your new public key, allowing you to test SSH tunnel connections from your local Lightdash instance.
+
+#### Testing Prometheus Metrics Locally
+
+The development environment includes Prometheus for monitoring Lightdash metrics. To use it:
+
+1. **Start the development environment** with Prometheus enabled:
+
+    ```shell
+    docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local up --detach --remove-orphans
+    ```
+
+2. **Verify Prometheus is running**:
+
+    - Prometheus UI: http://localhost:9091
+    - Lightdash metrics endpoint: http://localhost:9090/metrics
+
+3. **Configure Prometheus settings** (optional):
+
+    - Edit `.env.development.local` to customize:
+        ```
+        LIGHTDASH_PROMETHEUS_ENABLED=true
+        LIGHTDASH_PROMETHEUS_PORT=9090
+        LIGHTDASH_PROMETHEUS_PATH=/metrics
+        ```
+
+4. **View metrics in Prometheus**:
+    - Navigate to http://localhost:9091
+    - Use the expression browser to query Lightdash metrics
+    - Example queries: `queue_size`, `nodejs_eventloop_utilization`
+
+The Prometheus configuration automatically scrapes Lightdash metrics every 5 seconds from the backend service.
 
 #### Downloading files stored in local docker container MinIO
 
@@ -336,11 +358,11 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
-- node >= v18.x (20 is preferred)
-- python >= 3.3
-- pnpm
-- postgres >= 12
-- dbt 1.7.x aliased to `dbt1.7`
+-   node >= v18.x (20 is preferred)
+-   python >= 3.3
+-   pnpm
+-   postgres >= 12
+-   dbt 1.7.x aliased to `dbt1.7`
 
 eg. on MacOS you can follow this instructions:
 
@@ -464,7 +486,7 @@ pnpm e2e-run
 
 Note:
 
-- Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
+-   Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
 
 #### How to check code quality
 

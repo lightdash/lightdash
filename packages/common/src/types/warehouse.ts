@@ -91,6 +91,7 @@ export interface WarehouseSqlBuilder {
     getFieldQuoteChar: () => string;
     getMetricSql: (sql: string, metric: Metric) => string;
     concatString: (...args: string[]) => string;
+    escapeString: (value: string) => string;
 }
 
 export interface WarehouseClient extends WarehouseSqlBuilder {
@@ -161,6 +162,8 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
     ): WarehouseCatalog;
 
     parseError(error: Error): Error;
+
+    escapeString(value: string): string;
 }
 
 export type ApiWarehouseCatalog = {
