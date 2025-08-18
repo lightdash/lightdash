@@ -1,3 +1,10 @@
+## [0.1930.2](https://github.com/lightdash/lightdash/compare/0.1930.1...0.1930.2) (2025-08-18)
+
+
+### Bug Fixes
+
+* normalize Trino column name ([#16463](https://github.com/lightdash/lightdash/issues/16463)) ([a7ce1fa](https://github.com/lightdash/lightdash/commit/a7ce1faf3185089ffa5808e957c9bdf1b557565a))
+
 ## [0.1930.1](https://github.com/lightdash/lightdash/compare/0.1930.0...0.1930.1) (2025-08-18)
 
 
