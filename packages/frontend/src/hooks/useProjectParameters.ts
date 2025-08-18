@@ -6,7 +6,7 @@ import { lightdashApi } from '../api';
 export interface UseProjectParametersListArgs {
     projectUuid: string;
     search?: string;
-    sortBy?: 'name' | 'created_at';
+    sortBy?: 'name';
     sortOrder?: 'asc' | 'desc';
     page?: number;
     pageSize?: number;

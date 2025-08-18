@@ -2,13 +2,10 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     KnexPaginateArgs,
-    KnexPaginatedData,
     type SessionUser,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
-import type { DbProjectParameter } from '../database/entities/projectParameters';
-import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import type { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import type { ProjectParametersModel } from '../models/ProjectParametersModel';
 import { BaseService } from './BaseService';
@@ -44,12 +41,12 @@ export class ProjectParametersService extends BaseService {
     async findProjectParametersPaginated(
         user: SessionUser,
         projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
         options?: {
             search?: string;
-            sortBy?: 'name' | 'created_at';
+            sortBy?: 'name';
             sortOrder?: 'asc' | 'desc';
         },
-        paginateArgs?: KnexPaginateArgs,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -64,10 +61,11 @@ export class ProjectParametersService extends BaseService {
             throw new ForbiddenError();
         }
 
-        return this.projectParametersModel.findPaginated(
+        // Use the new paginated combined query method
+        return this.projectParametersModel.findCombinedParametersPaginated(
             projectUuid,
-            options,
             paginateArgs,
+            options,
         );
     }
 }
