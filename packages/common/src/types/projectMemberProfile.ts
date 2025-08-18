@@ -4,6 +4,7 @@ export type ProjectMemberProfile = {
     userUuid: string;
     projectUuid: string;
     role: ProjectMemberRole;
+    roleUuid: string | undefined;
     email: string;
     firstName: string;
     lastName: string;

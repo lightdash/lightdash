@@ -54,9 +54,17 @@ export const createTestUser = ({
                 projectUuid,
                 role,
                 userUuid,
+                roleUuid: undefined,
             })) || []),
             ...(projectRole
-                ? [{ projectUuid, role: projectRole, userUuid }]
+                ? [
+                      {
+                          projectUuid,
+                          role: projectRole,
+                          userUuid,
+                          roleUuid: undefined,
+                      },
+                  ]
                 : []),
         ],
     ),
