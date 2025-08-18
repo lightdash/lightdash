@@ -1,3 +1,10 @@
+## [0.1928.1](https://github.com/lightdash/lightdash/compare/0.1928.0...0.1928.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* table stuck in loading state on explore from here ([#16417](https://github.com/lightdash/lightdash/issues/16417)) ([8168315](https://github.com/lightdash/lightdash/commit/81683156b1b2bf5dc98c90cb157a092c921a1995))
+
 # [0.1928.0](https://github.com/lightdash/lightdash/compare/0.1927.0...0.1928.0) (2025-08-18)
 
 
