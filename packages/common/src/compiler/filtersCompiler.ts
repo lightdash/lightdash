@@ -70,7 +70,7 @@ export const renderStringFilterSql = (
             return filter.values && filter.values.length > 0
                 ? `((${dimensionSql}) NOT IN (${filter.values
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
-                      .join(',')} ) OR (${dimensionSql}) IS NULL)`
+                      .join(',')}) OR (${dimensionSql}) IS NULL)`
                 : 'true';
         case FilterOperator.INCLUDE:
             if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
