@@ -2,7 +2,6 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashProjectConfig,
-    LightdashProjectParameter,
     NotFoundError,
     ProjectParameterSummary,
 } from '@lightdash/common';
@@ -46,23 +45,23 @@ export class ProjectParametersModel {
         let query = this.database
             .with('config_params', (qb) => {
                 void qb
-                    .select(
-                        'name',
-                        'config',
-                        this.database.raw("'config' as source"),
-                        this.database.raw('NULL as modelName'),
-                    )
+                    .select({
+                        name: 'name',
+                        config: 'config',
+                        source: this.database.raw("'config'"),
+                        modelName: this.database.raw('NULL'),
+                    })
                     .from(ProjectParametersTableName)
                     .where('project_uuid', projectUuid);
             })
             .with('model_params', (qb) => {
                 void qb
-                    .select(
-                        this.database.raw('param_data.key as name'),
-                        this.database.raw('param_data.value as config'),
-                        this.database.raw("'model' as source"),
-                        this.database.raw('cached_explore.name as modelName'),
-                    )
+                    .select({
+                        name: 'param_data.key',
+                        config: 'param_data.value',
+                        source: this.database.raw("'model'"),
+                        modelName: `${CachedExploreTableName}.name`,
+                    })
                     .from(`${CachedExploreTableName} as cached_explore`)
                     .crossJoin(
                         this.database.raw(
