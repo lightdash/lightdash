@@ -40,6 +40,23 @@ const mapFieldsToCompletions = (
         return [...acc, technicalOption, friendlyOption];
     }, []);
 
+const mapTableCalculationsToCompletions = (
+    tableCalculations: { name: string; displayName: string }[],
+): Ace.Completion[] =>
+    tableCalculations.reduce<Ace.Completion[]>((acc, tableCalc) => {
+        const technicalOption: Ace.Completion = {
+            caption: `\${${tableCalc.name}}`,
+            value: `\${${tableCalc.name}}`,
+            meta: 'Table calculation',
+            score: Number.MAX_VALUE,
+        };
+        const friendlyOption: Ace.Completion = {
+            ...technicalOption,
+            caption: tableCalc.displayName,
+        };
+        return [...acc, technicalOption, friendlyOption];
+    }, []);
+
 export const useTableCalculationAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
@@ -52,6 +69,10 @@ export const useTableCalculationAceEditorCompleter = (): {
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
     const explore = useExplore(tableName);
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
@@ -97,12 +118,24 @@ export const useTableCalculationAceEditorCompleter = (): {
                 ],
                 [],
             );
-            langTools.setCompleters([createCompleter(fields)]);
+
+            // Add table calculations to completions
+            const tableCalculationCompletions =
+                mapTableCalculationsToCompletions(tableCalculations);
+            const allCompletions = [...fields, ...tableCalculationCompletions];
+
+            langTools.setCompleters([createCompleter(allCompletions)]);
         }
         return () => {
             langTools.setCompleters([]);
         };
-    }, [aceEditor, explore, activeFields, additionalMetrics]);
+    }, [
+        aceEditor,
+        explore,
+        activeFields,
+        additionalMetrics,
+        tableCalculations,
+    ]);
 
     return {
         setAceEditor,
