@@ -1,3 +1,17 @@
+## [0.1930.3](https://github.com/lightdash/lightdash/compare/0.1930.2...0.1930.3) (2025-08-18)
+
+
+### Bug Fixes
+
+* ambiguous column error in SQL Runner for Trino Warehouse ([#16466](https://github.com/lightdash/lightdash/issues/16466)) ([10504ea](https://github.com/lightdash/lightdash/commit/10504ea31d1d58302fc1e5725f1b9a50a20b5890))
+
+## [0.1930.2](https://github.com/lightdash/lightdash/compare/0.1930.1...0.1930.2) (2025-08-18)
+
+
+### Bug Fixes
+
+* normalize Trino column name ([#16463](https://github.com/lightdash/lightdash/issues/16463)) ([a7ce1fa](https://github.com/lightdash/lightdash/commit/a7ce1faf3185089ffa5808e957c9bdf1b557565a))
+
 ## [0.1930.1](https://github.com/lightdash/lightdash/compare/0.1930.0...0.1930.1) (2025-08-18)
 
 
