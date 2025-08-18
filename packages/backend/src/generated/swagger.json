@@ -17689,18 +17689,21 @@
             },
             "ProjectParameterSummary": {
                 "properties": {
+                    "modelName": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["config", "model"]
+                    },
                     "config": {
                         "$ref": "#/components/schemas/LightdashProjectParameter"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "name": {
                         "type": "string"
                     }
                 },
-                "required": ["config", "createdAt", "name"],
+                "required": ["source", "config", "name"],
                 "type": "object"
             },
             "KnexPaginatedData_ProjectParameterSummary-Array_": {
@@ -18440,7 +18443,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1925.0",
+        "version": "0.1927.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -29861,7 +29864,7 @@
                         "required": false,
                         "schema": {
                             "type": "string",
-                            "enum": ["name", "created_at"]
+                            "enum": ["name"]
                         }
                     },
                     {
