@@ -26,6 +26,7 @@ import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorer
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
+import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
@@ -93,6 +94,7 @@ interface ServiceManifest {
     asyncQueryService: AsyncQueryService;
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
+    permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -438,6 +440,16 @@ export class ServiceRepository
         );
     }
 
+    public getPermissionsService(): PermissionsService {
+        return this.getService(
+            'permissionsService',
+            () =>
+                new PermissionsService({
+                    dashboardModel: this.models.getDashboardModel(),
+                }),
+        );
+    }
+
     public getPersonalAccessTokenService(): PersonalAccessTokenService {
         return this.getService(
             'personalAccessTokenService',
@@ -558,6 +570,7 @@ export class ServiceRepository
                         this.models.getProjectParametersModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
+                    permissionsService: this.getPermissionsService(),
                 }),
         );
     }
@@ -578,6 +591,7 @@ export class ServiceRepository
                     slackClient: this.clients.getSlackClient(),
                     dashboardModel: this.models.getDashboardModel(),
                     catalogModel: this.models.getCatalogModel(),
+                    permissionsService: this.getPermissionsService(),
                 }),
         );
     }
