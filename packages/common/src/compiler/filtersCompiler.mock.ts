@@ -533,7 +533,7 @@ export const stringFilterRuleMocks = {
         ...emptyStringFilter,
         operator: FilterOperator.NOT_EQUALS,
     },
-    notEqualsFilterWithEmptyStringSQL: `((${stringFilterDimension}) NOT IN ('' ) OR ("customers".first_name) IS NULL)`,
+    notEqualsFilterWithEmptyStringSQL: `((${stringFilterDimension}) NOT IN ('') OR ("customers".first_name) IS NULL)`,
 
     notIncludeFilterWithEmptyString: {
         ...emptyStringFilter,
