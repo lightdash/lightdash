@@ -1,3 +1,11 @@
+## [0.1929.1](https://github.com/lightdash/lightdash/compare/0.1929.0...0.1929.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* handle empty string values in SQL filter generation ([#16453](https://github.com/lightdash/lightdash/issues/16453)) ([3306868](https://github.com/lightdash/lightdash/commit/33068685b588a93ab8a071b2e4ff02aaab789314))
+* remove extra space in SQL string generation ([#16454](https://github.com/lightdash/lightdash/issues/16454)) ([dd724da](https://github.com/lightdash/lightdash/commit/dd724da7cc59ac245d14d1cd097aef0a05f5cc9a))
+
 # [0.1929.0](https://github.com/lightdash/lightdash/compare/0.1928.1...0.1929.0) (2025-08-18)
 
 
