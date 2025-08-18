@@ -1,3 +1,10 @@
+# [0.1929.0](https://github.com/lightdash/lightdash/compare/0.1928.1...0.1929.0) (2025-08-18)
+
+
+### Features
+
+* make required fitlers required in scheduled deliveries ([#16449](https://github.com/lightdash/lightdash/issues/16449)) ([379e92f](https://github.com/lightdash/lightdash/commit/379e92fe0676fe0a7506f9fcdd5ba7ba2ffe0dd7))
+
 ## [0.1928.1](https://github.com/lightdash/lightdash/compare/0.1928.0...0.1928.1) (2025-08-18)
 
 
