@@ -828,6 +828,9 @@ export const getCustomBinDimensionSql = ({
     };
 };
 
+/*
+ * Returns list of intermediary/extra joined tables based on the current joined tables
+ */
 export const getJoinedTables = (
     explore: Explore,
     tableNames: string[],
@@ -838,11 +841,18 @@ export const getJoinedTables = (
     const allNewReferences = explore.joinedTables.reduce<string[]>(
         (sum, joinedTable) => {
             if (tableNames.includes(joinedTable.table)) {
-                const newReferencesInJoin = parseAllReferences(
-                    joinedTable.sqlOn,
-                    joinedTable.table,
-                ).reduce<string[]>(
-                    (acc, { refTable }) =>
+                const joinTableReferences =
+                    joinedTable.tablesReferences ||
+                    parseAllReferences(
+                        // fallback for old explores, it might be incorrect when the join as an alias
+                        joinedTable.sqlOn,
+                        joinedTable.table,
+                    ).map(({ refTable }) => refTable);
+
+                const newReferencesInJoin = joinTableReferences.reduce<
+                    string[]
+                >(
+                    (acc, refTable) =>
                         !tableNames.includes(refTable)
                             ? [...acc, refTable]
                             : acc,
