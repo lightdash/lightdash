@@ -1,3 +1,10 @@
+# [0.1928.0](https://github.com/lightdash/lightdash/compare/0.1927.0...0.1928.0) (2025-08-18)
+
+
+### Features
+
+* project parameters page ([#16385](https://github.com/lightdash/lightdash/issues/16385)) ([43ef3c2](https://github.com/lightdash/lightdash/commit/43ef3c25a3c67bbfc2799a5fd491d909f033ce97))
+
 # [0.1927.0](https://github.com/lightdash/lightdash/compare/0.1926.0...0.1927.0) (2025-08-18)
 
 
