@@ -1,3 +1,10 @@
+# [0.1931.0](https://github.com/lightdash/lightdash/compare/0.1930.3...0.1931.0) (2025-08-18)
+
+
+### Features
+
+* add scopeAbilityBuilder for scoped roles ([#16460](https://github.com/lightdash/lightdash/issues/16460)) ([3159690](https://github.com/lightdash/lightdash/commit/31596900604c39d6714b58e4a8df706c30e4adfa))
+
 ## [0.1930.3](https://github.com/lightdash/lightdash/compare/0.1930.2...0.1930.3) (2025-08-18)
 
 
