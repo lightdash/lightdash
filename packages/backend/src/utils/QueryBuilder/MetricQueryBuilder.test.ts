@@ -521,7 +521,6 @@ describe('Query builder', () => {
                             {
                                 fieldId: 'age_range',
                                 descending: true,
-                                nullsFirst: null,
                             },
                         ],
                     },

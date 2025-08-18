@@ -2065,7 +2065,7 @@ const models: TsoaRoute.Models = {
                 nullsFirst: {
                     dataType: 'union',
                     subSchemas: [
-                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
                         { dataType: 'boolean' },
                     ],
                     required: true,

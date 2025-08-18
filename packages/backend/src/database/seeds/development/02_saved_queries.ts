@@ -51,7 +51,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'payments_total_revenue',
                         descending: false,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 limit: 10,
@@ -122,7 +122,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'payments_total_revenue',
                         descending: true,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 tableCalculations: [
@@ -170,7 +170,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'orders_order_date_day',
                         descending: false,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 tableCalculations: [
@@ -245,7 +245,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'orders_average_order_size',
                         descending: true,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 tableCalculations: [],
@@ -313,7 +313,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'customers_days_since_last_order',
                         descending: false,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 tableCalculations: [],
@@ -372,7 +372,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'orders_completed_order_count',
                         descending: false,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 tableCalculations: [],
@@ -417,7 +417,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'customers_created_month',
                         descending: false,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 tableCalculations: [],
@@ -481,7 +481,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'customers_created_month',
                         descending: false,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 tableCalculations: [],
@@ -537,7 +537,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         fieldId: 'orders_total_order_amount',
                         descending: true,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
                 limit: 500,

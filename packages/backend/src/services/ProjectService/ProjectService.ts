@@ -3404,7 +3404,7 @@ export class ProjectService extends BaseService {
                 {
                     fieldId: getItemId(field),
                     descending: false,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ],
             limit,

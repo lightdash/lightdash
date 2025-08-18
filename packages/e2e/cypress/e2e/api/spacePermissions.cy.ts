@@ -13,7 +13,7 @@ const chartBody = {
             {
                 fieldId: 'customers_customer_id',
                 descending: false,
-                nullsFirst: null,
+                nullsFirst: undefined,
             },
         ],
         tableCalculations: [],

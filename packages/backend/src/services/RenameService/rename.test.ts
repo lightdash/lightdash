@@ -402,7 +402,7 @@ describe('renameMetricQuery', () => {
                 {
                     fieldId: 'payment_id',
                     descending: true,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ],
             limit: 100,
@@ -477,7 +477,7 @@ describe('renameMetricQuery', () => {
                 {
                     fieldId: 'payment_amount',
                     descending: true,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ],
             limit: 100,
@@ -772,7 +772,7 @@ describe('renameSavedChart', () => {
                             fieldId:
                                 'stripe_subscriptions_lightdash_organization_id',
                             descending: false,
-                            nullsFirst: null,
+                            nullsFirst: undefined,
                         },
                     ],
                     limit: 500,
@@ -842,7 +842,7 @@ describe('renameSavedChart', () => {
                 {
                     fieldId: 'subscriptions_lightdash_organization_id',
                     descending: false,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ],
             limit: 500,
@@ -866,7 +866,7 @@ describe('renameSavedChart', () => {
                         {
                             fieldId: 'purchases_type',
                             descending: false,
-                            nullsFirst: null,
+                            nullsFirst: undefined,
                         },
                     ],
                     limit: 500,
@@ -892,7 +892,11 @@ describe('renameSavedChart', () => {
             metrics: [],
             filters: {},
             sorts: [
-                { fieldId: 'orders_type', descending: false, nullsFirst: null },
+                {
+                    fieldId: 'orders_type',
+                    descending: false,
+                    nullsFirst: undefined,
+                },
             ],
             limit: 500,
             tableCalculations: [],

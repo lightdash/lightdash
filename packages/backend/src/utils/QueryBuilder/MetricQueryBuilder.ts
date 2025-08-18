@@ -577,7 +577,7 @@ export class MetricQueryBuilder {
     }
 
     static getNullsFirstLast(sort: SortField) {
-        if (sort.nullsFirst === null) return '';
+        if (sort.nullsFirst === undefined) return '';
         return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
     }
 

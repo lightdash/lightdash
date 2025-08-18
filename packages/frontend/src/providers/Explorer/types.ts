@@ -131,7 +131,7 @@ export type Action =
       }
     | {
           type: ActionType.SET_SORT_FIELD_NULLS_FIRST;
-          payload: { fieldId: FieldId; nullsFirst: boolean | null };
+          payload: { fieldId: FieldId; nullsFirst: boolean | undefined };
       }
     | {
           type: ActionType.SET_ROW_LIMIT;
@@ -327,7 +327,7 @@ export interface ExplorerContextType {
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
         setSortFieldNullsFirst: (
             fieldId: FieldId,
-            nullsFirst: boolean | null,
+            nullsFirst: boolean | undefined,
         ) => void;
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;

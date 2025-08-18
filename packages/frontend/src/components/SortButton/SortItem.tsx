@@ -143,7 +143,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                     ? true
                                     : value === SortNullsFirst.LAST
                                     ? false
-                                    : null,
+                                    : undefined,
                             );
                         }}
                     />

@@ -19,7 +19,7 @@ const runqueryBody: MetricQuery = {
         {
             fieldId: 'customers_customer_id',
             descending: false,
-            nullsFirst: null,
+            nullsFirst: undefined,
         },
     ],
     limit: 500,

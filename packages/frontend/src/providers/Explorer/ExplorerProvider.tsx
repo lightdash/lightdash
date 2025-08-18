@@ -287,7 +287,7 @@ export function reducer(
                     draft.unsavedChartVersion.metricQuery.sorts.push({
                         fieldId: sortFieldId,
                         descending: false,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     });
                 } else if (sortField.descending) {
                     draft.unsavedChartVersion.metricQuery.sorts =
@@ -1003,14 +1003,14 @@ const ExplorerProvider: FC<
         ) => {
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
-                payload: { fieldId, nullsFirst: null, ...options },
+                payload: { fieldId, nullsFirst: undefined, ...options },
             });
         },
         [],
     );
 
     const setSortFieldNullsFirst = useCallback(
-        (fieldId: FieldId, nullsFirst: boolean | null) => {
+        (fieldId: FieldId, nullsFirst: boolean | undefined) => {
             dispatch({
                 type: ActionType.SET_SORT_FIELD_NULLS_FIRST,
                 payload: { fieldId, nullsFirst },

@@ -47,7 +47,10 @@ export const metricQueryTableViz = (
     exploreName: vizConfig.exploreName,
     metrics: vizConfig.metrics,
     dimensions: vizConfig.dimensions || [],
-    sorts: vizConfig.sorts,
+    sorts: vizConfig.sorts.map((sort) => ({
+        ...sort,
+        nullsFirst: sort.nullsFirst ?? undefined,
+    })),
     limit: getValidAiQueryLimit(vizConfig.limit, maxLimit),
     filters,
 });

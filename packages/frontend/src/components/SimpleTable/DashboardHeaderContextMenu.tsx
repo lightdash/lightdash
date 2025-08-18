@@ -55,7 +55,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                                         descending:
                                             sortDirection ===
                                             SortDirection.DESC,
-                                        nullsFirst: null,
+                                        nullsFirst: undefined,
                                     },
                                 ],
                             });

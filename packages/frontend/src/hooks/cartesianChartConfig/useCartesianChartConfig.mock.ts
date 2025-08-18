@@ -622,7 +622,7 @@ export const useCartesianChartConfigParamsMock = {
                 {
                     fieldId: 'orders_total_order_amount',
                     descending: true,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ],
             limit: 500,

@@ -243,7 +243,7 @@ const createSavedChartVersion = async (
                 field_name: sort.fieldId,
                 descending: sort.descending,
                 saved_queries_version_id: version.saved_queries_version_id,
-                nulls_first: sort.nullsFirst,
+                nulls_first: sort.nullsFirst ?? null,
                 order: index,
             })),
         );
@@ -1037,7 +1037,7 @@ export class SavedChartModel {
                         sorts: sorts.map<SortField>((sort) => ({
                             fieldId: sort.field_name,
                             descending: sort.descending,
-                            nullsFirst: sort.nulls_first,
+                            nullsFirst: sort.nulls_first ?? undefined,
                         })),
                         limit: savedQuery.row_limit,
                         metricOverrides:

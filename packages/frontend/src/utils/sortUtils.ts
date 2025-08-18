@@ -46,7 +46,7 @@ export enum SortNullsFirst {
 }
 
 export const getSortNullsFirstValue = (sort: SortField) => {
-    if (sort.nullsFirst === null) return SortNullsFirst.DEFAULT;
+    if (sort.nullsFirst === undefined) return SortNullsFirst.DEFAULT;
     return sort.nullsFirst ? SortNullsFirst.FIRST : SortNullsFirst.LAST;
 };
 

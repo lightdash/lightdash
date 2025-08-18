@@ -97,7 +97,7 @@ describe('ExplorerProvider reducer', () => {
             });
             expect(newState.unsavedChartVersion.metricQuery.limit).toBe(1000);
             expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                { fieldId: 'x', descending: false, nullsFirst: null },
+                { fieldId: 'x', descending: false, nullsFirst: undefined },
             ]);
         });
 
@@ -272,12 +272,12 @@ describe('ExplorerProvider reducer', () => {
                             {
                                 fieldId: 'revenue',
                                 descending: false,
-                                nullsFirst: null,
+                                nullsFirst: undefined,
                             },
                             {
                                 fieldId: 'user_id',
                                 descending: true,
-                                nullsFirst: null,
+                                nullsFirst: undefined,
                             },
                         ],
                     },
@@ -306,7 +306,7 @@ describe('ExplorerProvider reducer', () => {
                 {
                     fieldId: 'user_id',
                     descending: true,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ]);
             expect(
@@ -355,7 +355,7 @@ describe('ExplorerProvider reducer', () => {
                             {
                                 fieldId: 'dim_1',
                                 descending: false,
-                                nullsFirst: null,
+                                nullsFirst: undefined,
                             },
                         ],
                     },
@@ -640,7 +640,7 @@ describe('ExplorerProvider reducer', () => {
                 {
                     fieldId: 'dim_1',
                     descending: false,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ]);
         });
@@ -656,7 +656,7 @@ describe('ExplorerProvider reducer', () => {
                             {
                                 fieldId: 'dim_1',
                                 descending: false,
-                                nullsFirst: null,
+                                nullsFirst: undefined,
                             },
                         ],
                     },
@@ -669,7 +669,7 @@ describe('ExplorerProvider reducer', () => {
             });
 
             expect(newState.unsavedChartVersion.metricQuery.sorts).toEqual([
-                { fieldId: 'dim_1', descending: true, nullsFirst: null },
+                { fieldId: 'dim_1', descending: true, nullsFirst: undefined },
             ]);
         });
 
@@ -684,7 +684,7 @@ describe('ExplorerProvider reducer', () => {
                             {
                                 fieldId: 'dim_1',
                                 descending: true,
-                                nullsFirst: null,
+                                nullsFirst: undefined,
                             },
                         ],
                     },
@@ -811,7 +811,7 @@ describe('ExplorerProvider reducer', () => {
                 payload: {
                     fieldId: 'x',
                     descending: true,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             } as const;
 
@@ -820,7 +820,7 @@ describe('ExplorerProvider reducer', () => {
                 {
                     fieldId: 'x',
                     descending: true,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ]);
         });
@@ -1411,7 +1411,7 @@ describe('ExplorerProvider reducer', () => {
                             {
                                 fieldId: previousMetricName,
                                 descending: false,
-                                nullsFirst: null,
+                                nullsFirst: undefined,
                             },
                         ],
                         filters: {
@@ -1498,7 +1498,7 @@ describe('ExplorerProvider reducer', () => {
                             {
                                 fieldId: metricId,
                                 descending: false,
-                                nullsFirst: null,
+                                nullsFirst: undefined,
                             },
                         ],
                         filters: {

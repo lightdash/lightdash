@@ -12,7 +12,11 @@ const runQueryBody = {
         metrics: ['events_count', 'events_in_dkk'],
         filters: {},
         sorts: [
-            { fieldId: 'events_count', descending: true, nullsFirst: null },
+            {
+                fieldId: 'events_count',
+                descending: true,
+                nullsFirst: undefined,
+            },
         ],
         limit: 2500,
         tableCalculations: [],
@@ -422,7 +426,7 @@ describe('Async Query API', () => {
                         {
                             fieldId: 'events_count',
                             descending: true,
-                            nullsFirst: null,
+                            nullsFirst: undefined,
                         },
                     ],
                     limit: 50,

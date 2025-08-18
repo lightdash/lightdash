@@ -2187,8 +2187,7 @@
             "SortField": {
                 "properties": {
                     "nullsFirst": {
-                        "type": "boolean",
-                        "nullable": true
+                        "type": "boolean"
                     },
                     "descending": {
                         "type": "boolean"
@@ -2197,7 +2196,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["nullsFirst", "descending", "fieldId"],
+                "required": ["descending", "fieldId"],
                 "type": "object"
             },
             "CustomFormatType": {

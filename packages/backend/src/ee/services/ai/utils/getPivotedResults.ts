@@ -3,7 +3,7 @@ import { tableFromJSON, tableToIPC } from 'apache-arrow';
 import { Database } from 'duckdb-async';
 
 const getNullsFirstLast = (sort: SortField) => {
-    if (sort.nullsFirst === null) return '';
+    if (sort.nullsFirst === undefined) return '';
     return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
 };
 

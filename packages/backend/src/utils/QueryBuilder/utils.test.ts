@@ -382,7 +382,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     {
                         fieldId: 'age_range',
                         descending: true,
-                        nullsFirst: null,
+                        nullsFirst: undefined,
                     },
                 ],
             }),

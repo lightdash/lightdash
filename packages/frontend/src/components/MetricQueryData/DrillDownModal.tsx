@@ -137,7 +137,7 @@ const drillDownExploreUrl = ({
                 {
                     fieldId: drillByDimension,
                     descending: false,
-                    nullsFirst: null,
+                    nullsFirst: undefined,
                 },
             ],
         },
