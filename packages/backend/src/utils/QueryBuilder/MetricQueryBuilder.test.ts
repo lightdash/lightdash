@@ -970,6 +970,51 @@ describe('Query builder', () => {
                 replaceWhitespace(EXPECTED_SQL_WITH_CROSS_TABLE_METRICS),
             );
         });
+
+        test('Should handle metrics referencing other metrics when base metrics are also selected', () => {
+            const result = buildQueryWithExperimentalCtes({
+                explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_CROSS_TABLE,
+                    metrics: [
+                        'orders_revenue_per_customer',
+                        'orders_total_order_amount',
+                        'customers_total_customers',
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            const sql = result.query;
+
+            const countOccurrences = (search: string) => {
+                // escape all special characters
+                const escapedSearch = search.replace(
+                    /[-[\]{}()*+?.,\\^$|#\s]/g,
+                    '\\$&',
+                );
+                const matches = sql.match(new RegExp(escapedSearch, 'g')) || [];
+                return matches.length;
+            };
+
+            expect(
+                countOccurrences(
+                    'SUM("orders".amount) AS "orders_total_order_amount"',
+                ),
+            ).toBe(1);
+            expect(
+                countOccurrences(
+                    'COUNT("customers".customer_id) AS "customers_total_customers"',
+                ),
+            ).toBe(1);
+            expect(
+                countOccurrences(
+                    'cte_unaffected."orders_total_order_amount" / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"',
+                ),
+            ).toBe(1);
+        });
     });
 });
 

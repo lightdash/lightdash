@@ -31,6 +31,7 @@ import {
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    snakeCaseName,
     SupportedDbtAdapter,
     TimeFrames,
     UserAttributeValueMap,
@@ -860,16 +861,38 @@ export class MetricQueryBuilder {
                         metricObject.table,
                     );
                     metricReferences.forEach((metricReference) => {
-                        acc.push(
-                            getMetricFromId(
+                        const isInMetricsObjects = metricsObjects.some(
+                            (metric) =>
+                                getItemId(metric) ===
                                 getItemId({
                                     table: metricReference.refTable,
                                     name: metricReference.refName,
                                 }),
-                                explore,
-                                compiledMetricQuery,
-                            ),
                         );
+                        const isInReferencedMetricObjects = acc.some(
+                            (metric) =>
+                                getItemId(metric) ===
+                                getItemId({
+                                    table: metricReference.refTable,
+                                    name: metricReference.refName,
+                                }),
+                        );
+                        // Only add if doesn't exist in metricsObjects or referencedMetricObjects
+                        if (
+                            !isInMetricsObjects &&
+                            !isInReferencedMetricObjects
+                        ) {
+                            acc.push(
+                                getMetricFromId(
+                                    getItemId({
+                                        table: metricReference.refTable,
+                                        name: metricReference.refName,
+                                    }),
+                                    explore,
+                                    compiledMetricQuery,
+                                ),
+                            );
+                        }
                     });
                 }
                 return acc;
@@ -965,7 +988,7 @@ export class MetricQueryBuilder {
                  * - Include all joins
                  * - Apply dimensions filters
                  */
-                const keysCteName = `cte_keys_${tableName}`;
+                const keysCteName = `cte_keys_${snakeCaseName(tableName)}`;
                 const keysCteParts = [
                     `SELECT DISTINCT`,
                     [
@@ -996,7 +1019,9 @@ export class MetricQueryBuilder {
                     intrinsicUserAttributes,
                     userAttributes,
                 );
-                const metricsCteName = `cte_metrics_${table.name}`;
+                const metricsCteName = `cte_metrics_${snakeCaseName(
+                    table.name,
+                )}`;
                 const metricsCteParts = [
                     `SELECT`,
                     [

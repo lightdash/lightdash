@@ -44,7 +44,7 @@ export class ParametersController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() search?: string,
-        @Query() sortBy?: 'name' | 'created_at',
+        @Query() sortBy?: 'name',
         @Query() sortOrder?: 'asc' | 'desc',
         @Query() page?: number,
         @Query() pageSize?: number,
@@ -58,23 +58,14 @@ export class ParametersController extends BaseController {
             };
         }
 
-        const parameters = await this.services
+        const results = await this.services
             .getProjectParametersService()
             .findProjectParametersPaginated(
                 req.user!,
                 projectUuid,
-                { search, sortBy, sortOrder },
                 paginateArgs,
+                { search, sortBy, sortOrder },
             );
-
-        const results: ApiGetProjectParametersListResults = {
-            data: parameters.data.map((param) => ({
-                name: param.name,
-                createdAt: param.created_at,
-                config: param.config,
-            })),
-            pagination: parameters.pagination,
-        };
 
         return {
             status: 'ok',

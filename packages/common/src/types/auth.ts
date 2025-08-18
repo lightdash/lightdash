@@ -4,11 +4,12 @@ import {
 } from '../ee';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
-import {
-    type AccountUser,
-    type ExternalUser,
-    type IntrinsicUserAttributes,
-    type LightdashSessionUser,
+import type {
+    AccountUser,
+    ExternalUser,
+    IntrinsicUserAttributes,
+    LightdashSessionUser,
+    LightdashUser,
 } from './user';
 import { type UserAttributeValueMap } from './userAttributes';
 
@@ -119,6 +120,16 @@ export type SessionAccount = BaseAccountWithHelpers & {
     user: LightdashSessionUser;
 };
 
+export type OssEmbed = {
+    projectUuid: string;
+    organization: Pick<Organization, 'organizationUuid' | 'name' | 'createdAt'>;
+    encodedSecret: string;
+    dashboardUuids: string[];
+    allowAllDashboards: boolean;
+    createdAt: string;
+    user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
+};
+
 /**
  * Account for anonymous users with JWT authentication (embeds)
  */
@@ -127,6 +138,8 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     user: ExternalUser;
     /** The access permissions the account has */
     access: DashboardAccess;
+    /** The embed configuration associated with the JWT */
+    embed: OssEmbed;
 };
 
 export type ApiKeyAccount = BaseAccountWithHelpers & {
