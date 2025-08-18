@@ -31,6 +31,7 @@ import {
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    snakeCaseName,
     SupportedDbtAdapter,
     TimeFrames,
     UserAttributeValueMap,
@@ -965,7 +966,7 @@ export class MetricQueryBuilder {
                  * - Include all joins
                  * - Apply dimensions filters
                  */
-                const keysCteName = `cte_keys_${tableName}`;
+                const keysCteName = `cte_keys_${snakeCaseName(tableName)}`;
                 const keysCteParts = [
                     `SELECT DISTINCT`,
                     [
@@ -996,7 +997,9 @@ export class MetricQueryBuilder {
                     intrinsicUserAttributes,
                     userAttributes,
                 );
-                const metricsCteName = `cte_metrics_${table.name}`;
+                const metricsCteName = `cte_metrics_${snakeCaseName(
+                    table.name,
+                )}`;
                 const metricsCteParts = [
                     `SELECT`,
                     [
