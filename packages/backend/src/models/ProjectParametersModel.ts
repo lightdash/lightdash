@@ -1,13 +1,16 @@
 import {
     KnexPaginateArgs,
+    KnexPaginatedData,
     LightdashProjectConfig,
     NotFoundError,
+    ProjectParameterSummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     ProjectParametersTableName,
     type DbProjectParameter,
 } from '../database/entities/projectParameters';
+import { CachedExploreTableName } from '../database/entities/projects';
 import KnexPaginate from '../database/pagination';
 
 export class ProjectParametersModel {
@@ -30,48 +33,90 @@ export class ProjectParametersModel {
         return query.select('*');
     }
 
-    async findPaginated(
+    async findCombinedParametersPaginated(
         projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
         options?: {
             search?: string;
-            sortBy?: 'name' | 'created_at';
+            sortBy?: 'name';
             sortOrder?: 'asc' | 'desc';
         },
-        paginateArgs?: KnexPaginateArgs,
-    ) {
-        let query = this.database(ProjectParametersTableName).where(
-            'project_uuid',
-            projectUuid,
-        );
+    ): Promise<KnexPaginatedData<ProjectParameterSummary[]>> {
+        let query = this.database
+            .with('config_params', (qb) => {
+                void qb
+                    .select({
+                        name: 'name',
+                        config: 'config',
+                        source: this.database.raw("'config'"),
+                        modelName: this.database.raw('NULL'),
+                    })
+                    .from(ProjectParametersTableName)
+                    .where('project_uuid', projectUuid);
+            })
+            .with('model_params', (qb) => {
+                void qb
+                    .select({
+                        name: 'param_data.key',
+                        config: 'param_data.value',
+                        source: this.database.raw("'model'"),
+                        modelName: `${CachedExploreTableName}.name`,
+                    })
+                    .from(CachedExploreTableName)
+                    .crossJoin(
+                        this.database.raw(
+                            `jsonb_each(${CachedExploreTableName}.explore -> ?) as param_data(key, value)`,
+                            ['parameters'],
+                        ),
+                    )
+                    .where(
+                        `${CachedExploreTableName}.project_uuid`,
+                        projectUuid,
+                    )
+                    .whereRaw(
+                        `${CachedExploreTableName}.explore -> ? IS NOT NULL`,
+                        ['parameters'],
+                    )
+                    .whereRaw(
+                        `jsonb_typeof(${CachedExploreTableName}.explore -> ?) = 'object'`,
+                        ['parameters'],
+                    );
+            })
+            .with('combined_params', (qb) => {
+                void qb
+                    .select('*')
+                    .from('config_params')
+                    .unionAll(this.database.select('*').from('model_params'));
+            })
+            .select('*')
+            .from('combined_params');
 
-        // Add search functionality
+        // Apply search filter
         if (options?.search) {
-            const trimmedSearch = options.search.trim();
-            if (trimmedSearch.length > 0) {
-                const searchTerm = `%${trimmedSearch}%`;
+            const searchTerm = options.search.trim();
+            if (searchTerm.length > 0) {
                 query = query.where((builder) => {
                     void builder
-                        .whereILike('name', searchTerm)
-                        .orWhereRaw("config->>'label' ILIKE ?", [searchTerm])
+                        .whereILike('name', `%${searchTerm}%`)
+                        .orWhereRaw("config->>'label' ILIKE ?", [
+                            `%${searchTerm}%`,
+                        ])
                         .orWhereRaw("config->>'description' ILIKE ?", [
-                            searchTerm,
-                        ]);
+                            `%${searchTerm}%`,
+                        ])
+                        .orWhereILike('modelName', `%${searchTerm}%`);
                 });
             }
         }
 
-        // Add sorting
-        const sortBy = options?.sortBy || 'created_at';
-        const sortOrder = options?.sortOrder || 'desc';
+        // Apply sorting
+        const sortBy = options?.sortBy || 'name';
+        const sortOrder = options?.sortOrder || 'asc';
         query = query.orderBy(sortBy, sortOrder);
 
-        // If no sorting by name is specified, add name as secondary sort for consistency
-        if (sortBy !== 'name') {
-            query = query.orderBy('name', 'asc');
-        }
-
+        // Use KnexPaginate for pagination - query already returns the correct structure
         return KnexPaginate.paginate(
-            query.select<DbProjectParameter[]>(),
+            query.select<ProjectParameterSummary[]>(),
             paginateArgs,
         );
     }
