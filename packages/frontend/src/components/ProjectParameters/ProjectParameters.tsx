@@ -19,15 +19,9 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
+import { useDebouncedValue, useDisclosure } from '@mantine-8/hooks';
 import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
 import { getMantine8ThemeOverride } from '../../mantine8Theme';
@@ -80,7 +74,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [page, setPage] = useState(1);
-    const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name');
+    const [sortBy, setSortBy] = useState<'name'>('name'); // for now we only support sorting by name, this state will enable future sorting options
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [configModal, configModalHandlers] = useDisclosure();
     const [selectedParameter, setSelectedParameter] = useState<{
@@ -105,7 +99,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     const pagination = data?.pagination;
 
     const handleSort = useCallback(
-        (column: 'name' | 'created_at') => {
+        (column: 'name') => {
             if (sortBy === column) {
                 setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
             } else {
@@ -126,7 +120,7 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     );
 
     const getSortIcon = useCallback(
-        (column: 'name' | 'created_at') => {
+        (column: 'name') => {
             if (sortBy !== column) return null;
             return sortOrder === 'asc' ? '↑' : '↓';
         },
