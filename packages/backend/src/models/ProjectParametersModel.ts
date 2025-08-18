@@ -62,19 +62,23 @@ export class ProjectParametersModel {
                         source: this.database.raw("'model'"),
                         modelName: `${CachedExploreTableName}.name`,
                     })
-                    .from(`${CachedExploreTableName} as cached_explore`)
+                    .from(CachedExploreTableName)
                     .crossJoin(
                         this.database.raw(
-                            'jsonb_each(cached_explore.explore -> ?) as param_data(key, value)',
+                            `jsonb_each(${CachedExploreTableName}.explore -> ?) as param_data(key, value)`,
                             ['parameters'],
                         ),
                     )
-                    .where('cached_explore.project_uuid', projectUuid)
-                    .whereRaw('cached_explore.explore -> ? IS NOT NULL', [
-                        'parameters',
-                    ])
+                    .where(
+                        `${CachedExploreTableName}.project_uuid`,
+                        projectUuid,
+                    )
                     .whereRaw(
-                        "jsonb_typeof(cached_explore.explore -> ?) = 'object'",
+                        `${CachedExploreTableName}.explore -> ? IS NOT NULL`,
+                        ['parameters'],
+                    )
+                    .whereRaw(
+                        `jsonb_typeof(${CachedExploreTableName}.explore -> ?) = 'object'`,
                         ['parameters'],
                     );
             })
