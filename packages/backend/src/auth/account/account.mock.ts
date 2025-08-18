@@ -89,7 +89,19 @@ export function buildAccount({
     }
     return fromJwt({
         decodedToken: defaultJwtToken,
-        organization: defaultOrganization,
+        embed: {
+            organization: defaultOrganization,
+            projectUuid: 'test-project-uuid',
+            dashboardUuids: ['test-dashboard-uuid'],
+            allowAllDashboards: false,
+            createdAt: '2024-01-01',
+            encodedSecret: 'test-encoded-secret',
+            user: {
+                userUuid: defaultUserId,
+                firstName: 'Test',
+                lastName: 'User',
+            },
+        },
         source: 'test-jwt-token',
         dashboardUuid: 'test-dashboard-uuid',
         userAttributes: defaultUserAttributes,

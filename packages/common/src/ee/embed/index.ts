@@ -1,17 +1,9 @@
 import { z } from 'zod';
-import { type Organization } from '../../types/organization';
-import { type LightdashUser } from '../../types/user';
+import type { OssEmbed } from '../../types/auth';
 import assertUnreachable from '../../utils/assertUnreachable';
 
-export type Embed = {
-    projectUuid: string;
-    organization: Pick<Organization, 'organizationUuid' | 'name' | 'createdAt'>;
-    encodedSecret: string;
-    dashboardUuids: string[];
-    allowAllDashboards: boolean;
-    createdAt: string;
-    user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
-};
+/** @deprecated Use OssEmbed instead */
+export type Embed = OssEmbed;
 
 export type DecodedEmbed = Omit<Embed, 'encodedSecret'> & {
     encodedSecret: undefined;
