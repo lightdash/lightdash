@@ -240,13 +240,18 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
     echo "Building backend with sourcemaps for Sentry"; \
+    NODE_OPTIONS="--max-old-space-size=4096" \
     pnpm -F backend build-sourcemaps && pnpm -F backend postbuild; \
     else \
     echo "Building backend without sourcemaps"; \
+<<<<<<< HEAD
     turbo build --filter=backend; \
+=======
+    NODE_OPTIONS="--max-old-space-size=4096" pnpm -F backend build; \
+>>>>>>> cb19b9a591 (Added  max-old-space-size to dockerfile)
     fi
 
-# Build frontend package  
+# Build frontend package
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY packages/frontend ./packages/frontend
