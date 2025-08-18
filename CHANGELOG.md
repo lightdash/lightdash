@@ -1,3 +1,10 @@
+## [0.1930.1](https://github.com/lightdash/lightdash/compare/0.1930.0...0.1930.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* use embed permissions rather than space access for saved charts ([#16459](https://github.com/lightdash/lightdash/issues/16459)) ([fbe5573](https://github.com/lightdash/lightdash/commit/fbe55739fd6e638ee52129d317255d28a6b0f827))
+
 # [0.1930.0](https://github.com/lightdash/lightdash/compare/0.1929.1...0.1930.0) (2025-08-18)
 
 
