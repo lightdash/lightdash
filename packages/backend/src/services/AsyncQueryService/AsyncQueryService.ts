@@ -1014,6 +1014,10 @@ export class AsyncQueryService extends ProjectService {
                   rows: WarehouseResults['rows'],
                   fields: WarehouseResults['fields'],
               ) => {
+                  if (!rows[0]) {
+                      // skip if empty
+                      return;
+                  }
                   if ('total_columns' in rows[0]) {
                       const numberTotalColumns = Number(rows[0].total_columns);
                       pivotTotalColumnCount = Number.isNaN(numberTotalColumns)
@@ -2527,12 +2531,13 @@ export class AsyncQueryService extends ProjectService {
 
         await warehouseConnection.warehouseClient.streamQuery(
             applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
-            (row) => {
-                if (row.fields) {
-                    Object.keys(row.fields).forEach((key) => {
+            (chunk) => {
+                // Only handle the first call
+                if (columns.length === 0 && chunk.fields) {
+                    Object.keys(chunk.fields).forEach((key) => {
                         columns.push({
                             name: key,
-                            type: row.fields[key].type,
+                            type: chunk.fields[key].type,
                         });
                     });
                 }
