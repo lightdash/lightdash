@@ -641,10 +641,7 @@ export class EmbedService extends BaseService {
         const projectParameters =
             await this.projectService.projectParametersModel.find(projectUuid);
 
-        return combineProjectAndExploreParameters(
-            projectParameters,
-            explore.parameters,
-        );
+        return combineProjectAndExploreParameters(projectParameters, explore);
     }
 
     private async _runEmbedQuery({

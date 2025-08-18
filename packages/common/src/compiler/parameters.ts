@@ -3,10 +3,11 @@
  */
 
 import { CompileError } from '../types/errors';
-import type { Table } from '../types/explore';
+import type { CompiledTable, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
 
-export const parameterRegex = /\$\{(?:lightdash|ld)\.(?:parameters)\.(\w+)\}/g;
+export const parameterRegex =
+    /\$\{(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)\}/g;
 
 /**
  * Extracts parameter references from SQL strings
@@ -64,37 +65,51 @@ export const getAvailableParameterNames = (
 
 /**
  * Get all available parameter names for a project and explore
- * @param projectParameters - The project parameters
  * @param exploreParameters - The explore parameters
+ * @param includedTables - The included tables
  * @returns An array of available parameter names
  */
-export const getAllExploreParameters = (
-    exploreParameters: Record<string, LightdashProjectParameter> | undefined,
-    includedTables: Table[],
-): Record<string, LightdashProjectParameter> => {
-    const includedTablesParameters: Record<string, LightdashProjectParameter> =
-        includedTables.reduce((acc, table) => {
-            const tableParameters = Object.keys(table.parameters || {}).reduce<
-                Record<string, LightdashProjectParameter>
-            >((acc2, p) => {
-                const parameter = table.parameters?.[p];
-                if (!parameter) {
-                    return acc2;
-                }
-                return {
-                    ...acc2,
-                    [`${table.name}.${p}`]: parameter,
-                };
-            }, {});
+export const getAvailableParametersFromTables = (
+    includedTables: (Table | CompiledTable)[],
+): Record<string, LightdashProjectParameter> =>
+    includedTables.reduce((acc, table) => {
+        const tableParameters = Object.keys(table.parameters || {}).reduce<
+            Record<string, LightdashProjectParameter>
+        >((acc2, p) => {
+            const parameter = table.parameters?.[p];
+            if (!parameter) {
+                return acc2;
+            }
+
+            // Use the original table name for parameters if available, otherwise use the current name
+            const tableName = table.originalName ?? table.name;
+            const parameterKey = `${tableName}.${p}`;
 
             return {
-                ...acc,
-                ...tableParameters,
+                ...acc2,
+                [parameterKey]: parameter,
             };
         }, {});
 
+        return {
+            ...acc,
+            ...tableParameters,
+        };
+    }, {});
+
+/**
+ * Validate parameter names
+ * @param parameters - The parameters to validate
+ * @returns True if any parameter name contains a dot, false otherwise
+ */
+export const validateParameterNames = (
+    parameters: Record<string, LightdashProjectParameter> | undefined,
+) => {
+    const invalidParameters = Object.keys(parameters || {}).filter(
+        (paramName) => paramName.includes('.'),
+    );
     return {
-        ...(exploreParameters ?? {}),
-        ...includedTablesParameters,
+        isInvalid: invalidParameters.length > 0,
+        invalidParameters,
     };
 };

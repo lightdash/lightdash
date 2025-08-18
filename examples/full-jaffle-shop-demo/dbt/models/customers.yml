@@ -70,11 +70,6 @@ models:
                     }"
                 - label: "Invalid URL with bad reference"
                   url: "https://example.com/company/${row.customer_id.raw | url_encode }"
-            additional_dimensions:
-              customer_name_test:
-                type: string
-                description: Customer name
-                sql: ${ld.parameters.customers.customer_name}
         meta:
           dimension:
             type: string

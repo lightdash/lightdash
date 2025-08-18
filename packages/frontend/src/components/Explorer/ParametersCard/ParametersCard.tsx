@@ -1,11 +1,7 @@
 import { Box } from '@mantine-8/core';
 import { memo, useMemo } from 'react';
 import { useParams } from 'react-router';
-import {
-    ParameterSelection,
-    useParameters,
-} from '../../../features/parameters';
-import { useExplore } from '../../../hooks/useExplore';
+import { ParameterSelection } from '../../../features/parameters';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -29,36 +25,17 @@ const ParametersCard = memo(
             (context) => context.actions.toggleExpandedSection,
         );
 
-        const {
-            data: projectParameters,
-            isLoading: isProjectParametersLoading,
-            isError: isProjectParametersError,
-            isFetched: isProjectParametersFetched,
-        } = useParameters(projectUuid, parameterReferences, {
-            enabled: !!projectUuid && !!parameterReferences?.length,
-        });
+        const parameterDefinitions = useExplorerContext(
+            (context) => context.state.parameterDefinitions,
+        );
 
-        const {
-            data: explore,
-            isLoading: isExploreLoading,
-            isError: isExploreError,
-            isFetched: isExploreFetched,
-        } = useExplore(tableName);
-
-        const parameters = useMemo(() => {
-            // Project parameters are already filtered by the parameterReferences
-            // so we only need to filter the explore parameters
-            const filteredExploreParameters = Object.fromEntries(
-                Object.entries(explore?.parameters ?? {}).filter(([key]) =>
+        const filteredParameterDefinitions = useMemo(() => {
+            return Object.fromEntries(
+                Object.entries(parameterDefinitions).filter(([key]) =>
                     parameterReferences?.includes(key),
                 ),
             );
-
-            return {
-                ...projectParameters,
-                ...filteredExploreParameters,
-            };
-        }, [projectParameters, explore?.parameters, parameterReferences]);
+        }, [parameterDefinitions, parameterReferences]);
 
         const parameterValues = useExplorerContext(
             (context) => context.state.unsavedChartVersion.parameters || {},
@@ -89,11 +66,7 @@ const ParametersCard = memo(
 
         return (
             <CollapsableCard
-                isOpen={
-                    paramsIsOpen &&
-                    isProjectParametersFetched &&
-                    isExploreFetched
-                }
+                isOpen={paramsIsOpen}
                 title="Parameters"
                 disabled={!tableName}
                 toggleTooltip={!tableName ? 'No model selected' : ''}
@@ -103,12 +76,8 @@ const ParametersCard = memo(
             >
                 <Box m="md">
                     <ParameterSelection
-                        parameters={parameters}
+                        parameters={filteredParameterDefinitions}
                         missingRequiredParameters={missingRequiredParameters}
-                        isLoading={
-                            isProjectParametersLoading || isExploreLoading
-                        }
-                        isError={isProjectParametersError || isExploreError}
                         parameterValues={parameterValues || {}}
                         onParameterChange={handleParameterChange}
                         showClearAll={true}

@@ -33,9 +33,10 @@ import {
     getSpotlightConfigurationForResource,
 } from './lightdashProjectConfig';
 import {
-    getAllExploreParameters,
     getAvailableParameterNames,
+    getAvailableParametersFromTables,
     getParameterReferences,
+    validateParameterNames,
     validateParameterReferences,
 } from './parameters';
 
@@ -160,18 +161,17 @@ export class ExploreCompiler {
             );
         }
 
-        const hasDuplicateParameterDefinitions = Object.keys(
-            projectParameters || {},
-        ).some((projectParamName) =>
-            Object.keys(meta.parameters || {}).some(
-                (modelParamName) => modelParamName === projectParamName,
-            ),
-        );
+        const { isInvalid: hasInvalidParameterNames, invalidParameters } =
+            validateParameterNames(meta.parameters);
 
-        if (hasDuplicateParameterDefinitions) {
+        if (hasInvalidParameterNames) {
             throw new CompileError(
-                `Failed to compile explore "${name}". Cannot have duplicate parameter definitions in model and \`lightdash.config.yml\``,
-                {},
+                `Failed to compile explore "${name}". Invalid parameter names: ${invalidParameters.join(
+                    ', ',
+                )}. Parameter names cannot contain dots.`,
+                {
+                    invalidParameters,
+                },
             );
         }
 
@@ -269,9 +269,8 @@ export class ExploreCompiler {
             { [baseTable]: tables[baseTable] },
         );
 
-        // get all available parameters from the explore and included tables
-        const exploreAvailableParameters = getAllExploreParameters(
-            meta.parameters,
+        // get all available parameters from the included tables
+        const exploreAvailableParameters = getAvailableParametersFromTables(
             Object.values(includedTables),
         );
 

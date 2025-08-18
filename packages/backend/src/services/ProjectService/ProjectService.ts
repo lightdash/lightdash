@@ -1815,10 +1815,7 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
 
-        return combineProjectAndExploreParameters(
-            projectParameters,
-            explore.parameters,
-        );
+        return combineProjectAndExploreParameters(projectParameters, explore);
     }
 
     async compileQuery(
