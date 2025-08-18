@@ -5,6 +5,8 @@
     ({{ quarter_start_column }} + INTERVAL '3 months' - INTERVAL '1 day')::date
   {% elif target.type == 'snowflake' %}
     DATEADD(day, -1, DATEADD(month, 3, {{ quarter_start_column }}))
+  {% elif target.type == 'trino' %}
+    ({{ quarter_start_column }} + interval '3' month - interval '1' day)
   {% else %}
     {{ exceptions.raise_compiler_error("Unsupported database type: " ~ target.type) }}
   {% endif %}
