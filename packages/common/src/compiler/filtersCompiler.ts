@@ -57,47 +57,51 @@ export const renderStringFilterSql = (
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
 ): string => {
-    const filterValues = filter.values?.filter((v) => v !== '');
+    const nonEmptyFilterValues = filter.values?.filter((v) => v !== '');
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return !filterValues || filterValues.length === 0
-                ? 'true'
-                : `(${dimensionSql}) IN (${filterValues
+            return filter.values && filter.values.length > 0
+                ? `(${dimensionSql}) IN (${filter.values
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
-                      .join(',')})`;
+                      .join(',')})`
+                : 'true';
         case FilterOperator.NOT_EQUALS:
-            return !filterValues || filterValues.length === 0
-                ? 'true'
-                : `((${dimensionSql}) NOT IN (${filterValues
+            return filter.values && filter.values.length > 0
+                ? `((${dimensionSql}) NOT IN (${filter.values
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
-                      .join(',')} ) OR (${dimensionSql}) IS NULL)`;
+                      .join(',')} ) OR (${dimensionSql}) IS NULL)`
+                : 'true';
         case FilterOperator.INCLUDE:
-            if (filterValues === undefined || filterValues.length === 0)
-                return 'true';
-            const includesQuery = filterValues.map(
-                (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
-            );
-            if (includesQuery.length > 1)
-                return `(${includesQuery.join('\n  OR\n  ')})`;
-            return includesQuery.join('\n  OR\n  ');
+            if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
+                const includesQuery = nonEmptyFilterValues.map(
+                    (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
+                );
+                if (includesQuery.length > 1)
+                    return `(${includesQuery.join('\n  OR\n  ')})`;
+                return includesQuery.join('\n  OR\n  ');
+            }
+            return 'true';
         case FilterOperator.NOT_INCLUDE:
-            const notIncludeQuery = filterValues?.map(
-                (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
-            );
-            return notIncludeQuery?.join('\n  AND\n  ') || 'true';
+            if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
+                const notIncludeQuery = nonEmptyFilterValues.map(
+                    (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
+                );
+                return notIncludeQuery.join('\n  AND\n  ');
+            }
+            return 'true';
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
-            const startWithQuery = filterValues?.map(
+            const startWithQuery = nonEmptyFilterValues?.map(
                 (v) =>
                     `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
         case FilterOperator.ENDS_WITH:
-            const endsWithQuery = filterValues?.map(
+            const endsWithQuery = nonEmptyFilterValues?.map(
                 (v) =>
                     `(${dimensionSql}) LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
             );
