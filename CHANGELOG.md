@@ -1,3 +1,16 @@
+# [0.1927.0](https://github.com/lightdash/lightdash/compare/0.1926.0...0.1927.0) (2025-08-18)
+
+
+### Bug Fixes
+
+* prevent duplicate metrics in cross-table metric references ([#16448](https://github.com/lightdash/lightdash/issues/16448)) ([f0b7ba2](https://github.com/lightdash/lightdash/commit/f0b7ba2f7ffa2b2481b80fd76e2068df5b349661))
+* use snake_case for CTE names in MetricQueryBuilder ([#16443](https://github.com/lightdash/lightdash/issues/16443)) ([c8665cc](https://github.com/lightdash/lightdash/commit/c8665ccc07334f9a0040d7f305f646563fe11c76))
+
+
+### Features
+
+* improve join table detection with tablesReferences ([#16442](https://github.com/lightdash/lightdash/issues/16442)) ([a35d9ff](https://github.com/lightdash/lightdash/commit/a35d9ffb0a235ebf2ad752bac0d90213172aca9e))
+
 # [0.1926.0](https://github.com/lightdash/lightdash/compare/0.1925.0...0.1926.0) (2025-08-15)
 
 
