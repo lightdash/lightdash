@@ -2506,7 +2506,7 @@ export class AsyncQueryService extends ProjectService {
         await warehouseConnection.warehouseClient.streamQuery(
             applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
             (chunk) => {
-                // Only return the first row
+                // Only handle the first call
                 if (columns.length === 0 && chunk.fields) {
                     Object.keys(chunk.fields).forEach((key) => {
                         columns.push({
