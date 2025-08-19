@@ -2,6 +2,7 @@ import { warehouseClientMock } from './MetricQueryBuilder.mock';
 import {
     safeReplaceParameters,
     safeReplaceParametersWithSqlBuilder,
+    safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
 
@@ -155,6 +156,121 @@ describe('unsafeReplaceParametersAsRaw', () => {
         // SnowflakeSqlBuilder removes SQL comments even when not using quotes
         expect(result.replacedSql).toBe(
             'SELECT * FROM users WHERE id = 1; DROP TABLE users; ',
+        );
+    });
+});
+
+describe('safeReplaceParametersWithTypes', () => {
+    it('should not wrap number parameters in quotes', () => {
+        const sql =
+            'SELECT * FROM users WHERE id = ${lightdash.parameters.user_id}';
+        const parameters = { user_id: 123 };
+        const parameterDefinitions = {
+            user_id: {
+                label: 'User ID',
+                type: 'number' as const,
+            },
+        };
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe('SELECT * FROM users WHERE id = 123');
+    });
+
+    it('should handle number arrays without quotes', () => {
+        const sql =
+            'SELECT * FROM users WHERE id IN (${lightdash.parameters.user_ids})';
+        const parameters = { user_ids: [1, 2, 3] };
+        const parameterDefinitions = {
+            user_ids: {
+                label: 'User IDs',
+                type: 'number' as const,
+                multiple: true,
+            },
+        };
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe(
+            'SELECT * FROM users WHERE id IN (1, 2, 3)',
+        );
+    });
+
+    it('should still wrap string parameters in quotes', () => {
+        const sql =
+            'SELECT * FROM users WHERE name = ${lightdash.parameters.user_name}';
+        const parameters = { user_name: "O'Reilly" };
+        const parameterDefinitions = {
+            user_name: {
+                label: 'User Name',
+                type: 'string' as const,
+            },
+        };
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM users WHERE name = 'O''Reilly'",
+        );
+    });
+
+    it('should default to string type when no definition provided', () => {
+        const sql =
+            'SELECT * FROM users WHERE status = ${lightdash.parameters.status}';
+        const parameters = { status: 'active' };
+        const parameterDefinitions = undefined;
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM users WHERE status = 'active'",
+        );
+    });
+
+    it('should handle mixed parameter types in same query', () => {
+        const sql =
+            'SELECT * FROM users WHERE id = ${lightdash.parameters.user_id} AND status = ${lightdash.parameters.status}';
+        const parameters = { user_id: 42, status: 'active' };
+        const parameterDefinitions = {
+            user_id: {
+                label: 'User ID',
+                type: 'number' as const,
+            },
+            status: {
+                label: 'Status',
+                type: 'string' as const,
+            },
+        };
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe(
+            "SELECT * FROM users WHERE id = 42 AND status = 'active'",
         );
     });
 });
