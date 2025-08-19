@@ -168,7 +168,7 @@ export class ExploreCompiler {
             throw new CompileError(
                 `Failed to compile explore "${name}". Invalid parameter names: ${invalidParameters.join(
                     ', ',
-                )}. Parameter names cannot contain dots.`,
+                )}`,
                 {
                     invalidParameters,
                 },
