@@ -57,29 +57,15 @@
                             "description": "The label of the parameter as it will be displayed in the UI",
                             "type": "string"
                         },
+                        "type": {
+                            "description": "The data type of the parameter (defaults to 'string' for backwards compatibility)",
+                            "type": "string",
+                            "enum": ["string", "number"],
+                            "default": "string"
+                        },
                         "description": {
                             "description": "A description of the parameter",
                             "type": "string"
-                        },
-                        "options": {
-                            "description": "A list of possible values for the parameter",
-                            "type": "array",
-                            "minItems": 1,
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        "default": {
-                            "description": "The default value(s) for the parameter",
-                            "oneOf": [
-                                { "type": "string" },
-                                {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                }
-                            ]
                         },
                         "multiple": {
                             "description": "Whether the parameter input will be a multi select",
@@ -88,6 +74,26 @@
                         "allow_custom_values": {
                             "description": "Whether users can input custom values beyond predefined options",
                             "type": "boolean"
+                        },
+                        "options": {
+                            "description": "A list of possible values for the parameter",
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": ["string", "number"]
+                            }
+                        },
+                        "default": {
+                            "description": "The default value(s) for the parameter",
+                            "oneOf": [
+                                { "type": ["string", "number"] },
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "type": ["string", "number"]
+                                    }
+                                }
+                            ]
                         },
                         "options_from_dimension": {
                             "description": "Get parameter options from a dimension in a model",
