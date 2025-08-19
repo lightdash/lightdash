@@ -11,7 +11,6 @@ import {
     SectionBlock,
     SectionBlockAccessory,
 } from '@slack/bolt';
-import { Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 type GetChartAndDashboardBlocksArgs = {
@@ -431,6 +430,19 @@ const getExploreBlocks = (
               }
             : undefined,
     ]);
+
+export type Unfurl = {
+    title: string;
+    description?: string;
+    chartType?: string;
+    imageUrl: string | undefined;
+    pageType: LightdashPage;
+    minimalUrl: string;
+    organizationUuid: string;
+    resourceUuid: string | undefined;
+    chartTileUuids?: (string | null)[];
+    sqlChartTileUuids?: (string | null)[];
+};
 
 export const getUnfurlBlocks = (
     originalUrl: string,
