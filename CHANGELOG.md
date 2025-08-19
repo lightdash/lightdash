@@ -1,3 +1,10 @@
+## [0.1935.1](https://github.com/lightdash/lightdash/compare/0.1935.0...0.1935.1) (2025-08-19)
+
+
+### Bug Fixes
+
+* allow non-git projects to update warehouse configuration ([#16482](https://github.com/lightdash/lightdash/issues/16482)) ([cbc6e79](https://github.com/lightdash/lightdash/commit/cbc6e796cb196781f15c21ac52074d25d1480c3a))
+
 # [0.1935.0](https://github.com/lightdash/lightdash/compare/0.1934.0...0.1935.0) (2025-08-19)
 
 
