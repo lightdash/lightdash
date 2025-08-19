@@ -1,6 +1,8 @@
 import {
     AllowedEmailDomains,
     CreateProject,
+    CreateWarehouseCredentials,
+    DbtProjectConfig,
     isGitProjectType,
     NotExistsError,
     OrganizationMemberRole,
@@ -367,37 +369,49 @@ export class InstanceConfigurationService extends BaseService {
                 projectUuid,
             );
 
-            const dbt = project.dbtConnection;
-            if (!isGitProjectType(dbt)) {
-                throw new ParameterError(
-                    `Project ${projectUuid} is not a git project`,
-                );
-            }
-            const { warehouseConnection } = project;
-            if (
-                !warehouseConnection ||
-                warehouseConnection.type !== WarehouseTypes.DATABRICKS
-            ) {
+            const { warehouseConnection, dbtConnection } = project;
+
+            if (!warehouseConnection) {
                 throw new ParameterError(
                     `Project ${projectUuid} has no warehouse connection`,
                 );
             }
 
+            // Update dbt connection
+            let updatedDbtConnection: DbtProjectConfig | undefined;
+            if (config.dbt?.personal_access_token) {
+                if (!isGitProjectType(dbtConnection)) {
+                    throw new ParameterError(
+                        `Project ${projectUuid} is not a git project`,
+                    );
+                }
+                updatedDbtConnection = {
+                    ...dbtConnection,
+                    personal_access_token: config.dbt.personal_access_token,
+                };
+            }
+            // Update warehouse connection
+            let updatedWarehouseConnection:
+                | CreateWarehouseCredentials
+                | undefined;
+            if (config.project?.httpPath) {
+                if (warehouseConnection.type !== WarehouseTypes.DATABRICKS) {
+                    throw new ParameterError(
+                        `Project ${projectUuid} is not a Databricks project`,
+                    );
+                }
+                updatedWarehouseConnection = {
+                    ...warehouseConnection,
+                    httpPath: config.project.httpPath,
+                };
+            }
+
             const updatedProject: UpdateProject = {
                 ...project,
-                warehouseConnection: {
-                    ...warehouseConnection,
-                    httpPath:
-                        config.project?.httpPath ||
-                        warehouseConnection.httpPath,
-                },
+                warehouseConnection:
+                    updatedWarehouseConnection ?? warehouseConnection,
                 dbtVersion: config.project?.dbtVersion || project.dbtVersion,
-                dbtConnection: {
-                    ...dbt,
-                    personal_access_token:
-                        config.dbt?.personal_access_token ||
-                        dbt.personal_access_token!,
-                },
+                dbtConnection: updatedDbtConnection ?? dbtConnection,
             };
 
             await this.projectModel.update(projectUuid, updatedProject);
