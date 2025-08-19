@@ -211,7 +211,6 @@ export class MetricsExplorerService<
                 {
                     fieldId: dimensionFieldId,
                     descending: false,
-                    nullsFirst: undefined,
                 },
             ],
             tableCalculations: [],
@@ -295,7 +294,6 @@ export class MetricsExplorerService<
                 {
                     fieldId: metricQuery.metrics[0],
                     descending: true,
-                    nullsFirst: undefined,
                 },
             ],
             limit: MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
@@ -396,7 +394,6 @@ export class MetricsExplorerService<
                 {
                     fieldId: timeDimension,
                     descending: false,
-                    nullsFirst: undefined,
                 },
             ],
             tableCalculations: [],

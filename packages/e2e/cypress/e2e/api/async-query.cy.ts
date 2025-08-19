@@ -15,7 +15,6 @@ const runQueryBody = {
             {
                 fieldId: 'events_count',
                 descending: true,
-                nullsFirst: undefined,
             },
         ],
         limit: 2500,
@@ -426,7 +425,6 @@ describe('Async Query API', () => {
                         {
                             fieldId: 'events_count',
                             descending: true,
-                            nullsFirst: undefined,
                         },
                     ],
                     limit: 50,

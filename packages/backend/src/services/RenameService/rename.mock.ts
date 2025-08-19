@@ -42,7 +42,6 @@ export const chartWithCustomMetric = {
             {
                 fieldId: 'customers_first_name',
                 descending: false,
-                nullsFirst: undefined,
             },
         ],
         limit: 500,
@@ -144,7 +143,6 @@ export const expectedRenamedChartWithCustomMetric = {
             {
                 fieldId: 'customers_first_name',
                 descending: false,
-                nullsFirst: undefined,
             },
         ],
         limit: 500,
@@ -682,7 +680,6 @@ export const chartWithCustomMetricWithSimilarName = {
             {
                 fieldId: 'customers_first_name',
                 descending: false,
-                nullsFirst: undefined,
             },
         ],
         limit: 500,

@@ -210,7 +210,6 @@ const testFilterStringEscaping = (projectUuid: string) => {
                 {
                     fieldId: 'customers_first_name',
                     descending: false,
-                    nullsFirst: undefined,
                 },
             ],
             limit: 500,
@@ -274,7 +273,6 @@ const testPercentile = (
                 {
                     fieldId: 'events_timestamp_tz_day',
                     descending: true,
-                    nullsFirst: undefined,
                 },
             ],
             limit: 500,
@@ -333,7 +331,6 @@ const testTimeIntervalsResults = (
                 {
                     fieldId: 'events_timestamp_tz_raw',
                     descending: true,
-                    nullsFirst: undefined,
                 },
             ],
             limit: 500,
@@ -376,7 +373,6 @@ const createCustomDimensionChart = (projectUuid: string) => {
                     {
                         fieldId: 'orders_total_order_amount',
                         descending: true,
-                        nullsFirst: undefined,
                     },
                 ],
                 limit: 500,

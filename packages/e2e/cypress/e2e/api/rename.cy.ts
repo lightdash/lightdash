@@ -28,7 +28,6 @@ describe('Rename Chart API', () => {
                         {
                             fieldId: 'orders_type',
                             descending: false,
-                            nullsFirst: undefined,
                         },
                     ],
                     limit: 500,
@@ -106,7 +105,6 @@ describe('Rename Chart API', () => {
                         {
                             fieldId: 'purchases_type',
                             descending: false,
-                            nullsFirst: undefined,
                         },
                     ],
                     limit: 500,

@@ -287,7 +287,6 @@ export function reducer(
                     draft.unsavedChartVersion.metricQuery.sorts.push({
                         fieldId: sortFieldId,
                         descending: false,
-                        nullsFirst: undefined,
                     });
                 } else if (sortField.descending) {
                     draft.unsavedChartVersion.metricQuery.sorts =
@@ -1003,7 +1002,7 @@ const ExplorerProvider: FC<
         ) => {
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
-                payload: { fieldId, nullsFirst: undefined, ...options },
+                payload: { fieldId, ...options },
             });
         },
         [],

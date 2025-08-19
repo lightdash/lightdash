@@ -39,7 +39,6 @@ describe('Explore', () => {
                     {
                         fieldId: 'events_in_eur',
                         descending: true,
-                        nullsFirst: undefined,
                     },
                 ],
                 limit: 1,
