@@ -17,6 +17,7 @@ import {
     PanelResizeHandle,
     type ImperativePanelHandle,
 } from 'react-resizable-panels';
+import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
@@ -37,10 +38,14 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     Header,
     children,
 }) => {
+    const { agentUuid, threadUuid, projectUuid } = useParams();
     const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
     const artifactPanelRef = useRef<ImperativePanelHandle>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [contextArtifact, setContextArtifact] = useState<ReactNode>(null);
+    const [contextArtifact, setContextArtifact] = useState<{
+        id: string;
+        content: ReactNode;
+    } | null>(null);
 
     const updateCollapsedState = () => {
         const isCollapsed = sidebarPanelRef.current?.isCollapsed() ?? false;
@@ -76,14 +81,25 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         artifactPanelRef.current?.expand();
     };
 
-    const setArtifact = (artifact: ReactNode) => {
-        setContextArtifact(artifact);
+    const setArtifact = (artifact: ReactNode, id: string) => {
+        setContextArtifact({ id, content: artifact });
 
         if (artifactPanelRef.current?.isCollapsed()) {
             expandArtifact();
             collapseSidebar();
         }
     };
+
+    const clearArtifact = () => {
+        setContextArtifact(null);
+        collapseArtifact();
+    };
+
+    useEffect(() => {
+        if (contextArtifact) {
+            clearArtifact();
+        }
+    }, [agentUuid, threadUuid, projectUuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const contextValue: AiAgentPageLayoutContextType = {
         isSidebarCollapsed,
@@ -92,6 +108,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         toggleSidebar,
         collapseArtifact,
         expandArtifact,
+        clearArtifact,
         artifact: contextArtifact,
         setArtifact,
     };
@@ -148,21 +165,18 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     </Panel>
 
                     {contextArtifact && (
-                        <PanelResizeHandle
-                            className={styles.resizeHandle}
-                            disabled={!contextArtifact}
-                        />
+                        <PanelResizeHandle className={styles.resizeHandle} />
                     )}
 
                     <Panel
                         id="artifact"
                         ref={artifactPanelRef}
                         defaultSize={0}
-                        minSize={60}
+                        minSize={50}
                         collapsible
                         collapsedSize={0}
                     >
-                        {contextArtifact}
+                        {contextArtifact?.content}
                     </Panel>
                 </ErrorBoundary>
             </PanelGroup>

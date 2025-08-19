@@ -8,6 +8,7 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Box,
     Button,
     Center,
     CopyButton,
@@ -33,7 +34,7 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
@@ -42,14 +43,17 @@ import {
     useAiAgentThreadMessageVizQuery,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
+import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
 import { useAiAgentThreadStreamMutation } from '../../streaming/useAiAgentThreadStreamMutation';
 import {
+    useAiAgentThreadMessageJustCompleted,
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiChartVisualization } from './AiChartVisualization';
+import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
@@ -272,6 +276,8 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({ message, isPreview = false, isActive = false, debug = false }) => {
         const { agentUuid, projectUuid } = useParams();
+        const layoutContext = useAiAgentPageLayout();
+        const { clearMessageJustCompleted } = useAiAgentThreadStreamMutation();
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
@@ -343,6 +349,79 @@ export const AssistantBubble: FC<Props> = memo(
             message.uuid,
         );
 
+        const justCompleted = useAiAgentThreadMessageJustCompleted(
+            message.threadUuid,
+            message.uuid,
+        );
+
+        const renderVisualization = useCallback(() => {
+            return (
+                <Box h="100%" p="md">
+                    {isQueryLoading ? (
+                        <Center>
+                            <Loader
+                                type="dots"
+                                color="gray"
+                                delayedMessage="Loading visualization..."
+                            />
+                        </Center>
+                    ) : isQueryError ? (
+                        <Stack gap="xs" align="center" justify="center">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                color="gray"
+                            />
+                            <Text size="xs" c="dimmed" ta="center">
+                                Something went wrong generating the
+                                visualization, please try again
+                            </Text>
+                        </Stack>
+                    ) : (
+                        <AiChartVisualization
+                            results={queryResults}
+                            message={message}
+                            queryExecutionHandle={queryExecutionHandle}
+                            projectUuid={projectUuid}
+                        />
+                    )}
+                </Box>
+            );
+        }, [
+            isQueryLoading,
+            isQueryError,
+            queryResults,
+            message,
+            queryExecutionHandle,
+            projectUuid,
+        ]);
+
+        useEffect(() => {
+            // We want to auto-open artifact for messages that just completed streaming and have viz
+            // in the future, we want to track the viz calls to start showing artifact while streaming
+            if (
+                justCompleted &&
+                isVisualizationAvailable &&
+                !isQueryError &&
+                !isQueryLoading &&
+                queryResults &&
+                layoutContext
+            ) {
+                layoutContext.setArtifact(renderVisualization(), message.uuid);
+                clearMessageJustCompleted(message.threadUuid);
+            }
+        }, [
+            justCompleted,
+            isVisualizationAvailable,
+            isQueryError,
+            isQueryLoading,
+            queryResults,
+            renderVisualization,
+            layoutContext,
+            clearMessageJustCompleted,
+            message.threadUuid,
+            message.uuid,
+        ]);
+
         return (
             <Stack
                 pos="relative"
@@ -361,55 +440,45 @@ export const AssistantBubble: FC<Props> = memo(
                     agentUuid={agentUuid}
                 />
 
-                {isVisualizationAvailable && (
-                    <Paper
-                        withBorder
-                        radius="md"
-                        p="md"
-                        h="500px"
-                        shadow="none"
-                        {...((queryExecutionHandle.isError ||
-                            queryExecutionHandle.isLoading) && {
-                            bg: 'gray.0',
-                            style: {
-                                borderStyle: 'dashed',
-                            },
-                        })}
-                    >
-                        {isQueryLoading ? (
-                            <Center h="100%">
-                                <Loader
-                                    type="dots"
-                                    color="gray"
-                                    delayedMessage="Loading visualization..."
-                                />
-                            </Center>
-                        ) : isQueryError ? (
-                            <Stack
-                                gap="xs"
-                                align="center"
-                                justify="center"
-                                h="100%"
-                            >
-                                <MantineIcon
-                                    icon={IconExclamationCircle}
-                                    color="gray"
-                                />
-                                <Text size="xs" c="dimmed" ta="center">
-                                    Something went wrong generating the
-                                    visualization, please try again
-                                </Text>
-                            </Stack>
-                        ) : (
-                            <AiChartVisualization
-                                results={queryResults}
-                                message={message}
-                                queryExecutionHandle={queryExecutionHandle}
-                                projectUuid={projectUuid}
-                            />
-                        )}
-                    </Paper>
-                )}
+                {isVisualizationAvailable ? (
+                    // Are we rendering this in main layout?
+                    layoutContext ? (
+                        <AiArtifactButton
+                            onClick={() => {
+                                layoutContext.setArtifact(
+                                    renderVisualization(),
+                                    message.uuid,
+                                );
+                            }}
+                            isLoading={isQueryLoading}
+                            isArtifactOpen={
+                                layoutContext?.artifact?.id === message.uuid
+                            }
+                            vizType={vizConfig?.type}
+                            title={vizConfig?.vizTool?.title}
+                            description={vizConfig?.vizTool?.description}
+                        />
+                    ) : (
+                        // We are displaying this in places where there are no layout panels (conversations page)
+                        <Paper
+                            withBorder
+                            radius="md"
+                            p="md"
+                            h="500px"
+                            shadow="none"
+                            {...((queryExecutionHandle.isError ||
+                                queryExecutionHandle.isLoading) && {
+                                bg: 'gray.0',
+                                style: {
+                                    borderStyle: 'dashed',
+                                },
+                            })}
+                        >
+                            {renderVisualization()}
+                        </Paper>
+                    )
+                ) : null}
+
                 <Group gap={0} display={isPreview ? 'none' : 'flex'}>
                     <CopyButton value={message.message ?? ''}>
                         {({ copied, copy }) => (
