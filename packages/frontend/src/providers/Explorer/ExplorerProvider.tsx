@@ -6,6 +6,7 @@ import {
     getAvailableParametersFromTables,
     getFieldRef,
     getItemId,
+    isTimeZone,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
     removeEmptyProperties,
@@ -25,7 +26,6 @@ import {
     type SavedChart,
     type SortField,
     type TableCalculation,
-    type TimeZone,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -1003,11 +1003,13 @@ const ExplorerProvider: FC<
         });
     }, []);
 
-    const setTimeZone = useCallback((timezone: TimeZone) => {
-        dispatch({
-            type: ActionType.SET_TIME_ZONE,
-            payload: timezone,
-        });
+    const setTimeZone = useCallback((timezone: string | null) => {
+        if (timezone && isTimeZone(timezone)) {
+            dispatch({
+                type: ActionType.SET_TIME_ZONE,
+                payload: timezone,
+            });
+        }
     }, []);
 
     const setFilters = useCallback((filters: MetricQuery['filters']) => {

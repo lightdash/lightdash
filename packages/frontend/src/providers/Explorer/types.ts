@@ -321,7 +321,7 @@ export interface ExplorerContextType {
         removeSortField: (fieldId: FieldId) => void;
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
         setRowLimit: (limit: number) => void;
-        setTimeZone: (timezone: TimeZone) => void;
+        setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;
         setParameter: (key: string, value: string | string[] | null) => void;
         clearAllParameters: () => void;
