@@ -1260,12 +1260,17 @@ export class ProjectModel {
         }));
     }
 
+    /* 
+    @deprecated
+    Use RolesService assign to role user instead 
+    */
     async createProjectAccess(
         projectUuid: string,
         email: string,
         role: ProjectMemberRole,
     ): Promise<void> {
         try {
+            // TODO copy custom roles too
             const [project] = await this.database('projects')
                 .select('project_id', 'organization_id')
                 .where('project_uuid', projectUuid);

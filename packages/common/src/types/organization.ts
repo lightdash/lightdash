@@ -108,6 +108,7 @@ export function isAllowedEmailDomainsRole(
     return AllowedEmailDomainsRoles.includes(role as AnyType);
 }
 
+// TODO include custom roles
 export type AllowedEmailDomainProjectsRole =
     | ProjectMemberRole.EDITOR
     | ProjectMemberRole.INTERACTIVE_VIEWER

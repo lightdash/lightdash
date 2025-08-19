@@ -15,6 +15,13 @@ export const isOrganizationMemberRole = (
 ): x is OrganizationMemberRole =>
     Object.values(OrganizationMemberRole).includes(x as OrganizationMemberRole);
 
+export const isSystemOrganizationRole = (
+    role: OrganizationMemberRole | string,
+): role is OrganizationMemberRole =>
+    Object.values(OrganizationMemberRole).includes(
+        role as OrganizationMemberRole,
+    );
+
 /**
  * Profile for a user's membership in an organization
  */
@@ -36,7 +43,8 @@ export type OrganizationMemberProfile = {
     /**
      * The role of the user in the organization
      */
-    role: OrganizationMemberRole;
+    role: OrganizationMemberRole | string; // Role name, it could be a system role, or a custom role name
+    roleUuid?: string; // For custom roles
     /**
      * Whether the user can login
      */

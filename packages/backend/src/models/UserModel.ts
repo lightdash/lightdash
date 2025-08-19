@@ -482,12 +482,18 @@ export class UserModel {
                 'project_memberships.project_id',
                 'projects.project_id',
             )
+            .leftJoin(
+                'roles',
+                'roles.role_uuid',
+                'project_memberships.role_uuid',
+            )
             .select('*')
             .where('user_id', userId);
 
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
-            role: membership.role || ProjectMemberRole.VIEWER,
+            role:
+                membership.name || membership.role || ProjectMemberRole.VIEWER, // First use custom role name if exists, otherwise use deprecated memberhship role
             userUuid,
         }));
     }
@@ -517,7 +523,7 @@ export class UserModel {
         const projectMemberships = await query;
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
-            role: membership.role,
+            role: membership.role, // TODO support custom roles
             userUuid,
         }));
     }

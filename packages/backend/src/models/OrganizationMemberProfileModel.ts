@@ -21,6 +21,7 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import { RolesTableName } from '../database/entities/roles';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
@@ -206,6 +207,11 @@ export class OrganizationMemberProfileModel {
                 `${GroupMembershipTableName}.group_uuid`,
                 `${GroupTableName}.group_uuid`,
             )
+            .leftJoin(
+                RolesTableName,
+                `${OrganizationMembershipsTableName}.role_uuid`,
+                `${RolesTableName}.role_uuid`,
+            )
             .where(
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
@@ -227,6 +233,8 @@ export class OrganizationMemberProfileModel {
                 `${EmailTableName}.email`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${OrganizationMembershipsTableName}.role`,
+                `${RolesTableName}.name`,
+                `${RolesTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
             )
             .select(
@@ -237,7 +245,10 @@ export class OrganizationMemberProfileModel {
                 `${UserTableName}.is_active`,
                 `${EmailTableName}.email`,
                 `${OrganizationTableName}.organization_uuid`,
-                `${OrganizationMembershipsTableName}.role`,
+                this.database.raw(
+                    `COALESCE(${RolesTableName}.name, ${OrganizationMembershipsTableName}.role) as role`,
+                ),
+                `${RolesTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
                 `${UserTableName}.created_at as user_created_at`,
                 `${UserTableName}.updated_at as user_updated_at`,

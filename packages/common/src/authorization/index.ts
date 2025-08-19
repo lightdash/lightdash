@@ -1,5 +1,9 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import {
+    isSystemProjectRole,
+    ProjectMemberRole,
+} from '../types/projectMemberRole';
 import { type LightdashUser } from '../types/user';
 import applyOrganizationMemberAbilities, {
     type OrganizationMemberAbilitiesArgs,
@@ -40,10 +44,18 @@ export const getUserAbilityBuilder = ({
             permissionsConfig,
         });
         projectProfiles.forEach((projectProfile) => {
-            projectMemberAbilities[projectProfile.role](
-                projectProfile,
-                builder,
-            );
+            if (isSystemProjectRole(projectProfile.role)) {
+                projectMemberAbilities[projectProfile.role](
+                    projectProfile,
+                    builder,
+                );
+            } else {
+                // TODO implement custom role ability builder
+                projectMemberAbilities[ProjectMemberRole.VIEWER](
+                    projectProfile,
+                    builder,
+                );
+            }
         });
     }
     return builder;

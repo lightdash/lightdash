@@ -746,6 +746,7 @@ export class ValidationService extends BaseService {
         projectUuid: string,
         validations: ValidationResponse[],
     ): Promise<ValidationResponse[]> {
+        // TODO replace with ability check
         if (user.role === OrganizationMemberRole.ADMIN) return validations;
 
         const spaces = await this.spaceModel.find({ projectUuid });

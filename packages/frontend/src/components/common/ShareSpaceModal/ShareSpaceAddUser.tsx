@@ -121,6 +121,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         const projectUserUuids =
             projectAccess?.map((project) => project.userUuid) || [];
 
+        // TODO replace with ability check
         const orgUserUuids =
             organizationUsers
                 ?.filter((user) => user.role !== OrganizationMemberRole.MEMBER)

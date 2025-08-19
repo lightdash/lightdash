@@ -1,13 +1,15 @@
 import {
     FeatureFlags,
+    OrganizationMemberRole,
     ProjectMemberRole,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToOrganizationRole,
     getHighestProjectRole,
     isGroupWithMembers,
+    isSystemOrganizationRole,
+    isSystemProjectRole,
     type InheritedRoles,
     type OrganizationMemberProfile,
-    type OrganizationMemberRole,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useProjectGroupAccessList } from '../features/projectGroupAccess/hooks/useProjectGroupAccess';
@@ -52,7 +54,10 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
         >((acc, orgUser) => {
             return {
                 ...acc,
-                [orgUser.userUuid]: orgUser.role,
+                // TODO fix for custom roles
+                [orgUser.userUuid]: isSystemOrganizationRole(orgUser.role)
+                    ? orgUser.role
+                    : OrganizationMemberRole.VIEWER,
             };
         }, {});
     }, [organizationUsersQuery, projectAccessQuery]);
@@ -105,7 +110,12 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
         >((acc, projectMember) => {
             return {
                 ...acc,
-                [projectMember.userUuid]: projectMember.role,
+                // TODO fix for custom roles
+                [projectMember.userUuid]: isSystemProjectRole(
+                    projectMember.role,
+                )
+                    ? projectMember.role
+                    : ProjectMemberRole.VIEWER,
             };
         }, {});
     }, [projectAccessQuery]);
@@ -148,9 +158,13 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
             const hasProjectRole = !!projectRoles[orgUser.userUuid];
             const inheritedRole = highestRole?.role
                 ? convertProjectRoleToOrganizationRole(highestRole.role)
-                : orgUser.role;
+                : isSystemOrganizationRole(orgUser.role)
+                ? orgUser.role
+                : OrganizationMemberRole.VIEWER;
             return {
                 ...orgUser,
+                // TODO replace with ability check
+
                 role:
                     projectRoles[orgUser.userUuid] || ProjectMemberRole.VIEWER,
                 finalRole: hasProjectRole
