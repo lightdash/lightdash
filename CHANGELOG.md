@@ -1,3 +1,15 @@
+# [0.1935.0](https://github.com/lightdash/lightdash/compare/0.1934.0...0.1935.0) (2025-08-19)
+
+
+### Bug Fixes
+
+* add explore to combine parameters ([#16472](https://github.com/lightdash/lightdash/issues/16472)) ([ea7e2fe](https://github.com/lightdash/lightdash/commit/ea7e2fe69285e220e634fd12e4664fd060492498))
+
+
+### Features
+
+* add nulls_first option to sort fields ([#16274](https://github.com/lightdash/lightdash/issues/16274)) ([c058636](https://github.com/lightdash/lightdash/commit/c05863687466ba8b4642a1578e3976bed97527c4))
+
 # [0.1934.0](https://github.com/lightdash/lightdash/compare/0.1933.1...0.1934.0) (2025-08-19)
 
 
