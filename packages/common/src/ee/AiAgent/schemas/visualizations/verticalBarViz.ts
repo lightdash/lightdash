@@ -80,7 +80,10 @@ export const metricQueryVerticalBarViz = (
         metrics,
         dimensions,
         limit: getValidAiQueryLimit(limit, maxLimit),
-        sorts,
+        sorts: sorts.map((sort) => ({
+            ...sort,
+            nullsFirst: sort.nullsFirst ?? undefined,
+        })),
         exploreName: vizConfig.exploreName,
         filters,
     };

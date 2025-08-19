@@ -1,3 +1,58 @@
+# [0.1936.0](https://github.com/lightdash/lightdash/compare/0.1935.1...0.1936.0) (2025-08-19)
+
+
+### Features
+
+* enable table calcs referencing other table calcs ([#16465](https://github.com/lightdash/lightdash/issues/16465)) ([1b140c8](https://github.com/lightdash/lightdash/commit/1b140c8e50261d78b741c8fbfd3313f502b54094))
+
+## [0.1935.1](https://github.com/lightdash/lightdash/compare/0.1935.0...0.1935.1) (2025-08-19)
+
+
+### Bug Fixes
+
+* allow non-git projects to update warehouse configuration ([#16482](https://github.com/lightdash/lightdash/issues/16482)) ([cbc6e79](https://github.com/lightdash/lightdash/commit/cbc6e796cb196781f15c21ac52074d25d1480c3a))
+
+# [0.1935.0](https://github.com/lightdash/lightdash/compare/0.1934.0...0.1935.0) (2025-08-19)
+
+
+### Bug Fixes
+
+* add explore to combine parameters ([#16472](https://github.com/lightdash/lightdash/issues/16472)) ([ea7e2fe](https://github.com/lightdash/lightdash/commit/ea7e2fe69285e220e634fd12e4664fd060492498))
+
+
+### Features
+
+* add nulls_first option to sort fields ([#16274](https://github.com/lightdash/lightdash/issues/16274)) ([c058636](https://github.com/lightdash/lightdash/commit/c05863687466ba8b4642a1578e3976bed97527c4))
+
+# [0.1934.0](https://github.com/lightdash/lightdash/compare/0.1933.1...0.1934.0) (2025-08-19)
+
+
+### Features
+
+* model level parameters on joined tables ([#16419](https://github.com/lightdash/lightdash/issues/16419)) ([6cb3445](https://github.com/lightdash/lightdash/commit/6cb3445b3cc87bada90cfacf7a084b9d1de3b130))
+
+## [0.1933.1](https://github.com/lightdash/lightdash/compare/0.1933.0...0.1933.1) (2025-08-19)
+
+
+### Bug Fixes
+
+* slack client listener initialization ([#16439](https://github.com/lightdash/lightdash/issues/16439)) ([0f826d6](https://github.com/lightdash/lightdash/commit/0f826d692b596734577bb6e48b538697dbfca79a))
+
+# [0.1933.0](https://github.com/lightdash/lightdash/compare/0.1932.0...0.1933.0) (2025-08-19)
+
+
+### Features
+
+* add global Mantine8Provider to simplify component theming ([#16409](https://github.com/lightdash/lightdash/issues/16409)) ([8de0a5f](https://github.com/lightdash/lightdash/commit/8de0a5fcd597fb55b429cb00f4c40e91ab61669a))
+
+# [0.1932.0](https://github.com/lightdash/lightdash/compare/0.1931.0...0.1932.0) (2025-08-19)
+
+
+### Features
+
+* add chart URLs to dashboard search results ([#16429](https://github.com/lightdash/lightdash/issues/16429)) ([6163216](https://github.com/lightdash/lightdash/commit/61632165621638064694c4df47aa837af74e09da))
+* add e2e tests for enhanced dashboard and chart search API ([#16426](https://github.com/lightdash/lightdash/issues/16426)) ([c26da83](https://github.com/lightdash/lightdash/commit/c26da83d4f94e44886d4b00a8273e87d03a4ffbb))
+
 # [0.1931.0](https://github.com/lightdash/lightdash/compare/0.1930.3...0.1931.0) (2025-08-18)
 
 

@@ -83,6 +83,7 @@ export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
 export type SortField = {
     fieldId: string; // Field must exist in the explore
     descending: boolean; // Direction of the sort
+    nullsFirst?: boolean; // Whether to sort nulls first
 };
 
 export const getAdditionalMetricLabel = (item: AdditionalMetric) =>

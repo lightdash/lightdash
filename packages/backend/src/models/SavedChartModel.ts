@@ -243,6 +243,7 @@ const createSavedChartVersion = async (
                 field_name: sort.fieldId,
                 descending: sort.descending,
                 saved_queries_version_id: version.saved_queries_version_id,
+                nulls_first: sort.nullsFirst ?? null,
                 order: index,
             })),
         );
@@ -897,7 +898,7 @@ export class SavedChartModel {
                     .orderBy('order', 'asc');
 
                 const sortsQuery = this.database('saved_queries_version_sorts')
-                    .select(['field_name', 'descending'])
+                    .select(['field_name', 'descending', 'nulls_first'])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .orderBy('order', 'asc');
                 const tableCalculationsQuery = this.database(
@@ -1036,6 +1037,7 @@ export class SavedChartModel {
                         sorts: sorts.map<SortField>((sort) => ({
                             fieldId: sort.field_name,
                             descending: sort.descending,
+                            nullsFirst: sort.nulls_first ?? undefined,
                         })),
                         limit: savedQuery.row_limit,
                         metricOverrides:

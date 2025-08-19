@@ -47,4 +47,5 @@ routes:
 # this is required to fix an issue with nullable types when using Pick, Partial, etc...
 # https://github.com/lukeautry/tsoa/issues/1515
 compilerOptions:
+    strict: true
     strictNullChecks: true

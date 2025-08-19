@@ -66,6 +66,7 @@ import {
     formatRawRows,
     formatRows,
     getAggregatedField,
+    getAvailableParametersFromTables,
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
@@ -1815,10 +1816,7 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
 
-        return combineProjectAndExploreParameters(
-            projectParameters,
-            explore.parameters,
-        );
+        return combineProjectAndExploreParameters(projectParameters, explore);
     }
 
     async compileQuery(
@@ -5253,18 +5251,11 @@ export class ProjectService extends BaseService {
     async _calculateTotal(
         account: Account,
         projectUuid: string,
-        exploreName: string,
+        explore: Explore,
         metricQuery: MetricQuery,
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            exploreName,
-            organizationUuid,
-        );
-
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials({
@@ -5311,7 +5302,7 @@ export class ProjectService extends BaseService {
             ...this.getUserQueryTags(account),
             organization_uuid: account.organization.organizationUuid,
             project_uuid: projectUuid,
-            explore_name: exploreName,
+            explore_name: explore.name,
             query_context: QueryExecutionContext.CALCULATE_TOTAL,
         };
 
@@ -5461,6 +5452,7 @@ export class ProjectService extends BaseService {
 
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            explore,
             parameters,
             savedChart.parameters,
         );
@@ -5507,15 +5499,23 @@ export class ProjectService extends BaseService {
             throw new CustomSqlQueryForbiddenError();
         }
 
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            data.explore,
+            organizationUuid,
+        );
+
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            explore,
             data.parameters,
         );
 
         const results = await this._calculateTotal(
             account,
             projectUuid,
-            data.explore,
+            explore,
             data.metricQuery,
             organizationUuid,
             combinedParameters,
@@ -5527,6 +5527,7 @@ export class ProjectService extends BaseService {
         account: Account,
         projectUuid: string,
         data: CalculateSubtotalsFromQuery,
+        explore: Explore,
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
@@ -5536,13 +5537,6 @@ export class ProjectService extends BaseService {
             columnOrder,
             pivotDimensions,
         } = data;
-
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            exploreName,
-            organizationUuid,
-        );
 
         // Use the shared utility to prepare dimension groups
         const { dimensionGroupsToSubtotal, analyticsData } =
@@ -5654,8 +5648,16 @@ export class ProjectService extends BaseService {
             throw new CustomSqlQueryForbiddenError();
         }
 
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            data.explore,
+            organizationUuid,
+        );
+
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            explore,
             data.parameters,
         );
 
@@ -5664,6 +5666,7 @@ export class ProjectService extends BaseService {
             account,
             projectUuid,
             data,
+            explore,
             organizationUuid,
             combinedParameters,
         );
@@ -6550,15 +6553,18 @@ export class ProjectService extends BaseService {
      * Combines parameter values from multiple sources in order of priority:
      * 1. Request parameters (highest priority)
      * 2. Saved chart/dashboard parameters
-     * 3. Default parameter values (lowest priority)
+     * 3. Default explore parameters values
+     * 4. Default project parameters values(lowest priority)
      */
     public async combineParameters(
         projectUuid: string,
+        explore?: Explore,
         requestParameters?: ParametersValuesMap,
         savedParameters?: ParametersValuesMap,
     ): Promise<ParametersValuesMap> {
         // Get default values for parameters
-        const defaultParameters: ParametersValuesMap = {};
+        const projectDefaultParameterValues: ParametersValuesMap = {};
+
         // Fetch all parameters
         const parameterConfigs = await this.projectParametersModel.find(
             projectUuid,
@@ -6566,14 +6572,25 @@ export class ProjectService extends BaseService {
 
         for (const paramConfig of parameterConfigs) {
             if (paramConfig.config.default !== undefined) {
-                defaultParameters[paramConfig.name] =
+                projectDefaultParameterValues[paramConfig.name] =
                     paramConfig.config.default;
             }
         }
 
-        // Combine in order of priority: defaults < saved chart < dashboard < request
+        const exploreParameters = explore
+            ? getAvailableParametersFromTables(Object.values(explore.tables))
+            : [];
+
+        const exploreDefaultParameterValues = Object.fromEntries(
+            Object.entries(exploreParameters)
+                .map(([key, value]) => [key, value.default])
+                .filter(([key, value]) => value !== undefined),
+        );
+
+        // Combine in order of priority: defaults (project / explore) < saved parameters (chart/dashboard) < request
         return {
-            ...defaultParameters,
+            ...projectDefaultParameterValues,
+            ...exploreDefaultParameterValues,
             ...(savedParameters || {}),
             ...(requestParameters || {}),
         };

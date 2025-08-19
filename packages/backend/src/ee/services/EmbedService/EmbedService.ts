@@ -641,10 +641,7 @@ export class EmbedService extends BaseService {
         const projectParameters =
             await this.projectService.projectParametersModel.find(projectUuid);
 
-        return combineProjectAndExploreParameters(
-            projectParameters,
-            explore.parameters,
-        );
+        return combineProjectAndExploreParameters(projectParameters, explore);
     }
 
     private async _runEmbedQuery({
@@ -853,6 +850,7 @@ export class EmbedService extends BaseService {
         // No parameters are passed in embed requests, just combine the saved parameters
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
+            explore,
             {},
             dashboardParameters,
         );
@@ -989,6 +987,7 @@ export class EmbedService extends BaseService {
         // No parameters are passed in embed requests, just combine the saved parameters
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
+            explore,
             {},
             dashboardParameters,
         );
@@ -1067,6 +1066,7 @@ export class EmbedService extends BaseService {
         // No parameters are passed in embed requests, just combine the saved parameters
         const combinedParameters = await this.projectService.combineParameters(
             projectUuid,
+            explore,
             {},
             dashboardParameters,
         );

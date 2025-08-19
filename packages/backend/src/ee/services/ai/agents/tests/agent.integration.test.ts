@@ -4,7 +4,6 @@ import {
     AVAILABLE_VISUALIZATION_TYPES,
     CatalogType,
     isDateItem,
-    toolTimeSeriesArgsSchema,
 } from '@lightdash/common';
 import moment from 'moment';
 import { beforeAll, describe, expect, it } from 'vitest';

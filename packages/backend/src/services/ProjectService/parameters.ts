@@ -1,10 +1,16 @@
-import type {
-    DashboardDAO,
-    Explore,
-    ParametersValuesMap,
+import {
+    getAvailableParametersFromTables,
+    type DashboardDAO,
+    type Explore,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 
+/**
+ * Convert dashboard parameters to ParametersValuesMap format
+ * @param dashboard - The dashboard
+ * @returns The dashboard parameters in ParametersValuesMap format
+ */
 export const getDashboardParametersValuesMap = (
     dashboard: DashboardDAO,
 ): ParametersValuesMap | undefined => {
@@ -23,17 +29,19 @@ export const getDashboardParametersValuesMap = (
 /**
  * Combine project and explore parameters
  * @param projectParameters - The project parameters
- * @param exploreParameters - The explore parameters
+ * @param explore - The explore
  * @returns An array of available parameter names
  */
 export const combineProjectAndExploreParameters = (
     projectParameters: DbProjectParameter[],
-    exploreParameters: Explore['parameters'],
+    explore: Explore,
 ): string[] => {
     const projectParameterNames = projectParameters.map(
         (parameter) => parameter.name,
     );
-    const exploreParameterNames = Object.keys(exploreParameters || {});
+    const exploreParameters = getAvailableParametersFromTables(
+        Object.values(explore.tables),
+    );
 
-    return [...projectParameterNames, ...exploreParameterNames];
+    return [...projectParameterNames, ...Object.keys(exploreParameters)];
 };

@@ -53,5 +53,5 @@ app.get(
 <links>
 @/packages/backend/src/controllers/ - Source controller files that generate these routes
 @/packages/backend/package.json - Contains generate-api script definition
-@/packages/backend/tsoa.json - TSOA configuration for route generation
+@/packages/backend/tsoa.yml - TSOA configuration for route generation
 </links>

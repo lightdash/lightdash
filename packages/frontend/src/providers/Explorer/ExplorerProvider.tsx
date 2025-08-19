@@ -3,8 +3,10 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
+    getAvailableParametersFromTables,
     getFieldRef,
     getItemId,
+    isTimeZone,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
     removeEmptyProperties,
@@ -19,11 +21,11 @@ import {
     type FieldId,
     type Metric,
     type MetricQuery,
+    type ParameterDefinitions,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
-    type TimeZone,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -340,6 +342,16 @@ export function reducer(
 
                 const [removed] = sorts.splice(sourceIndex, 1);
                 sorts.splice(destinationIndex, 0, removed);
+            });
+        }
+        case ActionType.SET_SORT_FIELD_NULLS_FIRST: {
+            return produce(state, (newState) => {
+                newState.unsavedChartVersion.metricQuery.sorts =
+                    newState.unsavedChartVersion.metricQuery.sorts.map((sf) =>
+                        sf.fieldId === action.payload.fieldId
+                            ? { ...sf, nullsFirst: action.payload.nullsFirst }
+                            : sf,
+                    );
             });
         }
         case ActionType.SET_ROW_LIMIT: {
@@ -984,11 +996,23 @@ const ExplorerProvider: FC<
     const addSortField = useCallback(
         (
             fieldId: FieldId,
-            options: { descending: boolean } = { descending: false },
+            options: {
+                descending: boolean;
+            } = { descending: false },
         ) => {
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
                 payload: { fieldId, ...options },
+            });
+        },
+        [],
+    );
+
+    const setSortFieldNullsFirst = useCallback(
+        (fieldId: FieldId, nullsFirst: boolean | undefined) => {
+            dispatch({
+                type: ActionType.SET_SORT_FIELD_NULLS_FIRST,
+                payload: { fieldId, nullsFirst },
             });
         },
         [],
@@ -1001,11 +1025,13 @@ const ExplorerProvider: FC<
         });
     }, []);
 
-    const setTimeZone = useCallback((timezone: TimeZone) => {
-        dispatch({
-            type: ActionType.SET_TIME_ZONE,
-            payload: timezone,
-        });
+    const setTimeZone = useCallback((timezone: string | null) => {
+        if (timezone && isTimeZone(timezone)) {
+            dispatch({
+                type: ActionType.SET_TIME_ZONE,
+                payload: timezone,
+            });
+        }
     }, []);
 
     const setFilters = useCallback((filters: MetricQuery['filters']) => {
@@ -1295,12 +1321,18 @@ const ExplorerProvider: FC<
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
-    const parameterDefinitions = useMemo(() => {
+    const exploreParameterDefinitions = useMemo(() => {
+        return explore
+            ? getAvailableParametersFromTables(Object.values(explore.tables))
+            : {};
+    }, [explore]);
+
+    const parameterDefinitions: ParameterDefinitions = useMemo(() => {
         return {
-            ...projectParameters,
-            ...(explore?.parameters ?? {}),
+            ...(projectParameters ?? {}),
+            ...(exploreParameterDefinitions ?? {}),
         };
-    }, [projectParameters, explore?.parameters]);
+    }, [projectParameters, exploreParameterDefinitions]);
 
     const missingRequiredParameters = useMemo(() => {
         // If no required parameters are set, return null, this will disable query execution
@@ -1578,6 +1610,7 @@ const ExplorerProvider: FC<
             addSortField,
             removeSortField,
             moveSortFields,
+            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,
@@ -1622,6 +1655,7 @@ const ExplorerProvider: FC<
             addSortField,
             removeSortField,
             moveSortFields,
+            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,
