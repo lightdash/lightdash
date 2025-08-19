@@ -515,6 +515,20 @@ const scopes: Scope[] = [
         getConditions: addDefaultOrgIdCondition,
     },
     {
+        name: 'create:VirtualView',
+        description: 'Create virtual views',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultOrgIdCondition,
+    },
+    {
+        name: 'delete:VirtualView',
+        description: 'Delete virtual views',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultOrgIdCondition,
+    },
+    {
         name: 'manage:VirtualView',
         description: 'Create and manage virtual views',
         isEnterprise: false,

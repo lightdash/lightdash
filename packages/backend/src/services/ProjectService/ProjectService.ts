@@ -5886,7 +5886,7 @@ export class ProjectService extends BaseService {
 
         if (
             account.user.ability.cannot(
-                'manage',
+                'create',
                 subject('VirtualView', { organizationUuid, projectUuid }),
             )
         ) {
@@ -5953,7 +5953,7 @@ export class ProjectService extends BaseService {
 
         if (
             account.user.ability.cannot(
-                'manage',
+                'create',
                 subject('VirtualView', { organizationUuid, projectUuid }),
             )
         ) {
@@ -6001,7 +6001,7 @@ export class ProjectService extends BaseService {
 
         if (
             user.ability.cannot(
-                'manage',
+                'delete',
                 subject('VirtualView', { organizationUuid, projectUuid }),
             )
         ) {
