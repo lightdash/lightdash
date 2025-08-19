@@ -8,7 +8,6 @@ import { useParams } from 'react-router';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -101,10 +100,6 @@ const ExplorerHeader: FC = memo(() => {
         'CompileProject',
     );
 
-    const { data: showQueryWarningsEnabled } = useFeatureFlag(
-        FeatureFlags.ShowQueryWarnings,
-    );
-
     return (
         <Group position="apart">
             {typeof onBackToDashboard === 'function' && (
@@ -147,7 +142,6 @@ const ExplorerHeader: FC = memo(() => {
                 )}
 
                 {userCanManageCompileProject &&
-                    showQueryWarningsEnabled?.enabled &&
                     queryWarnings &&
                     queryWarnings.length > 0 && (
                         <QueryWarnings queryWarnings={queryWarnings} />

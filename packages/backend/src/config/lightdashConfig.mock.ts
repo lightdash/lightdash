@@ -179,7 +179,6 @@ export const lightdashConfigMock: LightdashConfig = {
         defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
-        showQueryWarnings: false,
     },
     ai: {
         copilot: {

@@ -1754,7 +1754,6 @@ export class ProjectService extends BaseService {
         userAttributes,
         timezone,
         dateZoom,
-        useExperimentalMetricCtes,
         parameters,
         availableParameters,
     }: {
@@ -1765,7 +1764,6 @@ export class ProjectService extends BaseService {
         userAttributes: UserAttributeValueMap;
         timezone: string;
         dateZoom?: DateZoom;
-        useExperimentalMetricCtes?: boolean;
         parameters?: ParametersValuesMap;
         availableParameters: string[];
     }): Promise<CompiledQuery> {
@@ -1795,10 +1793,8 @@ export class ProjectService extends BaseService {
             availableParameters,
         });
 
-        return wrapSentryTransactionSync(
-            'QueryBuilder.buildQuery',
-            { useExperimentalMetricCtes },
-            () => queryBuilder.compileQuery(useExperimentalMetricCtes),
+        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
+            queryBuilder.compileQuery(),
         );
     }
 
@@ -1876,16 +1872,6 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const { enabled: useExperimentalMetricCtes } =
-            await this.featureFlagModel.get({
-                user: {
-                    userUuid: account.user.id,
-                    organizationUuid: account.organization.organizationUuid,
-                    organizationName: account.organization.name,
-                },
-                featureFlagId: FeatureFlags.ShowQueryWarnings,
-            });
-
         const availableParameters = await this.getAvailableParameters(
             projectUuid,
             explore,
@@ -1898,7 +1884,6 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
-            useExperimentalMetricCtes,
             parameters,
             availableParameters,
         });
@@ -5219,7 +5204,6 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
         availableParameters: string[],
-        useExperimentalMetricCtes?: boolean,
         parameters?: ParametersValuesMap,
     ) {
         const totalQuery: MetricQuery = {
@@ -5240,7 +5224,6 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
-            useExperimentalMetricCtes,
             parameters,
             availableParameters,
         });
@@ -5272,16 +5255,6 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const { enabled: useExperimentalMetricCtes } =
-            await this.featureFlagModel.get({
-                user: {
-                    userUuid: account.user.id,
-                    organizationName: account.organization.name,
-                    organizationUuid: account.organization.organizationUuid,
-                },
-                featureFlagId: FeatureFlags.ShowQueryWarnings,
-            });
-
         const availableParameters = await this.getAvailableParameters(
             projectUuid,
             explore,
@@ -5294,7 +5267,6 @@ export class ProjectService extends BaseService {
             metricQuery,
             warehouseClient,
             availableParameters,
-            useExperimentalMetricCtes,
             parameters,
         );
 
@@ -5348,7 +5320,6 @@ export class ProjectService extends BaseService {
             metricQuery,
             warehouseClient,
             availableParameters,
-            undefined,
             parameters,
         );
 
