@@ -148,9 +148,11 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
             gridWidth: undefined,
             queryFilters: `?${queryParams.toString()}`,
             selectedTabs:
-                isDashboardTabsAvailable && !allTabsSelected
+                isDashboardTabsAvailable &&
+                !allTabsSelected &&
+                selectedTabs.length > 0
                     ? selectedTabs
-                    : undefined,
+                    : null,
         });
     }, [
         previewChoice,
@@ -173,9 +175,11 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
             queryFilters: `?${queryParams.toString()}`,
             isPreview: true,
             selectedTabs:
-                isDashboardTabsAvailable && !allTabsSelected
+                isDashboardTabsAvailable &&
+                !allTabsSelected &&
+                selectedTabs.length > 0
                     ? selectedTabs
-                    : undefined,
+                    : null,
         });
 
         // Store the preview with the proper key
@@ -235,9 +239,11 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
                                         ) || [],
                                     );
                                 } else {
-                                    setSelectedTabs([
-                                        dashboard?.tabs?.[0]?.uuid,
-                                    ]);
+                                    const firstTabUuid =
+                                        dashboard?.tabs?.[0]?.uuid;
+                                    setSelectedTabs(
+                                        firstTabUuid ? [firstTabUuid] : [],
+                                    );
                                 }
                             }}
                         />

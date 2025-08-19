@@ -12,6 +12,7 @@ import {
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
+    ParameterError,
     QueryHistoryStatus,
     RequestMethod,
     ScreenshotError,
@@ -279,7 +280,7 @@ export class UnfurlService extends BaseService {
 
     async getTitleAndDescription(
         parsedUrl: ParsedUrl,
-        selectedTabs?: string[],
+        selectedTabs: string[] | null,
     ): Promise<
         Pick<
             Unfurl,
@@ -292,8 +293,14 @@ export class UnfurlService extends BaseService {
     > {
         switch (parsedUrl.lightdashPage) {
             case LightdashPage.DASHBOARD:
+                if (selectedTabs && selectedTabs.length === 0) {
+                    throw new ParameterError(
+                        'Selected tabs should not be empty when unfurling dashboard',
+                    );
+                }
+
                 if (!parsedUrl.dashboardUuid)
-                    throw new Error(
+                    throw new ParameterError(
                         `Missing dashboardUuid when unfurling Dashboard URL ${parsedUrl.url}`,
                     );
                 const dashboard = await this.dashboardModel.getById(
@@ -301,12 +308,11 @@ export class UnfurlService extends BaseService {
                 );
 
                 // Filter tiles based on selected tabs if they exist
-                const filteredTiles =
-                    selectedTabs && selectedTabs.length > 0
-                        ? dashboard.tiles.filter((tile) =>
-                              selectedTabs.includes(tile.tabUuid || ''),
-                          )
-                        : dashboard.tiles;
+                const filteredTiles = selectedTabs
+                    ? dashboard.tiles.filter((tile) =>
+                          selectedTabs.includes(tile.tabUuid || ''),
+                      )
+                    : dashboard.tiles;
 
                 return {
                     title: dashboard.name,
@@ -359,8 +365,14 @@ export class UnfurlService extends BaseService {
 
     async unfurlDetails(
         originUrl: string,
-        selectedTabs: string[] = [],
+        selectedTabs: string[] | null,
     ): Promise<Unfurl | undefined> {
+        if (selectedTabs && selectedTabs.length === 0) {
+            throw new ParameterError(
+                'Selected tabs should not be empty when unfurling',
+            );
+        }
+
         const parsedUrl = await this.parseUrl(originUrl);
 
         if (
@@ -445,7 +457,7 @@ export class UnfurlService extends BaseService {
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
-        selectedTabs?: string[];
+        selectedTabs: string[] | null;
     }): Promise<{
         imageUrl?: string;
         pdfFile?: { source: string; fileName: string };
@@ -510,7 +522,7 @@ export class UnfurlService extends BaseService {
         queryFilters: string,
         gridWidth: number | undefined,
         user: SessionUser,
-        selectedTabs?: string[],
+        selectedTabs: string[] | null,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
@@ -518,6 +530,12 @@ export class UnfurlService extends BaseService {
             user.userUuid,
             dashboard.spaceUuid,
         );
+
+        if (selectedTabs && selectedTabs.length === 0) {
+            throw new ParameterError(
+                'Selected tabs should not be empty when exporting dashboard',
+            );
+        }
 
         // Create a new URLSearchParams object for query filters
         const selectedTabsParams = new URLSearchParams();
@@ -622,8 +640,14 @@ export class UnfurlService extends BaseService {
         retries?: number;
         context: ScreenshotContext;
         contextId?: unknown;
-        selectedTabs?: string[];
+        selectedTabs: string[] | null;
     }): Promise<Buffer | undefined> {
+        if (selectedTabs && selectedTabs.length === 0) {
+            throw new ParameterError(
+                'Selected tabs should not be empty when saving screenshot',
+            );
+        }
+
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
                 sqlChartTileUuids,
@@ -1271,7 +1295,7 @@ export class UnfurlService extends BaseService {
 
             try {
                 const { teamId } = context;
-                const details = await this.unfurlDetails(l.url);
+                const details = await this.unfurlDetails(l.url, null);
 
                 if (details) {
                     this.analytics.track({
@@ -1311,6 +1335,7 @@ export class UnfurlService extends BaseService {
                         imageId,
                         authUserUuid,
                         context: ScreenshotContext.SLACK,
+                        selectedTabs: null,
                     });
 
                     if (imageUrl) {
