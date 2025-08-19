@@ -5701,6 +5701,37 @@
             },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "artifact": {
+                        "properties": {
+                            "description": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "title": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "versionNumber": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "description",
+                            "title",
+                            "versionUuid",
+                            "versionNumber",
+                            "uuid"
+                        ],
+                        "type": "object",
+                        "nullable": true
+                    },
                     "savedQueryUuid": {
                         "type": "string",
                         "nullable": true
@@ -5751,6 +5782,7 @@
                     }
                 },
                 "required": [
+                    "artifact",
                     "savedQueryUuid",
                     "toolCalls",
                     "humanScore",
@@ -6129,6 +6161,92 @@
             },
             "ApiAiAgentExploreAccessSummaryResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentExploreAccessSummary-Array_"
+            },
+            "AiArtifact": {
+                "properties": {
+                    "versionCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "vizConfigOutput": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.unknown_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "savedQueryUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactType": {
+                        "type": "string",
+                        "enum": ["chart"],
+                        "nullable": false
+                    },
+                    "promptUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "artifactUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "versionCreatedAt",
+                    "vizConfigOutput",
+                    "description",
+                    "title",
+                    "versionUuid",
+                    "versionNumber",
+                    "createdAt",
+                    "savedQueryUuid",
+                    "artifactType",
+                    "promptUuid",
+                    "threadUuid",
+                    "artifactUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiArtifact_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiArtifact"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentArtifactResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiArtifact_"
             },
             "Role": {
                 "properties": {
@@ -18449,7 +18567,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1933.1",
+        "version": "0.1936.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

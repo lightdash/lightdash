@@ -13,15 +13,15 @@ Content-Type: application/json
 ### =============================================================================
 
 ### List all AI Agents
-GET http://localhost:8080/api/v1/aiAgents
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents
 Content-Type: application/json
 
 ### Get specific AI Agent
-GET http://localhost:8080/api/v1/aiAgents/AGENT_UUID
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AGENT_UUID
 Content-Type: application/json
 
 ### Create AI Agent
-POST http://localhost:8080/api/v1/aiAgents
+POST http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents
 Content-Type: application/json
 
 {
@@ -38,7 +38,7 @@ Content-Type: application/json
 }
 
 ### Update AI Agent
-PATCH http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID
+PATCH http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID
 Content-Type: application/json
 
 {
@@ -49,7 +49,7 @@ Content-Type: application/json
 }
 
 ### Delete AI Agent
-DELETE http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID
+DELETE http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID
 Content-Type: application/json
 
 ### =============================================================================
@@ -57,15 +57,15 @@ Content-Type: application/json
 ### =============================================================================
 
 ### List Agent Threads
-GET http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/threads
 Content-Type: application/json
 
 ### Get specific Agent Thread
-GET http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID
 Content-Type: application/json
 
 ### Start new Agent Thread (create thread with first message)
-POST http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/generate
+POST http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/generate
 Content-Type: application/json
 
 {
@@ -73,7 +73,7 @@ Content-Type: application/json
 }
 
 ### Generate response in existing Agent Thread
-POST http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID/generate
+POST http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID/generate
 Content-Type: application/json
 
 {
@@ -81,17 +81,14 @@ Content-Type: application/json
 }
 
 ### Get Agent Thread Message Visualization
-GET http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID/message/MESSAGE_UUID/viz
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID/message/MESSAGE_UUID/viz
 Content-Type: application/json
 
-### =============================================================================
-### LEGACY AI ENDPOINTS (for reference)
-### =============================================================================
-
-### Dashboard summary
-POST http://localhost:8080/api/v1/ai/PROJECT_UUID/dashboard/DASHBOARD_UUID/summary
+### Get Artifact
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/artifacts/ARTIFACT_UUID
 Content-Type: application/json
 
-{
-    "context": "say something interesting"
-}
+
+### Get Artifact Version
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/artifacts/ARTIFACT_UUID?version=2
+Content-Type: application/json

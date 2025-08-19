@@ -822,6 +822,11 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
+                        ai_artifact_uuid: string | null;
+                        version_number: number | null;
+                        ai_artifact_version_uuid: string | null;
+                        title: string | null;
+                        description: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -838,6 +843,11 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+                `${AiArtifactVersionsTableName}.version_number`,
+                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                `${AiArtifactVersionsTableName}.title`,
+                `${AiArtifactVersionsTableName}.description`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -851,6 +861,16 @@ export class AiAgentModel {
                 AiWebAppPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiArtifactVersionsTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
@@ -894,6 +914,15 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
+                    artifact: row.ai_artifact_uuid
+                        ? {
+                              uuid: row.ai_artifact_uuid,
+                              versionNumber: row.version_number ?? 1,
+                              versionUuid: row.ai_artifact_version_uuid!,
+                              title: row.title,
+                              description: row.description,
+                          }
+                        : null,
                     toolCalls: toolCalls
                         .filter(
                             (
@@ -976,6 +1005,11 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
+                        ai_artifact_uuid: string | null;
+                        version_number: number | null;
+                        ai_artifact_version_uuid: string | null;
+                        title: string | null;
+                        description: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -992,6 +1026,11 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+                `${AiArtifactVersionsTableName}.version_number`,
+                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                `${AiArtifactVersionsTableName}.title`,
+                `${AiArtifactVersionsTableName}.description`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -1015,6 +1054,16 @@ export class AiAgentModel {
                 AiWebAppPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiArtifactVersionsTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
@@ -1061,6 +1110,15 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
+                    artifact: row.ai_artifact_uuid
+                        ? {
+                              uuid: row.ai_artifact_uuid,
+                              versionNumber: row.version_number ?? 1,
+                              versionUuid: row.ai_artifact_version_uuid!,
+                              title: row.title,
+                              description: row.description,
+                          }
+                        : null,
                     toolCalls: toolCalls
                         .filter(
                             (

@@ -1,4 +1,5 @@
 import {
+    AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
     AllChartsSearchResult,
@@ -117,3 +118,12 @@ export type SearchFieldValuesFn = (args: {
     query: string;
     filters?: Filters;
 }) => Promise<string[]>;
+
+export type CreateOrUpdateArtifactFn = (data: {
+    threadUuid: string;
+    promptUuid: string;
+    artifactType: 'chart';
+    title?: string;
+    description?: string;
+    vizConfig: Record<string, unknown>;
+}) => Promise<AiArtifact>;

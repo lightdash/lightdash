@@ -1,4 +1,5 @@
 import {
+    ApiAiAgentArtifactResponse,
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
@@ -444,6 +445,50 @@ export class AiAgentController extends BaseController {
                     projectUuid,
                     body.tags,
                 ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/artifacts/{artifactUuid}')
+    @OperationId('getArtifact')
+    async getArtifact(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+    ): Promise<ApiAiAgentArtifactResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getArtifact(
+                req.user!,
+                agentUuid,
+                artifactUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}')
+    @OperationId('getArtifactVersion')
+    async getArtifactVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+    ): Promise<ApiAiAgentArtifactResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getArtifact(
+                req.user!,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+            ),
         };
     }
 
