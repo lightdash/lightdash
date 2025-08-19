@@ -1,5 +1,5 @@
 import { getTimezoneLabel, TimeZone } from '@lightdash/common';
-import { Select, type SelectProps } from '@mantine/core';
+import { Select, type SelectProps } from '@mantine-8/core';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 

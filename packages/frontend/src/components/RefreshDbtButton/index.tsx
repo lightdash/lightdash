@@ -9,7 +9,7 @@ import {
     Text,
     Tooltip,
     type ButtonProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -23,7 +23,7 @@ import MantineIcon from '../common/MantineIcon';
 
 const RefreshDbtButton: FC<{
     onClick?: () => void;
-    buttonStyles?: ButtonProps['sx'];
+    buttonStyles?: ButtonProps['style'];
     leftIcon?: React.ReactNode;
     defaultTextOverride?: React.ReactNode;
     refreshingTextOverride?: React.ReactNode;
@@ -77,14 +77,14 @@ const RefreshDbtButton: FC<{
             <Popover withinPortal withArrow width={300}>
                 <Popover.Target>
                     <Box
-                        sx={{
+                        style={{
                             cursor: 'pointer',
                         }}
                     >
                         <Button
                             size="xs"
                             variant="outline"
-                            leftIcon={<MantineIcon icon={IconRefresh} />}
+                            leftSection={<MantineIcon icon={IconRefresh} />}
                             disabled
                         >
                             Refresh dbt
@@ -146,7 +146,7 @@ const RefreshDbtButton: FC<{
     };
 
     return (
-        <Group spacing="xs">
+        <Group gap="xs">
             <Tooltip
                 withinPortal
                 multiline
@@ -157,10 +157,10 @@ const RefreshDbtButton: FC<{
                 <Button
                     size="xs"
                     variant="default"
-                    leftIcon={leftIcon ?? <MantineIcon icon={IconRefresh} />}
+                    leftSection={leftIcon ?? <MantineIcon icon={IconRefresh} />}
                     loading={isLoading}
                     onClick={handleRefresh}
-                    sx={buttonStyles}
+                    style={buttonStyles}
                 >
                     {!isLoading
                         ? defaultTextOverride ?? 'Refresh dbt'

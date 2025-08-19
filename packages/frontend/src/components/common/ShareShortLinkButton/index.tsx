@@ -1,4 +1,4 @@
-import { ActionIcon } from '@mantine/core';
+import { ActionIcon } from '@mantine-8/core';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
