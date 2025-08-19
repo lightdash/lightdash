@@ -9,7 +9,12 @@ const chartBody = {
         metrics: [],
         filters: {},
         limit: 500,
-        sorts: [{ fieldId: 'customers_customer_id', descending: false }],
+        sorts: [
+            {
+                fieldId: 'customers_customer_id',
+                descending: false,
+            },
+        ],
         tableCalculations: [],
         additionalMetrics: [],
     },
