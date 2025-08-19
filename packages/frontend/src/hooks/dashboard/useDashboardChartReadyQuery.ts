@@ -40,7 +40,6 @@ export type DashboardChartReadyQuery = {
 export const useDashboardChartReadyQuery = (
     tileUuid: string,
     chartUuid: string | null,
-    contextOverride?: QueryExecutionContext,
 ) => {
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
@@ -141,7 +140,7 @@ export const useDashboardChartReadyQuery = (
             timezoneFixFilters,
             dashboardSorts,
             sortKey,
-            contextOverride || context,
+            context,
             autoRefresh,
             hasADateDimension ? granularity : null,
             invalidateCache,
@@ -154,7 +153,6 @@ export const useDashboardChartReadyQuery = (
             timezoneFixFilters,
             dashboardSorts,
             sortKey,
-            contextOverride,
             context,
             autoRefresh,
             hasADateDimension,
@@ -176,9 +174,7 @@ export const useDashboardChartReadyQuery = (
                 {
                     context: autoRefresh
                         ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                        : contextOverride ||
-                          context ||
-                          QueryExecutionContext.DASHBOARD,
+                        : context || QueryExecutionContext.DASHBOARD,
                     chartUuid: chartUuid!,
                     dashboardUuid: dashboardUuid!,
                     dashboardFilters: timezoneFixFilters,

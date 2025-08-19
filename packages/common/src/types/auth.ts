@@ -172,12 +172,6 @@ export function assertSessionAuth(
     }
 }
 
-export function isJwtUser(account?: Account): account is AnonymousAccount {
-    if (!account) return false;
-
-    return account.isJwtUser();
-}
-
 export const assertIsAccountWithOrg = (
     account: Account,
 ): asserts account is Account & {
