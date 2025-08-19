@@ -397,7 +397,7 @@ export class InstanceConfigurationService extends BaseService {
             if (config.project?.httpPath) {
                 if (warehouseConnection.type !== WarehouseTypes.DATABRICKS) {
                     throw new ParameterError(
-                        `Project ${projectUuid} is not a Databricks project`,
+                        `Project ${projectUuid} is not a Databricks project. Only Databricks projects are supported at the moment.`,
                     );
                 }
                 updatedWarehouseConnection = {
