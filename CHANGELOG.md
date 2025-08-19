@@ -1,3 +1,11 @@
+# [0.1932.0](https://github.com/lightdash/lightdash/compare/0.1931.0...0.1932.0) (2025-08-19)
+
+
+### Features
+
+* add chart URLs to dashboard search results ([#16429](https://github.com/lightdash/lightdash/issues/16429)) ([6163216](https://github.com/lightdash/lightdash/commit/61632165621638064694c4df47aa837af74e09da))
+* add e2e tests for enhanced dashboard and chart search API ([#16426](https://github.com/lightdash/lightdash/issues/16426)) ([c26da83](https://github.com/lightdash/lightdash/commit/c26da83d4f94e44886d4b00a8273e87d03a4ffbb))
+
 # [0.1931.0](https://github.com/lightdash/lightdash/compare/0.1930.3...0.1931.0) (2025-08-18)
 
 
