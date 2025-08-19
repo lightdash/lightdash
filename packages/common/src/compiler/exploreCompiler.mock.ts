@@ -1985,3 +1985,111 @@ export const expectedCompiledCustomSqlDimensionWithReferences: CompiledCustomSql
         compiledSql: '("a".dim1) + ("b".dim1)',
         tablesReferences: ['a', 'b'],
     };
+
+// Simple mock data for parameter testing - reusing existing working mock structure
+export const exploreWithParameters: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    name: 'explore_with_parameters',
+    label: 'Explore with Parameters',
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.b.active_status} = 'active'",
+        },
+    ],
+    tables: {
+        ...simpleJoinedExplore.tables,
+        a: {
+            ...simpleJoinedExplore.tables.a,
+            parameters: {
+                region: {
+                    label: 'Region',
+                    description: 'Filter by region',
+                    default: 'US',
+                },
+            },
+        },
+        b: {
+            ...simpleJoinedExplore.tables.b,
+            parameters: {
+                active_status: {
+                    label: 'Active Status',
+                    description: 'Define active status',
+                    default: 'active',
+                },
+            },
+        },
+    },
+};
+
+export const compiledExploreWithParameters: Explore = {
+    ...compiledSimpleJoinedExplore,
+    name: 'explore_with_parameters',
+    label: 'Explore with Parameters',
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.b.active_status} = 'active'",
+            compiledSqlOn:
+                '("a".dim1) = ("b".dim1) AND ${ld.parameters.b.active_status} = \'active\'',
+            tablesReferences: ['a', 'b'],
+            parameterReferences: ['b.active_status'],
+            type: undefined,
+            hidden: undefined,
+            always: undefined,
+            relationship: undefined,
+        },
+    ],
+    tables: {
+        ...compiledSimpleJoinedExplore.tables,
+        a: {
+            ...compiledSimpleJoinedExplore.tables.a,
+            parameters: {
+                region: {
+                    label: 'Region',
+                    description: 'Filter by region',
+                    default: 'US',
+                },
+            },
+        },
+        b: {
+            ...compiledSimpleJoinedExplore.tables.b,
+            parameters: {
+                active_status: {
+                    label: 'Active Status',
+                    description: 'Define active status',
+                    default: 'active',
+                },
+            },
+        },
+    },
+};
+
+export const exploreWithInvalidParameterReference: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    name: 'explore_with_invalid_params',
+    label: 'Explore with Invalid Parameters',
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.b.nonexistent_param} = 'active'",
+        },
+    ],
+    tables: {
+        ...simpleJoinedExplore.tables,
+        a: {
+            ...simpleJoinedExplore.tables.a,
+            parameters: {},
+        },
+        b: {
+            ...simpleJoinedExplore.tables.b,
+            parameters: {
+                valid_status: {
+                    label: 'Valid Status',
+                    description: 'A valid parameter',
+                    default: 'active',
+                },
+            },
+        },
+    },
+};

@@ -9,17 +9,10 @@ models:
       filtering and analytics.
     config:
       meta:
-        parameters:
-          customer_name:
-            label: "Customer name"
-            description: "Filter subscriptions by customer name"
-            options_from_dimension:
-              dimension: "first_name"
-              model: "customers"
         primary_key: subscription_id
         joins:
           - join: customers
-            sql_on: ${customers.customer_id} = ${subscriptions.customer_id} AND ${customers.first_name} = ${ld.parameters.customer_name}
+            sql_on: ${customers.customer_id} = ${subscriptions.customer_id} AND ${customers.first_name} = ${ld.parameters.customers.customer_name}
             relationship: many-to-one
           - join: plan
             sql_on: ${plan.id} = ${subscriptions.plan_id}
