@@ -121,6 +121,13 @@ export type AiAgentMessageAssistant = {
 
     toolCalls: AiAgentToolCall[];
     savedQueryUuid: string | null;
+
+    artifact: {
+        uuid: string;
+        versionNumber: number;
+        title: string | null;
+        description: string | null;
+    } | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -283,3 +290,19 @@ export type AiAgentExploreAccessSummary = {
 export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
     AiAgentExploreAccessSummary[]
 >;
+
+export type AiArtifact = {
+    artifactUuid: string;
+    threadUuid: string;
+    promptUuid: string | null;
+    artifactType: 'chart';
+    savedQueryUuid: string | null;
+    createdAt: Date;
+    versionNumber: number;
+    title: string | null;
+    description: string | null;
+    vizConfigOutput: Record<string, unknown> | null;
+    versionCreatedAt: Date;
+};
+
+export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;
