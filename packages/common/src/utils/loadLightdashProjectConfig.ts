@@ -2,8 +2,9 @@ import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
 import betterAjvErrors from 'better-ajv-errors';
 import * as yaml from 'js-yaml';
+import { validateParameterNames } from '../compiler/parameters';
 import lightdashProjectConfigSchema from '../schemas/json/lightdash-project-config-1.0.json';
-import { ParseError } from '../types/errors';
+import { LightdashProjectConfigError, ParseError } from '../types/errors';
 import {
     DEFAULT_SPOTLIGHT_CONFIG,
     type LightdashProjectConfig,
@@ -49,6 +50,20 @@ export const loadLightdashProjectConfig = async (
 
     if (configFile.parameters == null) {
         configFile.parameters = undefined;
+    }
+
+    const { isInvalid: hasInvalidParameterNames, invalidParameters } =
+        validateParameterNames(configFile.parameters);
+
+    if (hasInvalidParameterNames) {
+        throw new LightdashProjectConfigError(
+            `Invalid lightdash.config.yml with invalid parameter names: ${invalidParameters.join(
+                ', ',
+            )}. Parameter names cannot contain dots.`,
+            {
+                invalidParameters,
+            },
+        );
     }
 
     if (onLoaded) {

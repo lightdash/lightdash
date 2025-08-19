@@ -34,7 +34,9 @@ import {
 } from './lightdashProjectConfig';
 import {
     getAvailableParameterNames,
+    getAvailableParametersFromTables,
     getParameterReferences,
+    validateParameterNames,
     validateParameterReferences,
 } from './parameters';
 
@@ -159,27 +161,19 @@ export class ExploreCompiler {
             );
         }
 
-        const hasDuplicateParameterDefinitions = Object.keys(
-            projectParameters || {},
-        ).some((projectParamName) =>
-            Object.keys(meta.parameters || {}).some(
-                (modelParamName) => modelParamName === projectParamName,
-            ),
-        );
+        const { isInvalid: hasInvalidParameterNames, invalidParameters } =
+            validateParameterNames(meta.parameters);
 
-        if (hasDuplicateParameterDefinitions) {
+        if (hasInvalidParameterNames) {
             throw new CompileError(
-                `Failed to compile explore "${name}". Cannot have duplicate parameter definitions in model and \`lightdash.config.yml\``,
-                {},
+                `Failed to compile explore "${name}". Invalid parameter names: ${invalidParameters.join(
+                    ', ',
+                )}. Parameter names cannot contain dots.`,
+                {
+                    invalidParameters,
+                },
             );
         }
-
-        // available parameters are the combination of project parameters and model parameters
-        // used for validating parameter references
-        const availableParameters = getAvailableParameterNames(
-            projectParameters,
-            meta.parameters,
-        );
 
         const includedTables = joinedTables.reduce<Record<string, Table>>(
             (prev, join) => {
@@ -275,20 +269,32 @@ export class ExploreCompiler {
             { [baseTable]: tables[baseTable] },
         );
 
+        // get all available parameters from the included tables
+        const exploreAvailableParameters = getAvailableParametersFromTables(
+            Object.values(includedTables),
+        );
+
+        // available parameters are the combination of project parameters and model parameters
+        // used for validating parameter references
+        const availableParametersNames = getAvailableParameterNames(
+            projectParameters,
+            exploreAvailableParameters,
+        );
+
         const compiledTables: Record<string, CompiledTable> = aliases.reduce(
             (prev, tableName) => ({
                 ...prev,
                 [tableName]: this.compileTable(
                     includedTables[tableName],
                     includedTables,
-                    availableParameters,
+                    availableParametersNames,
                 ),
             }),
             {},
         );
 
         const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
-            this.compileJoin(j, includedTables, availableParameters),
+            this.compileJoin(j, includedTables, availableParametersNames),
         );
 
         const spotlightVisibility =
@@ -388,6 +394,9 @@ export class ExploreCompiler {
             dimensions,
             metrics,
             ...(parameterReferences.length > 0 ? { parameterReferences } : {}),
+            ...(table.parameters && Object.keys(table.parameters).length > 0
+                ? { parameters: table.parameters }
+                : {}),
         };
     }
 

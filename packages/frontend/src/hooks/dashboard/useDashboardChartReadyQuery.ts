@@ -1,4 +1,5 @@
 import {
+    getAvailableParametersFromTables,
     getDimensions,
     getItemId,
     isDateItem,
@@ -83,8 +84,10 @@ export const useDashboardChartReadyQuery = (
     );
 
     useEffect(() => {
-        if (explore && explore.parameters) {
-            addParameterDefinitions(explore.parameters);
+        if (explore) {
+            addParameterDefinitions(
+                getAvailableParametersFromTables(Object.values(explore.tables)),
+            );
         }
     }, [explore, addParameterDefinitions]);
 

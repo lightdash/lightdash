@@ -604,3 +604,17 @@ export class GenerateDailySchedulerJobError extends LightdashError {
         }
     }
 }
+
+export class LightdashProjectConfigError extends LightdashError {
+    constructor(
+        message = 'Invalid lightdash.config.yml',
+        data: Record<string, AnyType> = {},
+    ) {
+        super({
+            message,
+            name: 'LightdashProjectConfigError',
+            statusCode: 400,
+            data,
+        });
+    }
+}

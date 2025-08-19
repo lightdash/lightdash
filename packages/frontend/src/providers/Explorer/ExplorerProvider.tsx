@@ -3,6 +3,7 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
+    getAvailableParametersFromTables,
     getFieldRef,
     getItemId,
     lightdashVariablePattern,
@@ -19,6 +20,7 @@ import {
     type FieldId,
     type Metric,
     type MetricQuery,
+    type ParameterDefinitions,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
@@ -1295,12 +1297,18 @@ const ExplorerProvider: FC<
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
-    const parameterDefinitions = useMemo(() => {
+    const exploreParameterDefinitions = useMemo(() => {
+        return explore
+            ? getAvailableParametersFromTables(Object.values(explore.tables))
+            : {};
+    }, [explore]);
+
+    const parameterDefinitions: ParameterDefinitions = useMemo(() => {
         return {
-            ...projectParameters,
-            ...(explore?.parameters ?? {}),
+            ...(projectParameters ?? {}),
+            ...(exploreParameterDefinitions ?? {}),
         };
-    }, [projectParameters, explore?.parameters]);
+    }, [projectParameters, exploreParameterDefinitions]);
 
     const missingRequiredParameters = useMemo(() => {
         // If no required parameters are set, return null, this will disable query execution
