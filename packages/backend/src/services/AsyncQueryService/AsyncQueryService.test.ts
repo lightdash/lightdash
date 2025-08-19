@@ -48,7 +48,6 @@ import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
-import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     allExplores,
@@ -188,7 +187,6 @@ const getMockedAsyncQueryService = (
             s3Client: {} as S3Client,
             downloadFileModel: {} as DownloadFileModel,
         }),
-        permissionsService: {} as PermissionsService,
         ...overrides,
     });
 

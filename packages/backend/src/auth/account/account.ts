@@ -10,11 +10,11 @@ import {
     applyEmbeddedAbility,
     buildAccountHelpers,
     CreateEmbedJwt,
+    Embed,
     ForbiddenError,
     MemberAbility,
     OauthAccount,
     Organization,
-    OssEmbed,
     ServiceAcctAccount,
     SessionAccount,
     SessionUser,
@@ -74,24 +74,19 @@ const extractOrganizationFromUser = (
 
 export const fromJwt = ({
     decodedToken,
-    embed,
+    organization,
     source,
     dashboardUuid,
     userAttributes,
 }: {
     decodedToken: CreateEmbedJwt;
-    embed: OssEmbed;
+    organization: Embed['organization'];
     source: string;
     dashboardUuid: string;
     userAttributes: UserAccessControls;
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
-    applyEmbeddedAbility(
-        decodedToken,
-        dashboardUuid,
-        embed.organization,
-        builder,
-    );
+    applyEmbeddedAbility(decodedToken, dashboardUuid, organization, builder);
     const abilities = builder.build();
 
     return createAccount({
@@ -100,8 +95,7 @@ export const fromJwt = ({
             data: decodedToken,
             source,
         },
-        organization: embed.organization,
-        embed,
+        organization,
         access: {
             dashboardId: dashboardUuid,
             filtering: decodedToken.content.dashboardFiltersInteractivity,
@@ -109,7 +103,7 @@ export const fromJwt = ({
         },
         // Create the fields we're able to set from the JWT
         user: {
-            id: getExternalId(decodedToken, source, embed.organization),
+            id: getExternalId(decodedToken, source, organization),
             type: 'anonymous',
             ability: abilities,
             abilityRules: abilities.rules,

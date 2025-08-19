@@ -250,7 +250,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectParametersModel: models.getProjectParametersModel(),
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,
-                    permissionsService: repository.getPermissionsService(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
