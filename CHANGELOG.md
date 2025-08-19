@@ -1,3 +1,10 @@
+# [0.1933.0](https://github.com/lightdash/lightdash/compare/0.1932.0...0.1933.0) (2025-08-19)
+
+
+### Features
+
+* add global Mantine8Provider to simplify component theming ([#16409](https://github.com/lightdash/lightdash/issues/16409)) ([8de0a5f](https://github.com/lightdash/lightdash/commit/8de0a5fcd597fb55b429cb00f4c40e91ab61669a))
+
 # [0.1932.0](https://github.com/lightdash/lightdash/compare/0.1931.0...0.1932.0) (2025-08-19)
 
 
