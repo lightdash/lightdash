@@ -239,7 +239,10 @@ export async function seed(knex: Knex): Promise<void> {
                 filters: {},
                 limit: 500,
                 sorts: [
-                    { fieldId: 'orders_average_order_size', descending: true },
+                    {
+                        fieldId: 'orders_average_order_size',
+                        descending: true,
+                    },
                 ],
                 tableCalculations: [],
             },
@@ -523,7 +526,10 @@ export async function seed(knex: Knex): Promise<void> {
                 metrics: ['orders_total_order_amount'],
                 filters: {},
                 sorts: [
-                    { fieldId: 'orders_total_order_amount', descending: true },
+                    {
+                        fieldId: 'orders_total_order_amount',
+                        descending: true,
+                    },
                 ],
                 limit: 500,
                 tableCalculations: [],

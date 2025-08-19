@@ -517,7 +517,12 @@ describe('Query builder', () => {
                     explore: EXPLORE,
                     compiledMetricQuery: {
                         ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        sorts: [{ fieldId: 'age_range', descending: true }],
+                        sorts: [
+                            {
+                                fieldId: 'age_range',
+                                descending: true,
+                            },
+                        ],
                     },
 
                     warehouseSqlBuilder: bigqueryClientMock,

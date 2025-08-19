@@ -1085,7 +1085,12 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table2_additional_metric'],
     filters: {},
-    sorts: [{ fieldId: 'table2_additional_metric', descending: true }],
+    sorts: [
+        {
+            fieldId: 'table2_additional_metric',
+            descending: true,
+        },
+    ],
     limit: 10,
     tableCalculations: [
         {
@@ -1196,7 +1201,7 @@ export const COMPILED_DIMENSION: CompiledDimension = {
 };
 
 export const METRIC_QUERY_SQL = `WITH metrics AS (
-                                    SELECT 
+                                    SELECT
                                         "table1".dim1               AS "table1_dim1",
                                         MAX("table1".number_column) AS "table1_metric1"
                                     FROM "db"."schema"."table1" AS "table1"
@@ -1851,23 +1856,23 @@ FROM metrics
 ORDER BY "table2_metric2" DESC
 LIMIT 10`;
 
-export const EXPECTED_SQL_WITH_CROSS_JOIN = `WITH cte_keys_table2 AS ( 
-    SELECT DISTINCT "table2".dim2 AS "pk_dim2" 
-    FROM "db"."schema"."table1" AS "table1" 
-    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared) 
-), cte_metrics_table2 AS ( 
-    SELECT SUM("table2".number_column) AS "table2_metric3" 
-    FROM cte_keys_table2 
-    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2 
-), cte_unaffected AS ( 
-    SELECT MAX("table1".number_column) AS "table1_metric1" 
-    FROM "db"."schema"."table1" AS "table1" 
-    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared) 
-), metrics AS ( 
-    SELECT cte_unaffected.*, cte_metrics_table2."table2_metric3" AS "table2_metric3" 
-    FROM cte_unaffected 
-    CROSS JOIN cte_metrics_table2 
-) 
+export const EXPECTED_SQL_WITH_CROSS_JOIN = `WITH cte_keys_table2 AS (
+    SELECT DISTINCT "table2".dim2 AS "pk_dim2"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+), cte_metrics_table2 AS (
+    SELECT SUM("table2".number_column) AS "table2_metric3"
+    FROM cte_keys_table2
+    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+), cte_unaffected AS (
+    SELECT MAX("table1".number_column) AS "table1_metric1"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+), metrics AS (
+    SELECT cte_unaffected.*, cte_metrics_table2."table2_metric3" AS "table2_metric3"
+    FROM cte_unaffected
+    CROSS JOIN cte_metrics_table2
+)
 SELECT *, table1_dim1 + table2_metric2 AS "calc3" FROM metrics ORDER BY "table2_metric2" DESC LIMIT 10`;
 
 // Explore without primary keys
@@ -2037,7 +2042,7 @@ export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS
       COUNT("customers".customer_id) AS "customers_total_customers"
     FROM cte_keys_customers
     LEFT JOIN customers AS "customers" ON cte_keys_customers."pk_customer_id" = "customers".customer_id
-    
+
     ),
     cte_unaffected AS (
     SELECT

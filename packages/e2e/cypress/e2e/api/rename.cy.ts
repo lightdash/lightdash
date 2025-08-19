@@ -24,7 +24,12 @@ describe('Rename Chart API', () => {
                     dimensions: ['orders_type'],
                     metrics: [],
                     filters: {},
-                    sorts: [{ fieldId: 'orders_type', descending: false }],
+                    sorts: [
+                        {
+                            fieldId: 'orders_type',
+                            descending: false,
+                        },
+                    ],
                     limit: 500,
                     tableCalculations: [],
                     additionalMetrics: [],
@@ -96,7 +101,12 @@ describe('Rename Chart API', () => {
                     dimensions: ['purchases_type'],
                     metrics: [],
                     filters: {},
-                    sorts: [{ fieldId: 'purchases_type', descending: false }],
+                    sorts: [
+                        {
+                            fieldId: 'purchases_type',
+                            descending: false,
+                        },
+                    ],
                     limit: 500,
                     tableCalculations: [],
                     additionalMetrics: [],
