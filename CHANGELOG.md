@@ -1,3 +1,10 @@
+## [0.1933.1](https://github.com/lightdash/lightdash/compare/0.1933.0...0.1933.1) (2025-08-19)
+
+
+### Bug Fixes
+
+* slack client listener initialization ([#16439](https://github.com/lightdash/lightdash/issues/16439)) ([0f826d6](https://github.com/lightdash/lightdash/commit/0f826d692b596734577bb6e48b538697dbfca79a))
+
 # [0.1933.0](https://github.com/lightdash/lightdash/compare/0.1932.0...0.1933.0) (2025-08-19)
 
 
