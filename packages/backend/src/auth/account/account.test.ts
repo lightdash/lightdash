@@ -46,7 +46,19 @@ describe('account', () => {
         it('should create an ExternalAccount from JWT with user externalId', () => {
             const result = fromJwt({
                 decodedToken: mockDecodedToken,
-                organization: mockOrganization,
+                embed: {
+                    organization: mockOrganization,
+                    projectUuid: 'test-project-uuid',
+                    dashboardUuids: ['test-dashboard-uuid'],
+                    allowAllDashboards: false,
+                    createdAt: '2024-01-01',
+                    encodedSecret: 'test-encoded-secret',
+                    user: {
+                        userUuid: 'test-user-uuid',
+                        firstName: 'Test',
+                        lastName: 'User',
+                    },
+                },
                 source: 'test-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: mockUserAttributes,
@@ -94,7 +106,19 @@ describe('account', () => {
 
             const result = fromJwt({
                 decodedToken: tokenWithoutExternalId,
-                organization: mockOrganization,
+                embed: {
+                    organization: mockOrganization,
+                    projectUuid: 'test-project-uuid',
+                    dashboardUuids: ['test-dashboard-uuid'],
+                    allowAllDashboards: false,
+                    createdAt: '2024-01-01',
+                    encodedSecret: 'test-encoded-secret',
+                    user: {
+                        userUuid: 'test-user-uuid',
+                        firstName: 'Test',
+                        lastName: 'User',
+                    },
+                },
                 source: 'anonymous-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: mockUserAttributes,
@@ -121,7 +145,19 @@ describe('account', () => {
 
             const result = fromJwt({
                 decodedToken: tokenWithoutUser,
-                organization: mockOrganization,
+                embed: {
+                    organization: mockOrganization,
+                    projectUuid: 'test-project-uuid',
+                    dashboardUuids: ['test-dashboard-uuid'],
+                    allowAllDashboards: false,
+                    createdAt: '2024-01-01',
+                    encodedSecret: 'test-encoded-secret',
+                    user: {
+                        userUuid: 'test-user-uuid',
+                        firstName: 'Test',
+                        lastName: 'User',
+                    },
+                },
                 source: 'no-user-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: mockUserAttributes,
@@ -142,7 +178,19 @@ describe('account', () => {
 
             const result = fromJwt({
                 decodedToken: mockDecodedToken,
-                organization: mockOrganization,
+                embed: {
+                    organization: mockOrganization,
+                    projectUuid: 'test-project-uuid',
+                    dashboardUuids: ['test-dashboard-uuid'],
+                    allowAllDashboards: false,
+                    createdAt: '2024-01-01',
+                    encodedSecret: 'test-encoded-secret',
+                    user: {
+                        userUuid: 'test-user-uuid',
+                        firstName: 'Test',
+                        lastName: 'User',
+                    },
+                },
                 source: 'test-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: emptyUserAttributes,

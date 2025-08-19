@@ -1,3 +1,80 @@
+# [0.1931.0](https://github.com/lightdash/lightdash/compare/0.1930.3...0.1931.0) (2025-08-18)
+
+
+### Features
+
+* add scopeAbilityBuilder for scoped roles ([#16460](https://github.com/lightdash/lightdash/issues/16460)) ([3159690](https://github.com/lightdash/lightdash/commit/31596900604c39d6714b58e4a8df706c30e4adfa))
+
+## [0.1930.3](https://github.com/lightdash/lightdash/compare/0.1930.2...0.1930.3) (2025-08-18)
+
+
+### Bug Fixes
+
+* ambiguous column error in SQL Runner for Trino Warehouse ([#16466](https://github.com/lightdash/lightdash/issues/16466)) ([10504ea](https://github.com/lightdash/lightdash/commit/10504ea31d1d58302fc1e5725f1b9a50a20b5890))
+
+## [0.1930.2](https://github.com/lightdash/lightdash/compare/0.1930.1...0.1930.2) (2025-08-18)
+
+
+### Bug Fixes
+
+* normalize Trino column name ([#16463](https://github.com/lightdash/lightdash/issues/16463)) ([a7ce1fa](https://github.com/lightdash/lightdash/commit/a7ce1faf3185089ffa5808e957c9bdf1b557565a))
+
+## [0.1930.1](https://github.com/lightdash/lightdash/compare/0.1930.0...0.1930.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* use embed permissions rather than space access for saved charts ([#16459](https://github.com/lightdash/lightdash/issues/16459)) ([fbe5573](https://github.com/lightdash/lightdash/commit/fbe55739fd6e638ee52129d317255d28a6b0f827))
+
+# [0.1930.0](https://github.com/lightdash/lightdash/compare/0.1929.1...0.1930.0) (2025-08-18)
+
+
+### Features
+
+* add model-level parameters to project parameters list ([#16418](https://github.com/lightdash/lightdash/issues/16418)) ([a075a3e](https://github.com/lightdash/lightdash/commit/a075a3e8f381927c2e4f2d0f62fb9f17ab0f3596))
+
+## [0.1929.1](https://github.com/lightdash/lightdash/compare/0.1929.0...0.1929.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* handle empty string values in SQL filter generation ([#16453](https://github.com/lightdash/lightdash/issues/16453)) ([3306868](https://github.com/lightdash/lightdash/commit/33068685b588a93ab8a071b2e4ff02aaab789314))
+* remove extra space in SQL string generation ([#16454](https://github.com/lightdash/lightdash/issues/16454)) ([dd724da](https://github.com/lightdash/lightdash/commit/dd724da7cc59ac245d14d1cd097aef0a05f5cc9a))
+
+# [0.1929.0](https://github.com/lightdash/lightdash/compare/0.1928.1...0.1929.0) (2025-08-18)
+
+
+### Features
+
+* make required fitlers required in scheduled deliveries ([#16449](https://github.com/lightdash/lightdash/issues/16449)) ([379e92f](https://github.com/lightdash/lightdash/commit/379e92fe0676fe0a7506f9fcdd5ba7ba2ffe0dd7))
+
+## [0.1928.1](https://github.com/lightdash/lightdash/compare/0.1928.0...0.1928.1) (2025-08-18)
+
+
+### Bug Fixes
+
+* table stuck in loading state on explore from here ([#16417](https://github.com/lightdash/lightdash/issues/16417)) ([8168315](https://github.com/lightdash/lightdash/commit/81683156b1b2bf5dc98c90cb157a092c921a1995))
+
+# [0.1928.0](https://github.com/lightdash/lightdash/compare/0.1927.0...0.1928.0) (2025-08-18)
+
+
+### Features
+
+* project parameters page ([#16385](https://github.com/lightdash/lightdash/issues/16385)) ([43ef3c2](https://github.com/lightdash/lightdash/commit/43ef3c25a3c67bbfc2799a5fd491d909f033ce97))
+
+# [0.1927.0](https://github.com/lightdash/lightdash/compare/0.1926.0...0.1927.0) (2025-08-18)
+
+
+### Bug Fixes
+
+* prevent duplicate metrics in cross-table metric references ([#16448](https://github.com/lightdash/lightdash/issues/16448)) ([f0b7ba2](https://github.com/lightdash/lightdash/commit/f0b7ba2f7ffa2b2481b80fd76e2068df5b349661))
+* use snake_case for CTE names in MetricQueryBuilder ([#16443](https://github.com/lightdash/lightdash/issues/16443)) ([c8665cc](https://github.com/lightdash/lightdash/commit/c8665ccc07334f9a0040d7f305f646563fe11c76))
+
+
+### Features
+
+* improve join table detection with tablesReferences ([#16442](https://github.com/lightdash/lightdash/issues/16442)) ([a35d9ff](https://github.com/lightdash/lightdash/commit/a35d9ffb0a235ebf2ad752bac0d90213172aca9e))
+
 # [0.1926.0](https://github.com/lightdash/lightdash/compare/0.1925.0...0.1926.0) (2025-08-15)
 
 

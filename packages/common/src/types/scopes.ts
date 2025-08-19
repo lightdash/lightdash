@@ -1,4 +1,3 @@
-import { type SnakeCase } from 'type-fest';
 import {
     type AbilityAction,
     type CaslSubjectNames,
@@ -17,14 +16,54 @@ export enum ScopeGroup {
     SPOTLIGHT = 'spotlight',
 }
 
+type BaseScopeContext = {
+    userUuid: string;
+    /** The scopes available to the current user */
+    scopes: Set<ScopeName>;
+    isEnterprise: boolean;
+    /** The user's role name in the organization (for dynamic permission logic) */
+    organizationRole?: string;
+    /** Configuration for dynamic permissions like PAT */
+    permissionsConfig?: {
+        pat: {
+            enabled: boolean;
+            allowedOrgRoles: string[];
+        };
+    };
+};
+
+type OrganizationScopeContext = BaseScopeContext & {
+    organizationUuid: string;
+    projectUuid?: never;
+};
+
+type ProjectScopeContext = BaseScopeContext & {
+    projectUuid: string;
+    organizationUuid?: never;
+};
+
+/**
+ * Context given to scope getCondition functions
+ */
+export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
+
+export type ScopeModifer = 'self' | 'public' | 'assigned';
+type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
+
+/**
+ * The name of the scope, based on ability and subject (e.g. "create:project")
+ */
+export type ScopeName =
+    `${AbilityAction}:${CaslSubjectNames}${OptionalModifier}`;
+
 /**
  * A scope defines a specific permission in the system
  */
 export type Scope = {
     /**
-     * The name of the scope, based on ability and subject (e.g. "create:project")
+     * The name of the scope, based on ability and subject (e.g. "create:Project")
      */
-    name: Lowercase<`${AbilityAction}:${SnakeCase<CaslSubjectNames>}`>;
+    name: ScopeName;
     /**
      * A helpful description of the permission
      */
@@ -37,4 +76,8 @@ export type Scope = {
      * The grouping from the ScopeGroup enum
      */
     group: ScopeGroup;
+    /**
+     * Get the conditions to be applied to the CASL ability derived from the scope
+     */
+    getConditions?: (context: ScopeContext) => Record<string, unknown>[];
 };

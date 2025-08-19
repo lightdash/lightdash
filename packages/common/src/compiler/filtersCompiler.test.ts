@@ -732,7 +732,7 @@ describe('Filter SQL', () => {
         ).toBe(stringFilterRuleMocks.includeFilterWithMixedEmptyStringsSQL);
     });
 
-    test('should return true when equals filter has empty string value', () => {
+    test('should return empty string filter sql when equals filter has empty string value', () => {
         expect(
             renderStringFilterSql(
                 stringFilterDimension,

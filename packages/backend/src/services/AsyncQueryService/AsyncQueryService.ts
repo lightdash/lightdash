@@ -48,6 +48,7 @@ import {
     isCustomSqlDimension,
     isDateItem,
     isField,
+    isJwtUser,
     isMetric,
     isVizTableConfig,
     ItemsMap,
@@ -102,6 +103,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
+import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
@@ -140,6 +142,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     storageClient: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
+    permissionsService: PermissionsService;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -157,6 +160,8 @@ export class AsyncQueryService extends ProjectService {
 
     prometheusMetrics?: PrometheusMetrics;
 
+    permissionsService: PermissionsService;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
@@ -166,6 +171,7 @@ export class AsyncQueryService extends ProjectService {
         this.storageClient = args.storageClient;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
+        this.permissionsService = args.permissionsService;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -1008,6 +1014,10 @@ export class AsyncQueryService extends ProjectService {
                   rows: WarehouseResults['rows'],
                   fields: WarehouseResults['fields'],
               ) => {
+                  if (!rows[0]) {
+                      // skip if empty
+                      return;
+                  }
                   if ('total_columns' in rows[0]) {
                       const numberTotalColumns = Number(rows[0].total_columns);
                       pivotTotalColumnCount = Number.isNaN(numberTotalColumns)
@@ -1951,6 +1961,51 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private async checkQueryPermissions(
+        account: Account,
+        projectUuid: string,
+        savedChartUuid: string,
+        space: Omit<SpaceSummary, 'userAccess'>,
+    ) {
+        if (isJwtUser(account)) {
+            await this.permissionsService.checkEmbedPermissions(
+                account,
+                savedChartUuid,
+            );
+        } else {
+            const access = await this.spaceModel.getUserSpaceAccess(
+                account.user.id,
+                space.uuid,
+            );
+
+            if (
+                account.user.ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid,
+                        isPrivate: space.isPrivate,
+                        access,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -1984,37 +2039,12 @@ export class AsyncQueryService extends ProjectService {
             ),
         ]);
 
-        // Anonymous users cannot be assigned to a space,
-        // so they can only access public, `isPrivate: false` charts
-        const savedChartSubject = {
-            organizationUuid,
+        await this.checkQueryPermissions(
+            account,
             projectUuid,
-            isPrivate: space.isPrivate,
-            ...(account.isRegisteredUser()
-                ? {
-                      access: await this.spaceModel.getUserSpaceAccess(
-                          account.user.id,
-                          space.uuid,
-                      ),
-                  }
-                : {}),
-        };
-
-        if (
-            account.user.ability.cannot(
-                'view',
-                subject('SavedChart', savedChartSubject),
-            ) ||
-            account.user.ability.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+            savedChart.uuid,
+            space,
+        );
 
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
@@ -2501,12 +2531,13 @@ export class AsyncQueryService extends ProjectService {
 
         await warehouseConnection.warehouseClient.streamQuery(
             applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
-            (row) => {
-                if (row.fields) {
-                    Object.keys(row.fields).forEach((key) => {
+            (chunk) => {
+                // Only handle the first call
+                if (columns.length === 0 && chunk.fields) {
+                    Object.keys(chunk.fields).forEach((key) => {
                         columns.push({
                             name: key,
-                            type: row.fields[key].type,
+                            type: chunk.fields[key].type,
                         });
                     });
                 }

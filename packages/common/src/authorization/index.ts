@@ -7,6 +7,7 @@ import applyOrganizationMemberAbilities, {
     type OrganizationMemberAbilitiesArgs,
 } from './organizationMemberAbility';
 import { projectMemberAbilities } from './projectMemberAbility';
+import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
 
 type UserAbilityBuilderArgs = {
@@ -20,6 +21,8 @@ type UserAbilityBuilderArgs = {
     >[];
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>;
+    customRolesEnabled?: boolean;
+    isEnterprise?: boolean;
 };
 
 export * from './buildAccountHelpers';
@@ -34,37 +37,47 @@ export const getUserAbilityBuilder = ({
     projectProfiles,
     permissionsConfig,
     customRoleScopes,
+    customRolesEnabled,
+    isEnterprise,
 }: UserAbilityBuilderArgs) => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (user.role && user.organizationUuid) {
-        if (user.roleUuid) {
-            // TODO apply custom role abilities
-            const scopes = customRoleScopes?.[user.roleUuid];
-            if (scopes) {
-                throw new NotFoundError(
-                    `Custom role with uuid ${user.roleUuid} was not found`,
-                );
-            }
-        } else {
-            applyOrganizationMemberAbilities({
-                role: user.role,
-                member: {
-                    organizationUuid: user.organizationUuid,
-                    userUuid: user.userUuid,
-                },
-                builder,
-                permissionsConfig,
-            });
-        }
+        // TODO custom roles at organization level are not supported yet
+        applyOrganizationMemberAbilities({
+            role: user.role,
+            member: {
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            },
+            builder,
+            permissionsConfig,
+        });
+
         projectProfiles.forEach((projectProfile) => {
-            if (projectProfile.roleUuid) {
+            if (projectProfile.roleUuid && customRolesEnabled) {
                 const scopes = customRoleScopes?.[projectProfile.roleUuid];
-                if (scopes) {
+                if (!scopes) {
                     throw new NotFoundError(
                         `Custom role with uuid ${user.roleUuid} was not found`,
                     );
                 }
-                // TODO apply custom role abilities
+
+                if (!user.organizationUuid) {
+                    throw new NotFoundError(
+                        `Organization with uuid ${user.organizationUuid} was not found`,
+                    );
+                }
+                buildAbilityFromScopes(
+                    {
+                        projectUuid: projectProfile.projectUuid,
+                        userUuid: user.userUuid,
+                        scopes,
+                        isEnterprise,
+                        organizationRole: user.role,
+                        permissionsConfig,
+                    },
+                    builder,
+                );
             } else {
                 projectMemberAbilities[projectProfile.role](
                     projectProfile,

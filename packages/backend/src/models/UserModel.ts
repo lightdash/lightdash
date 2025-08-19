@@ -597,7 +597,10 @@ export class UserModel {
                 pat: this.lightdashConfig.auth.pat,
             },
             customRoleScopes,
+            customRolesEnabled: this.lightdashConfig.customRoles?.enabled,
+            isEnterprise: this.lightdashConfig.license.licenseKey !== undefined,
         });
+
         return {
             abilityBuilder,
             lightdashUser,
