@@ -4,13 +4,11 @@ import {
     Button,
     CloseButton,
     Group,
-    MantineProvider,
     Popover,
     Text,
 } from '@mantine-8/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
-import { getMantine8ThemeOverride } from '../mantine8Theme';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 
 interface PinnedParameterProps {
@@ -171,22 +169,20 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
     }
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <Group gap="xs">
-                {pinnedParametersList.map(({ key, parameter }) => (
-                    <PinnedParameter
-                        key={key}
-                        parameterKey={key}
-                        parameter={parameter}
-                        value={parameterValues[key] ?? null}
-                        onChange={handleParameterChange}
-                        onUnpin={handleUnpin}
-                        isEditMode={isEditMode}
-                        projectUuid={dashboard?.projectUuid}
-                    />
-                ))}
-            </Group>
-        </MantineProvider>
+        <Group gap="xs">
+            {pinnedParametersList.map(({ key, parameter }) => (
+                <PinnedParameter
+                    key={key}
+                    parameterKey={key}
+                    parameter={parameter}
+                    value={parameterValues[key] ?? null}
+                    onChange={handleParameterChange}
+                    onUnpin={handleUnpin}
+                    isEditMode={isEditMode}
+                    projectUuid={dashboard?.projectUuid}
+                />
+            ))}
+        </Group>
     );
 };
 

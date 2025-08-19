@@ -65,6 +65,8 @@ const TreeItem: React.FC<Props> = ({
             pl={withPadding ? rem(4) : undefined}
             pr={withPadding ? 'xs' : undefined}
             radius="sm"
+            withBorder={false}
+            shadow="none"
             wrap="nowrap"
             onClick={onClick}
         >

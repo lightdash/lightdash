@@ -2,7 +2,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { Box, Button, MantineProvider, Menu } from '@mantine-8/core';
+import { Box, Button, Menu } from '@mantine-8/core';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -11,7 +11,6 @@ import {
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getMantine8ThemeOverride } from '../../../mantine8Theme';
 import { ParameterSelection } from '../index';
 import styles from './Parameters.module.css';
 
@@ -60,66 +59,60 @@ export const Parameters: FC<Props> = ({
         .join(' ');
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <Menu
-                withinPortal
-                withArrow
-                arrowOffset={100}
-                closeOnItemClick={false}
-                closeOnClickOutside
-                offset={-1}
-                position="bottom-end"
-                disabled={isLoading}
-                onOpen={() => setShowOpenIcon(true)}
-                onClose={() => setShowOpenIcon(false)}
-            >
-                <Menu.Target>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        loading={isLoading}
-                        disabled={isLoading}
-                        className={buttonClasses}
-                        leftSection={<MantineIcon icon={IconVariable} />}
-                        rightSection={
-                            <MantineIcon
-                                icon={
-                                    showOpenIcon
-                                        ? IconChevronUp
-                                        : IconChevronDown
-                                }
-                            />
-                        }
-                    >
-                        Parameters
-                        {selectedParametersCount > 0
-                            ? ` (${selectedParametersCount})`
-                            : ''}
-                    </Button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Label fz={10}>Parameters</Menu.Label>
-                    <Box p="sm" miw={200}>
-                        <ParameterSelection
-                            parameters={parameters}
-                            isLoading={isLoading}
-                            isError={isError}
-                            parameterValues={parameterValues}
-                            onParameterChange={onParameterChange}
-                            size="xs"
-                            showClearAll={selectedParametersCount > 0}
-                            onClearAll={onClearAll}
-                            projectUuid={projectUuid}
-                            missingRequiredParameters={
-                                missingRequiredParameters
+        <Menu
+            withinPortal
+            withArrow
+            arrowOffset={100}
+            closeOnItemClick={false}
+            closeOnClickOutside
+            offset={-1}
+            position="bottom-end"
+            disabled={isLoading}
+            onOpen={() => setShowOpenIcon(true)}
+            onClose={() => setShowOpenIcon(false)}
+        >
+            <Menu.Target>
+                <Button
+                    size="xs"
+                    variant="default"
+                    loading={isLoading}
+                    disabled={isLoading}
+                    className={buttonClasses}
+                    leftSection={<MantineIcon icon={IconVariable} />}
+                    rightSection={
+                        <MantineIcon
+                            icon={
+                                showOpenIcon ? IconChevronUp : IconChevronDown
                             }
-                            isEditMode={isEditMode}
-                            pinnedParameters={pinnedParameters}
-                            onParameterPin={onParameterPin}
                         />
-                    </Box>
-                </Menu.Dropdown>
-            </Menu>
-        </MantineProvider>
+                    }
+                >
+                    Parameters
+                    {selectedParametersCount > 0
+                        ? ` (${selectedParametersCount})`
+                        : ''}
+                </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Label fz={10}>Parameters</Menu.Label>
+                <Box p="sm" miw={200}>
+                    <ParameterSelection
+                        parameters={parameters}
+                        isLoading={isLoading}
+                        isError={isError}
+                        parameterValues={parameterValues}
+                        onParameterChange={onParameterChange}
+                        size="xs"
+                        showClearAll={selectedParametersCount > 0}
+                        onClearAll={onClearAll}
+                        projectUuid={projectUuid}
+                        missingRequiredParameters={missingRequiredParameters}
+                        isEditMode={isEditMode}
+                        pinnedParameters={pinnedParameters}
+                        onParameterPin={onParameterPin}
+                    />
+                </Box>
+            </Menu.Dropdown>
+        </Menu>
     );
 };
