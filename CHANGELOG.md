@@ -1,3 +1,10 @@
+# [0.1936.0](https://github.com/lightdash/lightdash/compare/0.1935.1...0.1936.0) (2025-08-19)
+
+
+### Features
+
+* enable table calcs referencing other table calcs ([#16465](https://github.com/lightdash/lightdash/issues/16465)) ([1b140c8](https://github.com/lightdash/lightdash/commit/1b140c8e50261d78b741c8fbfd3313f502b54094))
+
 ## [0.1935.1](https://github.com/lightdash/lightdash/compare/0.1935.0...0.1935.1) (2025-08-19)
 
 
