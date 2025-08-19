@@ -1,7 +1,10 @@
 import type { LightdashProjectParameter } from './lightdashProjectConfig';
 
 // Used anywhere we have parameters
-export type ParametersValuesMap = Record<string, string | string[]>;
+export type ParametersValuesMap = Record<
+    string,
+    string | number | string[] | number[]
+>;
 
 export type ParameterDefinitions = Record<string, LightdashProjectParameter>;
 
@@ -9,7 +12,7 @@ export type ParameterDefinitions = Record<string, LightdashProjectParameter>;
 // specific to dashbaord tiles
 export type DashboardParameterValue = {
     parameterName: string;
-    value: string | string[];
+    value: string | number | string[] | number[];
 };
 
 export type DashboardParameters = Record<string, DashboardParameterValue>;
