@@ -1754,6 +1754,7 @@ export class AsyncQueryService extends ProjectService {
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            explore,
             parameters,
         );
 
@@ -1913,6 +1914,7 @@ export class AsyncQueryService extends ProjectService {
         // Combine default parameter values, saved chart parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            explore,
             parameters,
             savedChartParameters,
         );
@@ -2157,6 +2159,7 @@ export class AsyncQueryService extends ProjectService {
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            explore,
             parameters,
             dashboardParameters,
         );
@@ -2345,6 +2348,7 @@ export class AsyncQueryService extends ProjectService {
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            explore,
             parameters,
         );
 
@@ -2423,6 +2427,7 @@ export class AsyncQueryService extends ProjectService {
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            undefined,
             parameters,
         );
 
@@ -2724,6 +2729,7 @@ export class AsyncQueryService extends ProjectService {
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            undefined,
             args.parameters,
         );
 
@@ -2821,6 +2827,7 @@ export class AsyncQueryService extends ProjectService {
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
+            undefined,
             args.parameters,
             dashboardParameters,
         );

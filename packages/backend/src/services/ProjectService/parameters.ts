@@ -6,6 +6,11 @@ import {
 } from '@lightdash/common';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 
+/**
+ * Convert dashboard parameters to ParametersValuesMap format
+ * @param dashboard - The dashboard
+ * @returns The dashboard parameters in ParametersValuesMap format
+ */
 export const getDashboardParametersValuesMap = (
     dashboard: DashboardDAO,
 ): ParametersValuesMap | undefined => {
