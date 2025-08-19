@@ -34,6 +34,7 @@ export type CaslSubjectNames =
     | 'DashboardPdf'
     | 'Explore'
     | 'ExportCsv'
+    | 'GoogleSheets'
     | 'Group'
     | 'InviteLink'
     | 'Job'
