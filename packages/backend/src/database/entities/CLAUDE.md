@@ -56,6 +56,16 @@ declare module 'knex/types/tables' {
 }
 ```
 
+Instead do this:
+
+```typescript
+declare module 'knex/types/tables' {
+    interface Tables {
+        [MyTableName]: ExampleTable; // Correct - using table type
+    }
+}
+```
+
 ## Type Guidelines
 
 -   Use `null` instead of `undefined` or optional types (`?`) for nullable database fields since databases don't have the concept of undefined
