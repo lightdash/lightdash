@@ -1,3 +1,10 @@
+# [0.1934.0](https://github.com/lightdash/lightdash/compare/0.1933.1...0.1934.0) (2025-08-19)
+
+
+### Features
+
+* model level parameters on joined tables ([#16419](https://github.com/lightdash/lightdash/issues/16419)) ([6cb3445](https://github.com/lightdash/lightdash/commit/6cb3445b3cc87bada90cfacf7a084b9d1de3b130))
+
 ## [0.1933.1](https://github.com/lightdash/lightdash/compare/0.1933.0...0.1933.1) (2025-08-19)
 
 
