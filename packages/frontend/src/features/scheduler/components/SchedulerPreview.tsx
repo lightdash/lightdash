@@ -56,6 +56,7 @@ export const SchedulerPreview: FC<Props> = ({
             gridWidth: previewChoice ? parseInt(previewChoice) : undefined,
             queryFilters: getSchedulerFilterOverridesQueryString(),
             isPreview: true,
+            selectedTabs: null,
         });
         if (url) {
             setCurrentPreview(url);

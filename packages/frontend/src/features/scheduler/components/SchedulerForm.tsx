@@ -106,7 +106,7 @@ const DEFAULT_VALUES = {
     filters: [] as DashboardFilterRule[],
     parameters: undefined,
     customViewportWidth: undefined,
-    selectedTabs: undefined,
+    selectedTabs: null,
     thresholds: [],
     includeLinks: true,
 };
@@ -146,7 +146,7 @@ const getSelectedTabsForDashboardScheduler = (
                       schedulerData.selectedTabs,
                       dashboard?.tabs.map((tab) => tab.uuid),
                   )
-                : undefined, // remove tabs that have been deleted
+                : null, // remove tabs that have been deleted
         }
     );
 };
@@ -339,7 +339,7 @@ const SchedulerForm: FC<Props> = ({
     });
 
     const isDashboardTabsAvailable =
-        dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
+        dashboard?.tabs !== undefined && dashboard.tabs.length > 1;
 
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
@@ -364,7 +364,7 @@ const SchedulerForm: FC<Props> = ({
                       ...DEFAULT_VALUES,
                       selectedTabs: isDashboardTabsAvailable
                           ? dashboard?.tabs.map((tab) => tab.uuid)
-                          : undefined,
+                          : null,
                       parameters:
                           isDashboard &&
                           Object.keys(dashboardParameterValues).length > 0
@@ -401,6 +401,12 @@ const SchedulerForm: FC<Props> = ({
                 return isInvalidCronExpression('Cron expression')(
                     cronExpression,
                 );
+            },
+            selectedTabs: (value: string[] | null) => {
+                if (value && value.length === 0) {
+                    return 'Selected tabs should not be empty';
+                }
+                return null;
             },
         },
 
@@ -1053,18 +1059,22 @@ const SchedulerForm: FC<Props> = ({
                                         setAllTabsSelected((old) => !old);
                                         form.setFieldValue(
                                             'selectedTabs',
-                                            e.target.checked
-                                                ? dashboard?.tabs.map(
-                                                      (tab) => tab.uuid,
-                                                  )
-                                                : [],
+                                            e.target.checked ? null : [],
                                         );
                                     }}
                                 />
                                 {!allTabsSelected && (
                                     <MultiSelect
                                         placeholder="Select tabs to include in the delivery"
-                                        value={form.values.selectedTabs}
+                                        value={
+                                            form.values.selectedTabs ??
+                                            undefined
+                                        }
+                                        error={
+                                            form.errors.selectedTabs
+                                                ? 'Selected tabs should not be empty'
+                                                : undefined
+                                        }
                                         data={(dashboard?.tabs || []).map(
                                             (tab) => ({
                                                 value: tab.uuid,

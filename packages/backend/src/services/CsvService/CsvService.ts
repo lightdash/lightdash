@@ -35,6 +35,7 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    ParameterError,
     ParametersValuesMap,
     PivotConfig,
     pivotResultsAsCsv,
@@ -43,6 +44,7 @@ import {
     SchedulerCsvOptions,
     SchedulerFormat,
     SessionUser,
+    validateSelectedTabs,
     type RunQueryTags,
 } from '@lightdash/common';
 import archiver from 'archiver';
@@ -901,7 +903,7 @@ export class CsvService extends BaseService {
         options: SchedulerCsvOptions | undefined;
         jobId?: string;
         schedulerFilters?: DashboardFilterRule[];
-        selectedTabs?: string[] | undefined;
+        selectedTabs: string[] | null;
         overrideDashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
         invalidateCache?: boolean;
@@ -910,6 +912,8 @@ export class CsvService extends BaseService {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
+
+        validateSelectedTabs(selectedTabs, dashboard.tiles);
 
         if (schedulerFilters) {
             dashboardFilters.dimensions = applyDimensionOverrides(
@@ -1405,6 +1409,7 @@ export class CsvService extends BaseService {
             options,
             overrideDashboardFilters: dashboardFilters,
             dateZoomGranularity,
+            selectedTabs: null,
         }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
 
         this.logger.info(

@@ -131,7 +131,7 @@ export type DashboardScheduler = SchedulerBase & {
     filters?: DashboardFilterRule[];
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
-    selectedTabs?: string[];
+    selectedTabs: string[] | null;
 };
 
 export type Scheduler = ChartScheduler | DashboardScheduler;
