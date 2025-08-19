@@ -40,6 +40,7 @@ import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
+import { SlackService } from './SlackService/SlackService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SpotlightService } from './SpotlightService/SpotlightService';
 import { SshKeyPairService } from './SshKeyPairService';
@@ -106,6 +107,7 @@ interface ServiceManifest {
     instanceConfigurationService: unknown;
     mcpService: unknown;
     rolesService: unknown;
+    slackService: SlackService;
 }
 
 /**
@@ -689,6 +691,10 @@ export class ServiceRepository
                     s3Client: this.clients.getS3Client(),
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    slackClient: this.clients.getSlackClient(),
+                    analytics: this.context.lightdashAnalytics,
+                    slackAuthenticationModel:
+                        this.models.getSlackAuthenticationModel(),
                 }),
         );
     }
@@ -953,6 +959,17 @@ export class ServiceRepository
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getSlackService(): SlackService {
+        return this.getService(
+            'slackService',
+            () =>
+                new SlackService({
+                    slackClient: this.clients.getSlackClient(),
+                    unfurlService: this.getUnfurlService(),
                 }),
         );
     }
