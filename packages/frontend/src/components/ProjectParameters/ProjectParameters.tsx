@@ -8,7 +8,6 @@ import {
     Group,
     JsonInput,
     LoadingOverlay,
-    MantineProvider,
     Modal,
     Pagination,
     Paper,
@@ -24,7 +23,6 @@ import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
-import { getMantine8ThemeOverride } from '../../mantine8Theme';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
@@ -182,123 +180,117 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
     }
 
     return (
-        <MantineProvider theme={getMantine8ThemeOverride()}>
-            <Stack>
-                <Text c="dimmed">
-                    Learn more about parameters in our{' '}
-                    <Anchor
-                        role="button"
-                        href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        docs
-                    </Anchor>
-                    .
-                </Text>
+        <Stack>
+            <Text c="dimmed">
+                Learn more about parameters in our{' '}
+                <Anchor
+                    role="button"
+                    href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    docs
+                </Anchor>
+                .
+            </Text>
 
-                <SettingsCard shadow="none" p={0}>
-                    <Paper p="sm" bd={0}>
-                        <Group gap="md" align="center">
-                            <Title order={5}>Parameters</Title>
-                        </Group>
+            <SettingsCard shadow="none" p={0}>
+                <Paper p="sm" bd={0}>
+                    <Group gap="md" align="center">
+                        <Title order={5}>Parameters</Title>
+                    </Group>
 
-                        <Box mt="sm">
-                            <TextInput
-                                size="xs"
-                                placeholder="Search parameters by name, label, description, or model"
-                                onChange={(e) => setSearch(e.target.value)}
-                                value={search}
-                                w={380}
-                                leftSection={<MantineIcon icon={IconSearch} />}
-                                rightSection={
-                                    search.length > 0 && (
-                                        <ActionIcon
-                                            variant="subtle"
-                                            onClick={() => setSearch('')}
-                                        >
-                                            <MantineIcon icon={IconX} />
-                                        </ActionIcon>
-                                    )
-                                }
-                            />
-                        </Box>
-                    </Paper>
+                    <Box mt="sm">
+                        <TextInput
+                            size="xs"
+                            placeholder="Search parameters by name, label, description, or model"
+                            onChange={(e) => setSearch(e.target.value)}
+                            value={search}
+                            w={380}
+                            leftSection={<MantineIcon icon={IconSearch} />}
+                            rightSection={
+                                search.length > 0 && (
+                                    <ActionIcon
+                                        variant="subtle"
+                                        onClick={() => setSearch('')}
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                )
+                            }
+                        />
+                    </Box>
+                </Paper>
 
-                    <Table
-                        withRowBorders
-                        className={cx(classes.root, classes.alignLastTdRight)}
-                    >
-                        <Table.Thead>
+                <Table
+                    withRowBorders
+                    className={cx(classes.root, classes.alignLastTdRight)}
+                >
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleSort('name')}
+                            >
+                                <Group gap="xs">
+                                    <Text>Parameter</Text>
+                                    <Text>{getSortIcon('name')}</Text>
+                                </Group>
+                            </Table.Th>
+                            <Table.Th>
+                                <Text ta="left">Source</Text>
+                            </Table.Th>
+                            <Table.Th></Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody style={{ position: 'relative' }}>
+                        {!isLoading && parameters && parameters.length ? (
+                            tableRows
+                        ) : isLoading ? (
                             <Table.Tr>
-                                <Table.Th
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => handleSort('name')}
-                                >
-                                    <Group gap="xs">
-                                        <Text>Parameter</Text>
-                                        <Text>{getSortIcon('name')}</Text>
-                                    </Group>
-                                </Table.Th>
-                                <Table.Th>
-                                    <Text ta="left">Source</Text>
-                                </Table.Th>
-                                <Table.Th></Table.Th>
+                                <Table.Td colSpan={3}>
+                                    <Box py="lg">
+                                        <LoadingOverlay visible={true} />
+                                    </Box>
+                                </Table.Td>
                             </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody style={{ position: 'relative' }}>
-                            {!isLoading && parameters && parameters.length ? (
-                                tableRows
-                            ) : isLoading ? (
-                                <Table.Tr>
-                                    <Table.Td colSpan={3}>
-                                        <Box py="lg">
-                                            <LoadingOverlay visible={true} />
-                                        </Box>
-                                    </Table.Td>
-                                </Table.Tr>
-                            ) : (
-                                <Table.Tr>
-                                    <Table.Td colSpan={3}>
-                                        <Text
-                                            c="gray.6"
-                                            fs="italic"
-                                            ta="center"
-                                        >
-                                            {debouncedSearch
-                                                ? 'No parameters found matching your search'
-                                                : 'No parameters configured for this project'}
-                                        </Text>
-                                    </Table.Td>
-                                </Table.Tr>
-                            )}
-                        </Table.Tbody>
-                    </Table>
+                        ) : (
+                            <Table.Tr>
+                                <Table.Td colSpan={3}>
+                                    <Text c="gray.6" fs="italic" ta="center">
+                                        {debouncedSearch
+                                            ? 'No parameters found matching your search'
+                                            : 'No parameters configured for this project'}
+                                    </Text>
+                                </Table.Td>
+                            </Table.Tr>
+                        )}
+                    </Table.Tbody>
+                </Table>
 
-                    {pagination && pagination.totalPageCount > 1 && (
-                        <Paper p="sm">
-                            <Group justify="center">
-                                <Pagination
-                                    value={page}
-                                    onChange={setPage}
-                                    total={pagination.totalPageCount}
-                                    size="sm"
-                                />
-                            </Group>
-                        </Paper>
-                    )}
-                </SettingsCard>
-
-                {selectedParameter && (
-                    <ConfigModal
-                        parameterName={selectedParameter.name}
-                        config={selectedParameter.config}
-                        opened={configModal}
-                        onClose={configModalHandlers.close}
-                    />
+                {pagination && pagination.totalPageCount > 1 && (
+                    <Paper p="sm">
+                        <Group justify="center">
+                            <Pagination
+                                value={page}
+                                onChange={setPage}
+                                total={pagination.totalPageCount}
+                                size="sm"
+                            />
+                        </Group>
+                    </Paper>
                 )}
-            </Stack>
-        </MantineProvider>
+            </SettingsCard>
+
+            {selectedParameter && (
+                <ConfigModal
+                    parameterName={selectedParameter.name}
+                    config={selectedParameter.config}
+                    opened={configModal}
+                    onClose={configModalHandlers.close}
+                />
+            )}
+        </Stack>
     );
 };
 
