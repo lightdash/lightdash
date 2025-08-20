@@ -358,6 +358,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultOrgIdCondition,
     },
     {
+        name: 'manage:GoogleSheets',
+        description: 'Manage google sheets',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: addDefaultOrgIdCondition,
+    },
+    {
         name: 'view:Analytics',
         description: 'View usage analytics',
         isEnterprise: false,

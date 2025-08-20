@@ -152,6 +152,22 @@ export class SchedulerService extends BaseService {
                 projectUuid,
             }),
         );
+
+        const canManageGoogleSheets = user.ability.can(
+            'manage',
+            subject('GoogleSheets', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+
+        if (
+            !canManageGoogleSheets &&
+            scheduler.format === SchedulerFormat.GSHEETS
+        ) {
+            throw new ForbiddenError();
+        }
+
         const isDeliveryOwner = scheduler.createdBy === user.userUuid;
 
         if (canManageDeliveries || (canCreateDeliveries && isDeliveryOwner)) {
