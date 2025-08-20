@@ -100,13 +100,14 @@ export const getAvailableParametersFromTables = (
 /**
  * Validate parameter names
  * @param parameters - The parameters to validate
- * @returns True if any parameter name contains a dot, false otherwise
+ * @returns True if any parameter name doesn't match the valid pattern, false otherwise
  */
 export const validateParameterNames = (
     parameters: Record<string, LightdashProjectParameter> | undefined,
 ) => {
+    const validNamePattern = /^[a-zA-Z0-9_-]+$/;
     const invalidParameters = Object.keys(parameters || {}).filter(
-        (paramName) => paramName.includes('.'),
+        (paramName) => !validNamePattern.test(paramName),
     );
     return {
         isInvalid: invalidParameters.length > 0,
