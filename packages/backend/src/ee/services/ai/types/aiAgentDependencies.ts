@@ -8,6 +8,7 @@ import {
     CatalogTable,
     DashboardSearchResult,
     Explore,
+    Filters,
     ItemsMap,
     KnexPaginateArgs,
     SlackPrompt,
@@ -109,3 +110,10 @@ export type StoreToolResultsFn = (
 ) => Promise<void>;
 
 export type TrackEventFn = (event: AiAgentResponseStreamed) => void;
+
+export type SearchFieldValuesFn = (args: {
+    table: string;
+    fieldId: string;
+    query: string;
+    filters?: Filters;
+}) => Promise<string[]>;

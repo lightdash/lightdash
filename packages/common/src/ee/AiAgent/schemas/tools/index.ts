@@ -3,6 +3,7 @@ export * from './toolFindDashboardsArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';
 export * from './toolRunMetricQueryArgs';
+export * from './toolSearchFieldValuesArgs';
 export * from './toolTableVizArgs';
 export * from './toolTimeSeriesArgs';
 export * from './toolVerticalBarArgs';
