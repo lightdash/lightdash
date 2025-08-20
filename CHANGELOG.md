@@ -1,3 +1,10 @@
+## [0.1938.1](https://github.com/lightdash/lightdash/compare/0.1938.0...0.1938.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* Revert underlying data ([#16503](https://github.com/lightdash/lightdash/issues/16503)) ([8154f15](https://github.com/lightdash/lightdash/commit/8154f1573837a8e845d124c88ed542197f58837e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.1938.0](https://github.com/lightdash/lightdash/compare/0.1937.1...0.1938.0) (2025-08-20)
 
 
