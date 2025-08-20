@@ -1,4 +1,10 @@
-import { CompiledMetricQuery, CompileError } from '@lightdash/common';
+import {
+    CompiledMetricQuery,
+    CompileError,
+    CustomDimensionType,
+    DimensionType,
+    MetricType,
+} from '@lightdash/common';
 import { compileMetricQuery } from './queryCompiler';
 import {
     EXPLORE,
@@ -341,4 +347,138 @@ test('Should handle table calculation referencing two other table calculations',
 
     // Combined calc should reference both from the most recent CTE that contains them
     expect(combinedCalc?.compiledSql).toBe('"base_calc_1" + "base_calc_2"');
+});
+
+test('Should compile table calculations that reference custom dimensions', () => {
+    const metricQueryWithCustomDimension = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: [
+            ...METRIC_QUERY_VALID_REFERENCES.dimensions,
+            'custom_dim_1',
+        ],
+        customDimensions: [
+            {
+                id: 'custom_dim_1',
+                name: 'Custom Dim 1',
+                table: 'table1',
+                type: CustomDimensionType.SQL,
+                sql: 'LENGTH("table1"."dim_1")', // Use direct SQL that doesn't need field resolution
+                dimensionType: DimensionType.NUMBER,
+            } as const,
+        ],
+        tableCalculations: [
+            {
+                name: 'calc_with_custom_dim',
+                displayName: 'Calc with Custom Dimension',
+                sql: '${custom_dim_1} * 2',
+            },
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithCustomDimension,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const calcWithCustomDim = result.compiledTableCalculations.find(
+        (c) => c.name === 'calc_with_custom_dim',
+    );
+
+    // Should successfully reference the custom dimension by its id
+    expect(calcWithCustomDim?.compiledSql).toBe('"custom_dim_1" * 2');
+});
+
+test('Should compile table calculations that reference additional metrics', () => {
+    const metricQueryWithAdditionalMetric = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        metrics: [
+            ...METRIC_QUERY_VALID_REFERENCES.metrics,
+            'table1_custom_metric_1',
+        ],
+        additionalMetrics: [
+            {
+                name: 'custom_metric_1',
+                table: 'table1',
+                type: MetricType.SUM,
+                sql: '${TABLE}.dim_1', // Use the existing dimension from mock
+            },
+        ],
+        tableCalculations: [
+            {
+                name: 'calc_with_custom_metric',
+                displayName: 'Calc with Custom Metric',
+                sql: '${table1_custom_metric_1} + 100',
+            },
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithAdditionalMetric,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const calcWithCustomMetric = result.compiledTableCalculations.find(
+        (c) => c.name === 'calc_with_custom_metric',
+    );
+
+    // Should successfully reference the additional metric using table_name format
+    expect(calcWithCustomMetric?.compiledSql).toBe(
+        '"table1_custom_metric_1" + 100',
+    );
+});
+
+test('Should compile table calculations that reference both custom dimensions and additional metrics', () => {
+    const metricQueryWithBoth = {
+        ...METRIC_QUERY_VALID_REFERENCES,
+        dimensions: [...METRIC_QUERY_VALID_REFERENCES.dimensions, 'age_range'],
+        metrics: [
+            ...METRIC_QUERY_VALID_REFERENCES.metrics,
+            'table1_custom_count',
+        ],
+        customDimensions: [
+            {
+                id: 'age_range',
+                name: 'Age Range',
+                table: 'table1',
+                type: CustomDimensionType.SQL,
+                sql: 'CASE WHEN LENGTH("table1"."dim_1") < 5 THEN \'Young\' ELSE \'Old\' END', // Use direct SQL
+                dimensionType: DimensionType.STRING,
+            } as const,
+        ],
+        additionalMetrics: [
+            {
+                name: 'custom_count',
+                table: 'table1',
+                type: MetricType.COUNT,
+                sql: '${TABLE}.dim_1', // Use existing dimension
+            },
+        ],
+        tableCalculations: [
+            {
+                name: 'combined_calc',
+                displayName: 'Combined Calc',
+                sql: "CASE WHEN ${age_range} = 'Young' THEN ${table1_custom_count} * 2 ELSE ${table1_custom_count} END",
+            },
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: metricQueryWithBoth,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const combinedCalc = result.compiledTableCalculations.find(
+        (c) => c.name === 'combined_calc',
+    );
+
+    // Should successfully reference both custom dimension and additional metric
+    expect(combinedCalc?.compiledSql).toBe(
+        'CASE WHEN "age_range" = \'Young\' THEN "table1_custom_count" * 2 ELSE "table1_custom_count" END',
+    );
 });

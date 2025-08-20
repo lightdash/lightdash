@@ -108,7 +108,12 @@ const compileTableCalculation = (
                 return `${quoteChar}${p1}${quoteChar}`;
             }
 
-            // Otherwise, treat it as a field reference
+            // If the field is already valid, return it
+            if (validFieldIds.includes(p1)) {
+                return `${quoteChar}${p1}${quoteChar}`;
+            }
+
+            // Otherwise, try to convert it as a field reference (table.field format)
             const fieldId = convertFieldRefToFieldId(p1);
             if (validFieldIds.includes(fieldId)) {
                 return `${quoteChar}${fieldId}${quoteChar}`;
@@ -206,11 +211,6 @@ export const compileMetricQuery = ({
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
     const validFieldIds = [...metricQuery.dimensions, ...metricQuery.metrics];
 
-    const compiledTableCalculations = compileTableCalculations(
-        metricQuery.tableCalculations,
-        validFieldIds,
-        fieldQuoteChar,
-    );
     const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
         (additionalMetric) =>
             compileAdditionalMetric({
@@ -229,6 +229,12 @@ export const compileMetricQuery = ({
                 explore.tables,
                 availableParameters,
             ),
+    );
+
+    const compiledTableCalculations = compileTableCalculations(
+        metricQuery.tableCalculations,
+        validFieldIds,
+        fieldQuoteChar,
     );
 
     return {
