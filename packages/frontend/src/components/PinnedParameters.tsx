@@ -14,8 +14,11 @@ import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 interface PinnedParameterProps {
     parameterKey: string;
     parameter: LightdashProjectParameter;
-    value: string | string[] | null;
-    onChange: (key: string, value: string | string[] | null) => void;
+    value: string | number | string[] | number[] | null;
+    onChange: (
+        key: string,
+        value: string | number | string[] | number[] | null,
+    ) => void;
     onUnpin: (key: string) => void;
     isEditMode: boolean;
     projectUuid?: string;
@@ -41,7 +44,10 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
     }, [value, parameter.default]);
 
     const handleChange = useCallback(
-        (key: string, newValue: string | string[] | null) => {
+        (
+            key: string,
+            newValue: string | number | string[] | number[] | null,
+        ) => {
             onChange(key, newValue);
         },
         [onChange],
@@ -140,7 +146,7 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
     const pinnedParameterKeys = useDashboardContext((c) => c.pinnedParameters);
 
     const handleParameterChange = useCallback(
-        (key: string, value: string | string[] | null) => {
+        (key: string, value: string | number | string[] | number[] | null) => {
             setParameter(key, value);
         },
         [setParameter],

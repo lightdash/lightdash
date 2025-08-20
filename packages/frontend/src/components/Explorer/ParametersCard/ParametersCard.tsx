@@ -51,7 +51,7 @@ const ParametersCard = memo(
 
         const handleParameterChange = (
             paramKey: string,
-            value: string | string[] | null,
+            value: string | number | string[] | number[] | null,
         ) => {
             setParameter(paramKey, value);
         };

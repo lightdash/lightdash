@@ -26,7 +26,7 @@ type ParameterSelectionProps = {
     parameterValues: ParametersValuesMap;
     onParameterChange: (
         paramKey: string,
-        value: string | string[] | null,
+        value: string | number | string[] | number[] | null,
     ) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     showClearAll?: boolean;

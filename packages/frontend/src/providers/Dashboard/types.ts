@@ -101,7 +101,10 @@ export type DashboardContextType = {
     dashboardParameters: DashboardParameters;
     parameterValues: ParametersValuesMap;
     clearAllParameters: () => void;
-    setParameter: (key: string, value: string | string[] | null) => void;
+    setParameter: (
+        key: string,
+        value: string | number | string[] | number[] | null,
+    ) => void;
     dashboardParameterReferences: Set<string>;
     addParameterReferences: (tileUuid: string, references: string[]) => void;
     tileParameterReferences: Record<string, string[]>;

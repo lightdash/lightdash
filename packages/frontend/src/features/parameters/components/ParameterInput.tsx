@@ -34,10 +34,10 @@ import styles from './ParameterInput.module.css';
 type ParameterInputProps = {
     paramKey: string;
     parameter: LightdashProjectParameter;
-    value: string | string[] | null;
+    value: string | number | string[] | number[] | null;
     onParameterChange: (
         paramKey: string,
-        value: string | string[] | null,
+        value: string | number | string[] | number[] | null,
     ) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     projectUuid?: string;
@@ -147,7 +147,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         if (parameter.allow_custom_values) {
             // Needed because current values are not in the same group as parameter options
             const filteredCurrentValues = currentValues.filter(
-                (option) => !fetchedResults.includes(option),
+                (option) => !fetchedResults.includes(String(option)),
             );
 
             return uniq([...parameterOptions, ...filteredCurrentValues]);
@@ -167,7 +167,10 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             if (parameter.allow_custom_values && newValue.trim()) {
                 if (parameter.multiple) {
                     const updatedValues = [...currentValues, newValue.trim()];
-                    onParameterChange(paramKey, updatedValues);
+                    onParameterChange(
+                        paramKey,
+                        updatedValues as string[] | number[],
+                    );
                 } else {
                     onParameterChange(paramKey, newValue.trim());
                 }
@@ -194,10 +197,10 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             : optionsData;
 
         const regularItems = baseItems
-            .sort((a, b) => a.localeCompare(b))
+            .sort((a, b) => String(a).localeCompare(String(b)))
             .map((option) => ({
-                value: option,
-                label: formatDisplayValue(option),
+                value: String(option),
+                label: formatDisplayValue(String(option)),
             }));
 
         const fetchedItems =
@@ -223,7 +226,8 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             search &&
             search.trim() &&
             !baseItems.some(
-                (option) => option.toLowerCase() === search.toLowerCase(),
+                (option) =>
+                    String(option).toLowerCase() === search.toLowerCase(),
             ) &&
             !fetchedResults.some(
                 (option) => option.toLowerCase() === search.toLowerCase(),
@@ -311,12 +315,28 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 return; // Don't update with the __create__ value
             }
 
+            // Convert string values back to appropriate types if needed
+            let finalValue: string | number | string[] | number[] | null =
+                newValues;
+
+            // For number parameters that somehow went through string flow, convert back
+            if (parameter.type === 'number' && newValues !== null) {
+                if (Array.isArray(newValues)) {
+                    finalValue = newValues.map((v) => {
+                        const num = Number(v);
+                        return isNaN(num) ? v : num;
+                    }) as string[] | number[];
+                } else {
+                    const num = Number(newValues);
+                    finalValue = isNaN(num) ? newValues : num;
+                }
+            }
+
             // Handle single value mode constraints
-            let finalValue: string | string[] | null = newValues;
-            if (!parameter.multiple && Array.isArray(newValues)) {
+            if (!parameter.multiple && Array.isArray(finalValue)) {
                 finalValue =
-                    newValues.length > 0
-                        ? newValues[newValues.length - 1]
+                    finalValue.length > 0
+                        ? finalValue[finalValue.length - 1]
                         : null;
             }
 
@@ -329,6 +349,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         },
         [
             parameter.multiple,
+            parameter.type,
             paramKey,
             onParameterChange,
             search,
@@ -342,7 +363,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             <MultiSelect
                 ref={multiSelectRef}
                 data={selectData}
-                value={currentValues}
+                value={currentValues.map(String)}
                 onChange={handleChange}
                 searchValue={
                     shouldFetch || parameter.allow_custom_values
@@ -381,7 +402,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         <Select
             ref={multiSelectRef}
             data={selectData}
-            value={currentValues[0] || null}
+            value={currentValues.length > 0 ? String(currentValues[0]) : null}
             onChange={handleChange}
             searchValue={
                 shouldFetch || parameter.allow_custom_values

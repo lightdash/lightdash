@@ -73,7 +73,7 @@ const ViewSqlChart = () => {
     });
 
     const handleParameterChange = useCallback(
-        (key: string, value: string | string[] | null) => {
+        (key: string, value: string | number | string[] | number[] | null) => {
             dispatch(updateParameterValue({ key, value }));
         },
         [dispatch],

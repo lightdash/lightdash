@@ -1042,7 +1042,7 @@ const ExplorerProvider: FC<
     }, []);
 
     const setParameter = useCallback(
-        (key: string, value: string | string[] | null) => {
+        (key: string, value: string | number | string[] | number[] | null) => {
             if (value === null) {
                 dispatch({
                     type: ActionType.SET_PARAMETER,

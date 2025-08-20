@@ -231,7 +231,7 @@ export const sqlRunnerSlice = createSlice({
             state,
             action: PayloadAction<{
                 key: string;
-                value: string | string[] | null;
+                value: string | number | string[] | number[] | null;
             }>,
         ) => {
             const { key, value } = action.payload;
