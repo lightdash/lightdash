@@ -1,3 +1,11 @@
+# [0.1937.0](https://github.com/lightdash/lightdash/compare/0.1936.2...0.1937.0) (2025-08-20)
+
+
+### Features
+
+* add lastUpdatedBy to chart and dashboard search results ([#16498](https://github.com/lightdash/lightdash/issues/16498)) ([9a49f49](https://github.com/lightdash/lightdash/commit/9a49f4928e5b2bec903c8a9d3604b98dc309fac6)), closes [#16458](https://github.com/lightdash/lightdash/issues/16458)
+* add search_field_values tool to MCP service ([#16497](https://github.com/lightdash/lightdash/issues/16497)) ([89e350a](https://github.com/lightdash/lightdash/commit/89e350a68db9976a30c310d5d8db8666eb0d47b4))
+
 ## [0.1936.2](https://github.com/lightdash/lightdash/compare/0.1936.1...0.1936.2) (2025-08-20)
 
 
