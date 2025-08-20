@@ -28,10 +28,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import {
-    hasSavedFilterValueChanged,
-    isFilterEnabled,
-} from '../../../components/DashboardFilter/FilterConfiguration/utils';
+import { hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
@@ -267,7 +264,13 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
 const hasFilterChanged = (
     filterToCompareAgainst: DashboardFilterRule,
     updatedFilter: DashboardFilterRule,
-) => hasSavedFilterValueChanged(filterToCompareAgainst, updatedFilter);
+) =>
+    // Check if the filter has changed, ignoring disabled state.
+    // The inputs this component uses do not include enabling/disabling filters.
+    hasSavedFilterValueChanged(
+        { ...filterToCompareAgainst, disabled: undefined },
+        { ...updatedFilter, disabled: undefined },
+    );
 
 const updateFilters = (
     updatedFilter: DashboardFilterRule,
@@ -283,13 +286,21 @@ const updateFilters = (
             ? draftFilters[filterIndex]
             : originalFilter;
 
-    if (hasFilterChanged(filterToCompareAgainst, updatedFilter)) {
+    // Manually enable/disable filters based on the values.
+    // The inputs this component uses do not include enabling/disabling filters.
+    // If the operator is a value filter, the filter is disabled if the values are empty or undefined.
+    const isDisabled =
+        isWithValueFilter(updatedFilter.operator) &&
+        (updatedFilter.values?.length === 0 ||
+            updatedFilter?.values?.length === undefined);
+
+    if (hasSavedFilterValueChanged(filterToCompareAgainst, updatedFilter)) {
         if (draftFilters && isExistingFilter) {
             return draftFilters.map((f) =>
                 f.id === updatedFilter.id
                     ? {
                           ...updatedFilter,
-                          disabled: !isFilterEnabled(updatedFilter),
+                          disabled: isDisabled,
                       }
                     : f,
             );
@@ -299,7 +310,7 @@ const updateFilters = (
             ...(draftFilters ?? []),
             {
                 ...updatedFilter,
-                disabled: !isFilterEnabled(updatedFilter),
+                disabled: isDisabled,
             },
         ];
     }
@@ -465,7 +476,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                                 }
                                 hasChanged={
                                     originalFilter
-                                        ? hasSavedFilterValueChanged(
+                                        ? hasFilterChanged(
                                               filter,
                                               originalFilter,
                                           )
@@ -518,7 +529,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
                                     }
                                     hasChanged={
                                         schedulerFilter
-                                            ? hasSavedFilterValueChanged(
+                                            ? hasFilterChanged(
                                                   filter,
                                                   schedulerFilter,
                                               )
