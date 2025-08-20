@@ -1,4 +1,4 @@
-import { getParameterReferences } from './parameters';
+import { getParameterReferences, validateParameterNames } from './parameters';
 
 describe('getParameterReferences', () => {
     describe('Project-level parameters', () => {
@@ -209,5 +209,60 @@ describe('getParameterReferences', () => {
             expect(result).toContain('customers.start_date');
             expect(result.length).toBe(2);
         });
+    });
+});
+
+describe('validateParameterNames', () => {
+    it('should accept valid parameter names (alphanumeric, underscores, hyphens)', () => {
+        const result = validateParameterNames({
+            status: { label: 'Status', default: 'active' },
+            region123: { label: 'Region', default: 'US' },
+            USER_ID: { label: 'User ID', default: '1' },
+            user_name: { label: 'User Name', default: 'John' },
+            _private: { label: 'Private', default: 'value' },
+            'user-id': { label: 'User ID', default: '123' },
+            'region-code': { label: 'Region Code', default: 'US' },
+        });
+        expect(result.isInvalid).toBe(false);
+        expect(result.invalidParameters).toEqual([]);
+    });
+
+    it('should reject invalid parameter names (dots, spaces, special chars)', () => {
+        const result = validateParameterNames({
+            'user.name': { label: 'User Name', default: 'John' },
+            'user name': { label: 'User Name', default: 'John' },
+            'user@email': { label: 'User Email', default: 'test' },
+            price$amount: { label: 'Price Amount', default: '100' },
+            'value#hash': { label: 'Value Hash', default: 'abc' },
+            '': { label: 'Empty', default: 'value' },
+        });
+        expect(result.isInvalid).toBe(true);
+        expect(result.invalidParameters).toContain('user.name');
+        expect(result.invalidParameters).toContain('user name');
+        expect(result.invalidParameters).toContain('user@email');
+        expect(result.invalidParameters).toContain('price$amount');
+        expect(result.invalidParameters).toContain('value#hash');
+        expect(result.invalidParameters).toContain('');
+    });
+
+    it('should handle edge cases (undefined, empty)', () => {
+        expect(validateParameterNames(undefined).isInvalid).toBe(false);
+        expect(validateParameterNames(undefined).invalidParameters).toEqual([]);
+        expect(validateParameterNames({}).isInvalid).toBe(false);
+        expect(validateParameterNames({}).invalidParameters).toEqual([]);
+    });
+
+    it('should identify mixed valid and invalid parameters', () => {
+        const result = validateParameterNames({
+            validParam1: { label: 'Valid Param 1', default: 'value1' },
+            'invalid.param': { label: 'Invalid Param', default: 'value2' },
+            valid_param2: { label: 'Valid Param 2', default: 'value3' },
+            'another invalid': { label: 'Another Invalid', default: 'value4' },
+            'valid-param3': { label: 'Valid Param 3', default: 'value5' },
+        });
+        expect(result.isInvalid).toBe(true);
+        expect(result.invalidParameters).toHaveLength(2);
+        expect(result.invalidParameters).toContain('invalid.param');
+        expect(result.invalidParameters).toContain('another invalid');
     });
 });
