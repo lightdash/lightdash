@@ -33,17 +33,6 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
-    can('view', 'SavedChart', {
-        organizationUuid: organization.organizationUuid,
-        projectUuid: embedUser.content.projectUuid,
-        isPrivate: false,
-    });
-
-    can('view', 'Project', {
-        organizationUuid: organization.organizationUuid,
-        projectUuid: embedUser.content.projectUuid,
-    });
-
     return { embedUser, dashboardUuid, organization, builder };
 };
 
@@ -60,6 +49,17 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
         can('view', 'UnderlyingData', {
             organizationUuid: organization.organizationUuid,
             projectUuid: content.projectUuid,
+        });
+
+        can('view', 'Project', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: content.projectUuid,
+        });
+
+        can('view', 'SavedChart', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: content.projectUuid,
+            isPrivate: false,
         });
     }
 

@@ -13,9 +13,9 @@ import {
     sleep,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useProjectUuid } from './useProjectUuid';
 
 type UnderlyingDataResults = ApiQueryResults & {
     queryUuid: string;
@@ -136,7 +136,7 @@ export const useUnderlyingDataResults = (
     underlyingDataItemId?: string,
     dateZoom?: DateZoom,
 ) => {
-    const projectUuid = useProjectUuid();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return useQuery<UnderlyingDataResults, ApiError>({
         queryKey: [
