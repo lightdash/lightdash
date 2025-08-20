@@ -1,23 +1,35 @@
-import { subject } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
+import { type MemberAbility } from './types';
 
 describe('scopeAbilityBuilder', () => {
     describe('buildAbilityFromScopes', () => {
         const baseContext = {
-            organizationUuid: 'org-123',
             isEnterprise: false,
             organizationRole: 'admin',
             projectUuid: 'project-123',
+            userUuid: 'user1',
             scopes: [],
         };
 
+        const baseContextWithOrg = {
+            ...baseContext,
+            projectUuid: undefined,
+            organizationUuid: 'org-123',
+        };
+
         it('should build ability with organization view permissions', () => {
-            const ability = buildAbilityFromScopes({
-                ...baseContext,
-                scopes: ['view:organization'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContextWithOrg,
+                    scopes: ['view:organization'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             expect(
                 ability.can(
@@ -41,10 +53,15 @@ describe('scopeAbilityBuilder', () => {
         });
 
         it('should build ability with dashboard view permissions', () => {
-            const ability = buildAbilityFromScopes({
-                ...baseContext,
-                scopes: ['view:dashboard'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContext,
+                    scopes: ['view:dashboard'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             // Should be able to view public dashboards
             expect(
@@ -77,10 +94,15 @@ describe('scopeAbilityBuilder', () => {
                 userUuid: 'user-456',
             };
 
-            const ability = buildAbilityFromScopes({
-                ...contextWithUser,
-                scopes: ['view:dashboard'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...contextWithUser,
+                    scopes: ['view:dashboard'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             // Can view dashboards with user access
             expect(
@@ -101,10 +123,15 @@ describe('scopeAbilityBuilder', () => {
                 projectUuid: 'project-789',
             };
 
-            const ability = buildAbilityFromScopes({
-                ...projectContext,
-                scopes: ['view:project'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...projectContext,
+                    scopes: ['view:project'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             expect(
                 ability.can(
@@ -118,10 +145,15 @@ describe('scopeAbilityBuilder', () => {
         });
 
         it('should build ability with project creation permissions and type restrictions', () => {
-            const ability = buildAbilityFromScopes({
-                ...baseContext,
-                scopes: ['create:project'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContextWithOrg,
+                    scopes: ['create:project'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             // Can create preview projects
             expect(
@@ -148,14 +180,19 @@ describe('scopeAbilityBuilder', () => {
 
         it('should build ability with editor permissions for dashboards', () => {
             const editorContext = {
-                ...baseContext,
+                ...baseContextWithOrg,
                 userUuid: 'user-456',
             };
 
-            const ability = buildAbilityFromScopes({
-                ...editorContext,
-                scopes: ['manage:dashboard'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...editorContext,
+                    scopes: ['manage:dashboard'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             // Can manage dashboards where user is editor
             expect(
@@ -176,14 +213,19 @@ describe('scopeAbilityBuilder', () => {
 
         it('should build ability with admin permissions for spaces', () => {
             const adminContext = {
-                ...baseContext,
+                ...baseContextWithOrg,
                 userUuid: 'user-456',
             };
 
-            const ability = buildAbilityFromScopes({
-                ...adminContext,
-                scopes: ['manage:space'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...adminContext,
+                    scopes: ['manage:space'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             // Can manage spaces where user is admin
             expect(
@@ -208,10 +250,15 @@ describe('scopeAbilityBuilder', () => {
                 userUuid: 'user-456',
             };
 
-            const ability = buildAbilityFromScopes({
-                ...userContext,
-                scopes: ['view:job_status'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...userContext,
+                    scopes: ['view:job_status'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             // Can view job status created by the user
             expect(
@@ -241,10 +288,15 @@ describe('scopeAbilityBuilder', () => {
                 isEnterprise: true,
             };
 
-            const ability = buildAbilityFromScopes({
-                ...userContext,
-                scopes: ['manage:ai_agent_thread'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...userContext,
+                    scopes: ['manage:ai_agent_thread'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             // Can manage user's own AI agent threads
             expect(
@@ -271,10 +323,15 @@ describe('scopeAbilityBuilder', () => {
 
         it('should build ability with basic permissions for scopes without custom logic', () => {
             // These scopes don't have custom applyConditions
-            const ability = buildAbilityFromScopes({
-                ...baseContext,
-                scopes: ['view:analytics', 'manage:tags'],
-            });
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContext,
+                    scopes: ['view:analytics', 'manage:tags'],
+                },
+                builder,
+            );
+            const ability = builder.build();
 
             expect(
                 ability.can(
@@ -298,7 +355,9 @@ describe('scopeAbilityBuilder', () => {
         });
 
         it('should handle unknown scopes gracefully', () => {
-            const ability = buildAbilityFromScopes(baseContext);
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(baseContext, builder);
+            const ability = builder.build();
 
             // Unknown scope should not add any abilities
             expect(ability.rules.length).toBe(0);
@@ -310,7 +369,9 @@ describe('scopeAbilityBuilder', () => {
                 isEnterprise: false,
             };
 
-            const ability = buildAbilityFromScopes(nonEnterpriseContext);
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(nonEnterpriseContext, builder);
+            const ability = builder.build();
 
             // Enterprise scope should not add abilities in non-enterprise context
             expect(ability.rules.length).toBe(0);
@@ -318,9 +379,8 @@ describe('scopeAbilityBuilder', () => {
 
         it('should build a complete ability from multiple scopes', () => {
             const context = {
-                organizationUuid: 'org-123',
                 userUuid: 'user-456',
-                projectUuid: 'project-789',
+                organizationUuid: 'org-123',
                 isEnterprise: false,
                 organizationRole: 'admin',
                 scopes: [
@@ -330,7 +390,9 @@ describe('scopeAbilityBuilder', () => {
                 ],
             };
 
-            const ability = buildAbilityFromScopes(context);
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(context, builder);
+            const ability = builder.build();
 
             // Check that all abilities were applied
             expect(
@@ -379,7 +441,9 @@ describe('scopeAbilityBuilder', () => {
                     scopes: ['manage:organization', 'manage:saved_chart'],
                 };
 
-                const ability = buildAbilityFromScopes(contextWithOrgManage);
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(contextWithOrgManage, builder);
+                const ability = builder.build();
 
                 // Should have organization-wide permissions for saved charts
                 expect(
@@ -412,7 +476,9 @@ describe('scopeAbilityBuilder', () => {
                     scopes: ['manage:saved_chart'],
                 };
 
-                const ability = buildAbilityFromScopes(contextWithoutOrgManage);
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(contextWithoutOrgManage, builder);
+                const ability = builder.build();
 
                 // Should require user access restrictions
                 expect(
@@ -451,9 +517,9 @@ describe('scopeAbilityBuilder', () => {
                     scopes: ['manage:project', 'manage:space'],
                 };
 
-                const ability = buildAbilityFromScopes(
-                    contextWithProjectManage,
-                );
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(contextWithProjectManage, builder);
+                const ability = builder.build();
 
                 // Should allow managing public spaces when user has project management
                 expect(
@@ -499,8 +565,9 @@ describe('scopeAbilityBuilder', () => {
                 };
 
                 // Test dashboard promotion with organization management
-                const abilityWithOrg =
-                    buildAbilityFromScopes(contextWithOrgManage);
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(contextWithOrgManage, builder);
+                const abilityWithOrg = builder.build();
 
                 expect(
                     abilityWithOrg.can(
@@ -513,9 +580,14 @@ describe('scopeAbilityBuilder', () => {
                 ).toBe(true);
 
                 // Test dashboard promotion without organization management
-                const abilityWithoutOrg = buildAbilityFromScopes(
-                    contextWithoutOrgManage,
+                const builderWithoutOrg = new AbilityBuilder<MemberAbility>(
+                    Ability,
                 );
+                buildAbilityFromScopes(
+                    contextWithoutOrgManage,
+                    builderWithoutOrg,
+                );
+                const abilityWithoutOrg = builderWithoutOrg.build();
 
                 expect(
                     abilityWithoutOrg.can(
@@ -549,20 +621,26 @@ describe('scopeAbilityBuilder', () => {
 
         describe('edge cases and error handling', () => {
             it('should handle empty scope array', () => {
-                const ability = buildAbilityFromScopes(baseContext);
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(baseContext, builder);
+                const ability = builder.build();
                 expect(ability.rules.length).toBe(0);
             });
 
             it('should handle undefined userUuid in context', () => {
                 const contextWithoutUser = {
                     ...baseContext,
-                    userUuid: undefined,
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithoutUser,
-                    scopes: ['view:dashboard'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithoutUser,
+                        scopes: ['view:dashboard'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Should only allow viewing public dashboards
                 expect(
@@ -588,87 +666,47 @@ describe('scopeAbilityBuilder', () => {
                 ).toBe(false);
             });
 
-            it('should handle missing projectUuid in context', () => {
-                const contextWithoutProject = {
-                    ...baseContext,
-                    projectUuid: '',
-                };
-
-                const ability = buildAbilityFromScopes({
-                    ...contextWithoutProject,
-                    scopes: ['view:dashboard'],
-                });
-
-                // Should work with public dashboards without project restriction
-                expect(
-                    ability.can(
-                        'view',
-                        subject('Dashboard', {
-                            organizationUuid: 'org-123',
-                            isPrivate: false,
-                        }),
-                    ),
-                ).toBe(true);
-            });
-
             it('should handle mixed valid and invalid scopes', () => {
-                // Should throw error for invalid scopes
-                expect(() => {
-                    buildAbilityFromScopes({
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
                         ...baseContext,
                         scopes: [
                             'view:dashboard',
                             'view:project',
                             'invalid:scope',
                         ],
-                    });
-                }).toThrow(
-                    'Invalid scope: invalid:Scope. Please check the scope name and try again.',
+                    },
+                    builder,
                 );
+                const ability = builder.build();
 
-                // Should work with only valid scopes
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['view:dashboard', 'view:project'],
-                });
-
-                // Should apply valid scopes
+                // We have 3 valid rules, 2 for dashboard and 1 for project, dropping the invalid scope
+                expect(ability.rules.length).toBe(3);
                 expect(
-                    ability.can(
-                        'view',
-                        subject('Dashboard', {
-                            organizationUuid: 'org-123',
-                            projectUuid: 'project-123',
-                            isPrivate: false,
-                        }),
-                    ),
-                ).toBe(true);
-
+                    ability.rules.filter((r) => r.subject === 'Dashboard'),
+                ).toHaveLength(2);
                 expect(
-                    ability.can(
-                        'view',
-                        subject('Project', {
-                            organizationUuid: 'org-123',
-                            projectUuid: 'project-123',
-                        }),
-                    ),
-                ).toBe(true);
-
-                // Should have rules from valid scopes
-                expect(ability.rules.length).toBeGreaterThan(0);
+                    ability.rules.find((r) => r.subject === 'Project'),
+                ).toBeDefined();
             });
         });
 
         describe('cross-boundary access tests', () => {
             it('should not allow access to resources from different organizations', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: [
-                        'view:dashboard',
-                        'manage:saved_chart',
-                        'view:space',
-                    ],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: [
+                            'view:dashboard',
+                            'manage:saved_chart',
+                            'view:space',
+                        ],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Should not access dashboard from different org
                 expect(
@@ -704,10 +742,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should not allow access to resources from different projects', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['view:saved_chart'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['view:saved_chart'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Should not access saved chart from different project
                 expect(
@@ -726,14 +769,19 @@ describe('scopeAbilityBuilder', () => {
         describe('private resource access with space roles', () => {
             it('should handle viewer role access to private resources', () => {
                 const contextWithUser = {
-                    ...baseContext,
+                    ...baseContextWithOrg,
                     userUuid: 'user-456',
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithUser,
-                    scopes: ['view:dashboard'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['view:dashboard'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can view private dashboard with viewer access
                 expect(
@@ -784,14 +832,19 @@ describe('scopeAbilityBuilder', () => {
 
             it('should handle editor role for managing resources', () => {
                 const contextWithUser = {
-                    ...baseContext,
+                    ...baseContextWithOrg,
                     userUuid: 'user-456',
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithUser,
-                    scopes: ['manage:dashboard'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['manage:dashboard'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can manage dashboard with editor role
                 expect(
@@ -859,17 +912,22 @@ describe('scopeAbilityBuilder', () => {
                     userUuid: 'user-456',
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithUser,
-                    scopes: ['manage:space'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['manage:space@assigned'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can manage space with admin role
                 expect(
                     ability.can(
                         'manage',
                         subject('Space', {
-                            organizationUuid: 'org-123',
+                            projectUuid: baseContext.projectUuid,
                             access: [
                                 {
                                     userUuid: 'user-456',
@@ -923,10 +981,15 @@ describe('scopeAbilityBuilder', () => {
                     userUuid: 'user-456',
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithUser,
-                    scopes: ['view:job'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['view:job'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can view own jobs
                 expect(
@@ -950,15 +1013,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle view:job_status permissions for organization context', () => {
-                const contextWithoutUser = {
-                    ...baseContext,
-                    userUuid: undefined,
-                };
-
-                const ability = buildAbilityFromScopes({
-                    ...contextWithoutUser,
-                    scopes: ['view:job_status'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['view:job_status'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Cannot view job status without user context when no manage:Organization scope
                 expect(
@@ -982,15 +1045,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle view:job_status permissions with manage:Organization scope', () => {
-                const contextWithoutUser = {
-                    ...baseContext,
-                    userUuid: undefined,
-                };
-
-                const ability = buildAbilityFromScopes({
-                    ...contextWithoutUser,
-                    scopes: ['view:job_status', 'manage:organization'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        scopes: ['view:job_status', 'manage:organization'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can view all job status in organization when manage:Organization scope is present
                 expect(
@@ -1019,10 +1082,15 @@ describe('scopeAbilityBuilder', () => {
                     userUuid: 'user-456',
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithUser,
-                    scopes: ['view:job_status'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['view:job_status'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can view own job status
                 expect(
@@ -1048,10 +1116,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('semantic viewer permissions', () => {
             it('should handle view:semantic_viewer permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['view:semantic_viewer'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['view:semantic_viewer'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1066,15 +1139,23 @@ describe('scopeAbilityBuilder', () => {
 
             it('should handle manage:semantic_viewer with organization scope', () => {
                 const contextWithOrgManage = {
-                    ...baseContext,
+                    ...baseContextWithOrg,
                     userUuid: 'user-456',
                     scopes: ['manage:organization'],
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithOrgManage,
-                    scopes: ['manage:organization', 'manage:semantic_viewer'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithOrgManage,
+                        scopes: [
+                            'manage:organization',
+                            'manage:semantic_viewer',
+                        ],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can manage semantic viewer organization-wide
                 expect(
@@ -1089,14 +1170,19 @@ describe('scopeAbilityBuilder', () => {
 
             it('should handle manage:semantic_viewer with editor role', () => {
                 const contextWithUser = {
-                    ...baseContext,
+                    ...baseContextWithOrg,
                     userUuid: 'user-456',
                 };
 
-                const ability = buildAbilityFromScopes({
-                    ...contextWithUser,
-                    scopes: ['manage:semantic_viewer'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['manage:semantic_viewer'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can manage semantic viewer with editor role
                 expect(
@@ -1134,10 +1220,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('create space permissions', () => {
             it('should handle create:space permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['create:space'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['create:space'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1153,10 +1244,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('export permissions', () => {
             it('should handle export csv permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:export_csv'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:export_csv'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1170,10 +1266,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle change csv results permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:change_csv_results'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:change_csv_results'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1189,10 +1290,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('underlying data permissions', () => {
             it('should handle view:underlying_data permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['view:underlying_data'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['view:underlying_data'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1208,10 +1314,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('sql runner and custom sql permissions', () => {
             it('should handle manage:sql_runner permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:sql_runner'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:sql_runner'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1225,10 +1336,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle manage:custom_sql permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:custom_sql'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:custom_sql'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1243,48 +1359,50 @@ describe('scopeAbilityBuilder', () => {
         });
 
         describe('project delete permissions', () => {
-            it('should handle delete:project with projectUuid', () => {
-                const contextWithProject = {
-                    ...baseContext,
-                    projectUuid: 'project-456',
-                };
-
-                const ability = buildAbilityFromScopes({
-                    ...contextWithProject,
-                    scopes: ['delete:project'],
-                });
+            it('should handle delete:project@self permissions', () => {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        userUuid: 'user-456',
+                        scopes: ['delete:project@self'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can delete specific project
                 expect(
                     ability.can(
                         'delete',
                         subject('Project', {
-                            projectUuid: 'project-456',
+                            createdByUserUuid: 'user-456',
+                            type: ProjectType.PREVIEW,
                         }),
                     ),
                 ).toBe(true);
 
-                // Cannot delete different project
                 expect(
                     ability.can(
                         'delete',
                         subject('Project', {
-                            projectUuid: 'different-project',
+                            createdByUserUuid: 'different-user',
+                            type: ProjectType.PREVIEW,
                         }),
                     ),
                 ).toBe(false);
             });
 
             it('should handle delete:project for preview projects', () => {
-                const contextWithoutProject = {
-                    ...baseContext,
-                    projectUuid: '',
-                };
-
-                const ability = buildAbilityFromScopes({
-                    ...contextWithoutProject,
-                    scopes: ['delete:project'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        scopes: ['delete:project'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Can delete preview projects in organization
                 expect(
@@ -1312,10 +1430,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('pinned items permissions', () => {
             it('should handle view:pinned_items permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['view:pinned_items'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['view:pinned_items'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1329,10 +1452,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle manage:pinned_items permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:pinned_items'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:pinned_items'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1348,10 +1476,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('explore permissions', () => {
             it('should handle manage:explore permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:explore'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:explore'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1549,10 +1682,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('organization member profile permissions', () => {
             it('should handle view:organization_member_profile permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['view:organization_member_profile'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        scopes: ['view:organization_member_profile'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1564,7 +1702,7 @@ describe('scopeAbilityBuilder', () => {
                     ),
                 ).toBe(true);
 
-                // Cannot view profiles from different organization
+                // Cannot view profiles from different project
                 expect(
                     ability.can(
                         'view',
@@ -1577,10 +1715,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle manage:organization_member_profile permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:organization_member_profile'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:organization_member_profile'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1596,35 +1739,45 @@ describe('scopeAbilityBuilder', () => {
 
         describe('personal access token permissions', () => {
             it('should allow managing PAT when enabled and user has allowed role', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    isEnterprise: true,
-                    organizationRole: 'admin',
-                    scopes: ['manage:personal_access_token'],
-                    permissionsConfig: {
-                        pat: {
-                            enabled: true,
-                            allowedOrgRoles: ['admin', 'developer'],
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        isEnterprise: true,
+                        organizationRole: 'admin',
+                        scopes: ['manage:personal_access_token'],
+                        permissionsConfig: {
+                            pat: {
+                                enabled: true,
+                                allowedOrgRoles: ['admin', 'developer'],
+                            },
                         },
                     },
-                });
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(ability.can('manage', 'PersonalAccessToken')).toBe(true);
             });
 
             it('should not allow managing PAT when disabled', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    isEnterprise: true,
-                    organizationRole: 'admin',
-                    scopes: ['manage:personal_access_token'],
-                    permissionsConfig: {
-                        pat: {
-                            enabled: false,
-                            allowedOrgRoles: ['admin', 'developer'],
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        isEnterprise: true,
+                        organizationRole: 'admin',
+                        scopes: ['manage:personal_access_token'],
+                        permissionsConfig: {
+                            pat: {
+                                enabled: false,
+                                allowedOrgRoles: ['admin', 'developer'],
+                            },
                         },
                     },
-                });
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can('manage', subject('PersonalAccessToken', {})),
@@ -1632,18 +1785,23 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should not allow managing PAT when user role not in allowed roles', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    isEnterprise: true,
-                    organizationRole: 'developer',
-                    scopes: ['manage:personal_access_token'],
-                    permissionsConfig: {
-                        pat: {
-                            enabled: true,
-                            allowedOrgRoles: ['admin'],
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        isEnterprise: true,
+                        organizationRole: 'developer',
+                        scopes: ['manage:personal_access_token'],
+                        permissionsConfig: {
+                            pat: {
+                                enabled: true,
+                                allowedOrgRoles: ['admin'],
+                            },
                         },
                     },
-                });
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can('manage', subject('PersonalAccessToken', {})),
@@ -1651,13 +1809,18 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should not allow managing PAT when no permissions config provided', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    isEnterprise: true,
-                    organizationRole: 'admin',
-                    scopes: ['manage:personal_access_token'],
-                    // No permissionsConfig provided
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        isEnterprise: true,
+                        organizationRole: 'admin',
+                        scopes: ['manage:personal_access_token'],
+                        // No permissionsConfig provided
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can('manage', subject('PersonalAccessToken', {})),
@@ -1665,18 +1828,23 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should not allow managing PAT when no organization role provided', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    isEnterprise: true,
-                    organizationRole: '', // Empty organization role
-                    scopes: ['manage:personal_access_token'],
-                    permissionsConfig: {
-                        pat: {
-                            enabled: true,
-                            allowedOrgRoles: ['admin', 'developer'],
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        isEnterprise: true,
+                        organizationRole: '', // Empty organization role
+                        scopes: ['manage:personal_access_token'],
+                        permissionsConfig: {
+                            pat: {
+                                enabled: true,
+                                allowedOrgRoles: ['admin', 'developer'],
+                            },
                         },
                     },
-                });
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can('manage', subject('PersonalAccessToken', {})),
