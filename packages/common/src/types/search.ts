@@ -32,6 +32,11 @@ export type DashboardSearchResult = Pick<
         lastName: string;
         userUuid: string;
     } | null;
+    lastUpdatedBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
     charts: {
         uuid: string;
         name: string;
@@ -58,6 +63,11 @@ export type SavedChartSearchResult = Pick<
         lastName: string;
         userUuid: string;
     } | null;
+    lastUpdatedBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
 } & RankedItem;
 
 export type SqlChartSearchResult = Pick<
@@ -77,6 +87,11 @@ export type SqlChartSearchResult = Pick<
         lastName: string;
         userUuid: string;
     } | null;
+    lastUpdatedBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
 } & RankedItem;
 
 export type AllChartsSearchResult = Pick<
@@ -90,6 +105,11 @@ export type AllChartsSearchResult = Pick<
         firstViewedAt: string | null;
         lastModified: string | null;
         createdBy: {
+            firstName: string;
+            lastName: string;
+            userUuid: string;
+        } | null;
+        lastUpdatedBy: {
             firstName: string;
             lastName: string;
             userUuid: string;

@@ -63,6 +63,11 @@ const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
                 ? `<CreatedBy>${chart.createdBy.firstName} ${chart.createdBy.lastName}</CreatedBy>`
                 : ''
         }
+        ${
+            chart.lastUpdatedBy
+                ? `<LastUpdatedBy>${chart.lastUpdatedBy.firstName} ${chart.lastUpdatedBy.lastName}</LastUpdatedBy>`
+                : ''
+        }
     </Chart>
     `.trim();
 };

@@ -159,14 +159,30 @@ export class SearchModel {
                 `${SpaceTableName}.project_id`,
             )
             .leftJoin(
-                DashboardVersionsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
+                this.database.raw(
+                    `${DashboardVersionsTableName} as first_version`,
+                ),
+                this.database.raw(
+                    `first_version.dashboard_id = ${DashboardsTableName}.dashboard_id AND first_version.dashboard_version_id = (SELECT MIN(dashboard_version_id) FROM ${DashboardVersionsTableName} WHERE dashboard_id = ${DashboardsTableName}.dashboard_id)`,
+                ),
             )
             .leftJoin(
-                'users',
-                `${DashboardVersionsTableName}.updated_by_user_uuid`,
-                'users.user_uuid',
+                this.database.raw(
+                    `${DashboardVersionsTableName} as last_version`,
+                ),
+                this.database.raw(
+                    `last_version.dashboard_id = ${DashboardsTableName}.dashboard_id AND last_version.dashboard_version_id = (SELECT MAX(dashboard_version_id) FROM ${DashboardVersionsTableName} WHERE dashboard_id = ${DashboardsTableName}.dashboard_id)`,
+                ),
+            )
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `first_version.updated_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as updated_by_user`,
+                `updated_by_user.user_uuid`,
+                `last_version.updated_by_user_uuid`,
             )
             // Join with charts that belong directly to dashboard
             .leftJoin(
@@ -179,7 +195,7 @@ export class SearchModel {
                 this.on(
                     'dashboard_tiles.dashboard_version_id',
                     '=',
-                    `${DashboardVersionsTableName}.dashboard_version_id`,
+                    `last_version.dashboard_version_id`,
                 );
             })
             .leftJoin('dashboard_tile_charts', function () {
@@ -213,19 +229,15 @@ export class SearchModel {
                 ),
                 { viewsCount: `${DashboardsTableName}.views_count` },
                 { firstViewedAt: `${DashboardsTableName}.first_viewed_at` },
-                { lastModified: `${DashboardVersionsTableName}.created_at` },
-                { createdByFirstName: 'users.first_name' },
-                { createdByLastName: 'users.last_name' },
-                { createdByUserUuid: 'users.user_uuid' },
+                { lastModified: `last_version.created_at` },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+                { lastUpdatedByFirstName: 'updated_by_user.first_name' },
+                { lastUpdatedByLastName: 'updated_by_user.last_name' },
+                { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .whereRaw(
-                `${DashboardVersionsTableName}.dashboard_version_id = (
-                SELECT MAX(dashboard_version_id) 
-                FROM ${DashboardVersionsTableName} dv2 
-                WHERE dv2.dashboard_id = ${DashboardsTableName}.dashboard_id
-            )`,
-            )
             .whereRaw(
                 `(${dashboardSearchRankRawSql} > 0 OR ${directChartSearchRankRawSql} > 0 OR ${tileChartSearchRankRawSql} > 0)`,
             )
@@ -238,10 +250,13 @@ export class SearchModel {
                 `${SpaceTableName}.space_uuid`,
                 `${DashboardsTableName}.views_count`,
                 `${DashboardsTableName}.first_viewed_at`,
-                `${DashboardVersionsTableName}.created_at`,
-                'users.first_name',
-                'users.last_name',
-                'users.user_uuid',
+                `last_version.created_at`,
+                'created_by_user.first_name',
+                'created_by_user.last_name',
+                'created_by_user.user_uuid',
+                'updated_by_user.first_name',
+                'updated_by_user.last_name',
+                'updated_by_user.user_uuid',
             )
             .orderBy('search_rank', 'desc');
 
@@ -251,7 +266,7 @@ export class SearchModel {
             {
                 join: {
                     isVersioned: true,
-                    joinTableName: DashboardVersionsTableName,
+                    joinTableName: 'first_version',
                     joinTableIdColumnName: 'dashboard_id',
                     joinTableUserUuidColumnName: 'updated_by_user_uuid',
                     tableIdColumnName: 'dashboard_id',
@@ -395,6 +410,13 @@ export class SearchModel {
                       userUuid: dashboard.createdByUserUuid,
                   }
                 : null,
+            lastUpdatedBy: dashboard.lastUpdatedByUserUuid
+                ? {
+                      firstName: dashboard.lastUpdatedByFirstName,
+                      lastName: dashboard.lastUpdatedByLastName,
+                      userUuid: dashboard.lastUpdatedByUserUuid,
+                  }
+                : null,
             charts: chartsByDashboard[dashboard.uuid] || [],
         }));
     }
@@ -487,6 +509,16 @@ export class SearchModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `${tableName}.created_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as updated_by_user`,
+                `updated_by_user.user_uuid`,
+                `${tableName}.last_version_updated_by_user_uuid`,
+            )
             .column(
                 { uuid: uuidColumnName },
                 `${tableName}.slug`,
@@ -496,6 +528,16 @@ export class SearchModel {
                     chartType: `${tableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: `${tableName}.space_uuid` },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
+                { viewsCount: `${tableName}.views_count` },
+                { firstViewedAt: `${tableName}.first_viewed_at` },
+                { lastModified: `${tableName}.last_version_updated_at` },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+                { lastUpdatedByFirstName: 'updated_by_user.first_name' },
+                { lastUpdatedByLastName: 'updated_by_user.last_name' },
+                { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
                 { search_rank: searchRankRawSql },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
@@ -506,16 +548,38 @@ export class SearchModel {
             subquery,
             {
                 tableName,
-                tableUserUuidColumnName: 'last_version_updated_by_user_uuid',
+                tableUserUuidColumnName: 'created_by_user_uuid',
             },
             filters,
         );
 
-        return this.database(tableName)
+        const charts = await this.database(tableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
             .where('search_rank', '>', 0)
             .limit(10);
+
+        return charts.map((chart) => ({
+            ...chart,
+            chartSource: 'sql' as const,
+            viewsCount: chart.viewsCount || 0,
+            firstViewedAt: chart.firstViewedAt || null,
+            lastModified: chart.lastModified || null,
+            createdBy: chart.createdByUserUuid
+                ? {
+                      firstName: chart.createdByFirstName,
+                      lastName: chart.createdByLastName,
+                      userUuid: chart.createdByUserUuid,
+                  }
+                : null,
+            lastUpdatedBy: chart.lastUpdatedByUserUuid
+                ? {
+                      firstName: chart.lastUpdatedByFirstName,
+                      lastName: chart.lastUpdatedByLastName,
+                      userUuid: chart.lastUpdatedByUserUuid,
+                  }
+                : null,
+        }));
     }
 
     private async searchSqlCharts(
@@ -584,9 +648,20 @@ export class SearchModel {
                 `${SpaceTableName}.project_id`,
             )
             .leftJoin(
-                'users',
+                this.database.raw(`saved_queries_versions as first_version`),
+                this.database.raw(
+                    `first_version.saved_query_id = ${SavedChartsTableName}.saved_query_id AND first_version.saved_queries_version_id = (SELECT MIN(saved_queries_version_id) FROM saved_queries_versions WHERE saved_query_id = ${SavedChartsTableName}.saved_query_id)`,
+                ),
+            )
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `first_version.updated_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as updated_by_user`,
+                `updated_by_user.user_uuid`,
                 `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
-                'users.user_uuid',
             )
             .column(
                 { uuid: 'saved_query_uuid' },
@@ -603,9 +678,12 @@ export class SearchModel {
                 {
                     lastModified: `${SavedChartsTableName}.last_version_updated_at`,
                 },
-                { createdByFirstName: 'users.first_name' },
-                { createdByLastName: 'users.last_name' },
-                { createdByUserUuid: 'users.user_uuid' },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+                { lastUpdatedByFirstName: 'updated_by_user.first_name' },
+                { lastUpdatedByLastName: 'updated_by_user.last_name' },
+                { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy('search_rank', 'desc');
@@ -662,6 +740,13 @@ export class SearchModel {
                       userUuid: chart.createdByUserUuid,
                   }
                 : null,
+            lastUpdatedBy: chart.lastUpdatedByUserUuid
+                ? {
+                      firstName: chart.lastUpdatedByFirstName,
+                      lastName: chart.lastUpdatedByLastName,
+                      userUuid: chart.lastUpdatedByUserUuid,
+                  }
+                : null,
         }));
     }
 
@@ -703,9 +788,22 @@ export class SearchModel {
                 `${SpaceTableName}.project_id`,
             )
             .leftJoin(
-                'users as saved_chart_users',
+                this.database.raw(
+                    `saved_queries_versions as saved_chart_first_version`,
+                ),
+                this.database.raw(
+                    `saved_chart_first_version.saved_query_id = ${SavedChartsTableName}.saved_query_id AND saved_chart_first_version.saved_queries_version_id = (SELECT MIN(saved_queries_version_id) FROM saved_queries_versions WHERE saved_query_id = ${SavedChartsTableName}.saved_query_id)`,
+                ),
+            )
+            .leftJoin(
+                `${UserTableName} as saved_chart_created_by_user`,
+                `saved_chart_created_by_user.user_uuid`,
+                `saved_chart_first_version.updated_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as saved_chart_updated_by_user`,
+                `saved_chart_updated_by_user.user_uuid`,
                 `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
-                'saved_chart_users.user_uuid',
             )
             .column(
                 { uuid: 'saved_query_uuid' },
@@ -723,9 +821,24 @@ export class SearchModel {
                 {
                     lastModified: `${SavedChartsTableName}.last_version_updated_at`,
                 },
-                { createdByFirstName: 'saved_chart_users.first_name' },
-                { createdByLastName: 'saved_chart_users.last_name' },
-                { createdByUserUuid: 'saved_chart_users.user_uuid' },
+                {
+                    createdByFirstName:
+                        'saved_chart_created_by_user.first_name',
+                },
+                { createdByLastName: 'saved_chart_created_by_user.last_name' },
+                { createdByUserUuid: 'saved_chart_created_by_user.user_uuid' },
+                {
+                    lastUpdatedByFirstName:
+                        'saved_chart_updated_by_user.first_name',
+                },
+                {
+                    lastUpdatedByLastName:
+                        'saved_chart_updated_by_user.last_name',
+                },
+                {
+                    lastUpdatedByUserUuid:
+                        'saved_chart_updated_by_user.user_uuid',
+                },
                 this.database.raw('? as chart_source', ['saved']),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
@@ -763,9 +876,14 @@ export class SearchModel {
                 `${SpaceTableName}.project_id`,
             )
             .leftJoin(
-                'users as sql_chart_users',
+                `${UserTableName} as sql_chart_created_by_user`,
+                `sql_chart_created_by_user.user_uuid`,
+                `${SavedSqlTableName}.created_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as sql_chart_updated_by_user`,
+                `sql_chart_updated_by_user.user_uuid`,
                 `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
-                'sql_chart_users.user_uuid',
             )
             .column(
                 { uuid: 'saved_sql_uuid' },
@@ -784,13 +902,22 @@ export class SearchModel {
                 this.database.raw('null::timestamp as "firstViewedAt"'),
                 this.database.raw('null::timestamp as "lastModified"'),
                 this.database.raw(
-                    'sql_chart_users.first_name as "createdByFirstName"',
+                    'sql_chart_created_by_user.first_name as "createdByFirstName"',
                 ),
                 this.database.raw(
-                    'sql_chart_users.last_name as "createdByLastName"',
+                    'sql_chart_created_by_user.last_name as "createdByLastName"',
                 ),
                 this.database.raw(
-                    'sql_chart_users.user_uuid as "createdByUserUuid"',
+                    'sql_chart_created_by_user.user_uuid as "createdByUserUuid"',
+                ),
+                this.database.raw(
+                    'sql_chart_updated_by_user.first_name as "lastUpdatedByFirstName"',
+                ),
+                this.database.raw(
+                    'sql_chart_updated_by_user.last_name as "lastUpdatedByLastName"',
+                ),
+                this.database.raw(
+                    'sql_chart_updated_by_user.user_uuid as "lastUpdatedByUserUuid"',
                 ),
                 this.database.raw('? as chart_source', ['sql']),
             )
@@ -813,6 +940,9 @@ export class SearchModel {
                 createdByFirstName: string;
                 createdByLastName: string;
                 createdByUserUuid: string;
+                lastUpdatedByFirstName: string;
+                lastUpdatedByLastName: string;
+                lastUpdatedByUserUuid: string;
                 chart_source: 'saved' | 'sql';
             }>()
             .from(savedChartsSubquery.as('saved_charts'))
@@ -837,6 +967,9 @@ export class SearchModel {
                     createdByFirstName: string;
                     createdByLastName: string;
                     createdByUserUuid: string;
+                    lastUpdatedByFirstName: string;
+                    lastUpdatedByLastName: string;
+                    lastUpdatedByUserUuid: string;
                     chart_source: 'saved' | 'sql';
                 }>
             >('*')
@@ -863,6 +996,13 @@ export class SearchModel {
                       firstName: result.createdByFirstName,
                       lastName: result.createdByLastName,
                       userUuid: result.createdByUserUuid,
+                  }
+                : null,
+            lastUpdatedBy: result.lastUpdatedByUserUuid
+                ? {
+                      firstName: result.lastUpdatedByFirstName,
+                      lastName: result.lastUpdatedByLastName,
+                      userUuid: result.lastUpdatedByUserUuid,
                   }
                 : null,
         }));
