@@ -6,7 +6,7 @@ export type DbAiArtifact = {
     ai_artifact_uuid: string;
     created_at: Date;
     ai_thread_uuid: string;
-    artifact_type: string;
+    artifact_type: 'chart';
 };
 
 export type AiArtifactsTable = Knex.CompositeTableType<
