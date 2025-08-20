@@ -68,7 +68,7 @@ const TableRow: FC<TableRowProps> = ({
     const rowFields = useMemo(
         () =>
             row
-                .getAllCells()
+                .getAllCells() // get all as they can be necessary for conditional formatting
                 .reduce<ConditionalFormattingRowFields>((acc, cell) => {
                     const meta = cell.column.columnDef.meta;
                     if (meta?.item) {
