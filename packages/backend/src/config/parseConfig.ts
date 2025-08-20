@@ -1452,15 +1452,15 @@ export const parseConfig = (): LightdashConfig => {
                         ) || 30,
                     batchSize:
                         getIntegerFromEnvironmentVariable(
-                            'QUERY_HISTORY_BATCH_SIZE',
+                            'QUERY_HISTORY_CLEANUP_BATCH_SIZE',
                         ) || 1000,
                     delayMs:
                         getIntegerFromEnvironmentVariable(
-                            'QUERY_HISTORY_DELAY_MS',
+                            'QUERY_HISTORY_CLEANUP_DELAY_MS',
                         ) || 100,
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
-                            'QUERY_HISTORY_MAX_BATCHES',
+                            'QUERY_HISTORY_CLEANUP_MAX_BATCHES',
                         ) || 100,
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
