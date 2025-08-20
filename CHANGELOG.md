@@ -1,3 +1,10 @@
+## [0.1936.2](https://github.com/lightdash/lightdash/compare/0.1936.1...0.1936.2) (2025-08-20)
+
+
+### Bug Fixes
+
+* add new delete scope for virtual view ([#16490](https://github.com/lightdash/lightdash/issues/16490)) ([f604ff0](https://github.com/lightdash/lightdash/commit/f604ff0574cca97b601852386f2bfc63374e2f9d))
+
 ## [0.1936.1](https://github.com/lightdash/lightdash/compare/0.1936.0...0.1936.1) (2025-08-20)
 
 
