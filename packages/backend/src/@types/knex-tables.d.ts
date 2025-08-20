@@ -263,6 +263,12 @@ import {
     AiAgentUserPreferencesTableName,
 } from '../ee/database/entities/aiAgentUserPreferences';
 import {
+    AiArtifactsTable,
+    AiArtifactsTableName,
+    AiArtifactVersionsTable,
+    AiArtifactVersionsTableName,
+} from '../ee/database/entities/aiArtifacts';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
@@ -348,6 +354,8 @@ declare module 'knex/types/tables' {
         [AiThreadTableName]: AiThreadTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
+        [AiArtifactsTableName]: AiArtifactsTable;
+        [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiAgentTableName]: AiAgentTable;
