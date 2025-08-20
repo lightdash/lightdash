@@ -387,13 +387,13 @@ export class MetricQueryBuilder {
         const { filters } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
-        // Selects
-        const selects = compiledMetricQuery.compiledTableCalculations.map(
-            (tableCalculation) => {
+        // Only add selects for table calculations that don't have CTEs
+        const selects = compiledMetricQuery.compiledTableCalculations
+            .filter((tc) => !tc.cte)
+            .map((tableCalculation) => {
                 const alias = tableCalculation.name;
                 return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-            },
-        );
+            });
 
         // Filters
         const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
@@ -1213,6 +1213,13 @@ export class MetricQueryBuilder {
     public compileQuery(): CompiledQuery {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
+
+        // Extract table calculations that need CTEs vs inline computation
+        const tableCalcsWithCtes =
+            compiledMetricQuery.compiledTableCalculations.filter(
+                (tc) => tc.cte,
+            );
+
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
         const tableCalculationSQL = this.getTableCalculationsSQL();
@@ -1255,20 +1262,39 @@ export class MetricQueryBuilder {
         if (
             tableCalculationSQL.selects.length > 0 ||
             metricsSQL.filtersSQL ||
-            requiresQueryInCTE
+            requiresQueryInCTE ||
+            tableCalcsWithCtes.length > 0 // Also create metrics CTE if we have table calc CTEs
         ) {
-            // Move latest select to CTE and define new final select with table calculations and metric filters
+            // Move latest select to CTE and define new metrics select
             const cteName = 'metrics';
             ctes.push(
                 `${cteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
                     finalSelectParts,
                 )}\n)`,
             );
+
+            // Add table calculation CTEs AFTER the metrics CTE
+            if (tableCalcsWithCtes.length > 0) {
+                ctes.push(...tableCalcsWithCtes.map((tc) => tc.cte!));
+            }
+
+            // Determine the final CTE name to select from
+            let finalCteName = cteName;
+            if (tableCalcsWithCtes.length > 0) {
+                // Extract the last CTE name from table calculation CTEs
+                const lastCte =
+                    tableCalcsWithCtes[tableCalcsWithCtes.length - 1].cte!;
+                const cteNameMatch = lastCte.match(/^(\w+)\s+AS/);
+                if (cteNameMatch) {
+                    [, finalCteName] = cteNameMatch;
+                }
+            }
+
             finalSelectParts = [
                 `SELECT\n${['  *', ...tableCalculationSQL.selects].join(
                     ',\n',
                 )}`,
-                `FROM ${cteName}`,
+                `FROM ${finalCteName}`,
                 metricsSQL.filtersSQL,
             ];
             if (tableCalculationSQL.filtersSQL) {
