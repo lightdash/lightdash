@@ -121,6 +121,14 @@ export type AiAgentMessageAssistant = {
 
     toolCalls: AiAgentToolCall[];
     savedQueryUuid: string | null;
+
+    artifact: {
+        uuid: string;
+        versionNumber: number;
+        versionUuid: string;
+        title: string | null;
+        description: string | null;
+    } | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -298,3 +306,5 @@ export type AiArtifact = {
     chartConfig: Record<string, unknown> | null;
     versionCreatedAt: Date;
 };
+
+export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;

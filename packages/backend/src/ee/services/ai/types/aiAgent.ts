@@ -1,6 +1,7 @@
 import { AiAgent } from '@lightdash/common';
 import { CoreMessage, LanguageModelV1 } from 'ai';
 import {
+    CreateOrUpdateArtifactFn,
     FindChartsFn,
     FindDashboardsFn,
     FindExploresFn,
@@ -54,6 +55,7 @@ export type AiAgentDependencies = {
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
     trackEvent: TrackEventFn;
+    createOrUpdateArtifact: CreateOrUpdateArtifactFn;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;
