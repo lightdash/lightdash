@@ -137,3 +137,85 @@ Restrictions:
 
 - Can't import anything
 
+## Utility Scripts
+
+### Database Migration and Rollback Tool
+
+**File:** `packages/backend/src/migrateOrRollbackDatabase.ts`
+
+This script provides automated database migration and rollback capabilities, particularly useful when dealing with
+missing migration files during rollbacks.
+
+#### ⚠️ IMPORTANT DISCLAIMER
+
+**CRITICAL WARNING**: This script modifies your database and may cause irreversible data loss.
+
+- **ALWAYS create a complete database backup** before proceeding with any database operations
+- Test the process in a development environment first
+- **We are not responsible for any issues, data corruption, or data loss** that may occur from using this script
+- Use this tool at your own risk and responsibility
+- Ensure you have the necessary permissions and authority to modify the database
+
+#### Usage
+
+**Development:**
+
+```bash
+pnpm -F backend migrate-or-rollback-database:dev
+```
+
+**Production:**
+
+```bash
+pnpm -F backend migrate-or-rollback-database
+```
+
+#### What it does
+
+1. **Checks Migration Status**: Analyzes current database migration state
+2. **Handles Missing Files**: Downloads missing migration files from GitHub if needed
+3. **Executes Operations**: Runs migrations forward or rollbacks as required
+4. **Cleanup**: Removes temporary downloaded files
+
+### User Password Override Tool
+
+**File:** `packages/backend/src/overrideUserPassword.ts`
+
+This script allows administrators to reset a user's password directly via the command line.
+
+#### ⚠️ IMPORTANT DISCLAIMER
+
+**SECURITY WARNING**: This script modifies user authentication data.
+
+- **ALWAYS ensure you have database backups** before modifying user data
+- Only use this for legitimate administrative purposes
+- Verify the target user email before execution
+- **We are not responsible for any security issues or data loss** that may occur
+- Use this tool at your own risk and responsibility
+
+#### Usage
+
+**Development:**
+
+```bash
+cd packages/backend
+npx tsx src/overrideUserPassword.ts <user-email> <new-password>
+```
+
+**Production:**
+
+```bash
+cd packages/backend
+node dist/overrideUserPassword.js <user-email> <new-password>
+```
+
+#### Parameters
+
+- `<user-email>`: The email address of the user whose password will be changed
+- `<new-password>`: The new password to set for the user
+
+#### Example
+
+```bash
+npx tsx src/overrideUserPassword.ts user@example.com newSecurePassword123
+```
