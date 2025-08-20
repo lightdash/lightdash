@@ -1863,6 +1863,9 @@ export class AiAgentService {
             ) => this.aiAgentModel.updateModelResponse(update),
             trackEvent: (event: AiAgentResponseStreamed) =>
                 this.analytics.track(event),
+
+            createOrUpdateArtifact: (data) =>
+                this.aiAgentModel.createOrUpdateArtifact(data),
         };
 
         return stream
@@ -2869,5 +2872,17 @@ export class AiAgentService {
         }));
 
         return exploreAccessSummary;
+    }
+
+    async getArtifact(
+        user: SessionUser,
+        agentUuid: string,
+        artifactUuid: string,
+        versionUuid?: string,
+    ) {
+        // TODO: Add proper permission checking - for now just check user has access to the agent
+        await this.getAgent(user, agentUuid);
+
+        return this.aiAgentModel.getArtifact(artifactUuid, versionUuid);
     }
 }

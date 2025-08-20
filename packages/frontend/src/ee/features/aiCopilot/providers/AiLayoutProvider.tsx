@@ -1,10 +1,14 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 
 export interface AiAgentPageLayoutContextType {
     collapseSidebar: () => void;
     expandSidebar: () => void;
     toggleSidebar: () => void;
     isSidebarCollapsed: boolean;
+    collapseArtifact: () => void;
+    expandArtifact: () => void;
+    artifact: ReactNode;
+    setArtifact: (artifact: ReactNode) => void;
 }
 
 export const AiAgentPageLayoutContext =

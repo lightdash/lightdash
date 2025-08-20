@@ -1,3 +1,12 @@
+# [0.1941.0](https://github.com/lightdash/lightdash/compare/0.1940.0...0.1941.0) (2025-08-20)
+
+
+### Features
+
+* add AI artifacts model ([#16495](https://github.com/lightdash/lightdash/issues/16495)) ([95d0563](https://github.com/lightdash/lightdash/commit/95d0563a030dc31f285f1e8d08b2ebe45a07c7c7))
+* add artifact creation to Agent tools, route to retrieve an artifact ([#16488](https://github.com/lightdash/lightdash/issues/16488)) ([9e89589](https://github.com/lightdash/lightdash/commit/9e89589acece815c1f69750e535d4c76f70bcd67))
+* AI Artifacts migration and types ([#16494](https://github.com/lightdash/lightdash/issues/16494)) ([a245c2a](https://github.com/lightdash/lightdash/commit/a245c2ae1f8ec0b2a1af0574d8dd203e5bf984fa))
+
 # [0.1940.0](https://github.com/lightdash/lightdash/compare/0.1939.0...0.1940.0) (2025-08-20)
 
 

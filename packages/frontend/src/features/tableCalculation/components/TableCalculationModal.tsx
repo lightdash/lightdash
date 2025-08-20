@@ -139,8 +139,25 @@ const TableCalculationModal: FC<Props> = ({
             return;
         }
         try {
+            // Determine the final name - only run uniqueness check if name changed or it's a new calculation
+            const isNewCalculation = !tableCalculation;
+            const nameChanged =
+                tableCalculation && tableCalculation.displayName !== name;
+
+            let finalName: string;
+            if (isNewCalculation || nameChanged) {
+                finalName = getUniqueTableCalculationName(
+                    name,
+                    tableCalculations,
+                    tableCalculation,
+                );
+            } else {
+                // Name unchanged - keep the original name
+                finalName = tableCalculation.name;
+            }
+
             onSave({
-                name: getUniqueTableCalculationName(name, tableCalculations),
+                name: finalName,
                 displayName: name,
                 sql,
                 format: data.format,
