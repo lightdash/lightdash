@@ -115,6 +115,10 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'GoogleSheets', {
+            organizationUuid: member.organizationUuid,
+        });
+
         can('create', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
