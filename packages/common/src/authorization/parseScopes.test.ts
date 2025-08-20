@@ -1,4 +1,3 @@
-import { ParameterError } from '../types/errors';
 import { parseScopes } from './parseScopes';
 
 describe('parseScopes', () => {
@@ -63,40 +62,29 @@ describe('parseScopes', () => {
     });
 
     describe('with invalid scopes', () => {
-        it('should throw ParameterError for invalid scope name', () => {
-            expect(() =>
+        it('should filter out invalid scope names', () => {
+            expect(
                 parseScopes({
                     scopes: ['view:dashboard', 'invalid:scope'],
                     isEnterprise: false,
                 }),
-            ).toThrow(ParameterError);
-
-            expect(() =>
-                parseScopes({
-                    scopes: ['view:dashboard', 'invalid:scope'],
-                    isEnterprise: false,
-                }),
-            ).toThrow(
-                'Invalid scope: invalid:Scope. Please check the scope name and try again.',
-            );
+            ).toEqual(new Set(['view:Dashboard']));
         });
 
-        it('should throw ParameterError for enterprise scope when not enterprise', () => {
-            expect(() =>
+        it('should filter out enterprise scopes when not enterprise', () => {
+            expect(
                 parseScopes({
                     scopes: ['view:dashboard', 'view:ai_agent'],
                     isEnterprise: false,
                 }),
-            ).toThrow(ParameterError);
+            ).toEqual(new Set(['view:Dashboard']));
 
-            expect(() =>
+            expect(
                 parseScopes({
                     scopes: ['view:dashboard', 'view:ai_agent'],
-                    isEnterprise: false,
+                    isEnterprise: true,
                 }),
-            ).toThrow(
-                'Invalid scope: view:AiAgent. Please check the scope name and try again.',
-            );
+            ).toEqual(new Set(['view:Dashboard', 'view:AiAgent']));
         });
     });
 

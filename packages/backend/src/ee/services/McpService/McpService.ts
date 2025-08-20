@@ -4,6 +4,7 @@ import {
     CatalogFilter,
     CatalogType,
     ForbiddenError,
+    getItemId,
     MissingConfigError,
     OauthAccount,
     ParameterError,
@@ -19,6 +20,8 @@ import {
     toolFindFieldsArgsSchema,
     ToolRunMetricQueryArgs,
     toolRunMetricQueryArgsSchema,
+    ToolSearchFieldValuesArgs,
+    toolSearchFieldValuesArgsSchema,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { subject } from '@casl/ability';
@@ -55,6 +58,7 @@ import { getFindDashboards } from '../ai/tools/findDashboards';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
 import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
+import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import {
     FindChartsFn,
     FindDashboardsFn,
@@ -62,6 +66,7 @@ import {
     FindFieldFn,
     GetExploreFn,
     RunMiniMetricQueryFn,
+    SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
 
 export enum McpToolName {
@@ -74,6 +79,7 @@ export enum McpToolName {
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
     RUN_METRIC_QUERY = 'run_metric_query',
+    SEARCH_FIELD_VALUES = 'search_field_values',
 }
 
 type McpServiceArguments = {
@@ -585,6 +591,54 @@ export class McpService extends BaseService {
                 };
             },
         );
+
+        this.mcpServer.registerTool(
+            McpToolName.SEARCH_FIELD_VALUES,
+            {
+                description: toolSearchFieldValuesArgsSchema.description,
+                inputSchema: toolSearchFieldValuesArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+            },
+            async (_args, context) => {
+                const args = _args as ToolSearchFieldValuesArgs;
+
+                const projectUuid = await this.resolveProjectUuid(
+                    context as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(
+                    context as McpProtocolContext,
+                    McpToolName.SEARCH_FIELD_VALUES,
+                    projectUuid,
+                );
+
+                const searchFieldValues: SearchFieldValuesFn =
+                    await this.getSearchFieldValuesFunction(
+                        argsWithProject,
+                        context as McpProtocolContext,
+                    );
+
+                const searchFieldValuesTool = getSearchFieldValues({
+                    searchFieldValues,
+                });
+                const result = await searchFieldValuesTool.execute(
+                    argsWithProject,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: result,
+                        },
+                    ],
+                };
+            },
+        );
     }
 
     async getProjectUuidFromContext(
@@ -1019,6 +1073,65 @@ export class McpService extends BaseService {
             });
 
         return { getExplore, runMiniMetricQuery };
+    }
+
+    async getSearchFieldValuesFunction(
+        toolArgs: ToolSearchFieldValuesArgs & { projectUuid: string },
+        context: McpProtocolContext,
+    ): Promise<SearchFieldValuesFn> {
+        const { user, account } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+        const { projectUuid } = toolArgs;
+
+        if (!user || !organizationUuid || !account) {
+            throw new ForbiddenError();
+        }
+
+        const project = await this.projectService.getProject(
+            projectUuid,
+            account,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const searchFieldValues: SearchFieldValuesFn = (args) =>
+            wrapSentryTransaction(
+                'McpService.searchFieldValues',
+                args,
+                async () => {
+                    const dimensionFilters = args.filters?.dimensions;
+                    const andFilters =
+                        dimensionFilters && 'and' in dimensionFilters
+                            ? dimensionFilters
+                            : undefined;
+
+                    const results =
+                        await this.projectService.searchFieldUniqueValues(
+                            user,
+                            projectUuid,
+                            args.table,
+                            args.fieldId,
+                            args.query,
+                            100,
+                            andFilters,
+                            false,
+                            undefined,
+                        );
+                    return results;
+                },
+            );
+
+        return searchFieldValues;
     }
 
     public getServer(): McpServer {

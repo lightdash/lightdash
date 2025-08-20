@@ -3,9 +3,9 @@ import {
     ActionIcon,
     Box,
     Button,
-    Divider,
     Group,
     Loader,
+    Menu,
     NavLink,
     Paper,
     Stack,
@@ -16,7 +16,8 @@ import {
 import {
     IconBrandSlack,
     IconChevronDown,
-    IconMessageCirclePlus,
+    IconCirclePlus,
+    IconDots,
     IconPlus,
     IconSettings,
 } from '@tabler/icons-react';
@@ -24,13 +25,15 @@ import { type FC, useState } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AgentSwitcher } from '../../features/aiCopilot/components/AgentSwitcher';
-import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout';
+import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
+import { SidebarButton } from '../../features/aiCopilot/components/AiAgentPageLayout/SidebarButton';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import {
     useAiAgent,
     useAiAgentThreads,
 } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useAiAgentPageLayout } from '../../features/aiCopilot/providers/AiLayoutProvider';
 
 const INITIAL_MAX_THREADS = 10;
 const MAX_THREADS_INCREMENT = 10;
@@ -75,9 +78,96 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         viewTransition
     />
 );
+
+const AgentSidebar: FC<{
+    agent: AiAgent;
+    projectUuid: string;
+    threadUuid?: string;
+}> = ({ agent, projectUuid, threadUuid }) => {
+    const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
+    const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
+    const { isSidebarCollapsed } = useAiAgentPageLayout();
+
+    return (
+        <Stack gap="md">
+            <Box>
+                <SidebarButton
+                    leftSection={<MantineIcon icon={IconCirclePlus} />}
+                    component={Link}
+                    to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
+                >
+                    {isSidebarCollapsed ? '' : 'New thread'}
+                </SidebarButton>
+            </Box>
+
+            {projectUuid && threads && !isSidebarCollapsed && (
+                <Stack gap="xs">
+                    <Group justify="space-between">
+                        <Title order={6} c="dimmed" tt="uppercase" size="xs">
+                            Recent
+                        </Title>
+                    </Group>
+                    <Stack gap={2}>
+                        {threads.length === 0 && (
+                            <Paper
+                                withBorder
+                                style={{
+                                    borderStyle: 'dashed',
+                                    backgroundColor: 'transparent',
+                                }}
+                                p="sm"
+                            >
+                                <Text
+                                    truncate="end"
+                                    size="sm"
+                                    c="gray.6"
+                                    ta="center"
+                                >
+                                    No threads yet
+                                </Text>
+                            </Paper>
+                        )}
+                        {threads.slice(0, showMaxItems).map((thread) => (
+                            <ThreadNavLink
+                                key={thread.uuid}
+                                thread={thread}
+                                isActive={thread.uuid === threadUuid}
+                                projectUuid={projectUuid}
+                            />
+                        ))}
+                    </Stack>
+                    <Box>
+                        {threads.length >= showMaxItems && (
+                            <Button
+                                mx={-8}
+                                size="compact-xs"
+                                variant="subtle"
+                                onClick={() =>
+                                    setShowMaxItems(
+                                        (s) => s + MAX_THREADS_INCREMENT,
+                                    )
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconChevronDown} />
+                                }
+                                style={{
+                                    root: {
+                                        border: 'none',
+                                    },
+                                }}
+                            >
+                                View more
+                            </Button>
+                        )}
+                    </Box>
+                </Stack>
+            )}
+        </Stack>
+    );
+};
+
 const AgentPage = () => {
     const { agentUuid, threadUuid, projectUuid } = useParams();
-    const { data: threads } = useAiAgentThreads(projectUuid!, agentUuid!);
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -92,8 +182,6 @@ const AgentPage = () => {
         projectUuid!,
         agentUuid!,
     );
-
-    const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 
     if (isLoadingAgent) {
         return (
@@ -118,23 +206,16 @@ const AgentPage = () => {
     return (
         <AiAgentPageLayout
             Sidebar={
-                <Stack gap="xl" align="stretch">
-                    <Stack align="flex-start" gap="xs">
-                        <Title order={6} c="dimmed" tt="uppercase" size="xs">
-                            Agents
-                        </Title>
-                        {canManageAgents && (
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                component={Link}
-                                to={`/projects/${projectUuid}/ai-agents/new`}
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                            >
-                                New agent
-                            </Button>
-                        )}
-                        <Group gap="xs" w="100%" wrap="nowrap">
+                <AgentSidebar
+                    agent={agent}
+                    projectUuid={projectUuid!}
+                    threadUuid={threadUuid}
+                />
+            }
+            Header={
+                <Group align="center" justify="space-between">
+                    <Group gap="sm">
+                        <Box maw={300}>
                             {agentsList && agentsList.length && (
                                 <AgentSwitcher
                                     projectUuid={projectUuid!}
@@ -142,121 +223,41 @@ const AgentPage = () => {
                                     selectedAgent={agent}
                                 />
                             )}
-                            {canManageAgents && (
-                                <ActionIcon
-                                    variant="subtle"
-                                    size="lg"
-                                    styles={(theme) => ({
-                                        root: {
-                                            borderRadius: theme.radius.md,
-                                        },
-                                    })}
-                                    component={Link}
-                                    color="gray"
-                                    to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`}
-                                >
-                                    <MantineIcon icon={IconSettings} />
-                                </ActionIcon>
-                            )}
-                        </Group>
-                    </Stack>
-                    <Divider variant="dashed" />
+                        </Box>
+                    </Group>
+                    <Group gap="sm">
+                        {canManageAgents && (
+                            <Menu>
+                                <Menu.Target>
+                                    <ActionIcon variant="subtle" color="gray">
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Menu.Target>
 
-                    {projectUuid && threads && (
-                        <Stack gap="xs">
-                            <Group justify="space-between">
-                                <Title
-                                    order={6}
-                                    c="dimmed"
-                                    tt="uppercase"
-                                    size="xs"
-                                >
-                                    Threads
-                                </Title>
-
-                                <Button
-                                    size="compact-xs"
-                                    variant="dark"
-                                    leftSection={
-                                        <MantineIcon
-                                            strokeWidth={1.8}
-                                            icon={IconMessageCirclePlus}
-                                        />
-                                    }
-                                    component={Link}
-                                    to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
-                                    style={{
-                                        visibility: threadUuid
-                                            ? 'visible'
-                                            : 'hidden',
-                                    }}
-                                >
-                                    New thread
-                                </Button>
-                            </Group>
-                            <Stack gap={2}>
-                                {threads.length === 0 && (
-                                    <Paper
-                                        withBorder
-                                        style={{
-                                            borderStyle: 'dashed',
-                                            backgroundColor: 'transparent',
-                                        }}
-                                        p="sm"
-                                    >
-                                        <Text
-                                            truncate="end"
-                                            size="sm"
-                                            c="gray.6"
-                                            ta="center"
-                                        >
-                                            No threads yet
-                                        </Text>
-                                    </Paper>
-                                )}
-                                {threads
-                                    .slice(0, showMaxItems)
-                                    .map((thread) => (
-                                        <ThreadNavLink
-                                            key={thread.uuid}
-                                            thread={thread}
-                                            isActive={
-                                                thread.uuid === threadUuid
-                                            }
-                                            projectUuid={projectUuid}
-                                        />
-                                    ))}
-                            </Stack>
-                            <Box>
-                                {threads.length >= showMaxItems && (
-                                    <Button
-                                        mx={-8}
-                                        size="compact-xs"
-                                        variant="subtle"
-                                        onClick={() =>
-                                            setShowMaxItems(
-                                                (s) =>
-                                                    s + MAX_THREADS_INCREMENT,
-                                            )
-                                        }
+                                <Menu.Dropdown>
+                                    <Menu.Item
                                         leftSection={
-                                            <MantineIcon
-                                                icon={IconChevronDown}
-                                            />
+                                            <MantineIcon icon={IconPlus} />
                                         }
-                                        style={{
-                                            root: {
-                                                border: 'none',
-                                            },
-                                        }}
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/ai-agents/new`}
                                     >
-                                        View more
-                                    </Button>
-                                )}
-                            </Box>
-                        </Stack>
-                    )}
-                </Stack>
+                                        New agent
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`}
+                                        leftSection={
+                                            <MantineIcon icon={IconSettings} />
+                                        }
+                                    >
+                                        Settings
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        )}
+                    </Group>
+                </Group>
             }
         >
             <Outlet context={{ agent }} />

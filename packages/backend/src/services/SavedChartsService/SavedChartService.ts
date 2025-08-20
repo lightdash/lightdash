@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     Account,
-    AnonymousAccount,
     BulkActionable,
     ChartHistory,
     ChartSummary,
@@ -21,7 +20,6 @@ import {
     SchedulerFormat,
     SessionUser,
     SpaceShare,
-    SpaceSummary,
     TogglePinnedItemInfo,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -36,7 +34,6 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
-    isJwtUser,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -65,7 +62,6 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type SavedChartServiceArguments = {
@@ -80,7 +76,6 @@ type SavedChartServiceArguments = {
     slackClient: SlackClient;
     dashboardModel: DashboardModel;
     catalogModel: CatalogModel;
-    permissionsService: PermissionsService;
 };
 
 export class SavedChartService
@@ -109,8 +104,6 @@ export class SavedChartService
 
     private readonly catalogModel: CatalogModel;
 
-    private readonly permissionsService: PermissionsService;
-
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -124,7 +117,6 @@ export class SavedChartService
         this.slackClient = args.slackClient;
         this.dashboardModel = args.dashboardModel;
         this.catalogModel = args.catalogModel;
-        this.permissionsService = args.permissionsService;
     }
 
     private async checkUpdateAccess(
@@ -775,49 +767,36 @@ export class SavedChartService
         return this.analyticsModel.getChartViewStats(savedChartUuid);
     }
 
-    private async checkPermissions(
-        account: Account,
-        space: Omit<SpaceSummary, 'userAccess'>,
-        savedChart: SavedChartDAO,
-    ) {
-        if (isJwtUser(account)) {
-            await this.permissionsService.checkEmbedPermissions(
-                account,
-                savedChart.uuid,
-            );
-
-            return [];
-        }
-        const access = await this.spaceModel.getUserSpaceAccess(
-            account.user.id,
-            savedChart.spaceUuid,
-        );
-
-        if (
-            account.user.ability.cannot(
-                'view',
-                subject('SavedChart', {
-                    ...savedChart,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have access to the space this chart belongs to",
-            );
-        }
-
-        return access;
-    }
-
     async get(savedChartUuid: string, account: Account): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
 
-        const access = await this.checkPermissions(account, space, savedChart);
+        const savedChartPredicate: Omit<SavedChart, 'access'> & {
+            access?: SpaceShare[];
+        } = {
+            ...savedChart,
+            isPrivate: space.isPrivate,
+        };
+        if (account.isRegisteredUser()) {
+            savedChartPredicate.access =
+                await this.spaceModel.getUserSpaceAccess(
+                    account.user.id,
+                    savedChart.spaceUuid,
+                );
+        }
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('SavedChart', savedChartPredicate),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
 
         await this.analyticsModel.addChartViewEvent(
             savedChartUuid,
@@ -838,7 +817,7 @@ export class SavedChartService
         return {
             ...savedChart,
             isPrivate: space.isPrivate,
-            access,
+            access: savedChartPredicate.access ?? [],
         };
     }
 

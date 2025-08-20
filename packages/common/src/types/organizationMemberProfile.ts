@@ -37,6 +37,7 @@ export type OrganizationMemberProfile = {
      * The role of the user in the organization
      */
     role: OrganizationMemberRole;
+    roleUuid: string | undefined;
     /**
      * Whether the user can login
      */

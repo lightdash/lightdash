@@ -1199,6 +1199,7 @@ export class ProjectModel {
             role: ProjectMemberRole;
             first_name: string;
             last_name: string;
+            role_uuid: string | null;
         };
         const [projectMemberProfile] = await this.database(
             'project_memberships',
@@ -1225,6 +1226,7 @@ export class ProjectModel {
             email: projectMemberProfile.email,
             firstName: projectMemberProfile.first_name,
             lastName: projectMemberProfile.last_name,
+            roleUuid: projectMemberProfile.role_uuid || undefined,
         };
     }
 
@@ -1237,6 +1239,7 @@ export class ProjectModel {
             role: ProjectMemberRole;
             first_name: string;
             last_name: string;
+            role_uuid: string | null;
         };
         const projectMemberships = await this.database('project_memberships')
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
@@ -1257,6 +1260,7 @@ export class ProjectModel {
             firstName: membership.first_name,
             projectUuid,
             lastName: membership.last_name,
+            roleUuid: membership.role_uuid || undefined,
         }));
     }
 

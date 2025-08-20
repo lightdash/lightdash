@@ -11,6 +11,7 @@ export const userWithoutOrg = {
 export const orgProfile: OrganizationMemberProfile = {
     userUuid: 'user-uuid-1234',
     role: OrganizationMemberRole.VIEWER,
+    roleUuid: undefined,
     email: '',
     firstName: '',
     lastName: '',
@@ -23,6 +24,7 @@ export const projectProfile: ProjectMemberProfile = {
     userUuid: 'user-uuid-1234',
     role: ProjectMemberRole.VIEWER,
     projectUuid: 'project-uuid-view',
+    roleUuid: undefined,
     email: '',
     firstName: '',
     lastName: '',

@@ -1,0 +1,55 @@
+.panelGroup {
+    background-color: white;
+}
+
+.sidebar {
+    --ai-agent-sidebar-icon-size: 1rem;
+    overflow: auto;
+    padding: var(--mantine-spacing-lg);
+    background: var(--mantine-color-gray-0);
+
+    /* react-resizable-planels doesn't support pixel sizes,
+    so we override the width using padding + half of the size of the icon
+    https://github.com/bvaughn/react-resizable-panels/issues/47
+    */
+    &[data-panel-size='0.0'] {
+        padding-right: calc(
+            var(--mantine-spacing-lg) + (var(--ai-agent-sidebar-icon-size) / 2)
+        );
+    }
+}
+
+.chat {
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.chatHeader {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: white;
+    padding: var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-gray-2);
+}
+
+.chatContent {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.resizeHandle {
+    width: 1px;
+    background-color: var(--mantine-color-gray-2);
+    cursor: col-resize;
+    transition: all 0.2s ease;
+
+    &[data-resize-handle-state='hover'],
+    &[data-resize-handle-state='drag'] {
+        background-color: var(--mantine-color-gray-4);
+        box-shadow: 0 0 0 1px var(--mantine-color-gray-4);
+    }
+}

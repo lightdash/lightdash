@@ -1,3 +1,54 @@
+# [0.1939.0](https://github.com/lightdash/lightdash/compare/0.1938.1...0.1939.0) (2025-08-20)
+
+
+### Features
+
+* Update AI Agent Page layout ([#16470](https://github.com/lightdash/lightdash/issues/16470)) ([6dfe4a1](https://github.com/lightdash/lightdash/commit/6dfe4a17f4060eb188435c90ef6bab274443a370))
+
+## [0.1938.1](https://github.com/lightdash/lightdash/compare/0.1938.0...0.1938.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* Revert underlying data ([#16503](https://github.com/lightdash/lightdash/issues/16503)) ([8154f15](https://github.com/lightdash/lightdash/commit/8154f1573837a8e845d124c88ed542197f58837e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.1938.0](https://github.com/lightdash/lightdash/compare/0.1937.1...0.1938.0) (2025-08-20)
+
+
+### Features
+
+* add BigInt handling in GoogleDriveClient.formatCell ([#16506](https://github.com/lightdash/lightdash/issues/16506)) ([faae1d8](https://github.com/lightdash/lightdash/commit/faae1d81d19b952f70bd066708f33a3574d3cab3))
+
+## [0.1937.1](https://github.com/lightdash/lightdash/compare/0.1937.0...0.1937.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* apply custom role abilities to user ([#16456](https://github.com/lightdash/lightdash/issues/16456)) ([931b730](https://github.com/lightdash/lightdash/commit/931b7300b81e17c8dce0181f4acf59830f0105dc))
+* scope get default conditions ([#16510](https://github.com/lightdash/lightdash/issues/16510)) ([2ecc1d1](https://github.com/lightdash/lightdash/commit/2ecc1d14f1a59e90a37102714de2b869ff7b1cb4))
+
+# [0.1937.0](https://github.com/lightdash/lightdash/compare/0.1936.2...0.1937.0) (2025-08-20)
+
+
+### Features
+
+* add lastUpdatedBy to chart and dashboard search results ([#16498](https://github.com/lightdash/lightdash/issues/16498)) ([9a49f49](https://github.com/lightdash/lightdash/commit/9a49f4928e5b2bec903c8a9d3604b98dc309fac6)), closes [#16458](https://github.com/lightdash/lightdash/issues/16458)
+* add search_field_values tool to MCP service ([#16497](https://github.com/lightdash/lightdash/issues/16497)) ([89e350a](https://github.com/lightdash/lightdash/commit/89e350a68db9976a30c310d5d8db8666eb0d47b4))
+
+## [0.1936.2](https://github.com/lightdash/lightdash/compare/0.1936.1...0.1936.2) (2025-08-20)
+
+
+### Bug Fixes
+
+* add new delete scope for virtual view ([#16490](https://github.com/lightdash/lightdash/issues/16490)) ([f604ff0](https://github.com/lightdash/lightdash/commit/f604ff0574cca97b601852386f2bfc63374e2f9d))
+
+## [0.1936.1](https://github.com/lightdash/lightdash/compare/0.1936.0...0.1936.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* add new permission check for gsheets ([#16489](https://github.com/lightdash/lightdash/issues/16489)) ([ff8480b](https://github.com/lightdash/lightdash/commit/ff8480bf04b5a73aba315e70f53764049527ab66))
+
 # [0.1936.0](https://github.com/lightdash/lightdash/compare/0.1935.1...0.1936.0) (2025-08-19)
 
 

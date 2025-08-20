@@ -52,6 +52,11 @@ const getDashboardText = (
                 ? `<CreatedBy>${dashboard.createdBy.firstName} ${dashboard.createdBy.lastName}</CreatedBy>`
                 : ''
         }
+        ${
+            dashboard.lastUpdatedBy
+                ? `<LastUpdatedBy>${dashboard.lastUpdatedBy.firstName} ${dashboard.lastUpdatedBy.lastName}</LastUpdatedBy>`
+                : ''
+        }
         <Charts count="${dashboard.charts.length}">
             ${dashboard.charts
                 .map((chart) => {
