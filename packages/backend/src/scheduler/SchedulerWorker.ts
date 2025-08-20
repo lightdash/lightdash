@@ -82,7 +82,7 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 },
                 {
-                    task: 'cleanQueryHistory',
+                    task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
                     pattern:
                         this.lightdashConfig.scheduler.queryHistory.cleanup
                             .schedule,

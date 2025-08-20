@@ -252,9 +252,23 @@ export class QueryHistoryModel {
         totalDeleted: number = 0,
         batchCount: number = 0,
     ): Promise<{ totalDeleted: number; batchCount: number }> {
-        const deletedCount = await this.database(QueryHistoryTableName)
+        // Get IDs to delete
+        const idsToDelete = await this.database(QueryHistoryTableName)
+            .select('query_uuid')
             .where('created_at', '<', cutoffDate)
-            .limit(batchSize)
+            .orderBy('created_at', 'asc')
+            .limit(batchSize);
+
+        if (idsToDelete.length === 0) {
+            return { totalDeleted, batchCount };
+        }
+
+        // Delete by IDs
+        const deletedCount = await this.database(QueryHistoryTableName)
+            .whereIn(
+                'query_uuid',
+                idsToDelete.map((row) => row.query_uuid),
+            )
             .del();
 
         if (deletedCount === 0) {
