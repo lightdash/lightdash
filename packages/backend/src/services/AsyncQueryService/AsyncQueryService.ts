@@ -1358,16 +1358,6 @@ export class AsyncQueryService extends ProjectService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const { enabled: useExperimentalMetricCtes } =
-            await this.featureFlagModel.get({
-                user: {
-                    userUuid: account.user.id,
-                    organizationUuid: account.organization.organizationUuid,
-                    organizationName: account.organization.name,
-                },
-                featureFlagId: FeatureFlags.ShowQueryWarnings,
-            });
-
         const availableParameters = await this.getAvailableParameters(
             projectUuid,
             explore,
@@ -1381,7 +1371,6 @@ export class AsyncQueryService extends ProjectService {
             userAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             dateZoom,
-            useExperimentalMetricCtes,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
             availableParameters,

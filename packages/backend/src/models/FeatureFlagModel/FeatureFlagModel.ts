@@ -34,8 +34,6 @@ export class FeatureFlagModel {
         this.featureFlagHandlers = {
             [FeatureFlags.UserGroupsEnabled]:
                 this.getUserGroupsEnabled.bind(this),
-            [FeatureFlags.ShowQueryWarnings]:
-                this.getShowQueryWarningsEnabled.bind(this),
         };
     }
 
@@ -86,30 +84,6 @@ export class FeatureFlagModel {
                           // nor do we want to wait too long
                           throwOnTimeout: false,
                           timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getShowQueryWarningsEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.query.showQueryWarnings ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ShowQueryWarnings,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
                       },
                   )
                 : false);
