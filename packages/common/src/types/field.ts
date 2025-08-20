@@ -346,6 +346,7 @@ export const isTableCalculation = (
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
+    cte?: string; // CTE definition if this table calculation needs one
 };
 
 export type FieldUrl = {
