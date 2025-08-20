@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1939.0",
+    "version": "0.1940.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -176,6 +176,8 @@
         "create-migration": "tsx src/scripts/create-migration.ts",
         "migrate": "knex migrate:latest --knexfile src/knexfile.ts",
         "migrate-production": "knex migrate:latest --knexfile dist/knexfile.js",
+        "migrate-or-rollback-database": "node dist/migrateOrRollbackDatabase.js",
+        "migrate-or-rollback-database:dev": "tsx src/migrateOrRollbackDatabase.ts",
         "seed": "knex seed:run --knexfile src/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/knexfile.js",
         "rollback-last": "knex migrate:down --knexfile src/knexfile.ts",

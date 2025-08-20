@@ -680,7 +680,6 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
-        showQueryWarnings: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -1373,8 +1372,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
-            showQueryWarnings:
-                process.env.LIGHTDASH_SHOW_QUERY_WARNINGS === 'true',
         },
         chart: {
             versionHistory: {

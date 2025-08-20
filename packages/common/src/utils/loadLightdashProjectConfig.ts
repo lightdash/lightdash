@@ -59,7 +59,7 @@ export const loadLightdashProjectConfig = async (
         throw new LightdashProjectConfigError(
             `Invalid lightdash.config.yml with invalid parameter names: ${invalidParameters.join(
                 ', ',
-            )}. Parameter names cannot contain dots.`,
+            )}`,
             {
                 invalidParameters,
             },

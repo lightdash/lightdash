@@ -1209,9 +1209,7 @@ export class MetricQueryBuilder {
      *
      * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
      */
-    public compileQuery(
-        useExperimentalMetricCtes: boolean = false,
-    ): CompiledQuery {
+    public compileQuery(): CompiledQuery {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const dimensionsSQL = this.getDimensionsSQL();
@@ -1238,26 +1236,20 @@ export class MetricQueryBuilder {
             dimensionsSQL.groupBySQL,
         ];
 
-        let warnings: QueryWarning[];
-        if (useExperimentalMetricCtes) {
-            const experimentalMetricsCteSQL = this.getExperimentalMetricsCteSQL(
-                {
-                    joinedTables: joins.tables,
-                    dimensionSelects: dimensionsSQL.selects,
-                    dimensionFilters: dimensionsSQL.filtersSQL,
-                    dimensionGroupBy: dimensionsSQL.groupBySQL,
-                    sqlFrom,
-                    joins: [joins.joinSQL, ...dimensionsSQL.joins],
-                },
-            );
-            if (experimentalMetricsCteSQL.finalSelectParts) {
-                finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
-                ctes.push(...experimentalMetricsCteSQL.ctes);
-            }
-            warnings = experimentalMetricsCteSQL.warnings;
-        } else {
-            warnings = this.getWarnings({ joinedTables: joins.tables });
+        const warnings: QueryWarning[] = [];
+        const experimentalMetricsCteSQL = this.getExperimentalMetricsCteSQL({
+            joinedTables: joins.tables,
+            dimensionSelects: dimensionsSQL.selects,
+            dimensionFilters: dimensionsSQL.filtersSQL,
+            dimensionGroupBy: dimensionsSQL.groupBySQL,
+            sqlFrom,
+            joins: [joins.joinSQL, ...dimensionsSQL.joins],
+        });
+        if (experimentalMetricsCteSQL.finalSelectParts) {
+            finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
+            ctes.push(...experimentalMetricsCteSQL.ctes);
         }
+        warnings.push(...experimentalMetricsCteSQL.warnings);
 
         if (
             tableCalculationSQL.selects.length > 0 ||
