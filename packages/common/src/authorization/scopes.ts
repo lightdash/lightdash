@@ -304,7 +304,7 @@ const scopes: Scope[] = [
         description: 'Manage google sheets',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: addDefaultOrgIdCondition,
+        getConditions: addDefaultUuidCondition,
     },
     {
         name: 'view:Analytics',
@@ -470,14 +470,14 @@ const scopes: Scope[] = [
         description: 'Create virtual views',
         isEnterprise: false,
         group: ScopeGroup.DATA,
-        getConditions: addDefaultOrgIdCondition,
+        getConditions: addDefaultUuidCondition,
     },
     {
         name: 'delete:VirtualView',
         description: 'Delete virtual views',
         isEnterprise: false,
         group: ScopeGroup.DATA,
-        getConditions: addDefaultOrgIdCondition,
+        getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:VirtualView',
