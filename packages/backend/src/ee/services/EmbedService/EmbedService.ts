@@ -1005,7 +1005,6 @@ export class EmbedService extends BaseService {
                 metricQuery,
                 warehouseClient,
                 availableParameters,
-                undefined,
                 combinedParameters,
             );
 

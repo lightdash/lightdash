@@ -88,15 +88,6 @@ const buildQuery = (
 ): CompiledQuery =>
     new MetricQueryBuilder({ ...args, availableParameters: [] }).compileQuery();
 
-// Wrapper around class to simplify test calls with useExperimentalMetricCtes=true
-const buildQueryWithExperimentalCtes = (
-    args: Omit<BuildQueryProps, 'availableParameters'>,
-): CompiledQuery =>
-    new MetricQueryBuilder({
-        ...args,
-        availableParameters: [],
-    }).compileQuery(true);
-
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
         expect(
@@ -699,43 +690,6 @@ describe('Query builder', () => {
         );
     });
 
-    it('should build metric query with custom bin dimension with a CTE and a metric inflation warning', () => {
-        const result = buildQuery({
-            explore: EXPLORE,
-            compiledMetricQuery: {
-                ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                compiledCustomDimensions: [
-                    {
-                        id: 'age_range',
-                        name: 'Age range',
-                        type: CustomDimensionType.BIN,
-                        dimensionId: 'table1_dim1',
-                        table: 'table1',
-                        binType: BinType.FIXED_NUMBER,
-                        binNumber: 10,
-                    },
-                ],
-                metrics: ['table1_metric1', 'table2_metric3'],
-            },
-            warehouseSqlBuilder: warehouseClientMock,
-            userAttributes: {},
-            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-            timezone: QUERY_BUILDER_UTC_TIMEZONE,
-        });
-
-        // Check that the query was generated correctly
-        expect(replaceWhitespace(result.query)).toContain(
-            replaceWhitespace('WITH age_range_cte AS'),
-        );
-
-        // Check that a warning was generated
-        expect(result.warnings).toHaveLength(1);
-        expect(result.warnings[0].message).toContain(
-            'could be inflated due to join relationships',
-        );
-        expect(result.warnings[0].tables).toContain('table2');
-    });
-
     describe('getNullsFirstLast static method', () => {
         test('Should return empty string when nullsFirst is null', () => {
             const sort = {
@@ -1075,10 +1029,10 @@ describe('Query builder', () => {
         });
     });
 
-    describe('Query builder with useExperimentalMetricCtes=true', () => {
+    describe('Query builder with deduplication', () => {
         test('Should build query with CTEs for metrics to prevent inflation', () => {
             // Use the imported explore mock with MANY_TO_ONE relationship to trigger metric inflation
-            const result = buildQueryWithExperimentalCtes({
+            const result = buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_TWO_TABLES,
@@ -1097,7 +1051,7 @@ describe('Query builder', () => {
 
         test('Should build query with CTEs for metrics and CROSS join', () => {
             // Use the imported explore mock with MANY_TO_ONE relationship to trigger metric inflation
-            const result = buildQueryWithExperimentalCtes({
+            const result = buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_TWO_TABLES,
@@ -1126,7 +1080,7 @@ describe('Query builder', () => {
                 ],
             };
 
-            const result = buildQueryWithExperimentalCtes({
+            const result = buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: metricQueryWithMixedMetrics,
                 warehouseSqlBuilder: warehouseClientMock,
@@ -1141,7 +1095,7 @@ describe('Query builder', () => {
         });
 
         test('Should generate warnings for tables without primary keys', () => {
-            const result = buildQueryWithExperimentalCtes({
+            const result = buildQuery({
                 explore: EXPLORE_WITHOUT_PRIMARY_KEYS,
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
                 warehouseSqlBuilder: warehouseClientMock,
@@ -1167,7 +1121,7 @@ describe('Query builder', () => {
         });
 
         test('Should generate warnings for joins without relationship type', () => {
-            const result = buildQueryWithExperimentalCtes({
+            const result = buildQuery({
                 explore: EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
                 warehouseSqlBuilder: warehouseClientMock,
@@ -1193,7 +1147,7 @@ describe('Query builder', () => {
         });
 
         test('Should handle metrics that reference other metrics from joined tables', () => {
-            const result = buildQueryWithExperimentalCtes({
+            const result = buildQuery({
                 explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
                 compiledMetricQuery: METRIC_QUERY_CROSS_TABLE,
                 warehouseSqlBuilder: warehouseClientMock,
@@ -1207,7 +1161,7 @@ describe('Query builder', () => {
         });
 
         test('Should handle metrics referencing other metrics when base metrics are also selected', () => {
-            const result = buildQueryWithExperimentalCtes({
+            const result = buildQuery({
                 explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_CROSS_TABLE,
