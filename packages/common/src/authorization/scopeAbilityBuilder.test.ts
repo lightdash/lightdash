@@ -1365,6 +1365,188 @@ describe('scopeAbilityBuilder', () => {
             });
         });
 
+        describe('virtual view permissions', () => {
+            it('should handle create:virtual_view permissions', () => {
+                const ability = buildAbilityFromScopes({
+                    ...baseContext,
+                    scopes: ['create:virtual_view'],
+                });
+
+                expect(
+                    ability.can(
+                        'create',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Should not be able to delete with create scope
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle delete:virtual_view permissions', () => {
+                const ability = buildAbilityFromScopes({
+                    ...baseContext,
+                    scopes: ['delete:virtual_view'],
+                });
+
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Should not be able to create with delete scope
+                expect(
+                    ability.can(
+                        'create',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle manage:virtual_view permissions for both create and delete', () => {
+                const ability = buildAbilityFromScopes({
+                    ...baseContext,
+                    scopes: ['manage:virtual_view'],
+                });
+
+                // Should be able to manage (create and delete)
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Manage scope should allow both create and delete actions
+                expect(
+                    ability.can(
+                        'create',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(true);
+
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+
+            it('should not allow virtual view actions for different organizations', () => {
+                const ability = buildAbilityFromScopes({
+                    ...baseContext,
+                    scopes: [
+                        'create:virtual_view',
+                        'delete:virtual_view',
+                        'manage:virtual_view',
+                    ],
+                });
+
+                // Should not access virtual views from different org
+                expect(
+                    ability.can(
+                        'create',
+                        subject('VirtualView', {
+                            organizationUuid: 'different-org',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(false);
+
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('VirtualView', {
+                            organizationUuid: 'different-org',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(false);
+
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('VirtualView', {
+                            organizationUuid: 'different-org',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should allow virtual view actions for different projects within same organization', () => {
+                const ability = buildAbilityFromScopes({
+                    ...baseContext,
+                    scopes: [
+                        'create:virtual_view',
+                        'delete:virtual_view',
+                        'manage:virtual_view',
+                    ],
+                });
+
+                // Virtual view permissions are organization-scoped, not project-scoped
+                // So they should work across different projects within the same org
+                expect(
+                    ability.can(
+                        'create',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'different-project',
+                        }),
+                    ),
+                ).toBe(true);
+
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'different-project',
+                        }),
+                    ),
+                ).toBe(true);
+
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('VirtualView', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'different-project',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+        });
+
         describe('organization member profile permissions', () => {
             it('should handle view:organization_member_profile permissions', () => {
                 const ability = buildAbilityFromScopes({
