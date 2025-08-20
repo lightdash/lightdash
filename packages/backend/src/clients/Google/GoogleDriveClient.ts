@@ -240,6 +240,19 @@ export class GoogleDriveClient {
             return [...value].join(',');
         }
 
+        // Handle BigInt values by converting to regular numbers when safe
+        if (typeof value === 'bigint') {
+            // Check if the BigInt value is within JavaScript's safe integer range
+            if (
+                value >= Number.MIN_SAFE_INTEGER &&
+                value <= Number.MAX_SAFE_INTEGER
+            ) {
+                return Number(value);
+            }
+            // For very large BigInt values, convert to string to preserve precision
+            return value.toString();
+        }
+
         if (isField(item) && item.type === DimensionType.DATE) {
             const timeInterval = isDimension(item)
                 ? item.timeInterval
