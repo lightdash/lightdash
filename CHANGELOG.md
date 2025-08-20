@@ -1,3 +1,11 @@
+## [0.1937.1](https://github.com/lightdash/lightdash/compare/0.1937.0...0.1937.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* apply custom role abilities to user ([#16456](https://github.com/lightdash/lightdash/issues/16456)) ([931b730](https://github.com/lightdash/lightdash/commit/931b7300b81e17c8dce0181f4acf59830f0105dc))
+* scope get default conditions ([#16510](https://github.com/lightdash/lightdash/issues/16510)) ([2ecc1d1](https://github.com/lightdash/lightdash/commit/2ecc1d14f1a59e90a37102714de2b869ff7b1cb4))
+
 # [0.1937.0](https://github.com/lightdash/lightdash/compare/0.1936.2...0.1937.0) (2025-08-20)
 
 
