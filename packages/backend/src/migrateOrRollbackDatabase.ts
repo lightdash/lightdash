@@ -116,8 +116,8 @@ async function main(): Promise<void> {
                     // Extract the missing migration names from the error message
                     const fileNameRegex =
                         environment === 'production'
-                            ? /[\w\\-]*.js/g
-                            : /[\w\\-]*.ts/g;
+                            ? /[\w-]+\.js/g
+                            : /[\w-]+\.ts/g;
                     const missingMigrationNames =
                         error.message.match(fileNameRegex);
                     if (missingMigrationNames) {
