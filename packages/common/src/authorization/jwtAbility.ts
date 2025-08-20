@@ -1,12 +1,13 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { flow } from 'lodash';
-import { type CreateEmbedJwt, type Embed } from '../ee';
+import { type CreateEmbedJwt } from '../ee';
+import type { OssEmbed } from '../types/auth';
 import type { MemberAbility } from './types';
 
 type EmbeddedAbilityBuilderPayload = {
     embedUser: CreateEmbedJwt;
     dashboardUuid: string;
-    organization: Embed['organization'];
+    embed: OssEmbed;
     builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
 };
 
@@ -17,9 +18,10 @@ type EmbeddedAbilityBuilder = (
 const dashboardAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
-    organization,
+    embed,
     builder,
 }) => {
+    const { organization } = embed;
     const { can } = builder;
     can('view', 'Dashboard', {
         dashboardUuid,
@@ -33,53 +35,55 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
-    return { embedUser, dashboardUuid, organization, builder };
+    can('view', 'SavedChart', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+        isPrivate: false,
+    });
+
+    can('view', 'Project', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+
+    return { embedUser, dashboardUuid, embed, builder };
 };
 
 const exploreAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
-    organization,
+    embed,
     builder,
 }) => {
     const { content } = embedUser;
+    const { organization } = embed;
     const { can } = builder;
 
     if (content.canExplore || content.canViewUnderlyingData) {
         can('view', 'UnderlyingData', {
             organizationUuid: organization.organizationUuid,
-            projectUuid: content.projectUuid,
-        });
-
-        can('view', 'Project', {
-            organizationUuid: organization.organizationUuid,
-            projectUuid: content.projectUuid,
-        });
-
-        can('view', 'SavedChart', {
-            organizationUuid: organization.organizationUuid,
-            projectUuid: content.projectUuid,
-            isPrivate: false,
+            projectUuid: embed.projectUuid,
         });
     }
 
     if (content.canExplore) {
         can('view', 'Explore', {
             organizationUuid: organization.organizationUuid,
-            projectUuid: content.projectUuid,
+            projectUuid: embed.projectUuid,
         });
     }
 
-    return { embedUser, dashboardUuid, organization, builder };
+    return { embedUser, dashboardUuid, embed, builder };
 };
 
 const exportAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     dashboardUuid,
-    organization,
+    embed,
     builder,
 }) => {
     const { content } = embedUser;
+    const { organization } = embed;
     const { can } = builder;
 
     if (content.canExportCsv) {
@@ -103,7 +107,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         });
     }
 
-    return { embedUser, dashboardUuid, organization, builder };
+    return { embedUser, dashboardUuid, embed, builder };
 };
 
 const applyAbilities = flow(
@@ -115,8 +119,8 @@ const applyAbilities = flow(
 export function applyEmbeddedAbility(
     embedUser: CreateEmbedJwt,
     dashboardUuid: string,
-    organization: Embed['organization'],
+    embed: OssEmbed,
     builder: AbilityBuilder<MemberAbility>,
 ) {
-    applyAbilities({ embedUser, dashboardUuid, organization, builder });
+    applyAbilities({ embedUser, dashboardUuid, embed, builder });
 }
