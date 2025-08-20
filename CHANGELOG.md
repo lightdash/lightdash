@@ -1,3 +1,16 @@
+# [0.1942.0](https://github.com/lightdash/lightdash/compare/0.1941.0...0.1942.0) (2025-08-20)
+
+
+### Bug Fixes
+
+* scheduled delivery filter revert state ([#16500](https://github.com/lightdash/lightdash/issues/16500)) ([0d1e977](https://github.com/lightdash/lightdash/commit/0d1e97773e9a15dc876bd99ad11e02b899ba810c))
+* table calcs changing names when edited ([#16508](https://github.com/lightdash/lightdash/issues/16508)) ([3b4f063](https://github.com/lightdash/lightdash/commit/3b4f063172099700659e5d8f7d7acb3f14fdef81))
+
+
+### Features
+
+* Introduce artifact panel ([#16493](https://github.com/lightdash/lightdash/issues/16493)) ([3cae21b](https://github.com/lightdash/lightdash/commit/3cae21b723532d82362d4cd20acd7ff37b463282))
+
 # [0.1941.0](https://github.com/lightdash/lightdash/compare/0.1940.0...0.1941.0) (2025-08-20)
 
 
