@@ -16,6 +16,7 @@ import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFilterRules,
+    validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
 } from '../utils/validators';
 
@@ -38,7 +39,8 @@ export const getRunMetricQuery = ({
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
 
-                const filterRules = getTotalFilterRules(vizTool.filters ?? []);
+                const filterRules = getTotalFilterRules(vizTool.filters);
+
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
@@ -53,6 +55,10 @@ export const getRunMetricQuery = ({
 
                 validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
+                validateMetricDimensionFilterPlacement(
+                    explore,
+                    vizTool.filters,
+                );
 
                 const query = metricQueryTableViz(
                     vizTool.vizConfig,

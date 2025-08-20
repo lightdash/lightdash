@@ -4,12 +4,17 @@ import {
     CompiledField,
     dateFilterSchema,
     Explore,
+    FilterGroup,
     FilterRule,
+    Filters,
     FilterType,
     getErrorMessage,
     getFields,
+    getFilterRulesFromGroup,
     getFilterTypeFromItemType,
     getItemId,
+    isDimension,
+    isMetric,
     numberFilterSchema,
     renderFilterRuleSqlFromField,
     stringFilterSchema,
@@ -186,6 +191,88 @@ Errors:
 ${filterRuleErrorStrings}`;
 
         Logger.error(`[AiAgent][Validate Filter Rules] ${errorMessage}`);
+
+        throw new Error(errorMessage);
+    }
+}
+
+/**
+ * Validate that metrics are not placed in dimension filters and vice versa
+ * @param explore - The explore containing field definitions
+ * @param filters - The filters object containing dimension and metric filter groups
+ */
+export function validateMetricDimensionFilterPlacement(
+    explore: Explore,
+    filters?: Filters,
+) {
+    if (!filters) return;
+
+    const exploreFields = getFields(explore);
+    const exploreFieldIds = exploreFields.map(getItemId);
+    const errors: string[] = [];
+
+    // Extract filter rules from filter groups
+    const dimensionFilterRules = getFilterRulesFromGroup(filters.dimensions);
+    const metricFilterRules = getFilterRulesFromGroup(filters.metrics);
+
+    // Check if any dimension filter rules contain metric fields
+    dimensionFilterRules.forEach((rule) => {
+        const fieldIndex = exploreFieldIds.indexOf(rule.target.fieldId);
+        const field = exploreFields[fieldIndex];
+
+        if (field && isMetric(field)) {
+            errors.push(
+                `Error: Metric field "${rule.target.fieldId}" (${
+                    field.label
+                }) cannot be used in dimension filters. Metrics should be placed in metric filters instead.
+
+Field Details:
+- Field ID: ${rule.target.fieldId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Table: ${field.table}
+
+FilterRule:
+${serializeData(rule, 'json')}`,
+            );
+        }
+    });
+
+    // Check if any metric filter rules contain dimension fields
+    metricFilterRules.forEach((rule) => {
+        const fieldIndex = exploreFieldIds.indexOf(rule.target.fieldId);
+        const field = exploreFields[fieldIndex];
+
+        if (field && isDimension(field)) {
+            errors.push(
+                `Error: Dimension field "${rule.target.fieldId}" (${
+                    field.label
+                }) cannot be used in metric filters. Dimensions should be placed in dimension filters instead.
+
+Field Details:
+- Field ID: ${rule.target.fieldId}
+- Field Label: ${field.label}
+- Field Type: ${field.fieldType}
+- Table: ${field.table}
+
+FilterRule:
+${serializeData(rule, 'json')}`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid field placement in filters:
+
+${errors.join('\n\n')}
+
+Remember:
+- Dimension fields (fieldType: "dimension") should only be used in dimension filters
+- Metric fields (fieldType: "metric") should only be used in metric filters`;
+
+        Logger.error(
+            `[AiAgent][Validate Metric/Dimension Filter Placement] ${errorMessage}`,
+        );
 
         throw new Error(errorMessage);
     }
