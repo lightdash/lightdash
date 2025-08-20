@@ -2,8 +2,10 @@ import {
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     metricQueryTableViz,
+    SchemaCompatibilityManager,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
+    type SchemaTarget,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -23,16 +25,23 @@ type Dependencies = {
     getExplore: GetExploreFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     maxLimit: number;
+    modelTarget: SchemaTarget;
 };
 
 export const getRunMetricQuery = ({
     getExplore,
     runMiniMetricQuery,
     maxLimit,
-}: Dependencies) =>
-    tool({
+    modelTarget,
+}: Dependencies) => {
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolRunMetricQueryArgsSchema,
+        modelTarget,
+    );
+
+    return tool({
         description: toolRunMetricQueryArgsSchema.description,
-        parameters: toolRunMetricQueryArgsSchema,
+        parameters: schema,
         execute: async (toolArgs) => {
             try {
                 const vizTool =
@@ -94,3 +103,4 @@ export const getRunMetricQuery = ({
             }
         },
     });
+};

@@ -30,17 +30,17 @@ export const verticalBarMetricVizConfigSchema = z.object({
     limit: z
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
-        .nullable()
+        .optional()
         .describe(
             `The total number of data points / bars allowed on the chart.`,
         ),
     breakdownByDimension: getFieldIdSchema({
         additionalDescription:
             'The field id of the dimension used to split the metrics into groups along the x-axis. If stacking is false then this will create multiple bars around each x value, if stacking is true then this will create multiple bars for each metric stacked on top of each other',
-    }).nullable(),
+    }).optional(),
     stackBars: z
         .boolean()
-        .nullable()
+        .optional()
         .describe(
             'If using breakdownByDimension then this will stack the bars on top of each other instead of side by side.',
         ),
@@ -51,11 +51,11 @@ export const verticalBarMetricVizConfigSchema = z.object({
         ),
     xAxisLabel: z
         .string()
-        .nullable()
+        .optional()
         .describe('A helpful label to explain the x-axis'),
     yAxisLabel: z
         .string()
-        .nullable()
+        .optional()
         .describe('A helpful label to explain the y-axis'),
 });
 
@@ -79,7 +79,7 @@ export const metricQueryVerticalBarViz = (
     return {
         metrics,
         dimensions,
-        limit: getValidAiQueryLimit(limit, maxLimit),
+        limit: getValidAiQueryLimit(limit ?? null, maxLimit),
         sorts: sorts.map((sort) => ({
             ...sort,
             nullsFirst: sort.nullsFirst ?? undefined,

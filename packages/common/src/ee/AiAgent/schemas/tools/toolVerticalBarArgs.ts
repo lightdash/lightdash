@@ -16,7 +16,7 @@ export const toolVerticalBarArgsSchema = createToolSchema(
         ...visualizationMetadataSchema.shape,
         vizConfig: verticalBarMetricVizConfigSchema,
         filters: filtersSchema
-            .nullable()
+            .optional()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore.',
             ),

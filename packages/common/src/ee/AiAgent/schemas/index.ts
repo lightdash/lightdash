@@ -10,6 +10,7 @@ import {
 } from './tools';
 
 export * from './filters';
+export * from './schemaCompatibility';
 export * from './tools';
 export * from './visualizations';
 

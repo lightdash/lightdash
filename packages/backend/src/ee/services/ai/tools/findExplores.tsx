@@ -1,4 +1,9 @@
-import { getItemId, toolFindExploresArgsSchema } from '@lightdash/common';
+import {
+    getItemId,
+    SchemaCompatibilityManager,
+    toolFindExploresArgsSchema,
+    type SchemaTarget,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import { truncate } from 'lodash';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
@@ -11,6 +16,7 @@ type Dependencies = {
     fieldOverviewSearchSize: number;
     maxDescriptionLength: number;
     findExplores: FindExploresFn;
+    modelTarget: SchemaTarget;
 };
 
 const generateExploreResponse = ({
@@ -118,10 +124,16 @@ export const getFindExplores = ({
     maxDescriptionLength,
     fieldSearchSize,
     fieldOverviewSearchSize,
-}: Dependencies) =>
-    tool({
+    modelTarget,
+}: Dependencies) => {
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolFindExploresArgsSchema,
+        modelTarget,
+    );
+
+    return tool({
         description: toolFindExploresArgsSchema.description,
-        parameters: toolFindExploresArgsSchema,
+        parameters: schema,
         execute: async (args) => {
             try {
                 if (args.page && args.page < 1) {
@@ -129,7 +141,7 @@ export const getFindExplores = ({
                 }
 
                 const { pagination, tablesWithFields } = await findExplores({
-                    tableName: args.exploreName,
+                    tableName: args.exploreName ?? null,
                     page: args.page ?? 1,
                     pageSize,
                     includeFields: !!args.exploreName,
@@ -165,3 +177,4 @@ export const getFindExplores = ({
             }
         },
     });
+};

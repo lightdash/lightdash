@@ -51,18 +51,18 @@ const filterRuleSchemaTransformed = filterRuleSchema.transform(
 
 export const filtersSchema = z.object({
     type: filterAndOrSchema,
-    dimensions: z.array(filterRuleSchema).nullable(),
-    metrics: z.array(filterRuleSchema).nullable(),
+    dimensions: z.array(filterRuleSchema).optional(),
+    metrics: z.array(filterRuleSchema).optional(),
 });
 
 const filtersSchemaAndFilterRulesTransformed = z
     .object({
         type: filterAndOrSchema,
-        dimensions: z.array(filterRuleSchemaTransformed).nullable(),
-        metrics: z.array(filterRuleSchemaTransformed).nullable(),
+        dimensions: z.array(filterRuleSchemaTransformed).optional(),
+        metrics: z.array(filterRuleSchemaTransformed).optional(),
     })
-    // Filters can be null
-    .nullable();
+    // Filters can be optional
+    .optional();
 
 export const filtersSchemaTransformed =
     filtersSchemaAndFilterRulesTransformed.transform((data): Filters => {

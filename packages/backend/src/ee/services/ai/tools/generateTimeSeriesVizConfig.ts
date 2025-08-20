@@ -1,8 +1,10 @@
 import {
     getTotalFilterRules,
     isSlackPrompt,
+    SchemaCompatibilityManager,
     toolTimeSeriesArgsSchema,
     toolTimeSeriesArgsSchemaTransformed,
+    type SchemaTarget,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -31,6 +33,7 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
+    modelTarget: SchemaTarget;
 };
 export const getGenerateTimeSeriesVizConfig = ({
     getExplore,
@@ -41,8 +44,12 @@ export const getGenerateTimeSeriesVizConfig = ({
     updatePrompt,
     createOrUpdateArtifact,
     maxLimit,
+    modelTarget,
 }: Dependencies) => {
-    const schema = toolTimeSeriesArgsSchema;
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolTimeSeriesArgsSchema,
+        modelTarget,
+    );
 
     return tool({
         description: toolTimeSeriesArgsSchema.description,

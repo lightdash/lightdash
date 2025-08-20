@@ -6,7 +6,9 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
+    SchemaCompatibilityManager,
     toolFindFieldsArgsSchema,
+    type SchemaTarget,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { FindFieldFn } from '../types/aiAgentDependencies';
@@ -15,6 +17,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 type Dependencies = {
     findFields: FindFieldFn;
     pageSize: number;
+    modelTarget: SchemaTarget;
 };
 
 const fieldKindLabel = (fieldType: FieldType) => {
@@ -91,10 +94,19 @@ const getFieldsText = (
 </SearchResult>
 `.trim();
 
-export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
-    tool({
+export const getFindFields = ({
+    findFields,
+    pageSize,
+    modelTarget,
+}: Dependencies) => {
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolFindFieldsArgsSchema,
+        modelTarget,
+    );
+
+    return tool({
         description: toolFindFieldsArgsSchema.description,
-        parameters: toolFindFieldsArgsSchema,
+        parameters: schema,
         execute: async (args) => {
             try {
                 const fieldSearchQueryResults = await Promise.all(
@@ -126,3 +138,4 @@ export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
             }
         },
     });
+};

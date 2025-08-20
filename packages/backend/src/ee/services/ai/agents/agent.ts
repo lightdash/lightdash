@@ -64,29 +64,40 @@ const getAgentTools = (
         );
     }
 
+    const modelTarget = {
+        provider: args.model.provider,
+        modelId: args.model.modelId,
+        supportsStructuredOutputs:
+            args.model.supportsStructuredOutputs ?? false,
+    };
+
     const findExplores = getFindExplores({
         maxDescriptionLength: args.findExploresMaxDescriptionLength,
         pageSize: args.findExploresPageSize,
         fieldSearchSize: args.findExploresFieldSearchSize,
         fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
         findExplores: dependencies.findExplores,
+        modelTarget,
     });
 
     const findFields = getFindFields({
         findFields: dependencies.findFields,
         pageSize: args.findFieldsPageSize,
+        modelTarget,
     });
 
     const findDashboards = getFindDashboards({
         findDashboards: dependencies.findDashboards,
         pageSize: args.findDashboardsPageSize,
         siteUrl: args.siteUrl,
+        modelTarget,
     });
 
     const findCharts = getFindCharts({
         findCharts: dependencies.findCharts,
         pageSize: args.findChartsPageSize,
         siteUrl: args.siteUrl,
+        modelTarget,
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
@@ -98,6 +109,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        modelTarget,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -109,6 +121,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        modelTarget,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
@@ -120,6 +133,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        modelTarget,
     });
 
     const tools = {

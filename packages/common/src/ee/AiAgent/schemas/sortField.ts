@@ -13,7 +13,7 @@ const sortFieldSchema = z.object({
         .describe(
             'If true sorts nulls first, if false sorts nulls last, if null then sorts by warehouse default',
         )
-        .nullable(),
+        .optional(),
 });
 
 export default sortFieldSchema;

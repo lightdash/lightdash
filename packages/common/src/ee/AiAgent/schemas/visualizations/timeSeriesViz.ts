@@ -30,7 +30,7 @@ export const timeSeriesMetricVizConfigSchema = z.object({
     breakdownByDimension: getFieldIdSchema({
         additionalDescription:
             'The field id of the dimension used to split the metrics into series for each dimension value. For example if you wanted to split a metric into multiple series based on City you would use the City dimension field id here. If this is not provided then the metric will be displayed as a single series.',
-    }).nullable(),
+    }).optional(),
     lineType: z
         .union([z.literal('line'), z.literal('area')])
         .describe(
@@ -39,15 +39,15 @@ export const timeSeriesMetricVizConfigSchema = z.object({
     limit: z
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
-        .nullable()
+        .optional()
         .describe(`The total number of data points allowed on the chart.`),
     xAxisLabel: z
         .string()
-        .nullable()
+        .optional()
         .describe('A helpful label to explain the x-axis'),
     yAxisLabel: z
         .string()
-        .nullable()
+        .optional()
         .describe('A helpful label to explain the y-axis'),
 });
 
@@ -72,7 +72,7 @@ export const metricQueryTimeSeriesViz = (
     return {
         metrics,
         dimensions,
-        limit: getValidAiQueryLimit(limit, maxLimit),
+        limit: getValidAiQueryLimit(limit ?? null, maxLimit),
         sorts: sorts.map((sort) => ({
             ...sort,
             nullsFirst: sort.nullsFirst ?? undefined,

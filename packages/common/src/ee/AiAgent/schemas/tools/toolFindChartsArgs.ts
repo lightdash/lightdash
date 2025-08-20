@@ -34,6 +34,12 @@ export const toolFindChartsArgsSchema = createToolSchema(
 
 export type ToolFindChartsArgs = z.infer<typeof toolFindChartsArgsSchema>;
 
-export const toolFindChartsArgsSchemaTransformed = toolFindChartsArgsSchema;
+export const toolFindChartsArgsSchemaTransformed =
+    toolFindChartsArgsSchema.transform((args) => ({
+        ...args,
+        page: args.page ?? null,
+    }));
 
-export type ToolFindChartsArgsTransformed = ToolFindChartsArgs;
+export type ToolFindChartsArgsTransformed = z.infer<
+    typeof toolFindChartsArgsSchemaTransformed
+>;

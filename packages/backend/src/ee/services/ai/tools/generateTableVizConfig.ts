@@ -2,8 +2,10 @@ import {
     getTotalFilterRules,
     isSlackPrompt,
     metricQueryTableViz,
+    SchemaCompatibilityManager,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
+    type SchemaTarget,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -34,6 +36,7 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
+    modelTarget: SchemaTarget;
 };
 export const getGenerateTableVizConfig = ({
     getExplore,
@@ -44,8 +47,12 @@ export const getGenerateTableVizConfig = ({
     updateProgress,
     createOrUpdateArtifact,
     maxLimit,
+    modelTarget,
 }: Dependencies) => {
-    const schema = toolTableVizArgsSchema;
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolTableVizArgsSchema,
+        modelTarget,
+    );
 
     return tool({
         description: toolTableVizArgsSchema.description,

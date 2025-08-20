@@ -29,9 +29,9 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema(
             .describe(
                 'Query string to filter field values. Optional, pass `null` to get all values',
             )
-            .nullable(),
+            .optional(),
         filters: filtersSchema
-            .nullable()
+            .optional()
             .describe('Filters to apply when searching for field values'),
     })
     .build();

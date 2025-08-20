@@ -21,7 +21,7 @@ export const toolFindExploresArgsSchema = createToolSchema(
     .extend({
         exploreName: z
             .string()
-            .nullable()
+            .optional()
             .describe(
                 'Name of the table to focus on. If omitted, all tables are returned. For a single table, all dimensions, metrics, and full descriptions are loaded',
             ),
@@ -31,5 +31,12 @@ export const toolFindExploresArgsSchema = createToolSchema(
 
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
 
-export const toolFindExploresArgsSchemaTransformed = toolFindExploresArgsSchema;
-export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
+export const toolFindExploresArgsSchemaTransformed =
+    toolFindExploresArgsSchema.transform((args) => ({
+        ...args,
+        exploreName: args.exploreName ?? null,
+        page: args.page ?? null,
+    }));
+export type ToolFindExploresArgsTransformed = z.infer<
+    typeof toolFindExploresArgsSchemaTransformed
+>;

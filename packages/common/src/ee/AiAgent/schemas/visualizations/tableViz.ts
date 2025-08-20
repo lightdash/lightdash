@@ -30,7 +30,7 @@ export const tableVizConfigSchema = z
 
         limit: z
             .number()
-            .nullable()
+            .optional()
             .describe('The maximum number of rows in the table.'),
     })
     .describe(
@@ -51,6 +51,6 @@ export const metricQueryTableViz = (
         ...sort,
         nullsFirst: sort.nullsFirst ?? undefined,
     })),
-    limit: getValidAiQueryLimit(vizConfig.limit, maxLimit),
+    limit: getValidAiQueryLimit(vizConfig.limit ?? null, maxLimit),
     filters,
 });

@@ -16,7 +16,7 @@ export const toolTimeSeriesArgsSchema = createToolSchema(
         ...visualizationMetadataSchema.shape,
         vizConfig: timeSeriesMetricVizConfigSchema,
         filters: filtersSchema
-            .nullable()
+            .optional()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore.',
             ),

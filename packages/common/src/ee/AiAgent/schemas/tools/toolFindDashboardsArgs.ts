@@ -39,6 +39,11 @@ export type ToolFindDashboardsArgs = z.infer<
 >;
 
 export const toolFindDashboardsArgsSchemaTransformed =
-    toolFindDashboardsArgsSchema;
+    toolFindDashboardsArgsSchema.transform((args) => ({
+        ...args,
+        page: args.page ?? null,
+    }));
 
-export type ToolFindDashboardsArgsTransformed = ToolFindDashboardsArgs;
+export type ToolFindDashboardsArgsTransformed = z.infer<
+    typeof toolFindDashboardsArgsSchemaTransformed
+>;

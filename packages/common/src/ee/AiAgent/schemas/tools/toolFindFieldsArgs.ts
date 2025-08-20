@@ -32,6 +32,12 @@ export const toolFindFieldsArgsSchema = createToolSchema(
 
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
 
-export const toolFindFieldsArgsSchemaTransformed = toolFindFieldsArgsSchema;
+export const toolFindFieldsArgsSchemaTransformed =
+    toolFindFieldsArgsSchema.transform((args) => ({
+        ...args,
+        page: args.page ?? null,
+    }));
 
-export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;
+export type ToolFindFieldsArgsTransformed = z.infer<
+    typeof toolFindFieldsArgsSchemaTransformed
+>;

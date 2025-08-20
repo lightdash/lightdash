@@ -26,15 +26,20 @@ import { serializeData } from './serializeData';
  */
 export function validateSelectedFieldsExistence(
     explore: Explore,
-    selectedFieldIds: string[],
+    selectedFieldIds: (string | undefined)[],
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
     const nonExploreFields = selectedFieldIds.filter(
-        (f) => !exploreFieldIds.includes(f),
+        (f) =>
+            typeof f === 'string' &&
+            f.length > 0 &&
+            !exploreFieldIds.includes(f),
     );
 
     if (nonExploreFields.length) {
-        const errorMessage = `The following fields do not exist in the selected explore.
+        const errorMessage = `The following fields do not exist in explore: ${
+            explore.name
+        }.
 
 Fields:
 \`\`\`json

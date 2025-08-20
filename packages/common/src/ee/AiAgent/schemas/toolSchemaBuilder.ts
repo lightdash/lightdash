@@ -5,7 +5,7 @@ type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
         fields: $Fields,
     ) => ToolSchemaBuilder<$Schema & $Fields>;
     withPagination: () => ToolSchemaBuilder<
-        $Schema & { page: z.ZodNullable<z.ZodNumber> }
+        $Schema & { page: z.ZodOptional<z.ZodNumber> }
     >;
     build: () => z.ZodObject<$Schema>;
     schema: z.ZodObject<$Schema>;
@@ -32,10 +32,10 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
                 page: z.coerce
                     .number()
                     .positive()
-                    .nullable()
+                    .optional()
                     .describe('Use this to paginate through the results'),
             }),
-        ) as ToolSchemaBuilder<$Schema & { page: z.ZodNullable<z.ZodNumber> }>,
+        ) as ToolSchemaBuilder<$Schema & { page: z.ZodOptional<z.ZodNumber> }>,
 
     /**
      * Builds the schema

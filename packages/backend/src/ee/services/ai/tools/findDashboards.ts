@@ -1,6 +1,8 @@
 import {
     DashboardSearchResult,
+    SchemaCompatibilityManager,
     toolFindDashboardsArgsSchema,
+    type SchemaTarget,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
@@ -11,6 +13,7 @@ type Dependencies = {
     findDashboards: FindDashboardsFn;
     pageSize: number;
     siteUrl?: string;
+    modelTarget: SchemaTarget;
 };
 
 const getDashboardText = (
@@ -107,10 +110,16 @@ export const getFindDashboards = ({
     findDashboards,
     pageSize,
     siteUrl,
-}: Dependencies) =>
-    tool({
+    modelTarget,
+}: Dependencies) => {
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolFindDashboardsArgsSchema,
+        modelTarget,
+    );
+
+    return tool({
         description: toolFindDashboardsArgsSchema.description,
-        parameters: toolFindDashboardsArgsSchema,
+        parameters: schema,
         execute: async (args) => {
             try {
                 const dashboardSearchQueryResults = await Promise.all(
@@ -143,3 +152,4 @@ export const getFindDashboards = ({
             }
         },
     });
+};

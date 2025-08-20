@@ -1,6 +1,8 @@
 import {
+    SchemaCompatibilityManager,
     toolSearchFieldValuesArgsSchema,
     toolSearchFieldValuesArgsSchemaTransformed,
+    type SchemaTarget,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
@@ -9,12 +11,21 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     searchFieldValues: SearchFieldValuesFn;
+    modelTarget: SchemaTarget;
 };
 
-export const getSearchFieldValues = ({ searchFieldValues }: Dependencies) =>
-    tool({
+export const getSearchFieldValues = ({
+    searchFieldValues,
+    modelTarget,
+}: Dependencies) => {
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolSearchFieldValuesArgsSchema,
+        modelTarget,
+    );
+
+    return tool({
         description: toolSearchFieldValuesArgsSchema.description,
-        parameters: toolSearchFieldValuesArgsSchema,
+        parameters: schema,
         execute: async (toolArgs) => {
             try {
                 const args =
@@ -28,3 +39,4 @@ export const getSearchFieldValues = ({ searchFieldValues }: Dependencies) =>
             }
         },
     });
+};

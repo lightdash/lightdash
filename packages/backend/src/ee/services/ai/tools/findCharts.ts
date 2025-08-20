@@ -2,7 +2,9 @@ import {
     AllChartsSearchResult,
     isSavedChartSearchResult,
     isSqlChartSearchResult,
+    SchemaCompatibilityManager,
     toolFindChartsArgsSchema,
+    type SchemaTarget,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
@@ -13,6 +15,7 @@ type Dependencies = {
     findCharts: FindChartsFn;
     pageSize: number;
     siteUrl?: string;
+    modelTarget: SchemaTarget;
 };
 
 const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
@@ -90,10 +93,16 @@ export const getFindCharts = ({
     findCharts,
     pageSize,
     siteUrl,
-}: Dependencies) =>
-    tool({
+    modelTarget,
+}: Dependencies) => {
+    const schema = SchemaCompatibilityManager.transformSchema(
+        toolFindChartsArgsSchema,
+        modelTarget,
+    );
+
+    return tool({
         description: toolFindChartsArgsSchema.description,
-        parameters: toolFindChartsArgsSchema,
+        parameters: schema,
         execute: async (args) => {
             try {
                 const chartSearchQueryResults = await Promise.all(
@@ -124,3 +133,4 @@ export const getFindCharts = ({
             }
         },
     });
+};

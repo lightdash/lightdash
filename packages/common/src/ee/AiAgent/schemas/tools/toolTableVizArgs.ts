@@ -16,7 +16,7 @@ export const toolTableVizArgsSchema = createToolSchema(
         ...visualizationMetadataSchema.shape,
         vizConfig: tableVizConfigSchema,
         filters: filtersSchema
-            .nullable()
+            .optional()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore.',
             ),
