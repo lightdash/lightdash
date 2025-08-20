@@ -96,6 +96,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
     });
 
@@ -106,6 +107,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
     });
 
@@ -116,6 +118,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
     });
 
