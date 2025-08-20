@@ -17,7 +17,10 @@ import styles from './Parameters.module.css';
 type Props = {
     isEditMode: boolean;
     parameterValues: ParametersValuesMap;
-    onParameterChange: (key: string, value: string | string[] | null) => void;
+    onParameterChange: (
+        key: string,
+        value: string | number | string[] | number[] | null,
+    ) => void;
     onClearAll: () => void;
     parameters?: ParameterDefinitions;
     missingRequiredParameters?: string[];

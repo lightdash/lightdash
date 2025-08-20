@@ -225,7 +225,7 @@ const DashboardProvider: React.FC<
     }, [parameters, savedParameters]);
 
     const setParameter = useCallback(
-        (key: string, value: string | string[] | null) => {
+        (key: string, value: string | number | string[] | number[] | null) => {
             if (
                 value === null ||
                 value === undefined ||

@@ -108,7 +108,11 @@ export const registerCustomCompletionProvider = (
     settings?: SqlEditorPreferences,
     availableParameters?: Record<
         string,
-        { label: string; description?: string; default?: string | string[] }
+        {
+            label: string;
+            description?: string;
+            default?: string | number | string[] | number[];
+        }
     >,
 ) => {
     return monaco.languages.registerCompletionItemProvider(language, {
