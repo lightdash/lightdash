@@ -1,3 +1,10 @@
+# [0.1939.0](https://github.com/lightdash/lightdash/compare/0.1938.1...0.1939.0) (2025-08-20)
+
+
+### Features
+
+* Update AI Agent Page layout ([#16470](https://github.com/lightdash/lightdash/issues/16470)) ([6dfe4a1](https://github.com/lightdash/lightdash/commit/6dfe4a17f4060eb188435c90ef6bab274443a370))
+
 ## [0.1938.1](https://github.com/lightdash/lightdash/compare/0.1938.0...0.1938.1) (2025-08-20)
 
 
