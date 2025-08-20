@@ -69,7 +69,6 @@ type FormValues = {
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
     canExplore?: boolean;
-    canViewUnderlyingData?: boolean;
 } & IntrinsicUserAttributes;
 
 const EmbedUrlForm: FC<{
@@ -99,7 +98,6 @@ const EmbedUrlForm: FC<{
             canDateZoom: false,
             canExportPagePdf: true,
             canExplore: false,
-            canViewUnderlyingData: false,
         },
         validate: {
             dashboardUuid: (value: undefined | string) => {
@@ -136,7 +134,6 @@ const EmbedUrlForm: FC<{
                     canDateZoom: values.canDateZoom,
                     canExportPagePdf: values.canExportPagePdf ?? true,
                     canExplore: values.canExplore,
-                    canViewUnderlyingData: values.canViewUnderlyingData,
                 },
                 userAttributes: values.userAttributes.reduce(
                     (acc, item) => ({
@@ -315,11 +312,6 @@ const EmbedUrlForm: FC<{
                     {...form.getInputProps(`canExplore`)}
                     labelPosition="left"
                     label={`Can explore charts`}
-                />
-                <Switch
-                    {...form.getInputProps(`canViewUnderlyingData`)}
-                    labelPosition="left"
-                    label={`Can view underlying data`}
                 />
                 <Flex justify="flex-end" gap="sm">
                     <Button

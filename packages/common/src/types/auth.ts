@@ -4,12 +4,11 @@ import {
 } from '../ee';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
-import type {
-    AccountUser,
-    ExternalUser,
-    IntrinsicUserAttributes,
-    LightdashSessionUser,
-    LightdashUser,
+import {
+    type AccountUser,
+    type ExternalUser,
+    type IntrinsicUserAttributes,
+    type LightdashSessionUser,
 } from './user';
 import { type UserAttributeValueMap } from './userAttributes';
 
@@ -120,16 +119,6 @@ export type SessionAccount = BaseAccountWithHelpers & {
     user: LightdashSessionUser;
 };
 
-export type OssEmbed = {
-    projectUuid: string;
-    organization: Pick<Organization, 'organizationUuid' | 'name' | 'createdAt'>;
-    encodedSecret: string;
-    dashboardUuids: string[];
-    allowAllDashboards: boolean;
-    createdAt: string;
-    user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
-};
-
 /**
  * Account for anonymous users with JWT authentication (embeds)
  */
@@ -138,8 +127,6 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     user: ExternalUser;
     /** The access permissions the account has */
     access: DashboardAccess;
-    /** The embed configuration associated with the JWT */
-    embed: OssEmbed;
 };
 
 export type ApiKeyAccount = BaseAccountWithHelpers & {
@@ -183,12 +170,6 @@ export function assertSessionAuth(
     if (account?.authentication.type !== 'session') {
         throw new ForbiddenError('Account is not a session account');
     }
-}
-
-export function isJwtUser(account?: Account): account is AnonymousAccount {
-    if (!account) return false;
-
-    return account.isJwtUser();
 }
 
 export const assertIsAccountWithOrg = (
