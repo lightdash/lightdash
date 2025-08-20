@@ -1,3 +1,10 @@
+# [0.1938.0](https://github.com/lightdash/lightdash/compare/0.1937.1...0.1938.0) (2025-08-20)
+
+
+### Features
+
+* add BigInt handling in GoogleDriveClient.formatCell ([#16506](https://github.com/lightdash/lightdash/issues/16506)) ([faae1d8](https://github.com/lightdash/lightdash/commit/faae1d81d19b952f70bd066708f33a3574d3cab3))
+
 ## [0.1937.1](https://github.com/lightdash/lightdash/compare/0.1937.0...0.1937.1) (2025-08-20)
 
 
