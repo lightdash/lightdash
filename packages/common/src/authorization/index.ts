@@ -1,19 +1,28 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
+import { NotFoundError } from '../types/errors';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type Role, type RoleWithScopes } from '../types/roles';
 import { type LightdashUser } from '../types/user';
 import applyOrganizationMemberAbilities, {
     type OrganizationMemberAbilitiesArgs,
 } from './organizationMemberAbility';
 import { projectMemberAbilities } from './projectMemberAbility';
+import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
 
 type UserAbilityBuilderArgs = {
-    user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>;
+    user: Pick<
+        LightdashUser,
+        'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
+    >;
     projectProfiles: Pick<
         ProjectMemberProfile,
-        'projectUuid' | 'role' | 'userUuid'
+        'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
     >[];
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
+    customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>;
+    customRolesEnabled?: boolean;
+    isEnterprise?: boolean;
 };
 
 export * from './buildAccountHelpers';
@@ -27,9 +36,13 @@ export const getUserAbilityBuilder = ({
     user,
     projectProfiles,
     permissionsConfig,
+    customRoleScopes,
+    customRolesEnabled,
+    isEnterprise,
 }: UserAbilityBuilderArgs) => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (user.role && user.organizationUuid) {
+        // TODO custom roles at organization level are not supported yet
         applyOrganizationMemberAbilities({
             role: user.role,
             member: {
@@ -39,11 +52,38 @@ export const getUserAbilityBuilder = ({
             builder,
             permissionsConfig,
         });
+
         projectProfiles.forEach((projectProfile) => {
-            projectMemberAbilities[projectProfile.role](
-                projectProfile,
-                builder,
-            );
+            if (projectProfile.roleUuid && customRolesEnabled) {
+                const scopes = customRoleScopes?.[projectProfile.roleUuid];
+                if (!scopes) {
+                    throw new NotFoundError(
+                        `Custom role with uuid ${user.roleUuid} was not found`,
+                    );
+                }
+
+                if (!user.organizationUuid) {
+                    throw new NotFoundError(
+                        `Organization with uuid ${user.organizationUuid} was not found`,
+                    );
+                }
+                buildAbilityFromScopes(
+                    {
+                        projectUuid: projectProfile.projectUuid,
+                        userUuid: user.userUuid,
+                        scopes,
+                        isEnterprise,
+                        organizationRole: user.role,
+                        permissionsConfig,
+                    },
+                    builder,
+                );
+            } else {
+                projectMemberAbilities[projectProfile.role](
+                    projectProfile,
+                    builder,
+                );
+            }
         });
     }
     return builder;
@@ -51,11 +91,15 @@ export const getUserAbilityBuilder = ({
 
 // Defines user ability for test purposes
 export const defineUserAbility = (
-    user: Pick<LightdashUser, 'role' | 'organizationUuid' | 'userUuid'>,
+    user: Pick<
+        LightdashUser,
+        'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
+    >,
     projectProfiles: Pick<
         ProjectMemberProfile,
-        'projectUuid' | 'role' | 'userUuid'
+        'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
     >[],
+    customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>,
 ): MemberAbility => {
     const builder = getUserAbilityBuilder({
         user,
@@ -66,6 +110,7 @@ export const defineUserAbility = (
                 allowedOrgRoles: [],
             },
         },
+        customRoleScopes,
     });
     return builder.build();
 };

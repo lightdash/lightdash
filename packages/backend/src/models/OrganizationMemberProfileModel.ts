@@ -36,6 +36,7 @@ type DbOrganizationMemberProfile = {
     email: string;
     organization_uuid: string;
     role: OrganizationMemberRole;
+    role_uuid: string | null;
     expires_at?: Date;
 };
 
@@ -99,6 +100,7 @@ export class OrganizationMemberProfileModel {
             email: member.email,
             organizationUuid: member.organization_uuid,
             role: member.role,
+            roleUuid: member.role_uuid || undefined,
             isActive: member.is_active,
             isInviteExpired,
             isPending,
@@ -227,6 +229,7 @@ export class OrganizationMemberProfileModel {
                 `${EmailTableName}.email`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${OrganizationMembershipsTableName}.role`,
+                `${OrganizationMembershipsTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
             )
             .select(
@@ -238,6 +241,7 @@ export class OrganizationMemberProfileModel {
                 `${EmailTableName}.email`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${OrganizationMembershipsTableName}.role`,
+                `${OrganizationMembershipsTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
                 `${UserTableName}.created_at as user_created_at`,
                 `${UserTableName}.updated_at as user_updated_at`,

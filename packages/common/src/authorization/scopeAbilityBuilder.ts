@@ -1,4 +1,4 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { type AbilityBuilder } from '@casl/ability';
 import { type ScopeContext } from '../types/scopes';
 import { parseScope, parseScopes } from './parseScopes';
 import { getAllScopeMap } from './scopes';
@@ -17,6 +17,7 @@ const handlePatConfigApplication = (
     if (
         !hasPatRule &&
         pat?.enabled &&
+        context.organizationRole &&
         pat?.allowedOrgRoles?.includes(context.organizationRole)
     ) {
         builder.can('manage', 'PersonalAccessToken');
@@ -54,40 +55,48 @@ const applyScopeAbilities = (
     handlePatConfigApplication(context, builder);
 };
 
+type OptionalIdContext =
+    | {
+          organizationUuid: string;
+          projectUuid?: never;
+      }
+    | {
+          projectUuid: string;
+          organizationUuid?: never;
+      };
+
 type BuilderOptions = {
-    organizationUuid: string;
-    projectUuid: string;
-    userUuid?: string;
+    userUuid: string;
     scopes: string[];
-    isEnterprise: boolean;
-    organizationRole: string;
+    isEnterprise: boolean | undefined;
+    organizationRole?: string;
     permissionsConfig?: {
         pat: {
             enabled: boolean;
             allowedOrgRoles: string[];
         };
     };
-};
+} & OptionalIdContext;
 
 /**
- * Build a complete CASL ability from scope names and context
+ * Apply CASL abilities from scopes to a builder
  * @param context - Context containing organization, project, user, and space access information
- * @returns CASL Ability with applied permissions
+ * @param builder - CASL ability builder to add permissions to
  */
 export const buildAbilityFromScopes = (
     context: BuilderOptions,
-): MemberAbility => {
-    const builder = new AbilityBuilder<MemberAbility>(Ability);
-
+    builder: AbilityBuilder<MemberAbility>,
+): void => {
+    const isEnterprise = context.isEnterprise ?? false;
     const scopes = parseScopes({
         scopes: context.scopes,
-        isEnterprise: context.isEnterprise,
+        isEnterprise,
     });
     const parsedContext = {
         ...context,
         scopes,
+        isEnterprise,
     };
 
     applyScopeAbilities(parsedContext, builder);
-    return builder.build();
 };
