@@ -1,3 +1,10 @@
+## [0.1936.1](https://github.com/lightdash/lightdash/compare/0.1936.0...0.1936.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* add new permission check for gsheets ([#16489](https://github.com/lightdash/lightdash/issues/16489)) ([ff8480b](https://github.com/lightdash/lightdash/commit/ff8480bf04b5a73aba315e70f53764049527ab66))
+
 # [0.1936.0](https://github.com/lightdash/lightdash/compare/0.1935.1...0.1936.0) (2025-08-19)
 
 
