@@ -53,3 +53,7 @@
         box-shadow: 0 0 0 1px var(--mantine-color-gray-4);
     }
 }
+
+.artifact {
+    box-shadow: var(--mantine-shadow-lg);
+}
