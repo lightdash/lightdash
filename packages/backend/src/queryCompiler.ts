@@ -200,10 +200,19 @@ const compileTableCalculation = (
                 return `(${referencedTableCalc.compiledSql})`;
             }
 
-            // Otherwise, treat it as a field reference
-            const fieldId = convertFieldRefToFieldId(p1);
-            if (validFieldIds.includes(fieldId)) {
-                return `${quoteChar}${fieldId}${quoteChar}`;
+            // Check if this is a direct reference to a custom dimension ID or additional metric ID
+            if (validFieldIds.includes(p1)) {
+                return `${quoteChar}${p1}${quoteChar}`;
+            }
+
+            // Otherwise, try to convert it as a field reference (table.field format)
+            try {
+                const fieldId = convertFieldRefToFieldId(p1);
+                if (validFieldIds.includes(fieldId)) {
+                    return `${quoteChar}${fieldId}${quoteChar}`;
+                }
+            } catch (error) {
+                // Fall through to the error below
             }
 
             throw new CompileError(
@@ -362,13 +371,6 @@ export const compileMetricQuery = ({
     availableParameters,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-    const validFieldIds = [...metricQuery.dimensions, ...metricQuery.metrics];
-
-    const compiledTableCalculations = compileTableCalculations(
-        metricQuery.tableCalculations,
-        validFieldIds,
-        fieldQuoteChar,
-    );
     const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
         (additionalMetric) =>
             compileAdditionalMetric({
@@ -387,6 +389,26 @@ export const compileMetricQuery = ({
                 explore.tables,
                 availableParameters,
             ),
+    );
+
+    // Create expanded validFieldIds that includes additional metrics and custom dimensions
+    const additionalMetricIds = compiledAdditionalMetrics.map(
+        (metric) => `${metric.table}_${metric.name}`,
+    );
+    const customDimensionIds = (metricQuery.customDimensions || []).map(
+        (dimension) => dimension.id,
+    );
+    const validFieldIds = [
+        ...metricQuery.dimensions,
+        ...metricQuery.metrics,
+        ...additionalMetricIds,
+        ...customDimensionIds,
+    ];
+
+    const compiledTableCalculations = compileTableCalculations(
+        metricQuery.tableCalculations,
+        validFieldIds,
+        fieldQuoteChar,
     );
 
     return {
