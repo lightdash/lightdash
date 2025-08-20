@@ -90,5 +90,6 @@ Content-Type: application/json
 
 
 ### Get Artifact Version
-GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/artifacts/ARTIFACT_UUID?version=2
+GET http://localhost:8080/api/v1/projects/PROJECT_UUID/aiAgents/AI_AGENT_UUID/artifacts/ARTIFACT_UUID/versions/VERSION_UUID
 Content-Type: application/json
+
