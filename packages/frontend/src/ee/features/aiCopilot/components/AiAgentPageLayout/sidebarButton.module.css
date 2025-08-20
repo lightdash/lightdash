@@ -1,0 +1,9 @@
+.sidebarBtn {
+    padding-left: var(--button-padding-x-compact-xs) !important;
+    padding-right: var(--button-padding-x-compact-xs) !important;
+
+    /*When only icon is displayed, remove the right margin*/
+    span[data-position='left']:has(+ :empty) {
+        margin-right: 0;
+    }
+}
