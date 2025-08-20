@@ -1500,10 +1500,15 @@ describe('scopeAbilityBuilder', () => {
 
         describe('virtual view permissions', () => {
             it('should handle create:virtual_view permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['create:virtual_view'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['create:virtual_view'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1528,10 +1533,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle delete:virtual_view permissions', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['delete:virtual_view'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['delete:virtual_view'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 expect(
                     ability.can(
@@ -1556,10 +1566,15 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should handle manage:virtual_view permissions for both create and delete', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: ['manage:virtual_view'],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['manage:virtual_view'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Should be able to manage (create and delete)
                 expect(
@@ -1595,14 +1610,19 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should not allow virtual view actions for different organizations', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: [
-                        'create:virtual_view',
-                        'delete:virtual_view',
-                        'manage:virtual_view',
-                    ],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        scopes: [
+                            'create:virtual_view',
+                            'delete:virtual_view',
+                            'manage:virtual_view',
+                        ],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Should not access virtual views from different org
                 expect(
@@ -1637,14 +1657,19 @@ describe('scopeAbilityBuilder', () => {
             });
 
             it('should allow virtual view actions for different projects within same organization', () => {
-                const ability = buildAbilityFromScopes({
-                    ...baseContext,
-                    scopes: [
-                        'create:virtual_view',
-                        'delete:virtual_view',
-                        'manage:virtual_view',
-                    ],
-                });
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        scopes: [
+                            'create:virtual_view',
+                            'delete:virtual_view',
+                            'manage:virtual_view',
+                        ],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
 
                 // Virtual view permissions are organization-scoped, not project-scoped
                 // So they should work across different projects within the same org

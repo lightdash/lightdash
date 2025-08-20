@@ -1,4 +1,4 @@
-// es-lint-ignore no-console
+/* eslint-disable no-console */
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
