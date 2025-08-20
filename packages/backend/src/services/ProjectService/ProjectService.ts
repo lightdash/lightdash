@@ -109,6 +109,7 @@ import {
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    type ParameterDefinitions,
     ParameterError,
     type ParametersValuesMap,
     PivotChartData,
@@ -236,7 +237,10 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import { ValidationService } from '../ValidationService/ValidationService';
-import { combineProjectAndExploreParameters } from './parameters';
+import {
+    combineProjectAndExploreParameters,
+    getCombinedParameterDefinitions,
+} from './parameters';
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1756,6 +1760,7 @@ export class ProjectService extends BaseService {
         dateZoom,
         parameters,
         availableParameters,
+        parameterDefinitions,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -1766,6 +1771,7 @@ export class ProjectService extends BaseService {
         dateZoom?: DateZoom;
         parameters?: ParametersValuesMap;
         availableParameters: string[];
+        parameterDefinitions?: ParameterDefinitions;
     }): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
@@ -1791,6 +1797,7 @@ export class ProjectService extends BaseService {
             timezone,
             parameters,
             availableParameters,
+            parameterDefinitions,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -1877,6 +1884,14 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        const projectParameters = await this.projectParametersModel.find(
+            projectUuid,
+        );
+        const parameterDefinitions = getCombinedParameterDefinitions(
+            projectParameters,
+            explore,
+        );
+
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
@@ -1886,6 +1901,7 @@ export class ProjectService extends BaseService {
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
             availableParameters,
+            parameterDefinitions,
         });
 
         await sshTunnel.disconnect();

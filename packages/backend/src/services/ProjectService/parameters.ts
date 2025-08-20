@@ -2,6 +2,7 @@ import {
     getAvailableParametersFromTables,
     type DashboardDAO,
     type Explore,
+    type ParameterDefinitions,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
@@ -27,6 +28,34 @@ export const getDashboardParametersValuesMap = (
 };
 
 /**
+ * Get full parameter definitions from project and explore
+ * @param projectParameters - The project parameters from database
+ * @param explore - The explore
+ * @returns Combined parameter definitions
+ */
+export const getCombinedParameterDefinitions = (
+    projectParameters: DbProjectParameter[],
+    explore: Explore,
+): ParameterDefinitions => {
+    // Get project parameter definitions
+    const projectParameterDefinitions: ParameterDefinitions = {};
+    projectParameters.forEach((param) => {
+        projectParameterDefinitions[param.name] = param.config;
+    });
+
+    // Get explore (model-level) parameter definitions
+    const exploreParameterDefinitions = getAvailableParametersFromTables(
+        Object.values(explore.tables),
+    );
+
+    // Combine both (explore parameters override project parameters if same name)
+    return {
+        ...projectParameterDefinitions,
+        ...exploreParameterDefinitions,
+    };
+};
+
+/**
  * Combine project and explore parameters
  * @param projectParameters - The project parameters
  * @param explore - The explore
@@ -36,12 +65,9 @@ export const combineProjectAndExploreParameters = (
     projectParameters: DbProjectParameter[],
     explore: Explore,
 ): string[] => {
-    const projectParameterNames = projectParameters.map(
-        (parameter) => parameter.name,
+    const definitions = getCombinedParameterDefinitions(
+        projectParameters,
+        explore,
     );
-    const exploreParameters = getAvailableParametersFromTables(
-        Object.values(explore.tables),
-    );
-
-    return [...projectParameterNames, ...Object.keys(exploreParameters)];
+    return Object.keys(definitions);
 };

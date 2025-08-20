@@ -148,6 +148,9 @@ export const safeReplaceParametersWithTypes = ({
 
     // First replace string parameters (with quotes and escaping)
     let processedSql = sql;
+    const allReferences = new Set<string>();
+    const allMissingReferences = new Set<string>();
+
     if (Object.keys(stringParameters).length > 0) {
         const stringResult = safeReplaceParameters({
             sql: processedSql,
@@ -157,6 +160,10 @@ export const safeReplaceParametersWithTypes = ({
             wrapChar,
         });
         processedSql = stringResult.replacedSql;
+        stringResult.references.forEach((ref) => allReferences.add(ref));
+        stringResult.missingReferences.forEach((ref) =>
+            allMissingReferences.add(ref),
+        );
     }
 
     // Then replace number parameters (without quotes)
@@ -167,7 +174,15 @@ export const safeReplaceParametersWithTypes = ({
             sqlBuilder,
         );
         processedSql = numberResult.replacedSql;
+        numberResult.references.forEach((ref) => allReferences.add(ref));
+        numberResult.missingReferences.forEach((ref) =>
+            allMissingReferences.add(ref),
+        );
     }
 
-    return { replacedSql: processedSql };
+    return {
+        replacedSql: processedSql,
+        references: allReferences,
+        missingReferences: allMissingReferences,
+    };
 };

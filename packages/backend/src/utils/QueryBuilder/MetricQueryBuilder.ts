@@ -36,12 +36,14 @@ import {
     SupportedDbtAdapter,
     TimeFrames,
     UserAttributeValueMap,
+    type ParameterDefinitions,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import {
     safeReplaceParametersWithSqlBuilder,
+    safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
 import {
@@ -78,6 +80,7 @@ export type BuildQueryProps = {
     userAttributes?: UserAttributeValueMap;
     parameters?: ParametersValuesMap;
     availableParameters: string[];
+    parameterDefinitions?: ParameterDefinitions;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
 };
@@ -1297,11 +1300,18 @@ export class MetricQueryBuilder {
             replacedSql,
             references: parameterReferences,
             missingReferences: missingParameterReferences,
-        } = safeReplaceParametersWithSqlBuilder(
-            query,
-            this.args.parameters ?? {},
-            this.args.warehouseSqlBuilder,
-        );
+        } = this.args.parameterDefinitions
+            ? safeReplaceParametersWithTypes({
+                  sql: query,
+                  parameterValuesMap: this.args.parameters ?? {},
+                  parameterDefinitions: this.args.parameterDefinitions,
+                  sqlBuilder: this.args.warehouseSqlBuilder,
+              })
+            : safeReplaceParametersWithSqlBuilder(
+                  query,
+                  this.args.parameters ?? {},
+                  this.args.warehouseSqlBuilder,
+              );
 
         if (missingParameterReferences.size > 0) {
             warnings.push({
