@@ -1,3 +1,10 @@
+# [0.1940.0](https://github.com/lightdash/lightdash/compare/0.1939.0...0.1940.0) (2025-08-20)
+
+
+### Features
+
+* remove deduplication metric feature flag ([#16491](https://github.com/lightdash/lightdash/issues/16491)) ([abf829f](https://github.com/lightdash/lightdash/commit/abf829ffc37290596c9ad1be0edb81c9ed131358))
+
 # [0.1939.0](https://github.com/lightdash/lightdash/compare/0.1938.1...0.1939.0) (2025-08-20)
 
 
