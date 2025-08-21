@@ -1,3 +1,11 @@
+## [0.1943.1](https://github.com/lightdash/lightdash/compare/0.1943.0...0.1943.1) (2025-08-21)
+
+
+### Bug Fixes
+
+* remove organizationName from user completion mutation ([#16529](https://github.com/lightdash/lightdash/issues/16529)) ([6f5fe50](https://github.com/lightdash/lightdash/commit/6f5fe50bd0628f91345ae1495c2158e38c473307))
+* use getAllCells instead of getVisibleCells for conditional formatting ([#16513](https://github.com/lightdash/lightdash/issues/16513)) ([7d5e83e](https://github.com/lightdash/lightdash/commit/7d5e83ebd4b363384cd831dea2b5abb75a820767))
+
 # [0.1943.0](https://github.com/lightdash/lightdash/compare/0.1942.1...0.1943.0) (2025-08-21)
 
 
