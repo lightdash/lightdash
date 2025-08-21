@@ -1,3 +1,4 @@
+import type { ParametersValuesMap } from '@lightdash/common';
 import { warehouseClientMock } from './MetricQueryBuilder.mock';
 import {
     safeReplaceParameters,
@@ -272,5 +273,127 @@ describe('safeReplaceParametersWithTypes', () => {
         expect(result.replacedSql).toBe(
             "SELECT * FROM users WHERE id = 42 AND status = 'active'",
         );
+    });
+
+    it('should convert string numbers to numbers for number parameters', () => {
+        const sql =
+            'SELECT * FROM users WHERE id = ${lightdash.parameters.user_id}';
+        const parameters = { user_id: '123' }; // String that should be converted to number
+        const parameterDefinitions = {
+            user_id: {
+                label: 'User ID',
+                type: 'number' as const,
+            },
+        };
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: parameters,
+            parameterDefinitions,
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe('SELECT * FROM users WHERE id = 123');
+    });
+
+    it('should throw error for invalid number parameter values', () => {
+        const sql =
+            'SELECT * FROM users WHERE id = ${lightdash.parameters.user_id}';
+        const parameterDefinitions = {
+            user_id: {
+                label: 'User ID',
+                type: 'number' as const,
+            },
+        };
+
+        // Test SQL injection attempt
+        const sqlInjectionParams = { user_id: '1; DROP TABLE users; --' };
+        expect(() => {
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: sqlInjectionParams,
+                parameterDefinitions,
+                sqlBuilder: mockSqlBuilder,
+            });
+        }).toThrow(
+            'Invalid number parameter: "1; DROP TABLE users; --" is not a valid number',
+        );
+
+        // Test invalid string
+        const invalidStringParams = { user_id: 'not_a_number' };
+        expect(() => {
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: invalidStringParams,
+                parameterDefinitions,
+                sqlBuilder: mockSqlBuilder,
+            });
+        }).toThrow(
+            'Invalid number parameter: "not_a_number" is not a valid number',
+        );
+
+        // Test NaN
+        const nanParams = { user_id: NaN };
+        expect(() => {
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: nanParams,
+                parameterDefinitions,
+                sqlBuilder: mockSqlBuilder,
+            });
+        }).toThrow('Invalid number parameter: "NaN" is not a valid number');
+
+        // Test Infinity
+        const infinityParams = { user_id: Infinity };
+        expect(() => {
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: infinityParams,
+                parameterDefinitions,
+                sqlBuilder: mockSqlBuilder,
+            });
+        }).toThrow(
+            'Invalid number parameter: "Infinity" is not a valid number',
+        );
+    });
+
+    it('should throw error for invalid number array parameter values', () => {
+        const sql =
+            'SELECT * FROM users WHERE id IN (${lightdash.parameters.user_ids})';
+        const parameterDefinitions = {
+            user_ids: {
+                label: 'User IDs',
+                type: 'number' as const,
+                multiple: true,
+            },
+        };
+
+        // Test array with SQL injection attempt
+        const sqlInjectionParams = {
+            user_ids: [1, '2; DROP TABLE users; --', 3],
+        } as ParametersValuesMap;
+        expect(() => {
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: sqlInjectionParams,
+                parameterDefinitions,
+                sqlBuilder: mockSqlBuilder,
+            });
+        }).toThrow(
+            'Invalid number parameter: "2; DROP TABLE users; --" is not a valid number',
+        );
+
+        // Test array with invalid values
+        const invalidParams = {
+            user_ids: [1, 'invalid', 3],
+        } as ParametersValuesMap;
+        expect(() => {
+            safeReplaceParametersWithTypes({
+                sql,
+                parameterValuesMap: invalidParams,
+                parameterDefinitions,
+                sqlBuilder: mockSqlBuilder,
+            });
+        }).toThrow('Invalid number parameter: "invalid" is not a valid number');
     });
 });
