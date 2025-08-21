@@ -1340,8 +1340,19 @@
                                 "type": "string"
                             },
                             {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
                                 "items": {
                                     "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "type": "number",
+                                    "format": "double"
                                 },
                                 "type": "array"
                             }
@@ -3672,8 +3683,37 @@
                     }
                 ]
             },
+            "Record_string.string-or-number-or-string-Array-or-number-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "items": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "type": "array"
+                        }
+                    ]
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ParametersValuesMap": {
-                "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                "$ref": "#/components/schemas/Record_string.string-or-number-or-string-Array-or-number-Array_"
             },
             "SavedChart": {
                 "properties": {
@@ -4418,10 +4458,21 @@
                         "type": "object"
                     },
                     "options": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "type": "array"
+                            }
+                        ]
                     },
                     "allow_custom_values": {
                         "type": "boolean"
@@ -4435,12 +4486,27 @@
                                 "type": "string"
                             },
                             {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
                                 "items": {
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "type": "array"
                             }
                         ]
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["string", "number"]
                     },
                     "description": {
                         "type": "string"
