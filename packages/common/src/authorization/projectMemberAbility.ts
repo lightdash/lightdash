@@ -226,10 +226,6 @@ export const projectMemberAbilities: Record<
         can('manage', 'AiAgent', {
             projectUuid: member.projectUuid,
         });
-        can('manage', 'AiAgentThread', {
-            projectUuid: member.projectUuid,
-            userUuid: member.userUuid,
-        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });

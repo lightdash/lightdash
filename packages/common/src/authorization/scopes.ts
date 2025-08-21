@@ -11,7 +11,7 @@ import { SpaceMemberRole } from '../types/space';
 /** Context can have either/or organizationUuid or projectUuid. Applies the one we have. */
 const addUuidCondition = (
     context: ScopeContext,
-    modifiers?: { isPrivate: false },
+    modifiers?: { isPrivate: false } | { userUuid: string | boolean },
 ) => {
     const projectOrOrg = context.organizationUuid
         ? { organizationUuid: context.organizationUuid }
@@ -50,19 +50,21 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:Dashboard',
-        description: 'Create, edit, and delete dashboards',
+        description: 'Create, edit, and delete all dashboards',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
-        getConditions: (context) => {
-            if (context.scopes.has('manage:Organization')) {
-                return addDefaultUuidCondition(context);
-            }
-
-            return [
-                addAccessCondition(context, SpaceMemberRole.EDITOR),
-                addAccessCondition(context, SpaceMemberRole.ADMIN),
-            ];
-        },
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:Dashboard@space',
+        description:
+            'Create, edit, and delete dashboards in spaces where you have editor or admin access',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
+        ],
     },
     {
         name: 'view:SavedChart',
@@ -76,18 +78,21 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:SavedChart',
-        description: 'Create, edit, and delete saved charts',
+        description: 'Create, edit, and delete all saved charts',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
-        getConditions: (context) => {
-            if (context.scopes.has('manage:Organization')) {
-                return addDefaultUuidCondition(context);
-            }
-            return [
-                addAccessCondition(context, SpaceMemberRole.EDITOR),
-                addAccessCondition(context, SpaceMemberRole.ADMIN),
-            ];
-        },
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:SavedChart@space',
+        description:
+            'Create, edit, and delete saved charts in spaces where you have editor or admin access',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
+        ],
     },
     {
         name: 'view:Space',
@@ -182,27 +187,37 @@ const scopes: Scope[] = [
     },
     {
         name: 'promote:SavedChart',
-        description: 'Promote saved charts to spaces',
+        description: 'Promote saved charts to any space',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
-        getConditions: (context) => {
-            if (context.scopes.has('manage:Organization')) {
-                return addDefaultUuidCondition(context);
-            }
-            return [addAccessCondition(context, SpaceMemberRole.EDITOR)];
-        },
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'promote:SavedChart@space',
+        description:
+            'Promote saved charts to spaces where the member has editor access',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+        ],
     },
     {
         name: 'promote:Dashboard',
-        description: 'Promote dashboards to spaces',
+        description: 'Promote dashboards to any space',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
-        getConditions: (context) => {
-            if (context.scopes.has('manage:Organization')) {
-                return addDefaultUuidCondition(context);
-            }
-            return [addAccessCondition(context, SpaceMemberRole.EDITOR)];
-        },
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'promote:Dashboard@space',
+        description:
+            'Promote dashboards to spaces where the member has editor access',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+        ],
     },
 
     // Project Management Scopes
@@ -222,7 +237,7 @@ const scopes: Scope[] = [
             // Allow creating preview projects by default
             [
                 {
-                    ...addUuidCondition(context),
+                    upstreamProjectUuid: context.projectUuid,
                     type: ProjectType.PREVIEW,
                 },
             ],
@@ -239,18 +254,7 @@ const scopes: Scope[] = [
         description: 'Delete projects',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: (context) => {
-            if (context.projectUuid) {
-                return [{}];
-            }
-            // Can delete preview projects in organization
-            return [
-                {
-                    ...addUuidCondition(context),
-                    type: ProjectType.PREVIEW,
-                },
-            ];
-        },
+        getConditions: addDefaultUuidCondition,
     },
     {
         name: 'delete:Project@self',
@@ -318,11 +322,18 @@ const scopes: Scope[] = [
         description: 'Create background jobs',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: () => [{}],
+        getConditions: () => [],
     },
     {
         name: 'view:Job',
-        description: 'View job details',
+        description: 'View all job details',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:Job@self',
+        description: 'View your own job details',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
         getConditions: (context) => [{ userUuid: context.userUuid || false }],
@@ -332,31 +343,25 @@ const scopes: Scope[] = [
         description: 'Manage background jobs',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: () => [{}],
+        getConditions: () => [],
     },
     {
         name: 'view:JobStatus',
-        description: 'View job status',
-        isEnterprise: false,
-        group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: (context) => {
-            if (context.scopes.has('manage:Organization')) {
-                return addDefaultUuidCondition(context);
-            }
-
-            return [
-                {
-                    createdByUserUuid: context.userUuid || false,
-                },
-            ];
-        },
-    },
-    {
-        name: 'manage:Validation',
-        description: 'Manage data validation rules',
+        description: 'View all job status',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
         getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:JobStatus@self',
+        description: 'View status of jobs you created',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: (context) => [
+            {
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
     },
 
     // Organization Management Scopes
@@ -434,15 +439,20 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:SemanticViewer',
-        description: 'Create and edit semantic viewer queries',
+        description: 'Create and edit semantic viewer queries anywhere',
         isEnterprise: false,
         group: ScopeGroup.DATA,
-        getConditions: (context) => {
-            if (context.scopes.has('manage:Organization')) {
-                return addDefaultUuidCondition(context);
-            }
-            return [addAccessCondition(context, SpaceMemberRole.EDITOR)];
-        },
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:SemanticViewer@space',
+        description:
+            'Create and edit semantic viewer queries in spaces where the member has editor access',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+        ],
     },
     {
         name: 'manage:Explore',
@@ -507,21 +517,21 @@ const scopes: Scope[] = [
         description: 'Can export dashboards and charts to CSV',
         isEnterprise: false,
         group: ScopeGroup.SHARING,
-        getConditions: () => [{}],
+        getConditions: () => [],
     },
     {
         name: 'export:DashboardImage',
         description: 'Can export dashboards and charts to images',
         isEnterprise: false,
         group: ScopeGroup.SHARING,
-        getConditions: () => [{}],
+        getConditions: () => [],
     },
     {
         name: 'export:DashboardPdf',
         description: 'Can export dashboards and charts to PDF',
         isEnterprise: false,
         group: ScopeGroup.SHARING,
-        getConditions: () => [{}],
+        getConditions: () => [],
     },
 
     // AI Agent
@@ -541,17 +551,19 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:AiAgentThread',
-        description: 'View AI agent conversation threads',
+        description: 'View all AI agent conversation threads',
         isEnterprise: true,
         group: ScopeGroup.AI,
-        getConditions: (context) =>
-            // View user's own AI agent threads
-            [
-                {
-                    ...addUuidCondition(context),
-                    userUuid: context.userUuid || false,
-                },
-            ],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AiAgentThread@self',
+        description: 'View owned AI agent conversation threads',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addUuidCondition(context, { userUuid: context.userUuid || false }),
+        ],
     },
     {
         name: 'create:AiAgentThread',
@@ -562,17 +574,19 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:AiAgentThread',
-        description: 'Manage AI agent conversation threads',
+        description: 'Manage all AI agent conversation threads',
         isEnterprise: true,
         group: ScopeGroup.AI,
-        getConditions: (context) => {
-            if (context.scopes.has('manage:Organization')) {
-                return addDefaultUuidCondition(context);
-            }
-
-            // Manage user's own AI agent threads
-            return [{ userUuid: context.userUuid || false }];
-        },
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:AiAgentThread@self',
+        description: 'Manage owned AI agent conversation threads',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addUuidCondition(context, { userUuid: context.userUuid || false }),
+        ],
     },
 
     // Spotlight Scopes
