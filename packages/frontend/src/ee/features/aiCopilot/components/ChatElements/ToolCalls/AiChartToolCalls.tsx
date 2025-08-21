@@ -2,8 +2,6 @@ import {
     AgentToolCallArgsSchema,
     type AiAgentToolCall,
     AiResultType,
-    type ApiCompiledQueryResults,
-    type ApiExecuteAsyncMetricQueryResults,
     assertUnreachable,
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
@@ -36,7 +34,6 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type JSX } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 
 const getToolIcon = (toolName: ToolName) => {
@@ -100,8 +97,7 @@ const ToolCallContainer = ({
 
 const ToolCallDescription: FC<{
     toolCall: ToolCallSummary;
-    compiledSql: ApiCompiledQueryResults | undefined;
-}> = ({ toolCall, compiledSql }) => {
+}> = ({ toolCall }) => {
     const toolNameParsed = ToolNameSchema.safeParse(toolCall.toolName);
     const toolArgsParsed = AgentToolCallArgsSchema.safeParse(toolCall.toolArgs);
 
@@ -156,7 +152,6 @@ const ToolCallDescription: FC<{
                     breakdownByDimension={
                         barVizConfigToolArgs.vizConfig.breakdownByDimension
                     }
-                    sql={compiledSql?.query}
                 />
             );
         case AiResultType.TABLE_RESULT:
@@ -168,7 +163,6 @@ const ToolCallDescription: FC<{
                         tableVizConfigToolArgs.vizConfig.dimensions ?? []
                     }
                     metrics={tableVizConfigToolArgs.vizConfig.metrics}
-                    sql={compiledSql?.query}
                 />
             );
         case AiResultType.TIME_SERIES_RESULT:
@@ -181,7 +175,6 @@ const ToolCallDescription: FC<{
                     breakdownByDimension={
                         timeSeriesToolCallArgs.vizConfig.breakdownByDimension
                     }
-                    sql={compiledSql?.query}
                 />
             );
         case 'find_dashboards':
@@ -240,23 +233,12 @@ const ToolCallDescription: FC<{
 type AiChartToolCallsProps = {
     toolCalls: ToolCallSummary[] | undefined;
     type: ToolCallDisplayType;
-    compiledSql?: ApiCompiledQueryResults;
-    metricQuery?: ApiExecuteAsyncMetricQueryResults['metricQuery'];
-    projectUuid?: string;
 };
 
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     toolCalls,
     type,
-    metricQuery,
-    projectUuid,
 }) => {
-    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
-        tableName: metricQuery?.exploreName,
-        projectUuid,
-        metricQuery: metricQuery,
-    });
-
     const texts =
         type === 'streaming'
             ? TOOL_DISPLAY_MESSAGES
@@ -301,14 +283,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                                 }
                                 lineVariant={'solid'}
                             >
-                                <ToolCallDescription
-                                    toolCall={toolCall}
-                                    compiledSql={
-                                        type === 'persisted'
-                                            ? compiledSql
-                                            : undefined
-                                    }
-                                />
+                                <ToolCallDescription toolCall={toolCall} />
                             </Timeline.Item>
                         );
                     })}

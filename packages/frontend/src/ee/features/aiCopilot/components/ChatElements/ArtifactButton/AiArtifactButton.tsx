@@ -1,45 +1,24 @@
-import { AiResultType } from '@lightdash/common';
+import { type AiAgentMessageAssistant } from '@lightdash/common';
 import { Box, Group, Loader, Title, UnstyledButton } from '@mantine-8/core';
-import {
-    IconChartDots3,
-    IconChartHistogram,
-    IconChartLine,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChartDots3 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import styles from './AiArtifactButton.module.css';
 
-const getVizTypeIcon = (vizType: AiResultType) => {
-    switch (vizType) {
-        case AiResultType.TABLE_RESULT:
-            return IconTable;
-        case AiResultType.VERTICAL_BAR_RESULT:
-            return IconChartHistogram;
-        case AiResultType.TIME_SERIES_RESULT:
-            return IconChartLine;
-        default:
-            return IconChartDots3;
-    }
-};
-
 interface AiArtifactButtonProps {
     onClick: () => void;
+    isArtifactOpen: boolean;
+    artifact: AiAgentMessageAssistant['artifact'];
     isLoading?: boolean;
-    vizType?: AiResultType;
-    title?: string;
-    description?: string;
-    isArtifactOpen?: boolean;
 }
 
 export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
     onClick,
     isLoading = false,
-    vizType,
-    title,
     isArtifactOpen = false,
+    artifact,
 }) => {
-    const IconComponent = vizType ? getVizTypeIcon(vizType) : IconChartDots3;
+    const displayTitle = artifact?.title;
 
     return (
         <UnstyledButton
@@ -58,7 +37,7 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
                         />
                     ) : (
                         <MantineIcon
-                            icon={IconComponent}
+                            icon={IconChartDots3}
                             size={14}
                             color="gray"
                             className={styles.icon}
@@ -75,9 +54,9 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
                                 Loading...
                             </Title>
                         ) : (
-                            title && (
+                            displayTitle && (
                                 <Title order={6} fw={500}>
-                                    {title}
+                                    {displayTitle}
                                 </Title>
                             )
                         )}
