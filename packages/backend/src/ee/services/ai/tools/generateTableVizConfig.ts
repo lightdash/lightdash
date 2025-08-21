@@ -21,6 +21,7 @@ import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFilterRules,
+    validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
 } from '../utils/validators';
 import { renderTableViz } from '../visualizations/vizTable';
@@ -60,6 +61,7 @@ export const getGenerateTableVizConfig = ({
                     toolTableVizArgsSchemaTransformed.parse(toolArgs);
 
                 const filterRules = getTotalFilterRules(vizTool.filters);
+
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
@@ -72,6 +74,10 @@ export const getGenerateTableVizConfig = ({
                 ].filter((x) => typeof x === 'string');
                 validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
+                validateMetricDimensionFilterPlacement(
+                    explore,
+                    vizTool.filters,
+                );
                 // end of TODO
 
                 const prompt = await getPrompt();
