@@ -1781,7 +1781,7 @@ export class AsyncQueryService extends ProjectService {
                         // This might need adjustment based on actual patterns
                         return {
                             reference: baseField,
-                            aggregation: VizAggregationOptions.SUM, // Default, should be extracted from metric query
+                            aggregation: VizAggregationOptions.ANY,
                         };
                     });
 

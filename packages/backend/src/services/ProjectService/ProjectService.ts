@@ -3049,9 +3049,21 @@ export class ProjectService extends BaseService {
             }
                  ),
                  total_columns AS (
-                    SELECT (COUNT(DISTINCT ${groupByColumns
-                        .map((col) => `filtered_rows.${q}${col.reference}${q}`)
-                        .join(', ')}) * ${
+                    SELECT (COUNT(DISTINCT ${
+                        groupByColumns.length > 1
+                            ? `CONCAT(${groupByColumns
+                                  .map(
+                                      (col) =>
+                                          `COALESCE(CAST(filtered_rows.${q}${col.reference}${q} AS VARCHAR), '')`,
+                                  )
+                                  .join(`, '-', `)})`
+                            : groupByColumns
+                                  .map(
+                                      (col) =>
+                                          `filtered_rows.${q}${col.reference}${q}`,
+                                  )
+                                  .join(', ')
+                    }) * ${
                 valuesColumns?.length || 1
             }) as total_columns FROM filtered_rows
                  )
