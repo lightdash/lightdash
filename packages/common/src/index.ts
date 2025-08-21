@@ -122,10 +122,12 @@ import { type ValidationResponse } from './types/validation';
 
 import type {
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadSummaryListResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -939,6 +941,8 @@ type ApiResults =
     | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
+    | ApiAiAgentThreadGenerateTitleResponse['results']
+    | ApiAiAgentThreadSummaryListResponse['results']
     | Account;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

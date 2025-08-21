@@ -46,6 +46,7 @@ import {
     CoreMessage,
     CoreToolMessage,
     CoreUserMessage,
+    generateText,
     ToolCallPart,
     ToolResultPart,
 } from 'ai';
@@ -81,6 +82,7 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
+import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
@@ -919,7 +921,7 @@ export class AiAgentService {
         });
     }
 
-    async streamAgentThreadResponse(
+    private async prepareAgentThreadResponse(
         user: SessionUser,
         {
             agentUuid,
@@ -928,7 +930,7 @@ export class AiAgentService {
             agentUuid: string;
             threadUuid: string;
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>> {
+    ) {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
@@ -959,7 +961,7 @@ export class AiAgentService {
         );
         if (!hasAccess) {
             throw new ForbiddenError(
-                'Insufficient permissions to stream response for this agent',
+                'Insufficient permissions to access this agent thread',
             );
         }
 
@@ -987,12 +989,35 @@ export class AiAgentService {
             );
         }
 
+        const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
+            threadMessages,
+        );
+
+        return { user, chatHistoryMessages, prompt };
+    }
+
+    async streamAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<ReturnType<typeof streamAgentResponse>> {
         try {
-            const chatHistoryMessages =
-                await this.getChatHistoryFromThreadMessages(threadMessages);
+            const {
+                user: validatedUser,
+                chatHistoryMessages,
+                prompt,
+            } = await this.prepareAgentThreadResponse(user, {
+                agentUuid,
+                threadUuid,
+            });
 
             const response = await this.generateOrStreamAgentResponse(
-                user,
+                validatedUser,
                 chatHistoryMessages,
                 {
                     prompt,
@@ -1003,6 +1028,81 @@ export class AiAgentService {
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
             throw new Error('Failed to generate agent thread response');
+        }
+    }
+
+    async generateAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<string> {
+        try {
+            const {
+                user: validatedUser,
+                chatHistoryMessages,
+                prompt,
+            } = await this.prepareAgentThreadResponse(user, {
+                agentUuid,
+                threadUuid,
+            });
+
+            const response = await this.generateOrStreamAgentResponse(
+                validatedUser,
+                chatHistoryMessages,
+                {
+                    prompt,
+                    stream: false,
+                },
+            );
+            return response;
+        } catch (e) {
+            Logger.error('Failed to generate agent thread response:', e);
+            throw new Error('Failed to generate agent thread response');
+        }
+    }
+
+    async generateThreadTitle(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<string> {
+        try {
+            // Reuse existing validation and data fetching logic
+            const { chatHistoryMessages } =
+                await this.prepareAgentThreadResponse(user, {
+                    agentUuid,
+                    threadUuid,
+                });
+
+            // Get model configuration
+            const { model } = getModel(this.lightdashConfig.ai.copilot);
+
+            // Generate title using the dedicated title generator
+            const title = await generateTitleFromMessages(
+                model,
+                chatHistoryMessages,
+            );
+
+            // Save the title to the database
+            await this.aiAgentModel.updateThreadTitle({
+                threadUuid,
+                title,
+            });
+
+            return title;
+        } catch (e) {
+            Logger.error('Failed to generate thread title:', e);
+            throw new Error('Failed to generate thread title');
         }
     }
 

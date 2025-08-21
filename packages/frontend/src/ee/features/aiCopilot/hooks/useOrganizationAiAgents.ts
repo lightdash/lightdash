@@ -3,6 +3,7 @@ import type {
     ApiAiAgentResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
@@ -274,6 +275,53 @@ const createOptimisticMessages = (
     ];
 };
 
+const generateAgentThreadTitle = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) =>
+    lightdashApi<ApiAiAgentThreadGenerateTitleResponse>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/generate-title`,
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+
+export const useGenerateAgentThreadTitleMutation = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiAiAgentThreadGenerateTitleResponse['results'],
+        ApiError,
+        { threadUuid: string }
+    >({
+        mutationFn: ({ threadUuid }) =>
+            generateAgentThreadTitle(projectUuid, agentUuid, threadUuid),
+        onSuccess: (data, { threadUuid }) => {
+            queryClient.setQueryData(
+                [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', 'user'],
+                (
+                    currentData:
+                        | ApiAiAgentThreadSummaryListResponse['results']
+                        | undefined,
+                ) => {
+                    if (!currentData) return currentData;
+                    return currentData.map((thread) =>
+                        thread.uuid === threadUuid
+                            ? { ...thread, title: data.title }
+                            : thread,
+                    );
+                },
+            );
+        },
+        onError: ({ error }) => {
+            // Silently fail - don't show error toast or navigate for background title generation
+            console.warn('Failed to generate thread title:', error);
+        },
+    });
+};
+
 const createAgentThread = async (
     projectUuid: string,
     agentUuid: string | undefined,
@@ -295,6 +343,8 @@ export const useCreateAgentThreadMutation = (
     const { user } = useApp();
     const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
     const { streamMessage } = useAiAgentThreadStreamMutation();
+    const { mutateAsync: generateThreadTitle } =
+        useGenerateAgentThreadTitleMutation(projectUuid!, agentUuid!);
 
     return useMutation<
         ApiAiAgentThreadCreateResponse['results'],
@@ -311,6 +361,8 @@ export const useCreateAgentThreadMutation = (
                 queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
             });
 
+            void generateThreadTitle({ threadUuid: thread.uuid });
+
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', thread.uuid],
                 () => {
@@ -323,6 +375,8 @@ export const useCreateAgentThreadMutation = (
                         firstMessage: thread.firstMessage,
                         agentUuid: agentUuid,
                         uuid: thread.uuid,
+                        title: null,
+                        titleGeneratedAt: null,
                         messages: createOptimisticMessages(
                             thread.uuid,
                             thread.firstMessage.uuid,

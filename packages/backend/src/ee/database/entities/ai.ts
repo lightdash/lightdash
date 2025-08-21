@@ -9,6 +9,8 @@ export type DbAiThread = {
     organization_uuid: string;
     project_uuid: string;
     created_from: string; // slack, web, etc
+    title: string | null;
+    title_generated_at: Date | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -16,6 +18,12 @@ export type AiThreadTable = Knex.CompositeTableType<
     Pick<
         DbAiThread,
         'organization_uuid' | 'project_uuid' | 'created_from' | 'agent_uuid'
+    >,
+    Partial<
+        Pick<
+            DbAiThread,
+            'agent_uuid' | 'title' | 'title_generated_at' | 'project_uuid'
+        >
     >
 >;
 

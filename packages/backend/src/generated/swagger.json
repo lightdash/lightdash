@@ -5891,6 +5891,46 @@
                 "required": ["prompt"],
                 "type": "object"
             },
+            "ApiAiAgentThreadGenerateResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "response": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["response"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadGenerateTitleResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiResultType": {
                 "enum": [
                     "time_series_chart",
@@ -6168,7 +6208,7 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "vizConfigOutput": {
+                    "chartConfig": {
                         "allOf": [
                             {
                                 "$ref": "#/components/schemas/Record_string.unknown_"
@@ -6217,7 +6257,7 @@
                 },
                 "required": [
                     "versionCreatedAt",
-                    "vizConfigOutput",
+                    "chartConfig",
                     "description",
                     "title",
                     "versionUuid",
@@ -6773,6 +6813,9 @@
                     },
                     "role": {
                         "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "roleUuid": {
+                        "type": "string"
                     },
                     "isTrackingAnonymized": {
                         "type": "boolean"
@@ -12238,6 +12281,9 @@
                     "email": {
                         "type": "string"
                     },
+                    "roleUuid": {
+                        "type": "string"
+                    },
                     "role": {
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     },
@@ -14069,6 +14115,9 @@
                     "isActive": {
                         "type": "boolean",
                         "description": "Whether the user can login"
+                    },
+                    "roleUuid": {
+                        "type": "string"
                     },
                     "role": {
                         "$ref": "#/components/schemas/OrganizationMemberRole",
@@ -18567,7 +18616,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1936.2",
+        "version": "0.1942.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
