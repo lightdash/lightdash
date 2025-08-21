@@ -251,7 +251,10 @@ const getResultsPage = async (
 export type InfiniteQueryResults = Partial<
     Pick<
         ReadyQueryResultsPage,
-        'queryUuid' | 'totalResults' | 'initialQueryExecutionMs'
+        | 'queryUuid'
+        | 'totalResults'
+        | 'initialQueryExecutionMs'
+        | 'pivotDetails'
     >
 > & {
     projectUuid?: string;
@@ -516,6 +519,7 @@ export const useInfiniteQueryResults = (
             isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
             fetchAll,
             error: nextPage.error,
+            pivotDetails: fetchedPages[0]?.pivotDetails,
         }),
         [
             projectUuid,

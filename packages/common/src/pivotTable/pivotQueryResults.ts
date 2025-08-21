@@ -1,6 +1,7 @@
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import type { ReadyQueryResultsPage } from '..';
 import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import {
     FieldType,
@@ -802,6 +803,366 @@ export const pivotQueryResults = ({
         groupedSubtotals,
     };
     return combinedRetrofit(pivotData, getField, getFieldLabel);
+};
+
+/**
+ * Converts SQL-pivoted results to a normalized table format
+ * This handles results that are already pivoted at the SQL level
+ * Simply normalizes the existing SQL column structure for table display
+ */
+export const convertSqlPivotedResults = (
+    rows: ResultRow[],
+    pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>,
+): PivotData => {
+    // Extract index column information
+    const { indexColumn } = pivotDetails;
+    const indexDimensions: string[] = [];
+    if (indexColumn) {
+        if (Array.isArray(indexColumn)) {
+            indexDimensions.push(...indexColumn.map((col) => col.reference));
+        } else {
+            indexDimensions.push(indexColumn.reference);
+        }
+    }
+
+    // Get unique metrics and pivot values from valuesColumns
+    const uniqueMetrics = Array.from(
+        new Set(pivotDetails.valuesColumns.map((col) => col.referenceField)),
+    );
+
+    // Get pivot dimension and its unique values (preserving order from valuesColumns)
+    const mainPivotDimension =
+        pivotDetails.groupByColumns?.[0]?.reference ||
+        'payments_payment_method';
+    const seenPivotValues = new Set<string>();
+    const uniquePivotValues: unknown[] = [];
+
+    pivotDetails.valuesColumns.forEach((col) => {
+        col.pivotValues.forEach((pv) => {
+            const valueStr = String(pv.value);
+            if (!seenPivotValues.has(valueStr)) {
+                seenPivotValues.add(valueStr);
+                uniquePivotValues.push(pv.value);
+            }
+        });
+    });
+
+    // Create headerValueTypes
+    const headerValueTypes: PivotData['headerValueTypes'] = [
+        { type: FieldType.DIMENSION, fieldId: mainPivotDimension },
+        { type: FieldType.METRIC },
+    ];
+
+    // Create indexValueTypes
+    const indexValueTypes: PivotData['indexValueTypes'] = indexDimensions.map(
+        (d) => ({
+            type: FieldType.DIMENSION,
+            fieldId: d,
+        }),
+    );
+
+    // Build header values structure
+    const headerValues: PivotData['headerValues'] = [];
+
+    // First header row: pivot dimension values (e.g., coupon, gift_card, credit_card, bank_transfer) with colSpans
+    const dimensionHeaderRow: PivotData['headerValues'][number] = [];
+    uniquePivotValues.forEach((pivotValue) => {
+        dimensionHeaderRow.push({
+            type: 'value',
+            fieldId: mainPivotDimension,
+            value: {
+                raw: pivotValue,
+                formatted: String(pivotValue),
+            },
+            colSpan: uniqueMetrics.length,
+        });
+    });
+    headerValues.push(dimensionHeaderRow);
+
+    // Second header row: metric labels repeated for each pivot value
+    const metricHeaderRow: PivotData['headerValues'][number] = [];
+    uniquePivotValues.forEach(() => {
+        uniqueMetrics.forEach((metric) => {
+            metricHeaderRow.push({
+                type: 'label',
+                fieldId: metric,
+            });
+        });
+    });
+    headerValues.push(metricHeaderRow);
+
+    // Build index values from the rows
+    const indexValues: PivotData['indexValues'] = [];
+    const seenIndexValues = new Set<string>();
+
+    rows.forEach((row) => {
+        if (indexColumn && !Array.isArray(indexColumn)) {
+            const indexValue = row[indexColumn.reference]?.value;
+            const indexKey = String(indexValue?.raw);
+
+            if (!seenIndexValues.has(indexKey)) {
+                seenIndexValues.add(indexKey);
+                indexValues.push([
+                    {
+                        type: 'value',
+                        fieldId: indexColumn.reference,
+                        value: indexValue,
+                        colSpan: 1,
+                    },
+                ]);
+            }
+        } else if (indexColumn && Array.isArray(indexColumn)) {
+            const indexRowValues: PivotData['indexValues'][number] = [];
+            const indexKey = indexColumn
+                .map((col) => String(row[col.reference]?.value?.raw))
+                .join('__');
+
+            if (!seenIndexValues.has(indexKey)) {
+                seenIndexValues.add(indexKey);
+                indexColumn.forEach((col) => {
+                    indexRowValues.push({
+                        type: 'value',
+                        fieldId: col.reference,
+                        value: row[col.reference]?.value,
+                        colSpan: 1,
+                    });
+                });
+                indexValues.push(indexRowValues);
+            }
+        }
+    });
+
+    // Build data values - map pivoted columns to 2D array in correct order
+    const dataColumnCount = uniquePivotValues.length * uniqueMetrics.length;
+    const dataRowCount = indexValues.length;
+    const dataValues = create2DArray<ResultValue | null>(
+        dataRowCount,
+        dataColumnCount,
+    );
+
+    // Create a mapping from row index to actual row data
+    const rowsByIndexValue = new Map<string, ResultRow>();
+    rows.forEach((row) => {
+        if (indexColumn && !Array.isArray(indexColumn)) {
+            const indexValue = String(
+                row[indexColumn.reference]?.value?.raw || '',
+            );
+            rowsByIndexValue.set(indexValue, row);
+        } else if (indexColumn && Array.isArray(indexColumn)) {
+            const indexKey = indexColumn
+                .map((col) => String(row[col.reference]?.value?.raw || ''))
+                .join('__');
+            rowsByIndexValue.set(indexKey, row);
+        }
+    });
+
+    // Map data values in the expected order: for each pivot value, then for each metric
+    indexValues.forEach((indexRow, rowIndex) => {
+        let indexKey = '';
+        if (indexColumn && !Array.isArray(indexColumn)) {
+            const firstCell = indexRow[0];
+            indexKey = String(
+                firstCell && 'value' in firstCell
+                    ? firstCell.value?.raw || ''
+                    : '',
+            );
+        } else if (indexColumn && Array.isArray(indexColumn)) {
+            indexKey = indexRow
+                .map((cell) =>
+                    String(
+                        cell && 'value' in cell ? cell.value?.raw || '' : '',
+                    ),
+                )
+                .join('__');
+        }
+
+        const sourceRow = rowsByIndexValue.get(indexKey);
+        if (sourceRow) {
+            let colIndex = 0;
+            uniquePivotValues.forEach((pivotValue) => {
+                uniqueMetrics.forEach((metric) => {
+                    // Find the matching column from pivotDetails.valuesColumns
+                    const matchingColumn = pivotDetails.valuesColumns.find(
+                        (col) =>
+                            col.referenceField === metric &&
+                            col.pivotValues.some(
+                                (pv) => pv.value === pivotValue,
+                            ),
+                    );
+
+                    if (matchingColumn) {
+                        const value =
+                            sourceRow[matchingColumn.pivotColumnName]?.value;
+                        dataValues[rowIndex][colIndex] = value || null;
+                    }
+                    colIndex += 1;
+                });
+            });
+        }
+    });
+
+    // Build titleFields
+    const titleFields: PivotData['titleFields'] = create2DArray(
+        headerValueTypes.length || 1,
+        indexValueTypes.length || 1,
+    );
+
+    headerValueTypes.forEach((headerValueType, headerIndex) => {
+        if (headerValueType.type === FieldType.DIMENSION) {
+            const indexPos =
+                indexValueTypes.length > 0 ? indexValueTypes.length - 1 : 0;
+            titleFields[headerIndex][indexPos] = {
+                fieldId: headerValueType.fieldId,
+                direction: 'header',
+            };
+        }
+    });
+
+    indexValueTypes.forEach((indexValueType, indexIndex) => {
+        if (indexValueType.type === FieldType.DIMENSION) {
+            const headerPos =
+                headerValueTypes.length > 0 ? headerValueTypes.length - 1 : 0;
+            titleFields[headerPos][indexIndex] = {
+                fieldId: indexValueType.fieldId,
+                direction: 'index',
+            };
+        }
+    });
+
+    // Build retrofit data structure for compatibility
+    const retrofitData: PivotData['retrofitData'] = {
+        allCombinedData: [],
+        pivotColumnInfo: [],
+    };
+
+    // Add index column info
+    if (indexColumn && !Array.isArray(indexColumn)) {
+        retrofitData.pivotColumnInfo.push({
+            fieldId: indexColumn.reference,
+            baseId: undefined,
+            underlyingId: undefined,
+            columnType: 'indexValue',
+        });
+    } else if (indexColumn && Array.isArray(indexColumn)) {
+        indexColumn.forEach((col) => {
+            retrofitData.pivotColumnInfo.push({
+                fieldId: col.reference,
+                baseId: undefined,
+                underlyingId: undefined,
+                columnType: 'indexValue',
+            });
+        });
+    }
+
+    // Add data column info in the correct order
+    let colIndex = 0;
+    uniquePivotValues.forEach((pivotValue) => {
+        uniqueMetrics.forEach((metric) => {
+            const matchingColumn = pivotDetails.valuesColumns.find(
+                (col) =>
+                    col.referenceField === metric &&
+                    col.pivotValues.some((pv) => pv.value === pivotValue),
+            );
+
+            if (matchingColumn) {
+                retrofitData.pivotColumnInfo.push({
+                    fieldId: `${mainPivotDimension}_${pivotValue}_${metric}_${colIndex}`,
+                    baseId: metric,
+                    underlyingId: undefined,
+                    columnType: 'dataValue',
+                });
+            }
+            colIndex += 1;
+        });
+    });
+
+    // Build combined data rows
+    indexValues.forEach((indexRow) => {
+        let indexKey = '';
+        if (indexColumn && !Array.isArray(indexColumn)) {
+            const firstCell = indexRow[0];
+            indexKey = String(
+                firstCell && 'value' in firstCell
+                    ? firstCell.value?.raw || ''
+                    : '',
+            );
+        }
+
+        const sourceRow = rowsByIndexValue.get(indexKey);
+        if (sourceRow) {
+            const combinedRow: ResultRow = {};
+
+            // Add index values
+            if (indexColumn && !Array.isArray(indexColumn)) {
+                const value = sourceRow[indexColumn.reference]?.value;
+                if (value) {
+                    combinedRow[indexColumn.reference] = { value };
+                }
+            }
+
+            // Add data values
+            let dataColIndex = 0;
+            uniquePivotValues.forEach((pivotValue) => {
+                uniqueMetrics.forEach((metric) => {
+                    const fieldId = `${mainPivotDimension}_${pivotValue}_${metric}_${dataColIndex}`;
+                    const matchingColumn = pivotDetails.valuesColumns.find(
+                        (col) =>
+                            col.referenceField === metric &&
+                            col.pivotValues.some(
+                                (pv) => pv.value === pivotValue,
+                            ),
+                    );
+
+                    const value = matchingColumn
+                        ? sourceRow[matchingColumn.pivotColumnName]?.value
+                        : null;
+                    if (value) {
+                        combinedRow[fieldId] = { value };
+                    }
+                    dataColIndex += 1;
+                });
+            });
+
+            retrofitData.allCombinedData.push(combinedRow);
+        }
+    });
+
+    let indexColumnCount = 0;
+    if (indexColumn) {
+        if (Array.isArray(indexColumn)) {
+            indexColumnCount = indexColumn.length;
+        } else {
+            indexColumnCount = 1;
+        }
+    }
+    const cellsCount = dataColumnCount + indexColumnCount;
+
+    const result: PivotData = {
+        titleFields,
+        headerValueTypes,
+        headerValues,
+        indexValueTypes,
+        indexValues,
+        dataColumnCount,
+        dataValues,
+        rowTotalFields: undefined,
+        columnTotalFields: undefined,
+        rowTotals: undefined,
+        columnTotals: undefined,
+        cellsCount,
+        rowsCount: dataRowCount,
+        pivotConfig: {
+            pivotDimensions: [mainPivotDimension],
+            metricsAsRows: false,
+            columnOrder: [],
+            rowTotals: false,
+            columnTotals: false,
+        },
+        retrofitData,
+        groupedSubtotals: undefined,
+    };
+
+    return result;
 };
 
 export const pivotResultsAsCsv = ({

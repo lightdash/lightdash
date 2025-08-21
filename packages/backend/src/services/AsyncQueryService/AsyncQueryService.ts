@@ -12,6 +12,7 @@ import {
     type ApiGetAsyncQueryResults,
     assertIsAccountWithOrg,
     assertUnreachable,
+    ChartType,
     CompiledDimension,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
@@ -19,7 +20,6 @@ import {
     CreateWarehouseCredentials,
     type CustomDimension,
     CustomSqlQueryForbiddenError,
-    type DashboardDAO,
     DashboardFilters,
     DEFAULT_RESULTS_PAGE_SIZE,
     Dimension,
@@ -59,6 +59,7 @@ import {
     type ParametersValuesMap,
     PivotConfig,
     PivotConfiguration,
+    type PivotValue,
     type PivotValuesColumn,
     type Project,
     QueryExecutionContext,
@@ -68,12 +69,16 @@ import {
     ResultRow,
     type RunQueryTags,
     S3Error,
+    type SavedChartDAO,
     SchedulerFormat,
+    type Series,
     sleep,
     type SpaceShare,
     type SpaceSummary,
     SqlChart,
     UnexpectedServerError,
+    VizAggregationOptions,
+    VizIndexType,
     WarehouseClient,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
@@ -1055,6 +1060,7 @@ export class AsyncQueryService extends ProjectService {
                               currentRowIndex = row.row_index;
                           }
                       }
+
                       // Suffix the value column with the group by columns to avoid collisions.
                       // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
                       // then the value column will be 'value_1_a_b'
@@ -1114,6 +1120,8 @@ export class AsyncQueryService extends ProjectService {
             pivotTotalRows += 1;
             write?.([currentTransformedRow]);
         }
+
+        // Note: Complete pivot matrix is now handled at the SQL level
 
         return {
             warehouseResults,
@@ -1484,16 +1492,14 @@ export class AsyncQueryService extends ProjectService {
 
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
-                        pivotedQuery =
-                            await ProjectService.applyPivotToSqlQuery({
-                                warehouseType: warehouseCredentialsType,
-                                sql: compiledQuery,
-                                indexColumn: pivotConfiguration.indexColumn,
-                                valuesColumns: pivotConfiguration.valuesColumns,
-                                groupByColumns:
-                                    pivotConfiguration.groupByColumns,
-                                sortBy: pivotConfiguration.sortBy,
-                            });
+                        pivotedQuery = ProjectService.applyPivotToSqlQuery({
+                            warehouseType: warehouseCredentialsType,
+                            sql: compiledQuery,
+                            indexColumn: pivotConfiguration.indexColumn,
+                            valuesColumns: pivotConfiguration.valuesColumns,
+                            groupByColumns: pivotConfiguration.groupByColumns,
+                            sortBy: pivotConfiguration.sortBy,
+                        });
                     }
 
                     const query = pivotedQuery || compiledQuery;
@@ -1634,6 +1640,7 @@ export class AsyncQueryService extends ProjectService {
                     this.logger.info(
                         `Executing query ${queryHistoryUuid} in the main loop`,
                     );
+
                     void this.runAsyncWarehouseQuery({
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
@@ -1669,6 +1676,136 @@ export class AsyncQueryService extends ProjectService {
     }
 
     // execute
+    /**
+     * Derives pivot configuration from a saved chart's configuration and metric query
+     * This enables consistent pivoting across all chart types
+     */
+    // eslint-disable-next-line class-methods-use-this
+    private derivePivotConfigurationFromChart(
+        savedChart: SavedChartDAO,
+        metricQuery?: MetricQuery,
+    ): PivotConfiguration | undefined {
+        const { chartConfig } = savedChart;
+
+        // For Table charts with pivot configuration
+        // Convert table pivot config to SQL-level pivot configuration
+        if (chartConfig?.type === ChartType.TABLE && savedChart.pivotConfig) {
+            const pivotColumns = savedChart.pivotConfig.columns || [];
+
+            if (pivotColumns.length === 0) {
+                return undefined;
+            }
+
+            // Create pivot configuration using the metric query if available
+            if (!metricQuery) {
+                return undefined;
+            }
+
+            // Find dimensions that are NOT being pivoted on (these become index columns)
+            const nonPivotDimensions = metricQuery.dimensions.filter(
+                (dim) => !pivotColumns.includes(dim),
+            );
+
+            let indexColumn;
+            if (nonPivotDimensions.length > 0) {
+                indexColumn = {
+                    reference: nonPivotDimensions[0],
+                    type: VizIndexType.CATEGORY,
+                };
+            } else if (metricQuery.dimensions.length > 0) {
+                indexColumn = {
+                    reference: metricQuery.dimensions[0],
+                    type: VizIndexType.CATEGORY,
+                };
+            } else {
+                indexColumn = {
+                    reference: 'row_index',
+                    type: VizIndexType.CATEGORY,
+                };
+            }
+
+            // Create value columns for each metric
+            const valuesColumns = metricQuery.metrics.map((metric) => ({
+                reference: metric,
+                aggregation: VizAggregationOptions.ANY,
+            }));
+
+            // Group by columns are the pivot dimensions
+            const groupByColumns = pivotColumns.map((col: string) => ({
+                reference: col,
+            }));
+
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn,
+                valuesColumns,
+                groupByColumns,
+                sortBy: undefined,
+            };
+
+            return pivotConfiguration;
+        }
+
+        // For Cartesian charts with grouped series (pivoted data)
+        if (
+            chartConfig?.type === ChartType.CARTESIAN &&
+            chartConfig?.config &&
+            isCartesianChartConfig(chartConfig.config)
+        ) {
+            const { eChartsConfig } = chartConfig.config;
+            const series = eChartsConfig?.series;
+
+            // Check if any series has pivot values (grouped data)
+            const hasPivotedSeries = series?.some(
+                (s: Series) =>
+                    s.encode.yRef.pivotValues &&
+                    s.encode.yRef.pivotValues.length > 0,
+            );
+
+            if (hasPivotedSeries && series?.[0]) {
+                // Extract pivot configuration from the first series
+                const firstSeries = series[0];
+                const { yRef, xRef } = firstSeries.encode;
+
+                if (yRef.pivotValues) {
+                    // Extract unique group by columns from pivot values
+                    const groupByColumns = yRef.pivotValues.map(
+                        (pv: PivotValue) => ({
+                            reference: pv.field,
+                        }),
+                    );
+
+                    // Extract value columns with their aggregations
+                    const valuesColumns = series.map((s: Series) => {
+                        const baseField = s.encode.yRef.field;
+                        // Try to infer aggregation from the field name pattern
+                        // This might need adjustment based on actual patterns
+                        return {
+                            reference: baseField,
+                            aggregation: VizAggregationOptions.SUM, // Default, should be extracted from metric query
+                        };
+                    });
+
+                    return {
+                        indexColumn: {
+                            reference: xRef.field,
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: valuesColumns.filter(
+                            (v, i, arr) =>
+                                arr.findIndex(
+                                    (item) => item.reference === v.reference,
+                                ) === i,
+                        ),
+                        groupByColumns,
+                        sortBy: undefined, // Can be enhanced to extract from chart config
+                    };
+                }
+            }
+        }
+
+        return undefined;
+    }
+
     async executeAsyncMetricQuery({
         account,
         projectUuid,
@@ -1677,6 +1814,7 @@ export class AsyncQueryService extends ProjectService {
         metricQuery,
         invalidateCache,
         parameters,
+        pivotConfiguration,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -1774,6 +1912,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
             },
             requestParameters,
+            pivotConfiguration,
         );
 
         return {
@@ -1800,6 +1939,10 @@ export class AsyncQueryService extends ProjectService {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            versionUuid,
+        );
         const {
             uuid: savedChartUuid,
             organizationUuid: savedChartOrganizationUuid,
@@ -1808,7 +1951,7 @@ export class AsyncQueryService extends ProjectService {
             tableName: savedChartTableName,
             metricQuery,
             parameters: savedChartParameters,
-        } = await this.savedChartModel.get(chartUuid, versionUuid);
+        } = savedChart;
 
         // Check chart belongs to project
         if (savedChartProjectUuid !== projectUuid) {
@@ -1918,6 +2061,12 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
         });
 
+        // Derive pivot configuration from saved chart
+        const pivotConfiguration = this.derivePivotConfigurationFromChart(
+            savedChart,
+            metricQueryWithLimit,
+        );
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -1933,6 +2082,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
             },
             requestParameters,
+            pivotConfiguration,
         );
 
         return {
@@ -2143,6 +2293,12 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
         });
 
+        // Derive pivot configuration from saved chart
+        const pivotConfiguration = this.derivePivotConfigurationFromChart(
+            savedChart,
+            metricQueryWithLimit,
+        );
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -2159,6 +2315,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
             },
             requestParameters,
+            pivotConfiguration,
         );
 
         return {

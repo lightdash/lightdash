@@ -51,6 +51,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dateZoom?: DateZoom;
+    pivotConfiguration?: PivotConfiguration;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
