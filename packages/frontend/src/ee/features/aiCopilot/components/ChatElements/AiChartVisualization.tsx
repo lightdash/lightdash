@@ -22,6 +22,7 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
+import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
@@ -29,6 +30,7 @@ import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
+import { ViewSqlButton } from './ViewSqlButton';
 
 type Props = {
     results: InfiniteQueryResults;
@@ -55,6 +57,11 @@ export const AiChartVisualization: FC<Props> = ({
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
     const { clearArtifact } = useAiAgentPageLayout();
+    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
+        tableName: metricQuery?.exploreName,
+        projectUuid,
+        metricQuery,
+    });
 
     const resultsData = useMemo(
         () => ({
@@ -135,6 +142,7 @@ export const AiChartVisualization: FC<Props> = ({
                             </Text>
                         </Stack>
                         <Group gap="sm">
+                            <ViewSqlButton sql={compiledSql?.query} />
                             <AiChartQuickOptions
                                 message={message}
                                 projectUuid={projectUuid}
@@ -145,6 +153,7 @@ export const AiChartVisualization: FC<Props> = ({
                                         queryExecutionHandle.data.metadata
                                             .description,
                                 }}
+                                compiledSql={compiledSql?.query}
                             />
                             <ActionIcon
                                 size="sm"
