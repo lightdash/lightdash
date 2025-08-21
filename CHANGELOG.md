@@ -1,3 +1,10 @@
+## [0.1942.1](https://github.com/lightdash/lightdash/compare/0.1942.0...0.1942.1) (2025-08-21)
+
+
+### Bug Fixes
+
+* navbar settings for project admins ([#16526](https://github.com/lightdash/lightdash/issues/16526)) ([d856486](https://github.com/lightdash/lightdash/commit/d85648621dd46426b28839714b50360d2849efe7))
+
 # [0.1942.0](https://github.com/lightdash/lightdash/compare/0.1941.0...0.1942.0) (2025-08-20)
 
 
