@@ -7,6 +7,16 @@ import {
 } from '@lightdash/common';
 import { replaceLightdashValues } from './utils';
 
+const validateAndSanitizeNumber = (value: unknown): number => {
+    const num = Number(value);
+    if (Number.isNaN(num) || !Number.isFinite(num)) {
+        throw new UnexpectedServerError(
+            `Invalid number parameter: "${value}" is not a valid number`,
+        );
+    }
+    return num;
+};
+
 const escapeParameterValues = (
     parameters: ParametersValuesMap,
     escapeString: (value: string) => string,
@@ -125,7 +135,12 @@ export const safeReplaceParametersWithTypes = ({
         const isNumberType = paramDef?.type === 'number';
 
         if (isNumberType) {
-            numberParameters[key] = value;
+            // Validate and convert to number to prevent SQL injection
+            if (Array.isArray(value)) {
+                numberParameters[key] = value.map(validateAndSanitizeNumber);
+            } else {
+                numberParameters[key] = validateAndSanitizeNumber(value);
+            }
         } else {
             stringParameters[key] = value;
         }
