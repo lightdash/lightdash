@@ -108,7 +108,6 @@ const UserCompletionModal: FC = () => {
             !user.data.isSetupComplete
         ) {
             mutate({
-                organizationName: user.data.organizationName,
                 jobTitle: 'Other',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: false,
