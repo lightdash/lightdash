@@ -98,6 +98,7 @@ const DEFAULT_VALUES = {
         limit: Limit.TABLE,
         customLimit: 1,
         withPdf: false,
+        asAttachment: false,
     },
     emailTargets: [] as string[],
     slackTargets: [] as string[],
@@ -168,6 +169,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
+        formOptions.asAttachment = options.asAttachment || false;
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
     }
@@ -415,6 +417,12 @@ const SchedulerForm: FC<Props> = ({
                         values.options.limit === Limit.CUSTOM
                             ? values.options.customLimit
                             : values.options.limit,
+                    // Only allow attachment for CSV format and if there are email targets
+                    asAttachment:
+                        values.format === SchedulerFormat.CSV &&
+                        values.emailTargets.length > 0
+                            ? values.options.asAttachment
+                            : false,
                 };
             } else if (values.format === SchedulerFormat.IMAGE) {
                 options = {
@@ -863,6 +871,39 @@ const SchedulerForm: FC<Props> = ({
                                     />
                                 ) : (
                                     <Stack spacing="xs">
+                                        {form.values.format ===
+                                            SchedulerFormat.CSV && (
+                                            <Tooltip
+                                                label="You must have at least one email target to attach a file to emails"
+                                                position="top"
+                                                withinPortal
+                                                disabled={
+                                                    form.values.emailTargets
+                                                        .length > 0
+                                                }
+                                            >
+                                                <Box
+                                                    display="flex"
+                                                    w="fit-content"
+                                                >
+                                                    <Checkbox
+                                                        label="Attach file to emails"
+                                                        labelPosition="left"
+                                                        {...form.getInputProps(
+                                                            'options.asAttachment',
+                                                            {
+                                                                type: 'checkbox',
+                                                            },
+                                                        )}
+                                                        disabled={
+                                                            form.values
+                                                                .emailTargets
+                                                                .length === 0
+                                                        }
+                                                    />
+                                                </Box>
+                                            </Tooltip>
+                                        )}
                                         <Button
                                             variant="subtle"
                                             compact

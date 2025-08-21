@@ -5565,7 +5565,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 versionCreatedAt: { dataType: 'datetime', required: true },
-                vizConfigOutput: {
+                chartConfig: {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'Record_string.unknown_' },
@@ -6108,6 +6108,7 @@ const models: TsoaRoute.Models = {
             organizationCreatedAt: { dataType: 'datetime' },
             userId: { dataType: 'double', required: true },
             role: { ref: 'OrganizationMemberRole' },
+            roleUuid: { dataType: 'string' },
             isTrackingAnonymized: { dataType: 'boolean', required: true },
             isMarketingOptedIn: { dataType: 'boolean', required: true },
             isSetupComplete: { dataType: 'boolean', required: true },
@@ -9104,6 +9105,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                asAttachment: { dataType: 'boolean' },
                 limit: {
                     dataType: 'union',
                     subSchemas: [
@@ -11365,6 +11367,14 @@ const models: TsoaRoute.Models = {
                 lastName: { dataType: 'string', required: true },
                 firstName: { dataType: 'string', required: true },
                 email: { dataType: 'string', required: true },
+                roleUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
                 role: { ref: 'ProjectMemberRole', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
@@ -13249,6 +13259,14 @@ const models: TsoaRoute.Models = {
                 isPending: { dataType: 'boolean' },
                 isInviteExpired: { dataType: 'boolean' },
                 isActive: { dataType: 'boolean', required: true },
+                roleUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
                 role: { ref: 'OrganizationMemberRole', required: true },
                 organizationUuid: { dataType: 'string', required: true },
                 email: { dataType: 'string', required: true },
