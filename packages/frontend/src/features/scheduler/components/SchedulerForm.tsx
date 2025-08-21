@@ -98,6 +98,7 @@ const DEFAULT_VALUES = {
         limit: Limit.TABLE,
         customLimit: 1,
         withPdf: false,
+        attachFiles: false,
     },
     emailTargets: [] as string[],
     slackTargets: [] as string[],
@@ -168,6 +169,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
+        formOptions.attachFiles = options.attachFiles || false;
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
     }
@@ -415,6 +417,7 @@ const SchedulerForm: FC<Props> = ({
                         values.options.limit === Limit.CUSTOM
                             ? values.options.customLimit
                             : values.options.limit,
+                    attachFiles: values.options.attachFiles,
                 };
             } else if (values.format === SchedulerFormat.IMAGE) {
                 options = {
@@ -861,8 +864,30 @@ const SchedulerForm: FC<Props> = ({
                                             },
                                         )}
                                     />
-                                ) : (
+                                ) : [
+                                      SchedulerFormat.CSV,
+                                      SchedulerFormat.XLSX,
+                                  ].includes(
+                                      form.getInputProps('format').value,
+                                  ) ? (
                                     <Stack spacing="xs">
+                                        <Checkbox
+                                            label={`Also include ${
+                                                form.getInputProps('format')
+                                                    .value ===
+                                                SchedulerFormat.CSV
+                                                    ? 'CSV'
+                                                    : 'Excel'
+                                            } as email attachment`}
+                                            labelPosition="left"
+                                            {...form.getInputProps(
+                                                'options.attachFiles',
+                                                {
+                                                    type: 'checkbox',
+                                                },
+                                            )}
+                                        />
+
                                         <Button
                                             variant="subtle"
                                             compact
@@ -977,7 +1002,7 @@ const SchedulerForm: FC<Props> = ({
                                             </Group>
                                         </Collapse>
                                     </Stack>
-                                )}
+                                ) : null}
                             </Stack>
                         )}
 

@@ -13,6 +13,7 @@ import { type ValidationTarget } from './validation';
 export type SchedulerCsvOptions = {
     formatted: boolean;
     limit: 'table' | 'all' | number;
+    attachFiles?: boolean;
 };
 
 export type SchedulerImageOptions = {

@@ -3,6 +3,7 @@ import {
     InviteLink,
     PasswordResetLink,
     ProjectMemberRole,
+    SchedulerFormat,
     SessionUser,
     SmptError,
 } from '@lightdash/common';
@@ -363,8 +364,25 @@ export default class EmailClient {
         schedulerUrl: string,
         includeLinks: boolean,
         expirationDays?: number,
+        attachFiles: boolean = false,
+        format?: string,
     ) {
         const csvUrl = attachment.path;
+        const hasNoResults = attachment.path === '#no-results';
+        const emailAttachments =
+            attachFiles && !hasNoResults && !attachment.truncated
+                ? [
+                      {
+                          filename: attachment.filename,
+                          path: attachment.localPath || attachment.path,
+                          contentType:
+                              format === SchedulerFormat.XLSX
+                                  ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                                  : 'text/csv',
+                      },
+                  ]
+                : undefined;
+
         return this.sendEmail({
             to: recipient,
             subject,
@@ -379,14 +397,17 @@ export default class EmailClient {
                 url,
                 csvUrl,
                 truncated: attachment.truncated,
-                noResults: attachment.path === '#no-results',
+                noResults: hasNoResults,
                 maxCells: this.lightdashConfig.query.csvCellsLimit,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
                 includeLinks,
+                attachedFiles:
+                    attachFiles && !hasNoResults && !attachment.truncated,
             },
             text: title,
+            attachments: emailAttachments,
         });
     }
 
@@ -403,6 +424,8 @@ export default class EmailClient {
         schedulerUrl: string,
         includeLinks: boolean,
         expirationDays?: number,
+        attachFiles: boolean = false,
+        format?: string,
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -411,6 +434,23 @@ export default class EmailClient {
         const truncatedCsvUrls = attachments.filter(
             (attachment) => attachment.truncated,
         );
+
+        const emailAttachments = attachFiles
+            ? attachments
+                  .filter(
+                      (attachment) =>
+                          attachment.path !== '#no-results' &&
+                          !attachment.truncated,
+                  )
+                  .map((attachment) => ({
+                      filename: attachment.filename,
+                      path: attachment.localPath || attachment.path,
+                      contentType:
+                          format === SchedulerFormat.XLSX
+                              ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                              : 'text/csv',
+                  }))
+            : undefined;
 
         return this.sendEmail({
             to: recipient,
@@ -432,8 +472,13 @@ export default class EmailClient {
                 schedulerUrl,
                 expirationDays,
                 includeLinks,
+                attachedFiles:
+                    attachFiles &&
+                    emailAttachments &&
+                    emailAttachments.length > 0,
             },
             text: title,
+            attachments: emailAttachments,
         });
     }
 

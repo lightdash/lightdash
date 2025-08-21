@@ -2039,6 +2039,7 @@ export default class SchedulerTask {
                 name,
                 thresholds,
                 includeLinks,
+                options,
             } = scheduler;
 
             await this.schedulerService.logSchedulerJob({
@@ -2152,6 +2153,9 @@ export default class SchedulerTask {
                 if (csvUrl === undefined) {
                     throw new Error('Missing CSV URL');
                 }
+                const attachFiles = isSchedulerCsvOptions(options)
+                    ? options.attachFiles || false
+                    : false;
                 await this.emailClient.sendChartCsvNotificationEmail(
                     recipient,
                     name,
@@ -2168,12 +2172,16 @@ export default class SchedulerTask {
                     schedulerUrl,
                     includeLinks,
                     this.s3Client.getExpirationWarning()?.days,
+                    attachFiles,
+                    format,
                 );
             } else if (dashboardUuid) {
                 if (csvUrls === undefined) {
                     throw new Error('Missing CSV URLS');
                 }
-
+                const attachFiles = isSchedulerCsvOptions(options)
+                    ? options.attachFiles || false
+                    : false;
                 await this.emailClient.sendDashboardCsvNotificationEmail(
                     recipient,
                     name,
@@ -2190,6 +2198,8 @@ export default class SchedulerTask {
                     schedulerUrl,
                     includeLinks,
                     this.s3Client.getExpirationWarning()?.days,
+                    attachFiles,
+                    format,
                 );
             } else {
                 throw new Error('Not implemented');
