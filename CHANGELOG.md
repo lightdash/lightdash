@@ -1,3 +1,10 @@
+# [0.1943.0](https://github.com/lightdash/lightdash/compare/0.1942.1...0.1943.0) (2025-08-21)
+
+
+### Features
+
+* validate metric/dimension filter placement in AI visualization tools ([#16509](https://github.com/lightdash/lightdash/issues/16509)) ([672a2ab](https://github.com/lightdash/lightdash/commit/672a2ab3245b26cd5226364c2d5e5b1e8a313798))
+
 ## [0.1942.1](https://github.com/lightdash/lightdash/compare/0.1942.0...0.1942.1) (2025-08-21)
 
 
