@@ -483,6 +483,11 @@ export default class App {
 
         expressApp.use(
             expressSession({
+                name:
+                    process.env.NODE_ENV === 'development' &&
+                    process.env.DEV_SCOPED_COOKIE_NAMES_ENABLED === 'true'
+                        ? `connect.sid.${this.port}`
+                        : 'connect.sid',
                 secret: this.lightdashConfig.lightdashSecret,
                 proxy: this.lightdashConfig.trustProxy,
                 rolling: true,

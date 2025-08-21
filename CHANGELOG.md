@@ -1,3 +1,25 @@
+## [0.1943.1](https://github.com/lightdash/lightdash/compare/0.1943.0...0.1943.1) (2025-08-21)
+
+
+### Bug Fixes
+
+* remove organizationName from user completion mutation ([#16529](https://github.com/lightdash/lightdash/issues/16529)) ([6f5fe50](https://github.com/lightdash/lightdash/commit/6f5fe50bd0628f91345ae1495c2158e38c473307))
+* use getAllCells instead of getVisibleCells for conditional formatting ([#16513](https://github.com/lightdash/lightdash/issues/16513)) ([7d5e83e](https://github.com/lightdash/lightdash/commit/7d5e83ebd4b363384cd831dea2b5abb75a820767))
+
+# [0.1943.0](https://github.com/lightdash/lightdash/compare/0.1942.1...0.1943.0) (2025-08-21)
+
+
+### Features
+
+* validate metric/dimension filter placement in AI visualization tools ([#16509](https://github.com/lightdash/lightdash/issues/16509)) ([672a2ab](https://github.com/lightdash/lightdash/commit/672a2ab3245b26cd5226364c2d5e5b1e8a313798))
+
+## [0.1942.1](https://github.com/lightdash/lightdash/compare/0.1942.0...0.1942.1) (2025-08-21)
+
+
+### Bug Fixes
+
+* navbar settings for project admins ([#16526](https://github.com/lightdash/lightdash/issues/16526)) ([d856486](https://github.com/lightdash/lightdash/commit/d85648621dd46426b28839714b50360d2849efe7))
+
 # [0.1942.0](https://github.com/lightdash/lightdash/compare/0.1941.0...0.1942.0) (2025-08-20)
 
 

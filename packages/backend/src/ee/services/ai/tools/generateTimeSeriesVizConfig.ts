@@ -18,6 +18,7 @@ import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFilterRules,
+    validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
 } from '../utils/validators';
 import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
@@ -56,6 +57,7 @@ export const getGenerateTimeSeriesVizConfig = ({
                     toolTimeSeriesArgsSchemaTransformed.parse(toolArgs);
 
                 const filterRules = getTotalFilterRules(vizTool.filters);
+
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
@@ -69,6 +71,10 @@ export const getGenerateTimeSeriesVizConfig = ({
                 ].filter((x) => typeof x === 'string');
                 validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
+                validateMetricDimensionFilterPlacement(
+                    explore,
+                    vizTool.filters,
+                );
                 // end of TODO
 
                 const prompt = await getPrompt();
