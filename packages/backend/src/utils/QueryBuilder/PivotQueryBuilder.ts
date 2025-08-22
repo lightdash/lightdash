@@ -8,6 +8,16 @@ import {
     WarehouseSqlBuilder,
 } from '@lightdash/common';
 
+const DEFAULT_PIVOT_ROW_LIMIT = 500;
+
+/**
+ * Generates SQL queries for pivoting tabular data with aggregations.
+ *
+ * Supports two modes:
+ * 1. Simple aggregation - Groups by index columns and aggregates values
+ * 2. Full pivot - Groups by additional columns to spread values across multiple columns
+ *    (e.g., transforming rows of categories into separate columns for each category)
+ */
 export class PivotQueryBuilder {
     private readonly sql: string;
 
@@ -17,6 +27,13 @@ export class PivotQueryBuilder {
 
     private readonly warehouseSqlBuilder: WarehouseSqlBuilder;
 
+    /**
+     * Creates a new PivotQueryBuilder instance.
+     * @param sql - The base SQL query to transform
+     * @param pivotConfiguration - Configuration defining how to pivot the data
+     * @param warehouseSqlBuilder - Database-specific SQL builder for proper quoting and syntax
+     * @param limit - Optional row limit for the result set (defaults to 500)
+     */
     constructor(
         sql: string,
         pivotConfiguration: PivotConfiguration,
@@ -29,14 +46,31 @@ export class PivotQueryBuilder {
         this.warehouseSqlBuilder = warehouseSqlBuilder;
     }
 
+    /**
+     * Builds a WITH clause from an array of CTE definitions.
+     * @param ctes - Array of CTE strings (e.g., ["cte1 AS (...)", "cte2 AS (...)"])
+     * @returns Complete WITH clause or empty string if no CTEs
+     */
     static buildCtesSQL(ctes: string[]): string {
         return ctes.length > 0 ? `WITH ${ctes.join(',\n')}` : '';
     }
 
+    /**
+     * Assembles SQL parts into a complete query, filtering out undefined values.
+     * @param parts - Array of SQL fragments to join
+     * @returns Combined SQL string with newlines between parts
+     */
     static assembleSqlParts(parts: Array<string | undefined>): string {
         return parts.filter((part) => part !== undefined).join('\n');
     }
 
+    /**
+     * Builds ORDER BY clause for index columns with their sort directions.
+     * @param indexColumns - Normalized index columns to order by
+     * @param sortBy - Optional sort configuration for each column
+     * @param q - Quote character for field names
+     * @returns ORDER BY clause string
+     */
     private static buildIndexColumnsOrderBy(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         sortBy: PivotConfiguration['sortBy'],
@@ -54,6 +88,11 @@ export class PivotQueryBuilder {
             .join(', ');
     }
 
+    /**
+     * Calculates the maximum number of columns allowed per value column.
+     * @param valuesColumns - The value columns configuration
+     * @returns Maximum columns per value to stay within pivot column limits
+     */
     private static calculateMaxColumnsPerValueColumn(
         valuesColumns: PivotConfiguration['valuesColumns'],
     ): number {
@@ -62,6 +101,11 @@ export class PivotQueryBuilder {
         return Math.floor(remainingColumns / valueColumnsCount);
     }
 
+    /**
+     * Generates ORDER BY clause from sort configuration.
+     * @param sortBy - Sort configuration with column references and directions
+     * @returns ORDER BY SQL clause or empty string if no sorting
+     */
     private getOrderBySQL(sortBy: PivotConfiguration['sortBy']): string {
         if (!sortBy?.length) return '';
 
@@ -71,6 +115,13 @@ export class PivotQueryBuilder {
             .join(', ')}`;
     }
 
+    /**
+     * Generates the GROUP BY query CTE that performs aggregations.
+     * @param indexColumns - Columns to use as row identifiers
+     * @param valuesColumns - Columns to aggregate with their aggregation functions
+     * @param groupByColumns - Additional columns to group by for pivoting
+     * @returns SQL for the group_by_query CTE
+     */
     private getGroupByQuerySQL(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
@@ -102,6 +153,14 @@ export class PivotQueryBuilder {
         ).join(', ')}`;
     }
 
+    /**
+     * Generates the pivot query CTE that adds row and column indexes.
+     * @param indexColumns - Columns used as row identifiers
+     * @param valuesColumns - Aggregated value columns
+     * @param groupByColumns - Columns to pivot into separate columns
+     * @param sortBy - Sort configuration for row ordering
+     * @returns SQL for the pivot_query CTE with ranking columns
+     */
     private getPivotQuerySQL(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
@@ -131,6 +190,16 @@ export class PivotQueryBuilder {
         }${q}) as ${q}column_index${q} FROM group_by_query`;
     }
 
+    /**
+     * Generates complete pivot SQL with all CTEs for grouped pivot.
+     * @param userSql - Original user SQL query
+     * @param groupByQuery - GROUP BY query SQL
+     * @param indexColumns - Index columns for row identification
+     * @param valuesColumns - Value columns to aggregate
+     * @param groupByColumns - Columns to pivot across
+     * @param sortBy - Sort configuration
+     * @returns Complete SQL with CTEs for pivoting with grouping
+     */
     private getFullPivotSQL(
         userSql: string,
         groupByQuery: string,
@@ -140,7 +209,7 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-        const rowLimit = this.limit ?? 500;
+        const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
 
         const pivotQuery = this.getPivotQuerySQL(
             indexColumns,
@@ -171,12 +240,18 @@ export class PivotQueryBuilder {
         ]);
     }
 
+    /**
+     * Generates SQL for simple aggregation without pivoting.
+     * @param userSql - Original user SQL query
+     * @param groupByQuery - GROUP BY query SQL
+     * @param sortBy - Sort configuration
+     * @returns SQL with CTEs for simple aggregation
+     */
     private getSimpleQuerySQL(
         userSql: string,
         groupByQuery: string,
         sortBy: PivotConfiguration['sortBy'],
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const orderBy = this.getOrderBySQL(sortBy);
         const ctes = [
             `original_query AS (${userSql})`,
@@ -187,10 +262,15 @@ export class PivotQueryBuilder {
             PivotQueryBuilder.buildCtesSQL(ctes),
             `SELECT * FROM group_by_query${
                 orderBy ? ` ${orderBy}` : ''
-            } LIMIT ${this.limit ?? 500}`,
+            } LIMIT ${this.limit ?? DEFAULT_PIVOT_ROW_LIMIT}`,
         ]);
     }
 
+    /**
+     * Generates the final pivot SQL query.
+     * @returns Complete SQL query with CTEs for pivoting the data
+     * @throws {ParameterError} If no index columns are provided
+     */
     toSql(): string {
         const indexColumns = normalizeIndexColumns(
             this.pivotConfiguration.indexColumn,
