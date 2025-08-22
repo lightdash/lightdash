@@ -1,3 +1,11 @@
+# [0.1947.0](https://github.com/lightdash/lightdash/compare/0.1946.0...0.1947.0) (2025-08-22)
+
+
+### Features
+
+* API endpoint for artifact query visualizations ([#16540](https://github.com/lightdash/lightdash/issues/16540)) ([7a6f387](https://github.com/lightdash/lightdash/commit/7a6f3878a153cb3f87a0e19c8bf9402a6729fda3))
+* Integrate agent artifacts API with the UI ([#16541](https://github.com/lightdash/lightdash/issues/16541)) ([2047aea](https://github.com/lightdash/lightdash/commit/2047aea113169dd7c5b50c468bd7931da9e8fac5))
+
 # [0.1946.0](https://github.com/lightdash/lightdash/compare/0.1945.0...0.1946.0) (2025-08-22)
 
 
