@@ -14,7 +14,11 @@ import {
     type DbtModelNode,
     type LineageGraph,
 } from '../types/dbt';
-import { MissingCatalogEntryError, ParseError } from '../types/errors';
+import {
+    CompileError,
+    MissingCatalogEntryError,
+    ParseError,
+} from '../types/errors';
 import {
     InlineErrorType,
     type Explore,
@@ -821,7 +825,8 @@ export const convertExplores = async (
                         {
                             // TODO improve parsing of error type
                             type:
-                                e instanceof ParseError
+                                e instanceof ParseError ||
+                                e instanceof CompileError
                                     ? InlineErrorType.METADATA_PARSE_ERROR
                                     : InlineErrorType.NO_DIMENSIONS_FOUND,
                             message:
