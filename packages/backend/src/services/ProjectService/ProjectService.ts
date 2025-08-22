@@ -1782,10 +1782,6 @@ export class ProjectService extends BaseService {
             availableParameters,
         });
 
-        console.log('---------------------------------');
-        console.log('compiledMetricQuery', compiledMetricQuery);
-        console.log('---------------------------------');
-
         const queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
@@ -1796,10 +1792,6 @@ export class ProjectService extends BaseService {
             parameters,
             availableParameters,
         });
-
-        console.log('++++++++++++++++++++++');
-        console.log('compiledQuery', queryBuilder.compileQuery());
-        console.log('++++++++++++++++++++++');
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
             queryBuilder.compileQuery(),
