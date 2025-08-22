@@ -1,4 +1,5 @@
 import {
+    AnyType,
     BinType,
     CustomDimensionType,
     FilterOperator,
@@ -1603,5 +1604,525 @@ describe('Escaping filters', () => {
                 `WHERE (( ("table1".shared) IN ('\\\\'') OR (1=1) ') ))`,
             ),
         );
+    });
+});
+
+describe('Table Calculation Query Structure Tests', () => {
+    // Helper function to build query with default props
+    const buildTestQuery = (
+        props: Partial<BuildQueryProps> & { compiledMetricQuery: AnyType },
+    ): CompiledQuery =>
+        buildQuery({
+            explore: EXPLORE,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            ...props,
+        });
+
+    test('Case 1: Just a metric', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: undefined,
+                    tableCalculations: undefined,
+                },
+                tableCalculations: [], // Override existing table calculations
+                compiledTableCalculations: [], // Override existing compiled table calculations
+            },
+        });
+
+        // Should NOT have WITH clause
+        expect(result.query).not.toContain('WITH');
+
+        // Should have direct SELECT with metric
+        expect(result.query).toContain('SELECT');
+        expect(result.query).toContain(
+            'MAX("table1".number_column) AS "table1_metric1"',
+        );
+        expect(result.query).toContain(
+            'FROM "db"."schema"."table1" AS "table1"',
+        );
+        expect(result.query).toContain('GROUP BY');
+    });
+
+    test('Case 2: Metric + metric filter', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: {
+                        id: 'metric-filter-id',
+                        and: [
+                            {
+                                id: 'filter-id',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                    tableCalculations: undefined,
+                },
+                tableCalculations: [], // Override existing table calculations
+                compiledTableCalculations: [], // Override existing compiled table calculations
+            },
+        });
+
+        // Should have WITH metrics CTE only (no metric_filters CTE)
+        expect(result.query).toContain('WITH');
+        expect(result.query).toContain('metrics AS (');
+        expect(result.query).not.toContain('metric_filters AS (');
+
+        // Should have final SELECT directly FROM metrics with WHERE (not from metric_filters)
+        expect(result.query).toContain('SELECT\n  *\nFROM metrics');
+        expect(result.query).not.toContain('FROM metric_filters');
+        expect(result.query).toContain('WHERE');
+        expect(result.query).toContain('IS NOT NULL');
+    });
+
+    // TODO: Add remaining test cases 3-7 to match expected SQL structures
+    // These test cases should be added after refactoring is complete to validate:
+    // - Case 3: Metric + metric filter + simple TC (should have simple TC in final SELECT)
+    // - Case 4: Metric + metric filter + simple TC + simple TC filter (may need simple_calcs CTE)
+    // - Case 5: Metric + metric filter + simple TC + dependent TCs (should have full CTE chain)
+    // - Case 6: Metric + metric filter + simple TC + simple TC filter + dependent TCs
+    // - Case 7: Metric + metric filter + simple TC + simple TC filter + dependent TCs + dependent TC filter
+
+    test('Case 3: Metric + metric filter + simple TC - should optimize simple TC to final SELECT', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: {
+                        id: 'metric-filter-id',
+                        and: [
+                            {
+                                id: 'filter-id',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                    tableCalculations: undefined,
+                },
+                tableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        // No CTE - simple table calculation
+                    },
+                ],
+            },
+        });
+
+        // Should have WITH metrics CTE only (no simple_calcs CTE)
+        expect(result.query).toContain('WITH');
+        expect(result.query).toContain('metrics AS (');
+        expect(result.query).not.toContain('simple_calcs AS (');
+
+        // Should have simple TC directly in final SELECT
+        expect(result.query).toContain('"table1_metric1" AS "simple_tc"');
+        expect(result.query).toContain('FROM metrics');
+        expect(result.query).toContain('WHERE');
+        expect(result.query).toContain('IS NOT NULL');
+    });
+    test('Case 4: Metric + metric filter + simple TC + simple TC filter', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: {
+                        id: 'metric-filter-id',
+                        and: [
+                            {
+                                id: 'filter-id',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                    tableCalculations: {
+                        id: 'tc-filter-id',
+                        and: [
+                            {
+                                id: 'tc-filter-id',
+                                target: { fieldId: 'simple_tc' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                },
+                tableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        // No CTE - simple table calculation
+                    },
+                ],
+            },
+        });
+
+        // Should have WITH metrics and simple_calcs CTEs (but no metric_filters CTE)
+        expect(result.query).toContain('WITH');
+        expect(result.query).toContain('metrics AS (');
+        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).not.toContain('metric_filters AS (');
+
+        // Should have simple TC in simple_calcs CTE
+        expect(result.query).toContain('"table1_metric1" AS "simple_tc"');
+        expect(result.query).toContain('FROM metrics');
+
+        // Should select from simple_calcs with both metric filter and table calc filter
+        expect(result.query).toContain('SELECT\n  *\nFROM simple_calcs');
+        expect(result.query).toContain('WHERE');
+
+        // Should have both filters in the final WHERE clause
+        const whereMatch = result.query.match(
+            /WHERE\s+(.*?)(?:ORDER BY|LIMIT|$)/s,
+        );
+        expect(whereMatch).toBeTruthy();
+        const whereClause = whereMatch![1].trim();
+
+        // Should contain both metric filter and table calc filter
+        expect(whereClause).toContain('"table1_metric1"'); // metric filter
+        expect(whereClause).toContain('"simple_tc"'); // table calc filter
+        expect(whereClause).toContain('AND'); // both filters combined
+        expect(whereClause).toContain('IS NOT NULL');
+    });
+    test('Case 5: Metric + metric filter + simple TC + dependent TCs - should create full CTE chain', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: {
+                        id: 'metric-filter-id',
+                        and: [
+                            {
+                                id: 'filter-id',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                    tableCalculations: undefined,
+                },
+                tableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                    },
+                    {
+                        name: 'depended_on',
+                        displayName: 'Depended On',
+                        sql: '${table1.metric1}',
+                    },
+                    {
+                        name: 'dependent',
+                        displayName: 'Dependent',
+                        sql: '${depended_on} + 10',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        // No CTE - simple table calculation
+                    },
+                    {
+                        name: 'depended_on',
+                        displayName: 'Depended On',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        cte: 'tc_depended_on AS (\n  SELECT\n*,\n  "table1_metric1" AS "depended_on"\n  FROM simple_calcs\n)',
+                    },
+                    {
+                        name: 'dependent',
+                        displayName: 'Dependent',
+                        sql: '${depended_on} + 10',
+                        compiledSql: 'tc_depended_on."depended_on" + 10',
+                        cte: 'tc_dependent AS (\n  SELECT\n*,\n  tc_depended_on."depended_on" + 10 AS "dependent"\n  FROM tc_depended_on\n)',
+                    },
+                ],
+            },
+        });
+
+        // Should have full CTE chain: metrics -> metric_filters -> simple_calcs -> tc_depended_on -> tc_dependent
+        expect(result.query).toContain('metrics AS (');
+        expect(result.query).toContain('metric_filters AS (');
+        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).toContain('tc_depended_on AS (');
+        expect(result.query).toContain('tc_dependent AS (');
+
+        // Final SELECT should be from the last CTE
+        expect(result.query).toContain('FROM tc_dependent');
+
+        // Should have metric filter in metric_filters CTE
+        expect(result.query).toContain('IS NOT NULL');
+
+        // Verify CTE order is correct
+        const metricsIndex = result.query.indexOf('metrics AS (');
+        const metricFiltersIndex = result.query.indexOf('metric_filters AS (');
+        const simpleCalcsIndex = result.query.indexOf('simple_calcs AS (');
+        const dependedOnIndex = result.query.indexOf('tc_depended_on AS (');
+        const dependentIndex = result.query.indexOf('tc_dependent AS (');
+
+        expect(metricsIndex).toBeLessThan(metricFiltersIndex);
+        expect(metricFiltersIndex).toBeLessThan(simpleCalcsIndex);
+        expect(simpleCalcsIndex).toBeLessThan(dependedOnIndex);
+        expect(dependedOnIndex).toBeLessThan(dependentIndex);
+    });
+    test('Case 6: Metric + metric filter + simple TC + simple TC filter + dependent TCs', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: {
+                        id: 'metric-filter-id',
+                        and: [
+                            {
+                                id: 'filter-id',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                    tableCalculations: {
+                        id: 'tc-filter-id',
+                        and: [
+                            {
+                                id: 'tc-filter-id',
+                                target: { fieldId: 'simple_tc' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                },
+                tableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                    },
+                    {
+                        name: 'depended_on',
+                        displayName: 'Depended On',
+                        sql: '${table1.metric1}',
+                    },
+                    {
+                        name: 'dependent',
+                        displayName: 'Dependent',
+                        sql: '${depended_on} + 10',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        // No CTE - simple table calculation
+                    },
+                    {
+                        name: 'depended_on',
+                        displayName: 'Depended On',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        cte: 'tc_depended_on AS (\n  SELECT\n*,\n  "table1_metric1" AS "depended_on"\n  FROM simple_calcs\n)',
+                    },
+                    {
+                        name: 'dependent',
+                        displayName: 'Dependent',
+                        sql: '${depended_on} + 10',
+                        compiledSql: 'tc_depended_on."depended_on" + 10',
+                        cte: 'tc_dependent AS (\n  SELECT\n*,\n  tc_depended_on."depended_on" + 10 AS "dependent"\n  FROM tc_depended_on\n)',
+                    },
+                ],
+            },
+        });
+
+        // Should have full CTE chain: metrics -> metric_filters -> simple_calcs -> tc_depended_on -> tc_dependent
+        expect(result.query).toContain('metrics AS (');
+        expect(result.query).toContain('metric_filters AS (');
+        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).toContain('tc_depended_on AS (');
+        expect(result.query).toContain('tc_dependent AS (');
+
+        // Final SELECT should be from the last CTE
+        expect(result.query).toContain('FROM tc_dependent');
+
+        // Should have metric filter in metric_filters CTE
+        const metricFiltersMatch = result.query.match(
+            /metric_filters AS \(([\s\S]*?)\n\s*\),/,
+        );
+        expect(metricFiltersMatch).toBeTruthy();
+        expect(metricFiltersMatch![1]).toContain('IS NOT NULL');
+
+        // Should have table calc filter in final WHERE clause
+        const finalWhereIndex = result.query.lastIndexOf('WHERE');
+        const finalWhereClause = result.query.substring(finalWhereIndex);
+        expect(finalWhereClause).toContain('"simple_tc"');
+        expect(finalWhereClause).toContain('IS NOT NULL');
+
+        // Verify CTE order is correct
+        const metricsIndex = result.query.indexOf('metrics AS (');
+        const metricFiltersIndex = result.query.indexOf('metric_filters AS (');
+        const simpleCalcsIndex = result.query.indexOf('simple_calcs AS (');
+        const dependedOnIndex = result.query.indexOf('tc_depended_on AS (');
+        const dependentIndex = result.query.indexOf('tc_dependent AS (');
+
+        expect(metricsIndex).toBeLessThan(metricFiltersIndex);
+        expect(metricFiltersIndex).toBeLessThan(simpleCalcsIndex);
+        expect(simpleCalcsIndex).toBeLessThan(dependedOnIndex);
+        expect(dependedOnIndex).toBeLessThan(dependentIndex);
+    });
+    test('Case 7: Metric + metric filter + simple TC + simple TC filter + dependent TCs + dependent TC filter', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: {
+                        id: 'metric-filter-id',
+                        and: [
+                            {
+                                id: 'filter-id',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                    tableCalculations: {
+                        id: 'tc-filter-id',
+                        and: [
+                            {
+                                id: 'simple-tc-filter-id',
+                                target: { fieldId: 'simple_tc' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                            {
+                                id: 'dependent-tc-filter-id',
+                                target: { fieldId: 'dependent' },
+                                operator: FilterOperator.NOT_NULL,
+                                values: [],
+                            },
+                        ],
+                    },
+                },
+                tableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                    },
+                    {
+                        name: 'depended_on',
+                        displayName: 'Depended On',
+                        sql: '${table1.metric1}',
+                    },
+                    {
+                        name: 'dependent',
+                        displayName: 'Dependent',
+                        sql: '${depended_on} + 10',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'simple_tc',
+                        displayName: 'Simple TC',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        // No CTE - simple table calculation
+                    },
+                    {
+                        name: 'depended_on',
+                        displayName: 'Depended On',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        cte: 'tc_depended_on AS (\n  SELECT\n*,\n  "table1_metric1" AS "depended_on"\n  FROM simple_calcs\n)',
+                    },
+                    {
+                        name: 'dependent',
+                        displayName: 'Dependent',
+                        sql: '${depended_on} + 10',
+                        compiledSql: 'tc_depended_on."depended_on" + 10',
+                        cte: 'tc_dependent AS (\n  SELECT\n*,\n  tc_depended_on."depended_on" + 10 AS "dependent"\n  FROM tc_depended_on\n)',
+                    },
+                ],
+            },
+        });
+
+        // Should have full CTE chain: metrics -> metric_filters -> simple_calcs -> tc_depended_on -> tc_dependent
+        expect(result.query).toContain('metrics AS (');
+        expect(result.query).toContain('metric_filters AS (');
+        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).toContain('tc_depended_on AS (');
+        expect(result.query).toContain('tc_dependent AS (');
+
+        // Final SELECT should be from the last CTE
+        expect(result.query).toContain('FROM tc_dependent');
+
+        // Should have metric filter in metric_filters CTE
+        const metricFiltersMatch = result.query.match(
+            /metric_filters AS \(([\s\S]*?)\n\s*\),/,
+        );
+        expect(metricFiltersMatch).toBeTruthy();
+        expect(metricFiltersMatch![1]).toContain('IS NOT NULL');
+
+        // Should have table calc filters in final WHERE clause
+        const finalWhereIndex = result.query.lastIndexOf('WHERE');
+        const finalWhereClause = result.query.substring(finalWhereIndex);
+        expect(finalWhereClause).toContain('"simple_tc"');
+        expect(finalWhereClause).toContain('"dependent"');
+        expect(finalWhereClause).toContain('IS NOT NULL');
+        expect(finalWhereClause).toContain('AND'); // both table calc filters combined
+
+        // Verify CTE order is correct
+        const metricsIndex = result.query.indexOf('metrics AS (');
+        const metricFiltersIndex = result.query.indexOf('metric_filters AS (');
+        const simpleCalcsIndex = result.query.indexOf('simple_calcs AS (');
+        const dependedOnIndex = result.query.indexOf('tc_depended_on AS (');
+        const dependentIndex = result.query.indexOf('tc_dependent AS (');
+
+        expect(metricsIndex).toBeLessThan(metricFiltersIndex);
+        expect(metricFiltersIndex).toBeLessThan(simpleCalcsIndex);
+        expect(simpleCalcsIndex).toBeLessThan(dependedOnIndex);
+        expect(dependedOnIndex).toBeLessThan(dependentIndex);
     });
 });
