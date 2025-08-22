@@ -1239,18 +1239,30 @@ export class MetricQueryBuilder {
         return `${name} AS (\n${MetricQueryBuilder.assembleSqlParts(parts)}\n)`;
     }
 
-    static extractCteName(cteSql: string): string | undefined {
-        const m = cteSql.match(/^(\w+)\s+AS/i);
-        return m?.[1];
+    private static escapeRegExp(str: string): string {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    static renameFrom(
-        cteSql: string,
-        fromOld: string,
-        fromNew: string,
+    private static replaceFromSourceName(
+        sql: string,
+        fromName: string,
+        toName: string,
     ): string {
-        // conservative replace; if you need stronger safety, use a SQL parser later
-        return cteSql.replace(/\bFROM\s+metrics\b/gi, `FROM ${fromNew}`);
+        const escaped = MetricQueryBuilder.escapeRegExp(fromName);
+        // matches: FROM metrics | FROM "metrics" | FROM `metrics`
+        const pattern = new RegExp(
+            `\\bFROM\\s+([\\\`"]?)${escaped}\\1\\b`,
+            'gi',
+        );
+        return sql.replace(
+            pattern,
+            (_m, quote: string) => `FROM ${quote}${toName}${quote}`,
+        );
+    }
+
+    static extractCteName(cteSql: string): string | undefined {
+        const m = cteSql.match(/^\s*("?)([A-Za-z_][\w$]*)\1\s+AS\b/i);
+        return m?.[2];
     }
 
     static buildSimpleCalcsCte(
@@ -1307,16 +1319,24 @@ export class MetricQueryBuilder {
             this.args.compiledMetricQuery.compiledTableCalculations.filter(
                 (tc) => tc.cte,
             );
-        if (tableCalcsWithCtes.length === 0)
+
+        if (tableCalcsWithCtes.length === 0) {
             return { ctes: [] as string[], lastName: currentName };
+        }
 
         const updated = tableCalcsWithCtes.map((tc) =>
-            MetricQueryBuilder.renameFrom(tc.cte!, 'metrics', currentName),
+            MetricQueryBuilder.replaceFromSourceName(
+                tc.cte!,
+                'metrics',
+                currentName,
+            ),
         );
-        const last =
+
+        const lastName =
             MetricQueryBuilder.extractCteName(updated[updated.length - 1]) ??
             currentName;
-        return { ctes: updated, lastName: last };
+
+        return { ctes: updated, lastName };
     }
 
     // Combine WHERE fragments (strip leading WHERE if present)
