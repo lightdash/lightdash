@@ -78,18 +78,6 @@ const getAgentThread = async (
         body: undefined,
     });
 
-const getAgentThreadMessageVizQuery = async (args: {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    messageUuid: string;
-}) =>
-    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
-        url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/message/${args.messageUuid}/viz-query`,
-        method: 'GET',
-        body: undefined,
-    });
-
 export const useAiAgent = (projectUuid: string, agentUuid: string) => {
     const { showToastApiError } = useToaster();
     const navigate = useNavigate();
@@ -203,6 +191,7 @@ export const useAiAgentThread = (
     projectUuid: string,
     agentUuid: string | undefined,
     threadUuid: string | null | undefined,
+    options?: UseQueryOptions<ApiAiAgentThreadResponse['results'], ApiError>,
 ) => {
     const { showToastApiError } = useToaster();
     const navigate = useNavigate();
@@ -231,6 +220,7 @@ export const useAiAgentThread = (
             }
         },
         enabled: !!agentUuid && !!threadUuid,
+        ...options,
     });
 };
 
@@ -506,17 +496,29 @@ export const useCreateAgentThreadMessageMutation = (
     });
 };
 
-export const useAiAgentThreadMessageVizQuery = (
+const getAiAgentArtifactVizQuery = async (args: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+}) =>
+    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
+        url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/artifacts/${args.artifactUuid}/versions/${args.versionUuid}/viz-query`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAgentArtifactVizQuery = (
     {
         projectUuid,
         agentUuid,
-        threadUuid,
-        messageUuid,
+        artifactUuid,
+        versionUuid,
     }: {
         projectUuid: string;
         agentUuid: string;
-        threadUuid: string;
-        messageUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
     },
     useQueryOptions?: UseQueryOptions<
         ApiAiAgentThreadMessageVizQuery,
@@ -532,21 +534,21 @@ export const useAiAgentThreadMessageVizQuery = (
     return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
-            'viz-query', // this is on top to avoid invalidating an expensive viz-query
+            'artifact-viz-query',
             projectUuid,
             agentUuid,
-            'threads',
-            threadUuid,
-            'message',
-            messageUuid,
+            'artifacts',
+            artifactUuid,
+            'versions',
+            versionUuid,
         ],
         ...useQueryOptions,
         queryFn: () => {
-            return getAgentThreadMessageVizQuery({
-                projectUuid: projectUuid,
+            return getAiAgentArtifactVizQuery({
+                projectUuid,
                 agentUuid,
-                threadUuid,
-                messageUuid,
+                artifactUuid,
+                versionUuid,
             });
         },
         onError: (error: ApiError) => {
@@ -556,7 +558,7 @@ export const useAiAgentThreadMessageVizQuery = (
                 );
             } else {
                 showToastApiError({
-                    title: 'Failed to fetch visualization',
+                    title: 'Failed to fetch artifact visualization',
                     apiError: error.error,
                 });
             }

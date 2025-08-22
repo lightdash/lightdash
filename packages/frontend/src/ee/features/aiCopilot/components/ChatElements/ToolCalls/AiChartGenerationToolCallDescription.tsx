@@ -1,28 +1,15 @@
-import {
-    Badge,
-    Button,
-    Group,
-    HoverCard,
-    rem,
-    Stack,
-    Text,
-} from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
-import { IconEye } from '@tabler/icons-react';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { Badge, Group, rem, Stack, Text } from '@mantine-8/core';
 
 export const AiChartGenerationToolCallDescription = ({
     title,
     dimensions,
     metrics,
     breakdownByDimension,
-    sql,
 }: {
     title: string;
     dimensions: string[];
     metrics: string[];
     breakdownByDimension?: string | null;
-    sql: string | undefined;
 }) => {
     const fields = [...dimensions, ...metrics];
 
@@ -86,48 +73,6 @@ export const AiChartGenerationToolCallDescription = ({
                     )}
                 </Text>
             </Group>
-
-            {sql && (
-                <HoverCard
-                    shadow="subtle"
-                    radius="md"
-                    position="bottom-start"
-                    withinPortal
-                >
-                    <HoverCard.Target>
-                        <Group justify="start">
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                color="gray.6"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconEye}
-                                        size={12}
-                                        stroke={1.5}
-                                    />
-                                }
-                            >
-                                SQL
-                            </Button>
-                        </Group>
-                    </HoverCard.Target>
-                    <HoverCard.Dropdown p={0} maw={500}>
-                        <Prism
-                            language="sql"
-                            withLineNumbers
-                            noCopy
-                            styles={{
-                                lineContent: {
-                                    fontSize: 10,
-                                },
-                            }}
-                        >
-                            {sql}
-                        </Prism>
-                    </HoverCard.Dropdown>
-                </HoverCard>
-            )}
         </Stack>
     );
 };
