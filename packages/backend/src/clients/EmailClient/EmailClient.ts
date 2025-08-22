@@ -3,6 +3,7 @@ import {
     InviteLink,
     PasswordResetLink,
     ProjectMemberRole,
+    SchedulerFormat,
     SessionUser,
     SmptError,
 } from '@lightdash/common';
@@ -57,14 +58,16 @@ export default class EmailClient {
 
     private static createFileAttachment(
         attachment: AttachmentUrl,
+        format?: SchedulerFormat,
     ): Mail.Attachment {
-        const contentType = attachment.filename.toLowerCase().endsWith('.xlsx')
-            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            : 'text/csv';
+        const contentType =
+            format === SchedulerFormat.XLSX
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'text/csv';
 
         return {
             filename: attachment.filename,
-            path: attachment.localPath,
+            path: attachment.localPath || attachment.path,
             contentType,
         };
     }
@@ -378,13 +381,14 @@ export default class EmailClient {
         includeLinks: boolean,
         expirationDays?: number,
         asAttachment?: boolean,
+        format?: SchedulerFormat,
     ) {
         const csvUrl = attachment.path;
         const attachments =
             asAttachment &&
-            attachment.localPath &&
+            (attachment.localPath || attachment.path) &&
             attachment.path !== '#no-results'
-                ? [EmailClient.createFileAttachment(attachment)]
+                ? [EmailClient.createFileAttachment(attachment, format)]
                 : undefined;
 
         return this.sendEmail({
@@ -429,6 +433,7 @@ export default class EmailClient {
         includeLinks: boolean,
         expirationDays?: number,
         asAttachment?: boolean,
+        format?: SchedulerFormat,
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -440,9 +445,11 @@ export default class EmailClient {
 
         const emailAttachments = asAttachment
             ? csvUrls
-                  .filter((attachment) => attachment.localPath)
+                  .filter(
+                      (attachment) => attachment.localPath || attachment.path,
+                  )
                   .map((attachment) =>
-                      EmailClient.createFileAttachment(attachment),
+                      EmailClient.createFileAttachment(attachment, format),
                   )
             : undefined;
 

@@ -2178,6 +2178,7 @@ export default class SchedulerTask {
                     includeLinks,
                     this.s3Client.getExpirationWarning()?.days,
                     csvOptions?.asAttachment,
+                    format,
                 );
             } else if (dashboardUuid) {
                 if (csvUrls === undefined) {
@@ -2202,6 +2203,7 @@ export default class SchedulerTask {
                     includeLinks,
                     this.s3Client.getExpirationWarning()?.days,
                     csvOptions?.asAttachment,
+                    format,
                 );
             } else {
                 throw new Error('Not implemented');
