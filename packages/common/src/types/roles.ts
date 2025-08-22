@@ -19,11 +19,11 @@ export type Role = {
     roleUuid: string;
     name: string;
     description: string | null;
-    organizationUuid: string;
+    organizationUuid: string | null; // System roles don't have an organization
     ownerType: 'user' | 'system';
     createdBy: string | null;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: Date | null; // System roles don't have dates
+    updatedAt: Date | null;
 };
 
 export type RoleWithScopes = Role & {
@@ -102,6 +102,10 @@ export type CreateGroupRoleAssignmentRequest = {
 };
 
 export type UpdateRoleAssignmentRequest = {
+    roleId: string;
+};
+
+export type UpsertUserRoleAssignmentRequest = {
     roleId: string;
 };
 

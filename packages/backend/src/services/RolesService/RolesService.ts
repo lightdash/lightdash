@@ -7,12 +7,17 @@ import {
     CreateRoleAssignmentRequest,
     CreateUserRoleAssignmentRequest,
     ForbiddenError,
+    getSystemRoles,
+    isSystemRole,
+    NotImplementedError,
     ParameterError,
+    ProjectMemberRole,
     Role,
     RoleAssignment,
     RoleWithScopes,
     UpdateRole,
     UpdateRoleAssignmentRequest,
+    UpsertUserRoleAssignmentRequest,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -21,7 +26,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
-import { BaseService } from '../../services/BaseService';
+import { BaseService } from '../BaseService';
 
 type RolesServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -92,6 +97,10 @@ export class RolesService extends BaseService {
     }
 
     private static validateRoleOwnership(account: Account, role: Role): void {
+        if (isSystemRole(role.roleUuid) && role.ownerType === 'system') {
+            return;
+        }
+
         if (account.organization?.organizationUuid !== role.organizationUuid) {
             throw new ForbiddenError();
         }
@@ -106,6 +115,44 @@ export class RolesService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+    }
+
+    private async buildUserRoleAssignmentResponse(
+        roleId: string,
+        roleName: string,
+        userId: string,
+        projectId: string,
+    ): Promise<RoleAssignment> {
+        const user = await this.userModel.getUserDetailsByUuid(userId);
+        return {
+            roleId,
+            roleName,
+            assigneeType: 'user',
+            assigneeId: userId,
+            assigneeName: `${user.firstName} ${user.lastName}`,
+            projectId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+    }
+
+    private async buildGroupRoleAssignmentResponse(
+        roleId: string,
+        roleName: string,
+        groupId: string,
+        projectId: string,
+    ): Promise<RoleAssignment> {
+        const group = await this.groupsModel.getGroup(groupId);
+        return {
+            roleId,
+            roleName,
+            assigneeType: 'group',
+            assigneeId: groupId,
+            assigneeName: group.name,
+            projectId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
     }
 
     private async validateProjectAccess(
@@ -163,6 +210,12 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         createRoleData: CreateRole,
     ): Promise<Role> {
+        if (isSystemRole(createRoleData.name)) {
+            throw new ParameterError(
+                `Cannot create role with name "${createRoleData.name}", this is reserved for system roles`,
+            );
+        }
+
         RolesService.validateOrganizationAccess(account, organizationUuid);
         RolesService.validateRoleName(createRoleData.name);
 
@@ -190,6 +243,10 @@ export class RolesService extends BaseService {
         roleUuid: string,
         updateRoleData: UpdateRole,
     ): Promise<Role> {
+        if (isSystemRole(roleUuid)) {
+            throw new ParameterError(`Cannot update system role "${roleUuid}"`);
+        }
+
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         RolesService.validateRoleOwnership(account, role);
 
@@ -229,6 +286,9 @@ export class RolesService extends BaseService {
     // UNIFIED ORGANIZATION ROLE ASSIGNMENTS
     // =====================================
 
+    /* 
+    At the organization level, we only support system role assignments
+    */
     async getOrganizationRoleAssignments(
         account: Account,
         orgUuid: string,
@@ -259,109 +319,61 @@ export class RolesService extends BaseService {
         return formattedUserAssignments;
     }
 
-    async createOrganizationRoleAssignment(
+    /**
+     * Assign system role to user at organization level
+     * Only system roles are allowed at organization level
+     */
+    async upsertOrganizationUserRoleAssignment(
         account: Account,
         orgUuid: string,
-        request: CreateRoleAssignmentRequest,
-    ): Promise<RoleAssignment> {
-        const { roleId, assigneeType, assigneeId } = request;
-
-        // Validate role ownership and get role details
-        const role = await this.rolesModel.getRoleByUuid(roleId);
-        RolesService.validateRoleOwnership(account, role);
-
-        if (assigneeType === 'user') {
-            await this.assignRoleToUser(account, assigneeId, roleId, orgUuid);
-
-            // Get user details for response
-            const user = await this.userModel.getUserDetailsByUuid(assigneeId);
-
-            return {
-                roleId,
-                roleName: role.name,
-                assigneeType: 'user',
-                assigneeId,
-                assigneeName: `${user.firstName} ${user.lastName}`,
-                organizationId: orgUuid,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-        }
-        if (assigneeType === 'group') {
-            // Organization-level group role assignments are not supported
-            // Groups only have project-level and space-level access
-            throw new ParameterError(
-                'Organization-level group role assignments are not supported',
-            );
-        } else {
-            throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
-        }
-    }
-
-    async deleteOrganizationRoleAssignment(
-        account: Account,
-        orgUuid: string,
-        assigneeId: string,
-        assigneeType: 'user' | 'group',
-    ): Promise<void> {
-        if (assigneeType === 'user') {
-            await this.unassignRoleFromUser(account, assigneeId, orgUuid);
-        } else if (assigneeType === 'group') {
-            // Organization-level group role assignments are not supported
-            // Groups only have project-level and space-level access
-            throw new ParameterError(
-                'Organization-level group role assignments are not supported',
-            );
-        } else {
-            throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
-        }
-    }
-
-    // =====================================
-    // SEPARATE ORGANIZATION ROLE ASSIGNMENTS
-    // =====================================
-
-    async createOrganizationUserRoleAssignment(
-        account: Account,
-        orgUuid: string,
-        userId: string,
-        request: CreateUserRoleAssignmentRequest,
+        userUuid: string,
+        request: { roleId: string },
     ): Promise<RoleAssignment> {
         const { roleId } = request;
 
-        // Validate role ownership and get role details
+        // Validate organization access
+        RolesService.validateOrganizationAccess(account, orgUuid);
+
+        // Ensure only system roles can be assigned at organization level
+        if (!isSystemRole(roleId)) {
+            throw new ParameterError(
+                'Only system roles can be assigned at organization level',
+            );
+        }
+
+        // Validate the role exists
         const role = await this.rolesModel.getRoleByUuid(roleId);
-        RolesService.validateRoleOwnership(account, role);
 
-        await this.assignRoleToUser(account, userId, roleId, orgUuid);
+        // Assign the system role at organization level
+        await this.rolesModel.upsertOrganizationUserRoleAssignment(
+            orgUuid,
+            userUuid,
+            roleId,
+        );
 
-        // Get user details for response
-        const user = await this.userModel.getUserDetailsByUuid(userId);
+        this.analytics.track({
+            event: 'organization_role.assigned_to_user',
+            userId: account.user?.id,
+            properties: {
+                organizationUuid: orgUuid,
+                userUuid,
+                roleId,
+                isSystemRole: true,
+            },
+        });
 
+        // Build response
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
         return {
             roleId,
             roleName: role.name,
             assigneeType: 'user',
-            assigneeId: userId,
+            assigneeId: userUuid,
             assigneeName: `${user.firstName} ${user.lastName}`,
             organizationId: orgUuid,
             createdAt: new Date(),
             updatedAt: new Date(),
         };
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    async createOrganizationGroupRoleAssignment(
-        account: Account,
-        orgUuid: string,
-        groupId: string,
-        request: CreateGroupRoleAssignmentRequest,
-    ): Promise<RoleAssignment> {
-        // Organization-level group role assignments are not supported
-        // Groups only have project-level and space-level access
-        throw new ParameterError(
-            'Organization-level group role assignments are not supported',
-        );
     }
 
     // =====================================
@@ -410,64 +422,6 @@ export class RolesService extends BaseService {
         return assignments;
     }
 
-    async createProjectRoleAssignment(
-        account: Account,
-        projectId: string,
-        request: CreateRoleAssignmentRequest,
-    ): Promise<RoleAssignment> {
-        const { roleId, assigneeType, assigneeId } = request;
-
-        // Validate role ownership and get role details
-        const role = await this.rolesModel.getRoleByUuid(roleId);
-        RolesService.validateRoleOwnership(account, role);
-
-        if (assigneeType === 'user') {
-            await this.createUserProjectAccess(
-                account,
-                projectId,
-                assigneeId,
-                roleId,
-            );
-
-            // Get user details for response
-            const user = await this.userModel.getUserDetailsByUuid(assigneeId);
-
-            return {
-                roleId,
-                roleName: role.name,
-                assigneeType: 'user',
-                assigneeId,
-                assigneeName: `${user.firstName} ${user.lastName}`,
-                projectId,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-        }
-        if (assigneeType === 'group') {
-            await this.assignRoleToGroup(
-                account,
-                assigneeId,
-                roleId,
-                projectId,
-            );
-
-            // Get group details for response
-            const group = await this.groupsModel.getGroup(assigneeId);
-
-            return {
-                roleId,
-                roleName: role.name,
-                assigneeType: 'group',
-                assigneeId,
-                assigneeName: group.name,
-                projectId,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-        }
-        throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
-    }
-
     async updateProjectRoleAssignment(
         account: Account,
         projectId: string,
@@ -475,57 +429,40 @@ export class RolesService extends BaseService {
         assigneeType: 'user' | 'group',
         request: UpdateRoleAssignmentRequest,
     ): Promise<RoleAssignment> {
-        const { roleId } = request;
-
-        // Validate role ownership and get role details
-        const role = await this.rolesModel.getRoleByUuid(roleId);
-        RolesService.validateRoleOwnership(account, role);
-
         if (assigneeType === 'user') {
-            await this.updateUserProjectAccess(
+            return this.upsertProjectUserRoleAssignment(
                 account,
                 projectId,
                 assigneeId,
-                roleId,
+                request,
             );
-
-            // Get user details for response
-            const user = await this.userModel.getUserDetailsByUuid(assigneeId);
-
-            return {
-                roleId,
-                roleName: role.name,
-                assigneeType: 'user',
-                assigneeId,
-                assigneeName: `${user.firstName} ${user.lastName}`,
-                projectId,
-                createdAt: new Date(), // TODO: Get actual dates from DB
-                updatedAt: new Date(),
-            };
         }
+
         if (assigneeType === 'group') {
-            await this.assignRoleToGroup(
+            return this.updateProjectGroupRoleAssignment(
                 account,
-                assigneeId,
-                roleId,
                 projectId,
+                assigneeId,
+                request,
             );
-
-            // Get group details for response
-            const group = await this.groupsModel.getGroup(assigneeId);
-
-            return {
-                roleId,
-                roleName: role.name,
-                assigneeType: 'group',
-                assigneeId,
-                assigneeName: group.name,
-                projectId,
-                createdAt: new Date(), // TODO: Get actual dates from DB
-                updatedAt: new Date(),
-            };
         }
+
         throw new ParameterError(`Invalid assignee type: ${assigneeType}`);
+    }
+
+    private async updateProjectGroupRoleAssignment(
+        account: Account,
+        projectId: string,
+        groupId: string,
+        request: UpdateRoleAssignmentRequest,
+    ): Promise<RoleAssignment> {
+        // Redirect to the new upsert method for consistency
+        return this.upsertProjectGroupRoleAssignment(
+            account,
+            projectId,
+            groupId,
+            request,
+        );
     }
 
     async deleteProjectRoleAssignment(
@@ -547,65 +484,110 @@ export class RolesService extends BaseService {
     // SEPARATE PROJECT ROLE ASSIGNMENTS
     // =====================================
 
-    async createProjectUserRoleAssignment(
+    async upsertProjectUserRoleAssignment(
         account: Account,
-        projectId: string,
-        userId: string,
-        request: CreateUserRoleAssignmentRequest,
+        projectUuid: string,
+        userUuid: string,
+        request: UpsertUserRoleAssignmentRequest,
     ): Promise<RoleAssignment> {
         const { roleId } = request;
-
-        // Validate role ownership and get role details
+        const project = await this.projectModel.getSummary(projectUuid);
+        RolesService.validateOrganizationAccess(
+            account,
+            project.organizationUuid,
+        );
+        await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleByUuid(roleId);
-        RolesService.validateRoleOwnership(account, role);
 
-        await this.createUserProjectAccess(account, projectId, userId, roleId);
+        if (isSystemRole(roleId)) {
+            await this.rolesModel.upsertSystemRoleProjectAccess(
+                projectUuid,
+                userUuid,
+                roleId,
+            );
+        } else {
+            await this.rolesModel.upsertCustomRoleProjectAccess(
+                projectUuid,
+                userUuid,
+                roleId,
+            );
+        }
 
-        // Get user details for response
-        const user = await this.userModel.getUserDetailsByUuid(userId);
+        this.analytics.track({
+            event: isSystemRole(roleId)
+                ? 'project_access.upserted_system_role'
+                : 'project_access.upserted_custom_role',
+            userId: account.user?.id,
+            properties: {
+                projectUuid,
+                userUuid,
+                roleId,
+                isSystemRole: isSystemRole(roleId),
+            },
+        });
 
-        return {
+        return this.buildUserRoleAssignmentResponse(
             roleId,
-            roleName: role.name,
-            assigneeType: 'user',
-            assigneeId: userId,
-            assigneeName: `${user.firstName} ${user.lastName}`,
-            projectId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
+            role.name,
+            userUuid,
+            projectUuid,
+        );
     }
 
-    async createProjectGroupRoleAssignment(
+    async upsertProjectGroupRoleAssignment(
         account: Account,
-        projectId: string,
-        groupId: string,
-        request: CreateGroupRoleAssignmentRequest,
+        projectUuid: string,
+        groupUuid: string,
+        request: UpsertUserRoleAssignmentRequest, // Reusing the same request type
     ): Promise<RoleAssignment> {
         const { roleId } = request;
-
-        // Validate role ownership and get role details
+        const project = await this.projectModel.getSummary(projectUuid);
+        RolesService.validateOrganizationAccess(
+            account,
+            project.organizationUuid,
+        );
+        await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleByUuid(roleId);
-        RolesService.validateRoleOwnership(account, role);
 
-        await this.assignRoleToGroup(account, groupId, roleId, projectId);
+        if (isSystemRole(roleId)) {
+            await this.rolesModel.upsertSystemRoleGroupAccess(
+                groupUuid,
+                projectUuid,
+                roleId,
+            );
+        } else {
+            await this.rolesModel.upsertCustomRoleGroupAccess(
+                groupUuid,
+                projectUuid,
+                roleId,
+            );
+        }
 
-        // Get group details for response
-        const group = await this.groupsModel.getGroup(groupId);
+        this.analytics.track({
+            event: isSystemRole(roleId)
+                ? 'project_group_access.upserted_system_role'
+                : 'project_group_access.upserted_custom_role',
+            userId: account.user?.id,
+            properties: {
+                projectUuid,
+                groupUuid,
+                roleId,
+                isSystemRole: isSystemRole(roleId),
+            },
+        });
 
-        return {
+        return this.buildGroupRoleAssignmentResponse(
             roleId,
-            roleName: role.name,
-            assigneeType: 'group',
-            assigneeId: groupId,
-            assigneeName: group.name,
-            projectId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
+            role.name,
+            groupUuid,
+            projectUuid,
+        );
     }
 
     async deleteRole(account: Account, roleUuid: string): Promise<void> {
+        if (isSystemRole(roleUuid)) {
+            throw new ParameterError('Cannot remove system roles');
+        }
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         RolesService.validateRoleOwnership(account, role);
 
@@ -622,50 +604,16 @@ export class RolesService extends BaseService {
         });
     }
 
-    async assignRoleToUser(
-        account: Account,
-        userUuid: string,
-        roleUuid: string,
-        organizationUuid?: string,
-        projectUuid?: string,
-    ): Promise<void> {
-        const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(account, role);
-        await this.validateProjectAccess(account, projectUuid);
-
-        await this.rolesModel.assignRoleToUser(
-            userUuid,
-            roleUuid,
-            organizationUuid,
-            projectUuid,
-        );
-
-        this.analytics.track({
-            event: 'role.assigned_to_user',
-            userId: account.user?.id,
-            properties: {
-                roleUuid,
-                targetUserUuid: userUuid,
-                organizationUuid: role.organizationUuid,
-                projectUuid,
-            },
-        });
-    }
-
     async unassignRoleFromUser(
         account: Account,
         userUuid: string,
-        organizationUuid?: string,
-        projectUuid?: string,
+        organizationUuid: string,
+        projectUuid: string,
     ): Promise<void> {
         RolesService.validateOrganizationAccess(account, organizationUuid);
         await this.validateProjectAccess(account, projectUuid);
 
-        await this.rolesModel.unassignRoleFromUser(
-            userUuid,
-            organizationUuid,
-            projectUuid,
-        );
+        await this.rolesModel.unassignCustomRoleFromUser(userUuid, projectUuid);
 
         this.analytics.track({
             event: 'role.unassigned_from_user',
@@ -682,7 +630,7 @@ export class RolesService extends BaseService {
         account: Account,
         groupUuid: string,
         roleUuid: string,
-        projectUuid?: string,
+        projectUuid: string,
     ): Promise<void> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         RolesService.validateRoleOwnership(account, role);
@@ -709,7 +657,7 @@ export class RolesService extends BaseService {
     async unassignRoleFromGroup(
         account: Account,
         groupUuid: string,
-        projectUuid?: string,
+        projectUuid: string,
     ): Promise<void> {
         RolesService.validateOrganizationAccess(
             account,
@@ -749,62 +697,6 @@ export class RolesService extends BaseService {
         };
     }
 
-    async createUserProjectAccess(
-        account: Account,
-        projectUuid: string,
-        userUuid: string,
-        roleUuid: string,
-    ): Promise<void> {
-        const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(
-            account,
-            project.organizationUuid,
-        );
-        await this.validateProjectAccess(account, projectUuid);
-
-        await this.rolesModel.createUserProjectAccess(
-            projectUuid,
-            userUuid,
-            roleUuid,
-        );
-
-        this.analytics.track({
-            event: 'project_access.created',
-            userId: account.user?.id,
-            properties: {
-                projectUuid,
-                targetUserUuid: userUuid,
-                roleUuid,
-            },
-        });
-    }
-
-    async updateUserProjectAccess(
-        account: Account,
-        projectUuid: string,
-        userUuid: string,
-        roleUuid: string,
-    ): Promise<void> {
-        const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(
-            account,
-            project.organizationUuid,
-        );
-        await this.validateProjectAccess(account, projectUuid);
-
-        await this.rolesModel.updateUserProjectAccess(userUuid, roleUuid);
-
-        this.analytics.track({
-            event: 'project_access.updated',
-            userId: account.user?.id,
-            properties: {
-                projectUuid,
-                userUuid,
-                roleUuid,
-            },
-        });
-    }
-
     async removeUserProjectAccess(
         account: Account,
         projectUuid: string,
@@ -834,6 +726,10 @@ export class RolesService extends BaseService {
         roleUuid: string,
         scopeData: AddScopesToRole,
     ): Promise<void> {
+        if (isSystemRole(roleUuid)) {
+            throw new ParameterError('Cannot add scopes to system roles');
+        }
+
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         RolesService.validateRoleOwnership(account, role);
 
@@ -859,6 +755,10 @@ export class RolesService extends BaseService {
         roleUuid: string,
         scopeName: string,
     ): Promise<void> {
+        if (isSystemRole(roleUuid)) {
+            throw new ParameterError('Cannot remove scopes from system roles');
+        }
+
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         RolesService.validateRoleOwnership(account, role);
 

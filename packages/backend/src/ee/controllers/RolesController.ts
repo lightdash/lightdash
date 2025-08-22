@@ -1,12 +1,9 @@
 import {
     AddScopesToRole,
-    ApiDefaultRoleResponse,
-    ApiDeleteRoleResponse,
     ApiErrorPayload,
     ApiRemoveScopeFromRoleResponse,
     ApiRoleWithScopesResponse,
     ApiUnassignRoleFromUserResponse,
-    UpdateRole,
 } from '@lightdash/common';
 import {
     Body,
@@ -30,7 +27,7 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
-import { RolesService } from '../services/RolesService';
+import { RolesService } from '../../services/RolesService/RolesService';
 
 /**
  * This controller handles all role management operations with the new namespace structure:
@@ -53,7 +50,7 @@ export class RolesController extends BaseController {
      * to specify an interface type.
      */
     protected getRolesService() {
-        return this.services.getRolesService<RolesService>();
+        return this.services.getRolesService();
     }
 
     /**
@@ -76,59 +73,6 @@ export class RolesController extends BaseController {
         return {
             status: 'ok',
             results: role,
-        };
-    }
-
-    /**
-     * Update role
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Patch('/{roleUuid}')
-    @OperationId('UpdateRole')
-    async updateRole(
-        @Request() req: express.Request,
-        @Path() roleUuid: string,
-        @Body() body: UpdateRole,
-    ): Promise<ApiDefaultRoleResponse> {
-        const role = await this.getRolesService().updateRole(
-            req.account!,
-            roleUuid,
-            body,
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: role,
-        };
-    }
-
-    /**
-     * Delete role
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/{roleUuid}')
-    @OperationId('DeleteRole')
-    async deleteRole(
-        @Request() req: express.Request,
-        @Path() roleUuid: string,
-    ): Promise<ApiDeleteRoleResponse> {
-        await this.getRolesService().deleteRole(req.account!, roleUuid);
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: undefined,
         };
     }
 
