@@ -9,7 +9,6 @@ import {
     addToolCall,
     type AiAgentThreadStreamDispatch,
     appendToMessage,
-    clearJustCompleted,
     setError,
     startStreaming,
     stopStreaming,
@@ -136,16 +135,8 @@ export function useAiAgentThreadStreamMutation() {
         [abort],
     );
 
-    const clearMessageJustCompleted = useCallback(
-        (threadUuid: string) => {
-            dispatch(clearJustCompleted({ threadUuid }));
-        },
-        [dispatch],
-    );
-
     return {
         streamMessage,
         cancelMessageStream,
-        clearMessageJustCompleted,
     };
 }
