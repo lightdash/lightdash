@@ -1141,7 +1141,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     <Tabs.Panel value="conversations" pt="lg">
                         <ConversationsList
                             agentUuid={actualAgentUuid!}
-                            agentName={agent?.name ?? 'Agent'}
                             allUsers={canManageAgents}
                         />
                     </Tabs.Panel>

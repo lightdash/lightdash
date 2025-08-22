@@ -22,5 +22,10 @@ export const AiAgentPageLayoutContext =
 
 export const useAiAgentPageLayout = () => {
     const context = useContext(AiAgentPageLayoutContext);
+    if (!context) {
+        throw new Error(
+            'useAiAgentPageLayout must be used within an AiAgentPageLayoutProvider',
+        );
+    }
     return context;
 };

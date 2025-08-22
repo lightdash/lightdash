@@ -53,7 +53,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             agentName={agentQuery.data?.name ?? 'AI'}
             enableAutoScroll={true}
             promptUuid={promptUuid}
-            mode="interactive"
             debug={debug}
         >
             <AgentChatInput
