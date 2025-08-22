@@ -446,7 +446,9 @@ export default class EmailClient {
         const emailAttachments = asAttachment
             ? csvUrls
                   .filter(
-                      (attachment) => attachment.localPath || attachment.path,
+                      (attachment) =>
+                          (attachment.localPath || attachment.path) &&
+                          attachment.path !== '#no-results',
                   )
                   .map((attachment) =>
                       EmailClient.createFileAttachment(attachment, format),
