@@ -24,13 +24,13 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { RolesService } from '../services/RolesService/RolesService';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
-} from '../../controllers/authentication';
-import { BaseController } from '../../controllers/baseController';
-import { RolesService } from '../../services/RolesService/RolesService';
+} from './authentication';
+import { BaseController } from './baseController';
 
 /**
  * Project Roles API

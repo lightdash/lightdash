@@ -6,7 +6,6 @@ import {
     SEED_PROJECT,
 } from '@lightdash/common';
 
-const apiUrl = '/api/v2/roles';
 const orgRolesApiUrl = '/api/v2/orgs';
 const projectRolesApiUrl = '/api/v2/projects';
 
@@ -23,7 +22,7 @@ describe('Roles API Tests', () => {
         cy.get('@testRoleUuid').then((testRoleUuid) => {
             if (testRoleUuid) {
                 cy.request({
-                    url: `${apiUrl}/${testRoleUuid}`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}`,
                     method: 'DELETE',
                     failOnStatusCode: false,
                 });
@@ -135,7 +134,7 @@ describe('Roles API Tests', () => {
             const systemRoleId = 'developer';
 
             cy.request({
-                url: `${apiUrl}/${systemRoleId}`,
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRoleId}`,
                 method: 'GET',
             }).then((resp) => {
                 expect(resp.status).to.eq(200);
@@ -197,7 +196,7 @@ describe('Roles API Tests', () => {
 
                 // Add scopes to role
                 cy.request({
-                    url: `${apiUrl}/${createResp.body.results.roleUuid}/scopes`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${createResp.body.results.roleUuid}/scopes`,
                     method: 'POST',
                     body: {
                         scopeNames: ['view_project', 'view_dashboard'],
@@ -591,7 +590,7 @@ describe('Roles API Tests', () => {
                 if (systemRole) {
                     // Try to add scopes to system role
                     cy.request({
-                        url: `${apiUrl}/${systemRole.roleUuid}/scopes`,
+                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes`,
                         method: 'POST',
                         body: {
                             scopeNames: ['view:Dashboard'],
@@ -624,7 +623,7 @@ describe('Roles API Tests', () => {
                 if (systemRole) {
                     // Try to remove scope from system role
                     cy.request({
-                        url: `${apiUrl}/${systemRole.roleUuid}/scopes/create:Space`,
+                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes/create:Space`,
                         method: 'DELETE',
                         failOnStatusCode: false,
                     }).then((removeResp) => {
@@ -659,7 +658,7 @@ describe('Roles API Tests', () => {
 
                 // Add scopes to role
                 cy.request({
-                    url: `${apiUrl}/${roleUuid}/scopes`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}/scopes`,
                     method: 'POST',
                     body: {
                         scopeNames: ['view_project', 'view_dashboard'],
@@ -671,7 +670,7 @@ describe('Roles API Tests', () => {
 
                 // Remove a scope from role
                 cy.request({
-                    url: `${apiUrl}/${roleUuid}/scopes/view_project`,
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}/scopes/view_project`,
                     method: 'DELETE',
                 }).then((removeResp) => {
                     expect(removeResp.status).to.eq(200);
