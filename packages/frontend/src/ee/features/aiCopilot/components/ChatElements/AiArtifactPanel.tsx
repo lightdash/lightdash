@@ -51,65 +51,52 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryExecutionHandle.isLoading || queryResults.isFetchingRows;
         const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
-        if (isArtifactLoading) {
+        if (isArtifactLoading || isQueryLoading) {
             return (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Center>
-                        <Loader
-                            type="dots"
-                            color="gray"
-                            delayedMessage="Loading artifact..."
-                        />
+                        <Stack
+                            gap="xs"
+                            align="center"
+                            justify="center"
+                            h="100%"
+                        >
+                            <Loader size="xs" color="gray" />
+                            <Text size="xs" c="dimmed" ta="center">
+                                Loading...
+                            </Text>
+                        </Stack>
                     </Center>
                 </Box>
             );
         }
 
-        if (artifactError || !artifactData) {
+        if (artifactError || !artifactData || isQueryError) {
             return (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
-                    <Stack gap="xs" align="center" justify="center">
-                        <MantineIcon
-                            icon={IconExclamationCircle}
-                            color="gray"
-                        />
-                        <Text size="xs" c="dimmed" ta="center">
-                            Failed to load artifact. Please try again.
-                        </Text>
-                    </Stack>
+                    <Center>
+                        <Stack gap="xs" align="center" justify="center">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                color="gray"
+                            />
+                            <Text size="xs" c="dimmed" ta="center">
+                                Failed to load artifact. Please try again.
+                            </Text>
+                        </Stack>
+                    </Center>
                 </Box>
             );
         }
 
         return (
             <Box {...ChatElementsUtils.centeredElementProps} p="md">
-                {isQueryLoading ? (
-                    <Center>
-                        <Loader
-                            type="dots"
-                            color="gray"
-                            delayedMessage="Loading visualization..."
-                        />
-                    </Center>
-                ) : isQueryError ? (
-                    <Stack gap="xs" align="center" justify="center">
-                        <MantineIcon
-                            icon={IconExclamationCircle}
-                            color="gray"
-                        />
-                        <Text size="xs" c="dimmed" ta="center">
-                            Something went wrong loading the visualization data.
-                            Please try again.
-                        </Text>
-                    </Stack>
-                ) : (
-                    <AiChartVisualization
-                        results={queryResults}
-                        message={artifact.message}
-                        queryExecutionHandle={queryExecutionHandle}
-                        projectUuid={artifact.projectUuid}
-                    />
-                )}
+                <AiChartVisualization
+                    results={queryResults}
+                    message={artifact.message}
+                    queryExecutionHandle={queryExecutionHandle}
+                    projectUuid={artifact.projectUuid}
+                />
             </Box>
         );
     },
