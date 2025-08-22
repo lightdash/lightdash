@@ -36,6 +36,7 @@ import {
     isFilterInteractivityEnabled,
     MetricQuery,
     NotFoundError,
+    NotSupportedError,
     ParameterError,
     QueryExecutionContext,
     RunQueryTags,
@@ -998,42 +999,50 @@ export class EmbedService extends BaseService {
             explore,
         );
 
-        const { totalQuery: totalMetricQuery } =
-            await this.projectService._getCalculateTotalQuery(
-                userAttributes,
-                intrinsicUserAttributes,
+        try {
+            const { totalQuery: totalMetricQuery } =
+                await this.projectService._getCalculateTotalQuery(
+                    userAttributes,
+                    intrinsicUserAttributes,
+                    explore,
+                    metricQuery,
+                    warehouseClient,
+                    availableParameterDefinitions,
+                    combinedParameters,
+                );
+
+            const { rows } = await this._runEmbedQuery({
+                projectUuid,
+                metricQuery: totalMetricQuery,
                 explore,
-                metricQuery,
-                warehouseClient,
-                availableParameterDefinitions,
+                queryTags: {
+                    embed: 'true',
+                    external_id: account.user.id,
+                    project_uuid: projectUuid,
+                    organization_uuid: chart.organizationUuid,
+                    chart_uuid: chart.uuid,
+                    dashboard_uuid: dashboardUuid,
+                    explore_name: chart.tableName,
+                    query_context: QueryExecutionContext.CALCULATE_TOTAL,
+                },
+                account,
                 combinedParameters,
-            );
+            });
 
-        const { rows } = await this._runEmbedQuery({
-            projectUuid,
-            metricQuery: totalMetricQuery,
-            explore,
-            queryTags: {
-                embed: 'true',
-                external_id: account.user.id,
-                project_uuid: projectUuid,
-                organization_uuid: chart.organizationUuid,
-                chart_uuid: chart.uuid,
-                dashboard_uuid: dashboardUuid,
-                explore_name: chart.tableName,
-                query_context: QueryExecutionContext.CALCULATE_TOTAL,
-            },
-            account,
-            combinedParameters,
-        });
+            if (rows.length === 0) {
+                throw new NotFoundError('No results found');
+            }
 
-        if (rows.length === 0) {
-            throw new NotFoundError('No results found');
+            const row = rows[0];
+
+            return row;
+        } catch (e) {
+            if (e instanceof NotSupportedError) {
+                this.logger.warn(e.message);
+                return {}; // no totals
+            }
+            throw e;
         }
-
-        const row = rows[0];
-
-        return row;
     }
 
     async calculateSubtotalsFromSavedChart(

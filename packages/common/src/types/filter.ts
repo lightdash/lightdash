@@ -238,24 +238,25 @@ export const isMetricFilterTarget = (
 ): value is { fieldRef: string } =>
     !!value && typeof value === 'object' && 'fieldRef' in value;
 
+export const flattenFilterGroup = (filterGroup: FilterGroup): FilterRule[] => {
+    // Explicitly checking for undefined filter groups (and || or), saved filter group somehow was undefined when saving
+    const groupItems: FilterGroupItem[] | undefined = isAndFilterGroup(
+        filterGroup,
+    )
+        ? filterGroup.and
+        : filterGroup.or;
+
+    return (groupItems || []).flatMap((item) => {
+        if (isFilterGroup(item)) {
+            return flattenFilterGroup(item);
+        }
+
+        return [item];
+    });
+};
+
 export const getFilterRules = (filters: Filters): FilterRule[] => {
     const rules: FilterRule[] = [];
-    const flattenFilterGroup = (filterGroup: FilterGroup): FilterRule[] => {
-        // Explicitly checking for undefined filter groups (and || or), saved filter group somehow was undefined when saving
-        const groupItems: FilterGroupItem[] | undefined = isAndFilterGroup(
-            filterGroup,
-        )
-            ? filterGroup.and
-            : filterGroup.or;
-
-        return (groupItems || []).flatMap((item) => {
-            if (isFilterGroup(item)) {
-                return flattenFilterGroup(item);
-            }
-
-            return [item];
-        });
-    };
 
     if (filters.dimensions) {
         rules.push(...flattenFilterGroup(filters.dimensions));
