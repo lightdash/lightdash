@@ -62,6 +62,7 @@ import {
     FilterOperator,
     findFieldByIdInExplore,
     findReplaceableCustomMetrics,
+    flattenFilterGroup,
     ForbiddenError,
     formatRawRows,
     formatRows,
@@ -108,6 +109,7 @@ import {
     normalizeIndexColumns,
     NotExistsError,
     NotFoundError,
+    NotSupportedError,
     OpenIdIdentityIssuerType,
     ParameterError,
     type ParametersValuesMap,
@@ -5217,6 +5219,19 @@ export class ProjectService extends BaseService {
             additionalMetrics: metricQuery.additionalMetrics,
         };
 
+        const hasMetricFilters =
+            !!totalQuery.filters.metrics &&
+            flattenFilterGroup(totalQuery.filters.metrics).length > 0;
+        const hasTableCalculationFilters =
+            !!totalQuery.filters.tableCalculations &&
+            flattenFilterGroup(totalQuery.filters.tableCalculations).length > 0;
+
+        if (hasMetricFilters || hasTableCalculationFilters) {
+            throw new NotSupportedError(
+                'Totals cannot be correctly calculated with metric filters or table calculation filters',
+            );
+        }
+
         const { query } = await ProjectService._compileQuery({
             metricQuery: totalQuery,
             explore,
@@ -5260,27 +5275,34 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const { query } = await this._getCalculateTotalQuery(
-            userAttributes,
-            intrinsicUserAttributes,
-            explore,
-            metricQuery,
-            warehouseClient,
-            availableParameters,
-            parameters,
-        );
+        try {
+            const { query } = await this._getCalculateTotalQuery(
+                userAttributes,
+                intrinsicUserAttributes,
+                explore,
+                metricQuery,
+                warehouseClient,
+                availableParameters,
+                parameters,
+            );
+            const queryTags: RunQueryTags = {
+                ...this.getUserQueryTags(account),
+                organization_uuid: account.organization.organizationUuid,
+                project_uuid: projectUuid,
+                explore_name: explore.name,
+                query_context: QueryExecutionContext.CALCULATE_TOTAL,
+            };
 
-        const queryTags: RunQueryTags = {
-            ...this.getUserQueryTags(account),
-            organization_uuid: account.organization.organizationUuid,
-            project_uuid: projectUuid,
-            explore_name: explore.name,
-            query_context: QueryExecutionContext.CALCULATE_TOTAL,
-        };
-
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
-        await sshTunnel.disconnect();
-        return { row: rows[0] };
+            const { rows } = await warehouseClient.runQuery(query, queryTags);
+            await sshTunnel.disconnect();
+            return { row: rows[0] };
+        } catch (e) {
+            if (e instanceof NotSupportedError) {
+                this.logger.warn(e.message);
+                return { row: {} }; // no totals
+            }
+            throw e;
+        }
     }
 
     async _calculateTotalFromCacheOrWarehouse(
@@ -5313,36 +5335,44 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const { query, totalQuery } = await this._getCalculateTotalQuery(
-            userAttributes,
-            intrinsicUserAttributes,
-            explore,
-            metricQuery,
-            warehouseClient,
-            availableParameters,
-            parameters,
-        );
-
-        const queryTags: RunQueryTags = {
-            ...this.getUserQueryTags(account),
-            organization_uuid: organizationUuid,
-            project_uuid: projectUuid,
-            explore_name: explore.name,
-            query_context: QueryExecutionContext.CALCULATE_TOTAL,
-        };
-
-        const { rows, cacheMetadata } =
-            await this.getResultsFromCacheOrWarehouse({
-                projectUuid,
-                context: QueryExecutionContext.CALCULATE_TOTAL,
+        try {
+            const { query, totalQuery } = await this._getCalculateTotalQuery(
+                userAttributes,
+                intrinsicUserAttributes,
+                explore,
+                metricQuery,
                 warehouseClient,
-                metricQuery: totalQuery,
-                query,
-                queryTags,
-                invalidateCache,
-            });
-        await sshTunnel.disconnect();
-        return { row: rows[0], cacheMetadata };
+                availableParameters,
+                parameters,
+            );
+
+            const queryTags: RunQueryTags = {
+                ...this.getUserQueryTags(account),
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+                explore_name: explore.name,
+                query_context: QueryExecutionContext.CALCULATE_TOTAL,
+            };
+
+            const { rows, cacheMetadata } =
+                await this.getResultsFromCacheOrWarehouse({
+                    projectUuid,
+                    context: QueryExecutionContext.CALCULATE_TOTAL,
+                    warehouseClient,
+                    metricQuery: totalQuery,
+                    query,
+                    queryTags,
+                    invalidateCache,
+                });
+            await sshTunnel.disconnect();
+            return { row: rows[0], cacheMetadata };
+        } catch (e) {
+            if (e instanceof NotSupportedError) {
+                this.logger.warn(e.message);
+                return { row: {} }; // no totals
+            }
+            throw e;
+        }
     }
 
     async calculateTotalFromSavedChart(
