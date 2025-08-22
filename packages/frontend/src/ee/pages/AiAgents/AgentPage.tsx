@@ -86,7 +86,7 @@ const AgentSidebar: FC<{
 }> = ({ agent, projectUuid, threadUuid }) => {
     const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
-    const layoutContext = useAiAgentPageLayout();
+    const { isSidebarCollapsed } = useAiAgentPageLayout();
 
     return (
         <Stack gap="md">
@@ -96,11 +96,11 @@ const AgentSidebar: FC<{
                     component={Link}
                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
                 >
-                    {layoutContext?.isSidebarCollapsed ? '' : 'New thread'}
+                    {isSidebarCollapsed ? '' : 'New thread'}
                 </SidebarButton>
             </Box>
 
-            {projectUuid && threads && !layoutContext?.isSidebarCollapsed && (
+            {projectUuid && threads && !isSidebarCollapsed && (
                 <Stack gap="xs">
                     <Group justify="space-between">
                         <Title order={6} c="dimmed" tt="uppercase" size="xs">
