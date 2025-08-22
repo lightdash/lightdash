@@ -1,3 +1,10 @@
+# [0.1946.0](https://github.com/lightdash/lightdash/compare/0.1945.0...0.1946.0) (2025-08-22)
+
+
+### Features
+
+* Remove conversations preview for admin view ([#16553](https://github.com/lightdash/lightdash/issues/16553)) ([9dd3557](https://github.com/lightdash/lightdash/commit/9dd35576e4163d38fa7f5132b0f796d2a006301c))
+
 # [0.1945.0](https://github.com/lightdash/lightdash/compare/0.1944.0...0.1945.0) (2025-08-22)
 
 
