@@ -10,7 +10,7 @@ import {
     PROJECT_INTERACTIVE_VIEWER,
     PROJECT_VIEWER,
 } from './projectMemberAbility.mock';
-import { getScopesForRole } from './roleToScopeMapping';
+import { getAllScopesForRole } from './roleToScopeMapping';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
 
@@ -173,7 +173,7 @@ const testRoleScopeParity = (
 
     // Build abilities using scope-based approach
     const scopeBuilder = new AbilityBuilder<MemberAbility>(Ability);
-    const scopes = getScopesForRole(role);
+    const scopes = getAllScopesForRole(role);
 
     buildAbilityFromScopes(
         {
@@ -269,7 +269,7 @@ describe('Role to Scope Parity', () => {
 
                 // Count scope-based rules
                 const scopeBuilder = new AbilityBuilder<MemberAbility>(Ability);
-                const scopes = getScopesForRole(role);
+                const scopes = getAllScopesForRole(role);
                 buildAbilityFromScopes(
                     {
                         userUuid: member.userUuid,
