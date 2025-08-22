@@ -269,15 +269,14 @@ const AssistantBubbleContent: FC<{
 
 type Props = {
     message: AiAgentMessageAssistant;
-    isPreview?: boolean;
     isActive?: boolean;
     debug?: boolean;
 };
 
 export const AssistantBubble: FC<Props> = memo(
-    ({ message, isPreview = false, isActive = false, debug = false }) => {
+    ({ message, isActive = false, debug = false }) => {
         const { agentUuid, projectUuid } = useParams();
-        const layoutContext = useAiAgentPageLayout();
+        const { setArtifact, artifact } = useAiAgentPageLayout();
         const { clearMessageJustCompleted } = useAiAgentThreadStreamMutation();
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
@@ -405,9 +404,9 @@ export const AssistantBubble: FC<Props> = memo(
                 !isQueryError &&
                 !isQueryLoading &&
                 queryResults &&
-                layoutContext
+                setArtifact
             ) {
-                layoutContext.setArtifact(renderVisualization(), message.uuid);
+                setArtifact(renderVisualization(), message.uuid);
                 clearMessageJustCompleted(message.threadUuid);
             }
         }, [
@@ -417,10 +416,10 @@ export const AssistantBubble: FC<Props> = memo(
             isQueryLoading,
             queryResults,
             renderVisualization,
-            layoutContext,
             clearMessageJustCompleted,
             message.threadUuid,
             message.uuid,
+            setArtifact,
         ]);
 
         return (
@@ -441,46 +440,20 @@ export const AssistantBubble: FC<Props> = memo(
                     agentUuid={agentUuid}
                 />
 
-                {isVisualizationAvailable ? (
-                    // Are we rendering this in main layout?
-                    layoutContext ? (
-                        <AiArtifactButton
-                            onClick={() => {
-                                layoutContext.setArtifact(
-                                    renderVisualization(),
-                                    message.uuid,
-                                );
-                            }}
-                            isLoading={isQueryLoading}
-                            isArtifactOpen={
-                                layoutContext?.artifact?.id === message.uuid
-                            }
-                            vizType={vizConfig?.type}
-                            title={vizConfig?.vizTool?.title}
-                            description={vizConfig?.vizTool?.description}
-                        />
-                    ) : (
-                        // We are displaying this in places where there are no layout panels (conversations page)
-                        <Paper
-                            withBorder
-                            radius="md"
-                            p="md"
-                            h="500px"
-                            shadow="none"
-                            {...((queryExecutionHandle.isError ||
-                                queryExecutionHandle.isLoading) && {
-                                bg: 'gray.0',
-                                style: {
-                                    borderStyle: 'dashed',
-                                },
-                            })}
-                        >
-                            {renderVisualization()}
-                        </Paper>
-                    )
-                ) : null}
+                {isVisualizationAvailable && (
+                    <AiArtifactButton
+                        onClick={() => {
+                            setArtifact(renderVisualization(), message.uuid);
+                        }}
+                        isLoading={isQueryLoading}
+                        isArtifactOpen={artifact?.id === message.uuid}
+                        vizType={vizConfig?.type}
+                        title={vizConfig?.vizTool?.title}
+                        description={vizConfig?.vizTool?.description}
+                    />
+                )}
 
-                <Group gap={0} display={isPreview ? 'none' : 'flex'}>
+                <Group gap={0}>
                     <CopyButton value={message.message ?? ''}>
                         {({ copied, copy }) => (
                             <ActionIcon

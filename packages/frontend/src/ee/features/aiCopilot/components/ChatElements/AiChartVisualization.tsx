@@ -54,7 +54,7 @@ export const AiChartVisualization: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
-    const layoutContext = useAiAgentPageLayout();
+    const { clearArtifact } = useAiAgentPageLayout();
 
     const resultsData = useMemo(
         () => ({
@@ -125,45 +125,16 @@ export const AiChartVisualization: FC<Props> = ({
                 }}
             >
                 <Stack gap="md" h="100%">
-                    {layoutContext ? (
-                        // If we are rendering viz in artifacts, update header to hve title, description, etc
-                        <Group gap="md" align="start">
-                            <Stack gap={0} flex={1}>
-                                <Title order={5}>
-                                    {queryExecutionHandle.data.metadata.title}
-                                </Title>
-                                <Text c="dimmed" size="xs">
-                                    {
-                                        queryExecutionHandle.data.metadata
-                                            .description
-                                    }
-                                </Text>
-                            </Stack>
-                            <Group gap="sm">
-                                <AiChartQuickOptions
-                                    message={message}
-                                    projectUuid={projectUuid}
-                                    saveChartOptions={{
-                                        name: queryExecutionHandle.data.metadata
-                                            .title,
-                                        description:
-                                            queryExecutionHandle.data.metadata
-                                                .description,
-                                    }}
-                                />
-                                <ActionIcon
-                                    size="sm"
-                                    variant="subtle"
-                                    color="gray"
-                                    onClick={layoutContext.clearArtifact}
-                                >
-                                    <MantineIcon icon={IconX} color="gray" />
-                                </ActionIcon>
-                            </Group>
-                        </Group>
-                    ) : (
-                        // If not artifact panel available, we render viz inline so skip headers
-                        <Group justify="flex-end" align="start">
+                    <Group gap="md" align="start">
+                        <Stack gap={0} flex={1}>
+                            <Title order={5}>
+                                {queryExecutionHandle.data.metadata.title}
+                            </Title>
+                            <Text c="dimmed" size="xs">
+                                {queryExecutionHandle.data.metadata.description}
+                            </Text>
+                        </Stack>
+                        <Group gap="sm">
                             <AiChartQuickOptions
                                 message={message}
                                 projectUuid={projectUuid}
@@ -175,8 +146,16 @@ export const AiChartVisualization: FC<Props> = ({
                                             .description,
                                 }}
                             />
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="gray"
+                                onClick={clearArtifact}
+                            >
+                                <MantineIcon icon={IconX} color="gray" />
+                            </ActionIcon>
                         </Group>
-                    )}
+                    </Group>
 
                     <Box
                         flex="1 0 0"
