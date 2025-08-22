@@ -4,4 +4,5 @@ export enum CommercialFeatureFlags {
     AiCopilot = 'ai-copilot',
     AiAgent = 'ai-agent',
     ServiceAccounts = 'service-accounts',
+    CustomRoles = 'custom-roles',
 }
