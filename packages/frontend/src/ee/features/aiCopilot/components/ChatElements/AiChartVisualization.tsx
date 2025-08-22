@@ -6,9 +6,11 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type ApiError,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Stack, Text, Title } from '@mantine-8/core';
+import { IconX } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
@@ -22,6 +24,7 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
 import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
@@ -51,6 +54,7 @@ export const AiChartVisualization: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
+    const layoutContext = useAiAgentPageLayout();
 
     const resultsData = useMemo(
         () => ({
@@ -121,18 +125,58 @@ export const AiChartVisualization: FC<Props> = ({
                 }}
             >
                 <Stack gap="md" h="100%">
-                    <Group justify="flex-end" align="start">
-                        <AiChartQuickOptions
-                            message={message}
-                            projectUuid={projectUuid}
-                            saveChartOptions={{
-                                name: queryExecutionHandle.data.metadata.title,
-                                description:
-                                    queryExecutionHandle.data.metadata
-                                        .description,
-                            }}
-                        />
-                    </Group>
+                    {layoutContext ? (
+                        // If we are rendering viz in artifacts, update header to hve title, description, etc
+                        <Group gap="md" align="start">
+                            <Stack gap={0} flex={1}>
+                                <Title order={5}>
+                                    {queryExecutionHandle.data.metadata.title}
+                                </Title>
+                                <Text c="dimmed" size="xs">
+                                    {
+                                        queryExecutionHandle.data.metadata
+                                            .description
+                                    }
+                                </Text>
+                            </Stack>
+                            <Group gap="sm">
+                                <AiChartQuickOptions
+                                    message={message}
+                                    projectUuid={projectUuid}
+                                    saveChartOptions={{
+                                        name: queryExecutionHandle.data.metadata
+                                            .title,
+                                        description:
+                                            queryExecutionHandle.data.metadata
+                                                .description,
+                                    }}
+                                />
+                                <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={layoutContext.clearArtifact}
+                                >
+                                    <MantineIcon icon={IconX} color="gray" />
+                                </ActionIcon>
+                            </Group>
+                        </Group>
+                    ) : (
+                        // If not artifact panel available, we render viz inline so skip headers
+                        <Group justify="flex-end" align="start">
+                            <AiChartQuickOptions
+                                message={message}
+                                projectUuid={projectUuid}
+                                saveChartOptions={{
+                                    name: queryExecutionHandle.data.metadata
+                                        .title,
+                                    description:
+                                        queryExecutionHandle.data.metadata
+                                            .description,
+                                }}
+                            />
+                        </Group>
+                    )}
 
                     <Box
                         flex="1 0 0"

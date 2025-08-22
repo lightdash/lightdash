@@ -1,5 +1,10 @@
 import { createContext, useContext, type ReactNode } from 'react';
 
+export interface ArtifactWithId {
+    id: string;
+    content: ReactNode;
+}
+
 export interface AiAgentPageLayoutContextType {
     collapseSidebar: () => void;
     expandSidebar: () => void;
@@ -7,8 +12,9 @@ export interface AiAgentPageLayoutContextType {
     isSidebarCollapsed: boolean;
     collapseArtifact: () => void;
     expandArtifact: () => void;
-    artifact: ReactNode;
-    setArtifact: (artifact: ReactNode) => void;
+    clearArtifact: () => void;
+    artifact: ArtifactWithId | null;
+    setArtifact: (artifact: ReactNode, id: string) => void;
 }
 
 export const AiAgentPageLayoutContext =
@@ -16,10 +22,5 @@ export const AiAgentPageLayoutContext =
 
 export const useAiAgentPageLayout = () => {
     const context = useContext(AiAgentPageLayoutContext);
-    if (!context) {
-        throw new Error(
-            'useAiAgentPageLayout must be used within AiAgentPageLayoutProvider',
-        );
-    }
     return context;
 };
