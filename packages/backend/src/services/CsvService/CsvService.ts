@@ -50,6 +50,7 @@ import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import isNil from 'lodash/isNil';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
@@ -87,6 +88,7 @@ import {
     sanitizeGenericFileName,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { BaseService } from '../BaseService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -817,7 +819,7 @@ export class CsvService extends BaseService {
             });
         }
 
-        const { type: warehouseType } =
+        const { type: warehouseType, startOfWeek } =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
@@ -829,17 +831,26 @@ export class CsvService extends BaseService {
             isVizCartesianChartConfig(sqlChart.config) &&
             sqlChart.config.fieldConfig
         ) {
-            sql = ProjectService.applyPivotToSqlQuery({
+            const warehouseSqlBuilder = warehouseSqlBuilderFromType(
                 warehouseType,
+                startOfWeek,
+            );
+
+            const pivotQueryBuilder = new PivotQueryBuilder(
                 sql,
-                limit: sqlChart.limit,
-                indexColumn: sqlChart.config.fieldConfig.x,
-                valuesColumns: sqlChart.config.fieldConfig.y.filter(
-                    (col): col is Required<typeof col> => !!col.aggregation,
-                ),
-                groupByColumns: sqlChart.config.fieldConfig.groupBy,
-                sortBy: undefined,
-            });
+                {
+                    indexColumn: sqlChart.config.fieldConfig.x,
+                    valuesColumns: sqlChart.config.fieldConfig.y.filter(
+                        (col): col is Required<typeof col> => !!col.aggregation,
+                    ),
+                    groupByColumns: sqlChart.config.fieldConfig.groupBy,
+                    sortBy: undefined,
+                },
+                warehouseSqlBuilder,
+                sqlChart.limit,
+            );
+
+            sql = pivotQueryBuilder.toSql();
         }
 
         const resultsFileUrl = await this.projectService.runSqlQuery(
