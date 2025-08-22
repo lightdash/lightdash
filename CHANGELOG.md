@@ -1,3 +1,10 @@
+# [0.1944.0](https://github.com/lightdash/lightdash/compare/0.1943.1...0.1944.0) (2025-08-22)
+
+
+### Features
+
+* Display viz in Artifact panel ([#16499](https://github.com/lightdash/lightdash/issues/16499)) ([b79c53d](https://github.com/lightdash/lightdash/commit/b79c53d3a024fa465cd2c5684c97d33edd82371f))
+
 ## [0.1943.1](https://github.com/lightdash/lightdash/compare/0.1943.0...0.1943.1) (2025-08-21)
 
 
