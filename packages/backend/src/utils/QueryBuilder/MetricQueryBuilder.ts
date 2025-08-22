@@ -1346,9 +1346,9 @@ export class MetricQueryBuilder {
             const finalSelectColumns = ['  *'];
             let finalFilters: string | undefined;
 
-            // If we didn't create the intermediate CTE, add simple calcs and filters to final SELECT
+            // If we didn't create any intermediate CTEs, add simple calcs and filters to final SELECT
             if (currentCteName === metricsCteName) {
-                // Add simple table calculations to final SELECT
+                // Add simple table calculations to final SELECT (when no dependent table calcs)
                 if (simpleTableCalcSelects.length > 0) {
                     finalSelectColumns.push(...simpleTableCalcSelects);
                 }
