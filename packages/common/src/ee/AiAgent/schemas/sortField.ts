@@ -11,7 +11,7 @@ const sortFieldSchema = z.object({
     nullsFirst: z
         .boolean()
         .describe(
-            'If true sorts nulls first, if false sorts nulls last, if null then sorts by warehouse default',
+            'If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default',
         )
         .nullable(),
 });
