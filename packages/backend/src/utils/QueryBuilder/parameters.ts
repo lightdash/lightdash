@@ -126,6 +126,21 @@ export const safeReplaceParametersWithTypes = ({
     sqlBuilder: WarehouseSqlBuilder;
     wrapChar?: string;
 }) => {
+    // First, get all parameter references from the original SQL using the standard function
+    // This ensures we capture ALL parameter references, not just the ones we have values for
+    const allParametersResult = safeReplaceParameters({
+        sql,
+        parameterValuesMap,
+        escapeString: sqlBuilder.escapeString.bind(sqlBuilder),
+        quoteChar: sqlBuilder.getStringQuoteChar(),
+        wrapChar,
+    });
+
+    // If no parameter definitions are provided, use the standard replacement
+    if (!parameterDefinitions) {
+        return allParametersResult;
+    }
+
     // Split parameters by type
     const stringParameters: ParametersValuesMap = {};
     const numberParameters: ParametersValuesMap = {};
@@ -148,9 +163,6 @@ export const safeReplaceParametersWithTypes = ({
 
     // First replace string parameters (with quotes and escaping)
     let processedSql = sql;
-    const allReferences = new Set<string>();
-    const allMissingReferences = new Set<string>();
-
     if (Object.keys(stringParameters).length > 0) {
         const stringResult = safeReplaceParameters({
             sql: processedSql,
@@ -160,10 +172,6 @@ export const safeReplaceParametersWithTypes = ({
             wrapChar,
         });
         processedSql = stringResult.replacedSql;
-        stringResult.references.forEach((ref) => allReferences.add(ref));
-        stringResult.missingReferences.forEach((ref) =>
-            allMissingReferences.add(ref),
-        );
     }
 
     // Then replace number parameters (without quotes)
@@ -174,15 +182,12 @@ export const safeReplaceParametersWithTypes = ({
             sqlBuilder,
         );
         processedSql = numberResult.replacedSql;
-        numberResult.references.forEach((ref) => allReferences.add(ref));
-        numberResult.missingReferences.forEach((ref) =>
-            allMissingReferences.add(ref),
-        );
     }
 
+    // Return the processed SQL but use the original references from the full parameter scan
     return {
         replacedSql: processedSql,
-        references: allReferences,
-        missingReferences: allMissingReferences,
+        references: allParametersResult.references,
+        missingReferences: allParametersResult.missingReferences,
     };
 };
