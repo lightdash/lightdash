@@ -35,6 +35,7 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    ParameterError,
     ParametersValuesMap,
     PivotConfig,
     pivotResultsAsCsv,
@@ -890,7 +891,7 @@ export class CsvService extends BaseService {
         options: SchedulerCsvOptions | undefined;
         jobId?: string;
         schedulerFilters?: DashboardFilterRule[];
-        selectedTabs?: string[] | undefined;
+        selectedTabs: string[] | null;
         overrideDashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
         invalidateCache?: boolean;
@@ -899,6 +900,12 @@ export class CsvService extends BaseService {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
+
+        if (selectedTabs && selectedTabs.length === 0) {
+            throw new ParameterError(
+                'Selected tabs should not be empty when exporting dashboard as csv',
+            );
+        }
 
         if (schedulerFilters) {
             dashboardFilters.dimensions = applyDimensionOverrides(
@@ -1394,6 +1401,7 @@ export class CsvService extends BaseService {
             options,
             overrideDashboardFilters: dashboardFilters,
             dateZoomGranularity,
+            selectedTabs: null,
         }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
 
         this.logger.info(

@@ -32,6 +32,7 @@ type PreviewAndCustomizeScreenshotProps = {
             gridWidth: number | undefined;
             queryFilters: string;
             isPreview?: boolean | undefined;
+            selectedTabs: string[] | null;
         }
     >;
     previewChoice: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined;

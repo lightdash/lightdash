@@ -220,7 +220,7 @@ export default class SchedulerTask {
         sendNowSchedulerFilters: DashboardFilterRule[] | undefined,
         sendNowSchedulerParameters: ParametersValuesMap | undefined,
         context: DownloadCsv['properties']['context'],
-        selectedTabs: string[] | undefined,
+        selectedTabs: string[] | null,
     ) {
         if (chartUuid) {
             const chart =
@@ -319,7 +319,7 @@ export default class SchedulerTask {
 
         const selectedTabs = isDashboardScheduler(scheduler)
             ? scheduler.selectedTabs
-            : undefined;
+            : null;
 
         const context =
             scheduler.thresholds === undefined ||
@@ -373,6 +373,7 @@ export default class SchedulerTask {
                                 : undefined,
                         context: ScreenshotContext.SCHEDULED_DELIVERY,
                         contextId: jobId,
+                        selectedTabs: null,
                     });
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');
