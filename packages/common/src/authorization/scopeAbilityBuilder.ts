@@ -42,14 +42,16 @@ const applyScopeAbilities = (
         if (!scope) return;
 
         const [action, subject] = parseScope(scopeName);
-        const conditionsList = scope.getConditions
-            ? scope.getConditions(context)
-            : [];
+        const conditionsList = scope.getConditions(context);
 
-        // Apply each condition set
-        conditionsList.forEach((conditions) => {
-            builder.can(action, subject, conditions);
-        });
+        // Apply each condition set if there are any
+        if (conditionsList.length === 0) {
+            builder.can(action, subject);
+        } else {
+            conditionsList.forEach((conditions) => {
+                builder.can(action, subject, conditions);
+            });
+        }
     });
 
     handlePatConfigApplication(context, builder);
