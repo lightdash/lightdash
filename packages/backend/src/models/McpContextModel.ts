@@ -5,6 +5,7 @@ const MCP_CONTEXT_TABLE = 'mcp_context';
 export interface McpContext {
     projectUuid: string;
     projectName: string;
+    tags: string[] | null;
 }
 
 export interface McpContextRow {

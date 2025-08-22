@@ -3,6 +3,7 @@ import {
     AnyType,
     CatalogFilter,
     CatalogType,
+    filterExploreByTags,
     ForbiddenError,
     getItemId,
     MissingConfigError,
@@ -438,10 +439,11 @@ export class McpService extends BaseService {
                     'Set the active project for subsequent MCP operations',
                 inputSchema: {
                     projectUuid: z.string() as AnyType,
+                    tags: z.array(z.string()).optional() as AnyType,
                 },
             },
             async (_args, context) => {
-                const args = _args as { projectUuid: string };
+                const args = _args as { projectUuid: string; tags?: string[] };
                 const { user, organizationUuid, account } = this.getAccount(
                     context as McpProtocolContext,
                 );
@@ -476,6 +478,20 @@ export class McpService extends BaseService {
                     );
                 }
 
+                // Get existing context to preserve tags if not provided
+                const existingContext = await this.mcpContextModel.getContext(
+                    user.userUuid,
+                    organizationUuid,
+                );
+
+                // Determine tags: use provided tags, or preserve existing, or set to null
+                let tagsToSet: string[] | null;
+                if (args.tags !== undefined) {
+                    tagsToSet = args.tags.length > 0 ? args.tags : null;
+                } else {
+                    tagsToSet = existingContext?.context.tags || null;
+                }
+
                 // Set context
                 await this.mcpContextModel.setContext({
                     userUuid: user.userUuid,
@@ -483,21 +499,29 @@ export class McpService extends BaseService {
                     context: {
                         projectUuid: args.projectUuid,
                         projectName: project.name,
+                        tags: tagsToSet,
                     },
                 });
+
+                // Get available content based on tag selection
+                const availableContent = await this.getExploreAccessSummary(
+                    account,
+                    args.projectUuid,
+                    tagsToSet,
+                );
+
+                const result = {
+                    projectUuid: args.projectUuid,
+                    projectName: project.name,
+                    selectedTags: tagsToSet,
+                    availableContent,
+                };
 
                 return {
                     content: [
                         {
                             type: 'text',
-                            text: JSON.stringify(
-                                {
-                                    projectUuid: args.projectUuid,
-                                    projectName: project.name,
-                                },
-                                null,
-                                2,
-                            ),
+                            text: JSON.stringify(result, null, 2),
                         },
                     ],
                 };
@@ -511,7 +535,7 @@ export class McpService extends BaseService {
                 inputSchema: {},
             },
             async (_args, context) => {
-                const { user, organizationUuid } = this.getAccount(
+                const { user, organizationUuid, account } = this.getAccount(
                     context as McpProtocolContext,
                 );
 
@@ -542,16 +566,27 @@ export class McpService extends BaseService {
                     };
                 }
 
-                const { projectUuid, projectName } = contextRow.context;
+                const { projectUuid, projectName, tags } = contextRow.context;
+
+                // Get available content based on current tag selection
+                const availableContent = await this.getExploreAccessSummary(
+                    account,
+                    projectUuid,
+                    tags,
+                );
+
+                const result = {
+                    projectUuid,
+                    projectName,
+                    selectedTags: tags,
+                    availableContent,
+                };
+
                 return {
                     content: [
                         {
                             type: 'text',
-                            text: JSON.stringify(
-                                { projectUuid, projectName },
-                                null,
-                                2,
-                            ),
+                            text: JSON.stringify(result, null, 2),
                         },
                     ],
                 };
@@ -680,6 +715,65 @@ export class McpService extends BaseService {
         return contextRow?.context.projectUuid;
     }
 
+    async getTagsFromContext(
+        context: McpProtocolContext,
+    ): Promise<string[] | null> {
+        const { user } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+
+        if (!user || !organizationUuid) {
+            return null;
+        }
+
+        const contextRow = await this.mcpContextModel.getContext(
+            user.userUuid,
+            organizationUuid,
+        );
+
+        return contextRow?.context.tags || null;
+    }
+
+    async getExploreAccessSummary(
+        account: Account,
+        projectUuid: string,
+        tags: string[] | null,
+    ) {
+        const exploreSummaries =
+            await this.projectService.getAllExploresSummary(
+                account,
+                projectUuid,
+                true,
+                true,
+            );
+        const allExplores = await Promise.all(
+            exploreSummaries.map((explore) =>
+                this.projectService.getExplore(
+                    account,
+                    projectUuid,
+                    explore.name,
+                ),
+            ),
+        );
+        const filteredExplores = allExplores
+            .map((explore) =>
+                filterExploreByTags({ availableTags: tags, explore }),
+            )
+            .filter((explore) => explore !== undefined);
+        const exploreAccessSummary = filteredExplores.map((explore) => ({
+            exploreName: explore.label,
+            joinedTables: explore.joinedTables.map(
+                (table) => explore.tables[table.table].label,
+            ),
+            dimensions: Object.values(
+                explore.tables[explore.baseTable].dimensions,
+            ).map((dimension) => dimension.label),
+            metrics: Object.values(
+                explore.tables[explore.baseTable].metrics,
+            ).map((metric) => metric.label),
+        }));
+        return exploreAccessSummary;
+    }
+
     async resolveProjectUuid(context: McpProtocolContext): Promise<string> {
         // Use projectUuid from args or get from context
         const projectUuid = await this.getProjectUuidFromContext(context);
@@ -720,6 +814,9 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // Get tags from context for filtering
+        const tagsFromContext = await this.getTagsFromContext(context);
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('McpService.findExplores', args, async () => {
                 const userAttributes =
@@ -735,7 +832,7 @@ export class McpService extends BaseService {
                         projectUuid,
                         catalogSearch: {
                             type: CatalogType.Table,
-                            yamlTags: undefined,
+                            yamlTags: tagsFromContext || undefined,
                             tables: args.tableName
                                 ? [args.tableName]
                                 : undefined,
@@ -775,7 +872,7 @@ export class McpService extends BaseService {
                                 projectUuid,
                                 catalogSearch: {
                                     type: CatalogType.Field,
-                                    yamlTags: undefined,
+                                    yamlTags: tagsFromContext || undefined,
                                     tables: [table.name],
                                 },
                                 userAttributes,
@@ -866,6 +963,9 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // Get tags from context for filtering
+        const tagsFromContext = await this.getTagsFromContext(context);
+
         const findFields: FindFieldFn = (args) =>
             wrapSentryTransaction('McpService.findFields', args, async () => {
                 const userAttributes =
@@ -882,7 +982,7 @@ export class McpService extends BaseService {
                         catalogSearch: {
                             type: CatalogType.Field,
                             searchQuery: args.fieldSearchQuery.label,
-                            yamlTags: undefined,
+                            yamlTags: tagsFromContext || undefined,
                             tables: args.table ? [args.table] : undefined,
                         },
                         context: CatalogSearchContext.MCP,
