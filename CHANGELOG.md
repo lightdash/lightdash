@@ -1,3 +1,10 @@
+## [0.1949.1](https://github.com/lightdash/lightdash/compare/0.1949.0...0.1949.1) (2025-08-22)
+
+
+### Bug Fixes
+
+* lightdash validate command shows success despite compilation errors ([#16554](https://github.com/lightdash/lightdash/issues/16554)) ([6c4a09a](https://github.com/lightdash/lightdash/commit/6c4a09acc26c1b2a46aed17c72610be0178e6ca6))
+
 # [0.1949.0](https://github.com/lightdash/lightdash/compare/0.1948.0...0.1949.0) (2025-08-22)
 
 
