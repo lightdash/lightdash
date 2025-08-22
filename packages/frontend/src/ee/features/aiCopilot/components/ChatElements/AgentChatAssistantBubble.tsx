@@ -56,6 +56,7 @@ import { AiChartVisualization } from './AiChartVisualization';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
+import { ChatElementsUtils } from './utils';
 
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
@@ -156,7 +157,7 @@ const AssistantBubbleContent: FC<{
             {messageContent.length > 0 ? (
                 <MDEditor.Markdown
                     source={messageContent}
-                    style={{ padding: `0.5rem 0` }}
+                    style={{ padding: `0.5rem 0`, fontSize: '0.875rem' }}
                     rehypePlugins={[rehypeAiAgentContentLinks]}
                     components={{
                         a: ({ node, children, ...props }) => {
@@ -356,7 +357,7 @@ export const AssistantBubble: FC<Props> = memo(
 
         const renderVisualization = useCallback(() => {
             return (
-                <Box h="100%" p="md">
+                <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     {isQueryLoading ? (
                         <Center>
                             <Loader

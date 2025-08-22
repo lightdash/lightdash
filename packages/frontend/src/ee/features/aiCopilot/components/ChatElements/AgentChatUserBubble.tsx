@@ -60,7 +60,11 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
             >
                 <MDEditor.Markdown
                     source={message.message}
-                    style={{ backgroundColor: 'transparent' }}
+                    style={{
+                        backgroundColor: 'transparent',
+                        fontWeight: 500,
+                        fontSize: `0.9375rem`,
+                    }}
                 />
             </Card>
         </Stack>
