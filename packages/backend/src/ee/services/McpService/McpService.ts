@@ -29,7 +29,7 @@ import { subject } from '@casl/ability';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 // eslint-disable-next-line import/extensions
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
+import { z, ZodRawShape } from 'zod';
 import {
     LightdashAnalytics,
     McpToolCallEvent,
@@ -68,6 +68,7 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
+import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 
 export enum McpToolName {
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
@@ -125,6 +126,8 @@ export class McpService extends BaseService {
 
     private mcpServer: McpServer;
 
+    private mcpCompatLayer: McpSchemaCompatLayer;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -148,6 +151,7 @@ export class McpService extends BaseService {
         this.projectModel = projectModel;
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
+        this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = new McpServer({
                 name: 'Lightdash MCP Server',
@@ -158,6 +162,11 @@ export class McpService extends BaseService {
             this.logger.error('Error initializing MCP server:', error);
             throw error;
         }
+    }
+
+    private getMcpCompatibleSchema(schema: z.ZodSchema<unknown>): ZodRawShape {
+        // @ts-expect-error - shape is not a property of ZodTypeAny
+        return this.mcpCompatLayer.processZodType(schema).shape;
     }
 
     setupHandlers(): void {
@@ -189,10 +198,18 @@ export class McpService extends BaseService {
             McpToolName.FIND_EXPLORES,
             {
                 description: toolFindExploresArgsSchema.description,
-                inputSchema: toolFindExploresArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolFindExploresArgsSchema,
+                ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as ToolFindExploresArgs;
+                // Transform args back to match expected interface
+                // Convert optional fields back to nullable for internal processing
+                const args: ToolFindExploresArgs = {
+                    ..._args,
+                    exploreName: _args.exploreName ?? null,
+                    page: _args.page ?? null,
+                } as ToolFindExploresArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -238,7 +255,9 @@ export class McpService extends BaseService {
             McpToolName.FIND_FIELDS,
             {
                 description: toolFindFieldsArgsSchema.description,
-                inputSchema: toolFindFieldsArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolFindFieldsArgsSchema,
+                ) as AnyType,
             },
             async (_args, context) => {
                 const args = _args as ToolFindFieldsArgs;
@@ -284,7 +303,9 @@ export class McpService extends BaseService {
             McpToolName.FIND_DASHBOARDS,
             {
                 description: toolFindDashboardsArgsSchema.description,
-                inputSchema: toolFindDashboardsArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolFindDashboardsArgsSchema,
+                ) as AnyType,
             },
             async (_args, context) => {
                 const args = _args as ToolFindDashboardsArgs;
@@ -334,7 +355,9 @@ export class McpService extends BaseService {
             McpToolName.FIND_CHARTS,
             {
                 description: toolFindChartsArgsSchema.description,
-                inputSchema: toolFindChartsArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolFindChartsArgsSchema,
+                ) as AnyType,
             },
             async (_args, context) => {
                 const args = _args as ToolFindChartsArgs;
@@ -545,9 +568,12 @@ export class McpService extends BaseService {
             McpToolName.RUN_METRIC_QUERY,
             {
                 description: toolRunMetricQueryArgsSchema.description,
-                inputSchema: toolRunMetricQueryArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolRunMetricQueryArgsSchema,
+                ) as AnyType,
             },
             async (_args, context) => {
+                // No transformation needed - this schema already uses .optional() for filters
                 const args = _args as ToolRunMetricQueryArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
@@ -596,10 +622,17 @@ export class McpService extends BaseService {
             McpToolName.SEARCH_FIELD_VALUES,
             {
                 description: toolSearchFieldValuesArgsSchema.description,
-                inputSchema: toolSearchFieldValuesArgsSchema.shape as AnyType, // Cast to AnyType to avoid slow TypeScript compilation
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolSearchFieldValuesArgsSchema,
+                ) as AnyType,
             },
             async (_args, context) => {
-                const args = _args as ToolSearchFieldValuesArgs;
+                // Transform args back to match expected interface
+                const args: ToolSearchFieldValuesArgs = {
+                    ..._args,
+                    query: _args.query ?? null,
+                    filters: _args.filters ?? null,
+                } as ToolSearchFieldValuesArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,

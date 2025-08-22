@@ -47,7 +47,7 @@ type ProjectScopeContext = BaseScopeContext & {
  */
 export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
 
-export type ScopeModifer = 'self' | 'public' | 'assigned';
+export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space';
 type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
 
 /**
@@ -79,5 +79,5 @@ export type Scope = {
     /**
      * Get the conditions to be applied to the CASL ability derived from the scope
      */
-    getConditions?: (context: ScopeContext) => Record<string, unknown>[];
+    getConditions: (context: ScopeContext) => Record<string, unknown>[];
 };

@@ -492,6 +492,34 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-query',
+    )
+    @OperationId('getArtifactVizQuery')
+    async getArtifactVizQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getArtifactVizQuery(
+                req.user!,
+                {
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                },
+            ),
+        };
+    }
+
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
     }

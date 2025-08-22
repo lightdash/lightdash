@@ -31,6 +31,7 @@ import {
     LightdashUser,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    ParameterError,
     parseVizConfig,
     QueryExecutionContext,
     SlackPrompt,
@@ -1222,6 +1223,101 @@ export class AiAgentService {
                 organizationId: organizationUuid,
                 agentId: agent.uuid,
                 agentName: agent.name,
+                vizType: parsedVizConfig.type,
+            },
+        });
+
+        return {
+            type: parsedVizConfig.type,
+            query,
+            metadata,
+        };
+    }
+
+    async getArtifactVizQuery(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+        },
+    ): Promise<ApiAiAgentThreadMessageVizQuery> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        // Check if user has access to this agent
+        await this.getAgent(user, agentUuid, agent.projectUuid);
+
+        // Get the specific artifact version
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        if (!artifact) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
+
+        if (!artifact.chartConfig) {
+            throw new ParameterError(
+                'Chart config not found for this artifact',
+            );
+        }
+
+        const parsedVizConfig = parseVizConfig(
+            artifact.chartConfig,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+        );
+        if (!parsedVizConfig) {
+            throw new ParameterError('Could not generate a visualization');
+        }
+
+        const query = await this.executeAsyncAiMetricQuery(
+            user,
+            projectUuid,
+            parsedVizConfig.metricQuery,
+        );
+
+        const metadata = {
+            title: artifact.title ?? parsedVizConfig.vizTool?.title ?? null,
+            description:
+                artifact.description ??
+                parsedVizConfig.vizTool?.description ??
+                null,
+        } satisfies AiVizMetadata;
+
+        this.analytics.track({
+            event: 'ai_agent.artifact_viz_query',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                agentId: agent.uuid,
+                agentName: agent.name,
+                artifactId: artifactUuid,
+                artifactVersionId: versionUuid,
                 vizType: parsedVizConfig.type,
             },
         });

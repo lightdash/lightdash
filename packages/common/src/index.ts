@@ -121,6 +121,7 @@ import { type UserWarehouseCredentials } from './types/userWarehouseCredentials'
 import { type ValidationResponse } from './types/validation';
 
 import type {
+    ApiAiAgentArtifactResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
@@ -188,6 +189,7 @@ import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
+export * from './authorization/roleToScopeMapping';
 export * from './authorization/scopes';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
@@ -939,7 +941,8 @@ type ApiResults =
     | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
-    | Account;
+    | Account
+    | ApiAiAgentArtifactResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

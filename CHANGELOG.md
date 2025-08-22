@@ -1,3 +1,60 @@
+## [0.1949.1](https://github.com/lightdash/lightdash/compare/0.1949.0...0.1949.1) (2025-08-22)
+
+
+### Bug Fixes
+
+* lightdash validate command shows success despite compilation errors ([#16554](https://github.com/lightdash/lightdash/issues/16554)) ([6c4a09a](https://github.com/lightdash/lightdash/commit/6c4a09acc26c1b2a46aed17c72610be0178e6ca6))
+
+# [0.1949.0](https://github.com/lightdash/lightdash/compare/0.1948.0...0.1949.0) (2025-08-22)
+
+
+### Bug Fixes
+
+* incorrect import ([#16561](https://github.com/lightdash/lightdash/issues/16561)) ([a451e4d](https://github.com/lightdash/lightdash/commit/a451e4d4252b656294cf9976a3a820bbb3fff4fc))
+* restore View SQL feature in AI artifacts ([#16546](https://github.com/lightdash/lightdash/issues/16546)) ([2fd843c](https://github.com/lightdash/lightdash/commit/2fd843ce72a4dc135fddf2e8095fd888e5b4f122))
+* return system roles ([#16552](https://github.com/lightdash/lightdash/issues/16552)) ([65c14a8](https://github.com/lightdash/lightdash/commit/65c14a8b21db7814ad58bc06231b65779b407875))
+
+
+### Features
+
+* add schema compatibility layer for MCP service ([#16559](https://github.com/lightdash/lightdash/issues/16559)) ([05889f9](https://github.com/lightdash/lightdash/commit/05889f9b8c28dc892ba6b5c6e37e7992a2ca4256)), closes [#16430](https://github.com/lightdash/lightdash/issues/16430)
+
+# [0.1948.0](https://github.com/lightdash/lightdash/compare/0.1947.0...0.1948.0) (2025-08-22)
+
+
+### Features
+
+* add full modifiers to get role-scope parity ([#16539](https://github.com/lightdash/lightdash/issues/16539)) ([abef0df](https://github.com/lightdash/lightdash/commit/abef0df16dcda210def98f0ab247a441fcdc1b2e)), closes [#16522](https://github.com/lightdash/lightdash/issues/16522)
+
+# [0.1947.0](https://github.com/lightdash/lightdash/compare/0.1946.0...0.1947.0) (2025-08-22)
+
+
+### Features
+
+* API endpoint for artifact query visualizations ([#16540](https://github.com/lightdash/lightdash/issues/16540)) ([7a6f387](https://github.com/lightdash/lightdash/commit/7a6f3878a153cb3f87a0e19c8bf9402a6729fda3))
+* Integrate agent artifacts API with the UI ([#16541](https://github.com/lightdash/lightdash/issues/16541)) ([2047aea](https://github.com/lightdash/lightdash/commit/2047aea113169dd7c5b50c468bd7931da9e8fac5))
+
+# [0.1946.0](https://github.com/lightdash/lightdash/compare/0.1945.0...0.1946.0) (2025-08-22)
+
+
+### Features
+
+* Remove conversations preview for admin view ([#16553](https://github.com/lightdash/lightdash/issues/16553)) ([9dd3557](https://github.com/lightdash/lightdash/commit/9dd35576e4163d38fa7f5132b0f796d2a006301c))
+
+# [0.1945.0](https://github.com/lightdash/lightdash/compare/0.1944.0...0.1945.0) (2025-08-22)
+
+
+### Features
+
+* Improve Artifacts UI styles ([#16516](https://github.com/lightdash/lightdash/issues/16516)) ([db0ef88](https://github.com/lightdash/lightdash/commit/db0ef880a3ab5dfc54c42fe59884e122e7c1c599)), closes [#16457](https://github.com/lightdash/lightdash/issues/16457)
+
+# [0.1944.0](https://github.com/lightdash/lightdash/compare/0.1943.1...0.1944.0) (2025-08-22)
+
+
+### Features
+
+* Display viz in Artifact panel ([#16499](https://github.com/lightdash/lightdash/issues/16499)) ([b79c53d](https://github.com/lightdash/lightdash/commit/b79c53d3a024fa465cd2c5684c97d33edd82371f))
+
 ## [0.1943.1](https://github.com/lightdash/lightdash/compare/0.1943.0...0.1943.1) (2025-08-21)
 
 

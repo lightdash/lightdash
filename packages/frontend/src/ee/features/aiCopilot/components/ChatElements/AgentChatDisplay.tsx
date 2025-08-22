@@ -15,7 +15,6 @@ type Props = {
     showScrollbar?: boolean;
     enableAutoScroll?: boolean;
     padding?: string;
-    mode: 'preview' | 'interactive';
     debug?: boolean;
 };
 
@@ -23,7 +22,6 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     thread,
     height = '100%',
     enableAutoScroll = false,
-    mode,
     children,
     debug,
 }) => {
@@ -69,7 +67,6 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                 <ErrorBoundary>
                                     <AssistantBubble
                                         message={message}
-                                        isPreview={mode === 'preview'}
                                         debug={debug}
                                     />
                                 </ErrorBoundary>

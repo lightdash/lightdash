@@ -6,6 +6,7 @@ import {
     CreateGroupRoleAssignmentRequest,
     CreateUserRoleAssignmentRequest,
     UpdateRoleAssignmentRequest,
+    UpsertUserRoleAssignmentRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -29,7 +30,7 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
-import { RolesService } from '../services/RolesService';
+import { RolesService } from '../../services/RolesService/RolesService';
 
 /**
  * Project Roles API
@@ -55,7 +56,7 @@ export class ProjectRolesController extends BaseController {
      * to specify an interface type.
      */
     protected getRolesService() {
-        return this.services.getRolesService<RolesService>();
+        return this.services.getRolesService();
     }
 
     /**
@@ -83,71 +84,7 @@ export class ProjectRolesController extends BaseController {
     }
 
     /**
-     * Create project role assignment for user
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/assignments/user/{userId}')
-    @OperationId('CreateProjectUserRoleAssignment')
-    async createProjectUserRoleAssignment(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-        @Path() userId: string,
-        @Body() body: CreateUserRoleAssignmentRequest,
-    ): Promise<ApiRoleAssignmentResponse> {
-        const assignment =
-            await this.getRolesService().createProjectUserRoleAssignment(
-                req.account!,
-                projectId,
-                userId,
-                body,
-            );
-
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Create project role assignment for group
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/assignments/group/{groupId}')
-    @OperationId('CreateProjectGroupRoleAssignment')
-    async createProjectGroupRoleAssignment(
-        @Request() req: express.Request,
-        @Path() projectId: string,
-        @Path() groupId: string,
-        @Body() body: CreateGroupRoleAssignmentRequest,
-    ): Promise<ApiRoleAssignmentResponse> {
-        const assignment =
-            await this.getRolesService().createProjectGroupRoleAssignment(
-                req.account!,
-                projectId,
-                groupId,
-                body,
-            );
-
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Update project role assignment for user
+     * Create or update project role assignment for user (upsert)
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -155,20 +92,51 @@ export class ProjectRolesController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Patch('/assignments/user/{userId}')
-    @OperationId('UpdateProjectUserRoleAssignment')
-    async updateProjectUserRoleAssignment(
+    @Post('/assignments/user/{userId}')
+    @OperationId('UpsertProjectUserRoleAssignment')
+    async upsertProjectUserRoleAssignment(
         @Request() req: express.Request,
         @Path() projectId: string,
         @Path() userId: string,
-        @Body() body: UpdateRoleAssignmentRequest,
+        @Body() body: UpsertUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
-            await this.getRolesService().updateProjectRoleAssignment(
+            await this.getRolesService().upsertProjectUserRoleAssignment(
                 req.account!,
                 projectId,
                 userId,
-                'user',
+                body,
+            );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: assignment,
+        };
+    }
+
+    /**
+     * Create or update project role assignment for group (upsert)
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/assignments/group/{groupId}')
+    @OperationId('UpsertProjectGroupRoleAssignment')
+    async upsertProjectGroupRoleAssignment(
+        @Request() req: express.Request,
+        @Path() projectId: string,
+        @Path() groupId: string,
+        @Body() body: UpsertUserRoleAssignmentRequest,
+    ): Promise<ApiRoleAssignmentResponse> {
+        const assignment =
+            await this.getRolesService().upsertProjectGroupRoleAssignment(
+                req.account!,
+                projectId,
+                groupId,
                 body,
             );
 

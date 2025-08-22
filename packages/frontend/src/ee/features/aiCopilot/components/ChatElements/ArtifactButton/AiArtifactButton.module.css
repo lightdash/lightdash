@@ -1,0 +1,37 @@
+.artifactButton {
+    transition: all 0.2s ease;
+    color: var(--mantine-color-gray-7);
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-gray-2);
+    border-radius: var(--mantine-radius-md);
+
+    &[artifact-open='true'] {
+        background-color: var(--mantine-color-gray-0);
+        outline: 1px solid var(--mantine-color-blue-6);
+    }
+
+    &:hover {
+        background-color: var(--mantine-color-gray-0);
+    }
+}
+
+.container {
+    justify-content: space-between;
+    width: 100%;
+    align-items: flex-start;
+}
+
+.content {
+    gap: var(--mantine-spacing-xs);
+    align-items: flex-start;
+}
+
+.icon {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.text {
+    min-width: 0;
+    flex: 1;
+}

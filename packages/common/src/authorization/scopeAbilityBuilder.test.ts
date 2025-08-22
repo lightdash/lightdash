@@ -25,7 +25,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...baseContextWithOrg,
-                    scopes: ['view:organization'],
+                    scopes: ['view:Organization'],
                 },
                 builder,
             );
@@ -57,7 +57,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...baseContext,
-                    scopes: ['view:dashboard'],
+                    scopes: ['view:Dashboard'],
                 },
                 builder,
             );
@@ -98,7 +98,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...contextWithUser,
-                    scopes: ['view:dashboard'],
+                    scopes: ['view:Dashboard'],
                 },
                 builder,
             );
@@ -127,7 +127,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...projectContext,
-                    scopes: ['view:project'],
+                    scopes: ['view:Project'],
                 },
                 builder,
             );
@@ -149,7 +149,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...baseContextWithOrg,
-                    scopes: ['create:project'],
+                    scopes: ['create:Project'],
                 },
                 builder,
             );
@@ -188,7 +188,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...editorContext,
-                    scopes: ['manage:dashboard'],
+                    scopes: ['manage:Dashboard'],
                 },
                 builder,
             );
@@ -221,7 +221,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...adminContext,
-                    scopes: ['manage:space'],
+                    scopes: ['manage:Space'],
                 },
                 builder,
             );
@@ -254,7 +254,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...userContext,
-                    scopes: ['view:job_status'],
+                    scopes: ['view:JobStatus@self'],
                 },
                 builder,
             );
@@ -292,7 +292,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...userContext,
-                    scopes: ['manage:ai_agent_thread'],
+                    scopes: ['manage:AiAgentThread@self'],
                 },
                 builder,
             );
@@ -303,7 +303,7 @@ describe('scopeAbilityBuilder', () => {
                 ability.can(
                     'manage',
                     subject('AiAgentThread', {
-                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
                         userUuid: 'user-456',
                     }),
                 ),
@@ -314,7 +314,7 @@ describe('scopeAbilityBuilder', () => {
                 ability.can(
                     'manage',
                     subject('AiAgentThread', {
-                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
                         userUuid: 'other-user',
                     }),
                 ),
@@ -327,7 +327,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...baseContext,
-                    scopes: ['view:analytics', 'manage:tags'],
+                    scopes: ['view:Analytics', 'manage:Tags'],
                 },
                 builder,
             );
@@ -383,11 +383,7 @@ describe('scopeAbilityBuilder', () => {
                 organizationUuid: 'org-123',
                 isEnterprise: false,
                 organizationRole: 'admin',
-                scopes: [
-                    'view:dashboard',
-                    'manage:saved_chart',
-                    'view:project',
-                ],
+                scopes: ['view:Dashboard', 'manage:SavedChart', 'view:Project'],
             };
 
             const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -438,7 +434,7 @@ describe('scopeAbilityBuilder', () => {
                 const contextWithOrgManage = {
                     ...baseContext,
                     userUuid: 'user-456',
-                    scopes: ['manage:organization', 'manage:saved_chart'],
+                    scopes: ['manage:Organization', 'manage:SavedChart'],
                 };
 
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -473,7 +469,7 @@ describe('scopeAbilityBuilder', () => {
                 const contextWithoutOrgManage = {
                     ...baseContext,
                     userUuid: 'user-456',
-                    scopes: ['manage:saved_chart'],
+                    scopes: ['manage:SavedChart@space'],
                 };
 
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -514,7 +510,7 @@ describe('scopeAbilityBuilder', () => {
                 const contextWithProjectManage = {
                     ...baseContext,
                     userUuid: 'user-456',
-                    scopes: ['manage:project', 'manage:space'],
+                    scopes: ['manage:Project', 'manage:Space'],
                 };
 
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -555,13 +551,13 @@ describe('scopeAbilityBuilder', () => {
                 const contextWithOrgManage = {
                     ...baseContext,
                     userUuid: 'user-456',
-                    scopes: ['manage:organization', 'promote:dashboard'],
+                    scopes: ['manage:Organization', 'promote:Dashboard'],
                 };
 
                 const contextWithoutOrgManage = {
                     ...baseContext,
                     userUuid: 'user-456',
-                    scopes: ['promote:dashboard'],
+                    scopes: ['promote:Dashboard@space'],
                 };
 
                 // Test dashboard promotion with organization management
@@ -619,6 +615,136 @@ describe('scopeAbilityBuilder', () => {
             });
         });
 
+        describe('AI agent thread permissions with modifiers', () => {
+            it('should handle view:ai_agent_thread@self permissions', () => {
+                const contextWithUser = {
+                    ...baseContext,
+                    userUuid: 'user-456',
+                    isEnterprise: true,
+                };
+
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['view:AiAgentThread@self'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can view own AI agent threads
+                expect(
+                    ability.can(
+                        'view',
+                        subject('AiAgentThread', {
+                            projectUuid: 'project-123',
+                            userUuid: 'user-456',
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Cannot view other users' threads
+                expect(
+                    ability.can(
+                        'view',
+                        subject('AiAgentThread', {
+                            projectUuid: 'project-123',
+                            userUuid: 'other-user',
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle manage:ai_agent_thread@self permissions', () => {
+                const contextWithUser = {
+                    ...baseContext,
+                    userUuid: 'user-456',
+                    isEnterprise: true,
+                };
+
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        userUuid: 'user-456',
+                        scopes: ['manage:AiAgentThread@self'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can manage own AI agent threads
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('AiAgentThread', {
+                            projectUuid: 'project-123',
+                            userUuid: 'user-456',
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Cannot manage other users' threads
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('AiAgentThread', {
+                            userUuid: 'other-user',
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle view:ai_agent_thread permissions for all threads', () => {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        isEnterprise: true,
+                        scopes: ['view:AiAgentThread'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can view any AI agent thread
+                expect(
+                    ability.can(
+                        'view',
+                        subject('AiAgentThread', {
+                            organizationUuid: 'org-123',
+                            userUuid: 'any-user',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+
+            it('should handle manage:ai_agent_thread permissions for all threads', () => {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        isEnterprise: true,
+                        scopes: ['manage:AiAgentThread'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can manage any AI agent thread
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('AiAgentThread', {
+                            organizationUuid: 'org-123',
+                            userUuid: 'any-user',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+        });
+
         describe('edge cases and error handling', () => {
             it('should handle empty scope array', () => {
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -636,7 +762,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...contextWithoutUser,
-                        scopes: ['view:dashboard'],
+                        scopes: ['view:Dashboard'],
                     },
                     builder,
                 );
@@ -672,8 +798,8 @@ describe('scopeAbilityBuilder', () => {
                     {
                         ...baseContext,
                         scopes: [
-                            'view:dashboard',
-                            'view:project',
+                            'view:Dashboard',
+                            'view:Project',
                             'invalid:scope',
                         ],
                     },
@@ -699,9 +825,9 @@ describe('scopeAbilityBuilder', () => {
                     {
                         ...baseContext,
                         scopes: [
-                            'view:dashboard',
-                            'manage:saved_chart',
-                            'view:space',
+                            'view:Dashboard',
+                            'manage:SavedChart',
+                            'view:Space',
                         ],
                     },
                     builder,
@@ -746,7 +872,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['view:saved_chart'],
+                        scopes: ['view:SavedChart'],
                     },
                     builder,
                 );
@@ -777,7 +903,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...contextWithUser,
-                        scopes: ['view:dashboard'],
+                        scopes: ['view:Dashboard'],
                     },
                     builder,
                 );
@@ -840,7 +966,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...contextWithUser,
-                        scopes: ['manage:dashboard'],
+                        scopes: ['manage:Dashboard@space'],
                     },
                     builder,
                 );
@@ -916,7 +1042,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...contextWithUser,
-                        scopes: ['manage:space@assigned'],
+                        scopes: ['manage:Space@assigned'],
                     },
                     builder,
                 );
@@ -975,7 +1101,7 @@ describe('scopeAbilityBuilder', () => {
         });
 
         describe('job and job status permissions', () => {
-            it('should handle view:job permissions', () => {
+            it('should handle view:job@self permissions', () => {
                 const contextWithUser = {
                     ...baseContext,
                     userUuid: 'user-456',
@@ -985,7 +1111,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...contextWithUser,
-                        scopes: ['view:job'],
+                        scopes: ['view:Job@self'],
                     },
                     builder,
                 );
@@ -1012,81 +1138,13 @@ describe('scopeAbilityBuilder', () => {
                 ).toBe(false);
             });
 
-            it('should handle view:job_status permissions for organization context', () => {
+            it('should handle view:job_status@self permissions for user context', () => {
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['view:job_status'],
-                    },
-                    builder,
-                );
-                const ability = builder.build();
-
-                // Cannot view job status without user context when no manage:Organization scope
-                expect(
-                    ability.can(
-                        'view',
-                        subject('JobStatus', {
-                            organizationUuid: 'org-123',
-                        }),
-                    ),
-                ).toBe(false);
-
-                // Cannot view job status from another organization
-                expect(
-                    ability.can(
-                        'view',
-                        subject('JobStatus', {
-                            organizationUuid: 'different-org',
-                        }),
-                    ),
-                ).toBe(false);
-            });
-
-            it('should handle view:job_status permissions with manage:Organization scope', () => {
-                const builder = new AbilityBuilder<MemberAbility>(Ability);
-                buildAbilityFromScopes(
-                    {
-                        ...baseContextWithOrg,
-                        scopes: ['view:job_status', 'manage:organization'],
-                    },
-                    builder,
-                );
-                const ability = builder.build();
-
-                // Can view all job status in organization when manage:Organization scope is present
-                expect(
-                    ability.can(
-                        'view',
-                        subject('JobStatus', {
-                            organizationUuid: 'org-123',
-                        }),
-                    ),
-                ).toBe(true);
-
-                // Cannot view job status from another organization
-                expect(
-                    ability.can(
-                        'view',
-                        subject('JobStatus', {
-                            organizationUuid: 'different-org',
-                        }),
-                    ),
-                ).toBe(false);
-            });
-
-            it('should handle view:job_status permissions for user context', () => {
-                const contextWithUser = {
-                    ...baseContext,
-                    userUuid: 'user-456',
-                };
-
-                const builder = new AbilityBuilder<MemberAbility>(Ability);
-                buildAbilityFromScopes(
-                    {
-                        ...contextWithUser,
-                        scopes: ['view:job_status'],
+                        userUuid: 'user-456',
+                        scopes: ['view:JobStatus@self'],
                     },
                     builder,
                 );
@@ -1112,6 +1170,303 @@ describe('scopeAbilityBuilder', () => {
                     ),
                 ).toBe(false);
             });
+
+            it('should handle view:job_status permissions for all job status', () => {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContextWithOrg,
+                        scopes: ['view:JobStatus'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can view all job status in organization
+                expect(
+                    ability.can(
+                        'view',
+                        subject('JobStatus', {
+                            organizationUuid: 'org-123',
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Cannot view job status from another organization
+                expect(
+                    ability.can(
+                        'view',
+                        subject('JobStatus', {
+                            organizationUuid: 'different-org',
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle view:job permissions for all jobs', () => {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...baseContext,
+                        scopes: ['view:Job'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can view any job
+                expect(
+                    ability.can(
+                        'view',
+                        subject('Job', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                            userUuid: 'any-user',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+        });
+
+        describe('space-based permissions modifiers', () => {
+            it('should handle manage:dashboard@space permissions', () => {
+                const contextWithUser = {
+                    ...baseContextWithOrg,
+                    userUuid: 'user-456',
+                };
+
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['manage:Dashboard@space'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can manage dashboard with editor role
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('Dashboard', {
+                            organizationUuid: 'org-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.EDITOR,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Can manage dashboard with admin role
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('Dashboard', {
+                            organizationUuid: 'org-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.ADMIN,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Cannot manage dashboard with viewer role
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('Dashboard', {
+                            organizationUuid: 'org-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.VIEWER,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(false);
+
+                // Cannot manage dashboard without access
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('Dashboard', {
+                            organizationUuid: 'org-123',
+                            access: [],
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle manage:saved_chart@space permissions', () => {
+                const contextWithUser = {
+                    ...baseContext,
+                    userUuid: 'user-456',
+                };
+
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['manage:SavedChart@space'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can manage saved chart with editor role
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('SavedChart', {
+                            projectUuid: 'project-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.EDITOR,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Can manage saved chart with admin role
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('SavedChart', {
+                            projectUuid: 'project-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.ADMIN,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Cannot manage without proper access
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('SavedChart', {
+                            projectUuid: 'project-123',
+                            access: [
+                                {
+                                    userUuid: 'other-user',
+                                    role: SpaceMemberRole.EDITOR,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle promote:dashboard@space permissions', () => {
+                const contextWithUser = {
+                    ...baseContext,
+                    userUuid: 'user-456',
+                };
+
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['promote:Dashboard@space'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can promote dashboard with editor access
+                expect(
+                    ability.can(
+                        'promote',
+                        subject('Dashboard', {
+                            projectUuid: 'project-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.EDITOR,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Cannot promote without editor access
+                expect(
+                    ability.can(
+                        'promote',
+                        subject('Dashboard', {
+                            projectUuid: 'project-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.VIEWER,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(false);
+            });
+
+            it('should handle manage:semantic_viewer@space permissions', () => {
+                const contextWithUser = {
+                    ...baseContextWithOrg,
+                    userUuid: 'user-456',
+                };
+
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                buildAbilityFromScopes(
+                    {
+                        ...contextWithUser,
+                        scopes: ['manage:SemanticViewer@space'],
+                    },
+                    builder,
+                );
+                const ability = builder.build();
+
+                // Can manage semantic viewer with editor role
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('SemanticViewer', {
+                            organizationUuid: 'org-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.EDITOR,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(true);
+
+                // Cannot manage without editor role
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('SemanticViewer', {
+                            organizationUuid: 'org-123',
+                            access: [
+                                {
+                                    userUuid: 'user-456',
+                                    role: SpaceMemberRole.VIEWER,
+                                },
+                            ],
+                        }),
+                    ),
+                ).toBe(false);
+            });
         });
 
         describe('semantic viewer permissions', () => {
@@ -1120,7 +1475,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['view:semantic_viewer'],
+                        scopes: ['view:SemanticViewer'],
                     },
                     builder,
                 );
@@ -1141,7 +1496,7 @@ describe('scopeAbilityBuilder', () => {
                 const contextWithOrgManage = {
                     ...baseContextWithOrg,
                     userUuid: 'user-456',
-                    scopes: ['manage:organization'],
+                    scopes: ['manage:Organization'],
                 };
 
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -1149,8 +1504,8 @@ describe('scopeAbilityBuilder', () => {
                     {
                         ...contextWithOrgManage,
                         scopes: [
-                            'manage:organization',
-                            'manage:semantic_viewer',
+                            'manage:Organization',
+                            'manage:SemanticViewer',
                         ],
                     },
                     builder,
@@ -1178,7 +1533,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...contextWithUser,
-                        scopes: ['manage:semantic_viewer'],
+                        scopes: ['manage:SemanticViewer@space'],
                     },
                     builder,
                 );
@@ -1224,7 +1579,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['create:space'],
+                        scopes: ['create:Space'],
                     },
                     builder,
                 );
@@ -1248,7 +1603,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:export_csv'],
+                        scopes: ['manage:ExportCsv'],
                     },
                     builder,
                 );
@@ -1270,7 +1625,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:change_csv_results'],
+                        scopes: ['manage:ChangeCsvResults'],
                     },
                     builder,
                 );
@@ -1294,7 +1649,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['view:underlying_data'],
+                        scopes: ['view:UnderlyingData'],
                     },
                     builder,
                 );
@@ -1318,7 +1673,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:sql_runner'],
+                        scopes: ['manage:SqlRunner'],
                     },
                     builder,
                 );
@@ -1340,7 +1695,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:custom_sql'],
+                        scopes: ['manage:CustomSql'],
                     },
                     builder,
                 );
@@ -1365,7 +1720,7 @@ describe('scopeAbilityBuilder', () => {
                     {
                         ...baseContext,
                         userUuid: 'user-456',
-                        scopes: ['delete:project@self'],
+                        scopes: ['delete:Project@self'],
                     },
                     builder,
                 );
@@ -1393,23 +1748,24 @@ describe('scopeAbilityBuilder', () => {
                 ).toBe(false);
             });
 
-            it('should handle delete:project for preview projects', () => {
+            it('should handle delete:project@self for own preview projects', () => {
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
                 buildAbilityFromScopes(
                     {
-                        ...baseContextWithOrg,
-                        scopes: ['delete:project'],
+                        ...baseContext,
+                        userUuid: 'user-456',
+                        scopes: ['delete:Project@self'],
                     },
                     builder,
                 );
                 const ability = builder.build();
 
-                // Can delete preview projects in organization
+                // Can delete preview projects in a project
                 expect(
                     ability.can(
                         'delete',
                         subject('Project', {
-                            organizationUuid: 'org-123',
+                            createdByUserUuid: 'user-456',
                             type: ProjectType.PREVIEW,
                         }),
                     ),
@@ -1420,7 +1776,7 @@ describe('scopeAbilityBuilder', () => {
                     ability.can(
                         'delete',
                         subject('Project', {
-                            organizationUuid: 'org-123',
+                            createdByUserUuid: 'user-456',
                             type: ProjectType.DEFAULT,
                         }),
                     ),
@@ -1434,7 +1790,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['view:pinned_items'],
+                        scopes: ['view:PinnedItems'],
                     },
                     builder,
                 );
@@ -1456,7 +1812,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:pinned_items'],
+                        scopes: ['manage:PinnedItems'],
                     },
                     builder,
                 );
@@ -1480,7 +1836,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:explore'],
+                        scopes: ['manage:Explore'],
                     },
                     builder,
                 );
@@ -1504,7 +1860,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['create:virtual_view'],
+                        scopes: ['create:VirtualView'],
                     },
                     builder,
                 );
@@ -1537,7 +1893,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['delete:virtual_view'],
+                        scopes: ['delete:VirtualView'],
                     },
                     builder,
                 );
@@ -1570,7 +1926,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:virtual_view'],
+                        scopes: ['manage:VirtualView'],
                     },
                     builder,
                 );
@@ -1615,9 +1971,9 @@ describe('scopeAbilityBuilder', () => {
                     {
                         ...baseContextWithOrg,
                         scopes: [
-                            'create:virtual_view',
-                            'delete:virtual_view',
-                            'manage:virtual_view',
+                            'create:VirtualView',
+                            'delete:VirtualView',
+                            'manage:VirtualView',
                         ],
                     },
                     builder,
@@ -1662,9 +2018,9 @@ describe('scopeAbilityBuilder', () => {
                     {
                         ...baseContextWithOrg,
                         scopes: [
-                            'create:virtual_view',
-                            'delete:virtual_view',
-                            'manage:virtual_view',
+                            'create:VirtualView',
+                            'delete:VirtualView',
+                            'manage:VirtualView',
                         ],
                     },
                     builder,
@@ -1711,7 +2067,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContextWithOrg,
-                        scopes: ['view:organization_member_profile'],
+                        scopes: ['view:OrganizationMemberProfile'],
                     },
                     builder,
                 );
@@ -1744,7 +2100,7 @@ describe('scopeAbilityBuilder', () => {
                 buildAbilityFromScopes(
                     {
                         ...baseContext,
-                        scopes: ['manage:organization_member_profile'],
+                        scopes: ['manage:OrganizationMemberProfile'],
                     },
                     builder,
                 );
@@ -1770,7 +2126,7 @@ describe('scopeAbilityBuilder', () => {
                         ...baseContext,
                         isEnterprise: true,
                         organizationRole: 'admin',
-                        scopes: ['manage:personal_access_token'],
+                        scopes: ['manage:PersonalAccessToken'],
                         permissionsConfig: {
                             pat: {
                                 enabled: true,
@@ -1792,7 +2148,7 @@ describe('scopeAbilityBuilder', () => {
                         ...baseContext,
                         isEnterprise: true,
                         organizationRole: 'admin',
-                        scopes: ['manage:personal_access_token'],
+                        scopes: ['manage:PersonalAccessToken'],
                         permissionsConfig: {
                             pat: {
                                 enabled: false,
@@ -1816,7 +2172,7 @@ describe('scopeAbilityBuilder', () => {
                         ...baseContext,
                         isEnterprise: true,
                         organizationRole: 'developer',
-                        scopes: ['manage:personal_access_token'],
+                        scopes: ['manage:PersonalAccessToken'],
                         permissionsConfig: {
                             pat: {
                                 enabled: true,
@@ -1840,7 +2196,7 @@ describe('scopeAbilityBuilder', () => {
                         ...baseContext,
                         isEnterprise: true,
                         organizationRole: 'admin',
-                        scopes: ['manage:personal_access_token'],
+                        scopes: ['manage:PersonalAccessToken'],
                         // No permissionsConfig provided
                     },
                     builder,
@@ -1859,7 +2215,7 @@ describe('scopeAbilityBuilder', () => {
                         ...baseContext,
                         isEnterprise: true,
                         organizationRole: '', // Empty organization role
-                        scopes: ['manage:personal_access_token'],
+                        scopes: ['manage:PersonalAccessToken'],
                         permissionsConfig: {
                             pat: {
                                 enabled: true,

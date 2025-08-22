@@ -1,15 +1,8 @@
-import {
-    AiResultType,
-    ChartKind,
-    parseVizConfig,
-    type AiAgentMessageAssistant,
-    type ApiExecuteAsyncMetricQueryResults,
-} from '@lightdash/common';
+import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
     Button,
-    Center,
     CopyButton,
     Group,
     Loader,
@@ -33,15 +26,12 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
-import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import {
-    useAiAgentThreadMessageVizQuery,
-    useUpdatePromptFeedbackMutation,
-} from '../../hooks/useOrganizationAiAgents';
+import { useUpdatePromptFeedbackMutation } from '../../hooks/useOrganizationAiAgents';
+import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
 import { useAiAgentThreadStreamMutation } from '../../streaming/useAiAgentThreadStreamMutation';
 import {
     useAiAgentThreadMessageStreaming,
@@ -49,7 +39,7 @@ import {
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
-import { AiChartVisualization } from './AiChartVisualization';
+import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
@@ -57,8 +47,7 @@ const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
-    metricQuery?: ApiExecuteAsyncMetricQueryResults['metricQuery'];
-}> = ({ message, metricQuery, projectUuid, agentUuid }) => {
+}> = ({ message, projectUuid, agentUuid }) => {
     const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
     const isStreaming = useAiAgentThreadMessageStreaming(
         message.threadUuid,
@@ -145,14 +134,12 @@ const AssistantBubbleContent: FC<{
                 <AiChartToolCalls
                     toolCalls={message.toolCalls}
                     type="persisted"
-                    metricQuery={metricQuery}
-                    projectUuid={projectUuid}
                 />
             )}
             {messageContent.length > 0 ? (
                 <MDEditor.Markdown
                     source={messageContent}
-                    style={{ padding: `0.5rem 0` }}
+                    style={{ padding: `0.5rem 0`, fontSize: '0.875rem' }}
                     rehypePlugins={[rehypeAiAgentContentLinks]}
                     components={{
                         a: ({ node, children, ...props }) => {
@@ -264,50 +251,18 @@ const AssistantBubbleContent: FC<{
 
 type Props = {
     message: AiAgentMessageAssistant;
-    isPreview?: boolean;
     isActive?: boolean;
     debug?: boolean;
 };
 
 export const AssistantBubble: FC<Props> = memo(
-    ({ message, isPreview = false, isActive = false, debug = false }) => {
+    ({ message, isActive = false, debug = false }) => {
         const { agentUuid, projectUuid } = useParams();
+        const { setArtifact, artifact } = useAiAgentPageLayout();
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
-        const vizConfig = useMemo(
-            () => parseVizConfig(message.vizConfigOutput),
-            [message.vizConfigOutput],
-        );
-
-        const hasVizConfig = !!vizConfig;
-        const isChartVisualization =
-            hasVizConfig && vizConfig.type !== AiResultType.TABLE_RESULT;
-        const isTableVisualization =
-            hasVizConfig &&
-            vizConfig.type === AiResultType.TABLE_RESULT &&
-            vizConfig.vizTool.vizConfig.limit !== 1;
-        const isVisualizationAvailable =
-            hasVizConfig && (isChartVisualization || isTableVisualization);
-
-        const queryExecutionHandle = useAiAgentThreadMessageVizQuery(
-            {
-                projectUuid,
-                agentUuid,
-                threadUuid: message.threadUuid,
-                messageUuid: message.uuid,
-            },
-            { enabled: isVisualizationAvailable },
-        );
-
-        const queryResults = useInfiniteQueryResults(
-            projectUuid,
-            queryExecutionHandle?.data?.query.queryUuid,
-        );
-
-        const isQueryLoading =
-            queryExecutionHandle.isLoading || queryResults.isFetchingRows;
-        const isQueryError = queryExecutionHandle.isError || queryResults.error;
+        const isArtifactAvailable = !!message.artifact;
 
         const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
             useDisclosure(debug);
@@ -356,61 +311,30 @@ export const AssistantBubble: FC<Props> = memo(
             >
                 <AssistantBubbleContent
                     message={message}
-                    metricQuery={queryExecutionHandle.data?.query.metricQuery}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                 />
 
-                {isVisualizationAvailable && (
-                    <Paper
-                        withBorder
-                        radius="md"
-                        p="md"
-                        h="500px"
-                        shadow="none"
-                        {...((queryExecutionHandle.isError ||
-                            queryExecutionHandle.isLoading) && {
-                            bg: 'gray.0',
-                            style: {
-                                borderStyle: 'dashed',
-                            },
-                        })}
-                    >
-                        {isQueryLoading ? (
-                            <Center h="100%">
-                                <Loader
-                                    type="dots"
-                                    color="gray"
-                                    delayedMessage="Loading visualization..."
-                                />
-                            </Center>
-                        ) : isQueryError ? (
-                            <Stack
-                                gap="xs"
-                                align="center"
-                                justify="center"
-                                h="100%"
-                            >
-                                <MantineIcon
-                                    icon={IconExclamationCircle}
-                                    color="gray"
-                                />
-                                <Text size="xs" c="dimmed" ta="center">
-                                    Something went wrong generating the
-                                    visualization, please try again
-                                </Text>
-                            </Stack>
-                        ) : (
-                            <AiChartVisualization
-                                results={queryResults}
-                                message={message}
-                                queryExecutionHandle={queryExecutionHandle}
-                                projectUuid={projectUuid}
-                            />
-                        )}
-                    </Paper>
+                {isArtifactAvailable && (
+                    <AiArtifactButton
+                        onClick={() =>
+                            setArtifact(
+                                message.artifact!.uuid,
+                                message.artifact!.versionUuid,
+                                message,
+                                projectUuid,
+                                agentUuid,
+                            )
+                        }
+                        isArtifactOpen={
+                            artifact?.artifactUuid === message.artifact?.uuid &&
+                            artifact?.versionUuid ===
+                                message.artifact?.versionUuid
+                        }
+                        artifact={message.artifact}
+                    />
                 )}
-                <Group gap={0} display={isPreview ? 'none' : 'flex'}>
+                <Group gap={0}>
                     <CopyButton value={message.message ?? ''}>
                         {({ copied, copy }) => (
                             <ActionIcon
@@ -474,7 +398,7 @@ export const AssistantBubble: FC<Props> = memo(
                         </ActionIcon>
                     )}
 
-                    {isVisualizationAvailable && (
+                    {isArtifactAvailable && (
                         <ActionIcon
                             variant="subtle"
                             color="gray"
@@ -487,14 +411,12 @@ export const AssistantBubble: FC<Props> = memo(
                 </Group>
 
                 <AgentChatDebugDrawer
-                    isVisualizationAvailable={isVisualizationAvailable}
+                    isVisualizationAvailable={isArtifactAvailable}
                     isDrawerOpen={isDrawerOpen}
                     closeDrawer={closeDrawer}
                     toolCalls={message.toolCalls}
-                    vizConfig={vizConfig}
-                    metricQuery={
-                        queryExecutionHandle.data?.query.metricQuery || null
-                    }
+                    vizConfig={null}
+                    metricQuery={null}
                 />
             </Stack>
         );

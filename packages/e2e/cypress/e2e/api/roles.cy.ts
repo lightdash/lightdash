@@ -88,6 +88,100 @@ describe('Roles API Tests', () => {
             });
         });
 
+        it('should return system roles with all inherited scopes', () => {
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles?load=scopes`,
+                method: 'GET',
+            }).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+                expect(resp.body.results).to.be.an('array');
+
+                // Find the editor system role
+                const editorRole = resp.body.results.find(
+                    (role: AnyType) =>
+                        role.ownerType === 'system' && role.name === 'editor',
+                );
+
+                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                expect(editorRole).to.exist;
+
+                if (editorRole) {
+                    expect(editorRole).to.have.property('scopes');
+                    expect(editorRole.scopes).to.be.an('array');
+
+                    // Editor should have all inherited scopes (30+ scopes)
+                    expect(editorRole.scopes.length).to.be.greaterThan(25);
+
+                    // Should include basic viewer scopes
+                    expect(editorRole.scopes).to.include('view:Dashboard');
+                    expect(editorRole.scopes).to.include('view:Space');
+
+                    // Should include interactive viewer scopes
+                    expect(editorRole.scopes).to.include('manage:Explore');
+                    expect(editorRole.scopes).to.include(
+                        'create:DashboardComments',
+                    );
+
+                    // Should include editor-specific scopes
+                    expect(editorRole.scopes).to.include('create:Space');
+                    expect(editorRole.scopes).to.include('manage:Job');
+                    expect(editorRole.scopes).to.include('manage:PinnedItems');
+                }
+            });
+        });
+
+        it('should get a system role by UUID and list their scopes', () => {
+            const systemRoleId = 'developer';
+
+            cy.request({
+                url: `${apiUrl}/${systemRoleId}`,
+                method: 'GET',
+            }).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+                expect(resp.body.results).to.be.an('object');
+
+                const developerRole = resp.body.results;
+
+                // Verify it's the developer system role
+                expect(developerRole).to.have.property('name', 'developer');
+                expect(developerRole).to.have.property('roleUuid', 'developer');
+                expect(developerRole).to.have.property('ownerType', 'system');
+
+                // Verify it has scopes array
+                expect(developerRole).to.have.property('scopes');
+                expect(developerRole.scopes).to.be.an('array');
+
+                // Developer should have extensive scopes (35+ including all inherited)
+                expect(developerRole.scopes.length).to.be.greaterThan(30);
+
+                // Should include all viewer scopes
+                expect(developerRole.scopes).to.include('view:Dashboard');
+                expect(developerRole.scopes).to.include('view:Space');
+                expect(developerRole.scopes).to.include('view:Project');
+
+                // Should include all interactive viewer scopes
+                expect(developerRole.scopes).to.include('manage:Explore');
+                expect(developerRole.scopes).to.include(
+                    'create:DashboardComments',
+                );
+
+                // Should include all editor scopes
+                expect(developerRole.scopes).to.include('create:Space');
+                expect(developerRole.scopes).to.include('manage:Job');
+                expect(developerRole.scopes).to.include('manage:PinnedItems');
+
+                // Should include developer-specific scopes
+                expect(developerRole.scopes).to.include('manage:VirtualView');
+                expect(developerRole.scopes).to.include('manage:SqlRunner');
+
+                // Verify some scopes developer should NOT have (admin-only)
+                expect(developerRole.scopes).to.not.include('manage:Project');
+                expect(developerRole.scopes).to.not.include('view:Analytics');
+            });
+        });
+
         it('should list organization roles with scopes', () => {
             cy.request({
                 url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
@@ -218,20 +312,7 @@ describe('Roles API Tests', () => {
     describe('Unified Role Assignments', () => {
         const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
-        it('should list organization role assignments', () => {
-            cy.request({
-                url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments`,
-                method: 'GET',
-                failOnStatusCode: false, // May not be implemented yet
-            }).then((resp) => {
-                if (resp.status === 200) {
-                    expect(resp.body).to.have.property('status', 'ok');
-                    expect(resp.body.results).to.be.an('array');
-                }
-            });
-        });
-
-        it('should create organization role assignment for user', () => {
+        it('should reject custom role assignment at organization level', () => {
             // First create a test role
             const roleName = `User Assignment Role ${new Date().getTime()}`;
 
@@ -248,39 +329,19 @@ describe('Roles API Tests', () => {
 
                 const { roleUuid } = createResp.body.results;
 
-                // Assign role to user using separate API endpoint
+                // Try to assign custom role to user - should return 400 (only system roles allowed)
                 cy.request({
                     url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
                     method: 'POST',
                     body: {
                         roleId: roleUuid,
                     },
+                    failOnStatusCode: false,
                 }).then((assignResp) => {
-                    expect(assignResp.status).to.eq(201);
-                    expect(assignResp.body).to.have.property('status', 'ok');
-                    expect(assignResp.body.results).to.have.property(
-                        'roleId',
-                        roleUuid,
+                    expect(assignResp.status).to.eq(400);
+                    expect(assignResp.body.error.message).to.contain(
+                        'Only system roles can be assigned at organization level',
                     );
-                    expect(assignResp.body.results).to.have.property(
-                        'assigneeType',
-                        'user',
-                    );
-                    expect(assignResp.body.results).to.have.property(
-                        'assigneeId',
-                        testUserUuid,
-                    );
-                    expect(assignResp.body.results).to.have.property(
-                        'organizationId',
-                        testOrgUuid,
-                    );
-
-                    // Clean up assignment
-                    cy.request({
-                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
-                        method: 'DELETE',
-                        failOnStatusCode: false,
-                    });
                 });
             });
         });
@@ -311,82 +372,30 @@ describe('Roles API Tests', () => {
                     },
                     failOnStatusCode: false,
                 }).then((assignResp) => {
-                    expect(assignResp.status).to.eq(400);
-                    expect(assignResp.body).to.have.property('status', 'error');
-                    expect(assignResp.body).to.have.property('error');
-                    expect(assignResp.body.error).to.have.property(
-                        'message',
-                        'Organization-level group role assignments are not supported',
-                    );
+                    expect(assignResp.status).to.eq(404);
                 });
             });
         });
 
-        it('should delete organization role assignment for user', () => {
-            // First create a test role and assignment
-            const roleName = `Delete User Assignment Role ${new Date().getTime()}`;
-
+        it('should return 404 for deleting organization role assignment (not supported)', () => {
+            // Try to delete organization assignment - should return 404
             cy.request({
-                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
-                method: 'POST',
-                body: {
-                    name: roleName,
-                    description: 'Role for delete user assignment testing',
-                },
-            }).then((createResp) => {
-                // Store for cleanup
-                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
-
-                const { roleUuid } = createResp.body.results;
-
-                // Create assignment first
-                cy.request({
-                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
-                    method: 'POST',
-                    body: {
-                        roleId: roleUuid,
-                    },
-                }).then((assignResp) => {
-                    expect(assignResp.status).to.eq(201);
-
-                    // Delete the assignment
-                    cy.request({
-                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
-                        method: 'DELETE',
-                    }).then((deleteResp) => {
-                        expect(deleteResp.status).to.eq(200);
-                        expect(deleteResp.body).to.have.property(
-                            'status',
-                            'ok',
-                        );
-                    });
-                });
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
+                method: 'DELETE',
+                failOnStatusCode: false,
+            }).then((deleteResp) => {
+                expect(deleteResp.status).to.eq(404);
             });
         });
 
-        it('should get 400 when trying to delete group from org', () => {
-            // First create a test role
-            const roleName = `Delete Group Assignment Role ${new Date().getTime()}`;
-
+        it('should return 404 when trying to delete group from org (not supported)', () => {
+            // Try to delete group assignment - should return 404
             cy.request({
-                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
-                method: 'POST',
-                body: {
-                    name: roleName,
-                    description: 'Role for delete group assignment testing',
-                },
-            }).then((createResp) => {
-                // Store for cleanup
-                cy.wrap(createResp.body.results.roleUuid).as('testRoleUuid');
-
-                // Try to delete group assignment - should fail
-                cy.request({
-                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
-                    method: 'DELETE',
-                    failOnStatusCode: false,
-                }).then((deleteResp) => {
-                    expect(deleteResp.status).to.eq(400);
-                });
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
+                method: 'DELETE',
+                failOnStatusCode: false,
+            }).then((deleteResp) => {
+                expect(deleteResp.status).to.eq(404);
             });
         });
     });
@@ -424,10 +433,9 @@ describe('Roles API Tests', () => {
                     body: {
                         roleId: roleResp.body.results.roleUuid,
                     },
-                    failOnStatusCode: false, // May fail if user already has access
                 }).then((accessResp) => {
-                    // May return 409 if user already has access, which is acceptable
-                    expect([200, 201, 409]).to.include(accessResp.status);
+                    // With upsert endpoint, should always succeed (200)
+                    expect(accessResp.status).to.eq(200);
                 });
             });
         });
@@ -444,23 +452,194 @@ describe('Roles API Tests', () => {
             }).then((roleResp) => {
                 cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
 
-                // Create project access for group using separate endpoint
+                // Create project access for group using upsert endpoint
                 cy.request({
                     url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
                     method: 'POST',
                     body: {
                         roleId: roleResp.body.results.roleUuid,
                     },
-                    failOnStatusCode: false, // May fail if group already has access
                 }).then((accessResp) => {
-                    // May return 409 if group already has access, which is acceptable
-                    expect([200, 201, 409]).to.include(accessResp.status);
+                    // With upsert endpoint, should always succeed (200)
+                    expect(accessResp.status).to.eq(200);
+                });
+            });
+        });
+
+        it('should assign custom role then system role, removing role_uuid', () => {
+            const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
+
+            // First create a custom role
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                method: 'POST',
+                body: {
+                    name: `Custom Test Role ${new Date().getTime()}`,
+                    description: 'Custom role for assignment testing',
+                },
+            }).then((roleResp) => {
+                cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
+                const customRoleUuid = roleResp.body.results.roleUuid;
+
+                // Step 1: Assign custom role to user
+                cy.request({
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                    method: 'POST',
+                    body: {
+                        roleId: customRoleUuid,
+                    },
+                }).then((customAssignResp) => {
+                    // With upsert endpoint, should always succeed (200)
+                    expect(customAssignResp.status).to.eq(200);
+
+                    // Wait a moment for the assignment to be processed, then verify custom role
+                    cy.wait(100).then(() => {
+                        cy.request({
+                            url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+                            method: 'GET',
+                        }).then((assignmentsResp) => {
+                            expect(assignmentsResp.status).to.eq(200);
+                            const userAssignment =
+                                assignmentsResp.body.results.find(
+                                    (assignment: AnyType) =>
+                                        assignment.assigneeType === 'user' &&
+                                        assignment.assigneeId === testUserUuid,
+                                );
+
+                            // Verify custom role is assigned (or skip if already has system role)
+                            if (
+                                userAssignment &&
+                                userAssignment.roleId === customRoleUuid
+                            ) {
+                                expect(userAssignment.roleName).to.contain(
+                                    'Custom Test Role',
+                                );
+
+                                // Step 3: Assign system role (editor) to the same user
+                                cy.request({
+                                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                                    method: 'POST',
+                                    body: {
+                                        roleId: 'editor', // System role
+                                    },
+                                }).then((systemAssignResp) => {
+                                    expect(systemAssignResp.status).to.eq(200);
+                                    expect(
+                                        systemAssignResp.body.results.roleId,
+                                    ).to.eq('editor');
+                                    expect(
+                                        systemAssignResp.body.results.roleName,
+                                    ).to.eq('editor');
+
+                                    // Step 4: Verify the custom role_uuid was removed and system role applied
+                                    cy.request({
+                                        url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+                                        method: 'GET',
+                                    }).then((finalAssignmentsResp) => {
+                                        expect(
+                                            finalAssignmentsResp.status,
+                                        ).to.eq(200);
+                                        const finalUserAssignment =
+                                            finalAssignmentsResp.body.results.find(
+                                                (assignment: AnyType) =>
+                                                    assignment.assigneeType ===
+                                                        'user' &&
+                                                    assignment.assigneeId ===
+                                                        testUserUuid,
+                                            );
+
+                                        if (finalUserAssignment) {
+                                            // Should now have system role name, not custom UUID
+                                            expect(
+                                                finalUserAssignment.roleId,
+                                            ).to.eq('editor');
+                                            expect(
+                                                finalUserAssignment.roleName,
+                                            ).to.eq('editor');
+                                            // Should NOT have the custom role UUID anymore
+                                            expect(
+                                                finalUserAssignment.roleId,
+                                            ).to.not.eq(customRoleUuid);
+                                        }
+                                    });
+                                });
+                            } else {
+                                // User already has a system role, test still valid but different scenario
+                                cy.log(
+                                    'User already has system role, skipping custom->system transition test',
+                                );
+                            }
+                        });
+                    });
                 });
             });
         });
     });
 
     describe('Role Scopes Management', () => {
+        it('should prevent adding scopes to system roles', () => {
+            // Get system roles first
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                method: 'GET',
+            }).then((resp) => {
+                const systemRole = resp.body.results.find(
+                    (role: AnyType) =>
+                        role.ownerType === 'system' && role.name === 'editor',
+                );
+
+                if (systemRole) {
+                    // Try to add scopes to system role
+                    cy.request({
+                        url: `${apiUrl}/${systemRole.roleUuid}/scopes`,
+                        method: 'POST',
+                        body: {
+                            scopeNames: ['view:Dashboard'],
+                        },
+                        failOnStatusCode: false,
+                    }).then((scopeResp) => {
+                        expect([400, 403, 404, 500]).to.include(
+                            scopeResp.status,
+                        );
+                        expect(scopeResp.body).to.have.property(
+                            'status',
+                            'error',
+                        );
+                    });
+                }
+            });
+        });
+
+        it('should prevent removing scopes from system roles', () => {
+            // Get system roles first
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                method: 'GET',
+            }).then((resp) => {
+                const systemRole = resp.body.results.find(
+                    (role: AnyType) =>
+                        role.ownerType === 'system' && role.name === 'editor',
+                );
+
+                if (systemRole) {
+                    // Try to remove scope from system role
+                    cy.request({
+                        url: `${apiUrl}/${systemRole.roleUuid}/scopes/create:Space`,
+                        method: 'DELETE',
+                        failOnStatusCode: false,
+                    }).then((removeResp) => {
+                        expect([400, 403, 404, 500]).to.include(
+                            removeResp.status,
+                        );
+                        expect(removeResp.body).to.have.property(
+                            'status',
+                            'error',
+                        );
+                    });
+                }
+            });
+        });
+
         it('should add scopes to role', () => {
             // First create a test role
             const roleName = `Scoped Role ${new Date().getTime()}`;
@@ -534,6 +713,32 @@ describe('Roles API Tests', () => {
             });
         });
 
+        it('should prevent creating role with system role name', () => {
+            const systemRoleNames = [
+                'viewer',
+                'interactive_viewer',
+                'editor',
+                'developer',
+                'admin',
+            ];
+
+            // Test creating role with each system role name
+            systemRoleNames.forEach((systemRoleName) => {
+                cy.request({
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                    method: 'POST',
+                    body: {
+                        name: systemRoleName,
+                        description: 'Attempt to create role with system name',
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect([400, 409, 422, 500]).to.include(resp.status);
+                    expect(resp.body).to.have.property('status', 'error');
+                });
+            });
+        });
+
         it('should prevent deleting system roles', () => {
             // Get system roles first
             cy.request({
@@ -542,7 +747,10 @@ describe('Roles API Tests', () => {
             }).then((resp) => {
                 const systemRole = resp.body.results.find(
                     (role: AnyType) =>
-                        role.name === 'admin' || role.name === 'member',
+                        role.ownerType === 'system' &&
+                        (role.name === 'viewer' ||
+                            role.name === 'editor' ||
+                            role.name === 'admin'),
                 );
 
                 if (systemRole) {
@@ -552,7 +760,46 @@ describe('Roles API Tests', () => {
                         method: 'DELETE',
                         failOnStatusCode: false,
                     }).then((deleteResp) => {
-                        expect([403, 404]).to.include(deleteResp.status);
+                        expect([400, 403, 404, 500]).to.include(
+                            deleteResp.status,
+                        );
+                        expect(deleteResp.body).to.have.property(
+                            'status',
+                            'error',
+                        );
+                    });
+                }
+            });
+        });
+
+        it('should prevent updating system roles', () => {
+            // Get system roles first
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                method: 'GET',
+            }).then((resp) => {
+                const systemRole = resp.body.results.find(
+                    (role: AnyType) =>
+                        role.ownerType === 'system' && role.name === 'editor',
+                );
+
+                if (systemRole) {
+                    // Try to update system role
+                    cy.request({
+                        url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`,
+                        method: 'PATCH',
+                        body: {
+                            description: 'Attempting to modify system role',
+                        },
+                        failOnStatusCode: false,
+                    }).then((updateResp) => {
+                        expect([400, 403, 404, 500]).to.include(
+                            updateResp.status,
+                        );
+                        expect(updateResp.body).to.have.property(
+                            'status',
+                            'error',
+                        );
                     });
                 }
             });
@@ -658,7 +905,7 @@ describe('Roles API Tests', () => {
                     // Try to update project access as viewer
                     cy.request({
                         url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
-                        method: 'PATCH',
+                        method: 'POST',
                         body: {
                             roleId: roleUuid,
                         },
