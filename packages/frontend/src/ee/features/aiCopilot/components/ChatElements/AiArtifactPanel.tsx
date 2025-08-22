@@ -1,12 +1,14 @@
 import { parseVizConfig } from '@lightdash/common';
-import { Box, Center, Loader, Stack, Text } from '@mantine-8/core';
+import { Box, Center, Group, Loader, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useOrganizationAiAgents';
 import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
+import { AiArtifactSqlControls } from './AiArtifactSqlControls';
 import { AiChartVisualization } from './AiChartVisualization';
 import { ChatElementsUtils } from './utils';
 
@@ -48,6 +50,17 @@ export const AiArtifactPanel: FC = memo(() => {
         artifact.projectUuid,
         queryExecutionHandle?.data?.query.queryUuid,
     );
+
+    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
+        tableName: vizConfig?.metricQuery?.exploreName,
+        projectUuid: artifact.projectUuid,
+        metricQuery: vizConfig?.metricQuery
+            ? {
+                  ...vizConfig.metricQuery,
+                  tableCalculations: [],
+              }
+            : undefined,
+    });
 
     const isQueryLoading =
         queryExecutionHandle.isLoading || queryResults.isFetchingRows;
@@ -99,12 +112,28 @@ export const AiArtifactPanel: FC = memo(() => {
                     </Text>
                 </Stack>
             ) : (
-                <AiChartVisualization
-                    results={queryResults}
-                    message={artifact.message}
-                    queryExecutionHandle={queryExecutionHandle}
-                    projectUuid={artifact.projectUuid}
-                />
+                <Stack gap="md" h="100%">
+                    <AiChartVisualization
+                        results={queryResults}
+                        message={artifact.message}
+                        queryExecutionHandle={queryExecutionHandle}
+                        projectUuid={artifact.projectUuid}
+                    />
+                    {/* TODO ADJUST POSITIONING */}
+                    <Group justify="center" gap="xs">
+                        {compiledSql?.query && (
+                            <AiArtifactSqlControls
+                                sql={compiledSql.query}
+                                projectUuid={artifact.projectUuid}
+                            />
+                        )}
+
+                        {/* <Text size="xs" c="dimmed" ta="center">
+                            {capitalize(artifactData.artifactType)} • v
+                            {artifactData.versionNumber || 'latest'}
+                        </Text> */}
+                    </Group>
+                </Stack>
             )}
         </Box>
     );
