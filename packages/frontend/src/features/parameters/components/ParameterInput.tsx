@@ -5,6 +5,7 @@ import {
     type FilterableItem,
     type LightdashProjectParameter,
     type ParametersValuesMap,
+    type ParameterValue,
 } from '@lightdash/common';
 import {
     Box,
@@ -34,11 +35,8 @@ import styles from './ParameterInput.module.css';
 type ParameterInputProps = {
     paramKey: string;
     parameter: LightdashProjectParameter;
-    value: string | number | string[] | number[] | null;
-    onParameterChange: (
-        paramKey: string,
-        value: string | number | string[] | number[] | null,
-    ) => void;
+    value: ParameterValue | null;
+    onParameterChange: (paramKey: string, value: ParameterValue | null) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     projectUuid?: string;
     parameterValues?: ParametersValuesMap;
@@ -316,8 +314,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             }
 
             // Convert string values back to appropriate types if needed
-            let finalValue: string | number | string[] | number[] | null =
-                newValues;
+            let finalValue: ParameterValue | null = newValues;
 
             // For number parameters that somehow went through string flow, convert back
             if (parameter.type === 'number' && newValues !== null) {

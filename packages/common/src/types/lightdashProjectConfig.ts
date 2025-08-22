@@ -1,3 +1,5 @@
+import type { ParameterValue } from './parameters';
+
 type SpotlightCategory = {
     label: string;
     color?: string;
@@ -14,10 +16,10 @@ export type LightdashProjectParameter = {
     label: string;
     description?: string;
     type?: 'string' | 'number'; // defaults to 'string' for backwards compatibility
-    default?: string | number | string[] | number[];
+    default?: ParameterValue;
     multiple?: boolean; // the parameter input will be a multi select
     allow_custom_values?: boolean; // allows users to input custom values beyond predefined options
-    options?: string[] | number[]; // hardcoded options
+    options?: string[] | number[]; // hardcoded options - kept separate as they're always homogeneous arrays
     options_from_dimension?: {
         // options will be populated from dimension values
         model: string;

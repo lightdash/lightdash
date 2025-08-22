@@ -1,6 +1,7 @@
 import {
     type LightdashProjectParameter,
     type ParametersValuesMap,
+    type ParameterValue,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -24,10 +25,7 @@ type ParameterSelectionProps = {
     isLoading?: boolean;
     isError?: boolean;
     parameterValues: ParametersValuesMap;
-    onParameterChange: (
-        paramKey: string,
-        value: string | number | string[] | number[] | null,
-    ) => void;
+    onParameterChange: (paramKey: string, value: ParameterValue | null) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     showClearAll?: boolean;
     onClearAll?: () => void;

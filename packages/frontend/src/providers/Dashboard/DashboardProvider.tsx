@@ -14,6 +14,7 @@ import {
     type FilterableDimension,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type ParameterValue,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
 } from '@lightdash/common';
@@ -225,7 +226,7 @@ const DashboardProvider: React.FC<
     }, [parameters, savedParameters]);
 
     const setParameter = useCallback(
-        (key: string, value: string | number | string[] | number[] | null) => {
+        (key: string, value: ParameterValue | null) => {
             if (
                 value === null ||
                 value === undefined ||

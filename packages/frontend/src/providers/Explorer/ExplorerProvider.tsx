@@ -22,6 +22,7 @@ import {
     type Metric,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParameterValue,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
@@ -1042,7 +1043,7 @@ const ExplorerProvider: FC<
     }, []);
 
     const setParameter = useCallback(
-        (key: string, value: string | number | string[] | number[] | null) => {
+        (key: string, value: ParameterValue | null) => {
             if (value === null) {
                 dispatch({
                     type: ActionType.SET_PARAMETER,

@@ -9,6 +9,7 @@ import {
     type FilterableDimension,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type ParameterValue,
     type ResultColumn,
     type SortField,
 } from '@lightdash/common';
@@ -101,10 +102,7 @@ export type DashboardContextType = {
     dashboardParameters: DashboardParameters;
     parameterValues: ParametersValuesMap;
     clearAllParameters: () => void;
-    setParameter: (
-        key: string,
-        value: string | number | string[] | number[] | null,
-    ) => void;
+    setParameter: (key: string, value: ParameterValue | null) => void;
     dashboardParameterReferences: Set<string>;
     addParameterReferences: (tileUuid: string, references: string[]) => void;
     tileParameterReferences: Record<string, string[]>;

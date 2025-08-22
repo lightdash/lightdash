@@ -1,6 +1,7 @@
 import {
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type ParameterValue,
 } from '@lightdash/common';
 import { Box, Button, Menu } from '@mantine-8/core';
 import {
@@ -17,10 +18,7 @@ import styles from './Parameters.module.css';
 type Props = {
     isEditMode: boolean;
     parameterValues: ParametersValuesMap;
-    onParameterChange: (
-        key: string,
-        value: string | number | string[] | number[] | null,
-    ) => void;
+    onParameterChange: (key: string, value: ParameterValue | null) => void;
     onClearAll: () => void;
     parameters?: ParameterDefinitions;
     missingRequiredParameters?: string[];

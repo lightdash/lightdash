@@ -15,6 +15,7 @@ import {
     type MetricQuery,
     type MetricType,
     type ParameterDefinitions,
+    type ParameterValue,
     type PieChartConfig,
     type ReplaceCustomFields,
     type SavedChart,
@@ -335,10 +336,7 @@ export interface ExplorerContextType {
         setRowLimit: (limit: number) => void;
         setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;
-        setParameter: (
-            key: string,
-            value: string | number | string[] | number[] | null,
-        ) => void;
+        setParameter: (key: string, value: ParameterValue | null) => void;
         clearAllParameters: () => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
         editAdditionalMetric: (
