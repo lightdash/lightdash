@@ -1,5 +1,6 @@
 .artifactButton {
     transition: all 0.2s ease;
+    color: var(--mantine-color-gray-7);
     padding: var(--mantine-spacing-sm);
     border: 1px solid var(--mantine-color-gray-2);
     border-radius: var(--mantine-radius-md);

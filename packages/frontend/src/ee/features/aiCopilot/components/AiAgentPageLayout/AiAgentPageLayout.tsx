@@ -175,6 +175,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         minSize={50}
                         collapsible
                         collapsedSize={0}
+                        className={styles.artifact}
                     >
                         {contextArtifact?.content}
                     </Panel>
