@@ -1,3 +1,17 @@
+# [0.1949.0](https://github.com/lightdash/lightdash/compare/0.1948.0...0.1949.0) (2025-08-22)
+
+
+### Bug Fixes
+
+* incorrect import ([#16561](https://github.com/lightdash/lightdash/issues/16561)) ([a451e4d](https://github.com/lightdash/lightdash/commit/a451e4d4252b656294cf9976a3a820bbb3fff4fc))
+* restore View SQL feature in AI artifacts ([#16546](https://github.com/lightdash/lightdash/issues/16546)) ([2fd843c](https://github.com/lightdash/lightdash/commit/2fd843ce72a4dc135fddf2e8095fd888e5b4f122))
+* return system roles ([#16552](https://github.com/lightdash/lightdash/issues/16552)) ([65c14a8](https://github.com/lightdash/lightdash/commit/65c14a8b21db7814ad58bc06231b65779b407875))
+
+
+### Features
+
+* add schema compatibility layer for MCP service ([#16559](https://github.com/lightdash/lightdash/issues/16559)) ([05889f9](https://github.com/lightdash/lightdash/commit/05889f9b8c28dc892ba6b5c6e37e7992a2ca4256)), closes [#16430](https://github.com/lightdash/lightdash/issues/16430)
+
 # [0.1948.0](https://github.com/lightdash/lightdash/compare/0.1947.0...0.1948.0) (2025-08-22)
 
 
