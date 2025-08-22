@@ -1,3 +1,10 @@
+# [0.1945.0](https://github.com/lightdash/lightdash/compare/0.1944.0...0.1945.0) (2025-08-22)
+
+
+### Features
+
+* Improve Artifacts UI styles ([#16516](https://github.com/lightdash/lightdash/issues/16516)) ([db0ef88](https://github.com/lightdash/lightdash/commit/db0ef880a3ab5dfc54c42fe59884e122e7c1c599)), closes [#16457](https://github.com/lightdash/lightdash/issues/16457)
+
 # [0.1944.0](https://github.com/lightdash/lightdash/compare/0.1943.1...0.1944.0) (2025-08-22)
 
 
