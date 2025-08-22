@@ -163,7 +163,11 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
 } from '@lightdash/common';
-import { BigqueryWarehouseClient, SshTunnel } from '@lightdash/warehouses';
+import {
+    BigqueryWarehouseClient,
+    SshTunnel,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -223,6 +227,7 @@ import {
     CompiledQuery,
     MetricQueryBuilder,
 } from '../../utils/QueryBuilder/MetricQueryBuilder';
+import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { BaseService } from '../BaseService';
@@ -2954,128 +2959,6 @@ export class ProjectService extends BaseService {
         return { fileUrl, columns };
     }
 
-    static applyPivotToSqlQuery({
-        warehouseType,
-        sql,
-        limit,
-        indexColumn,
-        valuesColumns,
-        groupByColumns,
-        sortBy,
-    }: Pick<
-        SqlRunnerPivotQueryPayload,
-        | 'sql'
-        | 'limit'
-        | 'indexColumn'
-        | 'valuesColumns'
-        | 'groupByColumns'
-        | 'sortBy'
-    > & { warehouseType: WarehouseTypes }): string {
-        const indexColumns = normalizeIndexColumns(indexColumn);
-        if (indexColumns.length === 0) {
-            throw new ParameterError(
-                'At least one valid index column is required',
-            );
-        }
-        const q = getFieldQuoteChar(warehouseType);
-        const userSql = sql.replace(/;\s*$/, '');
-        const groupBySelectDimensions = [
-            ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
-            ...indexColumns.map((col) => `${q}${col.reference}${q}`),
-        ];
-        const groupBySelectMetrics = [
-            ...(valuesColumns ?? []).map((col) => {
-                const aggregationField = getAggregatedField(
-                    warehouseType,
-                    col.aggregation,
-                    col.reference,
-                );
-                return `${aggregationField} AS ${q}${col.reference}_${col.aggregation}${q}`;
-            }),
-        ];
-        const groupByQuery = `SELECT ${[
-            ...new Set(groupBySelectDimensions), // Remove duplicate columns
-            ...groupBySelectMetrics,
-        ].join(', ')} FROM original_query group by ${Array.from(
-            new Set(groupBySelectDimensions),
-        ).join(', ')}`;
-
-        const selectReferences = [
-            ...indexColumns.map((col) => col.reference),
-            ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
-            ...(valuesColumns || []).map(
-                (col) => `${q}${col.reference}_${col.aggregation}${q}`,
-            ),
-        ];
-
-        const orderBy: string = sortBy?.length
-            ? `ORDER BY ${sortBy
-                  .map((s) => `${q}${s.reference}${q} ${s.direction}`)
-                  .join(', ')}`
-            : ``;
-
-        // Create ORDER BY clause for multiple index columns with their sort directions
-        const indexColumnsOrderBy = indexColumns
-            .map((col) => {
-                const sortDirection =
-                    sortBy?.find((s) => s.reference === col.reference)
-                        ?.direction === SortByDirection.DESC
-                        ? 'DESC'
-                        : 'ASC';
-                return `${q}${col.reference}${q} ${sortDirection}`;
-            })
-            .join(', ');
-
-        const pivotQuery = `SELECT ${selectReferences.join(
-            ', ',
-        )}, dense_rank() over (order by ${indexColumnsOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
-            groupByColumns?.[0]?.reference
-        }${q}) as ${q}column_index${q} FROM group_by_query`;
-
-        if (groupByColumns && groupByColumns.length > 0) {
-            // Calculate max allowed columns based on number of value columns
-            const valueColumnsCount = valuesColumns?.length || 1;
-            const remainingColumns = MAX_PIVOT_COLUMN_LIMIT - 1; // Account for the index column
-            const maxColumnsPerValueColumn = Math.floor(
-                remainingColumns / valueColumnsCount,
-            );
-
-            // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
-            let pivotedSql = `
-            WITH original_query AS (${userSql}),
-                 group_by_query AS (${groupByQuery}),
-                 pivot_query AS (${pivotQuery}),
-                 filtered_rows AS (
-                    SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
-                limit ?? 500
-            }
-                 ),
-                 total_columns AS (
-                    SELECT (COUNT(DISTINCT ${groupByColumns
-                        .map((col) => `filtered_rows.${q}${col.reference}${q}`)
-                        .join(', ')}) * ${
-                valuesColumns?.length || 1
-            }) as total_columns FROM filtered_rows
-                 )
-            `;
-
-            // Add a max column limit to avoid too many columns and performance issues.
-            // Warn the user if we exceed it.
-            pivotedSql += `\nSELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${
-                limit ?? 500
-            } and p.${q}column_index${q} <= ${maxColumnsPerValueColumn} order by p.${q}row_index${q}, p.${q}column_index${q}`;
-
-            return pivotedSql;
-        }
-
-        let sqlQuery = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery})`;
-        sqlQuery += `\nSELECT * FROM group_by_query ${orderBy} LIMIT ${
-            limit ?? 500
-        } `;
-
-        return sqlQuery;
-    }
-
     async pivotQueryWorkerTask({
         userUuid,
         projectUuid,
@@ -3103,16 +2986,6 @@ export class ProjectService extends BaseService {
             userId: userUuid,
             isSessionUser: true,
         });
-        // Apply limit and pivot to the SQL query
-        const pivotedSql = ProjectService.applyPivotToSqlQuery({
-            warehouseType: warehouseCredentials.type,
-            sql,
-            limit,
-            indexColumn: indexColumns,
-            valuesColumns,
-            groupByColumns,
-            sortBy,
-        });
 
         this.analytics.track({
             userId: userUuid,
@@ -3129,6 +3002,27 @@ export class ProjectService extends BaseService {
             projectUuid,
             warehouseCredentials,
         );
+
+        // Apply limit and pivot to the SQL query
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const pivotQueryBuilder = new PivotQueryBuilder(
+            sql,
+            {
+                indexColumn: indexColumns,
+                valuesColumns,
+                groupByColumns,
+                sortBy,
+            },
+            warehouseSqlBuilder,
+            limit,
+        );
+
+        const pivotedSql = pivotQueryBuilder.toSql();
+
         this.logger.debug(`Stream query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
