@@ -6,12 +6,12 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = `Tool: searchFieldValues
 
 Purpose:
-Search for unique values of a specific field in a table. This is useful for finding suggestions for field values when building filters or exploring data.
+Search for unique values of a specific field in a table. Returns all unique values by default, or use the query parameter to narrow down results. This is useful for finding suggestions for field values when building filters or exploring data.
 
 Usage Tips:
 - Specify the table and field you want to search values for
-- Use the query parameter to filter values by a specific string
-- Optionally add filters to narrow down the results
+- Query parameter: use it to narrow down the search to matching values
+- Optionally add filters to further restrict the results
 - Results are returned as a list of unique field values (limited to 100)
 `;
 
@@ -26,9 +26,7 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema(
         }),
         query: z
             .string()
-            .describe(
-                'Query string to filter field values. Optional, pass `null` to get all values',
-            )
+            .describe('Query string to filter field values')
             .nullable(),
         filters: filtersSchema
             .nullable()
