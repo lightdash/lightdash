@@ -9,6 +9,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconIdBadge2,
     IconKey,
     IconLock,
     IconPalette,
@@ -48,6 +49,7 @@ import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
+import { CustomRoles } from '../ee/pages/CustomRoles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import {
@@ -55,6 +57,7 @@ import {
     useFeatureFlagEnabled,
 } from '../hooks/useFeatureFlagEnabled';
 import { useProject } from '../hooks/useProject';
+import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import useTracking from '../providers/Tracking/useTracking';
@@ -82,6 +85,8 @@ const Settings: FC = () => {
         },
         user: { data: user, isInitialLoading: isUserLoading, error: userError },
     } = useApp();
+
+    const isCustomRolesEnabled = health?.isCustomRolesEnabled;
 
     const userGroupsFeatureFlagQuery = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
@@ -327,6 +332,16 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            user?.ability.can('manage', 'Organization') &&
+            isCustomRolesEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/customRoles',
+                element: <CustomRoles />,
+            });
+        }
+
         return allowedRoutes;
     }, [
         isServiceAccountsEnabled,
@@ -337,6 +352,7 @@ const Settings: FC = () => {
         organization,
         project,
         health,
+        isCustomRolesEnabled,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -445,6 +461,20 @@ const Settings: FC = () => {
                                             />
                                         }
                                     />
+                                )}
+                                {isCustomRolesEnabled && (
+                                    <Can I="manage" a="Organization">
+                                        <RouterNavLink
+                                            label="Custom roles"
+                                            to="/generalSettings/customRoles"
+                                            exact
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconIdBadge2}
+                                                />
+                                            }
+                                        />
+                                    </Can>
                                 )}
 
                                 {user.ability.can(
