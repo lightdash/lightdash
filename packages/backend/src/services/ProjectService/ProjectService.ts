@@ -162,11 +162,7 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
 } from '@lightdash/common';
-import {
-    BigqueryWarehouseClient,
-    SshTunnel,
-    warehouseSqlBuilderFromType,
-} from '@lightdash/warehouses';
+import { BigqueryWarehouseClient, SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -3002,11 +2998,6 @@ export class ProjectService extends BaseService {
         );
 
         // Apply limit and pivot to the SQL query
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
-
         const pivotQueryBuilder = new PivotQueryBuilder(
             sql,
             {
@@ -3015,7 +3006,7 @@ export class ProjectService extends BaseService {
                 groupByColumns,
                 sortBy,
             },
-            warehouseSqlBuilder,
+            warehouseClient,
             limit,
         );
 

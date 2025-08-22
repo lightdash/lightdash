@@ -155,7 +155,7 @@ describe('PivotQueryBuilder', () => {
 
             // Should apply limits and column constraints
             expect(result).toContain('WHERE "row_index" <= 100');
-            expect(result).toContain('"column_index" <= 199');
+            expect(result).toContain('"column_index" <= 99');
 
             // Should join with total_columns for metadata
             expect(result).toContain('CROSS JOIN total_columns t');
@@ -221,8 +221,8 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // With 3 value columns: (200-1)/3 = 66 max columns per value column
-            expect(result).toContain('"column_index" <= 66');
+            // With 3 value columns: (100-1)/3 = 33 max columns per value column
+            expect(result).toContain('"column_index" <= 33');
         });
     });
 
