@@ -1,3 +1,4 @@
+import { type AiAgentMessageAssistant } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
 import {
     IconLayoutSidebar,
@@ -9,7 +10,6 @@ import {
     useRef,
     useState,
     type PropsWithChildren,
-    type ReactNode,
 } from 'react';
 import {
     Panel,
@@ -24,13 +24,15 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import {
     AiAgentPageLayoutContext,
     type AiAgentPageLayoutContextType,
+    type ArtifactData,
 } from '../../providers/AiLayoutProvider';
+import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 import { SidebarButton } from './SidebarButton';
 import styles from './aiAgentPageLayout.module.css';
 
 interface Props extends PropsWithChildren {
-    Sidebar?: ReactNode;
-    Header?: ReactNode;
+    Sidebar?: React.ReactNode;
+    Header?: React.ReactNode;
 }
 
 export const AiAgentPageLayout: React.FC<Props> = ({
@@ -42,10 +44,9 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
     const artifactPanelRef = useRef<ImperativePanelHandle>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [contextArtifact, setContextArtifact] = useState<{
-        id: string;
-        content: ReactNode;
-    } | null>(null);
+    const [contextArtifact, setContextArtifact] = useState<ArtifactData | null>(
+        null,
+    );
 
     const updateCollapsedState = () => {
         const isCollapsed = sidebarPanelRef.current?.isCollapsed() ?? false;
@@ -81,8 +82,20 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         artifactPanelRef.current?.expand();
     };
 
-    const setArtifact = (artifact: ReactNode, id: string) => {
-        setContextArtifact({ id, content: artifact });
+    const setArtifact = (
+        artifactUuid: string,
+        versionUuid: string,
+        message: AiAgentMessageAssistant,
+        messageProjectUuid: string,
+        messageAgentUuid: string,
+    ) => {
+        setContextArtifact({
+            artifactUuid,
+            versionUuid,
+            message,
+            projectUuid: messageProjectUuid,
+            agentUuid: messageAgentUuid,
+        });
 
         if (artifactPanelRef.current?.isCollapsed()) {
             expandArtifact();
@@ -177,7 +190,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         collapsedSize={0}
                         className={styles.artifact}
                     >
-                        {contextArtifact?.content}
+                        {contextArtifact && <AiArtifactPanel />}
                     </Panel>
                 </ErrorBoundary>
             </PanelGroup>

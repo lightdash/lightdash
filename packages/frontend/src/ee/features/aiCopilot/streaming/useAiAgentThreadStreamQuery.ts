@@ -28,16 +28,3 @@ export const useAiAgentThreadMessageStreaming = (
         );
     });
 };
-
-export const useAiAgentThreadMessageJustCompleted = (
-    threadUuid: string,
-    messageUuid: string,
-) => {
-    return useSelector((state: AiAgentThreadStreamState) => {
-        const threadStream = state.threads[threadUuid];
-        return (
-            threadStream?.justCompleted &&
-            threadStream?.messageUuid === messageUuid
-        );
-    });
-};
