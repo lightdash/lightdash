@@ -1,4 +1,5 @@
 import { ProjectMemberRole } from '../types/projectMemberRole';
+import type { RoleWithScopes } from '../types/roles';
 
 /**
  * Utility functions to convert project member roles to equivalent scope sets
@@ -133,7 +134,7 @@ export const PROJECT_ROLE_TO_SCOPES_MAP: Record<ProjectMemberRole, string[]> =
 /**
  * Gets the scopes required for a specific project member role
  */
-export const getScopesForRole = (role: ProjectMemberRole): string[] => [
+export const getAllScopesForRole = (role: ProjectMemberRole): string[] => [
     ...PROJECT_ROLE_TO_SCOPES_MAP[role],
 ];
 
@@ -162,30 +163,18 @@ export const getNonEnterpriseScopesForRole = (
     );
 };
 
-/**
- * Gets the incremental scopes added by a specific role (not inherited from lower roles)
- */
-export const getIncrementalScopesForRole = (
-    role: ProjectMemberRole,
-): string[] => {
-    const roleOrder = [
-        ProjectMemberRole.VIEWER,
-        ProjectMemberRole.INTERACTIVE_VIEWER,
-        ProjectMemberRole.EDITOR,
-        ProjectMemberRole.DEVELOPER,
-        ProjectMemberRole.ADMIN,
-    ];
+export const getSystemRoles = (): RoleWithScopes[] =>
+    ROLE_HIERARCHY.map((role) => ({
+        roleUuid: role,
+        name: role,
+        description: role,
+        ownerType: 'system',
+        scopes: getAllScopesForRole(role),
+        organizationUuid: null,
+        createdAt: null,
+        updatedAt: null,
+        createdBy: null,
+    }));
 
-    const roleIndex = roleOrder.indexOf(role);
-    if (roleIndex === 0) {
-        return getScopesForRole(role);
-    }
-
-    const previousRole = roleOrder[roleIndex - 1];
-    const currentScopes = new Set(getScopesForRole(role));
-    const previousScopes = new Set(getScopesForRole(previousRole));
-
-    return Array.from(currentScopes).filter(
-        (scope) => !previousScopes.has(scope),
-    );
-};
+export const isSystemRole = (roleUuid: string): roleUuid is ProjectMemberRole =>
+    ROLE_HIERARCHY.includes(roleUuid as ProjectMemberRole);

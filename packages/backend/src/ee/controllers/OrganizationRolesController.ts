@@ -6,9 +6,7 @@ import {
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
     ApiUnassignRoleFromUserResponse,
-    CreateGroupRoleAssignmentRequest,
     CreateRole,
-    CreateUserRoleAssignmentRequest,
     UpdateRole,
 } from '@lightdash/common';
 import {
@@ -34,7 +32,7 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
-import { RolesService } from '../services/RolesService';
+import { RolesService } from '../../services/RolesService/RolesService';
 
 /**
  * Organization Roles API
@@ -44,13 +42,6 @@ import { RolesService } from '../services/RolesService';
  * - Creating roles in an organization
  * - Managing role assignments within an organization
  *
- * /api/v2/orgs/{orgId}/roles/assignments
- * - Listing role assignments for an organization
- * - Creating role assignments for an organization
- * - Managing role assignments within an organization
- *
- * /api/v2/orgs/{orgId}/roles/assignments/user/{userId}
- * - Listing role assignments for a user
  */
 @Route('/api/v2/orgs/{orgUuid}/roles')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -61,7 +52,7 @@ export class OrganizationRolesController extends BaseController {
      * to specify an interface type.
      */
     protected getRolesService() {
-        return this.services.getRolesService<RolesService>();
+        return this.services.getRolesService();
     }
 
     /**
@@ -175,7 +166,7 @@ export class OrganizationRolesController extends BaseController {
     }
 
     /**
-     * List organization role assignments
+     * List organization role assignments (system roles only)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -199,126 +190,34 @@ export class OrganizationRolesController extends BaseController {
     }
 
     /**
-     * Create organization role assignment for user
+     * Assign system role to user at organization level
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @SuccessResponse('201', 'Created')
+    @SuccessResponse('200', 'Success')
     @Post('/assignments/user/{userId}')
-    @OperationId('CreateOrganizationUserRoleAssignment')
-    async createOrganizationUserRoleAssignment(
+    @OperationId('UpsertOrganizationUserRoleAssignment')
+    async upsertOrganizationUserRoleAssignment(
         @Request() req: express.Request,
         @Path() orgUuid: string,
         @Path() userId: string,
-        @Body() body: CreateUserRoleAssignmentRequest,
+        @Body() body: { roleId: string },
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
-            await this.getRolesService().createOrganizationUserRoleAssignment(
+            await this.getRolesService().upsertOrganizationUserRoleAssignment(
                 req.account!,
                 orgUuid,
                 userId,
                 body,
             );
 
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Create organization role assignment for group
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post('/assignments/group/{groupId}')
-    @OperationId('CreateOrganizationGroupRoleAssignment')
-    async createOrganizationGroupRoleAssignment(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() groupId: string,
-        @Body() body: CreateGroupRoleAssignmentRequest,
-    ): Promise<ApiRoleAssignmentResponse> {
-        const assignment =
-            await this.getRolesService().createOrganizationGroupRoleAssignment(
-                req.account!,
-                orgUuid,
-                groupId,
-                body,
-            );
-
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: assignment,
-        };
-    }
-
-    /**
-     * Delete organization role assignment for user
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/assignments/user/{userId}')
-    @OperationId('DeleteOrganizationUserRoleAssignment')
-    async deleteOrganizationUserRoleAssignment(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() userId: string,
-    ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.getRolesService().deleteOrganizationRoleAssignment(
-            req.account!,
-            orgUuid,
-            userId,
-            'user',
-        );
-
         this.setStatus(200);
         return {
             status: 'ok',
-            results: undefined,
-        };
-    }
-
-    /**
-     * Delete organization role assignment for group
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/assignments/group/{groupId}')
-    @OperationId('DeleteOrganizationGroupRoleAssignment')
-    async deleteOrganizationGroupRoleAssignment(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() groupId: string,
-    ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.getRolesService().deleteOrganizationRoleAssignment(
-            req.account!,
-            orgUuid,
-            groupId,
-            'group',
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: undefined,
+            results: assignment,
         };
     }
 }

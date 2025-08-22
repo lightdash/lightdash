@@ -62,16 +62,11 @@ Content-Type: application/json
 ### STEP 4: Get specific role details
 GET {{baseUrl}}/api/v2/roles/{{roleId}}
 
-### STEP 5: Update role details (name/description)
-PATCH {{baseUrl}}/api/v2/roles/{{roleId}}
-Content-Type: application/json
 
-{
-  "name": "Senior Data Analyst",
-  "description": "Enhanced permissions for experienced data analysts"
-}
+### STEP 4.1: Get specific role details for system role
+GET {{baseUrl}}/api/v2/roles/developer
 
-### STEP 6: Update role in organization context (NEW NAMESPACE)
+### STEP 5: Update role details (name/description) - Organization scoped
 PATCH {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
 Content-Type: application/json
 
@@ -116,23 +111,11 @@ DELETE {{baseUrl}}/api/v2/roles/{{roleId}}/scopes/manage_space
 ### ORGANIZATION-LEVEL ROLE ASSIGNMENTS (NEW NAMESPACE)
 ###
 
-### STEP 10: List current organization role assignments (NEW NAMESPACE)
+### STEP 10: List current organization role assignments (system roles only)
 GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments
 
-### STEP 11: Assign role to a user (organization-level) - NEW SEPARATE ENDPOINT!
-# @name assignUserToOrg
-POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments/user/{{userId}}
-Content-Type: application/json
-
-{
-  "roleId": "{{roleId}}"
-}
-
-### STEP 12: NOTE - Group organization assignments are not supported
-### Groups only have project-level and space-level access, not organization-level access
-
-### STEP 14: Remove user's organization role assignment - NEW NAMESPACE!
-DELETE {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments/user/{{userId}}
+### NOTE: Organization assignments are READ-ONLY for system roles (admin, member, etc.)
+### Custom roles can only be assigned at the project level, not organization level
 
 ###
 ### PROJECT-LEVEL ROLE ASSIGNMENTS (NEW NAMESPACE)
@@ -141,7 +124,8 @@ DELETE {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/assignments/user/{{userId}}
 ### STEP 16: List current project role assignments (NEW NAMESPACE)
 GET {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments
 
-### STEP 17: Grant user access to specific project with role (NEW SEPARATE ENDPOINT)
+
+### STEP 17: Grant user access to specific project with custom role (UPSERT - Creates or Updates)
 # @name assignUserToProject
 POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
 Content-Type: application/json
@@ -150,7 +134,28 @@ Content-Type: application/json
   "roleId": "{{roleId}}"
 }
 
-### STEP 18: Assign group to project with specific role (NEW SEPARATE ENDPOINT)
+
+
+
+### STEP 18: Assign system role to user (UPSERT - Creates or Updates)
+# Example: Assigning "editor" system role to user
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
+Content-Type: application/json
+
+{
+  "roleId": "editor"
+}
+
+### STEP 19: Assign different system role to user (UPSERT - Updates existing assignment)
+# Example: Changing from "editor" to "developer" system role
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
+Content-Type: application/json
+
+{
+  "roleId": "developer"
+}
+
+### STEP 20: Assign group to project with custom role (UPSERT - Creates or Updates)
 # @name assignGroupToProject
 POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/group/{{groupId}}
 Content-Type: application/json
@@ -159,26 +164,51 @@ Content-Type: application/json
   "roleId": "{{roleId}}"
 }
 
-### STEP 20: Update user's role on project (change permissions) - NEW NAMESPACE
-PATCH {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
+### STEP 21: Assign system role to group (UPSERT - Creates or Updates)
+# Example: Assigning "viewer" system role to group
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/group/{{groupId}}
+Content-Type: application/json
+
+{
+  "roleId": "viewer"
+}
+
+### STEP 22: Switch between custom and system roles (demonstrates upsert behavior)
+# First assign custom role to user
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
 Content-Type: application/json
 
 {
   "roleId": "{{roleId}}"
 }
 
-### STEP 21: Remove user's project access (NEW NAMESPACE)
+### Then switch to system role (upsert will update the assignment)
+POST {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
+Content-Type: application/json
+
+{
+  "roleId": "admin"
+}
+
+### STEP 23: View available system roles and their scopes
+GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles?load=scopes
+
+### Look for system roles in the response:
+### - viewer: Basic viewing permissions
+### - interactive_viewer: Can interact with dashboards
+### - editor: Can create and edit content
+### - developer: Advanced permissions
+### - admin: Full permissions (except organization management)
+
+###
+### CLEANUP SECTION
+###
+
+### STEP 24: Remove user's project access
 DELETE {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId}}
 
-### STEP 22: Remove group from project (NEW NAMESPACE)
+### STEP 25: Remove group from project
 DELETE {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/group/{{groupId}}
 
-###
-### CLEANUP
-###
-
-### STEP 23: NOTE - No group organization assignments to clean up
-### (Groups don't have organization-level role assignments)
-
-### STEP 24: Delete the custom role (final cleanup) - NEW NAMESPACE
+### STEP 26: Delete the custom role (final cleanup)
 DELETE {{baseUrl}}/api/v2/roles/{{roleId}}

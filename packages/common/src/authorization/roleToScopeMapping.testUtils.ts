@@ -3,8 +3,8 @@ import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { projectMemberAbilities } from './projectMemberAbility';
 import {
+    getAllScopesForRole,
     getNonEnterpriseScopesForRole,
-    getScopesForRole,
 } from './roleToScopeMapping';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
@@ -34,8 +34,8 @@ export const validateRoleInheritance = (): {
         const currentRole = roleOrder[i];
         const previousRole = roleOrder[i - 1];
 
-        const currentScopes = new Set(getScopesForRole(currentRole));
-        const previousScopes = getScopesForRole(previousRole);
+        const currentScopes = new Set(getAllScopesForRole(currentRole));
+        const previousScopes = getAllScopesForRole(previousRole);
 
         // Check that all previous scopes are included in current role
         for (const scope of previousScopes) {
@@ -235,7 +235,7 @@ export const createRoleTestParams = (
     } = options;
 
     const scopes = isEnterprise
-        ? getScopesForRole(role)
+        ? getAllScopesForRole(role)
         : getNonEnterpriseScopesForRole(role);
 
     const scopeBuilderParams = {

@@ -33,6 +33,7 @@ import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
+import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
@@ -104,7 +105,7 @@ interface ServiceManifest {
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
     mcpService: unknown;
-    rolesService: unknown;
+    rolesService: RolesService;
     slackService: SlackService;
 }
 
@@ -878,8 +879,20 @@ export class ServiceRepository
         return this.getService('aiAgentService');
     }
 
-    public getRolesService<RolesServiceImplT>(): RolesServiceImplT {
-        return this.getService('rolesService');
+    public getRolesService(): RolesService {
+        return this.getService(
+            'rolesService',
+            () =>
+                new RolesService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    rolesModel: this.models.getRolesModel(),
+                    userModel: this.models.getUserModel(),
+                    organizationModel: this.models.getOrganizationModel(),
+                    groupsModel: this.models.getGroupsModel(),
+                    projectModel: this.models.getProjectModel(),
+                }),
+        );
     }
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {

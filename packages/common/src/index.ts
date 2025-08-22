@@ -189,6 +189,7 @@ import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
+export * from './authorization/roleToScopeMapping';
 export * from './authorization/scopes';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';

@@ -1,10 +1,13 @@
 import {
     GroupProjectAccess,
     NotFoundError,
+    OrganizationMemberRole,
     ProjectAccess,
     ProjectMemberRole,
     Role,
     RoleWithScopes,
+    getSystemRoles,
+    isSystemRole,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { GroupTableName } from '../database/entities/groups';
@@ -35,18 +38,32 @@ export class RolesModel {
         return this.database;
     }
 
-    private async getOrganizationId(organizationUuid: string): Promise<number> {
+    private async getOrganizationId(orgUuid: string): Promise<number> {
         const [orgData] = await this.database('organizations')
-            .where('organization_uuid', organizationUuid)
+            .where('organization_uuid', orgUuid)
             .select('organization_id');
 
         if (!orgData) {
             throw new NotFoundError(
-                `Organization with uuid ${organizationUuid} not found`,
+                `Organization with uuid ${orgUuid} not found`,
             );
         }
 
         return orgData.organization_id;
+    }
+
+    private async getProjectId(projectUuid: string): Promise<number> {
+        const [projectData] = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .select('project_id');
+
+        if (!projectData) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} not found`,
+            );
+        }
+
+        return projectData.project_id;
     }
 
     private async getUserId(userUuid: string): Promise<number> {
@@ -88,10 +105,11 @@ export class RolesModel {
     ): Promise<Role[]> {
         const roles = await this.database(RolesTableName)
             .select('*')
-            .where('organization_uuid', organizationUuid)
-            .orWhere('owner_type', 'system');
+            .where('organization_uuid', organizationUuid);
 
-        return roles.map(RolesModel.mapDbRoleToRole);
+        const systemRoles = getSystemRoles();
+        const customRoles = roles.map(RolesModel.mapDbRoleToRole);
+        return [...systemRoles, ...customRoles];
     }
 
     async getRolesWithScopesByOrganizationUuid(
@@ -110,13 +128,23 @@ export class RolesModel {
                 ),
             )
             .where(`${RolesTableName}.organization_uuid`, organizationUuid)
-            .orWhere(`${RolesTableName}.owner_type`, 'system')
             .groupBy(`${RolesTableName}.role_uuid`);
 
-        return roles.map(RolesModel.mapDbRoleWithScopesToRoleWithScopes);
+        const systemRoles = getSystemRoles();
+
+        const customRoles = roles.map(
+            RolesModel.mapDbRoleWithScopesToRoleWithScopes,
+        );
+        return [...systemRoles, ...customRoles];
     }
 
     async getRoleByUuid(roleUuid: string): Promise<Role> {
+        if (isSystemRole(roleUuid)) {
+            return getSystemRoles().find(
+                (role) => role.roleUuid === roleUuid,
+            ) as Role;
+        }
+
         const [role] = await this.database(RolesTableName)
             .select('*')
             .where('role_uuid', roleUuid);
@@ -129,6 +157,12 @@ export class RolesModel {
     }
 
     async getRoleWithScopesByUuid(roleUuid: string): Promise<RoleWithScopes> {
+        if (isSystemRole(roleUuid)) {
+            return getSystemRoles().find(
+                (role) => role.roleUuid === roleUuid,
+            ) as RoleWithScopes;
+        }
+
         const role = await this.database(RolesTableName)
             .leftJoin(
                 ScopedRolesTableName,
@@ -197,109 +231,89 @@ export class RolesModel {
         }
     }
 
-    async assignRoleToUser(
+    async unassignCustomRoleFromUser(
         userUuid: string,
-        roleUuid: string,
-        organizationUuid?: string,
-        projectUuid?: string,
+        projectUuid: string,
     ): Promise<void> {
         const userId = await this.getUserId(userUuid);
 
-        if (organizationUuid) {
-            const organizationId = await this.getOrganizationId(
-                organizationUuid,
+        const project = await this.database(ProjectTableName)
+            .select('project_id')
+            .where('project_uuid', projectUuid)
+            .first();
+
+        if (!project) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} not found`,
             );
-            await this.database(OrganizationMembershipsTableName)
-                .where('user_id', userId)
-                .where('organization_id', organizationId)
-                .update({ role_uuid: roleUuid });
         }
 
-        if (projectUuid) {
-            const project = await this.database(ProjectTableName)
-                .select('project_id')
-                .where('project_uuid', projectUuid)
-                .first();
-
-            if (!project) {
-                throw new NotFoundError(
-                    `Project with uuid ${projectUuid} not found`,
-                );
-            }
-
-            await this.database(ProjectMembershipsTableName)
-                .where('user_id', userId)
-                .where('project_id', project.project_id)
-                .update({ role_uuid: roleUuid });
-        }
+        await this.database(ProjectMembershipsTableName)
+            .where('user_id', userId)
+            .where('project_id', project.project_id)
+            .update({ role_uuid: null });
     }
 
-    async unassignRoleFromUser(
-        userUuid: string,
-        organizationUuid?: string,
-        projectUuid?: string,
+    async upsertSystemRoleGroupAccess(
+        groupUuid: string,
+        projectUuid: string,
+        role: ProjectMemberRole,
     ): Promise<void> {
-        const userId = await this.getUserId(userUuid);
+        await this.database('project_group_access')
+            .insert({
+                group_uuid: groupUuid,
+                project_uuid: projectUuid,
+                role,
+                role_uuid: null,
+            })
+            .onConflict(['group_uuid', 'project_uuid'])
+            .merge(['role', 'role_uuid']);
+    }
 
-        if (organizationUuid) {
-            const organizationId = await this.getOrganizationId(
-                organizationUuid,
-            );
-            await this.database(OrganizationMembershipsTableName)
-                .where('user_id', userId)
-                .where('organization_id', organizationId)
-                .update({ role_uuid: null });
-        }
-
-        if (projectUuid) {
-            const project = await this.database(ProjectTableName)
-                .select('project_id')
-                .where('project_uuid', projectUuid)
-                .first();
-
-            if (!project) {
-                throw new NotFoundError(
-                    `Project with uuid ${projectUuid} not found`,
-                );
-            }
-
-            await this.database(ProjectMembershipsTableName)
-                .where('user_id', userId)
-                .where('project_id', project.project_id)
-                .update({ role_uuid: null });
-        }
+    async upsertCustomRoleGroupAccess(
+        groupUuid: string,
+        projectUuid: string,
+        roleUuid: string,
+    ): Promise<void> {
+        await this.database('project_group_access')
+            .insert({
+                group_uuid: groupUuid,
+                project_uuid: projectUuid,
+                role_uuid: roleUuid,
+                role: ProjectMemberRole.VIEWER,
+            })
+            .onConflict(['group_uuid', 'project_uuid'])
+            .merge(['role_uuid', 'role']);
     }
 
     async assignRoleToGroup(
         groupUuid: string,
         roleUuid: string,
-        projectUuid?: string,
+        projectUuid: string,
     ): Promise<void> {
-        if (projectUuid) {
-            const existingAccess = await this.database('project_group_access')
+        const existingAccess = await this.database('project_group_access')
+            .where('group_uuid', groupUuid)
+            .where('project_uuid', projectUuid)
+            .first();
+
+        if (existingAccess) {
+            await this.database('project_group_access')
                 .where('group_uuid', groupUuid)
                 .where('project_uuid', projectUuid)
-                .first();
-
-            if (existingAccess) {
-                await this.database('project_group_access')
-                    .where('group_uuid', groupUuid)
-                    .where('project_uuid', projectUuid)
-                    .update({ role_uuid: roleUuid });
-            } else {
-                await this.database('project_group_access').insert({
-                    group_uuid: groupUuid,
-                    project_uuid: projectUuid,
-                    role_uuid: roleUuid,
-                    role: 'viewer' as ProjectMemberRole, // Default role when using custom role_uuid
-                });
-            }
+                .update({ role_uuid: roleUuid });
+        } else {
+            await this.database('project_group_access').insert({
+                group_uuid: groupUuid,
+                project_uuid: projectUuid,
+                role_uuid: roleUuid,
+                role: 'viewer' as ProjectMemberRole, // Default role when using custom role_uuid
+            });
         }
     }
 
     async unassignRoleFromGroup(
         groupUuid: string,
-        projectUuid?: string,
+        projectUuid: string,
     ): Promise<void> {
         await this.database('project_group_access')
             .where('group_uuid', groupUuid)
@@ -370,49 +384,42 @@ export class RolesModel {
         return access;
     }
 
-    async createUserProjectAccess(
+    async upsertSystemRoleProjectAccess(
+        projectUuid: string,
+        userUuid: string,
+        role: ProjectMemberRole,
+    ): Promise<void> {
+        const userId = await this.getUserId(userUuid);
+        const projectId = await this.getProjectId(projectUuid);
+
+        await this.database(ProjectMembershipsTableName)
+            .insert({
+                project_id: projectId,
+                user_id: userId,
+                role,
+                role_uuid: null,
+            })
+            .onConflict(['project_id', 'user_id'])
+            .merge(['role', 'role_uuid']);
+    }
+
+    async upsertCustomRoleProjectAccess(
         projectUuid: string,
         userUuid: string,
         roleUuid: string,
     ): Promise<void> {
-        const project = await this.database(ProjectTableName)
-            .select('project_id')
-            .where('project_uuid', projectUuid)
-            .first();
-
-        if (!project) {
-            throw new NotFoundError(
-                `Project with uuid ${projectUuid} not found`,
-            );
-        }
-
         const userId = await this.getUserId(userUuid);
+        const projectId = await this.getProjectId(projectUuid);
 
         await this.database(ProjectMembershipsTableName)
             .insert({
-                project_id: project.project_id,
+                project_id: projectId,
                 user_id: userId,
                 role_uuid: roleUuid,
-                role: ProjectMemberRole.VIEWER, // TODO set to null
+                role: ProjectMemberRole.VIEWER,
             })
             .onConflict(['project_id', 'user_id'])
-            .ignore();
-    }
-
-    async updateUserProjectAccess(
-        userUuid: string,
-        roleUuid: string,
-    ): Promise<void> {
-        // Convert userUuid to user_id since the table uses user_id not user_uuid
-        const userId = await this.getUserId(userUuid);
-
-        const updatedCount = await this.database(ProjectMembershipsTableName)
-            .where('user_id', userId)
-            .update({ role_uuid: roleUuid });
-
-        if (updatedCount === 0) {
-            throw new NotFoundError(`Access with id ${userUuid} not found`);
-        }
+            .merge(['role_uuid', 'role']);
     }
 
     async removeUserProjectAccess(userUuid: string): Promise<void> {
@@ -491,5 +498,24 @@ export class RolesModel {
             .whereNotNull('organization_memberships.role_uuid');
 
         return userAssignments;
+    }
+
+    async upsertOrganizationUserRoleAssignment(
+        orgUuid: string,
+        userUuid: string,
+        systemRoleId: string,
+    ): Promise<void> {
+        const userId = await this.getUserId(userUuid);
+        const orgId = await this.getOrganizationId(orgUuid);
+
+        await this.database(OrganizationMembershipsTableName)
+            .where({
+                organization_id: orgId,
+                user_id: userId,
+            })
+            .update({
+                role: systemRoleId as OrganizationMemberRole,
+                role_uuid: null, // Clear any custom role assignment
+            });
     }
 }
