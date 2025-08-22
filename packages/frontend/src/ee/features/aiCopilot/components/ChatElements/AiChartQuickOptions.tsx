@@ -10,6 +10,7 @@ import {
     IconDots,
     IconExternalLink,
     IconTableShortcut,
+    IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useMemo } from 'react';
 import { Link, useParams } from 'react-router';
@@ -30,12 +31,14 @@ type Props = {
         description: string | null;
     };
     message: AiAgentMessageAssistant;
+    compiledSql?: string;
 };
 
 export const AiChartQuickOptions = ({
     projectUuid,
     saveChartOptions = { name: '', description: '' },
     message,
+    compiledSql,
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
@@ -169,6 +172,19 @@ export const AiChartQuickOptions = ({
                     >
                         Explore from here
                     </Menu.Item>
+
+                    {!!compiledSql ? (
+                        <Menu.Item
+                            component={Link}
+                            to={{
+                                pathname: `/projects/${projectUuid}/sql-runner`,
+                            }}
+                            state={{ sql: compiledSql }}
+                            leftSection={<MantineIcon icon={IconTerminal2} />}
+                        >
+                            Open in SQL Runner
+                        </Menu.Item>
+                    ) : null}
                 </Menu.Dropdown>
             </Menu>
             <MantineModal
