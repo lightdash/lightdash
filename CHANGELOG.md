@@ -1,3 +1,10 @@
+# [0.1948.0](https://github.com/lightdash/lightdash/compare/0.1947.0...0.1948.0) (2025-08-22)
+
+
+### Features
+
+* add full modifiers to get role-scope parity ([#16539](https://github.com/lightdash/lightdash/issues/16539)) ([abef0df](https://github.com/lightdash/lightdash/commit/abef0df16dcda210def98f0ab247a441fcdc1b2e)), closes [#16522](https://github.com/lightdash/lightdash/issues/16522)
+
 # [0.1947.0](https://github.com/lightdash/lightdash/compare/0.1946.0...0.1947.0) (2025-08-22)
 
 
