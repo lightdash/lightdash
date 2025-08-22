@@ -18,7 +18,6 @@ export interface StreamingState {
     isStreaming: boolean;
     toolCalls: ToolCall[];
     error?: string;
-    justCompleted?: boolean;
 }
 
 type State = Record<string, StreamingState>;
@@ -73,7 +72,6 @@ const threadStreamSlice = createSlice({
             const streamingThread = state[threadUuid];
             if (streamingThread) {
                 streamingThread.isStreaming = false;
-                streamingThread.justCompleted = true;
             }
         },
         addToolCall: (
@@ -115,16 +113,6 @@ const threadStreamSlice = createSlice({
                 streamingThread.error = error;
             }
         },
-        clearJustCompleted: (
-            state,
-            action: PayloadAction<{ threadUuid: string }>,
-        ) => {
-            const { threadUuid } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.justCompleted = false;
-            }
-        },
     },
 });
 
@@ -134,7 +122,6 @@ export const {
     stopStreaming,
     setError,
     addToolCall,
-    clearJustCompleted,
 } = threadStreamSlice.actions;
 
 export const store = configureStore({
