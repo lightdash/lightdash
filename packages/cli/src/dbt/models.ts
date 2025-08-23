@@ -80,9 +80,11 @@ const generateModelYml = ({
         description: '',
         ...(includeMeta
             ? {
-                  meta: {
-                      dimension: {
-                          type: dimensionType,
+                  config: {
+                      meta: {
+                          dimension: {
+                              type: dimensionType,
+                          },
                       },
                   },
               }
@@ -208,7 +210,12 @@ export const findAndUpdateModelYaml = async ({
             const hasDoc = docsNames.includes(column.name);
             const newDescription = hasDoc ? `{{doc('${column.name}')}}` : '';
             const existingDescription = column.description;
-            const existingDimensionType = column.meta?.dimension?.type;
+            if (column.meta) {
+                throw new ParseError(
+                    'Detected column with `column.meta` property, these should be nested under `column.config.meta`. Please update your config before using lightdash generate',
+                );
+            }
+            const existingDimensionType = column.config?.meta?.dimension?.type;
             const dimensionType = table[column.name] as
                 | DimensionType
                 | undefined;
@@ -238,7 +245,9 @@ export const findAndUpdateModelYaml = async ({
                 columnName: column.name,
                 properties: {
                     description,
-                    meta,
+                    config: {
+                        meta,
+                    },
                 },
             });
         }
