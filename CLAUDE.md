@@ -43,7 +43,7 @@ pnpm -F frontend typecheck
 
 ```bash
 pnpm -F common test
-pnpm -F backend test:dev
+pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
 
 **API Generation:**

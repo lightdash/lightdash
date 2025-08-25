@@ -22,9 +22,7 @@ export const toolRunMetricQueryArgsSchema = createToolSchema(
     .extend({
         vizConfig: tableVizConfigSchema,
         filters: filtersSchema
-            // This is an MCP only tool
-            // Using optional instead of nullable here, works better with MCP clients
-            .optional()
+            .nullable()
             .describe(
                 'Filters to apply to the query. Filtered fields must exist in the selected explore.',
             ),
