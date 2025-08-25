@@ -263,6 +263,17 @@ export class NotFoundError extends LightdashError {
     }
 }
 
+export class NotSupportedError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'NotSupportedError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
 export class InvalidUser extends LightdashError {
     constructor(message: string) {
         super({
