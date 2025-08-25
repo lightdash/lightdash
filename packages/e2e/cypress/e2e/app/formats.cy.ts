@@ -35,7 +35,12 @@ describe('Explore', () => {
                         ],
                     },
                 },
-                sorts: [{ fieldId: 'events_in_eur', descending: true }],
+                sorts: [
+                    {
+                        fieldId: 'events_in_eur',
+                        descending: true,
+                    },
+                ],
                 limit: 1,
                 tableCalculations: [],
                 additionalMetrics: [],
@@ -82,6 +87,9 @@ describe('Explore', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreUrlParams}`,
         );
+
+        // run query
+        cy.get('button').contains('Run query').click();
 
         const headers = [
             'In eur',

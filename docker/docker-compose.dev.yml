@@ -20,6 +20,7 @@ x-lightdash-environment: &lightdash-environment
     PGUSER: ${PGUSER}
     PGPASSWORD: ${PGPASSWORD}
     PGDATABASE: ${PGDATABASE}
+    PGCONNECTIONURI: ${PGCONNECTIONURI}
     RUDDERSTACK_WRITE_KEY: ${RUDDERSTACK_WRITE_KEY}
     RUDDERSTACK_DATA_PLANE_URL: ${RUDDERSTACK_DATA_PLANE_URL}
     SECURE_COOKIES: ${SECURE_COOKIES}
@@ -99,7 +100,7 @@ services:
             <<: *lightdash-environment
             SCHEDULER_ENABLED: ${SCHEDULER_ENABLED}
             SCHEDULER_INCLUDE_TASKS: ${SCHEDULER_INCLUDE_TASKS}
-            SCHEDULER_EXCLUDE_TASKS: ${SCHEDULER_EXCLUDE_TASKS:-runAsyncWarehouseQuery}
+            SCHEDULER_EXCLUDE_TASKS: ${SCHEDULER_EXCLUDE_TASKS}
             LIGHTDASH_PROMETHEUS_PORT: ${LIGHTDASH_PROMETHEUS_PORT}
             LIGHTDASH_PROMETHEUS_PATH: ${LIGHTDASH_PROMETHEUS_PATH}
         ports:
@@ -110,20 +111,6 @@ services:
             - '9229:9229'
         command: ''
         entrypoint: ['/bin/sh', '-c', 'sleep infinity']
-
-    lightdash-query-worker:
-        <<: *lightdash-base
-        depends_on:
-            - minio
-            - db-dev
-            - lightdash-dev
-        restart: unless-stopped
-        environment:
-            <<: *lightdash-environment
-            SCHEDULER_ENABLED: true
-            SCHEDULER_INCLUDE_TASKS: runAsyncWarehouseQuery
-        command: ''
-        entrypoint: ['/bin/sh', '-c', 'pnpm -F backend scheduler-dev']
 
     db-dev:
         image: pgvector/pgvector:pg16

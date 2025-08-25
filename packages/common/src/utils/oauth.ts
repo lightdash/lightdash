@@ -157,9 +157,58 @@ const OAUTH_ICONS = {
         '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
 } as const;
 
+// OAuth redirect page template
+const OAUTH_REDIRECT_TEMPLATE = `
+<html>
+    <head>
+        <title>Redirecting...</title>
+        <style>
+            {{{styles}}}
+            .spinner {
+                width: 32px;
+                height: 32px;
+                margin: 0 auto 16px auto;
+                border: 3px solid #e9ecef;
+                border-top: 3px solid #00B26F;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .redirect-link {
+                color: #00B26F;
+                text-decoration: none;
+                font-weight: 600;
+            }
+            .redirect-link:hover {
+                text-decoration: underline;
+            }
+        </style>
+        <script>
+            setTimeout(function() {
+                window.location.href = "{{{redirectUrl}}}";
+            }, 2000);
+        </script>
+    </head>
+    <body>
+        <div class="stack">
+            <div class="container">
+                <div class="spinner"></div>
+                <h1>Redirecting...</h1>
+                <p>{{message}}</p>
+                <p>If you are not redirected automatically, <a href="{{{redirectUrl}}}" class="redirect-link">click here</a>.</p>
+            </div>
+        </div>
+    </body>
+</html>
+`;
+
 // Compile the templates once with proper type safety
 const compiledResponseTemplate = compile(OAUTH_RESPONSE_TEMPLATE);
 const compiledAuthorizeTemplate = compile(OAUTH_AUTHORIZE_TEMPLATE);
+const compiledRedirectTemplate = compile(OAUTH_REDIRECT_TEMPLATE);
 
 export type OAuthResponseStatus = 'success' | 'error';
 export type OAuthIconType = keyof typeof OAUTH_ICONS;
@@ -182,6 +231,11 @@ export interface OAuthAuthorizeParams {
     scope: string;
     user: OAuthUser;
     hiddenInputs: OAuthHiddenInput[];
+}
+
+export interface OAuthRedirectParams {
+    redirectUrl: string;
+    message: string;
 }
 
 /**
@@ -236,6 +290,18 @@ export const generateOAuthAuthorizePage = (
     params: OAuthAuthorizeParams,
 ): string =>
     compiledAuthorizeTemplate({
+        styles: oauthPageStyles,
+        ...params,
+    });
+
+/**
+ * Generates an OAuth redirect page HTML using JavaScript redirect
+ * This prevents CSP errors by using JavaScript-based redirection instead of HTTP redirects
+ */
+export const generateOAuthRedirectPage = (
+    params: OAuthRedirectParams,
+): string =>
+    compiledRedirectTemplate({
         styles: oauthPageStyles,
         ...params,
     });

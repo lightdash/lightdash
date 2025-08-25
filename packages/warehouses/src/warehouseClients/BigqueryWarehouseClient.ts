@@ -166,10 +166,9 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
                 .replaceAll('\\', '\\\\')
                 .replaceAll("'", "\\'")
                 .replaceAll('"', '\\"')
-                // Remove SQL comments (BigQuery supports --, /* */, and # comments)
+                // Remove SQL comments (BigQuery supports --, /* */ comments)
                 .replace(/--.*$/gm, '')
                 .replace(/\/\*[\s\S]*?\*\//g, '')
-                .replace(/#.*$/gm, '') // BigQuery also supports # comments
                 // Remove null bytes
                 .replaceAll('\0', '')
         );
@@ -184,7 +183,8 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         try {
             this.client = new BigQuery({
                 projectId: credentials.executionProject || credentials.project,
-                location: credentials.location,
+                // empty string is not a valid value for location
+                location: credentials.location || undefined,
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
             });

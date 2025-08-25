@@ -206,7 +206,12 @@ const testFilterStringEscaping = (projectUuid: string) => {
                     ],
                 },
             },
-            sorts: [{ fieldId: 'customers_first_name', descending: false }],
+            sorts: [
+                {
+                    fieldId: 'customers_first_name',
+                    descending: false,
+                },
+            ],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
@@ -264,7 +269,12 @@ const testPercentile = (
                 'events_percentile_75',
             ],
             filters: {},
-            sorts: [{ fieldId: 'events_timestamp_tz_day', descending: true }],
+            sorts: [
+                {
+                    fieldId: 'events_timestamp_tz_day',
+                    descending: true,
+                },
+            ],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
@@ -317,7 +327,12 @@ const testTimeIntervalsResults = (
             ],
             metrics: [],
             filters: {},
-            sorts: [{ fieldId: 'events_timestamp_tz_raw', descending: true }],
+            sorts: [
+                {
+                    fieldId: 'events_timestamp_tz_raw',
+                    descending: true,
+                },
+            ],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
@@ -355,7 +370,10 @@ const createCustomDimensionChart = (projectUuid: string) => {
                 metrics: ['orders_total_order_amount'],
                 filters: {},
                 sorts: [
-                    { fieldId: 'orders_total_order_amount', descending: true },
+                    {
+                        fieldId: 'orders_total_order_amount',
+                        descending: true,
+                    },
                 ],
                 limit: 500,
                 tableCalculations: [],

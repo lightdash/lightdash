@@ -4,12 +4,12 @@ import {
     type FieldType,
     type PivotChartData,
     type PivotChartLayout,
+    type PivotConfiguration,
     type PullRequestCreated,
     type QueryExecutionContext,
 } from '..';
 import {
     type AllVizChartConfig,
-    type PivotIndexColum,
     type SortByDirection,
     type VizAggregationOptions,
     type VizBaseConfig,
@@ -153,12 +153,8 @@ export type GroupByColumn = {
 
 export type SortBy = PivotChartLayout['sortBy'];
 
-type ApiSqlRunnerPivotQueryPayload = {
+type ApiSqlRunnerPivotQueryPayload = PivotConfiguration & {
     savedSqlUuid?: string;
-    indexColumn: PivotIndexColum;
-    valuesColumns: ValuesColumn[];
-    groupByColumns: GroupByColumn[] | undefined;
-    sortBy: PivotChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &

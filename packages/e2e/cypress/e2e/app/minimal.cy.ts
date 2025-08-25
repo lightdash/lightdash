@@ -60,7 +60,7 @@ describe('Minimal pages', () => {
             );
 
             cy.contains('Payments total revenue');
-            cy.contains('1,103');
+            cy.contains('1,682');
         });
     });
     it('I can view a minimal dashboard', () => {
@@ -82,7 +82,7 @@ describe('Minimal pages', () => {
                 'Lightdash is an open source analytics for your dbt project.',
             ); // markdown
 
-            cy.contains('1,103'); // big number
+            cy.contains('855'); // big number
 
             cy.contains(`What's the average spend per customer?`); // bar chart
             cy.contains('Average order size'); // bar chart

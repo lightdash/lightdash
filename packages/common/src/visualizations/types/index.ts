@@ -1,4 +1,5 @@
 import { DimensionType } from '../../types/field';
+import { type PivotConfiguration } from '../../types/queryHistory';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
@@ -95,9 +96,7 @@ export type VizTableDisplay = {
     // On vis column config, visible, label and frozen, at least seem like display options
 };
 
-export type PivotIndexColum =
-    | { reference: string; type: VizIndexType }
-    | undefined;
+export type PivotIndexColum = { reference: string; type: VizIndexType };
 
 export type PivotValuesColumn = {
     referenceField: string;
@@ -113,7 +112,7 @@ export type PivotChartData = {
     queryUuid: string | undefined;
     fileUrl: string | undefined;
     results: RawResultRow[];
-    indexColumn: PivotIndexColum;
+    indexColumn: PivotConfiguration['indexColumn'] | undefined;
     valuesColumns: PivotValuesColumn[];
     columns: VizColumn[];
     columnCount: number | undefined;

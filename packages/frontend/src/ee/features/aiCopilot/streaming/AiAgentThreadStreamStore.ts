@@ -69,7 +69,10 @@ const threadStreamSlice = createSlice({
         ) => {
             const { threadUuid } = action.payload;
 
-            state[threadUuid].isStreaming = false;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.isStreaming = false;
+            }
         },
         addToolCall: (
             state,

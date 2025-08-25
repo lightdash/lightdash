@@ -3,7 +3,11 @@ module.exports = {
     testEnvironment: 'node',
     automock: false,
     setupFiles: ['./setupJest.ts'],
-    testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        '/dist/',
+        '.*\\.integration\\.test\\.ts$',
+    ],
     maxWorkers: '50%',
     transform: {
         '^.+\\.ts$': [

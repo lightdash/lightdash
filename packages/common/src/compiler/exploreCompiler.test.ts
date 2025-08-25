@@ -4,6 +4,7 @@ import { ExploreCompiler, parseAllReferences } from './exploreCompiler';
 import {
     compiledExploreWithHiddenJoin,
     compiledExploreWithJoinWithFieldsAndGroups,
+    compiledExploreWithParameters,
     compiledJoinedExploreOverridingAliasAndLabel,
     compiledJoinedExploreOverridingJoinAlias,
     compiledJoinedExploreOverridingJoinLabel,
@@ -36,9 +37,11 @@ import {
     exploreTableSelfReferenceCompiledSqlWhere,
     exploreTableSelfReferenceSqlWhere,
     exploreWithHiddenJoin,
+    exploreWithInvalidParameterReference,
     exploreWithJoinWithFieldsAndGroups,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
+    exploreWithParameters,
     exploreWithRequiredAttributes,
     exploreWithRequiredAttributesCompiled,
     joinedExploreOverridingAliasAndLabel,
@@ -313,6 +316,7 @@ describe('Compile metrics with filters', () => {
             compiler.compileMetric(
                 tablesWithMetricsWithFilters.table1.metrics.metric1,
                 tablesWithMetricsWithFilters,
+                [],
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN ("table1".number_column) ELSE NULL END)`,
@@ -323,6 +327,7 @@ describe('Compile metrics with filters', () => {
             compiler.compileMetric(
                 tablesWithMetricsWithFilters.table2.metrics.metric2,
                 tablesWithMetricsWithFilters,
+                [],
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (("table2".dim2) < (10) AND ("table2".dim2) > (5)) THEN ("table2".number_column) ELSE NULL END)`,
@@ -334,6 +339,7 @@ describe('Compile metrics with filters', () => {
             compiler.compileMetric(
                 tablesWithMetricsWithFilters.table1.metrics.metric_with_sql,
                 tablesWithMetricsWithFilters,
+                [],
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
@@ -425,6 +431,7 @@ describe('Compiled custom dimensions', () => {
             compiler.compileCustomDimension(
                 customSqlDimensionWithNoReferences,
                 simpleJoinedExplore.tables,
+                [],
             ),
         ).toStrictEqual(expectedCompiledCustomSqlDimensionWithNoReferences);
     });
@@ -433,7 +440,340 @@ describe('Compiled custom dimensions', () => {
             compiler.compileCustomDimension(
                 customSqlDimensionWithReferences,
                 simpleJoinedExplore.tables,
+                [],
             ),
         ).toStrictEqual(expectedCompiledCustomSqlDimensionWithReferences);
+    });
+});
+
+describe('Explore compilation with model-level parameters', () => {
+    describe('Parameter inheritance on tables', () => {
+        test('should compile explore with table parameters', () => {
+            const result = compiler.compileExplore(exploreWithParameters);
+
+            expect(result).toStrictEqual(compiledExploreWithParameters);
+        });
+
+        test('should copy parameters to compiled tables', () => {
+            const result = compiler.compileExplore(exploreWithParameters);
+
+            expect(result.tables.a.parameters).toEqual({
+                region: {
+                    label: 'Region',
+                    description: 'Filter by region',
+                    default: 'US',
+                },
+            });
+
+            expect(result.tables.b.parameters).toEqual({
+                active_status: {
+                    label: 'Active Status',
+                    description: 'Define active status',
+                    default: 'active',
+                },
+            });
+        });
+
+        test('should track parameter references in joins', () => {
+            const result = compiler.compileExplore(exploreWithParameters);
+
+            expect(result.joinedTables[0].parameterReferences).toEqual([
+                'b.active_status',
+            ]);
+        });
+    });
+
+    describe('Parameter validation in joins', () => {
+        test('should throw error for invalid parameter references', () => {
+            expect(() =>
+                compiler.compileExplore(exploreWithInvalidParameterReference),
+            ).toThrowError(CompileError);
+        });
+
+        test('should throw error with descriptive message for missing parameters', () => {
+            expect(() =>
+                compiler.compileExplore(exploreWithInvalidParameterReference),
+            ).toThrow('Missing parameters: b.nonexistent_param');
+        });
+    });
+
+    describe('Parameter resolution in join conditions', () => {
+        test('should preserve parameter references in compiled SQL', () => {
+            const result = compiler.compileExplore(exploreWithParameters);
+
+            expect(result.joinedTables[0].compiledSqlOn).toContain(
+                '${ld.parameters.b.active_status}',
+            );
+        });
+
+        test('should compile table references but preserve parameter references', () => {
+            const result = compiler.compileExplore(exploreWithParameters);
+
+            const compiledSql = result.joinedTables[0].compiledSqlOn;
+            expect(compiledSql).toContain('"a".dim1');
+            expect(compiledSql).toContain('"b".dim1');
+            expect(compiledSql).toContain('${ld.parameters.b.active_status}');
+        });
+
+        test('should track both table and parameter references', () => {
+            const result = compiler.compileExplore(exploreWithParameters);
+
+            expect(result.joinedTables[0].tablesReferences).toEqual(['a', 'b']);
+            expect(result.joinedTables[0].parameterReferences).toEqual([
+                'b.active_status',
+            ]);
+        });
+    });
+
+    describe('Parameter scoping across joined tables', () => {
+        test('should validate parameter exists in correct table scope', () => {
+            expect(() =>
+                compiler.compileExplore(exploreWithInvalidParameterReference),
+            ).toThrow('Missing parameters: b.nonexistent_param');
+        });
+
+        test('should allow parameters from any table in the explore', () => {
+            const exploreWithMultipleParamReferences = {
+                ...exploreWithParameters,
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.a.region} = 'US' AND ${ld.parameters.b.active_status} = 'active'",
+                    },
+                ],
+            };
+
+            expect(() =>
+                compiler.compileExplore(exploreWithMultipleParamReferences),
+            ).not.toThrow();
+        });
+    });
+
+    describe('Edge cases', () => {
+        test('should handle join with no parameters', () => {
+            const exploreWithoutParams = {
+                ...exploreWithParameters,
+                tables: {
+                    ...exploreWithParameters.tables,
+                    a: {
+                        ...exploreWithParameters.tables.a,
+                        parameters: {},
+                    },
+                    b: {
+                        ...exploreWithParameters.tables.b,
+                        parameters: {},
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: '${a.dim1} = ${b.dim1}',
+                    },
+                ],
+            };
+
+            expect(() =>
+                compiler.compileExplore(exploreWithoutParams),
+            ).not.toThrow();
+        });
+
+        test('should handle tables with undefined parameters', () => {
+            const exploreWithUndefinedParams = {
+                ...exploreWithParameters,
+                tables: {
+                    ...exploreWithParameters.tables,
+                    a: {
+                        ...exploreWithParameters.tables.a,
+                        parameters: undefined,
+                    },
+                    b: {
+                        ...exploreWithParameters.tables.b,
+                        parameters: undefined,
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: '${a.dim1} = ${b.dim1}',
+                    },
+                ],
+            };
+
+            expect(() =>
+                compiler.compileExplore(exploreWithUndefinedParams),
+            ).not.toThrow();
+        });
+
+        test('should handle mixed project and model parameter syntax', () => {
+            const exploreWithMixedSyntax = {
+                ...exploreWithParameters,
+                // Add project-level parameters
+                projectParameters: {
+                    region: {
+                        label: 'Global Region',
+                        description: 'Global region filter',
+                        default: 'US',
+                    },
+                },
+                tables: {
+                    ...exploreWithParameters.tables,
+                    b: {
+                        ...exploreWithParameters.tables.b,
+                        parameters: {
+                            active_status: {
+                                label: 'Active Status',
+                                description:
+                                    'Define what constitutes an active order',
+                                default: 'active',
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.b.active_status} = 'active' AND ${ld.parameters.region} = 'US'",
+                    },
+                ],
+            };
+
+            const result = compiler.compileExplore(exploreWithMixedSyntax);
+            expect(result.joinedTables[0].parameterReferences).toEqual([
+                'b.active_status',
+                'region',
+            ]);
+        });
+
+        test('should allow same parameter name at project and model levels without conflict', () => {
+            const exploreWithSameNamedParams = {
+                ...exploreWithParameters,
+                projectParameters: {
+                    region: {
+                        label: 'Global Region',
+                        description: 'Global region filter',
+                        default: 'US',
+                    },
+                    status: {
+                        label: 'Global Status',
+                        description: 'Global status filter',
+                        default: 'active',
+                    },
+                },
+                tables: {
+                    ...exploreWithParameters.tables,
+                    a: {
+                        ...exploreWithParameters.tables.a,
+                        parameters: {
+                            region: {
+                                label: 'Table A Region',
+                                description: 'Region specific to table A',
+                                default: 'EU',
+                            },
+                        },
+                    },
+                    b: {
+                        ...exploreWithParameters.tables.b,
+                        parameters: {
+                            status: {
+                                label: 'Table B Status',
+                                description: 'Status specific to table B',
+                                default: 'inactive',
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.region} = 'US' AND ${ld.parameters.a.region} = 'EU' AND ${ld.parameters.status} = 'active' AND ${ld.parameters.b.status} = 'inactive'",
+                    },
+                ],
+            };
+
+            // This should NOT throw an error because parameters are properly scoped
+            expect(() =>
+                compiler.compileExplore(exploreWithSameNamedParams),
+            ).not.toThrow();
+
+            const result = compiler.compileExplore(exploreWithSameNamedParams);
+
+            // Should track all scoped parameters correctly
+            expect(result.joinedTables[0].parameterReferences).toEqual([
+                'region',
+                'a.region',
+                'status',
+                'b.status',
+            ]);
+
+            // Model parameters should be preserved on compiled tables
+            expect(result.tables.a.parameters).toEqual({
+                region: {
+                    label: 'Table A Region',
+                    description: 'Region specific to table A',
+                    default: 'EU',
+                },
+            });
+
+            expect(result.tables.b.parameters).toEqual({
+                status: {
+                    label: 'Table B Status',
+                    description: 'Status specific to table B',
+                    default: 'inactive',
+                },
+            });
+        });
+
+        test('should handle complex scoping scenarios with multiple same-named parameters', () => {
+            const exploreWithComplexScoping = {
+                ...exploreWithParameters,
+                projectParameters: {
+                    date_range: {
+                        label: 'Global Date Range',
+                        description: 'Global date filter',
+                        default: '2024-01-01',
+                    },
+                },
+                tables: {
+                    ...exploreWithParameters.tables,
+                    a: {
+                        ...exploreWithParameters.tables.a,
+                        parameters: {
+                            date_range: {
+                                label: 'Table A Date Range',
+                                description: 'Date range for table A',
+                                default: '2024-02-01',
+                            },
+                        },
+                    },
+                    b: {
+                        ...exploreWithParameters.tables.b,
+                        parameters: {
+                            date_range: {
+                                label: 'Table B Date Range',
+                                description: 'Date range for table B',
+                                default: '2024-03-01',
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.date_range} >= '2024-01-01' AND ${ld.parameters.a.date_range} >= '2024-02-01' AND ${lightdash.parameters.b.date_range} >= '2024-03-01'",
+                    },
+                ],
+            };
+
+            expect(() =>
+                compiler.compileExplore(exploreWithComplexScoping),
+            ).not.toThrow();
+
+            const result = compiler.compileExplore(exploreWithComplexScoping);
+            expect(result.joinedTables[0].parameterReferences).toEqual([
+                'date_range',
+                'a.date_range',
+                'b.date_range',
+            ]);
+        });
     });
 });

@@ -2,21 +2,15 @@ import {
     friendlyName,
     getFilterGroupItemsPropertyName,
     getFilterRulesFromGroup,
-    getFilterTypeFromItemType,
     getItemLabel,
     getItemLabelWithoutTableName,
     isAndFilterGroup,
     isField,
     isOrFilterGroup,
-    type DimensionType,
-    type FieldTarget,
+    type AiFilterRule,
     type FilterGroup,
-    type FilterOperator,
-    type FilterRule,
     type Filters,
     type ItemsMap,
-    type MetricType,
-    type TableCalculationType,
 } from '@lightdash/common';
 import { Button, Flex, Text } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
@@ -25,12 +19,7 @@ import { getConditionalRuleLabel } from '../../../../../components/common/Filter
 import classes from './AgentVisualizationFilters.module.css';
 
 const FilterRuleDisplay: FC<{
-    rule: FilterRule<
-        FilterOperator,
-        FieldTarget & {
-            type: DimensionType | MetricType | TableCalculationType;
-        }
-    >;
+    rule: AiFilterRule;
     fieldsMap: ItemsMap;
     showTablePrefix: boolean;
     compact?: boolean;
@@ -41,9 +30,12 @@ const FilterRuleDisplay: FC<{
             ? getItemLabel(field)
             : getItemLabelWithoutTableName(field)
         : friendlyName(rule.target.fieldId);
-    const filterType = getFilterTypeFromItemType(rule.target.type);
 
-    const ruleLabels = getConditionalRuleLabel(rule, filterType, displayName);
+    const ruleLabels = getConditionalRuleLabel(
+        rule,
+        rule.target.fieldFilterType,
+        displayName,
+    );
 
     return (
         <Button
@@ -102,17 +94,7 @@ const FilterGroupDisplay: FC<{
                         compact={compact}
                         fieldsMap={fieldsMap}
                         showTablePrefix={showTablePrefix}
-                        rule={
-                            rule as FilterRule<
-                                FilterOperator,
-                                FieldTarget & {
-                                    type:
-                                        | DimensionType
-                                        | MetricType
-                                        | TableCalculationType;
-                                }
-                            >
-                        }
+                        rule={rule as AiFilterRule}
                     />
                     {combinator === 'or' && index !== rules.length - 1 && (
                         <Text fz="xs" color="gray.6" fw={500}>

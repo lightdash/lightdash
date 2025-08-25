@@ -1,4 +1,4 @@
-import { AnyType, SEED_PROJECT } from '@lightdash/common';
+import { SEED_PROJECT } from '@lightdash/common';
 
 describe('Explore', () => {
     beforeEach(() => {
@@ -19,13 +19,6 @@ describe('Explore', () => {
         cy.findByText('Unique order count').click();
         cy.findByText('First name').click();
 
-        // run query
-        cy.get('button').contains('Run query').click();
-
-        // wait for query to finish
-        cy.findByText('Loading chart').should('not.exist');
-        cy.findByText('Loading results').should('not.exist');
-
         // open column menu
         cy.get('th')
             .contains('Customers First name')
@@ -35,6 +28,9 @@ describe('Explore', () => {
 
         // sort `Customers First-Name` by ascending
         cy.findByRole('menuitem', { name: 'Sort A-Z' }).click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
 
         // wait for query to finish
         cy.findByText('Loading results').should('not.exist');
@@ -188,6 +184,12 @@ describe('Explore', () => {
             `{selectAll}${newTCName}`,
         );
         cy.findAllByTestId('table-calculation-save-button').click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // wait for the chart to finish loading
+        cy.contains('Loading chart').should('not.exist');
 
         cy.findByTestId('x-axis-field-select').should('have.value', newTCName);
         cy.findByTestId('y-axis-field-select').should('have.value', newTCName);
@@ -392,45 +394,17 @@ describe('Explore', () => {
         // wait to compile query
         cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
 
-        let sqlQueryFromExploreLines: string[];
-
         // Get compiled SQL query from Explore
-        cy.get('.mantine-Prism-root')
-            .within(() => {
-                sqlQueryFromExploreLines = Cypress.$(
-                    '.mantine-Prism-lineContent',
-                )
-                    .toArray()
-                    .map((el) => (el.innerText === '\n' ? '' : el.innerText));
-            })
-            .then(() => {
-                // open SQL Runner and wait for route change
-                cy.findByText('Open in SQL Runner').parent().click();
-                cy.url().should('include', '/sql-runner');
-                cy.get('.monaco-editor').should('exist');
-
-                // Get the entire SQL query from the Monaco editor instance
-                // NOTE: This is probably the most reliable way to get the SQL query from the Monaco editor, without having to target specific classes/ids
-                cy.window().then((win: AnyType) => {
-                    expect(win.monaco).to.be.an('object');
-                    const editor = win.monaco.editor.getModels()[0];
-                    const sqlRunnerText = editor.getValue();
-
-                    const normalizeQuery = (query: string) =>
-                        query
-                            .replace(/\s+/g, '') // Remove all whitespace
-                            .toLowerCase(); // Convert to lowercase for case-insensitive comparison
-
-                    const normalizedExploreQuery = normalizeQuery(
-                        sqlQueryFromExploreLines.join(''),
-                    );
-                    const normalizedRunnerQuery = normalizeQuery(sqlRunnerText);
-
-                    expect(normalizedRunnerQuery).to.equal(
-                        normalizedExploreQuery,
-                    );
-                });
+        cy.getMonacoEditorText().then((exploreSql) => {
+            // open SQL Runner and wait for route change
+            cy.findByText('Open in SQL Runner').parent().click();
+            cy.url().should('include', '/sql-runner');
+            // Get compiled SQL query from SQL runner
+            cy.getMonacoEditorText().then((runnerSql) => {
+                // They should match
+                expect(exploreSql).to.equal(runnerSql);
             });
+        });
     });
 
     it('Should clear query using hotkeys', () => {

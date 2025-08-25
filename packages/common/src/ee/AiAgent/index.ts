@@ -51,6 +51,7 @@ export const baseAgentSchema = z.object({
     provider: z.string(),
     model: z.string(),
     groupAccess: z.array(z.string()),
+    userAccess: z.array(z.string()),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -68,6 +69,7 @@ export type AiAgent = Pick<
     | 'instruction'
     | 'imageUrl'
     | 'groupAccess'
+    | 'userAccess'
 >;
 
 export type AiAgentSummary = Pick<
@@ -83,6 +85,7 @@ export type AiAgentSummary = Pick<
     | 'instruction'
     | 'imageUrl'
     | 'groupAccess'
+    | 'userAccess'
 >;
 
 export type AiAgentUser = {
@@ -118,6 +121,14 @@ export type AiAgentMessageAssistant = {
 
     toolCalls: AiAgentToolCall[];
     savedQueryUuid: string | null;
+
+    artifact: {
+        uuid: string;
+        versionNumber: number;
+        versionUuid: string;
+        title: string | null;
+        description: string | null;
+    } | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -160,6 +171,7 @@ export type ApiCreateAiAgent = Pick<
     | 'instruction'
     | 'imageUrl'
     | 'groupAccess'
+    | 'userAccess'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -172,6 +184,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'instruction'
         | 'imageUrl'
         | 'groupAccess'
+        | 'userAccess'
     >
 > & {
     uuid: string;
@@ -267,3 +280,31 @@ export type AiAgentToolCall = {
     toolName: string; // ToolName zod enum
     toolArgs: object;
 };
+
+export type AiAgentExploreAccessSummary = {
+    exploreName: string;
+    joinedTables: string[];
+    dimensions: string[];
+    metrics: string[];
+};
+
+export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
+    AiAgentExploreAccessSummary[]
+>;
+
+export type AiArtifact = {
+    artifactUuid: string;
+    threadUuid: string;
+    promptUuid: string | null;
+    artifactType: 'chart';
+    savedQueryUuid: string | null;
+    createdAt: Date;
+    versionNumber: number;
+    versionUuid: string;
+    title: string | null;
+    description: string | null;
+    chartConfig: Record<string, unknown> | null;
+    versionCreatedAt: Date;
+};
+
+export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;

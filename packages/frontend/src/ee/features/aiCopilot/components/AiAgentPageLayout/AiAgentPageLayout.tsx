@@ -1,0 +1,199 @@
+import { type AiAgentMessageAssistant } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
+import {
+    IconLayoutSidebar,
+    IconLayoutSidebarLeftCollapseFilled,
+} from '@tabler/icons-react';
+import {
+    Fragment,
+    useEffect,
+    useRef,
+    useState,
+    type PropsWithChildren,
+} from 'react';
+import {
+    Panel,
+    PanelGroup,
+    PanelResizeHandle,
+    type ImperativePanelHandle,
+} from 'react-resizable-panels';
+import { useParams } from 'react-router';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
+import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import {
+    AiAgentPageLayoutContext,
+    type AiAgentPageLayoutContextType,
+    type ArtifactData,
+} from '../../providers/AiLayoutProvider';
+import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
+import { SidebarButton } from './SidebarButton';
+import styles from './aiAgentPageLayout.module.css';
+
+interface Props extends PropsWithChildren {
+    Sidebar?: React.ReactNode;
+    Header?: React.ReactNode;
+}
+
+export const AiAgentPageLayout: React.FC<Props> = ({
+    Sidebar,
+    Header,
+    children,
+}) => {
+    const { agentUuid, threadUuid, projectUuid } = useParams();
+    const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
+    const artifactPanelRef = useRef<ImperativePanelHandle>(null);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [contextArtifact, setContextArtifact] = useState<ArtifactData | null>(
+        null,
+    );
+
+    const updateCollapsedState = () => {
+        const isCollapsed = sidebarPanelRef.current?.isCollapsed() ?? false;
+        setIsSidebarCollapsed(isCollapsed);
+    };
+
+    useEffect(() => {
+        const timer = setInterval(updateCollapsedState, 100);
+        return () => clearInterval(timer);
+    }, []);
+
+    const collapseSidebar = () => {
+        sidebarPanelRef.current?.collapse();
+    };
+
+    const expandSidebar = () => {
+        sidebarPanelRef.current?.expand();
+    };
+
+    const toggleSidebar = () => {
+        if (sidebarPanelRef.current?.isCollapsed()) {
+            expandSidebar();
+        } else {
+            collapseSidebar();
+        }
+    };
+
+    const collapseArtifact = () => {
+        artifactPanelRef.current?.collapse();
+    };
+
+    const expandArtifact = () => {
+        artifactPanelRef.current?.expand();
+    };
+
+    const setArtifact = (
+        artifactUuid: string,
+        versionUuid: string,
+        message: AiAgentMessageAssistant,
+        messageProjectUuid: string,
+        messageAgentUuid: string,
+    ) => {
+        setContextArtifact({
+            artifactUuid,
+            versionUuid,
+            message,
+            projectUuid: messageProjectUuid,
+            agentUuid: messageAgentUuid,
+        });
+
+        if (artifactPanelRef.current?.isCollapsed()) {
+            expandArtifact();
+            collapseSidebar();
+        }
+    };
+
+    const clearArtifact = () => {
+        setContextArtifact(null);
+        collapseArtifact();
+    };
+
+    useEffect(() => {
+        if (contextArtifact) {
+            clearArtifact();
+        }
+    }, [agentUuid, threadUuid, projectUuid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const contextValue: AiAgentPageLayoutContextType = {
+        isSidebarCollapsed,
+        collapseSidebar,
+        expandSidebar,
+        toggleSidebar,
+        collapseArtifact,
+        expandArtifact,
+        clearArtifact,
+        artifact: contextArtifact,
+        setArtifact,
+    };
+
+    return (
+        <AiAgentPageLayoutContext.Provider value={contextValue}>
+            <PanelGroup
+                direction="horizontal"
+                className={styles.panelGroup}
+                style={{
+                    height: `calc(100vh - ${NAVBAR_HEIGHT}px)`,
+                }}
+            >
+                {Sidebar && (
+                    <Fragment>
+                        <ErrorBoundary>
+                            <Panel
+                                id="sidebar"
+                                ref={sidebarPanelRef}
+                                defaultSize={20}
+                                minSize={10}
+                                maxSize={40}
+                                collapsible
+                                className={styles.sidebar}
+                            >
+                                <SidebarButton
+                                    leftSection={
+                                        <MantineIcon
+                                            size="md"
+                                            icon={
+                                                isSidebarCollapsed
+                                                    ? IconLayoutSidebar
+                                                    : IconLayoutSidebarLeftCollapseFilled
+                                            }
+                                        />
+                                    }
+                                    onClick={() => toggleSidebar()}
+                                />
+
+                                {Sidebar}
+                            </Panel>
+                        </ErrorBoundary>
+
+                        <PanelResizeHandle className={styles.resizeHandle} />
+                    </Fragment>
+                )}
+                <ErrorBoundary>
+                    <Panel className={styles.chat} id="chat" minSize={25}>
+                        {Header && (
+                            <Box className={styles.chatHeader}>{Header}</Box>
+                        )}
+
+                        <Box className={styles.chatContent}>{children}</Box>
+                    </Panel>
+
+                    {contextArtifact && (
+                        <PanelResizeHandle className={styles.resizeHandle} />
+                    )}
+
+                    <Panel
+                        id="artifact"
+                        ref={artifactPanelRef}
+                        defaultSize={0}
+                        minSize={50}
+                        collapsible
+                        collapsedSize={0}
+                        className={styles.artifact}
+                    >
+                        {contextArtifact && <AiArtifactPanel />}
+                    </Panel>
+                </ErrorBoundary>
+            </PanelGroup>
+        </AiAgentPageLayoutContext.Provider>
+    );
+};

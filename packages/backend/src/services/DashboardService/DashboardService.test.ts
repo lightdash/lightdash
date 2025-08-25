@@ -334,6 +334,7 @@ describe('DashboardService', () => {
                         projectUuid,
                         role: ProjectMemberRole.VIEWER,
                         userUuid: user.userUuid,
+                        roleUuid: undefined,
                     },
                 ],
             ),

@@ -1,3 +1,4 @@
+import { type AiAgentThread } from '@lightdash/common';
 import { Center, Loader } from '@mantine-8/core';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
@@ -8,26 +9,59 @@ import {
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
+import { useAiAgentPageLayout } from '../../features/aiCopilot/providers/AiLayoutProvider';
 import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
 
-const AiAgentThreadPage = () => {
-    const { agentUuid, threadUuid, projectUuid } = useParams();
+const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
+    const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
     const { user } = useApp();
+    const { setArtifact, artifact } = useAiAgentPageLayout();
+
     const { data: thread, isLoading: isLoadingThread } = useAiAgentThread(
+        projectUuid!,
         agentUuid,
         threadUuid,
+        {
+            onSuccess: (threadData: AiAgentThread) => {
+                if (!threadData?.messages?.length) return;
+
+                const lastMessage = threadData.messages.at(-1);
+                if (!lastMessage || lastMessage.role !== 'assistant') return;
+
+                const messageArtifact = lastMessage.artifact;
+                if (!messageArtifact) return;
+
+                // Only auto-open if no artifact is currently set or it's different
+                if (
+                    artifact?.artifactUuid !== messageArtifact.uuid ||
+                    artifact?.versionUuid !== messageArtifact.versionUuid
+                ) {
+                    setArtifact(
+                        messageArtifact.uuid,
+                        messageArtifact.versionUuid,
+                        lastMessage,
+                        projectUuid!,
+                        agentUuid!,
+                    );
+                }
+            },
+        },
     );
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
-    const agentQuery = useAiAgent(agentUuid);
+    const agentQuery = useAiAgent(projectUuid!, agentUuid!);
     const { agent } = useOutletContext<AgentContext>();
 
     const {
         mutateAsync: createAgentThreadMessage,
         isLoading: isCreatingMessage,
-    } = useCreateAgentThreadMessageMutation(projectUuid, agentUuid, threadUuid);
+    } = useCreateAgentThreadMessageMutation(
+        projectUuid!,
+        agentUuid,
+        threadUuid,
+    );
     const isStreaming = useAiAgentThreadStreaming(threadUuid!);
 
     const handleSubmit = (prompt: string) => {
@@ -47,7 +81,8 @@ const AiAgentThreadPage = () => {
             thread={thread}
             agentName={agentQuery.data?.name ?? 'AI'}
             enableAutoScroll={true}
-            mode="interactive"
+            promptUuid={promptUuid}
+            debug={debug}
         >
             <AgentChatInput
                 disabled={

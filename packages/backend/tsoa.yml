@@ -25,8 +25,11 @@ spec:
           description: These routes allow users to manage roles and permissions for their organization.
           externalDocs:
               url: 'https://docs.lightdash.com/references/roles'
+        - name: Query
+          description: These routes allow users to execute and manage queries against their data warehouse. This includes metric queries, SQL queries, and retrieving query results.
     outputDirectory: ./src/generated/
     specVersion: 3
+    yaml: false
     securityDefinitions:
         session_cookie:
             type: apiKey
@@ -44,4 +47,5 @@ routes:
 # this is required to fix an issue with nullable types when using Pick, Partial, etc...
 # https://github.com/lukeautry/tsoa/issues/1515
 compilerOptions:
+    strict: true
     strictNullChecks: true

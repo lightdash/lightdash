@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
+    CreateOrUpdateArtifactFn,
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -17,6 +18,7 @@ import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFilterRules,
+    validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
 } from '../utils/validators';
 import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
@@ -28,6 +30,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
+    createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
 };
 export const getGenerateTimeSeriesVizConfig = ({
@@ -37,12 +40,13 @@ export const getGenerateTimeSeriesVizConfig = ({
     getPrompt,
     sendFile,
     updatePrompt,
+    createOrUpdateArtifact,
     maxLimit,
 }: Dependencies) => {
     const schema = toolTimeSeriesArgsSchema;
 
     return tool({
-        description: `Use this tool to generate a Time Series Chart.`,
+        description: toolTimeSeriesArgsSchema.description,
         parameters: schema,
         execute: async (toolArgs) => {
             try {
@@ -53,6 +57,7 @@ export const getGenerateTimeSeriesVizConfig = ({
                     toolTimeSeriesArgsSchemaTransformed.parse(toolArgs);
 
                 const filterRules = getTotalFilterRules(vizTool.filters);
+
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
@@ -66,9 +71,25 @@ export const getGenerateTimeSeriesVizConfig = ({
                 ].filter((x) => typeof x === 'string');
                 validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
+                validateMetricDimensionFilterPlacement(
+                    explore,
+                    vizTool.filters,
+                );
                 // end of TODO
 
                 const prompt = await getPrompt();
+
+                // Create or update artifact
+                await createOrUpdateArtifact({
+                    threadUuid: prompt.threadUuid,
+                    promptUuid: prompt.promptUuid,
+                    artifactType: 'chart',
+                    title: toolArgs.title,
+                    description: toolArgs.description,
+                    vizConfig: toolArgs,
+                });
+
+                // TODO :: keeping this for now, until the front-end is under feature-flag
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
                     vizConfigOutput: toolArgs,

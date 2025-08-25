@@ -214,6 +214,9 @@ export const getMantine8ThemeOverride = (
                         return subtleInputStyles(theme);
                     return {};
                 },
+                defaultProps: {
+                    radius: 'md',
+                },
             }),
             ...overrides?.components,
         },

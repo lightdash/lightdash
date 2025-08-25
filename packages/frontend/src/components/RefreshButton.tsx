@@ -2,19 +2,19 @@ import {
     Button,
     Group,
     Kbd,
-    MantineProvider,
     Text,
     Tooltip,
+    rgba,
     type MantineSize,
-} from '@mantine/core';
-import { useHotkeys, useOs } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useHotkeys, useOs } from '@mantine-8/hooks';
 import { IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import useHealth from '../hooks/health/useHealth';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import LimitButton from './LimitButton';
+import RunQuerySettings from './RunQuerySettings';
 import MantineIcon from './common/MantineIcon';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
@@ -66,17 +66,15 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
         <Button.Group>
             <Tooltip
                 label={
-                    <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
-                        <Group spacing="xxs">
-                            <Kbd fw={600}>
-                                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
-                            </Kbd>
+                    <Group gap="xxs">
+                        <Kbd fw={600}>
+                            {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                        </Kbd>
 
-                            <Text fw={600}>+</Text>
+                        <Text fw={600}>+</Text>
 
-                            <Kbd fw={600}>Enter</Kbd>
-                        </Group>
-                    </MantineProvider>
+                        <Kbd fw={600}>Enter</Kbd>
+                    </Group>
                 }
                 position="bottom"
                 withArrow
@@ -84,18 +82,19 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                 disabled={isLoading || !isValidQuery}
             >
                 <Button
-                    pr="xxs"
                     size={size}
+                    pr={limit ? 'xs' : undefined}
                     disabled={!isValidQuery}
-                    leftIcon={<MantineIcon icon={IconPlayerPlay} />}
+                    leftSection={<MantineIcon icon={IconPlayerPlay} />}
                     loading={isLoading}
                     onClick={onClick}
-                    sx={(theme) => ({
+                    style={(theme) => ({
                         flex: 1,
-                        borderRight: `1px solid ${theme.fn.rgba(
-                            theme.colors.gray[5],
-                            0.6,
-                        )}`,
+                        borderRight: isValidQuery
+                            ? `1px solid ${rgba(theme.colors.gray[5], 0.6)}`
+                            : undefined,
+                        borderTopRightRadius: 0,
+                        borderBottomRightRadius: 0,
                     })}
                 >
                     Run query ({limit})
@@ -117,17 +116,28 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                                 cancelQuery();
                             })
                         }
+                        style={{
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                        }}
                     >
                         <MantineIcon icon={IconX} size="sm" />
                     </Button>
                 </Tooltip>
             ) : (
-                <LimitButton
+                <RunQuerySettings
                     disabled={!isValidQuery}
                     size={size}
                     maxLimit={maxLimit}
                     limit={limit}
                     onLimitChange={setRowLimit}
+                    showAutoFetchSetting
+                    targetProps={{
+                        style: {
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                        },
+                    }}
                 />
             )}
         </Button.Group>

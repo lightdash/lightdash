@@ -15,15 +15,14 @@ parameters:
     label: "Subscription Status"
     description: "Filter subscriptions by their current status"
     default: "all"
-    options:
-      - "all"
-      - "Current"
-      - "Expired"
-      - "Cancelled"
+    options_from_dimension:
+      dimension: "subscription_status"
+      model: "subscriptions"
   min_duration_months:
     label: "Minimum Duration (Months)"
     description: "Filter subscriptions by minimum duration in months"
     default: "0"
+    allow_custom_values: true
     options:
       - "0"
       - "1"
@@ -33,14 +32,12 @@ parameters:
   plan_type:
     label: "Plan Type"
     description: "Filter by subscription plan"
-    default: "all"
-    options:
-      - "all"
-      - "free"
-      - "silver"
-      - "gold"
-      - "platinum"
-      - "diamond"
+    default: "free"
+    multiple: true
+    allow_custom_values: true
+    options_from_dimension:
+      dimension: "plan_name"
+      model: "plan"
   time_zoom:
     label: "Time Zoom"
     description: "Select time period for MRR calculations"
@@ -51,8 +48,8 @@ parameters:
       - "quarterly"
   metric_type:
     label: "Metric Type"
-    description: "Switch between counting subscriptions or calculating MRR"
+    description: "Switch between counting subscriptions or calculating Revenue"
     default: "count"
     options:
       - "count"
-      - "mrr"
+      - "revenue"

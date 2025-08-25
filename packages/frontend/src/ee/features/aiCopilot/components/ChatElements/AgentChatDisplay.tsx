@@ -1,4 +1,4 @@
-import { type AiAgentMessage, type AiAgentThread } from '@lightdash/common';
+import { type AiAgentThread } from '@lightdash/common';
 import { Box, Divider, Flex, getDefaultZIndex, Stack } from '@mantine-8/core';
 import { Fragment, useRef, type FC, type PropsWithChildren } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
@@ -7,44 +7,23 @@ import { UserBubble } from './AgentChatUserBubble';
 import ThreadScrollToBottom from './ScrollToBottom';
 import { ChatElementsUtils } from './utils';
 
-type AiThreadMessageProps = {
-    message: AiAgentMessage;
-    agentName?: string;
-    isPreview?: boolean;
-};
-
-const AiThreadMessage: FC<AiThreadMessageProps> = ({
-    message,
-    isPreview = false,
-}) => {
-    const isUser = message.role === 'user';
-
-    return isUser ? (
-        <UserBubble message={message} />
-    ) : (
-        <ErrorBoundary>
-            <AssistantBubble message={message} isPreview={isPreview} />
-        </ErrorBoundary>
-    );
-};
-
-type AgentChatDisplayProps = {
+type Props = {
     thread: AiAgentThread;
+    promptUuid?: string;
     agentName?: string;
     height?: string | number;
     showScrollbar?: boolean;
     enableAutoScroll?: boolean;
     padding?: string;
-    mode: 'preview' | 'interactive';
+    debug?: boolean;
 };
 
-export const AgentChatDisplay: FC<PropsWithChildren<AgentChatDisplayProps>> = ({
+export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     thread,
-    agentName = 'AI',
     height = '100%',
     enableAutoScroll = false,
-    mode,
     children,
+    debug,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
 
@@ -62,34 +41,38 @@ export const AgentChatDisplay: FC<PropsWithChildren<AgentChatDisplayProps>> = ({
                 style={{ flexGrow: 1 }}
             >
                 <Stack flex={1} style={{ flexGrow: 1 }}>
-                    {thread.messages.map((message, i, xs) => {
-                        return (
-                            <Fragment key={`${message.role}-${message.uuid}`}>
-                                {ChatElementsUtils.shouldRenderDivider(
-                                    message,
-                                    i,
-                                    xs,
-                                ) && (
-                                    <Divider
-                                        label={
-                                            message.createdAt
-                                                ? ChatElementsUtils.getDividerLabel(
-                                                      message.createdAt,
-                                                  )
-                                                : undefined
-                                        }
-                                        labelPosition="center"
-                                        my="sm"
-                                    />
-                                )}
-                                <AiThreadMessage
-                                    message={message}
-                                    agentName={agentName}
-                                    isPreview={mode === 'preview'}
+                    {thread.messages.map((message, i, xs) => (
+                        <Fragment key={`${message.role}-${message.uuid}`}>
+                            {ChatElementsUtils.shouldRenderDivider(
+                                message,
+                                i,
+                                xs,
+                            ) && (
+                                <Divider
+                                    label={
+                                        message.createdAt
+                                            ? ChatElementsUtils.getDividerLabel(
+                                                  message.createdAt,
+                                              )
+                                            : undefined
+                                    }
+                                    labelPosition="center"
+                                    my="sm"
                                 />
-                            </Fragment>
-                        );
-                    })}
+                            )}
+
+                            {message.role === 'user' ? (
+                                <UserBubble message={message} />
+                            ) : (
+                                <ErrorBoundary>
+                                    <AssistantBubble
+                                        message={message}
+                                        debug={debug}
+                                    />
+                                </ErrorBoundary>
+                            )}
+                        </Fragment>
+                    ))}
                 </Stack>
 
                 {enableAutoScroll ? (

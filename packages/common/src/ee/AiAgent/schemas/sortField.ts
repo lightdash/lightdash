@@ -8,6 +8,12 @@ const sortFieldSchema = z.object({
         .describe(
             'If true sorts in descending order, if false sorts in ascending order',
         ),
+    nullsFirst: z
+        .boolean()
+        .describe(
+            'If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default',
+        )
+        .nullable(),
 });
 
 export default sortFieldSchema;

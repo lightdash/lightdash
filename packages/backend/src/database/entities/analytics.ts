@@ -7,23 +7,23 @@ export const AnalyticsSqlChartViewsTableName = 'analytics_sql_chart_views';
 
 export type DbAnalyticsChartViews = {
     chart_uuid: string;
-    user_uuid: string;
+    user_uuid: string | null;
     timestamp: Date;
-    context: Record<string, AnyType>;
+    context: Record<string, AnyType> | null;
 };
 export type DbAnalyticsDashboardViews = {
     dashboard_uuid: string;
-    user_uuid: string;
+    user_uuid: string | null;
     timestamp: Date;
-    context: Record<string, AnyType>;
+    context: Record<string, AnyType> | null;
 };
 
 export type AnalyticsDashboardViews = Knex.CompositeTableType<
-    DbAnalyticsChartViews,
-    Pick<DbAnalyticsDashboardViews, 'dashboard_uuid' | 'user_uuid' | 'context'>
+    DbAnalyticsDashboardViews,
+    Pick<DbAnalyticsDashboardViews, 'dashboard_uuid' | 'user_uuid'>
 >;
 
 export type AnalyticsChartViews = Knex.CompositeTableType<
     DbAnalyticsChartViews,
-    Pick<DbAnalyticsChartViews, 'chart_uuid' | 'user_uuid' | 'context'>
+    Pick<DbAnalyticsChartViews, 'chart_uuid' | 'user_uuid'>
 >;

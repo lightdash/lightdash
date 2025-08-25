@@ -1,4 +1,5 @@
 import {
+    getAvailableParametersFromTables,
     getDimensions,
     getItemId,
     isDateItem,
@@ -62,6 +63,9 @@ export const useDashboardChartReadyQuery = (
     const setChartsWithDateZoomApplied = useDashboardContext(
         (c) => c.setChartsWithDateZoomApplied,
     );
+    const addParameterDefinitions = useDashboardContext(
+        (c) => c.addParameterDefinitions,
+    );
 
     const sortKey =
         dashboardSorts
@@ -77,6 +81,14 @@ export const useDashboardChartReadyQuery = (
     const { data: explore } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,
     );
+
+    useEffect(() => {
+        if (explore) {
+            addParameterDefinitions(
+                getAvailableParametersFromTables(Object.values(explore.tables)),
+            );
+        }
+    }, [explore, addParameterDefinitions]);
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);

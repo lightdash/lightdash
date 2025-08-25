@@ -24,6 +24,7 @@ export interface LightdashUser {
     organizationCreatedAt?: Date;
     userId: number;
     role?: OrganizationMemberRole;
+    roleUuid?: string;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;

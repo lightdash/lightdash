@@ -19,21 +19,55 @@ export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'> &
     RankedItem;
 export type DashboardSearchResult = Pick<
     Dashboard,
-    'uuid' | 'name' | 'description' | 'spaceUuid'
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
 > & {
     validationErrors: {
         validationId: ValidationErrorDashboardResponse['validationId'];
+    }[];
+    viewsCount: number;
+    firstViewedAt: string | null;
+    lastModified: string | null;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+    lastUpdatedBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+    charts: {
+        uuid: string;
+        name: string;
+        description?: string;
+        chartType: ChartKind;
+        viewsCount: number;
     }[];
 } & RankedItem;
 
 export type SavedChartSearchResult = Pick<
     SavedChart,
-    'uuid' | 'name' | 'description' | 'spaceUuid'
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
 > & {
     chartType: ChartKind;
     validationErrors: {
         validationId: ValidationErrorChartResponse['validationId'];
     }[];
+    chartSource: 'saved';
+    viewsCount: number;
+    firstViewedAt: string | null;
+    lastModified: string | null;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+    lastUpdatedBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
 } & RankedItem;
 
 export type SqlChartSearchResult = Pick<
@@ -43,7 +77,44 @@ export type SqlChartSearchResult = Pick<
     uuid: SqlChart['savedSqlUuid'];
     chartType: ChartKind;
     spaceUuid: SqlChart['space']['uuid'];
+    projectUuid: SqlChart['project']['projectUuid'];
+    chartSource: 'sql';
+    viewsCount: number;
+    firstViewedAt: string | null;
+    lastModified: string | null;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+    lastUpdatedBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
 } & RankedItem;
+
+export type AllChartsSearchResult = Pick<
+    SavedChartSearchResult,
+    'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
+> &
+    Partial<Pick<SqlChartSearchResult, 'slug'>> & {
+        chartType: ChartKind;
+        chartSource: 'saved' | 'sql';
+        viewsCount: number;
+        firstViewedAt: string | null;
+        lastModified: string | null;
+        createdBy: {
+            firstName: string;
+            lastName: string;
+            userUuid: string;
+        } | null;
+        lastUpdatedBy: {
+            firstName: string;
+            lastName: string;
+            userUuid: string;
+        } | null;
+    } & RankedItem;
 
 export type TableSearchResult = Pick<
     Table,
@@ -101,6 +172,7 @@ export type SearchResult =
     | DashboardTabResult
     | SavedChartSearchResult
     | SqlChartSearchResult
+    | AllChartsSearchResult
     | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
@@ -118,6 +190,16 @@ export const isTableErrorSearchResult = (
     value: SearchResult,
 ): value is TableErrorSearchResult =>
     'explore' in value && 'validationErrors' in value;
+
+export const isSavedChartSearchResult = (
+    value: SearchResult,
+): value is SavedChartSearchResult =>
+    'chartSource' in value && value.chartSource === 'saved';
+
+export const isSqlChartSearchResult = (
+    value: SearchResult,
+): value is SqlChartSearchResult =>
+    'chartSource' in value && value.chartSource === 'sql';
 
 export type SearchResults = {
     spaces: SpaceSearchResult[];

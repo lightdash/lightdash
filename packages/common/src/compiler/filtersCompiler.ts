@@ -57,47 +57,51 @@ export const renderStringFilterSql = (
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
 ): string => {
-    const filterValues = filter.values;
+    const nonEmptyFilterValues = filter.values?.filter((v) => v !== '');
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return !filterValues || filterValues.length === 0
-                ? 'true'
-                : `(${dimensionSql}) IN (${filterValues
+            return filter.values && filter.values.length > 0
+                ? `(${dimensionSql}) IN (${filter.values
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
-                      .join(',')})`;
+                      .join(',')})`
+                : 'true';
         case FilterOperator.NOT_EQUALS:
-            return !filterValues || filterValues.length === 0
-                ? 'true'
-                : `((${dimensionSql}) NOT IN (${filterValues
+            return filter.values && filter.values.length > 0
+                ? `((${dimensionSql}) NOT IN (${filter.values
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
-                      .join(',')} ) OR (${dimensionSql}) IS NULL)`;
+                      .join(',')}) OR (${dimensionSql}) IS NULL)`
+                : 'true';
         case FilterOperator.INCLUDE:
-            if (filterValues === undefined || filterValues.length === 0)
-                return 'true';
-            const includesQuery = filterValues.map(
-                (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
-            );
-            if (includesQuery.length > 1)
-                return `(${includesQuery.join('\n  OR\n  ')})`;
-            return includesQuery.join('\n  OR\n  ');
+            if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
+                const includesQuery = nonEmptyFilterValues.map(
+                    (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
+                );
+                if (includesQuery.length > 1)
+                    return `(${includesQuery.join('\n  OR\n  ')})`;
+                return includesQuery.join('\n  OR\n  ');
+            }
+            return 'true';
         case FilterOperator.NOT_INCLUDE:
-            const notIncludeQuery = filterValues?.map(
-                (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
-            );
-            return notIncludeQuery?.join('\n  AND\n  ') || 'true';
+            if (nonEmptyFilterValues && nonEmptyFilterValues.length > 0) {
+                const notIncludeQuery = nonEmptyFilterValues.map(
+                    (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
+                );
+                return notIncludeQuery.join('\n  AND\n  ');
+            }
+            return 'true';
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
-            const startWithQuery = filterValues?.map(
+            const startWithQuery = nonEmptyFilterValues?.map(
                 (v) =>
                     `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
         case FilterOperator.ENDS_WITH:
-            const endsWithQuery = filterValues?.map(
+            const endsWithQuery = nonEmptyFilterValues?.map(
                 (v) =>
                     `(${dimensionSql}) LIKE ${stringQuoteChar}%${v}${stringQuoteChar}`,
             );
@@ -118,17 +122,21 @@ const validateAndSanitizeNumber = (value: unknown): number => {
     return num;
 };
 
+const isValidNumberFilterValue = <FilterType>(
+    values: FilterType[] | undefined,
+): values is FilterType[] => !!values && values.length > 0;
+
 export const renderNumberFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
 ): string => {
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return !filter.values || filter.values.length === 0
-                ? 'true'
-                : `(${dimensionSql}) IN (${filter.values
+            return isValidNumberFilterValue(filter.values)
+                ? `(${dimensionSql}) IN (${filter.values
                       .map(validateAndSanitizeNumber)
-                      .join(',')})`;
+                      .join(',')})`
+                : 'true';
         case FilterOperator.NOT_EQUALS:
             return !filter.values || filter.values.length === 0
                 ? 'true'
@@ -140,33 +148,47 @@ export const renderNumberFilterSql = (
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.GREATER_THAN:
-            return `(${dimensionSql}) > (${
-                validateAndSanitizeNumber(filter.values?.[0]) || 0
-            })`;
+            return isValidNumberFilterValue(filter.values)
+                ? `(${dimensionSql}) > (${validateAndSanitizeNumber(
+                      filter.values[0],
+                  )})`
+                : 'true';
         case FilterOperator.GREATER_THAN_OR_EQUAL:
-            return `(${dimensionSql}) >= (${
-                validateAndSanitizeNumber(filter.values?.[0]) || 0
-            })`;
+            return isValidNumberFilterValue(filter.values)
+                ? `(${dimensionSql}) >= (${validateAndSanitizeNumber(
+                      filter.values[0],
+                  )})`
+                : 'true';
         case FilterOperator.LESS_THAN:
-            return `(${dimensionSql}) < (${
-                validateAndSanitizeNumber(filter.values?.[0]) || 0
-            })`;
+            return isValidNumberFilterValue(filter.values)
+                ? `(${dimensionSql}) < (${validateAndSanitizeNumber(
+                      filter.values[0],
+                  )})`
+                : 'true';
         case FilterOperator.LESS_THAN_OR_EQUAL:
-            return `(${dimensionSql}) <= (${
-                validateAndSanitizeNumber(filter.values?.[0]) || 0
-            })`;
+            return isValidNumberFilterValue(filter.values)
+                ? `(${dimensionSql}) <= (${validateAndSanitizeNumber(
+                      filter.values[0],
+                  )})`
+                : 'true';
         case FilterOperator.IN_BETWEEN:
-            return `(${dimensionSql}) >= (${
-                validateAndSanitizeNumber(filter.values?.[0]) || 0
-            }) AND (${dimensionSql}) <= (${
-                validateAndSanitizeNumber(filter.values?.[1]) || 0
-            })`;
+            return !isValidNumberFilterValue(filter.values) ||
+                filter.values.length < 2
+                ? 'true'
+                : `(${dimensionSql}) >= (${validateAndSanitizeNumber(
+                      filter.values[0],
+                  )}) AND (${dimensionSql}) <= (${validateAndSanitizeNumber(
+                      filter.values[1],
+                  )})`;
         case FilterOperator.NOT_IN_BETWEEN:
-            return `(${dimensionSql}) < (${
-                validateAndSanitizeNumber(filter.values?.[0]) || 0
-            }) OR (${dimensionSql}) > (${
-                validateAndSanitizeNumber(filter.values?.[1]) || 0
-            })`;
+            return !isValidNumberFilterValue(filter.values) ||
+                filter.values.length < 2
+                ? 'true'
+                : `(${dimensionSql}) < (${validateAndSanitizeNumber(
+                      filter.values[0],
+                  )}) OR (${dimensionSql}) > (${validateAndSanitizeNumber(
+                      filter.values[1],
+                  )})`;
         default:
             return raiseInvalidFilterError('number', filter);
     }

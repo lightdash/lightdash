@@ -28,10 +28,10 @@ describe('Custom dimensions', () => {
         cy.get('button').contains('Run query').click();
 
         // Check valid results
-        cy.contains('0 - 6');
-        cy.contains('$231.95');
-        cy.contains('6 - 12');
-        cy.contains('$226.99');
+        cy.contains('0 - 11');
+        cy.contains('$679.94');
+        cy.contains('11 - 22');
+        cy.contains('$1,331.02');
 
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
@@ -39,15 +39,17 @@ describe('Custom dimensions', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `WITH  amount_amount_range_cte AS (`,
-            `FLOOR((MAX("payments".amount) - MIN("payments".amount)) / 5) AS bin_width`,
+            `WITH amount_amount_range_cte AS (`,
+            `FLOOR( (MAX("payments".amount) - MIN("payments".amount)) / 5 ) AS bin_width`,
             `WHEN "payments".amount >= amount_amount_range_cte.min_id + amount_amount_range_cte.bin_width * 0`,
-            `ELSE (amount_amount_range_cte.min_id + amount_amount_range_cte.bin_width * 4`,
+            `ELSE ( amount_amount_range_cte.min_id + amount_amount_range_cte.bin_width * 4 || ' - ' || amount_amount_range_cte.max_id )`,
             `CROSS JOIN amount_amount_range_cte`,
             `GROUP BY 1`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
     });
 
@@ -81,7 +83,9 @@ describe('Custom dimensions', () => {
             `ORDER BY "payments_total_revenue" DESC`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
     });
 
@@ -109,7 +113,7 @@ describe('Custom dimensions', () => {
 
         // Check results
         cy.contains('payment_credit_card');
-        cy.contains(994.16);
+        cy.contains('1,452.16');
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results
@@ -122,7 +126,9 @@ describe('Custom dimensions', () => {
             `ORDER BY "payments_total_revenue" DESC`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
     });
 
@@ -158,7 +164,7 @@ describe('Custom dimensions', () => {
 
         // Check results
         cy.contains('bank_transfer');
-        cy.contains(5.8);
+        cy.contains('6.9');
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results
@@ -171,12 +177,14 @@ describe('Custom dimensions', () => {
             `ORDER BY "payments_payment_method"`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
 
         // We deselected the custom dimension, it should not appear in the SQL
-        cy.get('pre')
-            .contains('((("orders".amount)) / 10) AS "discounted_amount",')
-            .should('not.exist');
+        cy.getMonacoEditorText().then((text) => {
+            expect(text).to.not.include('"discounted_amount"');
+        });
     });
 });

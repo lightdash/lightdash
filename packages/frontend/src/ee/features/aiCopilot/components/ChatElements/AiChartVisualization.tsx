@@ -6,9 +6,11 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type ApiError,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Stack, Text, Title } from '@mantine-8/core';
+import { IconX } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
@@ -20,12 +22,15 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
+import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
 import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
+import { ViewSqlButton } from './ViewSqlButton';
 
 type Props = {
     results: InfiniteQueryResults;
@@ -51,6 +56,12 @@ export const AiChartVisualization: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
+    const { clearArtifact } = useAiAgentPageLayout();
+    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
+        tableName: metricQuery?.exploreName,
+        projectUuid,
+        metricQuery,
+    });
 
     const resultsData = useMemo(
         () => ({
@@ -121,17 +132,38 @@ export const AiChartVisualization: FC<Props> = ({
                 }}
             >
                 <Stack gap="md" h="100%">
-                    <Group justify="flex-end" align="start">
-                        <AiChartQuickOptions
-                            message={message}
-                            projectUuid={projectUuid}
-                            saveChartOptions={{
-                                name: queryExecutionHandle.data.metadata.title,
-                                description:
-                                    queryExecutionHandle.data.metadata
-                                        .description,
-                            }}
-                        />
+                    <Group gap="md" align="start">
+                        <Stack gap={0} flex={1}>
+                            <Title order={5}>
+                                {queryExecutionHandle.data.metadata.title}
+                            </Title>
+                            <Text c="dimmed" size="xs">
+                                {queryExecutionHandle.data.metadata.description}
+                            </Text>
+                        </Stack>
+                        <Group gap="sm">
+                            <ViewSqlButton sql={compiledSql?.query} />
+                            <AiChartQuickOptions
+                                message={message}
+                                projectUuid={projectUuid}
+                                saveChartOptions={{
+                                    name: queryExecutionHandle.data.metadata
+                                        .title,
+                                    description:
+                                        queryExecutionHandle.data.metadata
+                                            .description,
+                                }}
+                                compiledSql={compiledSql?.query}
+                            />
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="gray"
+                                onClick={clearArtifact}
+                            >
+                                <MantineIcon icon={IconX} color="gray" />
+                            </ActionIcon>
+                        </Group>
                     </Group>
 
                     <Box

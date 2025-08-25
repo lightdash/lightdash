@@ -3,8 +3,10 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
+    getAvailableParametersFromTables,
     getFieldRef,
     getItemId,
+    isTimeZone,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
     removeEmptyProperties,
@@ -19,11 +21,11 @@ import {
     type FieldId,
     type Metric,
     type MetricQuery,
+    type ParameterDefinitions,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
-    type TimeZone,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -39,8 +41,13 @@ import {
     type FC,
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import {
+    AUTO_FETCH_ENABLED_DEFAULT,
+    AUTO_FETCH_ENABLED_KEY,
+} from '../../components/RunQuerySettings/defaults';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
+import { useExplore } from '../../hooks/useExplore';
 import {
     executeQueryAndWaitForResults,
     useCancelQuery,
@@ -335,6 +342,16 @@ export function reducer(
 
                 const [removed] = sorts.splice(sourceIndex, 1);
                 sorts.splice(destinationIndex, 0, removed);
+            });
+        }
+        case ActionType.SET_SORT_FIELD_NULLS_FIRST: {
+            return produce(state, (newState) => {
+                newState.unsavedChartVersion.metricQuery.sorts =
+                    newState.unsavedChartVersion.metricQuery.sorts.map((sf) =>
+                        sf.fieldId === action.payload.fieldId
+                            ? { ...sf, nullsFirst: action.payload.nullsFirst }
+                            : sf,
+                    );
             });
         }
         case ActionType.SET_ROW_LIMIT: {
@@ -860,8 +877,8 @@ const ExplorerProvider: FC<
     projectUuid: propProjectUuid,
 }) => {
     const [autoFetchEnabled] = useLocalStorage({
-        key: 'lightdash-explorer-auto-fetch-enabled',
-        defaultValue: true,
+        key: AUTO_FETCH_ENABLED_KEY,
+        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
     });
 
     const defaultStateWithConfig = useMemo(
@@ -979,11 +996,23 @@ const ExplorerProvider: FC<
     const addSortField = useCallback(
         (
             fieldId: FieldId,
-            options: { descending: boolean } = { descending: false },
+            options: {
+                descending: boolean;
+            } = { descending: false },
         ) => {
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
                 payload: { fieldId, ...options },
+            });
+        },
+        [],
+    );
+
+    const setSortFieldNullsFirst = useCallback(
+        (fieldId: FieldId, nullsFirst: boolean | undefined) => {
+            dispatch({
+                type: ActionType.SET_SORT_FIELD_NULLS_FIRST,
+                payload: { fieldId, nullsFirst },
             });
         },
         [],
@@ -996,11 +1025,13 @@ const ExplorerProvider: FC<
         });
     }, []);
 
-    const setTimeZone = useCallback((timezone: TimeZone) => {
-        dispatch({
-            type: ActionType.SET_TIME_ZONE,
-            payload: timezone,
-        });
+    const setTimeZone = useCallback((timezone: string | null) => {
+        if (timezone && isTimeZone(timezone)) {
+            dispatch({
+                type: ActionType.SET_TIME_ZONE,
+                payload: timezone,
+            });
+        }
     }, []);
 
     const setFilters = useCallback((filters: MetricQuery['filters']) => {
@@ -1280,13 +1311,28 @@ const ExplorerProvider: FC<
     }>();
     const projectUuid = propProjectUuid || projectUuidFromParams;
 
-    const { data: parametersData } = useParameters(
+    const { data: projectParameters } = useParameters(
         projectUuid,
         reducerState.parameterReferences ?? undefined,
         {
             enabled: !!reducerState.parameterReferences?.length,
         },
     );
+
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
+
+    const exploreParameterDefinitions = useMemo(() => {
+        return explore
+            ? getAvailableParametersFromTables(Object.values(explore.tables))
+            : {};
+    }, [explore]);
+
+    const parameterDefinitions: ParameterDefinitions = useMemo(() => {
+        return {
+            ...(projectParameters ?? {}),
+            ...(exploreParameterDefinitions ?? {}),
+        };
+    }, [projectParameters, exploreParameterDefinitions]);
 
     const missingRequiredParameters = useMemo(() => {
         // If no required parameters are set, return null, this will disable query execution
@@ -1306,10 +1352,10 @@ const ExplorerProvider: FC<
         return reducerState.parameterReferences.filter(
             (parameter) =>
                 !unsavedChartVersion.parameters?.[parameter] &&
-                !parametersData?.[parameter]?.default,
+                !parameterDefinitions?.[parameter]?.default,
         );
     }, [
-        parametersData,
+        parameterDefinitions,
         reducerState.parameterReferences,
         unsavedChartVersion.parameters,
         validQueryArgs?.parameters,
@@ -1324,6 +1370,7 @@ const ExplorerProvider: FC<
             hasUnsavedChanges,
             savedChart,
             missingRequiredParameters,
+            parameterDefinitions,
         }),
         [
             isEditMode,
@@ -1333,6 +1380,7 @@ const ExplorerProvider: FC<
             hasUnsavedChanges,
             savedChart,
             missingRequiredParameters,
+            parameterDefinitions,
         ],
     );
 
@@ -1443,9 +1491,11 @@ const ExplorerProvider: FC<
     ]);
 
     useEffect(() => {
-        if (!autoFetchEnabled) return;
+        // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query
+        // This will stop auto-fetching until the first query is run
+        if ((!autoFetchEnabled || !query.isFetched) && isEditMode) return;
         runQuery();
-    }, [runQuery, autoFetchEnabled]);
+    }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
@@ -1560,6 +1610,7 @@ const ExplorerProvider: FC<
             addSortField,
             removeSortField,
             moveSortFields,
+            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,
@@ -1604,6 +1655,7 @@ const ExplorerProvider: FC<
             addSortField,
             removeSortField,
             moveSortFields,
+            setSortFieldNullsFirst,
             setFilters,
             setParameter,
             clearAllParameters,

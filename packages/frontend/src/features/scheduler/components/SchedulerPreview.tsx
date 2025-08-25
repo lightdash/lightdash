@@ -1,8 +1,8 @@
 import {
     applyDimensionOverrides,
     type Dashboard,
+    type DashboardFilterRule,
     type DashboardScheduler,
-    type SchedulerFilterRule,
 } from '@lightdash/common';
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
@@ -14,7 +14,7 @@ import { CUSTOM_WIDTH_OPTIONS } from '../constants';
 
 type Props = {
     dashboard: Dashboard;
-    schedulerFilters: SchedulerFilterRule[] | undefined;
+    schedulerFilters: DashboardFilterRule[] | undefined;
     customViewportWidth: DashboardScheduler['customViewportWidth'];
     onChange: (previewChoice: string | undefined) => void;
 };
@@ -28,6 +28,7 @@ export const SchedulerPreview: FC<Props> = ({
     const [previewChoice, setPreviewChoice] = useState<
         typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined
     >(customViewportWidth?.toString() ?? CUSTOM_WIDTH_OPTIONS[1].value);
+    const [currentPreview, setCurrentPreview] = useState<string | undefined>();
     const exportDashboardMutation = useExportDashboard();
 
     const getSchedulerFilterOverridesQueryString = useCallback(() => {
@@ -50,12 +51,15 @@ export const SchedulerPreview: FC<Props> = ({
     }, [dashboard.filters, schedulerFilters]);
 
     const handlePreviewClick = useCallback(async () => {
-        await exportDashboardMutation.mutateAsync({
+        const url = await exportDashboardMutation.mutateAsync({
             dashboard,
             gridWidth: previewChoice ? parseInt(previewChoice) : undefined,
             queryFilters: getSchedulerFilterOverridesQueryString(),
             isPreview: true,
         });
+        if (url) {
+            setCurrentPreview(url);
+        }
     }, [
         dashboard,
         exportDashboardMutation,
@@ -93,6 +97,7 @@ export const SchedulerPreview: FC<Props> = ({
                     });
                 }}
                 onPreviewClick={handlePreviewClick}
+                currentPreview={currentPreview}
             />
         </Stack>
     );

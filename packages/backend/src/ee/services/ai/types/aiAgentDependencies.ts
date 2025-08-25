@@ -1,14 +1,20 @@
 import {
+    AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
+    AllChartsSearchResult,
     AnyType,
     CacheMetadata,
     CatalogField,
     CatalogTable,
+    DashboardSearchResult,
     Explore,
+    Filters,
     ItemsMap,
     KnexPaginateArgs,
     SlackPrompt,
+    ToolFindChartsArgs,
+    ToolFindDashboardsArgs,
     ToolFindFieldsArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
@@ -16,17 +22,27 @@ import {
 import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 
-export type FindExploresFn = (args: KnexPaginateArgs) => Promise<{
+type Pagination = KnexPaginateArgs & {
+    totalPageCount: number;
+    totalResults: number;
+};
+
+export type FindExploresFn = (
+    args: {
+        tableName: string | null;
+        fieldOverviewSearchSize?: number;
+        fieldSearchSize?: number;
+        includeFields: boolean;
+    } & KnexPaginateArgs,
+) => Promise<{
     tablesWithFields: {
         table: CatalogTable;
-        fields: CatalogField[];
+        dimensions?: CatalogField[];
+        metrics?: CatalogField[];
+        dimensionsPagination?: Pagination;
+        metricsPagination?: Pagination;
     }[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
+    pagination: Pagination | undefined;
 }>;
 
 export type FindFieldFn = (
@@ -36,12 +52,25 @@ export type FindFieldFn = (
     },
 ) => Promise<{
     fields: CatalogField[];
-    pagination:
-        | (KnexPaginateArgs & {
-              totalPageCount: number;
-              totalResults: number;
-          })
-        | undefined;
+    pagination: Pagination | undefined;
+}>;
+
+export type FindDashboardsFn = (
+    args: KnexPaginateArgs & {
+        dashboardSearchQuery: ToolFindDashboardsArgs['dashboardSearchQueries'][number];
+    },
+) => Promise<{
+    dashboards: DashboardSearchResult[];
+    pagination: Pagination | undefined;
+}>;
+
+export type FindChartsFn = (
+    args: KnexPaginateArgs & {
+        chartSearchQuery: ToolFindChartsArgs['chartSearchQueries'][number];
+    },
+) => Promise<{
+    charts: AllChartsSearchResult[];
+    pagination: Pagination | undefined;
 }>;
 
 export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
@@ -82,3 +111,19 @@ export type StoreToolResultsFn = (
 ) => Promise<void>;
 
 export type TrackEventFn = (event: AiAgentResponseStreamed) => void;
+
+export type SearchFieldValuesFn = (args: {
+    table: string;
+    fieldId: string;
+    query: string;
+    filters?: Filters;
+}) => Promise<string[]>;
+
+export type CreateOrUpdateArtifactFn = (data: {
+    threadUuid: string;
+    promptUuid: string;
+    artifactType: 'chart';
+    title?: string;
+    description?: string;
+    vizConfig: Record<string, unknown>;
+}) => Promise<AiArtifact>;

@@ -27,6 +27,7 @@ import {
 import {
     Body,
     Get,
+    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -50,8 +51,12 @@ export type ApiGetAsyncQueryResultsResponse = {
 
 @Route('/api/v2/projects/{projectUuid}/query')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('v2', 'Query')
+@Tags('Query')
 export class QueryController extends BaseController {
+    /**
+     * Retrieves paginated results from a previously executed async query using its UUID
+     * @summary Get results
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}')
@@ -59,11 +64,14 @@ export class QueryController extends BaseController {
     async getAsyncQueryResults(
         @Path()
         projectUuid: string,
+        /** The UUID of the async query to retrieve results for */
         @Path()
         queryUuid: string,
         @Request() req: express.Request,
+        /** Page number for pagination (starts at 1) */
         @Query()
         page?: number,
+        /** Number of results per page (default: 500, max: 5000) */
         @Query()
         pageSize?: number,
     ): Promise<ApiGetAsyncQueryResultsResponse> {
@@ -85,12 +93,17 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Cancels a running async query and discards any partial results
+     * @summary Cancel query
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/cancel')
     @OperationId('cancelAsyncQuery')
     async cancelAsyncQuery(
         @Path() projectUuid: string,
+        /** The UUID of the async query to cancel */
         @Path() queryUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
@@ -108,6 +121,10 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
+     * @summary Execute metric query
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/metric-query')
@@ -153,6 +170,10 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Executes a saved chart query asynchronously with optional parameter overrides
+     * @summary Execute saved chart
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart')
@@ -186,6 +207,10 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Executes a chart within a dashboard context asynchronously with inherited dashboard filters
+     * @summary Execute dashboard chart
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-chart')
@@ -222,6 +247,10 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Executes a query to retrieve underlying raw data for drilling down into aggregated values
+     * @summary Execute underlying data
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/underlying-data')
@@ -258,6 +287,10 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Executes a raw SQL query asynchronously against your data warehouse for custom queries
+     * @summary Execute SQL query
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql')
@@ -290,6 +323,10 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Executes a saved SQL chart query asynchronously with optional chart configurations
+     * @summary Execute SQL chart
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/sql-chart')
@@ -323,6 +360,10 @@ export class QueryController extends BaseController {
         };
     }
 
+    /**
+     * Executes a SQL chart within a dashboard context asynchronously with inherited filters
+     * @summary Execute dashboard SQL chart
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/dashboard-sql-chart')
@@ -361,12 +402,13 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Stream results from S3
+     * Streams query results directly from storage as newline-delimited JSON for large result sets
+     * @summary Stream results
      */
-
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}/results')
+    @Hidden() // This endpoint is temporary while we migrate SQL runner to use pagination. Should not be part of API docs.
     @OperationId('getResultsStream')
     async getResultsStream(
         @Path() projectUuid: string,
@@ -396,12 +438,17 @@ export class QueryController extends BaseController {
         }
     }
 
+    /**
+     * Downloads query results in various formats with custom formatting options
+     * @summary Download results
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/download')
     @OperationId('downloadResults')
     async downloadResults(
         @Path() projectUuid: string,
+        /** The UUID of the completed async query to download */
         @Path() queryUuid: string,
         @Request() req: express.Request,
         @Body() body: Omit<DownloadAsyncQueryResultsRequestParams, 'queryUuid'>,

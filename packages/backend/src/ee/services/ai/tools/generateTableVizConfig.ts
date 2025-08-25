@@ -9,6 +9,7 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import type {
+    CreateOrUpdateArtifactFn,
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -20,6 +21,7 @@ import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFilterRules,
+    validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
 } from '../utils/validators';
 import { renderTableViz } from '../visualizations/vizTable';
@@ -31,6 +33,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
+    createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
 };
 export const getGenerateTableVizConfig = ({
@@ -40,12 +43,13 @@ export const getGenerateTableVizConfig = ({
     sendFile,
     updatePrompt,
     updateProgress,
+    createOrUpdateArtifact,
     maxLimit,
 }: Dependencies) => {
     const schema = toolTableVizArgsSchema;
 
     return tool({
-        description: `Use this tool to query data to display in a table or summarized if limit is set to 1.`,
+        description: toolTableVizArgsSchema.description,
         parameters: schema,
         execute: async (toolArgs) => {
             let isOneRow = false;
@@ -57,6 +61,7 @@ export const getGenerateTableVizConfig = ({
                     toolTableVizArgsSchemaTransformed.parse(toolArgs);
 
                 const filterRules = getTotalFilterRules(vizTool.filters);
+
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
@@ -69,9 +74,25 @@ export const getGenerateTableVizConfig = ({
                 ].filter((x) => typeof x === 'string');
                 validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
+                validateMetricDimensionFilterPlacement(
+                    explore,
+                    vizTool.filters,
+                );
                 // end of TODO
 
                 const prompt = await getPrompt();
+
+                // Create or update artifact
+                await createOrUpdateArtifact({
+                    threadUuid: prompt.threadUuid,
+                    promptUuid: prompt.promptUuid,
+                    artifactType: 'chart',
+                    title: toolArgs.title,
+                    description: toolArgs.description,
+                    vizConfig: toolArgs,
+                });
+
+                // TODO :: keeping this for now, until the front-end is under feature-flag
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
                     vizConfigOutput: toolArgs,
@@ -86,11 +107,7 @@ export const getGenerateTableVizConfig = ({
 
                 isOneRow = results.rows.length === 1;
 
-                if (isOneRow) {
-                    return `Here's the result:
-${serializeData(csv, 'csv')}`;
-                }
-
+                // Always send CSV file to Slack if it's a Slack prompt, regardless of row count
                 if (isSlackPrompt(prompt)) {
                     await sendFile({
                         channelId: prompt.slackChannelId,
@@ -101,6 +118,11 @@ ${serializeData(csv, 'csv')}`;
                         filename: 'lightdash-query-results.csv',
                         file: Buffer.from(csv, 'utf8'),
                     });
+                }
+
+                if (isOneRow) {
+                    return `Here's the result:
+                    ${serializeData(csv, 'csv')}`;
                 }
 
                 return `Success.`;

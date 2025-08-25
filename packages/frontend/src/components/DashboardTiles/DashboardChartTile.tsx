@@ -36,11 +36,9 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Group,
     HoverCard,
     Menu,
-    Modal,
     Portal,
     Stack,
     Text,
@@ -106,7 +104,6 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { FilterDashboardTo } from '../DashboardFilter/FilterDashboardTo';
-import ExportResults from '../ExportResults';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -123,6 +120,7 @@ import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatB
 import { DashboardExportImage } from './DashboardExportImage';
 import { DashboardMinimalDownloadCsv } from './DashboardMinimalDownloadCsv';
 import EditChartMenuItem from './EditChartMenuItem';
+import ExportDataModal from './ExportDataModal';
 import TileBase from './TileBase/index';
 
 interface ExportGoogleSheetProps {
@@ -536,6 +534,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const chartsWithDateZoomApplied = useDashboardContext(
         (c) => c.chartsWithDateZoomApplied,
     );
+
+    const parameterDefinitions = useDashboardContext(
+        (c) => c.parameterDefinitions,
+    );
+
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
@@ -966,7 +969,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 >
                                     <HoverCard.Dropdown>
                                         <Text color="gray.7" fw={500} mb="xs">
-                                            Parameters:
+                                            Parameters
                                         </Text>
                                         <Stack
                                             spacing="xs"
@@ -982,9 +985,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     color="gray.6"
                                                 >
                                                     <Text span fw={600}>
-                                                        {key}:
+                                                        {parameterDefinitions[
+                                                            key
+                                                        ]?.label || key}
+                                                        :
                                                     </Text>{' '}
-                                                    {value}
+                                                    {Array.isArray(value)
+                                                        ? value.join(', ')
+                                                        : value}
                                                 </Text>
                                             ))}
                                         </Stack>
@@ -1323,69 +1331,21 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 />
             )}
 
-            {isDataExportModalOpen ? (
-                <Modal
-                    opened
-                    onClose={closeDataExportModal}
-                    title={
-                        <Group spacing="xs">
-                            <MantineIcon
-                                icon={IconTableExport}
-                                size="lg"
-                                color="gray.7"
-                            />
-                            <Text fw={600}>Export Data</Text>
-                        </Group>
-                    }
-                    styles={(theme) => ({
-                        header: {
-                            borderBottom: `1px solid ${theme.colors.gray[4]}`,
-                        },
-                        body: { padding: 0 },
-                    })}
-                >
-                    <ExportResults
-                        projectUuid={projectUuid!}
-                        totalResults={rows.length}
-                        getDownloadQueryUuid={getDownloadQueryUuid}
-                        showTableNames
-                        chartName={title || chart.name}
-                        columnOrder={chart.tableConfig.columnOrder}
-                        customLabels={getCustomLabelsFromTableConfig(
-                            chart.chartConfig.config,
-                        )}
-                        hiddenFields={getHiddenTableFields(chart.chartConfig)}
-                        pivotConfig={getPivotConfig(chart)}
-                        renderDialogActions={({ onExport, isExporting }) => (
-                            <Group
-                                position="right"
-                                sx={(theme) => ({
-                                    borderTop: `1px solid ${theme.colors.gray[4]}`,
-                                    bottom: 0,
-                                    padding: theme.spacing.md,
-                                })}
-                            >
-                                <Button
-                                    variant="outline"
-                                    onClick={closeDataExportModal}
-                                >
-                                    Cancel
-                                </Button>
-
-                                <Button
-                                    loading={isExporting}
-                                    onClick={async () => {
-                                        await onExport();
-                                    }}
-                                    data-testid="chart-export-results-button"
-                                >
-                                    Download
-                                </Button>
-                            </Group>
-                        )}
-                    />
-                </Modal>
-            ) : null}
+            <ExportDataModal
+                isOpen={isDataExportModalOpen}
+                onClose={closeDataExportModal}
+                projectUuid={projectUuid!}
+                totalResults={rows.length}
+                getDownloadQueryUuid={getDownloadQueryUuid}
+                showTableNames
+                chartName={title || chart.name}
+                columnOrder={chart.tableConfig.columnOrder}
+                customLabels={getCustomLabelsFromTableConfig(
+                    chart.chartConfig.config,
+                )}
+                hiddenFields={getHiddenTableFields(chart.chartConfig)}
+                pivotConfig={getPivotConfig(chart)}
+            />
         </>
     );
 };

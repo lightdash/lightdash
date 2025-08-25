@@ -256,6 +256,7 @@ const ChartHistory = () => {
                     }
                     initialState={{
                         parameterReferences: [],
+                        parameterDefinitions: {},
                         previouslyFetchedState: undefined,
                         expandedSections: [ExplorerSection.VISUALIZATION],
                         unsavedChartVersion: chartVersionQuery.data.chart,

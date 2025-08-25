@@ -20,6 +20,7 @@ export const mockUser: OrganizationMemberProfile = {
     email: 'test@example.com',
     isActive: true,
     role: OrganizationMemberRole.MEMBER,
+    roleUuid: undefined,
     userCreatedAt: new Date(),
     userUpdatedAt: new Date(),
     organizationUuid: 'org-uuid',

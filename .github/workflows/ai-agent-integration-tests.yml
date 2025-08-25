@@ -1,0 +1,145 @@
+name: AI Agent Integration Tests
+
+on:
+  schedule:
+    # Runs on Monday to Friday at 8:00 UTC
+    # Use https://crontab.guru/#0_8_*_*_1-5 for reference
+    - cron: '0 8 * * 1-5'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions UI
+  pull_request:
+    paths:
+      - '.github/workflows/ai-agent-integration-tests.yml' # for testing the workflow 
+
+
+permissions:
+  contents: read
+
+jobs:
+  ai-agent-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: lightdash
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+          
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+        
+      - name: Build common
+        run: pnpm common-build
+        
+      - name: Build warehouses
+        run: pnpm warehouses-build
+        
+      - name: Build backend
+        run: pnpm backend-build
+
+      - name: Setup Python and dbt
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9.x'
+      
+      - name: Install dbt
+        run: pip install dbt-core~=1.7.0 dbt-postgres~=1.7.0
+
+      - name: Create dbt1.7 symlink
+        run: |
+          sudo ln -sf $(which dbt) /usr/local/bin/dbt1.7
+          dbt1.7 --version
+
+      - name: Setup database
+        run: |
+          PGPASSWORD=password createdb -h localhost -U postgres lightdash_test
+          cd packages/backend
+          pnpm run migrate
+        env:
+          PGCONNECTIONURI: postgresql://postgres:password@localhost:5432/lightdash
+          LIGHTDASH_SECRET: test-secret-key-for-ci
+          
+      - name: Setup dbt and create tables
+        run: |
+          dbt1.7 deps --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR
+          dbt1.7 seed --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh
+          dbt1.7 run --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh --exclude fanouts_sales_targets
+        env:
+          PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
+          PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: password
+          PGDATABASE: lightdash
+          
+      - name: Run AI Agent Integration Tests
+        id: test_results
+        continue-on-error: true
+        run: |
+          set +e
+          pnpm -F backend test:integration -- src/ee/services/ai/agents/tests/agent.integration.test.ts 2>&1 | tee test_output.log
+          TEST_EXIT_CODE=$?
+          
+          if grep -q "Tests" test_output.log; then
+            TESTS_LINE=$(grep "Tests" test_output.log | tail -1 | sed 's/^ *//' | sed 's/\x1b\[[0-9;]*m//g' | sed 's/  */ /g')
+            echo "summary=$TESTS_LINE" >> $GITHUB_OUTPUT
+          else
+            echo "summary=Tests completed with exit code $TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $TEST_EXIT_CODE
+        env:
+          PGCONNECTIONURI: postgresql://postgres:password@localhost:5432/lightdash
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: password
+          PGDATABASE: lightdash
+          AI_COPILOT_ENABLED: true
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}
+          NODE_ENV: test
+          LIGHTDASH_SECRET: test-secret-key-for-ci
+          DBT_DEMO_DIR: ${{ github.workspace }}/examples/full-jaffle-shop-demo
+          LD_SETUP_DBT_VERSION: v1.7
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-agent-test-results
+          path: packages/backend/eval-reports/
+          retention-days: 7
+
+
+      - name: Notify Slack
+        if: always()
+        run: |
+          TEST_SUMMARY="${{ steps.test_results.outputs.summary }}"
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"channel\": \"#ai-agent-tests-feed\",
+              \"username\": \"AI Agent Tests\",
+              \"text\": \"AI Agent Integration Tests completed\\n\\n📊 $TEST_SUMMARY\\n\\n📁 Full reports: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Results & Artifacts>\"
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL}}

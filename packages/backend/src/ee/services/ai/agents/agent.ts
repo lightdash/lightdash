@@ -10,6 +10,9 @@ import {
 import type { ZodType } from 'zod';
 import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
+import { getFindCharts } from '../tools/findCharts';
+import { getFindDashboards } from '../tools/findDashboards';
+// eslint-disable-next-line import/extensions
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
@@ -25,7 +28,6 @@ export const defaultAgentOptions = {
     toolChoice: 'auto',
     maxSteps: 10,
     maxRetries: 3,
-    temperature: 0.2,
 } as const;
 
 const getAgentTelemetryConfig = (
@@ -34,13 +36,17 @@ const getAgentTelemetryConfig = (
         agentSettings,
         threadUuid,
         promptUuid,
-    }: Pick<AiAgentArgs, 'agentSettings' | 'threadUuid' | 'promptUuid'>,
+        telemetryEnabled,
+    }: Pick<
+        AiAgentArgs,
+        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
+    >,
 ) =>
     ({
         functionId,
         isEnabled: true,
-        recordInputs: false,
-        recordOutputs: false,
+        recordInputs: telemetryEnabled,
+        recordOutputs: telemetryEnabled,
         metadata: {
             agentUuid: agentSettings.uuid,
             threadUuid,
@@ -59,11 +65,28 @@ const getAgentTools = (
     }
 
     const findExplores = getFindExplores({
+        maxDescriptionLength: args.findExploresMaxDescriptionLength,
+        pageSize: args.findExploresPageSize,
+        fieldSearchSize: args.findExploresFieldSearchSize,
+        fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
         findExplores: dependencies.findExplores,
     });
 
     const findFields = getFindFields({
         findFields: dependencies.findFields,
+        pageSize: args.findFieldsPageSize,
+    });
+
+    const findDashboards = getFindDashboards({
+        findDashboards: dependencies.findDashboards,
+        pageSize: args.findDashboardsPageSize,
+        siteUrl: args.siteUrl,
+    });
+
+    const findCharts = getFindCharts({
+        findCharts: dependencies.findCharts,
+        pageSize: args.findChartsPageSize,
+        siteUrl: args.siteUrl,
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
@@ -73,7 +96,8 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+        maxLimit: args.maxQueryLimit,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -83,7 +107,8 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+        maxLimit: args.maxQueryLimit,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
@@ -93,10 +118,13 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
-        maxLimit: args.maxLimit,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+        maxLimit: args.maxQueryLimit,
     });
 
     const tools = {
+        findCharts,
+        findDashboards,
         findExplores,
         findFields,
         generateBarVizConfig,
@@ -114,14 +142,28 @@ const getAgentTools = (
     return tools;
 };
 
-const getAgentMessages = (args: AiAgentArgs) => {
+const getAgentMessages = async (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+) => {
     if (args.debugLoggingEnabled) {
         Logger.debug('[AiAgent][Agent Messages] Getting agent messages.');
     }
+
+    const availableExplores = await dependencies.findExplores({
+        page: 1,
+        pageSize: args.availableExploresPageSize,
+        tableName: null,
+        includeFields: false,
+    });
+
     const messages = [
         getSystemPrompt({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
+            availableExplores: availableExplores.tablesWithFields.map(
+                (table) => table.table.name,
+            ),
         }),
         ...args.messageHistory,
     ];
@@ -172,7 +214,7 @@ export const generateAgentResponse = async ({
             )}`,
         );
     }
-    const messages = getAgentMessages(args);
+    const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
     try {
@@ -183,6 +225,7 @@ export const generateAgentResponse = async ({
         }
         const result = await generateText({
             ...defaultAgentOptions,
+            ...args.callOptions,
             model: args.model,
             tools,
             messages,
@@ -369,7 +412,7 @@ export const streamAgentResponse = async ({
             )}`,
         );
     }
-    const messages = getAgentMessages(args);
+    const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
     try {
@@ -380,6 +423,7 @@ export const streamAgentResponse = async ({
         }
         const result = streamText({
             ...defaultAgentOptions,
+            ...args.callOptions,
             model: args.model,
             tools,
             messages,

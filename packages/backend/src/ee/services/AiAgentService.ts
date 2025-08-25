@@ -2,11 +2,10 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AiAgent,
+    AiAgentNotFoundError,
     AiAgentThread,
     AiAgentThreadSummary,
     AiAgentUserPreferences,
-    AiConversation,
-    AiConversationMessage,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
     AiResultType,
@@ -21,23 +20,27 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
-    Explore,
     filterExploreByTags,
+    FollowUpTools,
+    followUpToolsText,
     ForbiddenError,
-    isExploreError,
     isSlackPrompt,
     LightdashUser,
     NotFoundError,
+    OpenIdIdentityIssuerType,
+    ParameterError,
     parseVizConfig,
     QueryExecutionContext,
     SlackPrompt,
-    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     type SessionUser,
 } from '@lightdash/common';
+import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
+import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
     CoreAssistantMessage,
@@ -64,16 +67,26 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
 import { GroupsModel } from '../../models/GroupsModel';
+import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
+import { SearchModel } from '../../models/SearchModel';
+import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
+import { SpaceService } from '../../services/SpaceService/SpaceService';
+import { wrapSentryTransaction } from '../../utils';
 import { AiAgentModel } from '../models/AiAgentModel';
+import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
+import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { getModel } from './ai/models';
+import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
+    FindChartsFn,
+    FindDashboardsFn,
     FindExploresFn,
     FindFieldFn,
     GetExploreFn,
@@ -95,55 +108,80 @@ import { renderTableViz } from './ai/visualizations/vizTable';
 import { renderTimeSeriesViz } from './ai/visualizations/vizTimeSeries';
 import { renderVerticalBarViz } from './ai/visualizations/vizVerticalBar';
 
+type ThreadMessageContext = Array<
+    Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
+>;
+
 type AiAgentServiceDependencies = {
-    lightdashConfig: LightdashConfig;
-    analytics: LightdashAnalytics;
-    userModel: UserModel;
     aiAgentModel: AiAgentModel;
-    groupsModel: GroupsModel;
-    featureFlagService: FeatureFlagService;
-    projectService: ProjectService;
-    slackClient: SlackClient;
+    analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
-    userAttributesModel: UserAttributesModel;
     catalogService: CatalogService;
+    searchModel: SearchModel;
+    spaceModel: SpaceModel;
+    featureFlagService: FeatureFlagService;
+    groupsModel: GroupsModel;
+    lightdashConfig: LightdashConfig;
+    openIdIdentityModel: OpenIdIdentityModel;
+    projectService: ProjectService;
+    schedulerClient: CommercialSchedulerClient;
+    slackAuthenticationModel: CommercialSlackAuthenticationModel;
+    slackClient: SlackClient;
+    userAttributesModel: UserAttributesModel;
+    userModel: UserModel;
+    spaceService: SpaceService;
 };
 
 export class AiAgentService {
-    private readonly lightdashConfig: LightdashConfig;
+    private readonly aiAgentModel: AiAgentModel;
 
     private readonly analytics: LightdashAnalytics;
 
-    private readonly userModel: UserModel;
-
-    private readonly aiAgentModel: AiAgentModel;
-
-    private readonly groupsModel: GroupsModel;
-
-    private readonly featureFlagService: FeatureFlagService;
-
-    private readonly projectService: ProjectService;
+    private readonly asyncQueryService: AsyncQueryService;
 
     private readonly catalogService: CatalogService;
 
-    private readonly slackClient: SlackClient;
+    private readonly featureFlagService: FeatureFlagService;
 
-    private readonly asyncQueryService: AsyncQueryService;
+    private readonly groupsModel: GroupsModel;
+
+    private readonly lightdashConfig: LightdashConfig;
+
+    private readonly openIdIdentityModel: OpenIdIdentityModel;
+
+    private readonly projectService: ProjectService;
+
+    private readonly schedulerClient: CommercialSchedulerClient;
+
+    private readonly slackAuthenticationModel: CommercialSlackAuthenticationModel;
+
+    private readonly slackClient: SlackClient;
 
     private readonly userAttributesModel: UserAttributesModel;
 
+    private readonly searchModel: SearchModel;
+
+    private readonly userModel: UserModel;
+
+    private readonly spaceService: SpaceService;
+
     constructor(dependencies: AiAgentServiceDependencies) {
-        this.lightdashConfig = dependencies.lightdashConfig;
-        this.analytics = dependencies.analytics;
-        this.userModel = dependencies.userModel;
         this.aiAgentModel = dependencies.aiAgentModel;
-        this.groupsModel = dependencies.groupsModel;
-        this.featureFlagService = dependencies.featureFlagService;
-        this.projectService = dependencies.projectService;
-        this.slackClient = dependencies.slackClient;
+        this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
-        this.userAttributesModel = dependencies.userAttributesModel;
         this.catalogService = dependencies.catalogService;
+        this.searchModel = dependencies.searchModel;
+        this.featureFlagService = dependencies.featureFlagService;
+        this.groupsModel = dependencies.groupsModel;
+        this.lightdashConfig = dependencies.lightdashConfig;
+        this.openIdIdentityModel = dependencies.openIdIdentityModel;
+        this.projectService = dependencies.projectService;
+        this.schedulerClient = dependencies.schedulerClient;
+        this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
+        this.slackClient = dependencies.slackClient;
+        this.userAttributesModel = dependencies.userAttributesModel;
+        this.userModel = dependencies.userModel;
+        this.spaceService = dependencies.spaceService;
     }
 
     private async getIsCopilotEnabled(
@@ -157,11 +195,12 @@ export class AiAgentService {
     }
 
     /**
-     * Checks if a user has group access to an AI agent
+     * Checks if a user has access to an AI agent
      * Returns true if:
      * 1. The user can manage the AiAgent (admin access)
-     * 2. The agent has no group access defined (open access - users that can view AiAgent)
+     * 2. The agent has no group or user access defined (open access - users that can view AiAgent)
      * 3. The user is a member of at least one of the agent's groups
+     * 4. The user is in the agent's user access list
      */
     private async checkAgentAccess(
         user: SessionUser,
@@ -179,18 +218,35 @@ export class AiAgentService {
             return true;
         }
 
-        if (!agent.groupAccess || agent.groupAccess.length === 0) {
+        // Check if open access (no restrictions)
+        const hasGroupAccess =
+            agent.groupAccess && agent.groupAccess.length > 0;
+        const hasUserAccess = agent.userAccess && agent.userAccess.length > 0;
+
+        if (!hasGroupAccess && !hasUserAccess) {
             return true;
         }
 
-        const groupUuids = agent.groupAccess;
-        const userGroups = await this.groupsModel.findUserInGroups({
-            userUuid: user.userUuid,
-            organizationUuid: agent.organizationUuid,
-            groupUuids,
-        });
+        // Check user access first (direct access)
+        if (hasUserAccess && agent.userAccess.includes(user.userUuid)) {
+            return true;
+        }
 
-        return userGroups.length > 0;
+        // Check group access
+        if (hasGroupAccess) {
+            const groupUuids = agent.groupAccess;
+            const userGroups = await this.groupsModel.findUserInGroups({
+                userUuid: user.userUuid,
+                organizationUuid: agent.organizationUuid,
+                groupUuids,
+            });
+
+            if (userGroups.length > 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -447,7 +503,7 @@ export class AiAgentService {
         const slackUserIds = _.uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
-                .filter((thread) => thread.user.slackUserId != null)
+                .filter((thread) => thread.user.slackUserId !== null)
                 .map((thread) => thread.user.slackUserId),
         );
 
@@ -464,7 +520,7 @@ export class AiAgentService {
 
             const slackUser = slackUsers.find(
                 ({ id }) =>
-                    thread.user.slackUserId != null &&
+                    thread.user.slackUserId !== null &&
                     id === thread.user.slackUserId,
             );
 
@@ -741,6 +797,7 @@ export class AiAgentService {
             integrations: body.integrations,
             instruction: body.instruction,
             groupAccess: body.groupAccess,
+            userAccess: body.userAccess,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -795,6 +852,7 @@ export class AiAgentService {
             instruction: body.instruction,
             imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
+            userAccess: body.userAccess,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -1019,7 +1077,7 @@ export class AiAgentService {
 
         const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
 
         if (!parsedVizConfig) {
@@ -1044,21 +1102,21 @@ export class AiAgentService {
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             case AiResultType.TIME_SERIES_RESULT:
                 return renderTimeSeriesViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             case AiResultType.TABLE_RESULT:
                 return renderTableViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.query.maxLimit,
+                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
             default:
                 return assertUnreachable(parsedVizConfig, 'Invalid viz type');
@@ -1139,7 +1197,7 @@ export class AiAgentService {
 
         const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
 
         if (!parsedVizConfig) {
@@ -1165,6 +1223,101 @@ export class AiAgentService {
                 organizationId: organizationUuid,
                 agentId: agent.uuid,
                 agentName: agent.name,
+                vizType: parsedVizConfig.type,
+            },
+        });
+
+        return {
+            type: parsedVizConfig.type,
+            query,
+            metadata,
+        };
+    }
+
+    async getArtifactVizQuery(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+        },
+    ): Promise<ApiAiAgentThreadMessageVizQuery> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        // Check if user has access to this agent
+        await this.getAgent(user, agentUuid, agent.projectUuid);
+
+        // Get the specific artifact version
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        if (!artifact) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
+
+        if (!artifact.chartConfig) {
+            throw new ParameterError(
+                'Chart config not found for this artifact',
+            );
+        }
+
+        const parsedVizConfig = parseVizConfig(
+            artifact.chartConfig,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+        );
+        if (!parsedVizConfig) {
+            throw new ParameterError('Could not generate a visualization');
+        }
+
+        const query = await this.executeAsyncAiMetricQuery(
+            user,
+            projectUuid,
+            parsedVizConfig.metricQuery,
+        );
+
+        const metadata = {
+            title: artifact.title ?? parsedVizConfig.vizTool?.title ?? null,
+            description:
+                artifact.description ??
+                parsedVizConfig.vizTool?.description ??
+                null,
+        } satisfies AiVizMetadata;
+
+        this.analytics.track({
+            event: 'ai_agent.artifact_viz_query',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                agentId: agent.uuid,
+                agentName: agent.name,
+                artifactId: artifactUuid,
+                artifactVersionId: versionUuid,
                 vizType: parsedVizConfig.type,
             },
         });
@@ -1380,74 +1533,124 @@ export class AiAgentService {
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
-        const findExplores: FindExploresFn = async (args: {
-            page: number;
-            pageSize: number;
-        }) => {
-            const agentSettings = await this.getAgentSettings(user, prompt);
+        const findExplores: FindExploresFn = (args) =>
+            wrapSentryTransaction('AiAgent.findExplores', args, async () => {
+                const agentSettings = await this.getAgentSettings(user, prompt);
 
-            const userAttributes =
-                await this.userAttributesModel.getAttributeValuesForOrgMember({
-                    organizationUuid,
-                    userUuid: user.userUuid,
-                });
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
 
-            const { data: tables, pagination } =
-                await this.catalogService.searchCatalog({
-                    projectUuid,
-                    catalogSearch: {
-                        type: CatalogType.Table,
-                        yamlTags: agentSettings.tags ?? undefined,
-                    },
-                    userAttributes,
-                    context: CatalogSearchContext.AI_AGENT,
-                    tables: null,
-                    paginateArgs: {
-                        page: args.page,
-                        pageSize: args.pageSize,
-                    },
-                });
+                const { data: tables, pagination } =
+                    await this.catalogService.searchCatalog({
+                        projectUuid,
+                        catalogSearch: {
+                            type: CatalogType.Table,
+                            yamlTags: agentSettings.tags ?? undefined,
+                            tables: args.tableName
+                                ? [args.tableName]
+                                : undefined,
+                        },
+                        userAttributes,
+                        context: CatalogSearchContext.AI_AGENT,
+                        paginateArgs: {
+                            page: args.page,
+                            pageSize: args.pageSize,
+                        },
+                        fullTextSearchOperator: 'OR',
+                    });
 
-            const tablesWithFields = await Promise.all(
-                tables
-                    .filter((table) => table.type === CatalogType.Table)
-                    .map(async (table) => {
-                        const { data: fields } =
-                            await this.catalogService.searchCatalog({
+                const tablesWithFields = await Promise.all(
+                    tables
+                        .filter((table) => table.type === CatalogType.Table)
+                        .map(async (table) => {
+                            if (!args.includeFields) {
+                                return {
+                                    table,
+                                    dimensions: [],
+                                    metrics: [],
+                                    dimensionsPagination: undefined,
+                                    metricsPagination: undefined,
+                                };
+                            }
+
+                            if (
+                                !args.fieldSearchSize ||
+                                !args.fieldOverviewSearchSize
+                            ) {
+                                throw new Error(
+                                    'fieldSearchSize and fieldOverviewSearchSize are required when includeFields is true',
+                                );
+                            }
+
+                            const sharedArgs = {
                                 projectUuid,
                                 catalogSearch: {
                                     type: CatalogType.Field,
-                                    searchQuery: '',
                                     yamlTags: agentSettings.tags ?? undefined,
+                                    tables: [table.name],
                                 },
                                 userAttributes,
                                 context: CatalogSearchContext.AI_AGENT,
-                                tables: [table.name],
                                 paginateArgs: {
                                     page: 1,
-                                    // TODO: tweak this
-                                    pageSize: 50,
+                                    pageSize: args.tableName
+                                        ? args.fieldSearchSize
+                                        : args.fieldOverviewSearchSize,
                                 },
                                 sortArgs: {
                                     sort: 'chartUsage',
-                                    order: 'desc',
+                                    order: 'desc' as const,
                                 },
+                            };
+
+                            const {
+                                data: dimensions,
+                                pagination: dimensionsPagination,
+                            } = await this.catalogService.searchCatalog({
+                                ...sharedArgs,
+                                catalogSearch: {
+                                    ...sharedArgs.catalogSearch,
+                                    filter: CatalogFilter.Dimensions,
+                                },
+                                fullTextSearchOperator: 'OR',
                             });
 
-                        return {
-                            table,
-                            fields: fields.filter(
-                                (field) => field.type === CatalogType.Field,
-                            ),
-                        };
-                    }),
-            );
+                            const {
+                                data: metrics,
+                                pagination: metricsPagination,
+                            } = await this.catalogService.searchCatalog({
+                                ...sharedArgs,
+                                catalogSearch: {
+                                    ...sharedArgs.catalogSearch,
+                                    filter: CatalogFilter.Metrics,
+                                },
+                                fullTextSearchOperator: 'OR',
+                            });
 
-            return {
-                tablesWithFields,
-                pagination,
-            };
-        };
+                            return {
+                                table,
+                                dimensions: dimensions.filter(
+                                    (d) => d.type === CatalogType.Field,
+                                ),
+                                metrics: metrics.filter(
+                                    (m) => m.type === CatalogType.Field,
+                                ),
+                                dimensionsPagination,
+                                metricsPagination,
+                            };
+                        }),
+                );
+
+                return {
+                    tablesWithFields,
+                    pagination,
+                };
+            });
 
         const getExplore: GetExploreFn = async ({ exploreName }) => {
             const agentSettings = await this.getAgentSettings(user, prompt);
@@ -1481,16 +1684,15 @@ export class AiAgentService {
                         yamlTags: agentSettings.tags ?? undefined,
                     },
                     context: CatalogSearchContext.AI_AGENT,
-                    // TODO: make this paginated
                     paginateArgs: {
                         page: args.page,
                         pageSize: args.pageSize,
                     },
                     userAttributes,
-                    tables: [args.table],
+                    fullTextSearchOperator: 'OR',
                 });
 
-            // TODO: we should not filter here, we should return all the fields
+            // TODO: we should not filter here, search should be returning a proper type
             const catalogFields = catalogItems.filter(
                 (item) => item.type === CatalogType.Field,
             );
@@ -1574,7 +1776,62 @@ export class AiAgentService {
             await this.aiAgentModel.createToolResults(data);
         };
 
+        const findDashboards: FindDashboardsFn = async (args) => {
+            const searchResults = await this.searchModel.searchDashboards(
+                projectUuid,
+                args.dashboardSearchQuery.label,
+                undefined,
+                'OR',
+            );
+
+            const filteredResults = await this.spaceService.filterBySpaceAccess(
+                user,
+                searchResults,
+            );
+
+            const totalResults = filteredResults.length;
+            const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+            return {
+                dashboards: filteredResults,
+                pagination: {
+                    page: args.page,
+                    pageSize: args.pageSize,
+                    totalPageCount,
+                    totalResults,
+                },
+            };
+        };
+
+        const findCharts: FindChartsFn = async (args) => {
+            const allCharts = await this.searchModel.searchAllCharts(
+                projectUuid,
+                args.chartSearchQuery.label,
+                'OR',
+            );
+
+            const filteredResults = await this.spaceService.filterBySpaceAccess(
+                user,
+                allCharts,
+            );
+
+            const totalResults = filteredResults.length;
+            const totalPageCount = Math.ceil(totalResults / args.pageSize);
+
+            return {
+                charts: filteredResults,
+                pagination: {
+                    page: args.page,
+                    pageSize: args.pageSize,
+                    totalPageCount,
+                    totalResults,
+                },
+            };
+        };
+
         return {
+            findCharts,
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -1639,6 +1896,8 @@ export class AiAgentService {
         const { prompt, stream } = options;
 
         const {
+            findCharts,
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -1650,23 +1909,42 @@ export class AiAgentService {
             storeToolResults,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const model = getModel(this.lightdashConfig.ai.copilot);
+        const { model, callOptions } = getModel(
+            this.lightdashConfig.ai.copilot,
+        );
         const agentSettings = await this.getAgentSettings(user, prompt);
 
-        const args = {
-            model,
-            agentSettings,
-            threadUuid: prompt.threadUuid,
-            promptUuid: prompt.promptUuid,
-            messageHistory,
-            maxLimit: this.lightdashConfig.query.maxLimit,
+        const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
+
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
+
+            agentSettings,
+            model,
+            callOptions,
+            messageHistory,
+
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+            telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
+
+            availableExploresPageSize: 100,
+            findExploresPageSize: 15,
+            findExploresFieldSearchSize: 200,
+            findExploresFieldOverviewSearchSize: 5,
+            findExploresMaxDescriptionLength: 100,
+            findFieldsPageSize: 10,
+            findDashboardsPageSize: 5,
+            findChartsPageSize: 5,
+            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            siteUrl: this.lightdashConfig.siteUrl,
         };
 
-        const dependencies = {
+        const dependencies: AiAgentDependencies = {
+            findCharts,
+            findDashboards,
             findFields,
             findExplores,
             getExplore,
@@ -1675,24 +1953,20 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
-            // avoid binding
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => this.aiAgentModel.updateModelResponse(update),
             trackEvent: (event: AiAgentResponseStreamed) =>
                 this.analytics.track(event),
+
+            createOrUpdateArtifact: (data) =>
+                this.aiAgentModel.createOrUpdateArtifact(data),
         };
 
         return stream
-            ? streamAgentResponse({
-                  args,
-                  dependencies,
-              })
-            : generateAgentResponse({
-                  args,
-                  dependencies,
-              });
+            ? streamAgentResponse({ args, dependencies })
+            : generateAgentResponse({ args, dependencies });
     }
 
     // TODO: user permissions
@@ -1897,10 +2171,9 @@ export class AiAgentService {
             throw new Error('Thread not found');
         }
 
-        let name: string | undefined;
+        let agent: AiAgent | undefined;
         if (thread.agentUuid) {
-            const agent = await this.getAgent(user, thread.agentUuid);
-            name = agent.name;
+            agent = await this.getAgent(user, thread.agentUuid);
         }
 
         let response: string | undefined;
@@ -1922,7 +2195,7 @@ export class AiAgentService {
                 text: `🔴 Co-pilot failed to generate a response 😥 Please try again.`,
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
-                username: name,
+                username: agent?.name,
             });
 
             Logger.error('Failed to generate response:', e);
@@ -1951,12 +2224,15 @@ export class AiAgentService {
         const exploreBlocks = getExploreBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
-            this.lightdashConfig.query.maxLimit,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
         );
-        const historyBlocks = getDeepLinkBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
-        );
+        const historyBlocks = agent
+            ? getDeepLinkBlocks(
+                  agent.uuid,
+                  slackPrompt,
+                  this.lightdashConfig.siteUrl,
+              )
+            : undefined;
 
         // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
         // ! https://api.slack.com/reference/surfaces/formatting#escaping
@@ -1965,7 +2241,7 @@ export class AiAgentService {
         const newResponse = await this.slackClient.postMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: slackifiedMarkdown,
-            username: name,
+            username: agent?.name,
             channel: slackPrompt.slackChannelId,
             thread_ts: slackPrompt.slackThreadTs,
             unfurl_links: false,
@@ -1980,7 +2256,7 @@ export class AiAgentService {
                 ...exploreBlocks,
                 ...followUpToolBlocks,
                 ...feedbackBlocks,
-                ...historyBlocks,
+                ...(historyBlocks || []),
             ],
         });
 
@@ -1995,85 +2271,6 @@ export class AiAgentService {
                 responseSlackTs: newResponse.ts,
             });
         }
-    }
-
-    // TODO: This is to get conversations for the "old" page - remove
-    async getConversations(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<AiConversation[]> {
-        if (!(await this.getIsCopilotEnabled(user))) {
-            throw new Error('AI Copilot is not enabled');
-        }
-
-        if (!user.organizationUuid) {
-            throw new Error('Organization not found');
-        }
-
-        const threads = await this.aiAgentModel.getThreads(
-            user.organizationUuid,
-            projectUuid,
-        );
-
-        return threads.map((thread) => ({
-            threadUuid: thread.ai_thread_uuid,
-            createdAt: thread.created_at,
-            createdFrom: thread.created_from,
-            firstMessage: thread.prompt,
-            user: {
-                uuid: thread.user_uuid,
-                name: thread.user_name,
-            },
-        }));
-    }
-
-    // TODO: this is to get messages for the "old" page - remove
-    async getConversationMessages(
-        user: SessionUser,
-        projectUuid: string,
-        aiThreadUuid: string,
-    ): Promise<AiConversationMessage[]> {
-        if (!(await this.getIsCopilotEnabled(user))) {
-            throw new Error('AI Copilot is not enabled');
-        }
-
-        const { organizationUuid } = user;
-
-        if (!organizationUuid) {
-            throw new Error('Organization not found');
-        }
-
-        const canViewProject = user.ability.can(
-            'view',
-            subject('Project', {
-                organizationUuid,
-                projectUuid,
-            }),
-        );
-
-        if (!canViewProject) {
-            throw new Error('User does not have access to the project!');
-        }
-
-        const messages = await this.aiAgentModel.getThreadMessages(
-            organizationUuid,
-            projectUuid,
-            aiThreadUuid,
-        );
-
-        return messages.map((message) => ({
-            promptUuid: message.ai_prompt_uuid,
-            message: message.prompt,
-            createdAt: message.created_at,
-            response: message.response ?? undefined,
-            respondedAt: message.responded_at ?? undefined,
-            vizConfigOutput: message.viz_config_output ?? undefined,
-            humanScore: message.human_score ?? undefined,
-            user: {
-                uuid: message.user_uuid,
-                name: message.user_name,
-            },
-        }));
     }
 
     async getUserAgentPreferences(
@@ -2175,5 +2372,613 @@ export class AiAgentService {
             userUuid,
             projectUuid,
         });
+    }
+
+    private static replaceSlackBlockByBlockId(
+        blocks: (Block | KnownBlock)[],
+        blockId: string,
+        newBlock: Block | KnownBlock,
+    ) {
+        return blocks.map((block) => {
+            if ('block_id' in block && block.block_id === blockId) {
+                return newBlock;
+            }
+            return block;
+        });
+    }
+
+    // TODO: remove this once we have analytics tracking
+    // eslint-disable-next-line class-methods-use-this
+    public handleClickExploreButton(app: App) {
+        app.action('actions.explore_button_click', async ({ ack, respond }) => {
+            await ack();
+        });
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public handleClickOAuthButton(app: App) {
+        app.action(
+            'actions.oauth_button_click',
+            async ({ ack, body, respond }) => {
+                await ack();
+
+                if (body.type === 'block_actions') {
+                    await respond({
+                        replace_original: true,
+                        blocks: [
+                            {
+                                type: 'section',
+                                text: {
+                                    type: 'mrkdwn',
+                                    text: '🔗 Redirected to Lightdash to complete authentication.',
+                                },
+                            },
+                        ],
+                    });
+                }
+            },
+        );
+    }
+
+    public handlePromptUpvote(app: App) {
+        app.action(
+            'prompt_human_score.upvote',
+            async ({ ack, body, respond, context }) => {
+                await ack();
+                const { user } = body;
+                const newBlock = {
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'mrkdwn',
+                            text: `<@${user.id}> upvoted this answer :thumbsup:`,
+                        },
+                    ],
+                };
+                if (body.type === 'block_actions') {
+                    const action = body.actions[0];
+                    if (action && action.type === 'button') {
+                        const promptUuid = action.value;
+                        if (!promptUuid) {
+                            return;
+                        }
+                        const { teamId } = context;
+                        const organizationUuid = teamId
+                            ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                                  teamId,
+                              )
+                            : undefined;
+                        await this.updateHumanScoreForSlackPrompt(
+                            user.id,
+                            organizationUuid,
+                            promptUuid,
+                            1,
+                        );
+                    }
+                    const { message } = body;
+                    if (message) {
+                        const { blocks } = message;
+
+                        await respond({
+                            replace_original: true,
+                            blocks: AiAgentService.replaceSlackBlockByBlockId(
+                                blocks,
+                                'prompt_human_score',
+                                newBlock,
+                            ),
+                        });
+                    }
+                }
+            },
+        );
+    }
+
+    public handlePromptDownvote(app: App) {
+        app.action(
+            'prompt_human_score.downvote',
+            async ({ ack, body, respond, context }) => {
+                await ack();
+                const { user } = body;
+                const newBlock = {
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'mrkdwn',
+                            text: `<@${user.id}> downvoted this answer :thumbsdown:`,
+                        },
+                    ],
+                };
+                if (body.type === 'block_actions') {
+                    const action = body.actions[0];
+                    if (action && action.type === 'button') {
+                        const promptUuid = action.value;
+                        if (!promptUuid) {
+                            return;
+                        }
+                        const { teamId } = context;
+
+                        const organizationUuid = teamId
+                            ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                                  teamId,
+                              )
+                            : undefined;
+                        await this.updateHumanScoreForSlackPrompt(
+                            user.id,
+                            organizationUuid,
+                            promptUuid,
+                            -1,
+                        );
+                        const { message } = body;
+                        if (message) {
+                            const { blocks } = message;
+
+                            await respond({
+                                replace_original: true,
+                                blocks: AiAgentService.replaceSlackBlockByBlockId(
+                                    blocks,
+                                    'prompt_human_score',
+                                    newBlock,
+                                ),
+                            });
+                        }
+                    }
+                }
+            },
+        );
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public handleExecuteFollowUpTool(app: App) {
+        Object.values(FollowUpTools).forEach((tool) => {
+            app.action(
+                `execute_follow_up_tool.${tool}`,
+                async ({ ack, body, context, say }) => {
+                    await ack();
+
+                    const { type, channel } = body;
+
+                    if (type === 'block_actions') {
+                        const action = body.actions[0];
+
+                        if (
+                            action.action_id.includes(tool) &&
+                            action.type === 'button'
+                        ) {
+                            const prevSlackPromptUuid = action.value;
+
+                            if (!prevSlackPromptUuid || !say) {
+                                return;
+                            }
+                            const prevSlackPrompt =
+                                await this.aiAgentModel.findSlackPrompt(
+                                    prevSlackPromptUuid,
+                                );
+                            if (!prevSlackPrompt) return;
+
+                            const response = await say({
+                                thread_ts: prevSlackPrompt.slackThreadTs,
+                                text: `${followUpToolsText[tool]}`,
+                            });
+
+                            const { teamId } = context;
+
+                            if (
+                                !teamId ||
+                                !context.botUserId ||
+                                !channel ||
+                                !response.message?.text ||
+                                !response.ts
+                            ) {
+                                return;
+                            }
+                            // TODO: Remove this when implementing slack user mapping
+                            const userUuid =
+                                await this.slackAuthenticationModel.getUserUuid(
+                                    teamId,
+                                );
+
+                            let slackPromptUuid: string;
+
+                            try {
+                                [slackPromptUuid] =
+                                    await this.createSlackPrompt({
+                                        userUuid,
+                                        projectUuid:
+                                            prevSlackPrompt.projectUuid,
+                                        slackUserId: context.botUserId,
+                                        slackChannelId: channel.id,
+                                        slackThreadTs:
+                                            prevSlackPrompt.slackThreadTs,
+                                        prompt: response.message.text,
+                                        promptSlackTs: response.ts,
+                                        agentUuid: prevSlackPrompt.agentUuid,
+                                    });
+                            } catch (e) {
+                                if (e instanceof AiDuplicateSlackPromptError) {
+                                    Logger.debug(
+                                        'Failed to create slack prompt:',
+                                        e,
+                                    );
+                                    return;
+                                }
+
+                                throw e;
+                            }
+
+                            if (response.ts) {
+                                await this.aiAgentModel.updateSlackResponseTs({
+                                    promptUuid: slackPromptUuid,
+                                    responseSlackTs: response.ts,
+                                });
+                            }
+
+                            await this.schedulerClient.slackAiPrompt({
+                                slackPromptUuid,
+                                userUuid,
+                                projectUuid: prevSlackPrompt.projectUuid,
+                                organizationUuid:
+                                    prevSlackPrompt.organizationUuid,
+                            });
+                        }
+                    }
+                },
+            );
+        });
+    }
+
+    private async handleAiAgentAuth(
+        slackSettings: { aiRequireOAuth?: boolean },
+        {
+            userId,
+            teamId,
+            threadTs,
+            channelId,
+            messageId,
+        }: {
+            userId: string;
+            teamId: string;
+            threadTs: string | undefined;
+            channelId: string;
+            messageId: string;
+        },
+        say: Function,
+        client: WebClient,
+    ): Promise<{ userUuid: string } | null> {
+        const aiRequireOAuth = slackSettings?.aiRequireOAuth;
+        if (!aiRequireOAuth) {
+            return {
+                userUuid: await this.slackAuthenticationModel.getUserUuid(
+                    teamId,
+                ),
+            };
+        }
+
+        const openIdIdentity =
+            await this.openIdIdentityModel.findIdentityByOpenId(
+                OpenIdIdentityIssuerType.SLACK,
+                userId,
+                teamId,
+            );
+        if (!openIdIdentity) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: userId,
+                // If threadTs is provided, send the message in the thread, otherwise send it to the channel, ephemeral message is easy to miss
+                ...(threadTs ? { thread_ts: threadTs } : {}),
+                text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
+                blocks: [
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
+                        },
+                    },
+                    {
+                        type: 'actions',
+                        elements: [
+                            {
+                                type: 'button',
+                                text: {
+                                    type: 'plain_text',
+                                    text: 'Connect your Slack account',
+                                },
+                                action_id: 'actions.oauth_button_click',
+                                url: `${
+                                    this.lightdashConfig.siteUrl
+                                }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}${
+                                    threadTs ? `&thread_ts=${threadTs}` : ''
+                                }`,
+                                style: 'primary',
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            return null;
+        }
+
+        return { userUuid: openIdIdentity.userUuid };
+    }
+
+    // WARNING: Needs - channels:history scope for all slack apps
+    public async handleAppMention({
+        event,
+        context,
+        say,
+        client,
+    }: SlackEventMiddlewareArgs<'app_mention'> & AllMiddlewareArgs) {
+        Logger.info(`Got app_mention event ${event.text}`);
+
+        const { teamId } = context;
+        if (!teamId || !event.user) {
+            return;
+        }
+        const organizationUuid =
+            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                teamId,
+            );
+        const slackSettings =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!slackSettings) {
+            throw new NotFoundError(
+                `Slack settings not found for organization ${organizationUuid}`,
+            );
+        }
+
+        const authResult = await this.handleAiAgentAuth(
+            slackSettings,
+            {
+                userId: event.user,
+                teamId,
+                threadTs: event.thread_ts,
+                channelId: event.channel,
+                messageId: event.ts,
+            },
+            say,
+            client,
+        );
+
+        if (!authResult) {
+            return;
+        }
+
+        const { userUuid } = authResult;
+
+        let slackPromptUuid: string;
+        let createdThread: boolean;
+        let name: string | undefined;
+        let threadMessages: ThreadMessageContext | undefined;
+
+        try {
+            const agentConfig =
+                await this.aiAgentModel.getAgentBySlackChannelId({
+                    organizationUuid,
+                    slackChannelId: event.channel,
+                });
+
+            name = agentConfig.name;
+
+            if (event.thread_ts) {
+                const aiThreadAccessConsent =
+                    slackSettings?.aiThreadAccessConsent;
+
+                // Consent is granted - fetch thread messages
+                if (aiThreadAccessConsent === true && context.botId) {
+                    threadMessages = await AiAgentService.fetchThreadMessages({
+                        client,
+                        channelId: event.channel,
+                        threadTs: event.thread_ts,
+                        excludeMessageTs: event.ts,
+                        botId: context.botId,
+                    });
+                }
+            }
+
+            [slackPromptUuid, createdThread] = await this.createSlackPrompt({
+                userUuid,
+                projectUuid: agentConfig.projectUuid,
+                slackUserId: event.user,
+                slackChannelId: event.channel,
+                slackThreadTs: event.thread_ts,
+                prompt: event.text,
+                promptSlackTs: event.ts,
+                agentUuid: agentConfig.uuid ?? null,
+                threadMessages,
+            });
+        } catch (e) {
+            if (e instanceof AiDuplicateSlackPromptError) {
+                Logger.debug('Failed to create slack prompt:', e);
+                return;
+            }
+
+            if (e instanceof AiAgentNotFoundError) {
+                Logger.debug('Failed to find ai agent:', e);
+                return;
+            }
+
+            throw e;
+        }
+
+        const postedMessage = await say({
+            username: name,
+            thread_ts: event.ts,
+            blocks: [
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: createdThread
+                            ? `Hi <@${event.user}>, working on your request now :rocket:`
+                            : `Let me check that for you. One moment! :books:`,
+                    },
+                },
+                {
+                    type: 'divider',
+                },
+                {
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'plain_text',
+                            text: `It can take up to 15s to get a response.`,
+                        },
+                        {
+                            type: 'plain_text',
+                            text: `Reference: ${slackPromptUuid}`,
+                        },
+                    ],
+                },
+            ],
+        });
+
+        if (postedMessage.ts) {
+            await this.aiAgentModel.updateSlackResponseTs({
+                promptUuid: slackPromptUuid,
+                responseSlackTs: postedMessage.ts,
+            });
+        }
+
+        await this.schedulerClient.slackAiPrompt({
+            slackPromptUuid,
+            userUuid,
+            projectUuid: '', // TODO: add project uuid
+            organizationUuid,
+        });
+    }
+
+    private static processThreadMessages(
+        messages: MessageElement[] | undefined,
+        excludeMessageTs: string,
+        botId: string,
+    ): ThreadMessageContext | undefined {
+        if (!messages || messages.length === 0) {
+            return undefined;
+        }
+
+        const threadMessages = messages
+            .filter((msg) => {
+                // Exclude the current message
+                if (msg.ts === excludeMessageTs) {
+                    return false;
+                }
+
+                // Exclude bot messages and messages from the bot itself
+                if (msg.subtype === 'bot_message' || msg.bot_id === botId) {
+                    return false;
+                }
+
+                return true;
+            })
+            .map((msg) => ({
+                text: msg.text || '[message]',
+                user: msg.user || 'unknown',
+                ts: msg.ts || '',
+            }));
+
+        return threadMessages;
+    }
+
+    /**
+     * Fetches thread messages from Slack if consent is granted
+     */
+    private static async fetchThreadMessages({
+        client,
+        channelId,
+        threadTs,
+        excludeMessageTs,
+        botId,
+    }: {
+        client: WebClient;
+        channelId: string;
+        threadTs: string;
+        excludeMessageTs: string;
+        botId: string;
+    }): Promise<ThreadMessageContext | undefined> {
+        if (!threadTs) {
+            return undefined;
+        }
+
+        try {
+            const threadHistory = await client.conversations.replies({
+                channel: channelId,
+                ts: threadTs,
+                limit: 100, // TODO: What should be the limit?
+            });
+
+            return this.processThreadMessages(
+                threadHistory.messages,
+                excludeMessageTs,
+                botId,
+            );
+        } catch (error) {
+            Logger.error(
+                'Failed to fetch thread history, using original message only:',
+                error,
+            );
+        }
+
+        return undefined;
+    }
+
+    public async getAgentExploreAccessSummary(
+        account: Account,
+        projectUuid: string,
+        tags: string[] | null,
+    ) {
+        const exploreSummaries =
+            await this.projectService.getAllExploresSummary(
+                account,
+                projectUuid,
+                true,
+                true,
+            );
+
+        const allExplores = await Promise.all(
+            exploreSummaries.map((explore) =>
+                this.projectService.getExplore(
+                    account,
+                    projectUuid,
+                    explore.name,
+                ),
+            ),
+        );
+
+        const filteredExplores = allExplores
+            .map((explore) =>
+                filterExploreByTags({ availableTags: tags, explore }),
+            )
+            .filter((explore) => explore !== undefined);
+
+        const exploreAccessSummary = filteredExplores.map((explore) => ({
+            exploreName: explore.label,
+            joinedTables: explore.joinedTables.map(
+                (table) => explore.tables[table.table].label,
+            ),
+            dimensions: Object.values(
+                explore.tables[explore.baseTable].dimensions,
+            ).map((dimension) => dimension.label),
+            metrics: Object.values(
+                explore.tables[explore.baseTable].metrics,
+            ).map((metric) => metric.label),
+        }));
+
+        return exploreAccessSummary;
+    }
+
+    async getArtifact(
+        user: SessionUser,
+        agentUuid: string,
+        artifactUuid: string,
+        versionUuid?: string,
+    ) {
+        // TODO: Add proper permission checking - for now just check user has access to the agent
+        await this.getAgent(user, agentUuid);
+
+        return this.aiAgentModel.getArtifact(artifactUuid, versionUuid);
     }
 }

@@ -24,6 +24,11 @@ export const NumberFilterBaseWithMultiValues = {
     ...NumberFilterBase,
     values: [1, 2],
 };
+
+export const NumberFilterBaseWithEmptyValues = {
+    ...NumberFilterBase,
+    values: [],
+};
 export const NumberOperatorsWithMultipleValues = [
     FilterOperator.IN_BETWEEN,
     FilterOperator.NOT_IN_BETWEEN,
@@ -405,6 +410,18 @@ const stringMultiUnescapedValueFilter = {
     values: ["Bob's", "Tom's"],
 };
 
+const emptyStringFilter = {
+    id: '701b6520-1b19-4051-a553-7615aee0b03d',
+    target: { fieldId: 'customers_first_name' },
+    values: [''],
+};
+
+const mixedEmptyStringFilter = {
+    id: '701b6520-1b19-4051-a553-7615aee0b03d',
+    target: { fieldId: 'customers_first_name' },
+    values: ['', "Bob's", '', "Tom's"],
+};
+
 export const stringFilterDimension = '"customers".first_name';
 
 export const stringFilterRuleMocks = {
@@ -481,6 +498,48 @@ export const stringFilterRuleMocks = {
         ...stringMultiUnescapedValueFilter,
         operator: FilterOperator.EQUALS,
     },
+
+    includeFilterWithEmptyString: {
+        ...emptyStringFilter,
+        operator: FilterOperator.INCLUDE,
+    },
+    includeFilterWithEmptyStringSQL: 'true',
+
+    includeFilterWithMixedEmptyStrings: {
+        ...mixedEmptyStringFilter,
+        operator: FilterOperator.INCLUDE,
+    },
+    includeFilterWithMixedEmptyStringsSQL: `(LOWER(${stringFilterDimension}) LIKE LOWER('%Bob's%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Tom's%'))`,
+
+    equalsFilterWithEmptyString: {
+        ...emptyStringFilter,
+        operator: FilterOperator.EQUALS,
+    },
+    equalsFilterWithEmptyStringSQL: `(${stringFilterDimension}) IN ('')`,
+
+    startsWithFilterWithEmptyString: {
+        ...emptyStringFilter,
+        operator: FilterOperator.STARTS_WITH,
+    },
+    startsWithFilterWithEmptyStringSQL: 'true',
+
+    endsWithFilterWithEmptyString: {
+        ...emptyStringFilter,
+        operator: FilterOperator.ENDS_WITH,
+    },
+    endsWithFilterWithEmptyStringSQL: 'true',
+
+    notEqualsFilterWithEmptyString: {
+        ...emptyStringFilter,
+        operator: FilterOperator.NOT_EQUALS,
+    },
+    notEqualsFilterWithEmptyStringSQL: `((${stringFilterDimension}) NOT IN ('') OR ("customers".first_name) IS NULL)`,
+
+    notIncludeFilterWithEmptyString: {
+        ...emptyStringFilter,
+        operator: FilterOperator.NOT_INCLUDE,
+    },
+    notIncludeFilterWithEmptyStringSQL: 'true',
 };
 
 type RenderFilterRuleSqlParams = Parameters<

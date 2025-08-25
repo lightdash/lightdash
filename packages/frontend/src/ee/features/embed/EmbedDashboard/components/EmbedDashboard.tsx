@@ -239,15 +239,18 @@ const EmbedDashboard: FC<{
             return dashboard.tiles;
         }
 
+        // Make sure we have a tab selected
+        const tab = activeTab || sortedTabs[0];
+
         // If there are tabs, filter tiles by active tab
-        if (activeTab) {
+        if (tab) {
             return dashboard.tiles.filter((tile) => {
                 // Show tiles that belong to the active tab
-                const tileBelongsToActiveTab = tile.tabUuid === activeTab.uuid;
+                const tileBelongsToActiveTab = tile.tabUuid === tab.uuid;
 
                 // Show tiles that don't belong to any tab (legacy tiles) on the first tab
                 const tileHasNoTab = !tile.tabUuid;
-                const isFirstTab = activeTab.uuid === sortedTabs[0]?.uuid;
+                const isFirstTab = tab.uuid === sortedTabs[0]?.uuid;
 
                 return tileBelongsToActiveTab || (tileHasNoTab && isFirstTab);
             });

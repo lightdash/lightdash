@@ -795,7 +795,7 @@ type ShareSlack = BaseTrack & {
 
 type SavedChartView = BaseTrack & {
     event: 'saved_chart.view';
-    userId: string;
+    userId?: string;
     properties: {
         savedChartId: string;
         projectId: string;
@@ -1361,6 +1361,16 @@ export type SupportShareEvent = BaseTrack & {
     };
 };
 
+export type McpToolCallEvent = BaseTrack & {
+    event: 'mcp_tool_call';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId?: string;
+        toolName: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1454,7 +1464,8 @@ type TypedEvent =
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
     | AiAgentPromptCreatedEvent
-    | AiAgentPromptFeedbackEvent;
+    | AiAgentPromptFeedbackEvent
+    | McpToolCallEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

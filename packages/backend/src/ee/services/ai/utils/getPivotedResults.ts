@@ -2,6 +2,11 @@ import { SortField } from '@lightdash/common';
 import { tableFromJSON, tableToIPC } from 'apache-arrow';
 import { Database } from 'duckdb-async';
 
+const getNullsFirstLast = (sort: SortField) => {
+    if (sort.nullsFirst === undefined) return '';
+    return sort.nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
+};
+
 export const getPivotedResults = async (
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
@@ -20,7 +25,9 @@ export const getPivotedResults = async (
         ? `ORDER BY ${sorts
               .map(
                   (sort) =>
-                      `${sort.fieldId} ${sort.descending ? 'DESC' : 'ASC'}`,
+                      `${sort.fieldId} ${
+                          sort.descending ? 'DESC' : 'ASC'
+                      }${getNullsFirstLast(sort)}`,
               )
               .join(', ')}`
         : '';

@@ -12,14 +12,14 @@ export const EmbedMarkdownTile: React.FC<
     const { languageMap } = useEmbed();
 
     const translatedTile = useMemo(() => {
-        if (!languageMap) return props.tile;
+        if (!languageMap || !props.tile) return props.tile;
+
+        const properties =
+            languageMap.dashboard?.[dashboardSlug]?.tiles?.[tileIndex]
+                ?.properties || {};
 
         return produce(props.tile, (draft) => {
-            draft.properties = mergeExisting(
-                draft.properties,
-                languageMap.dashboard?.[dashboardSlug]?.tiles?.[tileIndex]
-                    .properties,
-            );
+            draft.properties = mergeExisting(draft.properties, properties);
         });
     }, [props.tile, languageMap, tileIndex, dashboardSlug]);
 

@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
+    CreateOrUpdateArtifactFn,
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -17,6 +18,7 @@ import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateFilterRules,
+    validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
 } from '../utils/validators';
 import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
@@ -28,6 +30,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
+    createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
 };
 
@@ -38,12 +41,13 @@ export const getGenerateBarVizConfig = ({
     getPrompt,
     sendFile,
     updatePrompt,
+    createOrUpdateArtifact,
     maxLimit,
 }: Dependencies) => {
     const schema = toolVerticalBarArgsSchema;
 
     return tool({
-        description: `Use this tool to generate a Bar Chart Visualization.`,
+        description: toolVerticalBarArgsSchema.description,
         parameters: schema,
         execute: async (toolArgs) => {
             try {
@@ -54,6 +58,7 @@ export const getGenerateBarVizConfig = ({
                     toolVerticalBarArgsSchemaTransformed.parse(toolArgs);
 
                 const filterRules = getTotalFilterRules(vizTool.filters);
+
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
@@ -67,9 +72,24 @@ export const getGenerateBarVizConfig = ({
                 ].filter((x) => typeof x === 'string');
                 validateSelectedFieldsExistence(explore, fieldsToValidate);
                 validateFilterRules(explore, filterRules);
+                validateMetricDimensionFilterPlacement(
+                    explore,
+                    vizTool.filters,
+                );
                 // end of TODO
 
                 const prompt = await getPrompt();
+
+                await createOrUpdateArtifact({
+                    threadUuid: prompt.threadUuid,
+                    promptUuid: prompt.promptUuid,
+                    artifactType: 'chart',
+                    title: toolArgs.title,
+                    description: toolArgs.description,
+                    vizConfig: toolArgs,
+                });
+
+                // TODO :: keeping this for now, until the front-end is under feature-flag
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
                     vizConfigOutput: toolArgs,

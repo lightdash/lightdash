@@ -179,12 +179,12 @@ export const lightdashConfigMock: LightdashConfig = {
         defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
-        showQueryWarnings: false,
     },
     ai: {
         copilot: {
             enabled: false,
             debugLoggingEnabled: false,
+            maxQueryLimit: 10000,
             telemetryEnabled: false,
             requiresFeatureFlag: false,
             defaultProvider: 'openai',
@@ -192,6 +192,7 @@ export const lightdashConfigMock: LightdashConfig = {
                 openai: {
                     apiKey: 'mock_api_key',
                     modelName: 'mock_model_name',
+                    temperature: 0.2,
                 },
             },
         },
@@ -236,5 +237,8 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     mcp: {
         enabled: true,
+    },
+    customRoles: {
+        enabled: false,
     },
 };

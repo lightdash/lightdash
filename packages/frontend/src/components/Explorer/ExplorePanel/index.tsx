@@ -28,6 +28,7 @@ import {
     EditVirtualViewModal,
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -142,14 +143,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         chartUuid,
     ]);
 
-    const canManageVirtualViews = user.data?.ability?.can(
-        'manage',
-        subject('VirtualView', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
-
     const missingFields = useMemo(() => {
         if (explore) {
             const visibleFields = getVisibleFields(explore);
@@ -251,8 +244,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             >
                 <Group position="apart">
                     <PageBreadcrumbs size="md" items={breadcrumbs} />
-                    {canManageVirtualViews &&
-                        explore.type === ExploreType.VIRTUAL && (
+                    {explore.type === ExploreType.VIRTUAL && (
+                        <Can
+                            I="create"
+                            this={subject('VirtualView', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
                                     <ActionIcon variant="transparent">
@@ -268,18 +267,30 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             Edit virtual view
                                         </Text>
                                     </Menu.Item>
-                                    <Menu.Item
-                                        icon={<MantineIcon icon={IconTrash} />}
-                                        color="red"
-                                        onClick={handleDeleteVirtualView}
+                                    <Can
+                                        I="delete"
+                                        this={subject('VirtualView', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid,
+                                        })}
                                     >
-                                        <Text fz="xs" fw={500}>
-                                            Delete
-                                        </Text>
-                                    </Menu.Item>
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                            color="red"
+                                            onClick={handleDeleteVirtualView}
+                                        >
+                                            <Text fz="xs" fw={500}>
+                                                Delete
+                                            </Text>
+                                        </Menu.Item>
+                                    </Can>
                                 </Menu.Dropdown>
                             </Menu>
-                        )}
+                        </Can>
+                    )}
                 </Group>
 
                 <ItemDetailProvider>

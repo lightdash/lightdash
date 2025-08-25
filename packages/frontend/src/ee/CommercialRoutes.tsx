@@ -1,8 +1,6 @@
-import { MantineProvider } from '@mantine-8/core';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
 import NavBar from '../components/NavBar';
 import PrivateRoute from '../components/PrivateRoute';
-import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import { AiAgentThreadStreamStoreProvider } from './features/aiCopilot/streaming/AiAgentThreadStreamStoreProvider';
@@ -14,8 +12,8 @@ import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
 import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPage';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
-import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
+import EmbedExplore from './pages/EmbedExplore';
 import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
 
 const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
@@ -31,37 +29,13 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                     </TrackPage>
                 ),
             },
-        ],
-    },
-];
-
-const COMMERCIAL_AI_ROUTES: RouteObject[] = [
-    {
-        path: '/projects/:projectUuid/ai',
-        element: (
-            <PrivateRoute>
-                <Outlet />
-            </PrivateRoute>
-        ),
-        children: [
-            ...[
-                '/projects/:projectUuid/ai/conversations/:threadUuid/:promptUuid',
-                '/projects/:projectUuid/ai/conversations/:threadUuid',
-                '/projects/:projectUuid/ai/conversations',
-            ].map((path) => {
-                return {
-                    path,
-                    element: (
-                        <>
-                            <NavBar />
-                            <AiConversationsPage />
-                        </>
-                    ),
-                };
-            }),
             {
-                path: '*',
-                element: <Navigate to={'conversations'} />,
+                path: '/embed/:projectUuid/explore/:exploreId',
+                element: (
+                    <TrackPage name={PageName.EMBED_EXPLORE}>
+                        <EmbedExplore />
+                    </TrackPage>
+                ),
             },
         ],
     },
@@ -81,11 +55,9 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
         element: (
             <PrivateRoute>
                 <NavBar />
-                <MantineProvider theme={getMantine8ThemeOverride()}>
-                    <AiAgentThreadStreamStoreProvider>
-                        <Outlet />
-                    </AiAgentThreadStreamStoreProvider>
-                </MantineProvider>
+                <AiAgentThreadStreamStoreProvider>
+                    <Outlet />
+                </AiAgentThreadStreamStoreProvider>
             </PrivateRoute>
         ),
         children: [
@@ -121,6 +93,14 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                                 element: <AiAgentNewThreadPage />,
                             },
                             {
+                                path: ':threadUuid/messages/:promptUuid/debug',
+                                element: <AiAgentThreadPage debug />,
+                            },
+                            {
+                                path: ':threadUuid/messages/:promptUuid',
+                                element: <AiAgentThreadPage />,
+                            },
+                            {
                                 path: ':threadUuid',
                                 element: <AiAgentThreadPage />,
                             },
@@ -141,7 +121,6 @@ const COMMERCIAL_SLACK_AUTH_ROUTES: RouteObject[] = [
 
 export const CommercialWebAppRoutes = [
     ...COMMERCIAL_EMBED_ROUTES,
-    ...COMMERCIAL_AI_ROUTES,
     ...COMMERCIAL_AI_AGENTS_ROUTES,
     ...COMMERCIAL_SLACK_AUTH_ROUTES,
 ];

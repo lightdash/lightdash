@@ -14,7 +14,11 @@ import {
     type DbtModelNode,
     type LineageGraph,
 } from '../types/dbt';
-import { MissingCatalogEntryError, ParseError } from '../types/errors';
+import {
+    CompileError,
+    MissingCatalogEntryError,
+    ParseError,
+} from '../types/errors';
 import {
     InlineErrorType,
     type Explore,
@@ -608,6 +612,7 @@ export const convertTable = (
               }
             : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
+        ...(meta.parameters ? { parameters: meta.parameters } : {}),
     };
 };
 
@@ -809,6 +814,7 @@ export const convertExplores = async (
                             ? { description: exploreToCreate.description }
                             : {}),
                     },
+                    projectParameters: lightdashProjectConfig.parameters,
                 });
             } catch (e: unknown) {
                 return {
@@ -819,7 +825,8 @@ export const convertExplores = async (
                         {
                             // TODO improve parsing of error type
                             type:
-                                e instanceof ParseError
+                                e instanceof ParseError ||
+                                e instanceof CompileError
                                     ? InlineErrorType.METADATA_PARSE_ERROR
                                     : InlineErrorType.NO_DIMENSIONS_FOUND,
                             message:

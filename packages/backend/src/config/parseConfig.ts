@@ -1,4 +1,5 @@
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
     AllowedEmailDomainsRoles,
@@ -244,7 +245,13 @@ export const getPemFileContent = (certValue: string | undefined) =>
         decodeUnlessStartsWith: '-----BEGIN ', // -----BEGIN CERTIFICATE | -----BEGIN PRIVATE KEY
     });
 
-type LoggingLevel = 'error' | 'warn' | 'info' | 'http' | 'debug' | 'audit';
+export type LoggingLevel =
+    | 'error'
+    | 'warn'
+    | 'info'
+    | 'http'
+    | 'debug'
+    | 'audit';
 const assertIsLoggingLevel = (x: string): x is LoggingLevel =>
     ['error', 'warn', 'info', 'http', 'debug', 'audit'].includes(x);
 const parseLoggingLevel = (raw: string): LoggingLevel => {
@@ -673,7 +680,6 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
-        showQueryWarnings: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -786,6 +792,9 @@ export type LightdashConfig = {
         };
     };
     mcp: {
+        enabled: boolean;
+    };
+    customRoles: {
         enabled: boolean;
     };
 };
@@ -1029,6 +1038,9 @@ export const parseConfig = (): LightdashConfig => {
                       apiKey: process.env.AZURE_AI_API_KEY,
                       apiVersion: process.env.AZURE_AI_API_VERSION,
                       deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
+                      temperature: getFloatFromEnvironmentVariable(
+                          'AZURE_AI_TEMPERATURE',
+                      ),
                   }
                 : undefined,
             openai: process.env.OPENAI_API_KEY
@@ -1038,6 +1050,8 @@ export const parseConfig = (): LightdashConfig => {
                           process.env.OPENAI_MODEL_NAME ||
                           DEFAULT_OPENAI_MODEL_NAME,
                       baseUrl: process.env.OPENAI_BASE_URL,
+                      temperature:
+                          getFloatFromEnvironmentVariable('OPENAI_TEMPERATURE'),
                   }
                 : undefined,
             anthropic: process.env.ANTHROPIC_API_KEY
@@ -1046,6 +1060,9 @@ export const parseConfig = (): LightdashConfig => {
                       modelName:
                           process.env.ANTHROPIC_MODEL_NAME ||
                           DEFAULT_ANTHROPIC_MODEL_NAME,
+                      temperature: getFloatFromEnvironmentVariable(
+                          'ANTHROPIC_TEMPERATURE',
+                      ),
                   }
                 : undefined,
             openrouter: process.env.OPENROUTER_API_KEY
@@ -1058,9 +1075,15 @@ export const parseConfig = (): LightdashConfig => {
                       allowedProviders: getArrayFromCommaSeparatedList(
                           'OPENROUTER_ALLOWED_PROVIDERS',
                       ),
+                      temperature: getFloatFromEnvironmentVariable(
+                          'OPENROUTER_TEMPERATURE',
+                      ),
                   }
                 : undefined,
         },
+        maxQueryLimit:
+            getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
+            AI_DEFAULT_MAX_QUERY_LIMIT,
     };
 
     const copilotConfigParse =
@@ -1349,8 +1372,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
-            showQueryWarnings:
-                process.env.LIGHTDASH_SHOW_QUERY_WARNINGS === 'true',
         },
         chart: {
             versionHistory: {
@@ -1491,6 +1512,9 @@ export const parseConfig = (): LightdashConfig => {
         updateSetup: getUpdateSetupConfig(),
         mcp: {
             enabled: process.env.MCP_ENABLED === 'true',
+        },
+        customRoles: {
+            enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
     };
 };

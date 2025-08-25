@@ -12,7 +12,7 @@ import { IconArrowLeft, IconLock, IconRobot } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout';
+import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 
 const AiAgentsNotAuthorizedPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

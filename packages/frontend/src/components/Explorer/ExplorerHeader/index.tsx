@@ -1,18 +1,17 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Badge, Box, Group, Tooltip } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
-import { AutoFetchResultsButton } from '../../AutoFetchResultsButton';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import MantineIcon from '../../common/MantineIcon';
@@ -24,6 +23,7 @@ import QueryWarnings from './QueryWarnings';
 const ExplorerHeader: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
+    const { onBackToDashboard } = useEmbed();
 
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
@@ -100,12 +100,18 @@ const ExplorerHeader: FC = memo(() => {
         'CompileProject',
     );
 
-    const { data: showQueryWarningsEnabled } = useFeatureFlag(
-        FeatureFlags.ShowQueryWarnings,
-    );
-
     return (
         <Group position="apart">
+            {typeof onBackToDashboard === 'function' && (
+                <Button
+                    variant="light"
+                    leftIcon={<MantineIcon icon={IconArrowLeft} />}
+                    onClick={onBackToDashboard}
+                >
+                    Back to Dashboard
+                </Button>
+            )}
+
             <Box>
                 <RefreshDbtButton />
             </Box>
@@ -136,7 +142,6 @@ const ExplorerHeader: FC = memo(() => {
                 )}
 
                 {userCanManageCompileProject &&
-                    showQueryWarningsEnabled?.enabled &&
                     queryWarnings &&
                     queryWarnings.length > 0 && (
                         <QueryWarnings queryWarnings={queryWarnings} />
@@ -149,7 +154,6 @@ const ExplorerHeader: FC = memo(() => {
                     />
                 )}
 
-                <AutoFetchResultsButton size="md" />
                 <RefreshButton size="xs" />
 
                 {!savedChart && userCanCreateCharts && (

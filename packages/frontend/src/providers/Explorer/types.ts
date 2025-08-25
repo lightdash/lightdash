@@ -14,6 +14,7 @@ import {
     type Metric,
     type MetricQuery,
     type MetricType,
+    type ParameterDefinitions,
     type PieChartConfig,
     type ReplaceCustomFields,
     type SavedChart,
@@ -54,6 +55,7 @@ export enum ActionType {
     ADD_SORT_FIELD,
     REMOVE_SORT_FIELD,
     MOVE_SORT_FIELDS,
+    SET_SORT_FIELD_NULLS_FIRST,
     SET_ROW_LIMIT,
     SET_TIME_ZONE,
     SET_FILTERS,
@@ -126,6 +128,10 @@ export type Action =
     | {
           type: ActionType.MOVE_SORT_FIELDS;
           payload: SwapSortFieldsPayload;
+      }
+    | {
+          type: ActionType.SET_SORT_FIELD_NULLS_FIRST;
+          payload: { fieldId: FieldId; nullsFirst: boolean | undefined };
       }
     | {
           type: ActionType.SET_ROW_LIMIT;
@@ -266,6 +272,7 @@ export interface ExplorerReduceState {
      * If empty array, this means we know the missing parameters, but they are all optional, so we can run the query.
      */
     parameterReferences: string[] | null;
+    parameterDefinitions: ParameterDefinitions;
     modals: {
         format: {
             isOpen: boolean;
@@ -318,8 +325,12 @@ export interface ExplorerContextType {
         ) => void;
         removeSortField: (fieldId: FieldId) => void;
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
+        setSortFieldNullsFirst: (
+            fieldId: FieldId,
+            nullsFirst: boolean | undefined,
+        ) => void;
         setRowLimit: (limit: number) => void;
-        setTimeZone: (timezone: TimeZone) => void;
+        setTimeZone: (timezone: string | null) => void;
         setFilters: (filters: MetricQuery['filters']) => void;
         setParameter: (key: string, value: string | string[] | null) => void;
         clearAllParameters: () => void;

@@ -712,6 +712,76 @@ describe('Filter SQL', () => {
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithNoValSQL);
     });
 
+    test('should return true when includes filter has empty string value', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.includeFilterWithEmptyString,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.includeFilterWithEmptyStringSQL);
+    });
+
+    test('should filter out empty strings and process valid values in mixed array', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.includeFilterWithMixedEmptyStrings,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.includeFilterWithMixedEmptyStringsSQL);
+    });
+
+    test('should return empty string filter sql when equals filter has empty string value', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithEmptyString,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.equalsFilterWithEmptyStringSQL);
+    });
+
+    test('should return true when starts with filter has empty string value', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.startsWithFilterWithEmptyString,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.startsWithFilterWithEmptyStringSQL);
+    });
+
+    test('should return true when ends with filter has empty string value', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.endsWithFilterWithEmptyString,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.endsWithFilterWithEmptyStringSQL);
+    });
+
+    test('should return true when not equals filter has empty string value', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notEqualsFilterWithEmptyString,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notEqualsFilterWithEmptyStringSQL);
+    });
+
+    test('should return true when not include filter has empty string value', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notIncludeFilterWithEmptyString,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.notIncludeFilterWithEmptyStringSQL);
+    });
+
     test('should return single value in startsWith filter sql', () => {
         expect(
             renderStringFilterSql(
@@ -1196,6 +1266,62 @@ describe('Number Filter SQL Injection Prevention', () => {
             expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
                 '(("table"."customer_id")) IN (1000,0.00025)',
             );
+        });
+
+        it('should return true for comparison operators with empty values', () => {
+            const comparisonOperators = [
+                FilterOperator.GREATER_THAN,
+                FilterOperator.GREATER_THAN_OR_EQUAL,
+                FilterOperator.LESS_THAN,
+                FilterOperator.LESS_THAN_OR_EQUAL,
+            ];
+
+            comparisonOperators.forEach((operator) => {
+                const filter = {
+                    ...baseFilter,
+                    operator,
+                    values: [],
+                };
+                expect(renderNumberFilterSql(dimensionSql, filter)).toBe(
+                    'true',
+                );
+            });
+        });
+
+        it('should return true for IN_BETWEEN operator with empty values', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.IN_BETWEEN,
+                values: [],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe('true');
+        });
+
+        it('should return true for IN_BETWEEN operator with only one value', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.IN_BETWEEN,
+                values: [5],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe('true');
+        });
+
+        it('should return true for NOT_IN_BETWEEN operator with empty values', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_IN_BETWEEN,
+                values: [],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe('true');
+        });
+
+        it('should return true for NOT_IN_BETWEEN operator with only one value', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_IN_BETWEEN,
+                values: [5],
+            };
+            expect(renderNumberFilterSql(dimensionSql, filter)).toBe('true');
         });
     });
 });

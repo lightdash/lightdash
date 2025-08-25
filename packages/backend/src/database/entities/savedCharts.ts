@@ -141,12 +141,17 @@ type DbSavedChartVersionSort = {
     saved_queries_version_id: number;
     field_name: string;
     descending: boolean;
+    nulls_first: boolean | null;
     order: number;
 };
 
 export type CreateDbSavedChartVersionSort = Pick<
     DbSavedChartVersionSort,
-    'saved_queries_version_id' | 'field_name' | 'descending' | 'order'
+    | 'saved_queries_version_id'
+    | 'field_name'
+    | 'descending'
+    | 'nulls_first'
+    | 'order'
 >;
 
 export const SavedChartVersionSortsTableName = 'saved_queries_version_sorts';

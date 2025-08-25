@@ -1,13 +1,11 @@
 import {
     AiAgent,
     AiWebAppPrompt,
+    AVAILABLE_VISUALIZATION_TYPES,
     CatalogType,
     isDateItem,
-    toolFindFieldsArgsSchema,
-    toolTableVizArgsSchema,
-    toolTimeSeriesArgsSchema,
-    toolVerticalBarArgsSchema,
 } from '@lightdash/common';
+import moment from 'moment';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CatalogSearchContext } from '../../../../../models/CatalogModel/CatalogModel';
 import {
@@ -19,19 +17,23 @@ import {
 import { DbAiAgentToolCall } from '../../../../database/entities/ai';
 import { getOpenaiGptmodel } from '../../models/openai-gpt';
 import { llmAsAJudge } from './utils/llmAsAJudge';
+import { llmAsJudgeForTools } from './utils/llmAsJudgeForTools';
 import { setTaskMeta } from './utils/taskMeta';
 
 // Skip if no OpenAI API key
 const hasApiKey = !!process.env.OPENAI_API_KEY;
 const describeOrSkip = hasApiKey ? describe : describe.skip;
 
-describeOrSkip('agent integration tests', () => {
+describeOrSkip.concurrent('agent integration tests', () => {
     let context: IntegrationTestContext;
     const TIMEOUT = 60_000;
     let createdAgent: AiAgent | null = null;
-    const model = getOpenaiGptmodel({
+    const { model, callOptions } = getOpenaiGptmodel({
         apiKey: process.env.OPENAI_API_KEY!,
         modelName: 'gpt-4.1',
+        temperature: process.env.OPENAI_TEMPERATURE
+            ? parseFloat(process.env.OPENAI_TEMPERATURE)
+            : 0.2,
     });
 
     beforeAll(async () => {
@@ -133,9 +135,6 @@ describeOrSkip('agent integration tests', () => {
                 .where('ai_prompt_uuid', prompt!.promptUuid)
                 .select('*');
 
-            expect(toolCalls.length).toBeGreaterThan(0);
-            expect(toolCalls[0].tool_name).toBe('findExplores');
-
             const { data: tables } =
                 await services.catalogService.searchCatalog({
                     projectUuid: createdAgent.projectUuid!,
@@ -149,17 +148,17 @@ describeOrSkip('agent integration tests', () => {
                         page: 1,
                         pageSize: 100,
                     },
-                    tables: null,
                 });
 
             const tablesText = tables.map((table) => table.name).join(', ');
-
+            const expectedAnswer = `You can explore data models such as ${tablesText}`;
             const { result: factualityEvaluation, meta: factualityMeta } =
                 await llmAsAJudge({
                     query: promptQueryText,
                     response,
-                    expectedAnswer: `You can explore data models such as ${tablesText}`,
+                    expectedAnswer,
                     model,
+                    callOptions,
                     scorerType: 'factuality',
                 });
 
@@ -171,10 +170,21 @@ describeOrSkip('agent integration tests', () => {
                 factualityEvaluation.answer === 'A' ||
                 factualityEvaluation.answer === 'B';
 
+            const toolsEvaluation = await llmAsJudgeForTools({
+                prompt: promptQueryText,
+                toolCalls,
+                expectedOutcome:
+                    'It should have skipped the tool calls because the agent has access to the data models already',
+                model,
+                callOptions,
+            });
+
+            // ================================
+            // Report creation
+            // ================================
             setTaskMeta(task.meta, 'llmJudgeResults', [
                 { ...factualityMeta, passed: isFactualityPassing },
             ]);
-            expect(isFactualityPassing).toBe(true);
 
             setTaskMeta(
                 task.meta,
@@ -183,6 +193,13 @@ describeOrSkip('agent integration tests', () => {
             );
             setTaskMeta(task.meta, 'prompts', [promptQueryText]);
             setTaskMeta(task.meta, 'responses', [response]);
+            setTaskMeta(task.meta, 'llmToolJudgeResults', [toolsEvaluation]);
+
+            // ================================
+            // Assertions
+            // ================================
+            expect(isFactualityPassing).toBe(true);
+            expect(toolsEvaluation.passed).toBe(true);
         },
         TIMEOUT,
     );
@@ -201,28 +218,14 @@ describeOrSkip('agent integration tests', () => {
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
 
-        expect(toolCalls.length).toBeGreaterThan(0);
-
-        const generateTableVizConfigToolCall = toolCalls.find(
-            (call) => call.tool_name === 'generateTableVizConfig',
-        );
-        expect(generateTableVizConfigToolCall).toBeDefined();
-        const generateTableVizConfigToolCallParsed =
-            toolTableVizArgsSchema.safeParse(
-                generateTableVizConfigToolCall?.tool_args,
-            );
-        expect(generateTableVizConfigToolCallParsed.success).toBe(true);
-        expect(generateTableVizConfigToolCallParsed.data?.vizConfig.limit).toBe(
-            1,
-        );
-
         const { result: factualityEvaluation, meta: factualityMeta } =
             await llmAsAJudge({
                 query: promptQueryText,
                 response,
-                expectedAnswer: '1989.37',
+                expectedAnswer: '3,053.87',
                 scorerType: 'factuality',
                 model,
+                callOptions,
             });
 
         if (!factualityEvaluation) {
@@ -233,11 +236,21 @@ describeOrSkip('agent integration tests', () => {
             factualityEvaluation.answer === 'A' ||
             factualityEvaluation.answer === 'B';
 
+        const toolUsageEvaluation = await llmAsJudgeForTools({
+            prompt: promptQueryText,
+            toolCalls,
+            expectedOutcome:
+                'It should have used the findExplores, findFields tool and then the table tool summarize the data to get the total revenue',
+            model,
+            callOptions,
+        });
+
+        // ================================
+        // Report creation
+        // ================================
         setTaskMeta(task.meta, 'llmJudgeResults', [
             { ...factualityMeta, passed: isFactualityPassing },
         ]);
-        expect(isFactualityPassing).toBe(true);
-
         setTaskMeta(
             task.meta,
             'toolCalls',
@@ -245,6 +258,13 @@ describeOrSkip('agent integration tests', () => {
         );
         setTaskMeta(task.meta, 'prompts', [promptQueryText]);
         setTaskMeta(task.meta, 'responses', [response]);
+        setTaskMeta(task.meta, 'llmToolJudgeResults', [toolUsageEvaluation]);
+
+        // ================================
+        // Assertions
+        // ================================
+        expect(isFactualityPassing).toBe(true);
+        expect(toolUsageEvaluation.passed).toBe(true);
     });
 
     it('should generate a time-series chart', async ({ task }) => {
@@ -262,36 +282,15 @@ describeOrSkip('agent integration tests', () => {
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
 
-        expect(toolCalls.length).toBeGreaterThan(0);
-        expect(toolCalls[0].tool_name).toBe('findExplores');
-
-        expect(toolCalls[1].tool_name).toBe('findFields');
-        const findFieldsToolCallParsed = toolFindFieldsArgsSchema.safeParse(
-            toolCalls[1].tool_args,
-        );
-        expect(findFieldsToolCallParsed.success).toBe(true);
-        expect(findFieldsToolCallParsed.data?.table).toBe('payments');
-        findFieldsToolCallParsed.data?.fieldSearchQueries.forEach((field) => {
-            expect(field.label).toMatch(/revenue|month/i);
-        });
-
-        expect(toolCalls[2].tool_name).toBe('generateTimeSeriesVizConfig');
-
-        const generateTimeSeriesVizConfigToolCallParsed =
-            toolTimeSeriesArgsSchema.safeParse(toolCalls[2].tool_args);
-        expect(generateTimeSeriesVizConfigToolCallParsed.success).toBe(true);
-
-        const vizConfig =
-            generateTimeSeriesVizConfigToolCallParsed.data?.vizConfig;
-
         const { result: factualityEvaluation, meta: factualityMeta } =
             await llmAsAJudge({
                 query: promptQueryText,
                 response,
                 expectedAnswer:
-                    "I've generated a chart of revenue over time (monthly) with Payments explore, order date month on the x axis and total revenue on the y axis",
+                    "I've generated a chart of revenue over time (monthly) using 'Total revenue' metric from the Payments explore. The x-axis represents month and the y-axis represents revenue of that month.",
                 scorerType: 'factuality',
                 model,
+                callOptions,
             });
 
         if (!factualityEvaluation) {
@@ -302,48 +301,44 @@ describeOrSkip('agent integration tests', () => {
             factualityEvaluation.answer === 'A' ||
             factualityEvaluation.answer === 'B';
 
+        const toolUsageEvaluation = await llmAsJudgeForTools({
+            prompt: promptQueryText,
+            toolCalls,
+            expectedOutcome:
+                'It should have used the appropriated tools to find information about revenue over time. It must have used the time series tool to generate the chart',
+            expectedArgsValidation: [
+                {
+                    toolName: 'generateTimeSeriesVizConfig',
+                    expectedArgs: {
+                        vizConfig: {
+                            limit: 1000,
+                            sorts: [
+                                {
+                                    fieldId: 'orders_order_date_month',
+                                    descending: false,
+                                },
+                            ],
+                            lineType: 'line',
+                            yMetrics: ['payments_total_revenue'],
+                            xAxisLabel: 'Order date month',
+                            xDimension: 'orders_order_date_month',
+                            yAxisLabel: 'Total revenue',
+                            exploreName: 'payments',
+                            breakdownByDimension: null,
+                        },
+                    },
+                },
+            ],
+            model,
+            callOptions,
+        });
+
+        // ================================
+        // Report creation
+        // ================================
         setTaskMeta(task.meta, 'llmJudgeResults', [
             { ...factualityMeta, passed: isFactualityPassing },
         ]);
-        expect(isFactualityPassing).toBe(true);
-
-        const vizConfigExpected = {
-            limit: 1000,
-            sorts: [{ fieldId: 'orders_order_date_month', descending: false }],
-            lineType: 'line',
-            yMetrics: ['payments_total_revenue'],
-            xAxisLabel: 'Order date month',
-            xDimension: 'orders_order_date_month',
-            yAxisLabel: 'Total revenue',
-            exploreName: 'payments',
-            breakdownByDimension: null,
-        };
-
-        const {
-            result: vizConfigJsonDiffEvaluation,
-            meta: vizConfigJsonDiffMeta,
-        } = await llmAsAJudge({
-            model,
-            query: promptQueryText,
-            response: JSON.stringify(vizConfig),
-            expectedAnswer: JSON.stringify(vizConfigExpected),
-            scorerType: 'jsonDiff',
-        });
-
-        if (!vizConfigJsonDiffEvaluation) {
-            throw new Error('JSON diff evaluation not found');
-        }
-
-        const isJsonDiffPassing =
-            (vizConfigJsonDiffEvaluation?.score ?? 0) >= 0.9;
-
-        setTaskMeta(task.meta, 'llmJudgeResults', [
-            ...task.meta.llmJudgeResults,
-            { ...vizConfigJsonDiffMeta, passed: isJsonDiffPassing },
-        ]);
-
-        expect(isJsonDiffPassing).toBe(true);
-
         setTaskMeta(
             task.meta,
             'toolCalls',
@@ -351,6 +346,13 @@ describeOrSkip('agent integration tests', () => {
         );
         setTaskMeta(task.meta, 'prompts', [promptQueryText]);
         setTaskMeta(task.meta, 'responses', [response]);
+        setTaskMeta(task.meta, 'llmToolJudgeResults', [toolUsageEvaluation]);
+
+        // ================================
+        // Assertions
+        // ================================
+        expect(isFactualityPassing).toBe(true);
+        expect(toolUsageEvaluation.passed).toBe(true);
     });
 
     it(
@@ -414,6 +416,7 @@ describeOrSkip('agent integration tests', () => {
                 response,
                 context: contextForEval,
                 model,
+                callOptions,
                 scorerType: 'contextRelevancy',
             });
 
@@ -421,10 +424,12 @@ describeOrSkip('agent integration tests', () => {
             const isContextRelevancyPassing =
                 contextRelevancyEvaluation.score >= 0.7;
 
+            // ================================
+            // Report creation
+            // ================================
             setTaskMeta(task.meta, 'llmJudgeResults', [
                 { ...contextRelevancyMeta, passed: isContextRelevancyPassing },
             ]);
-            expect(isContextRelevancyPassing).toBe(true);
 
             setTaskMeta(
                 task.meta,
@@ -433,18 +438,23 @@ describeOrSkip('agent integration tests', () => {
             );
             setTaskMeta(task.meta, 'prompts', [promptQueryText]);
             setTaskMeta(task.meta, 'responses', [response]);
+
+            // ================================
+            // Assertions
+            // ================================
+            expect(isContextRelevancyPassing).toBe(true);
         },
         TIMEOUT,
     );
 
     it(
-        'should answer "How many orders were there in 2018?" and generate a one line result',
+        'should answer "How many orders were there in 2024?" and generate a one line result',
         async ({ task }) => {
             if (!createdAgent) {
                 throw new Error('Agent not created');
             }
 
-            const promptQueryText = 'How many orders were there in 2018?';
+            const promptQueryText = 'How many orders were there in 2024?';
 
             const { response, prompt } = await promptAgent(promptQueryText);
 
@@ -453,64 +463,14 @@ describeOrSkip('agent integration tests', () => {
                 .where('ai_prompt_uuid', prompt!.promptUuid)
                 .select('*');
 
-            // Should have exactly 3 tool calls in sequence
-            expect(toolCalls.length).toBe(3);
-
-            // First tool call: findExplores
-            expect(toolCalls[0].tool_name).toBe('findExplores');
-            expect(toolCalls[0].tool_args).toEqual({
-                page: 1,
-                type: 'find_explores',
-            });
-
-            // Second tool call: findFields with specific search for order count and date
-            expect(toolCalls[1].tool_name).toBe('findFields');
-            expect(toolCalls[1].tool_args).toEqual({
-                page: 1,
-                type: 'find_fields',
-                table: 'orders',
-                fieldSearchQueries: [
-                    { label: 'Unique order count' },
-                    { label: 'Order date year' },
-                ],
-            });
-
-            // Third tool call: generateTableVizConfig with 2018 filter
-            expect(toolCalls[2].tool_name).toBe('generateTableVizConfig');
-
-            const tableVizArgsParsed = toolTableVizArgsSchema.safeParse(
-                toolCalls[2].tool_args,
-            );
-
-            if (!tableVizArgsParsed.success) {
-                throw new Error('Failed to parse table viz args');
-            }
-
-            const tableVizArgs = tableVizArgsParsed.data;
-
-            expect(tableVizArgs.filters?.dimensions?.[0]).toMatchObject({
-                rule: { values: ['2018'], operator: 'equals' },
-                type: 'or',
-                target: {
-                    type: 'date',
-                    fieldId: 'orders_order_date_year',
-                },
-            });
-
-            expect(tableVizArgs.vizConfig.metrics).toContain(
-                'orders_unique_order_count',
-            );
-            expect(tableVizArgsParsed.data.vizConfig.exploreName).toBe(
-                'orders',
-            );
-
             const { result: factualityEvaluation, meta: factualityMeta } =
                 await llmAsAJudge({
                     query: promptQueryText,
                     response,
-                    expectedAnswer: 'There were 99 orders in 2018',
+                    expectedAnswer: 'There were 53 orders in 2024',
                     scorerType: 'factuality',
                     model,
+                    callOptions,
                 });
 
             if (!factualityEvaluation) {
@@ -521,11 +481,13 @@ describeOrSkip('agent integration tests', () => {
                 factualityEvaluation.answer === 'A' ||
                 factualityEvaluation.answer === 'B';
 
+            // ================================
+            // Report creation
+            // ================================
+
             setTaskMeta(task.meta, 'llmJudgeResults', [
                 { ...factualityMeta, passed: isFactualityPassing },
             ]);
-            expect(isFactualityPassing).toBe(true);
-
             setTaskMeta(
                 task.meta,
                 'toolCalls',
@@ -533,6 +495,11 @@ describeOrSkip('agent integration tests', () => {
             );
             setTaskMeta(task.meta, 'prompts', [promptQueryText]);
             setTaskMeta(task.meta, 'responses', [response]);
+
+            // ================================
+            // Assertions
+            // ================================
+            expect(isFactualityPassing).toBe(true);
         },
         TIMEOUT,
     );
@@ -554,12 +521,6 @@ describeOrSkip('agent integration tests', () => {
             .where('ai_prompt_uuid', prompt!.promptUuid)
             .select('*');
 
-        setTaskMeta(
-            task.meta,
-            'toolCalls',
-            toolCalls.map((tc) => tc.tool_name),
-        );
-
         const availableExplores = await getServices(
             context.app,
         ).catalogService.searchCatalog({
@@ -570,7 +531,6 @@ describeOrSkip('agent integration tests', () => {
             },
             userAttributes: {},
             context: CatalogSearchContext.AI_AGENT,
-            tables: null,
         });
 
         const availableExploresText = availableExplores.data
@@ -587,6 +547,7 @@ describeOrSkip('agent integration tests', () => {
                 `,
                 scorerType: 'factuality',
                 model,
+                callOptions,
             });
 
         if (!factualityEvaluation) {
@@ -597,11 +558,17 @@ describeOrSkip('agent integration tests', () => {
             factualityEvaluation.answer === 'A' ||
             factualityEvaluation.answer === 'B';
 
+        // ================================
+        // Report creation
+        // ================================
+        setTaskMeta(
+            task.meta,
+            'toolCalls',
+            toolCalls.map((tc) => tc.tool_name),
+        );
         setTaskMeta(task.meta, 'llmJudgeResults', [
             { ...factualityMeta, passed: isFactualityPassing },
         ]);
-        expect(isFactualityPassing).toBe(true);
-
         setTaskMeta(
             task.meta,
             'toolCalls',
@@ -609,9 +576,14 @@ describeOrSkip('agent integration tests', () => {
         );
         setTaskMeta(task.meta, 'prompts', [promptQueryText]);
         setTaskMeta(task.meta, 'responses', [response]);
+
+        // ================================
+        // Assertions
+        // ================================
+        expect(isFactualityPassing).toBe(true);
     });
 
-    it(
+    it.sequential(
         'should handle multiple consecutive prompts in the same thread maintaining context',
         async ({ task }) => {
             if (!createdAgent) {
@@ -635,42 +607,18 @@ describeOrSkip('agent integration tests', () => {
             const { response: response3, prompt: webPrompt3 } =
                 await promptAgent(prompt3, threadUuid);
 
-            const toolCalls = await context
+            const toolCallsForPrompt3 = await context
                 .db<DbAiAgentToolCall>('ai_agent_tool_call')
                 .where('ai_prompt_uuid', webPrompt3!.promptUuid)
                 .select('*');
 
-            expect(toolCalls.length).toBe(2);
-
-            expect(toolCalls[0].tool_name).toBe('findFields');
-            const findFieldsArgs = toolFindFieldsArgsSchema.safeParse(
-                toolCalls[0].tool_args,
-            );
-            expect(findFieldsArgs.success).toBe(true);
-            expect(findFieldsArgs.data?.table).toBe('payments');
-            expect(
-                findFieldsArgs.data?.fieldSearchQueries.some((q) =>
-                    q.label.toLowerCase().includes('payment method'),
-                ),
-            ).toBe(true);
-            expect(toolCalls[1].tool_name).toBe('generateBarVizConfig');
-            const barVizArgs = toolVerticalBarArgsSchema.safeParse(
-                toolCalls[1].tool_args,
-            );
-            expect(barVizArgs.success).toBe(true);
-            expect(barVizArgs.data?.vizConfig.yMetrics).toContain(
-                'payments_total_revenue',
-            );
-
-            expect(barVizArgs.data?.vizConfig.xDimension).toBe(
-                'payments_payment_method',
-            );
-            expect(barVizArgs.data?.vizConfig.exploreName).toBe('payments');
-
+            // ================================
+            // Report creation
+            // ================================
             setTaskMeta(
                 task.meta,
                 'toolCalls',
-                toolCalls.map((tc) => tc.tool_name),
+                toolCallsForPrompt3.map((tc) => tc.tool_name),
             );
             setTaskMeta(task.meta, 'prompts', [prompt1, prompt2, prompt3]);
             setTaskMeta(task.meta, 'responses', [
@@ -681,4 +629,288 @@ describeOrSkip('agent integration tests', () => {
         },
         TIMEOUT * 2, // Double timeout for multiple prompts
     );
+
+    [
+        {
+            question:
+                'What are the order amounts for this year, broken down by order status month over month?',
+            expectedExplore: 'orders',
+            expectedFields: {
+                dimensions: ['Order date month'],
+                metrics: ['Total order amount'],
+                breakdownByDimension: 'Order status',
+                filters: [`Order year ${new Date().getFullYear()}`],
+            },
+            expectedVisualization: 'time_series_chart',
+            maxToolCalls: 3,
+        },
+        {
+            question:
+                'Revenue from the last 3 months for the "credit_card" and "coupon" payment method, displayed as a bar chart.',
+            expectedExplore: 'payments',
+            expectedFields: {
+                dimensions: [],
+                metrics: ['Total revenue'],
+                breakdownByDimension: 'Payment method',
+                filters: [
+                    `Order date from ${moment()
+                        .subtract(3, 'months')
+                        .format('YYYY-MM-DD')} to ${moment()
+                        .subtract(1, 'months')
+                        .format('YYYY-MM-DD')}`,
+                    'Payment method (credit_card, coupon)',
+                ],
+            },
+            expectedVisualization: 'vertical_bar_chart',
+            maxToolCalls: 3,
+        },
+    ].forEach((testCase) => {
+        describe.concurrent(
+            `Evaluating answer for question: ${testCase.question}`,
+            () => {
+                let toolCalls: DbAiAgentToolCall[] = [];
+                let response: string = '';
+                let prompt: AiWebAppPrompt | undefined;
+
+                beforeAll(async () => {
+                    const agentResponse = await promptAgent(testCase.question);
+
+                    response = agentResponse.response;
+                    prompt = agentResponse.prompt;
+
+                    toolCalls = await context
+                        .db<DbAiAgentToolCall>('ai_agent_tool_call')
+                        .leftJoin(
+                            'ai_agent_tool_result',
+                            'ai_agent_tool_call.tool_call_id',
+                            'ai_agent_tool_result.tool_call_id',
+                        )
+                        .where(
+                            'ai_agent_tool_call.ai_prompt_uuid',
+                            prompt!.promptUuid,
+                        )
+                        .select('*');
+                });
+
+                it('should use appropriate tools and not exceed max tool calls', async ({
+                    task,
+                }) => {
+                    const toolsEvaluation = await llmAsJudgeForTools({
+                        prompt: testCase.question,
+                        toolCalls,
+                        expectedOutcome: `Should use appropriate tools to answer "${testCase.question}". Expected to use findExplores to find the ${testCase.expectedExplore} explore, findFields to get relevant fields, and it MUST use the ${testCase.expectedVisualization} tool for visualization. Should not use more than ${testCase.maxToolCalls} tool calls total.`,
+                        model,
+                        callOptions,
+                    });
+
+                    // ================================
+                    // Report creation
+                    // ================================
+                    setTaskMeta(task.meta, 'llmToolJudgeResults', [
+                        toolsEvaluation,
+                    ]);
+                    setTaskMeta(
+                        task.meta,
+                        'toolCalls',
+                        toolCalls.map((tc) => tc.tool_name),
+                    );
+                    setTaskMeta(task.meta, 'prompts', [testCase.question]);
+                    setTaskMeta(task.meta, 'responses', [response]);
+
+                    // ================================
+                    // Assertions
+                    // ================================
+                    expect(toolsEvaluation.passed).toBe(true);
+                });
+
+                it(
+                    `should get relevant information to answer the question: ${testCase.question}`,
+                    async ({ task }) => {
+                        if (!createdAgent) throw new Error('Agent not created');
+
+                        const relevancyEvaluation = await llmAsAJudge({
+                            query: `Does the tool call results give enough information about the explore and fields to answer the query: '${testCase.question}'?`,
+                            response: JSON.stringify(toolCalls),
+                            model,
+                            callOptions,
+                            scorerType: 'contextRelevancy',
+                            context: [
+                                JSON.stringify(
+                                    await getServices(
+                                        context.app,
+                                    ).projectService.getExplore(
+                                        context.testUserSessionAccount,
+                                        createdAgent.projectUuid!,
+                                        testCase.expectedExplore,
+                                    ),
+                                ),
+                            ],
+                        });
+                        const isRelevancyPassing =
+                            relevancyEvaluation.result.score === 1;
+
+                        // ================================
+                        // Report creation
+                        // ================================
+                        setTaskMeta(task.meta, 'llmJudgeResults', [
+                            {
+                                ...relevancyEvaluation.meta,
+                                passed: isRelevancyPassing,
+                            },
+                        ]);
+                        setTaskMeta(
+                            task.meta,
+                            'toolCalls',
+                            toolCalls.map((tc) => tc.tool_name),
+                        );
+                        setTaskMeta(task.meta, 'prompts', [testCase.question]);
+                        setTaskMeta(task.meta, 'responses', [response]);
+
+                        // ================================
+                        // Assertions
+                        // ================================
+                        expect(isRelevancyPassing).toBe(true);
+                    },
+                    TIMEOUT,
+                );
+
+                it('should answer the question with correct factual information', async ({
+                    task,
+                }) => {
+                    const factualEvaluation = await llmAsAJudge({
+                        query: testCase.question,
+                        response,
+                        expectedAnswer: [
+                            `The explore is ${testCase.expectedExplore}.`,
+                            `The dimensions are ${testCase.expectedFields.dimensions.join()}.`,
+                            `The metrics are ${testCase.expectedFields.metrics.join()}.`,
+                            `The breakdown by dimension is ${testCase.expectedFields.breakdownByDimension}.`,
+                            `The filters are ${testCase.expectedFields.filters.join()}.`,
+                            `The visualization is a ${testCase.expectedVisualization}.`,
+                        ].join('\n'),
+                        scorerType: 'factuality',
+                        model,
+                        callOptions,
+                    });
+
+                    const isFactualityPassing =
+                        factualEvaluation.result.answer === 'A' ||
+                        factualEvaluation.result.answer === 'B';
+
+                    // ================================
+                    // Report creation
+                    // ================================
+
+                    setTaskMeta(task.meta, 'llmJudgeResults', [
+                        {
+                            ...factualEvaluation.meta,
+                            passed: isFactualityPassing,
+                        },
+                    ]);
+                    setTaskMeta(
+                        task.meta,
+                        'toolCalls',
+                        toolCalls.map((tc) => tc.tool_name),
+                    );
+                    setTaskMeta(task.meta, 'prompts', [testCase.question]);
+                    setTaskMeta(task.meta, 'responses', [response]);
+
+                    // ================================
+                    // Assertions
+                    // ================================
+                    expect(isFactualityPassing).toBe(true);
+                });
+            },
+        );
+    });
+
+    describe('Limitation response quality', () => {
+        const limitationTestCases = [
+            {
+                name: 'forecasting request',
+                prompt: 'Can you forecast the revenue for next quarter?',
+                expectedResponse:
+                    'I cannot perform statistical forecasting or predictive modeling. I can only work with historical data visualization and aggregation using the explores available this project',
+            },
+            {
+                name: 'unsupported calculated metric request',
+                prompt: 'Create a table showing each customer, their total spending on orders, total shipping fees paid, total taxes paid, and the sum of all these costs combined.',
+                expectedResponse:
+                    'I cannot perform this request exactly as stated because I am unable to create new calculated columns or metrics that combine multiple fields directly in the table output. I can only display existing fields and metrics defined in your data model.',
+            },
+            {
+                name: 'unsupported calculated field request',
+                prompt: 'Create a table showing each customer, their customer id, and their full name (first name + last name).',
+                expectedResponse:
+                    'I cannot perform this request exactly as stated because I am unable to create new calculated columns or fields. I can only display existing fields and metrics defined in your data model.',
+            },
+            {
+                name: 'unsupported custom sql request',
+                prompt: 'Write a custom SQL query to join customers and orders and calculate lifetime value (sum of all purchases for each customer over time).',
+                expectedResponse:
+                    'I cannot perform this request because I am unable to create or execute custom SQL queries directly. I can only use the existing explores, fields, and metrics defined in your data model.',
+            },
+            {
+                name: 'unsupported visualization request',
+                prompt: 'Create a scatter chart of total order amount versus region',
+                expectedResponse: `I can only create ${AVAILABLE_VISUALIZATION_TYPES.join(
+                    ', ',
+                )}. I cannot create scatter plots or other advanced visualization types`,
+            },
+            {
+                name: 'conversation history request',
+                prompt: 'What did we talk about yesterday?',
+                expectedResponse:
+                    'I do not have access to previous conversations or memory of past interactions. Each session is stateless, so I can only reference messages from our current conversation.',
+            },
+        ];
+
+        limitationTestCases.forEach((testCase) => {
+            it.concurrent(
+                `should provide specific limitations for ${testCase.name}`,
+                async ({ task }) => {
+                    if (!createdAgent) {
+                        throw new Error('Agent not created');
+                    }
+
+                    const { response } = await promptAgent(testCase.prompt);
+
+                    const { result: limitationQualityEvaluation, meta } =
+                        await llmAsAJudge({
+                            query: testCase.prompt,
+                            response,
+                            expectedAnswer: testCase.expectedResponse,
+                            scorerType: 'factuality',
+                            model,
+                            callOptions,
+                        });
+
+                    if (!limitationQualityEvaluation) {
+                        throw new Error(
+                            'Limitation quality evaluation not found',
+                        );
+                    }
+
+                    const isLimitationQualityPassing =
+                        limitationQualityEvaluation.answer === 'A' ||
+                        limitationQualityEvaluation.answer === 'B';
+
+                    // ==========
+                    // Report generation
+                    // ==========
+                    setTaskMeta(task.meta, 'llmJudgeResults', [
+                        { ...meta, passed: isLimitationQualityPassing },
+                    ]);
+                    setTaskMeta(task.meta, 'prompts', [testCase.prompt]);
+                    setTaskMeta(task.meta, 'responses', [response]);
+
+                    // ==========
+                    // Assertions
+                    // ==========
+                    expect(isLimitationQualityPassing).toBe(true);
+                },
+                TIMEOUT,
+            );
+        });
+    });
 });

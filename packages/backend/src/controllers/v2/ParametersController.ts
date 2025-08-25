@@ -1,6 +1,8 @@
 import {
     ApiErrorPayload,
     ApiSuccess,
+    KnexPaginateArgs,
+    type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
     type LightdashProjectConfig,
 } from '@lightdash/common';
@@ -30,6 +32,47 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Parameters')
 export class ParametersController extends BaseController {
+    /**
+     * Get a paginated list of project parameters with search and sorting capabilities.
+     * @summary List project parameters
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/list')
+    @OperationId('getProjectParametersList')
+    async getParametersList(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() search?: string,
+        @Query() sortBy?: 'name',
+        @Query() sortOrder?: 'asc' | 'desc',
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiSuccess<ApiGetProjectParametersListResults>> {
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize: Math.min(pageSize, 100), // Limit to max 100 items per page
+            };
+        }
+
+        const results = await this.services
+            .getProjectParametersService()
+            .findProjectParametersPaginated(
+                req.user!,
+                projectUuid,
+                paginateArgs,
+                { search, sortBy, sortOrder },
+            );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')

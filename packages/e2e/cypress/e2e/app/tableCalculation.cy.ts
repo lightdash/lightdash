@@ -21,11 +21,13 @@ describe('Table calculations', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `RANK() OVER(ORDER BY "payments_total_revenue" ASC) AS "rank_in_column_of_total_revenue"`,
+            `RANK() OVER ( ORDER BY "payments_total_revenue" ASC ) AS "rank_in_column_of_total_revenue"`,
             `FROM metrics`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
     });
 
@@ -45,14 +47,14 @@ describe('Table calculations', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            // Previously the default sort wasn't taken into account for this table calculation
-            // After auto-fetch this sql needs to be updated since the sorts are applied before running the query for the first time
-            `SUM("payments_total_revenue") OVER(ORDER BY "payments_payment_method" ASC  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`,
+            `SUM("payments_total_revenue") OVER ( ORDER BY "payments_total_revenue" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW )`,
             `AS "running_total_of_total_revenue"`,
             `FROM metrics`,
         ];
         sqlLines.forEach((line) => {
-            cy.get('pre').contains(line);
+            cy.getMonacoEditorText().then((text) => {
+                expect(text).to.include(line);
+            });
         });
     });
 
@@ -74,6 +76,10 @@ describe('Table calculations', () => {
         cy.get(`.mantine-Select-input[value='number']`).click();
         cy.contains('string').click();
         cy.get('form').contains('Create').click({ force: true });
+
+        // Run query
+        cy.get('button').contains('Run query').click();
+
         // Check valid results
         cy.contains('rank_1');
         cy.contains('rank_2');
@@ -91,6 +97,8 @@ describe('Table calculations', () => {
 
         cy.findByPlaceholderText('Enter value(s)').type('rank_1');
         cy.contains('Add "rank_1"').click();
+
+        // Run query
         cy.get('button').contains('Run query').click();
 
         // Check valid results
@@ -115,11 +123,15 @@ describe('Table calculations', () => {
         );
         // Defaults to number
         cy.get('form').contains('Create').click({ force: true });
+
+        // Run query
+        cy.get('button').contains('Run query').click();
+
         // Check valid results
         cy.contains('100');
-        cy.contains('200');
-        cy.contains('300');
-        cy.contains('400');
+        cy.contains('1500');
+        cy.contains('1800');
+        cy.contains('2000');
 
         // Add string filter
         cy.findByTestId('Filters-card-expand').click();
@@ -132,11 +144,11 @@ describe('Table calculations', () => {
         cy.get(".mantine-Select-input[value='is']").click();
         cy.contains('greater than').click(); // If the type is string, this option will not be available and it will fail when running the query
 
-        cy.findByPlaceholderText('Enter value(s)').clear().type('250');
+        cy.findByPlaceholderText('Enter value(s)').clear().type('2000');
         cy.get('button').contains('Run query').click();
 
-        // Check valid results
-        cy.contains('300');
-        cy.contains('100').should('not.exist');
+        // Check valid results`
+        cy.contains('2200');
+        cy.contains('1800').should('not.exist');
     });
 });

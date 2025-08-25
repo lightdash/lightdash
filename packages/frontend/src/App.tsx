@@ -14,14 +14,12 @@ import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
 import AppProvider from './providers/App/AppProvider';
 import FullscreenProvider from './providers/Fullscreen/FullscreenProvider';
+import Mantine8Provider from './providers/Mantine8Provider';
 import MantineProvider from './providers/MantineProvider';
 import ReactQueryProvider from './providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
-
-// Mantine v8 styles
-import '@mantine-8/core/styles.css';
 
 // const isMobile =
 //     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -72,9 +70,11 @@ const App = () => (
 
         <ReactQueryProvider>
             <MantineProvider withGlobalStyles withNormalizeCSS withCSSVariables>
-                <ModalsProvider>
-                    <RouterProvider router={router} />
-                </ModalsProvider>
+                <Mantine8Provider>
+                    <ModalsProvider>
+                        <RouterProvider router={router} />
+                    </ModalsProvider>
+                </Mantine8Provider>
             </MantineProvider>
             <ReactQueryDevtools initialIsOpen={false} />
         </ReactQueryProvider>

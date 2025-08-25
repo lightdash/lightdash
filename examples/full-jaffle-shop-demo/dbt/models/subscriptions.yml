@@ -3,7 +3,7 @@ models:
   - name: subscriptions
     description: |
       # Subscriptions
-      
+
       This table contains subscription data for customers with different plans,
       including start/end dates and status information. Demonstrates parameter-based
       filtering and analytics.
@@ -12,7 +12,7 @@ models:
         primary_key: subscription_id
         joins:
           - join: customers
-            sql_on: ${customers.customer_id} = ${subscriptions.customer_id}
+            sql_on: ${customers.customer_id} = ${subscriptions.customer_id} AND ${customers.first_name} = ${ld.parameters.customers.customer_name}
             relationship: many-to-one
           - join: plan
             sql_on: ${plan.id} = ${subscriptions.plan_id}
@@ -32,7 +32,7 @@ models:
                 description: Total number of subscriptions
                 spotlight:
                   categories: ["core"]
-      
+
       - name: customer_id
         description: Foreign key to customers table
         config:
@@ -44,7 +44,7 @@ models:
                 description: Number of unique customers with subscriptions
                 spotlight:
                   categories: ["core"]
-      
+
       - name: plan_id
         description: Foreign key to plan table
         config:
@@ -55,10 +55,10 @@ models:
             metrics:
               subscriptions_by_plan:
                 type: count_distinct
-                label: Subscriptions by Plan
-                description: Count of subscriptions, use with plan dimension for breakdown
+                label: Distinct subscriptions by Plan
+                description: Count of subscriptions, use with plan dimension for breakdown (no parameters)
                 sql: subscription_id
-      
+
       - name: plan_name
         description: "Name of the subscription plan from joined plan table"
         config:
@@ -67,7 +67,7 @@ models:
               type: string
               colors:
                 "free": "#E0E0E0"
-                "silver": "#C0C0C0" 
+                "silver": "#C0C0C0"
                 "gold": "#FFD700"
                 "platinum": "#E5E4E2"
                 "diamond": "#B9F2FF"
@@ -83,7 +83,7 @@ models:
                 description: Average monthly recurring revenue by plan type
                 format: "$#,##0.00"
                 sql: monthly_mrr
-      
+
       - name: subscription_start
         description: When the subscription started
         config:
@@ -98,7 +98,7 @@ models:
               latest_subscription:
                 type: max
                 label: Latest Subscription Date
-      
+
       - name: subscription_end
         description: When the subscription ends/ended
         config:
@@ -106,7 +106,7 @@ models:
             dimension:
               type: timestamp
               time_intervals: ["DAY", "WEEK", "MONTH", "YEAR"]
-      
+
       - name: is_active
         description: Whether the subscription is active (not cancelled)
         config:
@@ -120,7 +120,7 @@ models:
                 description: Percentage of subscriptions that are active
                 format: percent
                 sql: CASE WHEN is_active THEN 1 ELSE 0 END
-      
+
       - name: duration_days
         description: Subscription duration in days
         config:
@@ -133,7 +133,7 @@ models:
                 label: Average Subscription Duration (Days)
                 description: Average subscription length in days
                 format: "#,##0"
-      
+
       - name: duration_months
         description: Subscription duration in months (approximate)
         config:
@@ -141,7 +141,7 @@ models:
             dimension:
               type: number
               format: "#,##0.0"
-      
+
       - name: subscription_status
         description: Current subscription status (Current, Expired, Cancelled)
         config:
@@ -150,7 +150,7 @@ models:
               type: string
               colors:
                 "Current": "#00FF00"
-                "Expired": "#FFA500" 
+                "Expired": "#FFA500"
                 "Cancelled": "#FF0000"
             metrics:
               current_subscriptions:
@@ -160,15 +160,15 @@ models:
                 sql: CASE WHEN subscription_status = 'Current' THEN subscription_id ELSE NULL END
               expired_subscriptions:
                 type: count_distinct
-                label: Expired Subscriptions 
+                label: Expired Subscriptions
                 description: Number of expired subscriptions
                 sql: CASE WHEN subscription_status = 'Expired' THEN subscription_id ELSE NULL END
               cancelled_subscriptions:
                 type: count_distinct
                 label: Cancelled Subscriptions
-                description: Number of cancelled subscriptions  
+                description: Number of cancelled subscriptions
                 sql: CASE WHEN subscription_status = 'Cancelled' THEN subscription_id ELSE NULL END
-      
+
       - name: months_remaining
         description: Months remaining for active subscriptions
         config:
@@ -183,7 +183,7 @@ models:
                 description: Average months remaining for current subscriptions
                 format: "#,##0.0"
                 sql: CASE WHEN subscription_status = 'Current' THEN months_remaining ELSE NULL END
-      
+
       # Parameter-based dimensions and metrics
       - name: filtered_subscriptions
         description: "Filtered subscriptions based on parameters"
@@ -220,11 +220,11 @@ models:
               filtered_by_plan:
                 type: count_distinct
                 label: Subscriptions by Plan
-                description: Count of subscriptions for specific plan type
+                description: Count of subscriptions for specific plan type (supports multiple values)
                 sql: |
                   CASE 
-                    WHEN ${ld.parameters.plan_type} = 'all' THEN subscription_id
-                    WHEN ${plan.plan_name} = ${ld.parameters.plan_type} THEN subscription_id
+                    WHEN 'all' IN (${ld.parameters.plan_type}) THEN subscription_id
+                    WHEN ${plan.plan_name} IN (${ld.parameters.plan_type}) THEN subscription_id
                     ELSE NULL 
                   END
               combined_filter_count:
@@ -235,7 +235,7 @@ models:
                   CASE 
                     WHEN (${ld.parameters.subscription_status} = 'all' OR subscription_status = ${ld.parameters.subscription_status})
                       AND duration_months >= ${ld.parameters.min_duration_months}::NUMERIC
-                      AND (${ld.parameters.plan_type} = 'all' OR ${plan.plan_name} = ${ld.parameters.plan_type})
+                      AND ('all' IN (${ld.parameters.plan_type}) OR ${plan.plan_name} IN (${ld.parameters.plan_type}))
                     THEN subscription_id
                     ELSE NULL 
                   END
@@ -248,11 +248,11 @@ models:
                   CASE 
                     WHEN (${ld.parameters.subscription_status} = 'all' OR subscription_status = ${ld.parameters.subscription_status})
                       AND duration_months >= ${ld.parameters.min_duration_months}::NUMERIC
-                      AND (${ld.parameters.plan_type} = 'all' OR ${plan.plan_name} = ${ld.parameters.plan_type})
+                      AND ('all' IN (${ld.parameters.plan_type}) OR ${plan.plan_name} IN (${ld.parameters.plan_type}))
                     THEN duration_months
                     ELSE NULL 
                   END
-      
+
       - name: monthly_mrr
         description: "Monthly recurring revenue for this subscription"
         config:
@@ -266,7 +266,7 @@ models:
                 label: Total Monthly MRR
                 description: Sum of monthly recurring revenue
                 format: "$#,##0.00"
-      
+
       - name: weekly_mrr
         description: "Weekly recurring revenue equivalent for this subscription"
         config:
@@ -280,7 +280,7 @@ models:
                 label: Total Weekly MRR
                 description: Sum of weekly recurring revenue
                 format: "$#,##0.00"
-      
+
       - name: quarterly_mrr
         description: "Quarterly recurring revenue for this subscription"
         config:
@@ -294,7 +294,7 @@ models:
                 label: Total Quarterly MRR
                 description: Sum of quarterly recurring revenue
                 format: "$#,##0.00"
-      
+
       # Time-zoom conditional MRR metric
       - name: dynamic_mrr_calculation
         description: "Dynamic MRR calculation based on time zoom parameter"
@@ -352,13 +352,12 @@ models:
                   END
               dynamic_subscription_metric:
                 type: sum
-                label: Dynamic Metric (Count vs MRR)
-                description: Switches between subscription count and MRR based on parameter
-                format: "#,##0.00"
+                label: Dynamic Metric (Count vs Revenue)
+                description: Switches between subscription count and Revenue based on parameter
                 sql: |
                   CASE 
                     WHEN ${ld.parameters.metric_type} = 'count' THEN 1
-                    WHEN ${ld.parameters.metric_type} = 'mrr' THEN
+                    WHEN ${ld.parameters.metric_type} = 'revenue' THEN
                       CASE 
                         WHEN ${ld.parameters.time_zoom} = 'weekly' THEN weekly_mrr
                         WHEN ${ld.parameters.time_zoom} = 'monthly' THEN monthly_mrr

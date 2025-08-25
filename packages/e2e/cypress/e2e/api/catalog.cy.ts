@@ -130,23 +130,30 @@ describe('Lightdash catalog search', () => {
         });
     });
 
-    it('Should search for a metric (total_revenue)', () => {
+    it('Should search for a metric (total_revenue) sorted by chartUsage', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=revenue`,
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/metrics?search=total_revenue&sort=chartUsage&order=desc`,
         ).then((resp) => {
+            const { data } = resp.body.results;
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(9);
+            expect(data).to.have.length(2);
 
-            const field1 = resp.body.results[0];
+            const field1 = data[0];
 
             expect(field1).to.have.property('name', 'total_revenue');
+            expect(field1).to.have.property(
+                'description',
+                'Sum of all payments',
+            );
 
-            const field2 = resp.body.results[1];
+            const field2 = data[1];
 
-            expect(field2)
-                .to.have.property('description')
-                .that.match(/revenue/i);
+            expect(field2).to.have.property('name', 'total_revenue');
+            expect(field2).to.have.property(
+                'description',
+                'Sum of Revenue attributed',
+            );
         });
     });
 
@@ -199,7 +206,7 @@ describe('Lightdash catalog search', () => {
     it('Should filter fields with required attributes (age)', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=age`,
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=average_age`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results).to.have.length(0);
@@ -222,7 +229,7 @@ describe('Lightdash catalog search', () => {
         ).then((resp) => {
             expect(resp.status).to.eq(200);
 
-            expect(resp.body.results).to.have.length(7);
+            expect(resp.body.results).to.have.length(13);
             cy.log('find the one under fanouts');
             const planResult = resp.body.results.find(
                 (r: AnyType) =>

@@ -3,6 +3,8 @@ import {
     type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
     type ItemsMap,
+    type ParameterDefinitions,
+    type ParametersValuesMap,
     type SchedulerAndTargets,
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -79,6 +81,8 @@ const CreateStateContent: FC<{
     isChart: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
+    currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
     onBack: () => void;
 }> = ({
     resourceUuid,
@@ -86,6 +90,8 @@ const CreateStateContent: FC<{
     isChart,
     isThresholdAlert,
     itemsMap,
+    currentParameterValues,
+    availableParameters,
     onBack,
 }) => {
     useEffect(() => {
@@ -153,6 +159,8 @@ const CreateStateContent: FC<{
                 loading={createMutation.isLoading}
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
+                currentParameterValues={currentParameterValues}
+                availableParameters={availableParameters}
             />
         </>
     );
@@ -161,9 +169,18 @@ const CreateStateContent: FC<{
 const UpdateStateContent: FC<{
     schedulerUuid: string;
     itemsMap?: ItemsMap;
+    currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
     onBack: () => void;
     isThresholdAlert?: boolean;
-}> = ({ schedulerUuid, itemsMap, onBack, isThresholdAlert }) => {
+}> = ({
+    schedulerUuid,
+    itemsMap,
+    currentParameterValues,
+    onBack,
+    isThresholdAlert,
+    availableParameters,
+}) => {
     const scheduler = useScheduler(schedulerUuid);
 
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
@@ -247,6 +264,8 @@ const UpdateStateContent: FC<{
                 onSendNow={handleSendNow}
                 loading={mutation.isLoading || scheduler.isInitialLoading}
                 itemsMap={itemsMap}
+                currentParameterValues={currentParameterValues}
+                availableParameters={availableParameters}
             />
         </>
     );
@@ -264,6 +283,8 @@ interface Props {
     isChart: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
+    currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
 }
 
 const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
@@ -273,6 +294,8 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     isChart,
     isThresholdAlert,
     itemsMap,
+    currentParameterValues,
+    availableParameters,
     onClose = () => {},
 }) => {
     const [state, setState] = useState<States>(States.LIST);
@@ -338,6 +361,8 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     createMutation={createMutation}
                     isChart={isChart}
                     itemsMap={itemsMap}
+                    currentParameterValues={currentParameterValues}
+                    availableParameters={availableParameters}
                     onBack={() => setState(States.LIST)}
                     isThresholdAlert={isThresholdAlert}
                 />
@@ -346,6 +371,8 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                 <UpdateStateContent
                     schedulerUuid={schedulerUuid}
                     itemsMap={itemsMap}
+                    currentParameterValues={currentParameterValues}
+                    availableParameters={availableParameters}
                     onBack={() => setState(States.LIST)}
                     isThresholdAlert={isThresholdAlert}
                 />

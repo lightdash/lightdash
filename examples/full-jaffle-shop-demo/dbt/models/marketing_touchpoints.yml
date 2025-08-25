@@ -1,0 +1,302 @@
+version: 2
+
+models:
+  - name: marketing_touchpoints
+    description: |
+      Customer interactions with marketing campaigns, tracking the full customer journey
+      from initial touchpoint through conversion. Includes attribution data and engagement metrics.
+    config:
+      meta:
+        primary_key: touchpoint_id
+        joins:
+          - join: customers
+            sql_on: ${customers.customer_id} = ${marketing_touchpoints.customer_id}
+            relationship: many-to-one
+          - join: campaigns
+            sql_on: ${campaigns.campaign_id} = ${marketing_touchpoints.campaign_id}
+            relationship: many-to-one
+        metrics:
+          conversion_rate:
+            type: number
+            sql: SUM(is_conversion)::NUMERIC / NULLIF(COUNT(*), 0)
+            format: percent
+            round: 2
+          total_attributed_revenue:
+            type: sum
+            sql: ${marketing_touchpoints.revenue_attributed}
+            format: usd
+          avg_session_duration_minutes:
+            type: average
+            sql: ${marketing_touchpoints.session_duration_minutes}
+            round: 1
+        default_time_dimension:
+          field: touchpoint_date
+          interval: DAY
+    columns:
+      - name: touchpoint_id
+        description: Unique identifier for each customer touchpoint
+        tests:
+          - unique
+          - not_null
+        config:
+          meta:
+            metrics:
+              touchpoint_count:
+                type: count
+              unique_touchpoints:
+                type: count_distinct
+
+      - name: customer_id
+        description: Reference to the customer who had this touchpoint
+        tests:
+          - not_null
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              unique_customers_reached:
+                type: count_distinct
+
+      - name: campaign_id
+        description: Reference to the campaign that generated this touchpoint
+        tests:
+          - not_null
+        config:
+          meta:
+            dimension:
+              type: number
+
+      - name: touchpoint_date
+        description: Date when the touchpoint occurred
+        config:
+          meta:
+            dimension:
+              type: date
+
+      - name: touchpoint_type
+        description: Type of marketing touchpoint (email_open, email_click, social_ad, etc.)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              email_touchpoints:
+                type: count
+                filters:
+                  - touchpoint_type: ["email_open", "email_click"]
+              ad_touchpoints:
+                type: count
+                filters:
+                  - touchpoint_type:
+                      ["display_ad", "search_ad", "retargeting_ad", "social_ad"]
+
+      - name: action_taken
+        description: Action the customer took (clicked, visited_site, purchased, etc.)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              click_count:
+                type: count
+                filters:
+                  - action_taken: "clicked"
+              purchase_count:
+                type: count
+                filters:
+                  - action_taken: "purchased"
+              site_visit_count:
+                type: count
+                filters:
+                  - action_taken: "visited_site"
+
+      - name: revenue_attributed
+        description: Revenue attributed to this touchpoint in USD
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd
+            metrics:
+              total_revenue:
+                type: sum
+                format: usd
+              avg_revenue_per_touchpoint:
+                type: average
+                format: usd
+                round: 2
+              revenue_generating_touchpoints:
+                type: count
+                filters:
+                  - revenue_attributed: "> 0"
+
+      - name: device_type
+        description: Device used for the touchpoint (mobile, desktop, tablet)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              mobile_touchpoints:
+                type: count
+                filters:
+                  - device_type: "mobile"
+              desktop_touchpoints:
+                type: count
+                filters:
+                  - device_type: "desktop"
+              mobile_conversion_rate:
+                type: number
+                sql: SUM(CASE WHEN device_type = 'mobile' AND is_conversion = 1 THEN 1 ELSE 0 END)::NUMERIC / NULLIF(SUM(CASE WHEN device_type = 'mobile' THEN 1 ELSE 0 END), 0)
+                format: percent
+
+      - name: session_duration_seconds
+        description: Duration of the session in seconds
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_engagement_time:
+                type: sum
+              avg_session_duration:
+                type: average
+                round: 0
+
+      - name: campaign_name
+        description: Name of the associated campaign
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: campaign_type
+        description: Type of the associated campaign
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: campaign_channel
+        description: Channel of the associated campaign
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: campaign_budget
+        description: Budget of the associated campaign
+        config:
+          meta:
+            dimension:
+              type: number
+              format: usd
+
+      - name: first_order
+        description: Customer's first order date
+        config:
+          meta:
+            dimension:
+              type: date
+
+      - name: most_recent_order
+        description: Customer's most recent order date
+        config:
+          meta:
+            dimension:
+              type: date
+
+      - name: is_conversion
+        description: Whether this touchpoint resulted in a purchase (1 = yes, 0 = no)
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              conversions:
+                type: sum
+              conversion_percentage:
+                type: number
+                sql: SUM(is_conversion)::NUMERIC / NULLIF(COUNT(*), 0)
+                format: percent
+
+      - name: is_engaged
+        description: Whether this touchpoint showed engagement (1 = yes, 0 = no)
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              engaged_touchpoints:
+                type: sum
+              engagement_rate:
+                type: number
+                sql: SUM(is_engaged)::NUMERIC / NULLIF(COUNT(*), 0)
+                format: percent
+
+      - name: touchpoint_channel
+        description: Simplified channel categorization (Email, Social, Paid, Push, App, Other)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              email_channel_touchpoints:
+                type: count
+                filters:
+                  - touchpoint_channel: "Email"
+              social_channel_touchpoints:
+                type: count
+                filters:
+                  - touchpoint_channel: "Social"
+              paid_channel_touchpoints:
+                type: count
+                filters:
+                  - touchpoint_channel: "Paid"
+
+      - name: session_duration_minutes
+        description: Duration of the session in minutes
+        config:
+          meta:
+            dimension:
+              type: number
+              round: 1
+            metrics:
+              total_engagement_minutes:
+                type: sum
+                round: 0
+              avg_engagement_minutes:
+                type: average
+                round: 1
+
+      - name: customer_lifecycle_stage
+        description: Customer's lifecycle stage at time of touchpoint (Pre-customer, New customer, Existing customer)
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              pre_customer_touchpoints:
+                type: count
+                filters:
+                  - customer_lifecycle_stage: "Pre-customer"
+              new_customer_touchpoints:
+                type: count
+                filters:
+                  - customer_lifecycle_stage: "New customer"
+              existing_customer_touchpoints:
+                type: count
+                filters:
+                  - customer_lifecycle_stage: "Existing customer"
+
+      - name: days_since_campaign_start
+        description: Number of days since the campaign started
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_days_to_touchpoint:
+                type: average
+                round: 1

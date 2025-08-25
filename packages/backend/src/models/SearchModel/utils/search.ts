@@ -3,26 +3,35 @@ import { Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
 
 // To query multiple words with tsquery, we need to split the query and add `:*` to each word
-export function getFullTextSearchQuery(searchQuery: string) {
+export function getFullTextSearchQuery(
+    searchQuery: string,
+    fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+) {
+    const operator = fullTextSearchOperator === 'OR' ? ' | ' : ' & ';
     return searchQuery
         .split(' ')
         .map((word) => word.trim())
         .filter((word) => word.length > 0)
         .filter((word, index, self) => self.indexOf(word) === index)
         .map((word) => `'${word.replace(/'/g, "''")}':*`) // wrap the word in quotes and escape existing quotes, this so that we can search with special charcters in the search query
-        .join(' & ');
+        .join(operator);
 }
 
 export function getFullTextSearchRankCalcSql({
     database,
     variables,
+    fullTextSearchOperator = 'AND',
 }: {
     database: Knex;
     variables: Record<string, string>;
+    fullTextSearchOperator?: 'OR' | 'AND';
 }) {
     const updatedVariables = {
         ...variables,
-        searchQuery: getFullTextSearchQuery(variables.searchQuery),
+        searchQuery: getFullTextSearchQuery(
+            variables.searchQuery,
+            fullTextSearchOperator,
+        ),
     };
 
     return database.raw(

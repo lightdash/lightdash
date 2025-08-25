@@ -225,8 +225,8 @@ Affected charts:
         );
 
         if (!explore.ymlPath)
-            throw new Error(
-                'Explore is missing path, compile the project again to fix this issue',
+            throw new ParameterError(
+                'Your project needs to be compiled before writing back custom fields. Please refresh your project to fix this issue.',
             );
 
         // Github's path cannot start with a slash
@@ -244,7 +244,7 @@ Affected charts:
         const yamlSchema = new DbtSchemaEditor(fileContent, fileName);
 
         if (!yamlSchema.hasModels()) {
-            throw new Error(`No models found in ${fileName}`);
+            throw new ParseError(`No models found in ${fileName}`);
         }
 
         return { yamlSchema, fileName, fileContent, fileSha };
@@ -282,7 +282,7 @@ Affected charts:
             type === 'customDimensions' ? 'custom dimension' : 'custom metric';
 
         if (fields === undefined || fields?.length === 0)
-            throw new Error(`No custom ${fieldsType}s found`);
+            throw new ParameterError(`No custom ${fieldsType}s found`);
         const tables = [...new Set(fields.map((item) => item.table))];
 
         for (const table of tables) {
@@ -301,7 +301,7 @@ Affected charts:
                 });
 
             if (!yamlSchema.hasModels()) {
-                throw new Error(`No models found in ${fileName}`);
+                throw new ParseError(`No models found in ${fileName}`);
             }
 
             let updatedYml: string;

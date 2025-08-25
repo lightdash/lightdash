@@ -20,6 +20,7 @@ import {
     IconUserPlus,
     IconUserShield,
     IconUsers,
+    IconVariable,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { Navigate, useRoutes, type RouteObject } from 'react-router';
@@ -582,6 +583,15 @@ const Settings: FC = () => {
                                             <MantineIcon
                                                 icon={IconTableOptions}
                                             />
+                                        }
+                                    />
+
+                                    <RouterNavLink
+                                        label="Parameters"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/parameters`}
+                                        icon={
+                                            <MantineIcon icon={IconVariable} />
                                         }
                                     />
 

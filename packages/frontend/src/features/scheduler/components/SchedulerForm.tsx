@@ -17,7 +17,10 @@ import {
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
+    type DashboardFilterRule,
     type ItemsMap,
+    type ParameterDefinitions,
+    type ParametersValuesMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import {
@@ -73,6 +76,7 @@ import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
+import SchedulerParameters from './SchedulerParameters';
 import { SchedulerPreview } from './SchedulerPreview';
 import { Limit, Values } from './types';
 
@@ -94,11 +98,13 @@ const DEFAULT_VALUES = {
         limit: Limit.TABLE,
         customLimit: 1,
         withPdf: false,
+        asAttachment: false,
     },
     emailTargets: [] as string[],
     slackTargets: [] as string[],
     msTeamsTargets: [] as string[],
-    filters: undefined,
+    filters: [] as DashboardFilterRule[],
+    parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: undefined,
     thresholds: [],
@@ -163,6 +169,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
+        formOptions.asAttachment = options.asAttachment || false;
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
     }
@@ -193,6 +200,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         msTeamsTargets: msTeamsTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
+            parameters: schedulerData.parameters,
             customViewportWidth: schedulerData.customViewportWidth,
             selectedTabs: schedulerData.selectedTabs,
         }),
@@ -252,6 +260,8 @@ type Props = {
     confirmText?: string;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
+    currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
 };
 
 const validateMsTeamsWebhook = (webhook: string): boolean => {
@@ -320,6 +330,8 @@ const SchedulerForm: FC<Props> = ({
     confirmText,
     isThresholdAlert,
     itemsMap,
+    currentParameterValues,
+    availableParameters,
 }) => {
     const isDashboard = resource && resource.type === 'dashboard';
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
@@ -331,6 +343,9 @@ const SchedulerForm: FC<Props> = ({
 
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
+
+    // Use the explicitly passed parameter values
+    const dashboardParameterValues = currentParameterValues || {};
 
     const form = useForm({
         initialValues:
@@ -350,6 +365,11 @@ const SchedulerForm: FC<Props> = ({
                       selectedTabs: isDashboardTabsAvailable
                           ? dashboard?.tabs.map((tab) => tab.uuid)
                           : undefined,
+                      parameters:
+                          isDashboard &&
+                          Object.keys(dashboardParameterValues).length > 0
+                              ? dashboardParameterValues
+                              : undefined,
                   },
         validateInputOnBlur: ['options.customLimit'],
 
@@ -364,6 +384,18 @@ const SchedulerForm: FC<Props> = ({
                         ? 'Custom limit must be an integer'
                         : null;
                 },
+            },
+            filters: (value: DashboardFilterRule[]) => {
+                const requiredFiltersWithoutValues = value.filter(
+                    (filter) =>
+                        filter.required &&
+                        (!filter.values || filter.values.length === 0),
+                );
+
+                if (requiredFiltersWithoutValues.length > 0) {
+                    return `Required filters must have values`;
+                }
+                return null;
             },
             cron: (cronExpression) => {
                 return isInvalidCronExpression('Cron expression')(
@@ -385,6 +417,12 @@ const SchedulerForm: FC<Props> = ({
                         values.options.limit === Limit.CUSTOM
                             ? values.options.customLimit
                             : values.options.limit,
+                    // Only allow attachment for CSV format and if there are email targets
+                    asAttachment:
+                        values.format === SchedulerFormat.CSV &&
+                        values.emailTargets.length > 0
+                            ? values.options.asAttachment
+                            : false,
                 };
             } else if (values.format === SchedulerFormat.IMAGE) {
                 options = {
@@ -422,6 +460,7 @@ const SchedulerForm: FC<Props> = ({
                 targets,
                 ...(resource?.type === 'dashboard' && {
                     filters: values.filters,
+                    parameters: values.parameters,
                     customViewportWidth: values.customViewportWidth,
                     selectedTabs: values.selectedTabs,
                 }),
@@ -522,6 +561,11 @@ const SchedulerForm: FC<Props> = ({
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
 
+    const requiredFiltersWithoutValues = (form.values.filters ?? []).filter(
+        (filter) =>
+            filter.required && (!filter.values || filter.values.length === 0),
+    );
+
     const projectDefaultOffsetString = useMemo(() => {
         if (!project) {
             return;
@@ -538,7 +582,22 @@ const SchedulerForm: FC<Props> = ({
                         Setup
                     </Tabs.Tab>
                     {isDashboard && dashboard ? (
-                        <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                        <>
+                            <Tabs.Tab value="filters">
+                                {`Filters ${
+                                    form.values.filters &&
+                                    form.values.filters.length > 0
+                                        ? `(${form.values.filters.length})`
+                                        : ''
+                                }`}
+                                {requiredFiltersWithoutValues.length > 0 && (
+                                    <Text span color="red" ml={4}>
+                                        *
+                                    </Text>
+                                )}
+                            </Tabs.Tab>
+                            <Tabs.Tab value="parameters">Parameters</Tabs.Tab>
+                        </>
                     ) : null}
 
                     {!isThresholdAlert && (
@@ -812,6 +871,39 @@ const SchedulerForm: FC<Props> = ({
                                     />
                                 ) : (
                                     <Stack spacing="xs">
+                                        {form.values.format ===
+                                            SchedulerFormat.CSV && (
+                                            <Tooltip
+                                                label="You must have at least one email target to attach a file to emails"
+                                                position="top"
+                                                withinPortal
+                                                disabled={
+                                                    form.values.emailTargets
+                                                        .length > 0
+                                                }
+                                            >
+                                                <Box
+                                                    display="flex"
+                                                    w="fit-content"
+                                                >
+                                                    <Checkbox
+                                                        label="Attach file to emails"
+                                                        labelPosition="left"
+                                                        {...form.getInputProps(
+                                                            'options.asAttachment',
+                                                            {
+                                                                type: 'checkbox',
+                                                            },
+                                                        )}
+                                                        disabled={
+                                                            form.values
+                                                                .emailTargets
+                                                                .length === 0
+                                                        }
+                                                    />
+                                                </Box>
+                                            </Tooltip>
+                                        )}
                                         <Button
                                             variant="subtle"
                                             compact
@@ -1187,15 +1279,45 @@ const SchedulerForm: FC<Props> = ({
                 </Tabs.Panel>
 
                 {isDashboard && dashboard ? (
-                    <Tabs.Panel value="filters" p="md">
-                        <SchedulerFilters
-                            dashboard={dashboard}
-                            schedulerFilters={form.values.filters}
-                            onChange={(schedulerFilters) => {
-                                form.setFieldValue('filters', schedulerFilters);
-                            }}
-                        />
-                    </Tabs.Panel>
+                    <>
+                        <Tabs.Panel value="filters" p="md">
+                            <SchedulerFilters
+                                dashboard={dashboard}
+                                draftFilters={form.values.filters}
+                                isEditMode={savedSchedulerData !== undefined}
+                                savedFilters={
+                                    savedSchedulerData &&
+                                    'filters' in savedSchedulerData
+                                        ? savedSchedulerData.filters
+                                        : []
+                                }
+                                onChange={(schedulerFilters) => {
+                                    form.setFieldValue(
+                                        'filters',
+                                        schedulerFilters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="parameters" p="md">
+                            <SchedulerParameters
+                                dashboard={dashboard}
+                                currentParameterValues={currentParameterValues}
+                                schedulerParameterValues={
+                                    form.values.parameters
+                                }
+                                availableParameters={availableParameters}
+                                isLoading={!!loading}
+                                onChange={(schedulerParameters) => {
+                                    form.setFieldValue(
+                                        'parameters',
+                                        schedulerParameters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+                    </>
                 ) : null}
 
                 <Tabs.Panel value="customization">
@@ -1266,7 +1388,15 @@ const SchedulerForm: FC<Props> = ({
 
             <SchedulersModalFooter
                 confirmText={confirmText}
-                disableConfirm={isThresholdAlertWithNoFields}
+                disableConfirm={
+                    isThresholdAlertWithNoFields ||
+                    requiredFiltersWithoutValues.length > 0
+                }
+                disabledMessage={
+                    requiredFiltersWithoutValues.length > 0
+                        ? 'Some required filters are missing values'
+                        : undefined
+                }
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||

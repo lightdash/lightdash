@@ -240,10 +240,10 @@ export class CatalogService<
         userAttributes: UserAttributeValueMap;
         catalogSearch: ApiCatalogSearch;
         context: CatalogSearchContext;
-        tables: string[] | null;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
         excludeUnmatched?: boolean;
+        fullTextSearchOperator?: 'OR' | 'AND';
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
@@ -269,9 +269,9 @@ export class CatalogService<
                             userAttributes: args.userAttributes,
                             sortArgs: args.sortArgs,
                             context: args.context,
-                            tables: args.tables,
                             tablesConfiguration,
                             excludeUnmatched: args.excludeUnmatched,
+                            fullTextSearchOperator: args.fullTextSearchOperator,
                         }),
                 );
             },
@@ -581,7 +581,6 @@ export class CatalogService<
                 userAttributes,
                 catalogSearch,
                 context,
-                tables: null,
             });
         }
 
@@ -798,7 +797,6 @@ export class CatalogService<
             context,
             paginateArgs,
             sortArgs,
-            tables: null,
         });
 
         const { data: catalogMetrics, pagination } = paginatedCatalog;
@@ -1259,7 +1257,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            tables: null,
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1322,7 +1319,6 @@ export class CatalogService<
             tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
             ),
-            tables: null,
         });
 
         const allDimensions = catalogDimensions.data

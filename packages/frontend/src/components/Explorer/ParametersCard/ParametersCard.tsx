@@ -1,10 +1,7 @@
-import { Box } from '@mantine/core';
-import { memo } from 'react';
+import { Box } from '@mantine-8/core';
+import { memo, useMemo } from 'react';
 import { useParams } from 'react-router';
-import {
-    ParameterSelection,
-    useParameters,
-} from '../../../features/parameters';
+import { ParameterSelection } from '../../../features/parameters';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -28,14 +25,17 @@ const ParametersCard = memo(
             (context) => context.actions.toggleExpandedSection,
         );
 
-        const {
-            data: parameters,
-            isLoading,
-            isError,
-            isFetched,
-        } = useParameters(projectUuid, parameterReferences, {
-            enabled: !!parameterReferences?.length,
-        });
+        const parameterDefinitions = useExplorerContext(
+            (context) => context.state.parameterDefinitions,
+        );
+
+        const filteredParameterDefinitions = useMemo(() => {
+            return Object.fromEntries(
+                Object.entries(parameterDefinitions).filter(([key]) =>
+                    parameterReferences?.includes(key),
+                ),
+            );
+        }, [parameterDefinitions, parameterReferences]);
 
         const parameterValues = useExplorerContext(
             (context) => context.state.unsavedChartVersion.parameters || {},
@@ -66,7 +66,7 @@ const ParametersCard = memo(
 
         return (
             <CollapsableCard
-                isOpen={paramsIsOpen && isFetched}
+                isOpen={paramsIsOpen}
                 title="Parameters"
                 disabled={!tableName}
                 toggleTooltip={!tableName ? 'No model selected' : ''}
@@ -76,13 +76,10 @@ const ParametersCard = memo(
             >
                 <Box m="md">
                     <ParameterSelection
-                        parameters={parameters}
+                        parameters={filteredParameterDefinitions}
                         missingRequiredParameters={missingRequiredParameters}
-                        isLoading={isLoading}
-                        isError={isError}
                         parameterValues={parameterValues || {}}
                         onParameterChange={handleParameterChange}
-                        size="sm"
                         showClearAll={true}
                         onClearAll={clearAllParameters}
                         cols={2}

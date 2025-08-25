@@ -5,6 +5,7 @@ import {
     ApiSqlQueryResults,
     applyDimensionOverrides,
     CustomSqlQueryForbiddenError,
+    DashboardFilterRule,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -34,12 +35,12 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    ParametersValuesMap,
     PivotConfig,
     pivotResultsAsCsv,
     QueryExecutionContext,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
-    SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
     type RunQueryTags,
@@ -601,6 +602,7 @@ export class CsvService extends BaseService {
         dashboardFilters,
         dateZoomGranularity,
         invalidateCache,
+        schedulerParameters,
     }: {
         user: SessionUser;
         chartUuid: string;
@@ -610,6 +612,7 @@ export class CsvService extends BaseService {
         dashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
         invalidateCache?: boolean;
+        schedulerParameters?: ParametersValuesMap;
     }): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const {
@@ -691,6 +694,7 @@ export class CsvService extends BaseService {
             chartUuid,
             queryTags,
             invalidateCache,
+            parameters: schedulerParameters,
         });
         const numberRows = rows.length;
 
@@ -879,23 +883,24 @@ export class CsvService extends BaseService {
         overrideDashboardFilters,
         dateZoomGranularity,
         invalidateCache,
+        schedulerParameters,
     }: {
         user: SessionUser;
         dashboardUuid: string;
         options: SchedulerCsvOptions | undefined;
         jobId?: string;
-        schedulerFilters?: SchedulerFilterRule[];
+        schedulerFilters?: DashboardFilterRule[];
         selectedTabs?: string[] | undefined;
         overrideDashboardFilters?: DashboardFilters;
         dateZoomGranularity?: DateGranularity;
         invalidateCache?: boolean;
+        schedulerParameters?: ParametersValuesMap;
     }): Promise<AttachmentUrl[]> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
 
         if (schedulerFilters) {
-            // Scheduler filters can only override existing filters from the dashboard
             dashboardFilters.dimensions = applyDimensionOverrides(
                 dashboard.filters,
                 schedulerFilters,
@@ -935,6 +940,7 @@ export class CsvService extends BaseService {
                     dashboardFilters,
                     dateZoomGranularity,
                     invalidateCache,
+                    schedulerParameters,
                 }),
         );
         this.logger.info(

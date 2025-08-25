@@ -1,4 +1,6 @@
 import {
+    AllChartsSearchResult,
+    ChartKind,
     DashboardSearchResult,
     DashboardTabResult,
     Explore,
@@ -108,21 +110,41 @@ export class SearchModel {
             .limit(10);
     }
 
-    private async searchDashboards(
+    async searchDashboards(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ): Promise<DashboardSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DASHBOARD, filters?.type)) {
             return [];
         }
 
-        const searchRankRawSql = getFullTextSearchRankCalcSql({
+        const dashboardSearchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
             variables: {
                 searchVectorColumn: `${DashboardsTableName}.search_vector`,
                 searchQuery: query,
             },
+            fullTextSearchOperator,
+        });
+
+        const directChartSearchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: 'direct_charts.search_vector',
+                searchQuery: query,
+            },
+            fullTextSearchOperator,
+        });
+
+        const tileChartSearchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: 'tile_charts.search_vector',
+                searchQuery: query,
+            },
+            fullTextSearchOperator,
         });
 
         let subquery = this.database(DashboardsTableName)
@@ -136,14 +158,106 @@ export class SearchModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
+            .leftJoin(
+                this.database.raw(
+                    `${DashboardVersionsTableName} as first_version`,
+                ),
+                this.database.raw(
+                    `first_version.dashboard_id = ${DashboardsTableName}.dashboard_id AND first_version.dashboard_version_id = (SELECT MIN(dashboard_version_id) FROM ${DashboardVersionsTableName} WHERE dashboard_id = ${DashboardsTableName}.dashboard_id)`,
+                ),
+            )
+            .leftJoin(
+                this.database.raw(
+                    `${DashboardVersionsTableName} as last_version`,
+                ),
+                this.database.raw(
+                    `last_version.dashboard_id = ${DashboardsTableName}.dashboard_id AND last_version.dashboard_version_id = (SELECT MAX(dashboard_version_id) FROM ${DashboardVersionsTableName} WHERE dashboard_id = ${DashboardsTableName}.dashboard_id)`,
+                ),
+            )
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `first_version.updated_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as updated_by_user`,
+                `updated_by_user.user_uuid`,
+                `last_version.updated_by_user_uuid`,
+            )
+            // Join with charts that belong directly to dashboard
+            .leftJoin(
+                `${SavedChartsTableName} as direct_charts`,
+                `${DashboardsTableName}.dashboard_uuid`,
+                'direct_charts.dashboard_uuid',
+            )
+            // Join with charts that are in dashboard through tiles
+            .leftJoin('dashboard_tiles', function () {
+                this.on(
+                    'dashboard_tiles.dashboard_version_id',
+                    '=',
+                    `last_version.dashboard_version_id`,
+                );
+            })
+            .leftJoin('dashboard_tile_charts', function () {
+                this.on(
+                    'dashboard_tile_charts.dashboard_version_id',
+                    '=',
+                    'dashboard_tiles.dashboard_version_id',
+                ).andOn(
+                    'dashboard_tile_charts.dashboard_tile_uuid',
+                    '=',
+                    'dashboard_tiles.dashboard_tile_uuid',
+                );
+            })
+            .leftJoin(
+                `${SavedChartsTableName} as tile_charts`,
+                'tile_charts.saved_query_id',
+                'dashboard_tile_charts.saved_chart_id',
+            )
             .column(
-                { uuid: 'dashboard_uuid' },
+                { uuid: `${DashboardsTableName}.dashboard_uuid` },
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
-                { spaceUuid: 'space_uuid' },
-                { search_rank: searchRankRawSql },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
+                { spaceUuid: `${SpaceTableName}.space_uuid` },
+                this.database.raw(
+                    `GREATEST(
+                        ${dashboardSearchRankRawSql}, 
+                        COALESCE(MAX(${directChartSearchRankRawSql}), 0),
+                        COALESCE(MAX(${tileChartSearchRankRawSql}), 0)
+                    ) as search_rank`,
+                ),
+                { viewsCount: `${DashboardsTableName}.views_count` },
+                { firstViewedAt: `${DashboardsTableName}.first_viewed_at` },
+                { lastModified: `last_version.created_at` },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+                { lastUpdatedByFirstName: 'updated_by_user.first_name' },
+                { lastUpdatedByLastName: 'updated_by_user.last_name' },
+                { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereRaw(
+                `(${dashboardSearchRankRawSql} > 0 OR ${directChartSearchRankRawSql} > 0 OR ${tileChartSearchRankRawSql} > 0)`,
+            )
+            .groupBy(
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.description`,
+                `${ProjectTableName}.project_uuid`,
+                `${SpaceTableName}.space_uuid`,
+                `${DashboardsTableName}.views_count`,
+                `${DashboardsTableName}.first_viewed_at`,
+                `last_version.created_at`,
+                'created_by_user.first_name',
+                'created_by_user.last_name',
+                'created_by_user.user_uuid',
+                'updated_by_user.first_name',
+                'updated_by_user.last_name',
+                'updated_by_user.user_uuid',
+            )
             .orderBy('search_rank', 'desc');
 
         subquery = filterByCreatedAt(DashboardsTableName, subquery, filters);
@@ -152,7 +266,7 @@ export class SearchModel {
             {
                 join: {
                     isVersioned: true,
-                    joinTableName: DashboardVersionsTableName,
+                    joinTableName: 'first_version',
                     joinTableIdColumnName: 'dashboard_id',
                     joinTableUserUuidColumnName: 'updated_by_user_uuid',
                     tableIdColumnName: 'dashboard_id',
@@ -191,9 +305,119 @@ export class SearchModel {
                 ),
             );
 
+        const directChartsQuery = this.database(SavedChartsTableName)
+            .select(
+                'dashboard_uuid',
+                { uuid: 'saved_query_uuid' },
+                'name',
+                'description',
+                { chartType: 'last_version_chart_kind' },
+                'views_count',
+            )
+            .whereIn('dashboard_uuid', dashboardUuids);
+
+        const tileChartsQuery = this.database('dashboards')
+            .join(
+                'dashboard_versions',
+                'dashboards.dashboard_id',
+                'dashboard_versions.dashboard_id',
+            )
+            .join(
+                'dashboard_tiles',
+                'dashboard_versions.dashboard_version_id',
+                'dashboard_tiles.dashboard_version_id',
+            )
+            .join('dashboard_tile_charts', function () {
+                this.on(
+                    'dashboard_tile_charts.dashboard_version_id',
+                    '=',
+                    'dashboard_tiles.dashboard_version_id',
+                ).andOn(
+                    'dashboard_tile_charts.dashboard_tile_uuid',
+                    '=',
+                    'dashboard_tiles.dashboard_tile_uuid',
+                );
+            })
+            .join(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_id`,
+                'dashboard_tile_charts.saved_chart_id',
+            )
+            .select(
+                'dashboards.dashboard_uuid',
+                { uuid: `${SavedChartsTableName}.saved_query_uuid` },
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                {
+                    chartType: `${SavedChartsTableName}.last_version_chart_kind`,
+                },
+                `${SavedChartsTableName}.views_count`,
+            )
+            .whereIn('dashboards.dashboard_uuid', dashboardUuids)
+            .whereRaw(
+                `dashboard_versions.dashboard_version_id = (
+                        SELECT MAX(dashboard_version_id) 
+                        FROM dashboard_versions dv2 
+                        WHERE dv2.dashboard_id = dashboards.dashboard_id
+                    )`,
+            );
+
+        const [directCharts, tileCharts] =
+            dashboardUuids.length > 0
+                ? await Promise.all([directChartsQuery, tileChartsQuery])
+                : [];
+
+        const dashboardCharts = [
+            ...(directCharts ?? []),
+            ...(tileCharts ?? []),
+        ];
+
+        const chartsByDashboard = dashboardCharts.reduce<
+            Record<
+                string,
+                Array<{
+                    uuid: string;
+                    name: string;
+                    description: string;
+                    chartType: string;
+                    viewsCount: number;
+                }>
+            >
+        >((acc, chart) => {
+            if (!acc[chart.dashboard_uuid]) {
+                acc[chart.dashboard_uuid] = [];
+            }
+            acc[chart.dashboard_uuid].push({
+                uuid: chart.uuid,
+                name: chart.name,
+                description: chart.description,
+                chartType: chart.chartType,
+                viewsCount: chart.views_count,
+            });
+            return acc;
+        }, {});
+
         return dashboards.map((dashboard) => ({
             ...dashboard,
             validationErrors: validationErrors[dashboard.uuid] || [],
+            viewsCount: dashboard.viewsCount || 0,
+            firstViewedAt: dashboard.firstViewedAt || null,
+            lastModified: dashboard.lastModified || null,
+            createdBy: dashboard.createdByUserUuid
+                ? {
+                      firstName: dashboard.createdByFirstName,
+                      lastName: dashboard.createdByLastName,
+                      userUuid: dashboard.createdByUserUuid,
+                  }
+                : null,
+            lastUpdatedBy: dashboard.lastUpdatedByUserUuid
+                ? {
+                      firstName: dashboard.lastUpdatedByFirstName,
+                      lastName: dashboard.lastUpdatedByLastName,
+                      userUuid: dashboard.lastUpdatedByUserUuid,
+                  }
+                : null,
+            charts: chartsByDashboard[dashboard.uuid] || [],
         }));
     }
 
@@ -248,6 +472,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ) {
         const { name: tableName, uuidColumnName } = searchTable;
 
@@ -257,6 +482,7 @@ export class SearchModel {
                 searchVectorColumn: `${tableName}.search_vector`,
                 searchQuery: query,
             },
+            fullTextSearchOperator,
         });
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
@@ -283,6 +509,16 @@ export class SearchModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `${tableName}.created_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as updated_by_user`,
+                `updated_by_user.user_uuid`,
+                `${tableName}.last_version_updated_by_user_uuid`,
+            )
             .column(
                 { uuid: uuidColumnName },
                 `${tableName}.slug`,
@@ -292,6 +528,16 @@ export class SearchModel {
                     chartType: `${tableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: `${tableName}.space_uuid` },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
+                { viewsCount: `${tableName}.views_count` },
+                { firstViewedAt: `${tableName}.first_viewed_at` },
+                { lastModified: `${tableName}.last_version_updated_at` },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+                { lastUpdatedByFirstName: 'updated_by_user.first_name' },
+                { lastUpdatedByLastName: 'updated_by_user.last_name' },
+                { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
                 { search_rank: searchRankRawSql },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
@@ -302,22 +548,45 @@ export class SearchModel {
             subquery,
             {
                 tableName,
-                tableUserUuidColumnName: 'last_version_updated_by_user_uuid',
+                tableUserUuidColumnName: 'created_by_user_uuid',
             },
             filters,
         );
 
-        return this.database(tableName)
+        const charts = await this.database(tableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
             .where('search_rank', '>', 0)
             .limit(10);
+
+        return charts.map((chart) => ({
+            ...chart,
+            chartSource: 'sql' as const,
+            viewsCount: chart.viewsCount || 0,
+            firstViewedAt: chart.firstViewedAt || null,
+            lastModified: chart.lastModified || null,
+            createdBy: chart.createdByUserUuid
+                ? {
+                      firstName: chart.createdByFirstName,
+                      lastName: chart.createdByLastName,
+                      userUuid: chart.createdByUserUuid,
+                  }
+                : null,
+            lastUpdatedBy: chart.lastUpdatedByUserUuid
+                ? {
+                      firstName: chart.lastUpdatedByFirstName,
+                      lastName: chart.lastUpdatedByLastName,
+                      userUuid: chart.lastUpdatedByUserUuid,
+                  }
+                : null,
+        }));
     }
 
     private async searchSqlCharts(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ): Promise<SqlChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
             return [];
@@ -331,6 +600,7 @@ export class SearchModel {
             projectUuid,
             query,
             filters,
+            fullTextSearchOperator,
         );
     }
 
@@ -338,6 +608,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
     ): Promise<SavedChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.CHART, filters?.type)) {
             return [];
@@ -349,6 +620,7 @@ export class SearchModel {
                 searchVectorColumn: `${SavedChartsTableName}.search_vector`,
                 searchQuery: query,
             },
+            fullTextSearchOperator,
         });
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
@@ -375,6 +647,22 @@ export class SearchModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
+            .leftJoin(
+                this.database.raw(`saved_queries_versions as first_version`),
+                this.database.raw(
+                    `first_version.saved_query_id = ${SavedChartsTableName}.saved_query_id AND first_version.saved_queries_version_id = (SELECT MIN(saved_queries_version_id) FROM saved_queries_versions WHERE saved_query_id = ${SavedChartsTableName}.saved_query_id)`,
+                ),
+            )
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `first_version.updated_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as updated_by_user`,
+                `updated_by_user.user_uuid`,
+                `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
+            )
             .column(
                 { uuid: 'saved_query_uuid' },
                 `${SavedChartsTableName}.name`,
@@ -383,7 +671,19 @@ export class SearchModel {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
                 { spaceUuid: 'space_uuid' },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
                 { search_rank: searchRankRawSql },
+                { viewsCount: `${SavedChartsTableName}.views_count` },
+                { firstViewedAt: `${SavedChartsTableName}.first_viewed_at` },
+                {
+                    lastModified: `${SavedChartsTableName}.last_version_updated_at`,
+                },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+                { lastUpdatedByFirstName: 'updated_by_user.first_name' },
+                { lastUpdatedByLastName: 'updated_by_user.last_name' },
+                { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy('search_rank', 'desc');
@@ -430,6 +730,281 @@ export class SearchModel {
         return savedCharts.map((chart) => ({
             ...chart,
             validationErrors: validationErrors[chart.uuid] || [],
+            viewsCount: chart.viewsCount || 0,
+            firstViewedAt: chart.firstViewedAt || null,
+            lastModified: chart.lastModified || null,
+            createdBy: chart.createdByUserUuid
+                ? {
+                      firstName: chart.createdByFirstName,
+                      lastName: chart.createdByLastName,
+                      userUuid: chart.createdByUserUuid,
+                  }
+                : null,
+            lastUpdatedBy: chart.lastUpdatedByUserUuid
+                ? {
+                      firstName: chart.lastUpdatedByFirstName,
+                      lastName: chart.lastUpdatedByLastName,
+                      userUuid: chart.lastUpdatedByUserUuid,
+                  }
+                : null,
+        }));
+    }
+
+    async searchAllCharts(
+        projectUuid: string,
+        query: string,
+        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+    ): Promise<Array<AllChartsSearchResult>> {
+        const savedChartsSearchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${SavedChartsTableName}.search_vector`,
+                searchQuery: query,
+            },
+            fullTextSearchOperator,
+        });
+
+        const savedChartsSubquery = this.database(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${SavedChartsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SavedChartsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+                this.orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .leftJoin(
+                this.database.raw(
+                    `saved_queries_versions as saved_chart_first_version`,
+                ),
+                this.database.raw(
+                    `saved_chart_first_version.saved_query_id = ${SavedChartsTableName}.saved_query_id AND saved_chart_first_version.saved_queries_version_id = (SELECT MIN(saved_queries_version_id) FROM saved_queries_versions WHERE saved_query_id = ${SavedChartsTableName}.saved_query_id)`,
+                ),
+            )
+            .leftJoin(
+                `${UserTableName} as saved_chart_created_by_user`,
+                `saved_chart_created_by_user.user_uuid`,
+                `saved_chart_first_version.updated_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as saved_chart_updated_by_user`,
+                `saved_chart_updated_by_user.user_uuid`,
+                `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
+            )
+            .column(
+                { uuid: 'saved_query_uuid' },
+                `${SavedChartsTableName}.slug`,
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                {
+                    chartType: `${SavedChartsTableName}.last_version_chart_kind`,
+                },
+                { spaceUuid: `${SpaceTableName}.space_uuid` },
+                { search_rank: savedChartsSearchRankRawSql },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
+                { viewsCount: `${SavedChartsTableName}.views_count` },
+                { firstViewedAt: `${SavedChartsTableName}.first_viewed_at` },
+                {
+                    lastModified: `${SavedChartsTableName}.last_version_updated_at`,
+                },
+                {
+                    createdByFirstName:
+                        'saved_chart_created_by_user.first_name',
+                },
+                { createdByLastName: 'saved_chart_created_by_user.last_name' },
+                { createdByUserUuid: 'saved_chart_created_by_user.user_uuid' },
+                {
+                    lastUpdatedByFirstName:
+                        'saved_chart_updated_by_user.first_name',
+                },
+                {
+                    lastUpdatedByLastName:
+                        'saved_chart_updated_by_user.last_name',
+                },
+                {
+                    lastUpdatedByUserUuid:
+                        'saved_chart_updated_by_user.user_uuid',
+                },
+                this.database.raw('? as chart_source', ['saved']),
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        const savedSqlSearchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${SavedSqlTableName}.search_vector`,
+                searchQuery: query,
+            },
+            fullTextSearchOperator,
+        });
+
+        const savedSqlSubquery = this.database(SavedSqlTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${SavedSqlTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SavedSqlTableName}.space_uuid`,
+                    '=',
+                    `${SpaceTableName}.space_uuid`,
+                );
+                this.orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .leftJoin(
+                `${UserTableName} as sql_chart_created_by_user`,
+                `sql_chart_created_by_user.user_uuid`,
+                `${SavedSqlTableName}.created_by_user_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as sql_chart_updated_by_user`,
+                `sql_chart_updated_by_user.user_uuid`,
+                `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
+            )
+            .column(
+                { uuid: 'saved_sql_uuid' },
+                `${SavedSqlTableName}.slug`,
+                `${SavedSqlTableName}.name`,
+                `${SavedSqlTableName}.description`,
+                {
+                    chartType: `${SavedSqlTableName}.last_version_chart_kind`,
+                },
+                { spaceUuid: `${SavedSqlTableName}.space_uuid` },
+                { search_rank: savedSqlSearchRankRawSql },
+                { projectUuid: `${ProjectTableName}.project_uuid` },
+                // Need to add null values for saved chart specific fields to match union structure
+                // Cast nulls to proper types to avoid UNION type mismatch
+                this.database.raw('null::integer as "viewsCount"'),
+                this.database.raw('null::timestamp as "firstViewedAt"'),
+                this.database.raw('null::timestamp as "lastModified"'),
+                this.database.raw(
+                    'sql_chart_created_by_user.first_name as "createdByFirstName"',
+                ),
+                this.database.raw(
+                    'sql_chart_created_by_user.last_name as "createdByLastName"',
+                ),
+                this.database.raw(
+                    'sql_chart_created_by_user.user_uuid as "createdByUserUuid"',
+                ),
+                this.database.raw(
+                    'sql_chart_updated_by_user.first_name as "lastUpdatedByFirstName"',
+                ),
+                this.database.raw(
+                    'sql_chart_updated_by_user.last_name as "lastUpdatedByLastName"',
+                ),
+                this.database.raw(
+                    'sql_chart_updated_by_user.user_uuid as "lastUpdatedByUserUuid"',
+                ),
+                this.database.raw('? as chart_source', ['sql']),
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        // Type-safe union by ensuring both subqueries have identical column structure
+        const unionQuery = this.database
+            .select<{
+                uuid: string;
+                slug: string;
+                name: string;
+                description: string;
+                chartType: string;
+                spaceUuid: string;
+                search_rank: number;
+                projectUuid: string;
+                viewsCount: number;
+                firstViewedAt: string;
+                lastModified: string;
+                createdByFirstName: string;
+                createdByLastName: string;
+                createdByUserUuid: string;
+                lastUpdatedByFirstName: string;
+                lastUpdatedByLastName: string;
+                lastUpdatedByUserUuid: string;
+                chart_source: 'saved' | 'sql';
+            }>()
+            .from(savedChartsSubquery.as('saved_charts'))
+            .unionAll(
+                this.database.select().from(savedSqlSubquery.as('saved_sql')),
+            );
+
+        const results = await this.database
+            .select<
+                Array<{
+                    uuid: string;
+                    slug: string;
+                    name: string;
+                    description: string;
+                    chartType: string;
+                    spaceUuid: string;
+                    search_rank: number;
+                    projectUuid: string;
+                    viewsCount: number;
+                    firstViewedAt: string;
+                    lastModified: string;
+                    createdByFirstName: string;
+                    createdByLastName: string;
+                    createdByUserUuid: string;
+                    lastUpdatedByFirstName: string;
+                    lastUpdatedByLastName: string;
+                    lastUpdatedByUserUuid: string;
+                    chart_source: 'saved' | 'sql';
+                }>
+            >('*')
+            .from(unionQuery.as('all_charts_with_rank'))
+            .where('search_rank', '>', 0)
+            .orderBy('search_rank', 'desc')
+            .limit(20);
+
+        return results.map((result) => ({
+            uuid: result.uuid,
+            slug: result.slug,
+            name: result.name,
+            description: result.description,
+            chartType: result.chartType as ChartKind, // ChartKind type from database
+            spaceUuid: result.spaceUuid,
+            search_rank: result.search_rank,
+            projectUuid: result.projectUuid,
+            viewsCount: result.viewsCount || 0,
+            firstViewedAt: result.firstViewedAt || null,
+            lastModified: result.lastModified || null,
+            chartSource: result.chart_source as 'saved' | 'sql',
+            createdBy: result.createdByUserUuid
+                ? {
+                      firstName: result.createdByFirstName,
+                      lastName: result.createdByLastName,
+                      userUuid: result.createdByUserUuid,
+                  }
+                : null,
+            lastUpdatedBy: result.lastUpdatedByUserUuid
+                ? {
+                      firstName: result.lastUpdatedByFirstName,
+                      lastName: result.lastUpdatedByLastName,
+                      userUuid: result.lastUpdatedByUserUuid,
+                  }
+                : null,
         }));
     }
 

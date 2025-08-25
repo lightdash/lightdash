@@ -97,3 +97,5 @@ data/
 .env*
 
 .local/*
+
+CLAUDE.local.md
