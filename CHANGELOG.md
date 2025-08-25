@@ -1,3 +1,10 @@
+# [0.1950.0](https://github.com/lightdash/lightdash/compare/0.1949.2...0.1950.0) (2025-08-25)
+
+
+### Features
+
+* allow attaching csv's to emails ([#16548](https://github.com/lightdash/lightdash/issues/16548)) ([acd10ec](https://github.com/lightdash/lightdash/commit/acd10ec143f915c850a274aeb74f3e42c816fbb1))
+
 ## [0.1949.2](https://github.com/lightdash/lightdash/compare/0.1949.1...0.1949.2) (2025-08-25)
 
 
