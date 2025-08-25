@@ -89,7 +89,10 @@ export class ParametersController extends BaseController {
         const results: ApiGetProjectParametersResults =
             parameters.reduce<ApiGetProjectParametersResults>(
                 (acc, parameter) => {
-                    acc[parameter.name] = parameter.config;
+                    acc[parameter.name] = {
+                        ...parameter.config,
+                        type: parameter.config.type || 'string',
+                    };
                     return acc;
                 },
                 {},

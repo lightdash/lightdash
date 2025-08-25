@@ -133,12 +133,12 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     }, [parameter]);
 
     const currentStringValues = useMemo((): string[] => {
-        if (parameter.type !== 'string' || !value) return [];
+        if (parameter.type !== 'string' || value == null) return [];
         return (Array.isArray(value) ? value : [value]).map(String);
     }, [value, parameter.type]);
 
     const currentNumberValues = useMemo((): number[] => {
-        if (parameter.type !== 'number' || !value) return [];
+        if (parameter.type !== 'number' || value == null) return [];
         return (Array.isArray(value) ? value : [value])
             .map((v) => (typeof v === 'number' ? v : Number(v)))
             .filter((n): n is number => !isNaN(n) && isFinite(n));

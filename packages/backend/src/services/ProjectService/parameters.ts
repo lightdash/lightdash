@@ -40,7 +40,10 @@ export const getAvailableParameterDefinitions = (
     // Get project parameter definitions
     const projectParameterDefinitions: ParameterDefinitions = {};
     projectParameters.forEach((param) => {
-        projectParameterDefinitions[param.name] = param.config;
+        projectParameterDefinitions[param.name] = {
+            ...param.config,
+            type: param.config.type || 'string',
+        };
     });
 
     // Get explore (model-level) parameter definitions
