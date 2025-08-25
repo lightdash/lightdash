@@ -2,16 +2,10 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AddScopesToRole,
-    CreateGroupRoleAssignmentRequest,
     CreateRole,
-    CreateRoleAssignmentRequest,
-    CreateUserRoleAssignmentRequest,
     ForbiddenError,
-    getSystemRoles,
     isSystemRole,
-    NotImplementedError,
     ParameterError,
-    ProjectMemberRole,
     Role,
     RoleAssignment,
     RoleWithScopes,
@@ -19,6 +13,7 @@ import {
     UpdateRoleAssignmentRequest,
     UpsertUserRoleAssignmentRequest,
 } from '@lightdash/common';
+import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -588,20 +583,32 @@ export class RolesService extends BaseService {
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot remove system roles');
         }
-        const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(account, role);
+        try {
+            const role = await this.rolesModel.getRoleByUuid(roleUuid);
+            RolesService.validateRoleOwnership(account, role);
 
-        await this.rolesModel.deleteRole(roleUuid);
+            await this.rolesModel.deleteRole(roleUuid);
 
-        this.analytics.track({
-            event: 'role.deleted',
-            userId: account.user?.id,
-            properties: {
-                roleUuid,
-                roleName: role.name,
-                organizationUuid: role.organizationUuid,
-            },
-        });
+            this.analytics.track({
+                event: 'role.deleted',
+                userId: account.user?.id,
+                properties: {
+                    roleUuid,
+                    roleName: role.name,
+                    organizationUuid: role.organizationUuid,
+                },
+            });
+        } catch (error) {
+            const foreignKeyViolation = '23503';
+            if (
+                error instanceof DatabaseError &&
+                error.code === foreignKeyViolation
+            ) {
+                throw new ParameterError('Role cannot be deleted if assigned');
+            }
+
+            throw error;
+        }
     }
 
     async unassignRoleFromUser(

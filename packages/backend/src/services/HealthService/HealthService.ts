@@ -37,6 +37,10 @@ export class HealthService extends BaseService {
         this.migrationModel = migrationModel;
     }
 
+    private isEnterpriseEnabled(): boolean {
+        return this.lightdashConfig.license.licenseKey !== undefined;
+    }
+
     async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
         const isAuthenticated: boolean = !!user?.userUuid;
 
@@ -143,7 +147,7 @@ export class HealthService extends BaseService {
                 snowflake: {
                     enabled:
                         !!this.lightdashConfig.auth.snowflake.clientId &&
-                        !!this.lightdashConfig.license.licenseKey,
+                        this.isEnterpriseEnabled(),
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
@@ -164,7 +168,9 @@ export class HealthService extends BaseService {
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
             isServiceAccountEnabled:
                 this.lightdashConfig.serviceAccount.enabled,
-            isCustomRolesEnabled: this.lightdashConfig.customRoles.enabled,
+            isCustomRolesEnabled:
+                this.isEnterpriseEnabled() &&
+                this.lightdashConfig.customRoles.enabled,
         };
     }
 
