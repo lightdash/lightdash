@@ -1,3 +1,10 @@
+## [0.1950.1](https://github.com/lightdash/lightdash/compare/0.1950.0...0.1950.1) (2025-08-25)
+
+
+### Bug Fixes
+
+* add file extension to file name ([#16571](https://github.com/lightdash/lightdash/issues/16571)) ([1026443](https://github.com/lightdash/lightdash/commit/1026443a627bc757130c34dce32a2b88f5f1161d))
+
 # [0.1950.0](https://github.com/lightdash/lightdash/compare/0.1949.2...0.1950.0) (2025-08-25)
 
 
