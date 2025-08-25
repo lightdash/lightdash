@@ -429,6 +429,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 {activeTab && (
                                     <>
                                         <TabEditModal
+                                            key={activeTab.uuid}
                                             tab={activeTab}
                                             onClose={() => setEditingTab(false)}
                                             opened={isEditingTab}
