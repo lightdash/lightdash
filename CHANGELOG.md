@@ -1,3 +1,10 @@
+## [0.1950.2](https://github.com/lightdash/lightdash/compare/0.1950.1...0.1950.2) (2025-08-25)
+
+
+### Bug Fixes
+
+* improve schema compat layer for MCP ([#16569](https://github.com/lightdash/lightdash/issues/16569)) ([90589ea](https://github.com/lightdash/lightdash/commit/90589eae2a3fe6fe375a8c2e61218edd882e0c62))
+
 ## [0.1950.1](https://github.com/lightdash/lightdash/compare/0.1950.0...0.1950.1) (2025-08-25)
 
 
