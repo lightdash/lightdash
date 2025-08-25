@@ -273,7 +273,7 @@ describe('McpSchemaCompatLayer', () => {
             });
         });
 
-        test('should handle numeber coercion', () => {
+        test('should handle number coercion', () => {
             expect(
                 mapped.parse({
                     name: 'John',
@@ -531,7 +531,7 @@ describe('McpSchemaCompatLayer', () => {
         });
     });
 
-    describe('pagination schma', () => {
+    describe('pagination schema', () => {
         const schema = toolFindFieldsArgsSchema;
         const schemaTransformed = toolFindFieldsArgsSchemaTransformed;
         const mapped = mapZodSchema<ToolFindFieldsArgs>(schema);
