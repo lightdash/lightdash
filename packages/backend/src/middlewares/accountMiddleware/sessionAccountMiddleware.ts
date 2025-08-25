@@ -2,6 +2,7 @@
 // This rule is failing in CI but passes locally
 import { NextFunction, Request, Response } from 'express';
 import * as Account from '../../auth/account';
+import Logger from '../../logging/logger';
 
 /**
  * Middleware to attach the account to the request.
@@ -12,6 +13,14 @@ export function sessionAccountMiddleware(
     res: Response,
     next: NextFunction,
 ) {
+    // This means we already have a session user with an account, which should not happen.
+    if (req.user && req.account) {
+        Logger.warn(
+            'User with Session Account is already authenticated',
+            req.account.authentication.type,
+        );
+    }
+
     // Nothing to do if there's no user or the account is already set
     if (!req.user || req.account) {
         next();
