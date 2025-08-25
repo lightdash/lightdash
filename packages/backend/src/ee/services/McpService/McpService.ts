@@ -3,6 +3,7 @@ import {
     AnyType,
     CatalogFilter,
     CatalogType,
+    CommercialFeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getItemId,
@@ -48,6 +49,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -95,6 +97,7 @@ type McpServiceArguments = {
     spaceModel: SpaceModel;
     spaceService: SpaceService;
     mcpContextModel: McpContextModel;
+    featureFlagService: FeatureFlagService;
 };
 
 export type ExtraContext = { user: SessionUser; account: OauthAccount };
@@ -125,6 +128,8 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
+    private featureFlagService: FeatureFlagService;
+
     private mcpServer: McpServer;
 
     private mcpCompatLayer: McpSchemaCompatLayer;
@@ -140,6 +145,7 @@ export class McpService extends BaseService {
         spaceService,
         projectModel,
         mcpContextModel,
+        featureFlagService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -152,6 +158,7 @@ export class McpService extends BaseService {
         this.projectModel = projectModel;
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
+        this.featureFlagService = featureFlagService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = new McpServer({
@@ -1299,6 +1306,21 @@ export class McpService extends BaseService {
         }
 
         return true;
+    }
+
+    // MCP is enabled if MCP_ENABLED is true OR if AI Copilot is enabled
+    public async isEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        if (this.lightdashConfig.mcp.enabled) {
+            return true;
+        }
+
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        return aiCopilotFlag.enabled;
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
