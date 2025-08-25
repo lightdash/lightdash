@@ -70,3 +70,69 @@ parameters:
     options_from_dimension:
       model: test_model
 `;
+
+export const validConfigWithNumberParameter = `
+spotlight:
+  default_visibility: show
+parameters:
+  customer_id:
+    label: Customer ID
+    type: number
+    default: 100
+    options:
+      - 100
+      - 200
+      - 300
+`;
+
+export const validConfigWithNumberArrayParameter = `
+spotlight:
+  default_visibility: show
+parameters:
+  product_ids:
+    label: Product IDs
+    type: number
+    multiple: true
+    default:
+      - 1
+      - 2
+      - 3
+    options:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+`;
+
+export const validConfigWithStringTypeExplicit = `
+spotlight:
+  default_visibility: show
+parameters:
+  status:
+    label: Status
+    type: string
+    default: active
+    options:
+      - active
+      - inactive
+      - pending
+`;
+
+export const validConfigWithMixedArrayTypes = `
+spotlight:
+  default_visibility: show
+parameters:
+  customer_name:
+    label: Customer Name
+    type: string
+    multiple: true
+    default:
+      - John
+      - Jane
+    options:
+      - John
+      - Jane
+      - Bob
+      - Alice
+`;

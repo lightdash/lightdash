@@ -29,7 +29,11 @@ export const loadLightdashProjectConfig = async (
         ...defaultConfig,
         ...loadedConfig,
     };
-    const ajv = new Ajv({ coerceTypes: true, allErrors: true });
+    const ajv = new Ajv({
+        coerceTypes: true,
+        allErrors: true,
+        allowUnionTypes: true,
+    });
     // This method call extends JSON schema to utilize AJV Errors
     AjvErrors(ajv);
     const validate = ajv.compile<LightdashProjectConfig>(

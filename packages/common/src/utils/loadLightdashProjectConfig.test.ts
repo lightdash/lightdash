@@ -7,8 +7,12 @@ import {
     invalidConfigWithIncompleteOptionsFromDimension,
     invalidConfigWithNoOptions,
     validConfigWithAllowCustomValues,
+    validConfigWithMixedArrayTypes,
+    validConfigWithNumberArrayParameter,
+    validConfigWithNumberParameter,
     validConfigWithOptionsFromDimension,
     validConfigWithParameters,
+    validConfigWithStringTypeExplicit,
 } from './loadLightdashProjectConfig.mock';
 
 describe('loadLightdashProjectConfig', () => {
@@ -99,5 +103,83 @@ describe('loadLightdashProjectConfig', () => {
                 invalidConfigWithIncompleteOptionsFromDimension,
             ),
         ).rejects.toThrow(ParseError);
+    });
+
+    it('should load a valid config with number parameter', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithNumberParameter,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                customer_id: {
+                    label: 'Customer ID',
+                    type: 'number',
+                    default: 100,
+                    options: [100, 200, 300],
+                },
+            },
+        });
+    });
+
+    it('should load a valid config with number array parameter', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithNumberArrayParameter,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                product_ids: {
+                    label: 'Product IDs',
+                    type: 'number',
+                    multiple: true,
+                    default: [1, 2, 3],
+                    options: [1, 2, 3, 4, 5],
+                },
+            },
+        });
+    });
+
+    it('should load a valid config with explicit string type', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithStringTypeExplicit,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                status: {
+                    label: 'Status',
+                    type: 'string',
+                    default: 'active',
+                    options: ['active', 'inactive', 'pending'],
+                },
+            },
+        });
+    });
+
+    it('should load a valid config with string array parameter', async () => {
+        const config = await loadLightdashProjectConfig(
+            validConfigWithMixedArrayTypes,
+        );
+        expect(config).toEqual({
+            spotlight: {
+                default_visibility: 'show',
+            },
+            parameters: {
+                customer_name: {
+                    label: 'Customer Name',
+                    type: 'string',
+                    multiple: true,
+                    default: ['John', 'Jane'],
+                    options: ['John', 'Jane', 'Bob', 'Alice'],
+                },
+            },
+        });
     });
 });

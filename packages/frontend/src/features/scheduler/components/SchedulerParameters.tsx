@@ -22,9 +22,12 @@ import { ParameterInput } from '../../parameters/components/ParameterInput';
 type SchedulerParameterItemProps = {
     paramKey: string;
     parameter: LightdashProjectParameter;
-    dashboardValue: string | string[] | null;
-    schedulerValue?: string | string[] | null;
-    onChange: (paramKey: string, value: string | string[] | null) => void;
+    dashboardValue: string | number | string[] | number[] | null;
+    schedulerValue?: string | number | string[] | number[] | null;
+    onChange: (
+        paramKey: string,
+        value: string | number | string[] | number[] | null,
+    ) => void;
     onRevert: () => void;
     hasChanged: boolean;
     projectUuid: string;
@@ -148,7 +151,10 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
     isLoading,
 }) => {
     const handleParameterChange = useCallback(
-        (paramKey: string, value: string | string[] | null) => {
+        (
+            paramKey: string,
+            value: string | number | string[] | number[] | null,
+        ) => {
             const updated = { ...schedulerParameterValues };
 
             if (

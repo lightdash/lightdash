@@ -2,6 +2,7 @@ import {
     type ApiCompiledQueryResults,
     type ApiError,
     type MetricQuery,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useParams } from 'react-router';
@@ -14,7 +15,7 @@ const getCompiledQuery = async (
     projectUuid: string,
     tableId: string,
     query: MetricQuery,
-    queryParameters?: Record<string, string | string[]>,
+    queryParameters?: ParametersValuesMap,
 ) => {
     const timezoneFixQuery = {
         ...query,

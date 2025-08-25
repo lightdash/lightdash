@@ -416,6 +416,12 @@
                                                 "description": "The label of the parameter as it will be displayed in the UI",
                                                 "type": "string"
                                             },
+                                            "type": {
+                                                "description": "The data type of the parameter (defaults to 'string' for backwards compatibility)",
+                                                "type": "string",
+                                                "enum": ["string", "number"],
+                                                "default": "string"
+                                            },
                                             "description": {
                                                 "description": "A description of the parameter",
                                                 "type": "string"
@@ -424,17 +430,25 @@
                                                 "description": "A list of possible values for the parameter",
                                                 "type": "array",
                                                 "items": {
-                                                    "type": "string"
+                                                    "type": ["string", "number"]
                                                 }
                                             },
                                             "default": {
                                                 "description": "The default value(s) for the parameter",
                                                 "oneOf": [
-                                                    { "type": "string" },
+                                                    {
+                                                        "type": [
+                                                            "string",
+                                                            "number"
+                                                        ]
+                                                    },
                                                     {
                                                         "type": "array",
                                                         "items": {
-                                                            "type": "string"
+                                                            "type": [
+                                                                "string",
+                                                                "number"
+                                                            ]
                                                         }
                                                     }
                                                 ]

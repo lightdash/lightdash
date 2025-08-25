@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -108,7 +108,11 @@ export const registerCustomCompletionProvider = (
     settings?: SqlEditorPreferences,
     availableParameters?: Record<
         string,
-        { label: string; description?: string; default?: string | string[] }
+        {
+            label: string;
+            description?: string;
+            default?: ParameterValue;
+        }
     >,
 ) => {
     return monaco.languages.registerCompletionItemProvider(language, {

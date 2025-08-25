@@ -5,6 +5,7 @@ import {
     type FilterableItem,
     type LightdashProjectParameter,
     type ParametersValuesMap,
+    type ParameterValue,
 } from '@lightdash/common';
 import {
     Box,
@@ -34,11 +35,8 @@ import styles from './ParameterInput.module.css';
 type ParameterInputProps = {
     paramKey: string;
     parameter: LightdashProjectParameter;
-    value: string | string[] | null;
-    onParameterChange: (
-        paramKey: string,
-        value: string | string[] | null,
-    ) => void;
+    value: ParameterValue | null;
+    onParameterChange: (paramKey: string, value: ParameterValue | null) => void;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     projectUuid?: string;
     parameterValues?: ParametersValuesMap;
@@ -134,11 +132,21 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             : 'Choose value...';
     }, [parameter]);
 
-    // For creating custom values
-    const currentValues = useMemo(
-        () => (value ? (Array.isArray(value) ? value : [value]) : []),
-        [value],
-    );
+    const currentStringValues = useMemo((): string[] => {
+        if (parameter.type !== 'string' || value == null) return [];
+        return (Array.isArray(value) ? value : [value]).map(String);
+    }, [value, parameter.type]);
+
+    const currentNumberValues = useMemo((): number[] => {
+        if (parameter.type !== 'number' || value == null) return [];
+        return (Array.isArray(value) ? value : [value])
+            .map((v) => (typeof v === 'number' ? v : Number(v)))
+            .filter((n): n is number => !isNaN(n) && isFinite(n));
+    }, [value, parameter.type]);
+
+    // Use the appropriate array based on parameter type
+    const currentValues =
+        parameter.type === 'number' ? currentNumberValues : currentStringValues;
 
     const optionsData = useMemo(() => {
         const parameterOptions = parameter.options ?? [];
@@ -147,7 +155,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         if (parameter.allow_custom_values) {
             // Needed because current values are not in the same group as parameter options
             const filteredCurrentValues = currentValues.filter(
-                (option) => !fetchedResults.includes(option),
+                (option) => !fetchedResults.includes(String(option)),
             );
 
             return uniq([...parameterOptions, ...filteredCurrentValues]);
@@ -164,19 +172,40 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     // Handler for creating custom values when allow_custom_values is true
     const handleCreateValue = useCallback(
         (newValue: string) => {
-            if (parameter.allow_custom_values && newValue.trim()) {
+            if (!parameter.allow_custom_values || !newValue.trim()) return;
+
+            const trimmedValue = newValue.trim();
+
+            if (parameter.type === 'number') {
+                const numValue = Number(trimmedValue);
+
+                if (isNaN(numValue) || !isFinite(numValue)) return;
+
                 if (parameter.multiple) {
-                    const updatedValues = [...currentValues, newValue.trim()];
-                    onParameterChange(paramKey, updatedValues);
+                    onParameterChange(paramKey, [
+                        ...currentNumberValues,
+                        numValue,
+                    ]);
                 } else {
-                    onParameterChange(paramKey, newValue.trim());
+                    onParameterChange(paramKey, numValue);
+                }
+            } else {
+                if (parameter.multiple) {
+                    onParameterChange(paramKey, [
+                        ...currentStringValues,
+                        trimmedValue,
+                    ]);
+                } else {
+                    onParameterChange(paramKey, trimmedValue);
                 }
             }
         },
         [
             parameter.allow_custom_values,
             parameter.multiple,
-            currentValues,
+            parameter.type,
+            currentStringValues,
+            currentNumberValues,
             onParameterChange,
             paramKey,
         ],
@@ -194,10 +223,10 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             : optionsData;
 
         const regularItems = baseItems
-            .sort((a, b) => a.localeCompare(b))
+            .sort((a, b) => String(a).localeCompare(String(b)))
             .map((option) => ({
-                value: option,
-                label: formatDisplayValue(option),
+                value: String(option),
+                label: formatDisplayValue(String(option)),
             }));
 
         const fetchedItems =
@@ -223,7 +252,8 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             search &&
             search.trim() &&
             !baseItems.some(
-                (option) => option.toLowerCase() === search.toLowerCase(),
+                (option) =>
+                    String(option).toLowerCase() === search.toLowerCase(),
             ) &&
             !fetchedResults.some(
                 (option) => option.toLowerCase() === search.toLowerCase(),
@@ -311,12 +341,40 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 return; // Don't update with the __create__ value
             }
 
+            // Convert string values back to appropriate types if needed
+            let finalValue: ParameterValue | null = newValues;
+
+            // For number parameters that somehow went through string flow, convert back
+            if (parameter.type === 'number' && newValues !== null) {
+                if (Array.isArray(newValues)) {
+                    // Filter out invalid numbers from the array
+                    const validNumbers = newValues
+                        .map((v) => Number(v))
+                        .filter((num) => !isNaN(num) && isFinite(num));
+
+                    // Only update if we have valid numbers, otherwise keep null
+                    finalValue = validNumbers.length > 0 ? validNumbers : null;
+                } else {
+                    const num = Number(newValues);
+                    // For single values, only accept valid numbers
+                    if (!isNaN(num) && isFinite(num)) {
+                        finalValue = num;
+                    } else {
+                        // Invalid number input - set to null rather than keeping invalid string
+                        finalValue = null;
+                    }
+                }
+            }
+
             // Handle single value mode constraints
-            let finalValue: string | string[] | null = newValues;
-            if (!parameter.multiple && Array.isArray(newValues)) {
+            if (
+                !parameter.multiple &&
+                finalValue !== null &&
+                Array.isArray(finalValue)
+            ) {
                 finalValue =
-                    newValues.length > 0
-                        ? newValues[newValues.length - 1]
+                    finalValue.length > 0
+                        ? finalValue[finalValue.length - 1]
                         : null;
             }
 
@@ -329,6 +387,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         },
         [
             parameter.multiple,
+            parameter.type,
             paramKey,
             onParameterChange,
             search,
@@ -342,7 +401,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             <MultiSelect
                 ref={multiSelectRef}
                 data={selectData}
-                value={currentValues}
+                value={currentValues.map(String)}
                 onChange={handleChange}
                 searchValue={
                     shouldFetch || parameter.allow_custom_values
@@ -381,7 +440,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         <Select
             ref={multiSelectRef}
             data={selectData}
-            value={currentValues[0] || null}
+            value={currentValues.length > 0 ? String(currentValues[0]) : null}
             onChange={handleChange}
             searchValue={
                 shouldFetch || parameter.allow_custom_values

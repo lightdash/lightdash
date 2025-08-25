@@ -152,7 +152,7 @@ const getWrapChars = (wrapChar: string): [string, string] => {
 export const replaceLightdashValues = (
     regex: RegExp,
     sql: string,
-    valuesMap: Record<string, string | string[]>,
+    valuesMap: Record<string, string | number | string[] | number[]>,
     quoteChar: string | '',
     wrapChar: string | '',
     {
@@ -196,7 +196,11 @@ export const replaceLightdashValues = (
                 );
             }
 
-            if (attributeValues.length === 0) {
+            if (
+                (isArray(attributeValues) && attributeValues.length === 0) ||
+                (typeof attributeValues === 'string' &&
+                    attributeValues.length === 0)
+            ) {
                 missingReferences.add(attribute);
                 if (!throwOnMissing) return acc;
                 throw new ForbiddenError(
@@ -204,14 +208,20 @@ export const replaceLightdashValues = (
                 );
             }
 
-            const valueString = isArray(attributeValues)
-                ? attributeValues
-                      .map(
-                          (attributeValue) =>
-                              `${quoteChar}${attributeValue}${quoteChar}`,
-                      )
-                      .join(', ')
-                : `${quoteChar}${attributeValues}${quoteChar}`;
+            let valueString: string;
+            if (isArray(attributeValues)) {
+                valueString = attributeValues
+                    .map((attributeValue) =>
+                        typeof attributeValue === 'number'
+                            ? String(attributeValue)
+                            : `${quoteChar}${attributeValue}${quoteChar}`,
+                    )
+                    .join(', ');
+            } else if (typeof attributeValues === 'number') {
+                valueString = String(attributeValues);
+            } else {
+                valueString = `${quoteChar}${attributeValues}${quoteChar}`;
+            }
 
             return acc.replace(sqlAttribute, valueString);
         },

@@ -1363,7 +1363,9 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'double' },
                         { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'array', array: { dataType: 'double' } },
                     ],
                     required: true,
                 },
@@ -3422,9 +3424,30 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-or-number-or-string-Array-or-number-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'double' },
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'array', array: { dataType: 'double' } },
+                ],
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ParametersValuesMap: {
         dataType: 'refAlias',
-        type: { ref: 'Record_string.string-or-string-Array_', validators: {} },
+        type: {
+            ref: 'Record_string.string-or-number-or-string-Array-or-number-Array_',
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SavedChart: {
@@ -3987,14 +4010,29 @@ const models: TsoaRoute.Models = {
                         model: { dataType: 'string', required: true },
                     },
                 },
-                options: { dataType: 'array', array: { dataType: 'string' } },
+                options: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'array', array: { dataType: 'double' } },
+                    ],
+                },
                 allow_custom_values: { dataType: 'boolean' },
                 multiple: { dataType: 'boolean' },
                 default: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'double' },
                         { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'array', array: { dataType: 'double' } },
+                    ],
+                },
+                type: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['string'] },
+                        { dataType: 'enum', enums: ['number'] },
                     ],
                 },
                 description: { dataType: 'string' },

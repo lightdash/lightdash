@@ -84,9 +84,12 @@ const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
 
 // Wrapper around class to simplify test calls
 const buildQuery = (
-    args: Omit<BuildQueryProps, 'availableParameters'>,
+    args: Omit<BuildQueryProps, 'parameterDefinitions'>,
 ): CompiledQuery =>
-    new MetricQueryBuilder({ ...args, availableParameters: [] }).compileQuery();
+    new MetricQueryBuilder({
+        ...args,
+        parameterDefinitions: {},
+    }).compileQuery();
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
@@ -1013,7 +1016,11 @@ describe('Query builder', () => {
                     region: 'EU',
                     unused: 'parameter',
                 },
-                availableParameters: ['status', 'region', 'unused'],
+                parameterDefinitions: {
+                    status: { label: 'Status', type: 'string' },
+                    region: { label: 'Region', type: 'string' },
+                    unused: { label: 'Unused', type: 'string' },
+                },
             });
 
             const compiledQuery = queryBuilder.compileQuery();
