@@ -132,11 +132,21 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             : 'Choose value...';
     }, [parameter]);
 
-    // For creating custom values
-    const currentValues = useMemo(
-        () => (value ? (Array.isArray(value) ? value : [value]) : []),
-        [value],
-    );
+    const currentStringValues = useMemo((): string[] => {
+        if (parameter.type !== 'string' || !value) return [];
+        return (Array.isArray(value) ? value : [value]).map(String);
+    }, [value, parameter.type]);
+
+    const currentNumberValues = useMemo((): number[] => {
+        if (parameter.type !== 'number' || !value) return [];
+        return (Array.isArray(value) ? value : [value])
+            .map((v) => (typeof v === 'number' ? v : Number(v)))
+            .filter((n): n is number => !isNaN(n) && isFinite(n));
+    }, [value, parameter.type]);
+
+    // Use the appropriate array based on parameter type
+    const currentValues =
+        parameter.type === 'number' ? currentNumberValues : currentStringValues;
 
     const optionsData = useMemo(() => {
         const parameterOptions = parameter.options ?? [];
@@ -162,22 +172,40 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     // Handler for creating custom values when allow_custom_values is true
     const handleCreateValue = useCallback(
         (newValue: string) => {
-            if (parameter.allow_custom_values && newValue.trim()) {
+            if (!parameter.allow_custom_values || !newValue.trim()) return;
+
+            const trimmedValue = newValue.trim();
+
+            if (parameter.type === 'number') {
+                const numValue = Number(trimmedValue);
+
+                if (isNaN(numValue) || !isFinite(numValue)) return;
+
                 if (parameter.multiple) {
-                    const updatedValues = [...currentValues, newValue.trim()];
-                    onParameterChange(
-                        paramKey,
-                        updatedValues as string[] | number[],
-                    );
+                    onParameterChange(paramKey, [
+                        ...currentNumberValues,
+                        numValue,
+                    ]);
                 } else {
-                    onParameterChange(paramKey, newValue.trim());
+                    onParameterChange(paramKey, numValue);
+                }
+            } else {
+                if (parameter.multiple) {
+                    onParameterChange(paramKey, [
+                        ...currentStringValues,
+                        trimmedValue,
+                    ]);
+                } else {
+                    onParameterChange(paramKey, trimmedValue);
                 }
             }
         },
         [
             parameter.allow_custom_values,
             parameter.multiple,
-            currentValues,
+            parameter.type,
+            currentStringValues,
+            currentNumberValues,
             onParameterChange,
             paramKey,
         ],
@@ -319,18 +347,31 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             // For number parameters that somehow went through string flow, convert back
             if (parameter.type === 'number' && newValues !== null) {
                 if (Array.isArray(newValues)) {
-                    finalValue = newValues.map((v) => {
-                        const num = Number(v);
-                        return isNaN(num) ? v : num;
-                    }) as string[] | number[];
+                    // Filter out invalid numbers from the array
+                    const validNumbers = newValues
+                        .map((v) => Number(v))
+                        .filter((num) => !isNaN(num) && isFinite(num));
+
+                    // Only update if we have valid numbers, otherwise keep null
+                    finalValue = validNumbers.length > 0 ? validNumbers : null;
                 } else {
                     const num = Number(newValues);
-                    finalValue = isNaN(num) ? newValues : num;
+                    // For single values, only accept valid numbers
+                    if (!isNaN(num) && isFinite(num)) {
+                        finalValue = num;
+                    } else {
+                        // Invalid number input - set to null rather than keeping invalid string
+                        finalValue = null;
+                    }
                 }
             }
 
             // Handle single value mode constraints
-            if (!parameter.multiple && Array.isArray(finalValue)) {
+            if (
+                !parameter.multiple &&
+                finalValue !== null &&
+                Array.isArray(finalValue)
+            ) {
                 finalValue =
                     finalValue.length > 0
                         ? finalValue[finalValue.length - 1]

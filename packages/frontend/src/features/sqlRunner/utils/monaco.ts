@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -111,7 +111,7 @@ export const registerCustomCompletionProvider = (
         {
             label: string;
             description?: string;
-            default?: string | number | string[] | number[];
+            default?: ParameterValue;
         }
     >,
 ) => {

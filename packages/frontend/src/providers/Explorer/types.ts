@@ -166,7 +166,7 @@ export type Action =
           type: ActionType.SET_PARAMETER;
           payload: {
               key: string;
-              value: string | number | string[] | number[] | null;
+              value: ParameterValue | null;
           };
       }
     | { type: ActionType.CLEAR_ALL_PARAMETERS }

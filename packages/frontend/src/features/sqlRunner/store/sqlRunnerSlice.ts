@@ -2,6 +2,7 @@ import {
     ChartKind,
     WarehouseTypes,
     type ApiErrorDetail,
+    type ParameterValue,
     type ParametersValuesMap,
     type RawResultRow,
     type SqlChart,
@@ -231,7 +232,7 @@ export const sqlRunnerSlice = createSlice({
             state,
             action: PayloadAction<{
                 key: string;
-                value: string | number | string[] | number[] | null;
+                value: ParameterValue | null;
             }>,
         ) => {
             const { key, value } = action.payload;

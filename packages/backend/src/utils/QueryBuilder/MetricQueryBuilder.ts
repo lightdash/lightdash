@@ -42,7 +42,6 @@ import {
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import {
-    safeReplaceParametersWithSqlBuilder,
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
@@ -1300,18 +1299,12 @@ export class MetricQueryBuilder {
             replacedSql,
             references: parameterReferences,
             missingReferences: missingParameterReferences,
-        } = this.args.parameterDefinitions
-            ? safeReplaceParametersWithTypes({
-                  sql: query,
-                  parameterValuesMap: this.args.parameters ?? {},
-                  parameterDefinitions: this.args.parameterDefinitions,
-                  sqlBuilder: this.args.warehouseSqlBuilder,
-              })
-            : safeReplaceParametersWithSqlBuilder(
-                  query,
-                  this.args.parameters ?? {},
-                  this.args.warehouseSqlBuilder,
-              );
+        } = safeReplaceParametersWithTypes({
+            sql: query,
+            parameterValuesMap: this.args.parameters ?? {},
+            parameterDefinitions: this.args.parameterDefinitions,
+            sqlBuilder: this.args.warehouseSqlBuilder,
+        });
 
         if (missingParameterReferences.size > 0) {
             warnings.push({
