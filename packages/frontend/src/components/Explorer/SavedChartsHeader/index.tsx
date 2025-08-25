@@ -335,7 +335,13 @@ const SavedChartsHeader: FC = () => {
                                     dashboardUuid={savedChart.dashboardUuid}
                                     dashboardName={savedChart.dashboardName}
                                 />
-                                <Title c="dark.6" order={5} fw={600}>
+                                <Title
+                                    c="dark.6"
+                                    order={5}
+                                    fw={600}
+                                    truncate
+                                    maw={500}
+                                >
                                     {savedChart.name}
                                 </Title>
                                 {isEditMode && userCanManageChart && (

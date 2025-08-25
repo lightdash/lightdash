@@ -1,3 +1,10 @@
+## [0.1951.1](https://github.com/lightdash/lightdash/compare/0.1951.0...0.1951.1) (2025-08-25)
+
+
+### Bug Fixes
+
+* long chart titles need to be truncated when viewing editing charts ([#16142](https://github.com/lightdash/lightdash/issues/16142)) ([ef2c71f](https://github.com/lightdash/lightdash/commit/ef2c71f83d57f46445fb98f7033e99949d57bc9d))
+
 # [0.1951.0](https://github.com/lightdash/lightdash/compare/0.1950.2...0.1951.0) (2025-08-25)
 
 
