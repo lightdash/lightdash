@@ -33,7 +33,7 @@ export const getDashboardParametersValuesMap = (
  * @param explore - The explore
  * @returns Combined parameter definitions
  */
-export const getCombinedParameterDefinitions = (
+export const getAvailableParameterDefinitions = (
     projectParameters: DbProjectParameter[],
     explore: Explore,
 ): ParameterDefinitions => {
@@ -59,15 +59,10 @@ export const getCombinedParameterDefinitions = (
  * Combine project and explore parameters
  * @param projectParameters - The project parameters
  * @param explore - The explore
- * @returns An array of available parameter names
+ * @returns Combined parameter definitions
  */
 export const combineProjectAndExploreParameters = (
     projectParameters: DbProjectParameter[],
     explore: Explore,
-): string[] => {
-    const definitions = getCombinedParameterDefinitions(
-        projectParameters,
-        explore,
-    );
-    return Object.keys(definitions);
-};
+): ParameterDefinitions =>
+    getAvailableParameterDefinitions(projectParameters, explore);

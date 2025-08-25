@@ -45,6 +45,7 @@ import {
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
+    type ParameterDefinitions,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
@@ -629,15 +630,15 @@ export class EmbedService extends BaseService {
     }
 
     /**
-     * Get all available parameters for a project and explore
+     * Get all available parameter definitions for a project and explore
      * @param projectUuid - The UUID of the project
      * @param explore - The explore to get the parameters for
-     * @returns An array of available parameters
+     * @returns Parameter definitions object
      */
     private async getAvailableParameters(
         projectUuid: string,
         explore: Explore,
-    ): Promise<string[]> {
+    ): Promise<ParameterDefinitions> {
         const projectParameters =
             await this.projectService.projectParametersModel.find(projectUuid);
 
@@ -676,7 +677,7 @@ export class EmbedService extends BaseService {
         // Filter the explore access and fields based on the user attributes
         const filteredExplore = getFilteredExplore(explore, userAttributes);
 
-        const availableParameters = await this.getAvailableParameters(
+        const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             filteredExplore,
         );
@@ -694,7 +695,7 @@ export class EmbedService extends BaseService {
                   }
                 : undefined,
             parameters: combinedParameters,
-            availableParameters,
+            availableParameterDefinitions,
         });
 
         const results =
@@ -992,7 +993,7 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
-        const availableParameters = await this.getAvailableParameters(
+        const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
         );
@@ -1004,7 +1005,7 @@ export class EmbedService extends BaseService {
                 explore,
                 metricQuery,
                 warehouseClient,
-                availableParameters,
+                availableParameterDefinitions,
                 combinedParameters,
             );
 

@@ -1358,7 +1358,7 @@ export class AsyncQueryService extends ProjectService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const availableParameters = await this.getAvailableParameters(
+        const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
         );
@@ -1373,7 +1373,7 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
-            availableParameters,
+            availableParameterDefinitions,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
