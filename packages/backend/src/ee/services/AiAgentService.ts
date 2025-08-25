@@ -82,6 +82,7 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
+import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
@@ -1062,6 +1063,46 @@ export class AiAgentService {
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
             throw new Error('Failed to generate agent thread response');
+        }
+    }
+
+    async generateThreadTitle(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<string> {
+        try {
+            // Reuse existing validation and data fetching logic
+            const { chatHistoryMessages } =
+                await this.prepareAgentThreadResponse(user, {
+                    agentUuid,
+                    threadUuid,
+                });
+
+            // Get model configuration
+            const { model } = getModel(this.lightdashConfig.ai.copilot);
+
+            // Generate title using the dedicated title generator
+            const title = await generateTitleFromMessages(
+                model,
+                chatHistoryMessages,
+            );
+
+            // Save the title to the database
+            await this.aiAgentModel.updateThreadTitle({
+                threadUuid,
+                title,
+            });
+
+            return title;
+        } catch (e) {
+            Logger.error('Failed to generate thread title:', e);
+            throw new Error('Failed to generate thread title');
         }
     }
 

@@ -8,6 +8,7 @@ import {
     useAiAgent,
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
+    useGenerateAgentThreadTitleMutation,
 } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 import { useAiAgentPageLayout } from '../../features/aiCopilot/providers/AiLayoutProvider';
 import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
@@ -62,10 +63,15 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         agentUuid,
         threadUuid,
     );
+    const { mutateAsync: generateThreadTitle } =
+        useGenerateAgentThreadTitleMutation(projectUuid!, agentUuid!);
     const isStreaming = useAiAgentThreadStreaming(threadUuid!);
 
     const handleSubmit = (prompt: string) => {
-        void createAgentThreadMessage({ prompt });
+        void Promise.all([
+            createAgentThreadMessage({ prompt }),
+            generateThreadTitle({ threadUuid: threadUuid! }),
+        ]);
     };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {

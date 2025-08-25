@@ -123,10 +123,12 @@ import { type ValidationResponse } from './types/validation';
 import type {
     ApiAiAgentArtifactResponse,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadSummaryListResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -940,8 +942,10 @@ type ApiResults =
     | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
-    | Account
-    | ApiAiAgentArtifactResponse['results'];
+    | ApiAiAgentArtifactResponse['results']
+    | ApiAiAgentThreadGenerateTitleResponse['results']
+    | ApiAiAgentThreadSummaryListResponse['results']
+    | Account;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
