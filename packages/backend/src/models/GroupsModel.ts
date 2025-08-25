@@ -9,9 +9,11 @@ import {
     NotFoundError,
     ParameterError,
     ProjectGroupAccess,
+    ProjectMemberRole,
     UnexpectedDatabaseError,
     UpdateGroupWithMembers,
     getErrorMessage,
+    isSystemRole,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
@@ -544,7 +546,16 @@ export class GroupsModel {
         role,
     }: ProjectGroupAccess): Promise<DBProjectGroupAccess> {
         const query = this.database(ProjectGroupAccessTableName)
-            .insert({ group_uuid: groupUuid, project_uuid: projectUuid, role })
+            .insert({
+                group_uuid: groupUuid,
+                project_uuid: projectUuid,
+                ...(isSystemRole(role)
+                    ? { role }
+                    : {
+                          role: ProjectMemberRole.VIEWER,
+                          role_uuid: role,
+                      }),
+            })
             .onConflict()
             .ignore()
             .returning('*');

@@ -117,44 +117,6 @@ export class RolesService extends BaseService {
         }
     }
 
-    private async buildUserRoleAssignmentResponse(
-        roleId: string,
-        roleName: string,
-        userId: string,
-        projectId: string,
-    ): Promise<RoleAssignment> {
-        const user = await this.userModel.getUserDetailsByUuid(userId);
-        return {
-            roleId,
-            roleName,
-            assigneeType: 'user',
-            assigneeId: userId,
-            assigneeName: `${user.firstName} ${user.lastName}`,
-            projectId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
-    }
-
-    private async buildGroupRoleAssignmentResponse(
-        roleId: string,
-        roleName: string,
-        groupId: string,
-        projectId: string,
-    ): Promise<RoleAssignment> {
-        const group = await this.groupsModel.getGroup(groupId);
-        return {
-            roleId,
-            roleName,
-            assigneeType: 'group',
-            assigneeId: groupId,
-            assigneeName: group.name,
-            projectId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
-    }
-
     private async validateProjectAccess(
         account: Account,
         projectUuid?: string,
@@ -299,24 +261,10 @@ export class RolesService extends BaseService {
         const userAssignments =
             await this.rolesModel.getOrganizationRoleAssignments(orgUuid);
 
-        // Format user assignments
-        const formattedUserAssignments: RoleAssignment[] = userAssignments.map(
-            (assignment) => ({
-                roleId: assignment.roleId,
-                roleName: assignment.roleName || 'Unknown Role',
-                assigneeType: 'user' as const,
-                assigneeId: assignment.assigneeId,
-                assigneeName: assignment.assigneeName,
-                organizationId: assignment.organizationId,
-                createdAt: assignment.createdAt,
-                updatedAt: assignment.createdAt, // Use createdAt since updatedAt doesn't exist
-            }),
-        );
-
         // Note: Groups don't have organization-level role assignments
         // Groups only have project-level and space-level access
 
-        return formattedUserAssignments;
+        return userAssignments;
     }
 
     /**
@@ -367,6 +315,7 @@ export class RolesService extends BaseService {
         return {
             roleId,
             roleName: role.name,
+            ownerType: isSystemRole(roleId) ? 'system' : 'user',
             assigneeType: 'user',
             assigneeId: userUuid,
             assigneeName: `${user.firstName} ${user.lastName}`,
@@ -394,8 +343,11 @@ export class RolesService extends BaseService {
         // Convert user access to unified format
         for (const userAccess of projectAccess.users) {
             assignments.push({
-                roleId: userAccess.role, // This might be role name for legacy, need to handle
-                roleName: userAccess.role,
+                roleId: userAccess.roleUuid,
+                roleName: userAccess.roleName,
+                ownerType: isSystemRole(userAccess.roleUuid)
+                    ? 'system'
+                    : 'user',
                 assigneeType: 'user',
                 assigneeId: userAccess.userUuid,
                 assigneeName: `${userAccess.firstName} ${userAccess.lastName}`,
@@ -408,8 +360,11 @@ export class RolesService extends BaseService {
         // Convert group access to unified format
         for (const groupAccess of projectAccess.groups) {
             assignments.push({
-                roleId: groupAccess.role, // This might be role name for legacy
-                roleName: groupAccess.role,
+                roleId: groupAccess.roleUuid, // This might be role name for legacy
+                roleName: groupAccess.roleName,
+                ownerType: isSystemRole(groupAccess.roleUuid)
+                    ? 'system'
+                    : 'user',
                 assigneeType: 'group',
                 assigneeId: groupAccess.groupUuid,
                 assigneeName: groupAccess.groupName,
@@ -418,7 +373,6 @@ export class RolesService extends BaseService {
                 updatedAt: new Date(),
             });
         }
-
         return assignments;
     }
 
@@ -525,13 +479,19 @@ export class RolesService extends BaseService {
                 isSystemRole: isSystemRole(roleId),
             },
         });
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
 
-        return this.buildUserRoleAssignmentResponse(
+        return {
             roleId,
-            role.name,
-            userUuid,
-            projectUuid,
-        );
+            roleName: role.name,
+            ownerType: 'user',
+            assigneeType: 'user',
+            assigneeId: userUuid,
+            assigneeName: `${user.firstName} ${user.lastName}`,
+            projectId: projectUuid,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
     }
 
     async upsertProjectGroupRoleAssignment(
@@ -576,12 +536,18 @@ export class RolesService extends BaseService {
             },
         });
 
-        return this.buildGroupRoleAssignmentResponse(
+        const group = await this.groupsModel.getGroup(groupUuid);
+        return {
             roleId,
-            role.name,
-            groupUuid,
-            projectUuid,
-        );
+            roleName: role.name,
+            ownerType: 'user',
+            assigneeType: 'group',
+            assigneeId: groupUuid,
+            assigneeName: group.name,
+            projectId: projectUuid,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
     }
 
     async deleteRole(account: Account, roleUuid: string): Promise<void> {

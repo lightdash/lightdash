@@ -1,8 +1,11 @@
+import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     isGroupWithMembers,
     type CreateProjectGroupAccess,
     type GroupWithMembers,
+    type ProjectGroupAccess,
+    type Role,
 } from '@lightdash/common';
 import { Box, Paper, Table } from '@mantine/core';
 import { IconUsersGroup } from '@tabler/icons-react';
@@ -12,14 +15,17 @@ import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
+import { useOrganizationRoles } from '../../../hooks/useOrganizationRoles';
+import {
+    useProjectGroupRoleAssignments,
+    useUpsertProjectGroupRoleAssignmentMutation,
+} from '../../../hooks/useProjectGroupRoles';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
+import useApp from '../../../providers/App/useApp';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
-import {
-    useAddProjectGroupAccessMutation,
-    useProjectGroupAccessList,
-} from '../hooks/useProjectGroupAccess';
 import AddProjectGroupAccessModal from './AddProjectGroupAccessModal';
-import ProjectGroupAccessItem from './ProjectGroupAccessItem';
+import ProjectGroupAccessItemV2 from './ProjectGroupAccessItemV2';
 
 interface ProjectGroupAccessProps {
     projectUuid: string;
@@ -27,13 +33,14 @@ interface ProjectGroupAccessProps {
     onAddProjectGroupAccessClose: () => void;
 }
 
-const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
+const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
     projectUuid,
     isAddingProjectGroupAccess,
     onAddProjectGroupAccessClose,
 }) => {
+    const { user } = useApp();
+    const ability = useAbilityContext();
     const { cx, classes } = useTableStyles();
-
     const { showToastSuccess } = useToaster();
 
     const userGroupsFeatureFlagQuery = useFeatureFlag(
@@ -55,19 +62,55 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
     );
 
     const {
-        data: projectGroupAccessList,
+        data: projectGroupRoleAssignments,
         isInitialLoading: isLoadingProjectGroupAccessList,
-    } = useProjectGroupAccessList(projectUuid, {
-        enabled: isGroupManagementEnabled,
-    });
+    } = useProjectGroupRoleAssignments(projectUuid);
+
+    // Convert v2 role assignments to legacy ProjectGroupAccess format for UI compatibility
+    const projectGroupAccessList = useMemo(() => {
+        if (!projectGroupRoleAssignments) return [];
+
+        return projectGroupRoleAssignments.map(
+            (assignment): ProjectGroupAccess => ({
+                projectUuid,
+                groupUuid: assignment.assigneeId,
+                role: assignment.roleId, // Use roleId (UUID) instead of roleName for custom roles
+            }),
+        );
+    }, [projectGroupRoleAssignments, projectUuid]);
+
+    const { data: organizationRoles } = useOrganizationRoles();
+
+    const rolesData = useMemo(() => {
+        if (!organizationRoles) return [];
+        return organizationRoles.map(
+            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
+                value: role.roleUuid,
+                label: role.name,
+                group:
+                    role.ownerType === 'system' ? 'System role' : 'Custom role',
+            }),
+        );
+    }, [organizationRoles]);
+
+    const canManageProjectAccess = ability.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const { mutateAsync: addProjectGroupAccess, isLoading: isSubmitting } =
-        useAddProjectGroupAccessMutation();
+        useUpsertProjectGroupRoleAssignmentMutation(projectUuid);
 
     const handleAddProjectGroupAccess = async (
         formData: CreateProjectGroupAccess,
     ) => {
-        await addProjectGroupAccess(formData);
+        await addProjectGroupAccess({
+            groupId: formData.groupUuid,
+            roleId: formData.role,
+        });
         showToastSuccess({ title: 'Group access added' });
         onAddProjectGroupAccessClose();
     };
@@ -137,12 +180,16 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
                                     return (
                                         group &&
                                         isGroupWithMembers(group) && (
-                                            <ProjectGroupAccessItem
+                                            <ProjectGroupAccessItemV2
                                                 key={
                                                     projectGroupAccess.groupUuid
                                                 }
                                                 access={projectGroupAccess}
                                                 group={group}
+                                                organizationRoles={rolesData}
+                                                canManageProjectAccess={
+                                                    canManageProjectAccess
+                                                }
                                             />
                                         )
                                     );
@@ -158,6 +205,7 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
                     projectUuid={projectUuid}
                     totalNumberOfGroups={groups?.length || 0}
                     availableGroups={availableGroups}
+                    organizationRoles={rolesData}
                     isSubmitting={isSubmitting}
                     onSubmit={handleAddProjectGroupAccess}
                     onClose={() => onAddProjectGroupAccessClose()}
@@ -167,4 +215,4 @@ const ProjectGroupAccess: FC<ProjectGroupAccessProps> = ({
     );
 };
 
-export default ProjectGroupAccess;
+export default ProjectGroupAccessComponent;

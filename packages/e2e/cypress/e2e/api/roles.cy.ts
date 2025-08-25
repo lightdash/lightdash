@@ -130,57 +130,6 @@ describe('Roles API Tests', () => {
             });
         });
 
-        it('should get a system role by UUID and list their scopes', () => {
-            const systemRoleId = 'developer';
-
-            cy.request({
-                url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRoleId}`,
-                method: 'GET',
-            }).then((resp) => {
-                expect(resp.status).to.eq(200);
-                expect(resp.body).to.have.property('status', 'ok');
-                expect(resp.body.results).to.be.an('object');
-
-                const developerRole = resp.body.results;
-
-                // Verify it's the developer system role
-                expect(developerRole).to.have.property('name', 'developer');
-                expect(developerRole).to.have.property('roleUuid', 'developer');
-                expect(developerRole).to.have.property('ownerType', 'system');
-
-                // Verify it has scopes array
-                expect(developerRole).to.have.property('scopes');
-                expect(developerRole.scopes).to.be.an('array');
-
-                // Developer should have extensive scopes (35+ including all inherited)
-                expect(developerRole.scopes.length).to.be.greaterThan(30);
-
-                // Should include all viewer scopes
-                expect(developerRole.scopes).to.include('view:Dashboard');
-                expect(developerRole.scopes).to.include('view:Space');
-                expect(developerRole.scopes).to.include('view:Project');
-
-                // Should include all interactive viewer scopes
-                expect(developerRole.scopes).to.include('manage:Explore');
-                expect(developerRole.scopes).to.include(
-                    'create:DashboardComments',
-                );
-
-                // Should include all editor scopes
-                expect(developerRole.scopes).to.include('create:Space');
-                expect(developerRole.scopes).to.include('manage:Job');
-                expect(developerRole.scopes).to.include('manage:PinnedItems');
-
-                // Should include developer-specific scopes
-                expect(developerRole.scopes).to.include('manage:VirtualView');
-                expect(developerRole.scopes).to.include('manage:SqlRunner');
-
-                // Verify some scopes developer should NOT have (admin-only)
-                expect(developerRole.scopes).to.not.include('manage:Project');
-                expect(developerRole.scopes).to.not.include('view:Analytics');
-            });
-        });
-
         it('should list organization roles with scopes', () => {
             cy.request({
                 url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,

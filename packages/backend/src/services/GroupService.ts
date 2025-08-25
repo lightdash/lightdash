@@ -8,6 +8,7 @@ import {
     GroupWithMembers,
     LightdashUser,
     ProjectGroupAccess,
+    ProjectMemberRole,
     SessionUser,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
@@ -306,7 +307,7 @@ export class GroupsService extends BaseService {
         return {
             projectUuid,
             groupUuid: groupProjectAccess.group_uuid,
-            role: groupProjectAccess.role,
+            role: groupProjectAccess.role_uuid || groupProjectAccess.role,
         };
     }
 
@@ -407,7 +408,7 @@ export class GroupsService extends BaseService {
         return {
             projectUuid: updated.project_uuid,
             groupUuid: updated.group_uuid,
-            role: updated.role,
+            role: updated.role_uuid || updated.role,
         };
     }
 }
