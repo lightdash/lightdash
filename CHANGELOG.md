@@ -1,3 +1,10 @@
+# [0.1951.0](https://github.com/lightdash/lightdash/compare/0.1950.2...0.1951.0) (2025-08-25)
+
+
+### Features
+
+* pre-fill existing tab name during edit ([#16178](https://github.com/lightdash/lightdash/issues/16178)) ([3cf8a8e](https://github.com/lightdash/lightdash/commit/3cf8a8e5ff3564ca41321897d5b397dbd0a851b4))
+
 ## [0.1950.2](https://github.com/lightdash/lightdash/compare/0.1950.1...0.1950.2) (2025-08-25)
 
 
