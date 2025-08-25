@@ -339,7 +339,7 @@ const SavedChartsHeader: FC = () => {
                                     order={5}
                                     fw={600}
                                     truncate
-                                    maw={400}
+                                    maw={500}
                                 >
                                     {savedChart.name}
                                 </Title>
