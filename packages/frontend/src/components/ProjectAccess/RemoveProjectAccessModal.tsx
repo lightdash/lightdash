@@ -5,7 +5,7 @@ import { type ProjectUserWithRole } from '../../hooks/useProjectUsersWithRoles';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
-    user: ProjectUserWithRole;
+    user: Pick<ProjectUserWithRole, 'email'>;
     onDelete: () => void;
     onClose: () => void;
 };

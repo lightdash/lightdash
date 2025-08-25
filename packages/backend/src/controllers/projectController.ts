@@ -250,6 +250,7 @@ export class ProjectController extends BaseController {
 
     /**
      * Update a user's access to a project
+     * @deprecated use ProjectRolesController.UpdateProjectUserRoleAssignment instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -278,6 +279,7 @@ export class ProjectController extends BaseController {
 
     /**
      * Remove a user's access to a project
+     * @deprecated use ProjectRolesController.DeleteProjectUserRoleAssignment instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
