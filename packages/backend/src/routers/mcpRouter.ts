@@ -6,6 +6,7 @@ import express from 'express';
 import { IncomingMessage } from 'http';
 
 import {
+    ForbiddenError,
     getErrorMessage,
     LightdashError,
     MissingConfigError,
@@ -64,6 +65,13 @@ mcpRouter.all(
     async (req, res) => {
         try {
             const mcpService = getMcpService(req);
+
+            // Check if MCP is enabled (either via config or AI Copilot flag)
+            const isEnabled = await mcpService.isEnabled(req.user!);
+            if (!isEnabled) {
+                throw new ForbiddenError('MCP is not enabled');
+            }
+
             const mcpServer = mcpService.getServer();
 
             if (req.method === 'GET') {
