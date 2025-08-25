@@ -5,6 +5,7 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadGenerateResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
@@ -318,6 +319,35 @@ export class AiAgentController extends BaseController {
          * Hack to get the response object from the request
          */
         stream.pipeDataStreamToResponse(req.res!);
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/generate')
+    @OperationId('generateAgentThreadResponse')
+    async generateAgentThreadResponse(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<ApiAiAgentThreadGenerateResponse> {
+        this.setStatus(200);
+
+        const response =
+            await this.getAiAgentService().generateAgentThreadResponse(
+                req.user!,
+                {
+                    agentUuid,
+                    threadUuid,
+                },
+            );
+
+        return {
+            status: 'ok',
+            results: {
+                response,
+            },
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
