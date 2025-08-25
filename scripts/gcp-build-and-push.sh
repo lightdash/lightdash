@@ -11,11 +11,34 @@ fi
 version=$(cat package.json | jq -r '.version')
 echo "fork version: $version"
 timestamp=$(date +%Y.%m.%d-%H.%M.%S)
-image="us-docker.pkg.dev/lightdash-containers/lightdash/lightdash"
+
+# Primary registry (always US)
+PRIMARY_REGION="us"
+image="${PRIMARY_REGION}-docker.pkg.dev/lightdash-containers/lightdash/lightdash"
+
+# Additional regions to replicate to
+# Must be configured via GCP_REPLICA_REGIONS environment variable (comma-separated)
+# Format: "region-docker.pkg.dev" prefix (without -docker.pkg.dev suffix)
+if [ -z "$GCP_REPLICA_REGIONS" ]; then
+    echo "Warning: GCP_REPLICA_REGIONS not set. No image replication will be performed."
+    echo "Set GCP_REPLICA_REGIONS to enable replication (e.g., 'europe-west2,asia-northeast1')"
+    REPLICA_REGIONS=()
+else
+    # Parse comma-separated environment variable into array
+    IFS=',' read -ra REPLICA_REGIONS <<< "$GCP_REPLICA_REGIONS"
+    echo "Replicating to regions: ${REPLICA_REGIONS[*]}"
+fi
 
 echo "Building with tags: $version-commercial, beta, $timestamp"
 
-gcloud auth configure-docker us-docker.pkg.dev
+# Configure Docker authentication for primary region
+gcloud auth configure-docker "${PRIMARY_REGION}-docker.pkg.dev"
+
+# Configure Docker authentication for all replica regions
+for region in "${REPLICA_REGIONS[@]}"; do
+    echo "Configuring Docker authentication for ${region}..."
+    gcloud auth configure-docker "${region}-docker.pkg.dev"
+done
 
 # Check if Sentry environment variables are set
 SENTRY_BUILD_ARGS=""
@@ -37,6 +60,28 @@ docker build . $SENTRY_BUILD_ARGS -t "$image:beta" -t "$image:$timestamp" -t "$i
 for tag in "$version-commercial" "beta" "$timestamp"; do
     docker push "$image:$tag"
 done
+
+# Install gcrane if not already installed (only if we have regions to replicate to)
+if [ ${#REPLICA_REGIONS[@]} -gt 0 ]; then
+    if ! command -v gcrane &> /dev/null; then
+        echo "Installing gcrane..."
+        go install github.com/google/go-containerregistry/cmd/gcrane@latest
+        export PATH="$(go env GOPATH)/bin:$PATH"
+    fi
+    
+    # Replicate images to all configured regions
+    for region in "${REPLICA_REGIONS[@]}"; do
+        echo "Replicating images to ${region}..."
+        replica_image="${region}-docker.pkg.dev/lightdash-containers/lightdash/lightdash"
+        
+        for tag in "$version-commercial" "beta" "$timestamp"; do
+            echo "  Replicating tag ${tag} to ${region}..."
+            gcrane cp "$image:$tag" "$replica_image:$tag"
+        done
+        
+        echo "Completed replication to ${region}"
+    done
+fi
 
 # Delete images to avoid filling up disk space
 for tag in "$version-commercial" "beta" "$timestamp"; do
