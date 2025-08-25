@@ -22,6 +22,7 @@ export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
         dateZoom?: DateZoom;
+        pivotConfiguration?: PivotConfiguration;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =

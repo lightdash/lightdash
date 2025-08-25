@@ -162,6 +162,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
                 parameters: body.parameters,
+                pivotConfiguration: body.pivotConfiguration,
             });
 
         return {
