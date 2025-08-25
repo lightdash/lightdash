@@ -9684,6 +9684,9 @@
             },
             "SchedulerCsvOptions": {
                 "properties": {
+                    "asAttachment": {
+                        "type": "boolean"
+                    },
                     "limit": {
                         "anyOf": [
                             {

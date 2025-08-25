@@ -3,6 +3,7 @@ import {
     InviteLink,
     PasswordResetLink,
     ProjectMemberRole,
+    SchedulerFormat,
     SessionUser,
     SmptError,
 } from '@lightdash/common';
@@ -53,6 +54,22 @@ export default class EmailClient {
         if (this.lightdashConfig.smtp) {
             this.createTransporter();
         }
+    }
+
+    private static createFileAttachment(
+        attachment: AttachmentUrl,
+        format?: SchedulerFormat,
+    ): Mail.Attachment {
+        const contentType =
+            format === SchedulerFormat.XLSX
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'text/csv';
+
+        return {
+            filename: attachment.filename,
+            path: attachment.localPath || attachment.path,
+            contentType,
+        };
     }
 
     private createTransporter(): void {
@@ -363,8 +380,17 @@ export default class EmailClient {
         schedulerUrl: string,
         includeLinks: boolean,
         expirationDays?: number,
+        asAttachment?: boolean,
+        format?: SchedulerFormat,
     ) {
         const csvUrl = attachment.path;
+        const attachments =
+            asAttachment &&
+            (attachment.localPath || attachment.path) &&
+            attachment.path !== '#no-results'
+                ? [EmailClient.createFileAttachment(attachment, format)]
+                : undefined;
+
         return this.sendEmail({
             to: recipient,
             subject,
@@ -385,8 +411,11 @@ export default class EmailClient {
                 schedulerUrl,
                 expirationDays,
                 includeLinks,
+                hasAttachment: attachments && attachments.length > 0,
+                attachmentCount: attachments?.length || 0,
             },
             text: title,
+            attachments,
         });
     }
 
@@ -403,6 +432,8 @@ export default class EmailClient {
         schedulerUrl: string,
         includeLinks: boolean,
         expirationDays?: number,
+        asAttachment?: boolean,
+        format?: SchedulerFormat,
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -411,6 +442,18 @@ export default class EmailClient {
         const truncatedCsvUrls = attachments.filter(
             (attachment) => attachment.truncated,
         );
+
+        const emailAttachments = asAttachment
+            ? csvUrls
+                  .filter(
+                      (attachment) =>
+                          (attachment.localPath || attachment.path) &&
+                          attachment.path !== '#no-results',
+                  )
+                  .map((attachment) =>
+                      EmailClient.createFileAttachment(attachment, format),
+                  )
+            : undefined;
 
         return this.sendEmail({
             to: recipient,
@@ -432,8 +475,11 @@ export default class EmailClient {
                 schedulerUrl,
                 expirationDays,
                 includeLinks,
+                hasAttachments: emailAttachments && emailAttachments.length > 0,
+                attachmentCount: emailAttachments?.length || 0,
             },
             text: title,
+            attachments: emailAttachments,
         });
     }
 
