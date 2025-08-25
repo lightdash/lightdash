@@ -65,8 +65,17 @@ export default class EmailClient {
                 ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 : 'text/csv';
 
+        const fileExtension =
+            format === SchedulerFormat.XLSX
+                ? SchedulerFormat.XLSX
+                : SchedulerFormat.CSV;
+
+        const fileName = attachment.filename.endsWith(fileExtension)
+            ? attachment.filename
+            : `${attachment.filename}.${fileExtension}`;
+
         return {
-            filename: attachment.filename,
+            filename: fileName,
             path: attachment.localPath || attachment.path,
             contentType,
         };
