@@ -71,7 +71,8 @@ export const ConversationsList: FC<ConversationsListProps> = ({
                                 }}
                             >
                                 <Table.Td>
-                                    {thread.firstMessage.message}
+                                    {thread.title ??
+                                        thread.firstMessage.message}
                                 </Table.Td>
                                 <Table.Td>{thread.user.name}</Table.Td>
                                 <Table.Td>
