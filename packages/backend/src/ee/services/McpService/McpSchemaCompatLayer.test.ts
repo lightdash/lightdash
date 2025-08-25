@@ -119,7 +119,7 @@ describe('McpSchemaCompatLayer', () => {
             });
         });
 
-        test('should handle nullable-objecct', () => {
+        test('should handle nullable-object', () => {
             expect(
                 mapped.parse({
                     name: 'John',
