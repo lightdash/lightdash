@@ -160,7 +160,9 @@ export function assertEmbeddedAuth(
     account: Account | undefined,
 ): asserts account is AnonymousAccount {
     if (account?.authentication.type !== 'jwt') {
-        throw new ForbiddenError('Account is not an embedded account');
+        throw new ForbiddenError(
+            `${account?.authentication.type} Account is not jwt auth`,
+        );
     }
 }
 
@@ -168,7 +170,9 @@ export function assertSessionAuth(
     account: Account | undefined,
 ): asserts account is SessionAccount {
     if (account?.authentication.type !== 'session') {
-        throw new ForbiddenError('Account is not a session account');
+        throw new ForbiddenError(
+            `${account?.authentication.type} Account is not session auth`,
+        );
     }
 }
 

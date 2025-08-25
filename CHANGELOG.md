@@ -1,3 +1,38 @@
+# [0.1951.0](https://github.com/lightdash/lightdash/compare/0.1950.2...0.1951.0) (2025-08-25)
+
+
+### Features
+
+* pre-fill existing tab name during edit ([#16178](https://github.com/lightdash/lightdash/issues/16178)) ([3cf8a8e](https://github.com/lightdash/lightdash/commit/3cf8a8e5ff3564ca41321897d5b397dbd0a851b4))
+
+## [0.1950.2](https://github.com/lightdash/lightdash/compare/0.1950.1...0.1950.2) (2025-08-25)
+
+
+### Bug Fixes
+
+* improve schema compat layer for MCP ([#16569](https://github.com/lightdash/lightdash/issues/16569)) ([90589ea](https://github.com/lightdash/lightdash/commit/90589eae2a3fe6fe375a8c2e61218edd882e0c62))
+
+## [0.1950.1](https://github.com/lightdash/lightdash/compare/0.1950.0...0.1950.1) (2025-08-25)
+
+
+### Bug Fixes
+
+* add file extension to file name ([#16571](https://github.com/lightdash/lightdash/issues/16571)) ([1026443](https://github.com/lightdash/lightdash/commit/1026443a627bc757130c34dce32a2b88f5f1161d))
+
+# [0.1950.0](https://github.com/lightdash/lightdash/compare/0.1949.2...0.1950.0) (2025-08-25)
+
+
+### Features
+
+* allow attaching csv's to emails ([#16548](https://github.com/lightdash/lightdash/issues/16548)) ([acd10ec](https://github.com/lightdash/lightdash/commit/acd10ec143f915c850a274aeb74f3e42c816fbb1))
+
+## [0.1949.2](https://github.com/lightdash/lightdash/compare/0.1949.1...0.1949.2) (2025-08-25)
+
+
+### Bug Fixes
+
+* move new role system endpoints to oss ([#16563](https://github.com/lightdash/lightdash/issues/16563)) ([667efe5](https://github.com/lightdash/lightdash/commit/667efe54c0581b799b5568f823082470ea579ced))
+
 ## [0.1949.1](https://github.com/lightdash/lightdash/compare/0.1949.0...0.1949.1) (2025-08-22)
 
 

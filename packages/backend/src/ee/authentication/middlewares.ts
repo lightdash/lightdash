@@ -10,6 +10,8 @@ import {
 } from '@lightdash/common';
 import { RequestHandler } from 'express';
 import { fromServiceAccount } from '../../auth/account/account';
+import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
+import Logger from '../../logging/logger';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 const getRoleForScopes = (scopes: ServiceAccountScope[]) => {
@@ -154,7 +156,15 @@ export const authenticateServiceAccount: RequestHandler = async (
             createdAt: serviceAccount.createdAt,
             updatedAt: serviceAccount.createdAt,
         };
+
+        if (req?.account?.isAuthenticated()) {
+            Logger.warn(
+                buildAccountExistsWarning('ServiceAccount'),
+                req.account?.authentication?.type,
+            );
+        }
         req.account = fromServiceAccount(req.user!, token);
+
         next();
     } catch (error) {
         next(new AuthorizationError(getErrorMessage(error)));

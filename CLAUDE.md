@@ -43,7 +43,7 @@ pnpm -F frontend typecheck
 
 ```bash
 pnpm -F common test
-pnpm -F backend test:dev
+pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
 
 **API Generation:**
@@ -130,6 +130,14 @@ pnpm generate-api
     -   Backwards compatibility requirements
     -   API design patterns where omission has semantic meaning
     -   Configuration objects with sensible defaults
+
+## TypeScript Utilities
+
+-   **Use `assertUnreachable` for exhaustive switch statements**: When handling union types in switch statements, use `assertUnreachable` in the default case to ensure TypeScript catches missing cases
+    -   ✅ Good: `default: return assertUnreachable(value, 'Unknown status');`
+    -   ❌ Avoid: `default: throw new Error('Unknown status');`
+    -   Import from `@lightdash/common`: `import { assertUnreachable } from '@lightdash/common';`
+    -   This provides compile-time safety when new union members are added
 
 ## Development Troubleshooting
 

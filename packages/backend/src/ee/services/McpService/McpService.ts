@@ -203,13 +203,7 @@ export class McpService extends BaseService {
                 ) as AnyType,
             },
             async (_args, context) => {
-                // Transform args back to match expected interface
-                // Convert optional fields back to nullable for internal processing
-                const args: ToolFindExploresArgs = {
-                    ..._args,
-                    exploreName: _args.exploreName ?? null,
-                    page: _args.page ?? null,
-                } as ToolFindExploresArgs;
+                const args = _args as ToolFindExploresArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,
@@ -573,7 +567,6 @@ export class McpService extends BaseService {
                 ) as AnyType,
             },
             async (_args, context) => {
-                // No transformation needed - this schema already uses .optional() for filters
                 const args = _args as ToolRunMetricQueryArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
@@ -627,12 +620,7 @@ export class McpService extends BaseService {
                 ) as AnyType,
             },
             async (_args, context) => {
-                // Transform args back to match expected interface
-                const args: ToolSearchFieldValuesArgs = {
-                    ..._args,
-                    query: _args.query ?? null,
-                    filters: _args.filters ?? null,
-                } as ToolSearchFieldValuesArgs;
+                const args = _args as ToolSearchFieldValuesArgs;
 
                 const projectUuid = await this.resolveProjectUuid(
                     context as McpProtocolContext,

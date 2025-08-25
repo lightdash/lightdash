@@ -15,10 +15,10 @@ Content-Type: application/json
 ### Project UUID: 3675b69e-8324-4110-bdca-059031aa8da3
 ###
 ### This file demonstrates the NEW NAMESPACE role management API:
-### 1. Role Management: /api/v2/roles
-### 2. Organization Role Assignments: /api/v2/orgs/{orgId}/roles
-### 3. Project Role Assignments: /api/v2/projects/{projectId}/roles
-### 4. Renamed role-assignments to assignments
+### 1. Role Management: /api/v2/orgs/{orgId}/roles
+### 2. Organization Role Assignments: /api/v2/orgs/{orgId}/roles/assignments
+### 3. Project Role Assignments: /api/v2/projects/{projectId}/roles/assignments
+### 4. All role operations now require organization scope
 ###
 
 @orgId = 172a2270-000f-42be-9c68-c4752c23ae51
@@ -60,11 +60,11 @@ Content-Type: application/json
 @roleId = f1e22530-44c0-440f-a4d7-91c01fbdb0a2
 
 ### STEP 4: Get specific role details
-GET {{baseUrl}}/api/v2/roles/{{roleId}}
+GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
 
 
 ### STEP 4.1: Get specific role details for system role
-GET {{baseUrl}}/api/v2/roles/developer
+GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/developer
 
 ### STEP 5: Update role details (name/description) - Organization scoped
 PATCH {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
@@ -80,7 +80,7 @@ Content-Type: application/json
 ###
 
 ### STEP 7: Add scopes to define what the role can do
-POST {{baseUrl}}/api/v2/roles/{{roleId}}/scopes
+POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}/scopes
 Content-Type: application/json
 
 {
@@ -91,10 +91,10 @@ Content-Type: application/json
 }
 
 ### STEP 7b: Get specific role details again to see new scopes
-GET {{baseUrl}}/api/v2/roles/{{roleId}}
+GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
 
 ### STEP 8: Add more scopes to expand role permissions
-POST {{baseUrl}}/api/v2/roles/{{roleId}}/scopes
+POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}/scopes
 Content-Type: application/json
 
 {
@@ -105,7 +105,7 @@ Content-Type: application/json
 }
 
 ### STEP 9: Remove a specific scope to restrict permissions
-DELETE {{baseUrl}}/api/v2/roles/{{roleId}}/scopes/manage_space
+DELETE {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}/scopes/manage_space
 
 ###
 ### ORGANIZATION-LEVEL ROLE ASSIGNMENTS (NEW NAMESPACE)
@@ -211,4 +211,4 @@ DELETE {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/user/{{userId
 DELETE {{baseUrl}}/api/v2/projects/{{projectId}}/roles/assignments/group/{{groupId}}
 
 ### STEP 26: Delete the custom role (final cleanup)
-DELETE {{baseUrl}}/api/v2/roles/{{roleId}}
+DELETE {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
