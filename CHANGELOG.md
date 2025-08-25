@@ -1,3 +1,10 @@
+## [0.1949.2](https://github.com/lightdash/lightdash/compare/0.1949.1...0.1949.2) (2025-08-25)
+
+
+### Bug Fixes
+
+* move new role system endpoints to oss ([#16563](https://github.com/lightdash/lightdash/issues/16563)) ([667efe5](https://github.com/lightdash/lightdash/commit/667efe54c0581b799b5568f823082470ea579ced))
+
 ## [0.1949.1](https://github.com/lightdash/lightdash/compare/0.1949.0...0.1949.1) (2025-08-22)
 
 
