@@ -129,6 +129,35 @@ const sortTableCalcs = (
     return result;
 };
 
+const findMostRecentCteContaining = (
+    tableCalcName: string,
+    cteOrder: string[],
+    cteNames: Map<string, string>,
+    currentIndex: number,
+): string => {
+    // Find the most recent CTE (before current) that contains this table calc
+    // We work backwards from the current position
+    for (let i = currentIndex - 1; i >= 0; i -= 1) {
+        const calcName = cteOrder[i];
+        if (cteNames.has(calcName) && calcName === tableCalcName) {
+            // Found the table calc, now find the most recent CTE that contains it
+            // Since each CTE includes all previous calculations, any CTE after this one
+            // (but before current) will contain it
+            for (let j = currentIndex - 1; j >= i; j -= 1) {
+                const candidateName = cteOrder[j];
+                if (cteNames.has(candidateName)) {
+                    return cteNames.get(candidateName)!;
+                }
+            }
+            // Fallback to the table calc's own CTE
+            return cteNames.get(calcName)!;
+        }
+    }
+
+    // If not found in order, return its own CTE name
+    return cteNames.get(tableCalcName) || `tc_${tableCalcName}`;
+};
+
 const compileTableCalculation = (
     tableCalculation: TableCalculation,
     validFieldIds: string[],
@@ -137,6 +166,8 @@ const compileTableCalculation = (
         string,
         CompiledTableCalculation
     > = new Map(),
+    cteNames: Map<string, string> = new Map(),
+    cteOrder: string[] = [], // Order of CTEs to find most recent one containing a column
 ): CompiledTableCalculation => {
     if (validFieldIds.includes(tableCalculation.name)) {
         throw new CompileError(
@@ -150,8 +181,22 @@ const compileTableCalculation = (
         (_, p1) => {
             // Check if this is a reference to another table calculation
             if (compiledTableCalculations.has(p1)) {
+                // If this table calc has a CTE, reference it from the most recent CTE that contains it
+                if (cteNames.has(p1)) {
+                    // Find the most recent CTE that contains this table calculation
+                    const currentIndex = cteOrder.indexOf(
+                        tableCalculation.name,
+                    );
+                    const mostRecentCte = findMostRecentCteContaining(
+                        p1,
+                        cteOrder,
+                        cteNames,
+                        currentIndex,
+                    );
+                    return `${mostRecentCte}.${quoteChar}${p1}${quoteChar}`;
+                }
+                // Otherwise, inline the calculation (for simple cases without dependencies)
                 const referencedTableCalc = compiledTableCalculations.get(p1)!;
-                // Wrap the referenced table calculation SQL in parentheses to preserve precedence
                 return `(${referencedTableCalc.compiledSql})`;
             }
 
@@ -179,19 +224,41 @@ const compileTableCalculations = (
     validFieldIds: string[],
     quoteChar: string,
 ): CompiledTableCalculation[] => {
+    if (tableCalculations.length === 0) {
+        return [];
+    }
+
     // Build dependency graph to check for circular dependencies
     const dependencyGraph =
         buildTableCalculationDependencyGraph(tableCalculations);
     detectCircularDependencies(dependencyGraph);
 
     const compiledTableCalculations: CompiledTableCalculation[] = [];
-
-    // Create a map to track compiled table calculations. We'll go through the
-    // dependency graph first, then add any table calculations that weren't in it.
     const compiledTableCalcMap = new Map<string, CompiledTableCalculation>();
+    const cteNames = new Map<string, string>(); // Map of table calc name to CTE name
 
     // Sort them so we compile them in the correct order
     const sortedTableCalcNames = sortTableCalcs(dependencyGraph);
+
+    // Determine which table calculations need CTEs (have dependencies on other table calcs)
+    const tableCalcsNeedingCtes = new Set<string>();
+    for (const dependency of dependencyGraph) {
+        const hasTableCalcDependencies = dependency.dependencies.some((dep) =>
+            dependencyGraph.some((d) => d.name === dep),
+        );
+        if (hasTableCalcDependencies) {
+            tableCalcsNeedingCtes.add(dependency.name);
+            // Also mark dependencies as needing CTEs
+            dependency.dependencies.forEach((dep) => {
+                if (dependencyGraph.some((d) => d.name === dep)) {
+                    tableCalcsNeedingCtes.add(dep);
+                }
+            });
+        }
+    }
+
+    let currentCteAlias = 'metrics'; // Start with base metrics CTE
+
     for (const calcName of sortedTableCalcNames) {
         const tableCalculation = tableCalculations.find(
             (tc) => tc.name === calcName,
@@ -202,9 +269,30 @@ const compileTableCalculations = (
                 validFieldIds,
                 quoteChar,
                 compiledTableCalcMap,
+                cteNames,
+                sortedTableCalcNames, // Pass the order array
             );
             compiledTableCalcMap.set(calcName, compiled);
             compiledTableCalculations.push(compiled);
+
+            // If this table calc needs a CTE, create one and attach it to the compiled table calculation
+            if (tableCalcsNeedingCtes.has(calcName)) {
+                const cteName = `tc_${calcName}`;
+                cteNames.set(calcName, cteName);
+
+                // Create CTE that extends the previous CTE
+                const selectColumns = [
+                    '*',
+                    `  ${compiled.compiledSql} AS ${quoteChar}${calcName}${quoteChar}`,
+                ];
+                const cteDefinition = `${cteName} AS (\n  SELECT\n${selectColumns.join(
+                    ',\n',
+                )}\n  FROM ${currentCteAlias}\n)`;
+
+                // Attach CTE to the compiled table calculation
+                compiled.cte = cteDefinition;
+                currentCteAlias = cteName;
+            }
         }
     }
 
@@ -216,6 +304,8 @@ const compileTableCalculations = (
                 validFieldIds,
                 quoteChar,
                 compiledTableCalcMap,
+                cteNames,
+                sortedTableCalcNames,
             );
             compiledTableCalcMap.set(tableCalculation.name, compiled);
             compiledTableCalculations.push(compiled);
