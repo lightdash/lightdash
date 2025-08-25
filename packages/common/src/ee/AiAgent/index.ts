@@ -227,6 +227,13 @@ export type ApiAiAgentStartThreadResponse = {
     };
 };
 
+export type ApiAiAgentThreadGenerateResponse = {
+    status: 'ok';
+    results: {
+        response: string;
+    };
+};
+
 export type ApiAiAgentThreadMessageViz = {
     type: AiResultType;
     metricQuery: AiMetricQuery;
