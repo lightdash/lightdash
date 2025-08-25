@@ -57,15 +57,3 @@ export const getAvailableParameterDefinitions = (
         ...exploreParameterDefinitions,
     };
 };
-
-/**
- * Combine project and explore parameters
- * @param projectParameters - The project parameters
- * @param explore - The explore
- * @returns Combined parameter definitions
- */
-export const combineProjectAndExploreParameters = (
-    projectParameters: DbProjectParameter[],
-    explore: Explore,
-): ParameterDefinitions =>
-    getAvailableParameterDefinitions(projectParameters, explore);

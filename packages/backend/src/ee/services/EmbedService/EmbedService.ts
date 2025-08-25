@@ -61,7 +61,7 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
 import {
-    combineProjectAndExploreParameters,
+    getAvailableParameterDefinitions,
     getDashboardParametersValuesMap,
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
@@ -642,7 +642,7 @@ export class EmbedService extends BaseService {
         const projectParameters =
             await this.projectService.projectParametersModel.find(projectUuid);
 
-        return combineProjectAndExploreParameters(projectParameters, explore);
+        return getAvailableParameterDefinitions(projectParameters, explore);
     }
 
     private async _runEmbedQuery({

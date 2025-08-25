@@ -236,11 +236,7 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
-import { ValidationService } from '../ValidationService/ValidationService';
-import {
-    combineProjectAndExploreParameters,
-    getAvailableParameterDefinitions,
-} from './parameters';
+import { getAvailableParameterDefinitions } from './parameters';
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1796,7 +1792,6 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
             parameters,
-            availableParameters,
             parameterDefinitions: availableParameterDefinitions,
         });
 
@@ -1819,7 +1814,7 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
 
-        return combineProjectAndExploreParameters(projectParameters, explore);
+        return getAvailableParameterDefinitions(projectParameters, explore);
     }
 
     async compileQuery(
