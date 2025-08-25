@@ -93,6 +93,7 @@ import PrometheusMetrics from '../../prometheus';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
+import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import {
     ReferenceMap,
     SqlQueryBuilder,
@@ -1482,18 +1483,21 @@ export class AsyncQueryService extends ProjectService {
                         warehouseCredentialsType,
                     );
 
+                    const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+                        warehouseCredentialsType,
+                        warehouseCredentials.startOfWeek,
+                    );
+
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
-                        pivotedQuery =
-                            await ProjectService.applyPivotToSqlQuery({
-                                warehouseType: warehouseCredentialsType,
-                                sql: compiledQuery,
-                                indexColumn: pivotConfiguration.indexColumn,
-                                valuesColumns: pivotConfiguration.valuesColumns,
-                                groupByColumns:
-                                    pivotConfiguration.groupByColumns,
-                                sortBy: pivotConfiguration.sortBy,
-                            });
+                        const pivotQueryBuilder = new PivotQueryBuilder(
+                            compiledQuery,
+                            pivotConfiguration,
+                            warehouseSqlBuilder,
+                            args.metricQuery.limit,
+                        );
+
+                        pivotedQuery = pivotQueryBuilder.toSql();
                     }
 
                     const query = pivotedQuery || compiledQuery;
