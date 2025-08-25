@@ -1,9 +1,9 @@
 import { AbilityBuilder } from '@casl/ability';
 import {
     CreateEmbedJwt,
-    Embed,
     MemberAbility,
     OrganizationMemberRole,
+    OssEmbed,
     SessionUser,
     UserAccessControls,
 } from '@lightdash/common';
@@ -13,9 +13,21 @@ import { fromJwt, fromSession } from './account';
 
 describe('account', () => {
     describe('fromJwt', () => {
-        const mockOrganization: Embed['organization'] = {
-            organizationUuid: 'test-org-uuid',
-            name: 'Test Organization',
+        const mockEmbed: OssEmbed = {
+            organization: {
+                organizationUuid: 'test-org-uuid',
+                name: 'Test Organization',
+            },
+            projectUuid: 'test-project-uuid',
+            encodedSecret: 'test-encoded-secret',
+            dashboardUuids: ['test-dashboard-uuid'],
+            allowAllDashboards: false,
+            createdAt: '2021-01-01',
+            user: {
+                userUuid: 'test-user-uuid',
+                firstName: 'Test',
+                lastName: 'User',
+            },
         };
 
         const mockDecodedToken: CreateEmbedJwt = {
@@ -46,7 +58,7 @@ describe('account', () => {
         it('should create an ExternalAccount from JWT with user externalId', () => {
             const result = fromJwt({
                 decodedToken: mockDecodedToken,
-                organization: mockOrganization,
+                embed: mockEmbed,
                 source: 'test-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: mockUserAttributes,
@@ -56,7 +68,7 @@ describe('account', () => {
             expect(result.authentication.data).toBe(mockDecodedToken);
             expect(result.authentication.source).toBe('test-jwt-token');
 
-            expect(result.organization).toEqual(mockOrganization);
+            expect(result.organization).toEqual(mockEmbed.organization);
 
             expect(result.access.dashboardId).toBe('test-dashboard-uuid');
             expect(result.access.filtering).toEqual(
@@ -94,14 +106,14 @@ describe('account', () => {
 
             const result = fromJwt({
                 decodedToken: tokenWithoutExternalId,
-                organization: mockOrganization,
+                embed: mockEmbed,
                 source: 'anonymous-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: mockUserAttributes,
             });
 
             expect(result.user.id).toBe(
-                `external::${mockOrganization.organizationUuid}_anonymous-jwt-token`,
+                `external::${mockEmbed.organization.organizationUuid}_anonymous-jwt-token`,
             );
             expect(result.user.email).toBe('anonymous@example.com');
             expect(result.isAuthenticated()).toBe(true);
@@ -121,14 +133,14 @@ describe('account', () => {
 
             const result = fromJwt({
                 decodedToken: tokenWithoutUser,
-                organization: mockOrganization,
+                embed: mockEmbed,
                 source: 'no-user-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: mockUserAttributes,
             });
 
             expect(result.user.id).toBe(
-                `external::${mockOrganization.organizationUuid}_no-user-jwt-token`,
+                `external::${mockEmbed.organization.organizationUuid}_no-user-jwt-token`,
             );
             expect(result.user.email).toBeUndefined();
             expect(result.isAuthenticated()).toBe(true);
@@ -142,7 +154,7 @@ describe('account', () => {
 
             const result = fromJwt({
                 decodedToken: mockDecodedToken,
-                organization: mockOrganization,
+                embed: mockEmbed,
                 source: 'test-jwt-token',
                 dashboardUuid: 'test-dashboard-uuid',
                 userAttributes: emptyUserAttributes,

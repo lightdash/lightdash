@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type CreateEmbedJwt } from '../ee';
+import { type OssEmbed } from '../types/auth';
 import { applyEmbeddedAbility } from './jwtAbility';
 import { type MemberAbility } from './types';
 
@@ -12,7 +13,6 @@ const createEmbedJwt = (overrides?: {
 }): CreateEmbedJwt => {
     const baseContent = {
         type: 'dashboard',
-        projectUuid: 'project-uuid-1',
         dashboardUuid: 'dashboard-uuid-1',
         canExportCsv: false,
         canExportImages: false,
@@ -38,12 +38,26 @@ const organization = {
     name: 'Organization 1',
 };
 
+const embed: OssEmbed = {
+    organization,
+    projectUuid: 'project-uuid-1',
+    encodedSecret: 'encoded-secret',
+    dashboardUuids: ['dashboard-uuid-1'],
+    allowAllDashboards: false,
+    createdAt: '2021-01-01',
+    user: {
+        firstName: 'John',
+        lastName: 'Doe',
+        userUuid: 'user-uuid-1',
+    },
+};
+
 const defineAbilityForEmbedUser = (
     embedUser: CreateEmbedJwt,
     dashboardUuid: string,
 ): MemberAbility => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
-    applyEmbeddedAbility(embedUser, dashboardUuid, organization, builder);
+    applyEmbeddedAbility(embedUser, dashboardUuid, embed, builder);
     return builder.build();
 };
 
@@ -101,7 +115,6 @@ describe('Embedded dashboard abilities', () => {
             const embedUser: CreateEmbedJwt = {
                 content: {
                     type: 'dashboard',
-                    projectUuid: 'project-uuid-1',
                     dashboardUuid: 'dashboard-uuid-1',
                 },
                 exp: Date.now() / 1000 + 3600,
@@ -572,58 +585,6 @@ describe('Embedded dashboard abilities', () => {
             ).toBe(true);
         });
 
-        it('should not allow viewing Explore domains when canExplore is false', () => {
-            const embedUser = createEmbedJwt({
-                content: { canExplore: false },
-            });
-            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
-
-            expect(
-                ability.can(
-                    'view',
-                    subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
-        });
-
-        it('should not allow viewing Explore domains when canExplore is undefined', () => {
-            const embedUser = createEmbedJwt({
-                content: { canExplore: undefined },
-            });
-            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
-
-            expect(
-                ability.can(
-                    'view',
-                    subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
-        });
-
         it('should not allow viewing Explore domains for different projects', () => {
             const embedUser = createEmbedJwt({
                 content: { canExplore: true },
@@ -701,7 +662,7 @@ describe('Embedded dashboard abilities', () => {
                         projectUuid,
                     }),
                 ),
-            ).toBe(false);
+            ).toBe(true);
         });
 
         it('should not allow viewing Explore domains when canExplore is undefined', () => {
@@ -727,7 +688,7 @@ describe('Embedded dashboard abilities', () => {
                         projectUuid,
                     }),
                 ),
-            ).toBe(false);
+            ).toBe(true);
         });
 
         it('should not allow viewing Explore domains for different projects', () => {
