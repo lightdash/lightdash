@@ -131,6 +131,14 @@ pnpm generate-api
     -   API design patterns where omission has semantic meaning
     -   Configuration objects with sensible defaults
 
+## TypeScript Utilities
+
+-   **Use `assertUnreachable` for exhaustive switch statements**: When handling union types in switch statements, use `assertUnreachable` in the default case to ensure TypeScript catches missing cases
+    -   ✅ Good: `default: return assertUnreachable(value, 'Unknown status');`
+    -   ❌ Avoid: `default: throw new Error('Unknown status');`
+    -   Import from `@lightdash/common`: `import { assertUnreachable } from '@lightdash/common';`
+    -   This provides compile-time safety when new union members are added
+
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed
