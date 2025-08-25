@@ -299,24 +299,10 @@ export class RolesService extends BaseService {
         const userAssignments =
             await this.rolesModel.getOrganizationRoleAssignments(orgUuid);
 
-        // Format user assignments
-        const formattedUserAssignments: RoleAssignment[] = userAssignments.map(
-            (assignment) => ({
-                roleId: assignment.roleId,
-                roleName: assignment.roleName || 'Unknown Role',
-                assigneeType: 'user' as const,
-                assigneeId: assignment.assigneeId,
-                assigneeName: assignment.assigneeName,
-                organizationId: assignment.organizationId,
-                createdAt: assignment.createdAt,
-                updatedAt: assignment.createdAt, // Use createdAt since updatedAt doesn't exist
-            }),
-        );
-
         // Note: Groups don't have organization-level role assignments
         // Groups only have project-level and space-level access
 
-        return formattedUserAssignments;
+        return userAssignments;
     }
 
     /**

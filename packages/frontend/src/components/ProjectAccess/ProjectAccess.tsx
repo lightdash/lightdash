@@ -1,17 +1,26 @@
 import { subject } from '@casl/ability';
+import {
+    ProjectMemberRole,
+    ProjectMemberRoleLabels,
+    type Role,
+} from '@lightdash/common';
 import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
-import { useProjectUsersWithRoles } from '../../hooks/useProjectUsersWithRoles';
+import {
+    useOrganizationRoleAssignments,
+    useOrganizationRoles,
+} from '../../hooks/useOrganizationRoles';
+import { useProjectUsersWithRolesV2 } from '../../hooks/useProjectUsersWithRolesV2';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import CreateProjectAccessModal from './CreateProjectAccessModal';
-import ProjectAccessRow from './ProjectAccessRow';
+import ProjectAccessRowV2 from './ProjectAccessRowV2';
 
 interface ProjectAccessProps {
     projectUuid: string;
@@ -32,9 +41,31 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
 
     const [search, setSearch] = useState('');
 
-    const { usersWithProjectRole, isLoading, inheritedRoles } =
-        useProjectUsersWithRoles(projectUuid);
+    const { usersWithProjectRole, isLoading } =
+        useProjectUsersWithRolesV2(projectUuid);
 
+    const { data: organizationRoles } = useOrganizationRoles();
+    const { data: organizationRoleAssignments } =
+        useOrganizationRoleAssignments();
+
+    const rolesData = useMemo(() => {
+        // TODO: Remove this once we have a proper system role
+        // Keep this as fallback for now
+        if (!organizationRoles)
+            return Object.values(ProjectMemberRole).map((role) => ({
+                value: role,
+                label: ProjectMemberRoleLabels[role],
+                group: 'System role',
+            }));
+        return organizationRoles.map(
+            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
+                value: role.roleUuid,
+                label: role.name,
+                group:
+                    role.ownerType === 'system' ? 'System role' : 'Custom role',
+            }),
+        );
+    }, [organizationRoles]);
     const canManageProjectAccess = ability.can(
         'manage',
         subject('Project', {
@@ -46,18 +77,15 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     const filteredUsers = useMemo(() => {
         if (search && usersWithProjectRole) {
             return new Fuse(usersWithProjectRole, {
-                keys: ['firstName', 'lastName', 'email', 'finalRole'],
+                keys: ['firstName', 'lastName', 'email', 'role', 'projectRole'],
                 ignoreLocation: true,
                 threshold: 0.3,
             })
                 .search(search)
-                .map((result) => ({
-                    ...result.item,
-                    inheritedRole: inheritedRoles?.[result.item.userUuid],
-                }));
+                .map((result) => result.item);
         }
         return usersWithProjectRole;
-    }, [usersWithProjectRole, search, inheritedRoles]);
+    }, [usersWithProjectRole, search]);
 
     if (isLoading) {
         return <LoadingState title="Loading user access" />;
@@ -99,12 +127,15 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                     </thead>
                     <tbody>
                         {filteredUsers?.map((orgUser) => (
-                            <ProjectAccessRow
+                            <ProjectAccessRowV2
                                 key={orgUser.userUuid}
                                 projectUuid={projectUuid}
                                 canManageProjectAccess={canManageProjectAccess}
                                 user={orgUser}
-                                inheritedRoles={orgUser.inheritedRole}
+                                organizationRoles={rolesData}
+                                organizationRoleAssignments={
+                                    organizationRoleAssignments || []
+                                }
                             />
                         ))}
                     </tbody>

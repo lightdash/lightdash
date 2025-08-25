@@ -59,9 +59,6 @@ Content-Type: application/json
 ### Copy the roleId from the response above and set it here:
 @roleId = f1e22530-44c0-440f-a4d7-91c01fbdb0a2
 
-### STEP 4: Get specific role details
-GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
-
 
 ### STEP 4.1: Get specific role details for system role
 GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/developer
@@ -90,8 +87,6 @@ Content-Type: application/json
   ]
 }
 
-### STEP 7b: Get specific role details again to see new scopes
-GET {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}
 
 ### STEP 8: Add more scopes to expand role permissions
 POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}/scopes

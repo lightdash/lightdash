@@ -47,7 +47,7 @@ export type AddScopesToRole = {
 // API Response Types
 export type ApiGetRolesResponse = {
     status: 'ok';
-    results: Role[];
+    results: Role[] | RoleWithScopes[];
 };
 
 export type ApiRoleWithScopesResponse = {
@@ -78,6 +78,7 @@ export type ApiGetProjectAccessResponse = {
 export type RoleAssignment = {
     roleId: string;
     roleName: string;
+    ownerType: 'user' | 'system';
     assigneeType: 'user' | 'group';
     assigneeId: string;
     assigneeName: string;
