@@ -30,18 +30,19 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
-} from '../../controllers/authentication';
-import { BaseController } from '../../controllers/baseController';
-import { RolesService } from '../../services/RolesService/RolesService';
+} from './authentication';
+import { BaseController } from './baseController';
 
 /**
  * Organization Roles API
  *
- * Organization Role Assignments: /api/v2/orgs/{orgId}/roles
- * - Listing roles for an organization
- * - Creating roles in an organization
- * - Managing role assignments within an organization
+ * This API is available for all users
+ * - GET /{roleUuid} - Get role by ID
+ * - GET / - Get roles for organization
+ * - GET /assignments - Get role assignments for organization
+ * - POST /assignments/user/{userId} - Upsert role assignment for user
  *
+ *  For more endpoints to create custom roles, see the EE Organization Roles API
  */
 @Route('/api/v2/orgs/{orgUuid}/roles')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -53,6 +54,30 @@ export class OrganizationRolesController extends BaseController {
      */
     protected getRolesService() {
         return this.services.getRolesService();
+    }
+
+    /**
+     * Get role by ID
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{roleUuid}')
+    @OperationId('GetRoleById')
+    async getRoleById(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Path() roleUuid: string,
+    ): Promise<ApiRoleWithScopesResponse> {
+        const role = await this.getRolesService().getRoleByUuid(
+            req.account!,
+            roleUuid,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: role,
+        };
     }
 
     /**
@@ -78,90 +103,6 @@ export class OrganizationRolesController extends BaseController {
         return {
             status: 'ok',
             results: roles,
-        };
-    }
-
-    /**
-     * Create a new role in organization
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('201', 'Created')
-    @Post()
-    @OperationId('CreateOrganizationRole')
-    async createOrganizationRole(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Body() body: CreateRole,
-    ): Promise<ApiDefaultRoleResponse> {
-        const role = await this.getRolesService().createRole(
-            req.account!,
-            orgUuid,
-            body,
-        );
-
-        this.setStatus(201);
-        return {
-            status: 'ok',
-            results: role,
-        };
-    }
-
-    /**
-     * Update role in organization
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Patch('/{roleUuid}')
-    @OperationId('UpdateOrganizationRole')
-    async updateOrganizationRole(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() roleUuid: string,
-        @Body() body: UpdateRole,
-    ): Promise<ApiDefaultRoleResponse> {
-        const role = await this.getRolesService().updateRole(
-            req.account!,
-            roleUuid,
-            body,
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: role,
-        };
-    }
-
-    /**
-     * Delete role from organization
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('/{roleUuid}')
-    @OperationId('DeleteOrganizationRole')
-    async deleteOrganizationRole(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() roleUuid: string,
-    ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.getRolesService().deleteRole(req.account!, roleUuid);
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: undefined,
         };
     }
 
