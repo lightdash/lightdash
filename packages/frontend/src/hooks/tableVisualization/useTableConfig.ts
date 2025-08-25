@@ -5,9 +5,7 @@ import {
     isDimension,
     isField,
     isFilterableItem,
-    isMetric,
     isNumericItem,
-    isTableCalculation,
     itemsInMetricQuery,
     type ColumnProperties,
     type ConditionalFormattingConfig,
@@ -42,7 +40,6 @@ const useTableConfig = (
         | undefined,
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
-    pivotDimensions: string[] | undefined,
     pivotTableMaxColumnLimit: number,
     savedChartUuid?: string,
     dashboardFilters?: DashboardFilters,
@@ -83,6 +80,20 @@ const useTableConfig = (
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
         tableChartConfig?.metricsAsRows || false,
     );
+
+    // Derive pivot dimensions from results data
+    const pivotDimensions = useMemo(() => {
+        if (resultsData?.pivotDetails) {
+            // For SQL-pivoted results, get pivot dimensions from pivotDetails
+            return (
+                resultsData.pivotDetails.groupByColumns?.map(
+                    (col) => col.reference,
+                ) || []
+            );
+        }
+        // For backward compatibility, might still receive pivot config in tableChartConfig
+        return undefined;
+    }, [resultsData?.pivotDetails]);
 
     useEffect(() => {
         if (
@@ -176,8 +187,7 @@ const useTableConfig = (
         resultsData?.metricQuery &&
         resultsData.metricQuery.metrics.length > 0 &&
         resultsData.rows.length &&
-        pivotDimensions &&
-        pivotDimensions.length > 0;
+        !!resultsData?.pivotDetails;
 
     const dimensions = useMemo(() => {
         if (!itemsMap) return [];
@@ -294,11 +304,12 @@ const useTableConfig = (
     });
 
     useEffect(() => {
+        // Process SQL-pivoted results directly from properly ordered backend data
+        // For unpivoted tables, leave pivotTableData empty so regular table rendering is used
         if (
-            !pivotDimensions ||
-            pivotDimensions.length === 0 ||
             !resultsData?.metricQuery ||
-            resultsData.rows.length === 0
+            resultsData.rows.length === 0 ||
+            !resultsData?.pivotDetails
         ) {
             setPivotTableData((prevState) => {
                 // Only update if values are different
@@ -326,36 +337,13 @@ const useTableConfig = (
             error: undefined,
         }));
 
-        const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
-            const field = getField(fieldId);
+        // Use the existing convertSqlPivotedResults which already handles the pivot logic correctly
+        const pivotPromise = worker.convertSqlPivotedResults(
+            resultsData.rows,
+            resultsData.pivotDetails,
+        );
 
-            return (
-                !isColumnVisible(fieldId) &&
-                field &&
-                ((isField(field) && isMetric(field)) ||
-                    isTableCalculation(field))
-            );
-        });
-
-        worker
-            .pivotQueryResults({
-                pivotConfig: {
-                    pivotDimensions,
-                    metricsAsRows,
-                    columnOrder,
-                    hiddenMetricFieldIds,
-                    columnTotals: tableChartConfig?.showColumnCalculation,
-                    rowTotals: tableChartConfig?.showRowCalculation,
-                },
-                metricQuery: resultsData.metricQuery,
-                rows: resultsData.rows,
-                groupedSubtotals,
-                options: {
-                    maxColumns: pivotTableMaxColumnLimit,
-                },
-                getField,
-                getFieldLabel,
-            })
+        pivotPromise
             .then((data) => {
                 setPivotTableData({
                     loading: false,
