@@ -3,6 +3,7 @@ import {
     AnyType,
     CatalogFilter,
     CatalogType,
+    CommercialFeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getItemId,
@@ -48,6 +49,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -95,6 +97,7 @@ type McpServiceArguments = {
     spaceModel: SpaceModel;
     spaceService: SpaceService;
     mcpContextModel: McpContextModel;
+    featureFlagService: FeatureFlagService;
 };
 
 export type ExtraContext = { user: SessionUser; account: OauthAccount };
@@ -125,6 +128,8 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
+    private featureFlagService: FeatureFlagService;
+
     private mcpServer: McpServer;
 
     private mcpCompatLayer: McpSchemaCompatLayer;
@@ -140,6 +145,7 @@ export class McpService extends BaseService {
         spaceService,
         projectModel,
         mcpContextModel,
+        featureFlagService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -152,6 +158,7 @@ export class McpService extends BaseService {
         this.projectModel = projectModel;
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
+        this.featureFlagService = featureFlagService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = new McpServer({
@@ -503,18 +510,10 @@ export class McpService extends BaseService {
                     },
                 });
 
-                // Get available content based on tag selection
-                const availableContent = await this.getExploreAccessSummary(
-                    account,
-                    args.projectUuid,
-                    tagsToSet,
-                );
-
                 const result = {
                     projectUuid: args.projectUuid,
                     projectName: project.name,
                     selectedTags: tagsToSet,
-                    availableContent,
                 };
 
                 return {
@@ -535,7 +534,7 @@ export class McpService extends BaseService {
                 inputSchema: {},
             },
             async (_args, context) => {
-                const { user, organizationUuid, account } = this.getAccount(
+                const { user, organizationUuid } = this.getAccount(
                     context as McpProtocolContext,
                 );
 
@@ -568,25 +567,19 @@ export class McpService extends BaseService {
 
                 const { projectUuid, projectName, tags } = contextRow.context;
 
-                // Get available content based on current tag selection
-                const availableContent = await this.getExploreAccessSummary(
-                    account,
-                    projectUuid,
-                    tags,
-                );
-
-                const result = {
-                    projectUuid,
-                    projectName,
-                    selectedTags: tags,
-                    availableContent,
-                };
-
                 return {
                     content: [
                         {
                             type: 'text',
-                            text: JSON.stringify(result, null, 2),
+                            text: JSON.stringify(
+                                {
+                                    projectUuid,
+                                    projectName,
+                                    selectedTags: tags,
+                                },
+                                null,
+                                2,
+                            ),
                         },
                     ],
                 };
@@ -731,47 +724,6 @@ export class McpService extends BaseService {
         );
 
         return contextRow?.context.tags || null;
-    }
-
-    async getExploreAccessSummary(
-        account: Account,
-        projectUuid: string,
-        tags: string[] | null,
-    ) {
-        const exploreSummaries =
-            await this.projectService.getAllExploresSummary(
-                account,
-                projectUuid,
-                true,
-                true,
-            );
-        const allExplores = await Promise.all(
-            exploreSummaries.map((explore) =>
-                this.projectService.getExplore(
-                    account,
-                    projectUuid,
-                    explore.name,
-                ),
-            ),
-        );
-        const filteredExplores = allExplores
-            .map((explore) =>
-                filterExploreByTags({ availableTags: tags, explore }),
-            )
-            .filter((explore) => explore !== undefined);
-        const exploreAccessSummary = filteredExplores.map((explore) => ({
-            exploreName: explore.label,
-            joinedTables: explore.joinedTables.map(
-                (table) => explore.tables[table.table].label,
-            ),
-            dimensions: Object.values(
-                explore.tables[explore.baseTable].dimensions,
-            ).map((dimension) => dimension.label),
-            metrics: Object.values(
-                explore.tables[explore.baseTable].metrics,
-            ).map((metric) => metric.label),
-        }));
-        return exploreAccessSummary;
     }
 
     async resolveProjectUuid(context: McpProtocolContext): Promise<string> {
@@ -1299,6 +1251,21 @@ export class McpService extends BaseService {
         }
 
         return true;
+    }
+
+    // MCP is enabled if MCP_ENABLED is true OR if AI Copilot is enabled
+    public async isEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        if (this.lightdashConfig.mcp.enabled) {
+            return true;
+        }
+
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        return aiCopilotFlag.enabled;
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
