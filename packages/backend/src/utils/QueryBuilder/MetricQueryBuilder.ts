@@ -399,15 +399,13 @@ export class MetricQueryBuilder {
         return Boolean(metricsSQL.filtersSQL);
     }
 
-    private tableCalcCTEsAreNeeded(opts: {
+    private needsPostAggCte(opts: {
         requiresQueryInCTE: boolean;
-        simpleSelects: string[];
         metricsSQL: { filtersSQL?: string };
     }): boolean {
         return (
             opts.requiresQueryInCTE ||
             this.hasAnyTableCalcs() ||
-            MetricQueryBuilder.hasSimpleTableCalcs(opts.simpleSelects) ||
             MetricQueryBuilder.hasMetricFilters(opts.metricsSQL)
         );
     }
@@ -1243,6 +1241,8 @@ export class MetricQueryBuilder {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
+    // Feels all these util functions and regexes are undoing all the mistakes from the tableCalculationCompile() done before the MetricQueryBuilder.
+    // Can we compile the CTEs in this class instead?
     private static replaceFromSourceName(
         sql: string,
         fromName: string,
@@ -1261,7 +1261,7 @@ export class MetricQueryBuilder {
     }
 
     static extractCteName(cteSql: string): string | undefined {
-        const m = cteSql.match(/^\s*("?)([A-Za-z_][\w$]*)\1\s+AS\b/i);
+        const m = cteSql.match(/^\s*("?)([A-Za-z_][\w$]*)\1\s+AS\b/i); // test: using AS to convert value. column AS string
         return m?.[2];
     }
 
@@ -1375,12 +1375,6 @@ export class MetricQueryBuilder {
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
 
-        const tableCalculationSQL = this.getTableCalculationsSQL();
-        const tableCalcsWithCtes =
-            compiledMetricQuery.compiledTableCalculations.filter(
-                (tc) => tc.cte,
-            );
-
         const joins = this.getJoinsSQL({
             tablesReferencedInDimensions: dimensionsSQL.tables,
             tablesReferencedInMetrics: metricsSQL.tables,
@@ -1417,13 +1411,17 @@ export class MetricQueryBuilder {
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
 
-        const needsPostAgg = this.tableCalcCTEsAreNeeded({
+        const needsPostAgg = this.needsPostAggCte({
             requiresQueryInCTE,
-            simpleSelects: tableCalculationSQL.selects,
             metricsSQL,
         });
 
         if (needsPostAgg) {
+            // 1. 'metrics' create cte with dims and metrics (required)
+            // 2. 'post_calc' create cte with (simple table calcs (if any) & metric filters (if any)) (required?)
+            // 3. 'tc_cte_*' create ctes for table cals with dependencies (if any)
+            // 4. 'tc_filters' create cte with table calc filters (if any)
+
             const ctesToAdd: string[] = [];
 
             // base metrics CTE = dimensions + metrics only (no filters, no table calcs)
@@ -1437,10 +1435,12 @@ export class MetricQueryBuilder {
             const metricFilters = MetricQueryBuilder.buildMetricFiltersCte(
                 current,
                 metricsSQL.filtersSQL,
-                this.hasDependentTableCalcCtes(), // Only create CTE if there are dependent table calcs
+                this.hasDependentTableCalcCtes(), // Only create CTE if there are dependent table calcs // [jose] why does it depend on this?
             );
             if (metricFilters.cte) ctesToAdd.push(metricFilters.cte);
             current = metricFilters.next;
+
+            const tableCalculationSQL = this.getTableCalculationsSQL(); // move all the table cals ctes logic inside this method
 
             const simpleTableCalcSelects =
                 MetricQueryBuilder.buildSimpleCalcsCte(
