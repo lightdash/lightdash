@@ -1,3 +1,11 @@
+# [0.1953.0](https://github.com/lightdash/lightdash/compare/0.1952.0...0.1953.0) (2025-08-26)
+
+
+### Features
+
+* add permission check for CLI project creation ([#16593](https://github.com/lightdash/lightdash/issues/16593)) ([2eb1dfe](https://github.com/lightdash/lightdash/commit/2eb1dfe217b49d1585feadceceb36cc4c50a15eb))
+* add permission checks to warehouse selection UI ([#16591](https://github.com/lightdash/lightdash/issues/16591)) ([e292ec9](https://github.com/lightdash/lightdash/commit/e292ec94c0af6b6efb7b8ced864b78768f3eb123))
+
 # [0.1952.0](https://github.com/lightdash/lightdash/compare/0.1951.1...0.1952.0) (2025-08-26)
 
 
