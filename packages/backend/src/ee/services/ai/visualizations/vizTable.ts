@@ -27,11 +27,12 @@ export const renderTableViz = async ({
     >;
     csv: string;
 }> => {
-    const query = metricQueryTableViz(
-        vizTool.vizConfig,
-        vizTool.filters,
+    const query = metricQueryTableViz({
+        vizConfig: vizTool.vizConfig,
+        filters: vizTool.filters,
         maxLimit,
-    );
+        customMetrics: null, // Will be populated in the backend before running the query
+    });
     const results = await runMetricQuery(query);
 
     const fieldIds = results.rows[0] ? Object.keys(results.rows[0]) : [];

@@ -1,10 +1,11 @@
 import {
+    AdditionalMetric,
     assertUnreachable,
     booleanFilterSchema,
     CompiledField,
+    CustomMetricBaseSchema,
     dateFilterSchema,
     Explore,
-    FilterGroup,
     FilterRule,
     Filters,
     FilterType,
@@ -32,14 +33,16 @@ import { serializeData } from './serializeData';
 export function validateSelectedFieldsExistence(
     explore: Explore,
     selectedFieldIds: string[],
+    customMetrics?: (CustomMetricBaseSchema | AdditionalMetric)[] | null,
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
-    const nonExploreFields = selectedFieldIds.filter(
-        (f) => !exploreFieldIds.includes(f),
-    );
+    const customMetricIds = customMetrics?.map(getItemId);
+    const nonExploreFields = selectedFieldIds
+        .filter((f) => !exploreFieldIds.includes(f))
+        .filter((f) => !customMetricIds?.includes(f));
 
     if (nonExploreFields.length) {
-        const errorMessage = `The following fields do not exist in the selected explore.
+        const errorMessage = `The following fields are neither in the explore nor in the custom metrics.
 
 Fields:
 \`\`\`json
@@ -48,6 +51,64 @@ ${nonExploreFields.join('\n')}
 
         Logger.error(
             `[AiAgent][Validate Selected Fields Existence] ${errorMessage}`,
+        );
+
+        throw new Error(errorMessage);
+    }
+}
+
+/**
+ * Validate that the custom metrics have a base dimension name that exists in the explore
+ * @param explore
+ * @param customMetrics
+ */
+export function validateCustomMetricsDefinition(
+    explore: Explore,
+    customMetrics: CustomMetricBaseSchema[] | null,
+) {
+    if (!customMetrics || customMetrics.length === 0) {
+        return;
+    }
+    const exploreFields = getFields(explore);
+    const exploreFieldIds = exploreFields.map(getItemId);
+    const errors: string[] = [];
+
+    customMetrics.forEach((metric) => {
+        if (!metric.baseDimensionName) {
+            errors.push(
+                `Error: the base dimension name is required for custom metrics.`,
+            );
+            return;
+        }
+
+        const field = exploreFieldIds.find(
+            (f) =>
+                metric.baseDimensionName &&
+                f ===
+                    getItemId({
+                        name: metric.baseDimensionName,
+                        table: metric.table,
+                    }),
+        );
+
+        if (!field) {
+            errors.push(
+                `Error: the base dimension name "${metric.baseDimensionName}" does not exist in the explore.`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `The following custom metrics are invalid:
+
+        Errors:
+        ${errors.join('\n\n')}
+
+        Remember:
+        - Custom metrics should have a base dimension name`;
+
+        Logger.error(
+            `[AiAgent][Validate Custom Metric Definition] ${errorMessage}`,
         );
 
         throw new Error(errorMessage);
