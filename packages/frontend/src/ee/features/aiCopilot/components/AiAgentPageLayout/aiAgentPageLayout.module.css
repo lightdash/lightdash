@@ -6,6 +6,7 @@
     --ai-agent-sidebar-icon-size: 1rem;
     overflow: auto;
     padding: var(--mantine-spacing-lg);
+    padding-top: var(--mantine-spacing-xs);
     background: var(--mantine-color-gray-0);
 
     /* react-resizable-planels doesn't support pixel sizes,
@@ -17,6 +18,10 @@
             var(--mantine-spacing-lg) + (var(--ai-agent-sidebar-icon-size) / 2)
         );
     }
+}
+
+.sidebarTransition {
+    transition: all 300ms ease-in-out;
 }
 
 .chat {
