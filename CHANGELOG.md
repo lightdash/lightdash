@@ -1,3 +1,10 @@
+## [0.1954.1](https://github.com/lightdash/lightdash/compare/0.1954.0...0.1954.1) (2025-08-26)
+
+
+### Bug Fixes
+
+* remove redundant SQL controls from AI artifact panel ([#16606](https://github.com/lightdash/lightdash/issues/16606)) ([d1e85ff](https://github.com/lightdash/lightdash/commit/d1e85ff1de8fec3955def77c216a910156d5298b))
+
 # [0.1954.0](https://github.com/lightdash/lightdash/compare/0.1953.0...0.1954.0) (2025-08-26)
 
 
