@@ -3,7 +3,6 @@ import {
     type CreateRole,
     type Role,
     type RoleWithScopes,
-    type UpdateRole,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -34,17 +33,26 @@ export const useCustomRoles = () => {
         enabled: !!organization?.organizationUuid,
     });
 
-    const createRole = useMutation<Role, ApiError, CreateRole>({
+    const createRole = useMutation<
+        Role,
+        ApiError,
+        CreateRole & { scopes?: string[] }
+    >({
         mutationKey: [CACHE_KEY],
-        mutationFn: async (newRole: CreateRole) => {
+        mutationFn: async (data) => {
             if (!organization?.organizationUuid) {
                 throw new Error('Organization UUID not available');
             }
+
+            if (!data.scopes || data.scopes.length === 0) {
+                throw new Error('No scopes provided');
+            }
+
             return lightdashApi<Role>({
                 method: 'POST',
                 url: `/orgs/${organization.organizationUuid}/roles`,
                 version: 'v2',
-                body: JSON.stringify(newRole),
+                body: JSON.stringify(data),
             });
         },
         onSuccess: async () => {
@@ -90,44 +98,11 @@ export const useCustomRoles = () => {
         },
     });
 
-    const updateRole = useMutation<
-        Role,
-        ApiError,
-        { roleUuid: string; data: UpdateRole }
-    >({
-        mutationFn: async ({ roleUuid, data }) => {
-            if (!organization?.organizationUuid) {
-                throw new Error('Organization UUID not available');
-            }
-            return lightdashApi<Role>({
-                method: 'PATCH',
-                url: `/orgs/${organization.organizationUuid}/roles/${roleUuid}`,
-                version: 'v2',
-                body: JSON.stringify(data),
-            });
-        },
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: [CACHE_KEY, organization?.organizationUuid],
-            });
-            showToastSuccess({
-                title: `Custom role updated successfully`,
-            });
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to update custom role`,
-                apiError: error,
-            });
-        },
-    });
-
     return useMemo(() => {
         return {
             listRoles,
             createRole,
             deleteRole,
-            updateRole,
         };
-    }, [listRoles, createRole, deleteRole, updateRole]);
+    }, [listRoles, createRole, deleteRole]);
 };

@@ -49,7 +49,9 @@ import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
-import { CustomRoles } from '../ee/pages/CustomRoles';
+import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
+import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
+import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import {
@@ -339,6 +341,14 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/customRoles',
                 element: <CustomRoles />,
+            });
+            allowedRoutes.push({
+                path: '/customRoles/create',
+                element: <CustomRoleCreate />,
+            });
+            allowedRoutes.push({
+                path: '/customRoles/:roleId',
+                element: <CustomRoleEdit />,
             });
         }
 

@@ -14,6 +14,7 @@ import {
     UpdateRoleAssignmentRequest,
     UpsertUserRoleAssignmentRequest,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -173,20 +174,39 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         createRoleData: CreateRole,
     ): Promise<Role> {
-        if (isSystemRole(createRoleData.name)) {
+        const { scopes, name, description } = createRoleData;
+        if (isSystemRole(name)) {
             throw new ParameterError(
-                `Cannot create role with name "${createRoleData.name}", this is reserved for system roles`,
+                `Cannot create role with name "${name}", this is reserved for system roles`,
             );
         }
 
         RolesService.validateOrganizationAccess(account, organizationUuid);
-        RolesService.validateRoleName(createRoleData.name);
+        RolesService.validateRoleName(name);
 
-        const role = await this.rolesModel.createRole(organizationUuid, {
-            name: createRoleData.name,
-            description: createRoleData.description || null,
-            created_by: account.user?.id,
-        });
+        const role = await this.rolesModel.db.transaction(
+            async (tx: Knex.Transaction) => {
+                const createdRole = await this.rolesModel.createRole(
+                    organizationUuid,
+                    {
+                        name,
+                        description: description || null,
+                        created_by: account.user?.id,
+                    },
+                    tx,
+                );
+
+                if (scopes && scopes.length > 0) {
+                    await this.addScopesToRole(
+                        account,
+                        createdRole.roleUuid,
+                        { scopeNames: scopes },
+                        { tx, role: createdRole },
+                    );
+                }
+                return createdRole;
+            },
+        );
 
         this.analytics.track({
             event: 'role.created',
@@ -195,6 +215,7 @@ export class RolesService extends BaseService {
                 roleUuid: role.roleUuid,
                 roleName: role.name,
                 organizationUuid,
+                scopes,
             },
         });
 
@@ -203,9 +224,12 @@ export class RolesService extends BaseService {
 
     async updateRole(
         account: Account,
+        organizationUuid: string,
         roleUuid: string,
         updateRoleData: UpdateRole,
     ): Promise<Role> {
+        const { scopes, name, description } = updateRoleData;
+
         if (isSystemRole(roleUuid)) {
             throw new ParameterError(`Cannot update system role "${roleUuid}"`);
         }
@@ -213,22 +237,49 @@ export class RolesService extends BaseService {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         RolesService.validateRoleOwnership(account, role);
 
-        if (updateRoleData.name) {
-            RolesService.validateRoleName(updateRoleData.name);
+        if (name) {
+            RolesService.validateRoleName(name);
         }
 
-        const updatedRole = await this.rolesModel.updateRole(
+        await this.rolesModel.db.transaction(async (tx: Knex.Transaction) => {
+            if (name || description) {
+                await this.rolesModel.updateRole(
+                    roleUuid,
+                    { name, description },
+                    tx,
+                );
+            }
+
+            if (scopes && scopes.add.length > 0) {
+                await this.addScopesToRole(
+                    account,
+                    roleUuid,
+                    { scopeNames: scopes.add },
+                    { tx, role },
+                );
+            }
+            if (scopes && scopes.remove.length > 0) {
+                await this.removeScopesFromRole(
+                    account,
+                    organizationUuid,
+                    roleUuid,
+                    scopes.remove,
+                    tx,
+                );
+            }
+        });
+        const updatedRole = await this.rolesModel.getRoleWithScopesByUuid(
             roleUuid,
-            updateRoleData,
         );
 
+        // We track add/remove scope analytics in their respective methods
         this.analytics.track({
             event: 'role.updated',
             userId: account.user?.id,
             properties: {
                 roleUuid: updatedRole.roleUuid,
                 roleName: updatedRole.name,
-                organizationUuid: role.organizationUuid,
+                organizationUuid,
             },
         });
 
@@ -462,7 +513,7 @@ export class RolesService extends BaseService {
             project.organizationUuid,
         );
         await this.validateProjectAccess(account, projectUuid);
-        const role = await this.rolesModel.getRoleByUuid(roleId);
+        const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
 
         if (isSystemRole(roleId)) {
             await this.rolesModel.upsertSystemRoleProjectAccess(
@@ -471,6 +522,12 @@ export class RolesService extends BaseService {
                 roleId,
             );
         } else {
+            if (role.scopes.length === 0) {
+                throw new ParameterError(
+                    'Custom role must have at least one scope',
+                );
+            }
+
             await this.rolesModel.upsertCustomRoleProjectAccess(
                 projectUuid,
                 userUuid,
@@ -518,7 +575,7 @@ export class RolesService extends BaseService {
             project.organizationUuid,
         );
         await this.validateProjectAccess(account, projectUuid);
-        const role = await this.rolesModel.getRoleByUuid(roleId);
+        const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
 
         if (isSystemRole(roleId)) {
             await this.rolesModel.upsertSystemRoleGroupAccess(
@@ -527,6 +584,12 @@ export class RolesService extends BaseService {
                 roleId,
             );
         } else {
+            if (role.scopes.length === 0) {
+                throw new ParameterError(
+                    'Custom role must have at least one scope',
+                );
+            }
+
             await this.rolesModel.upsertCustomRoleGroupAccess(
                 groupUuid,
                 projectUuid,
@@ -714,18 +777,21 @@ export class RolesService extends BaseService {
         account: Account,
         roleUuid: string,
         scopeData: AddScopesToRole,
+        { tx, role }: { tx?: Knex.Transaction; role?: Role } = {},
     ): Promise<void> {
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot add scopes to system roles');
         }
 
-        const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(account, role);
+        const foundRole =
+            role || (await this.rolesModel.getRoleByUuid(roleUuid));
+        RolesService.validateRoleOwnership(account, foundRole);
 
         await this.rolesModel.addScopesToRole(
             roleUuid,
             scopeData.scopeNames,
             account.user?.id,
+            tx,
         );
 
         this.analytics.track({
@@ -734,7 +800,7 @@ export class RolesService extends BaseService {
             properties: {
                 roleUuid,
                 scopeNames: scopeData.scopeNames,
-                organizationUuid: role.organizationUuid,
+                organizationUuid: foundRole.organizationUuid,
             },
         });
     }
@@ -760,6 +826,36 @@ export class RolesService extends BaseService {
                 roleUuid,
                 scopeName,
                 organizationUuid: role.organizationUuid,
+            },
+        });
+    }
+
+    async removeScopesFromRole(
+        account: Account,
+        organizationUuid: string,
+        roleUuid: string,
+        scopeNames: string[],
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        RolesService.validateOrganizationAccess(account, organizationUuid);
+
+        if (scopeNames.filter(Boolean).length === 0) {
+            throw new ParameterError('scopeNames are required');
+        }
+
+        if (isSystemRole(roleUuid)) {
+            throw new ParameterError('Cannot remove scopes from system roles');
+        }
+
+        await this.rolesModel.removeScopesFromRole(roleUuid, scopeNames, tx);
+
+        this.analytics.track({
+            event: 'role.scopes_removed',
+            userId: account.user?.id,
+            properties: {
+                roleUuid,
+                scopeNames,
+                organizationUuid,
             },
         });
     }
