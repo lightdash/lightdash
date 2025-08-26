@@ -87,7 +87,10 @@ export const getAvailableParametersFromTables = (
 
             return {
                 ...acc2,
-                [parameterKey]: parameter,
+                [parameterKey]: {
+                    ...parameter,
+                    type: parameter.type || 'string',
+                },
             };
         }, {});
 

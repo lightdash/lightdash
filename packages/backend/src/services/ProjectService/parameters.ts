@@ -2,6 +2,7 @@ import {
     getAvailableParametersFromTables,
     type DashboardDAO,
     type Explore,
+    type ParameterDefinitions,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
@@ -27,21 +28,32 @@ export const getDashboardParametersValuesMap = (
 };
 
 /**
- * Combine project and explore parameters
- * @param projectParameters - The project parameters
+ * Get full parameter definitions from project and explore
+ * @param projectParameters - The project parameters from database
  * @param explore - The explore
- * @returns An array of available parameter names
+ * @returns Combined parameter definitions
  */
-export const combineProjectAndExploreParameters = (
+export const getAvailableParameterDefinitions = (
     projectParameters: DbProjectParameter[],
     explore: Explore,
-): string[] => {
-    const projectParameterNames = projectParameters.map(
-        (parameter) => parameter.name,
-    );
-    const exploreParameters = getAvailableParametersFromTables(
+): ParameterDefinitions => {
+    // Get project parameter definitions
+    const projectParameterDefinitions: ParameterDefinitions = {};
+    projectParameters.forEach((param) => {
+        projectParameterDefinitions[param.name] = {
+            ...param.config,
+            type: param.config.type || 'string',
+        };
+    });
+
+    // Get explore (model-level) parameter definitions
+    const exploreParameterDefinitions = getAvailableParametersFromTables(
         Object.values(explore.tables),
     );
 
-    return [...projectParameterNames, ...Object.keys(exploreParameters)];
+    // Combine both (explore parameters override project parameters if same name)
+    return {
+        ...projectParameterDefinitions,
+        ...exploreParameterDefinitions,
+    };
 };

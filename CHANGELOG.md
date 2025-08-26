@@ -1,3 +1,10 @@
+# [0.1952.0](https://github.com/lightdash/lightdash/compare/0.1951.1...0.1952.0) (2025-08-26)
+
+
+### Features
+
+* add number to parameter value types ([#16543](https://github.com/lightdash/lightdash/issues/16543)) ([f7f0a74](https://github.com/lightdash/lightdash/commit/f7f0a7478c8dcb02f6bf585bde0f83acf064a983))
+
 ## [0.1951.1](https://github.com/lightdash/lightdash/compare/0.1951.0...0.1951.1) (2025-08-25)
 
 

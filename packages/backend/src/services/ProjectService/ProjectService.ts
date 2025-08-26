@@ -109,6 +109,7 @@ import {
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    type ParameterDefinitions,
     ParameterError,
     type ParametersValuesMap,
     PivotChartData,
@@ -235,8 +236,7 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
-import { ValidationService } from '../ValidationService/ValidationService';
-import { combineProjectAndExploreParameters } from './parameters';
+import { getAvailableParameterDefinitions } from './parameters';
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1755,7 +1755,7 @@ export class ProjectService extends BaseService {
         timezone,
         dateZoom,
         parameters,
-        availableParameters,
+        availableParameterDefinitions,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -1765,8 +1765,10 @@ export class ProjectService extends BaseService {
         timezone: string;
         dateZoom?: DateZoom;
         parameters?: ParametersValuesMap;
-        availableParameters: string[];
+        availableParameterDefinitions: ParameterDefinitions;
     }): Promise<CompiledQuery> {
+        const availableParameters = Object.keys(availableParameterDefinitions);
+
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
             metricQuery,
@@ -1790,7 +1792,7 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
             parameters,
-            availableParameters,
+            parameterDefinitions: availableParameterDefinitions,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -1799,20 +1801,20 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Get all available parameters for a project and explore
+     * Get all available parameter definitions for a project and explore
      * @param projectUuid - The UUID of the project
      * @param explore - The explore to get the parameters for
-     * @returns An array of available parameters
+     * @returns Parameter definitions object
      */
     protected async getAvailableParameters(
         projectUuid: string,
         explore: Explore,
-    ): Promise<string[]> {
+    ): Promise<ParameterDefinitions> {
         const projectParameters = await this.projectParametersModel.find(
             projectUuid,
         );
 
-        return combineProjectAndExploreParameters(projectParameters, explore);
+        return getAvailableParameterDefinitions(projectParameters, explore);
     }
 
     async compileQuery(
@@ -1872,7 +1874,7 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const availableParameters = await this.getAvailableParameters(
+        const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
         );
@@ -1885,7 +1887,7 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
-            availableParameters,
+            availableParameterDefinitions,
         });
 
         await sshTunnel.disconnect();
@@ -2716,7 +2718,7 @@ export class ProjectService extends BaseService {
                             account,
                         });
 
-                    const availableParameters =
+                    const availableParameterDefinitions =
                         await this.getAvailableParameters(projectUuid, explore);
 
                     const fullQuery = await ProjectService._compileQuery({
@@ -2728,7 +2730,7 @@ export class ProjectService extends BaseService {
                         timezone: this.lightdashConfig.query.timezone || 'UTC',
                         dateZoom,
                         parameters,
-                        availableParameters,
+                        availableParameterDefinitions,
                     });
 
                     const { query } = fullQuery;
@@ -3445,7 +3447,7 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ user });
 
-        const availableParameters = await this.getAvailableParameters(
+        const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
         );
@@ -3458,7 +3460,7 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
-            availableParameters,
+            availableParameterDefinitions,
         });
 
         // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
@@ -5203,7 +5205,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
-        availableParameters: string[],
+        availableParameterDefinitions: ParameterDefinitions,
         parameters?: ParametersValuesMap,
     ) {
         const totalQuery: MetricQuery = {
@@ -5225,7 +5227,7 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
-            availableParameters,
+            availableParameterDefinitions,
         });
 
         return { query, totalQuery };
@@ -5255,7 +5257,7 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const availableParameters = await this.getAvailableParameters(
+        const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
         );
@@ -5266,7 +5268,7 @@ export class ProjectService extends BaseService {
             explore,
             metricQuery,
             warehouseClient,
-            availableParameters,
+            availableParameterDefinitions,
             parameters,
         );
 
@@ -5308,7 +5310,7 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
-        const availableParameters = await this.getAvailableParameters(
+        const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
         );
@@ -5319,7 +5321,7 @@ export class ProjectService extends BaseService {
             explore,
             metricQuery,
             warehouseClient,
-            availableParameters,
+            availableParameterDefinitions,
             parameters,
         );
 
