@@ -13,7 +13,7 @@ import { getConfig, setAnswer } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { lightdashApi } from './dbt/apiClient';
+import { checkProjectCreationPermission, lightdashApi } from './dbt/apiClient';
 import getDbtProfileTargetName from './dbt/getDbtProfileTargetName';
 import { getDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
@@ -81,6 +81,9 @@ type CreateProjectOptions = {
 export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<ApiCreateProjectResults | undefined> => {
+    // Check permissions before proceeding
+    await checkProjectCreationPermission(options.type);
+
     const dbtVersion = await getDbtVersion();
 
     const absoluteProjectPath = path.resolve(options.projectDir);
