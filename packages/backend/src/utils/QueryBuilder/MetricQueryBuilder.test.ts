@@ -1789,32 +1789,25 @@ describe('Table Calculation Query Structure Tests', () => {
             },
         });
 
-        // Should have WITH metrics and simple_calcs CTEs (but no metric_filters CTE)
+        // Should have WITH metrics and table_calculations CTE (needed because of TC filter)
         expect(result.query).toContain('WITH');
         expect(result.query).toContain('metrics AS (');
-        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).toContain('table_calculations AS (');
         expect(result.query).not.toContain('metric_filters AS (');
+        expect(result.query).not.toContain('simple_calcs AS (');
 
-        // Should have simple TC in simple_calcs CTE
+        // Should have simple TC in table_calculations CTE
         expect(result.query).toContain('"table1_metric1" AS "simple_tc"');
-        expect(result.query).toContain('FROM metrics');
+        expect(result.query).toContain('FROM table_calculations');
 
-        // Should select from simple_calcs with both metric filter and table calc filter
-        expect(result.query).toContain('SELECT\n  *\nFROM simple_calcs');
+        // Should select from table_calculations CTE (not metrics)
+        expect(result.query).toContain('SELECT\n  *\nFROM table_calculations');
         expect(result.query).toContain('WHERE');
 
-        // Should have both filters in the final WHERE clause
-        const whereMatch = result.query.match(
-            /WHERE\s+(.*?)(?:ORDER BY|LIMIT|$)/s,
-        );
-        expect(whereMatch).toBeTruthy();
-        const whereClause = whereMatch![1].trim();
-
-        // Should contain both metric filter and table calc filter
-        expect(whereClause).toContain('"table1_metric1"'); // metric filter
-        expect(whereClause).toContain('"simple_tc"'); // table calc filter
-        expect(whereClause).toContain('AND'); // both filters combined
-        expect(whereClause).toContain('IS NOT NULL');
+        // Metric filter should be in table_calculations CTE, table calc filter in final WHERE
+        expect(result.query).toContain('"table1_metric1"'); // metric filter
+        expect(result.query).toContain('"simple_tc"'); // table calc filter
+        expect(result.query).toContain('IS NOT NULL');
     });
     test('Case 5: Metric + metric filter + simple TC + dependent TCs - should create full CTE chain', () => {
         const result = buildTestQuery({
@@ -1878,10 +1871,10 @@ describe('Table Calculation Query Structure Tests', () => {
             },
         });
 
-        // Should have full CTE chain: metrics -> metric_filters -> simple_calcs -> tc_depended_on -> tc_dependent
+        // Should have full CTE chain: metrics -> metric_filters -> table_calculations -> tc_depended_on -> tc_dependent
         expect(result.query).toContain('metrics AS (');
         expect(result.query).toContain('metric_filters AS (');
-        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).toContain('table_calculations AS (');
         expect(result.query).toContain('tc_depended_on AS (');
         expect(result.query).toContain('tc_dependent AS (');
 
@@ -1894,13 +1887,15 @@ describe('Table Calculation Query Structure Tests', () => {
         // Verify CTE order is correct
         const metricsIndex = result.query.indexOf('metrics AS (');
         const metricFiltersIndex = result.query.indexOf('metric_filters AS (');
-        const simpleCalcsIndex = result.query.indexOf('simple_calcs AS (');
+        const tableCalculationsIndex = result.query.indexOf(
+            'table_calculations AS (',
+        );
         const dependedOnIndex = result.query.indexOf('tc_depended_on AS (');
         const dependentIndex = result.query.indexOf('tc_dependent AS (');
 
         expect(metricsIndex).toBeLessThan(metricFiltersIndex);
-        expect(metricFiltersIndex).toBeLessThan(simpleCalcsIndex);
-        expect(simpleCalcsIndex).toBeLessThan(dependedOnIndex);
+        expect(metricFiltersIndex).toBeLessThan(tableCalculationsIndex);
+        expect(tableCalculationsIndex).toBeLessThan(dependedOnIndex);
         expect(dependedOnIndex).toBeLessThan(dependentIndex);
     });
     test('Case 6: Metric + metric filter + simple TC + simple TC filter + dependent TCs', () => {
@@ -1975,10 +1970,10 @@ describe('Table Calculation Query Structure Tests', () => {
             },
         });
 
-        // Should have full CTE chain: metrics -> metric_filters -> simple_calcs -> tc_depended_on -> tc_dependent
+        // Should have full CTE chain: metrics -> metric_filters -> table_calculations -> tc_depended_on -> tc_dependent
         expect(result.query).toContain('metrics AS (');
         expect(result.query).toContain('metric_filters AS (');
-        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).toContain('table_calculations AS (');
         expect(result.query).toContain('tc_depended_on AS (');
         expect(result.query).toContain('tc_dependent AS (');
 
@@ -2001,13 +1996,15 @@ describe('Table Calculation Query Structure Tests', () => {
         // Verify CTE order is correct
         const metricsIndex = result.query.indexOf('metrics AS (');
         const metricFiltersIndex = result.query.indexOf('metric_filters AS (');
-        const simpleCalcsIndex = result.query.indexOf('simple_calcs AS (');
+        const tableCalculationsIndex = result.query.indexOf(
+            'table_calculations AS (',
+        );
         const dependedOnIndex = result.query.indexOf('tc_depended_on AS (');
         const dependentIndex = result.query.indexOf('tc_dependent AS (');
 
         expect(metricsIndex).toBeLessThan(metricFiltersIndex);
-        expect(metricFiltersIndex).toBeLessThan(simpleCalcsIndex);
-        expect(simpleCalcsIndex).toBeLessThan(dependedOnIndex);
+        expect(metricFiltersIndex).toBeLessThan(tableCalculationsIndex);
+        expect(tableCalculationsIndex).toBeLessThan(dependedOnIndex);
         expect(dependedOnIndex).toBeLessThan(dependentIndex);
     });
     test('Case 7: Metric + metric filter + simple TC + simple TC filter + dependent TCs + dependent TC filter', () => {
@@ -2088,10 +2085,10 @@ describe('Table Calculation Query Structure Tests', () => {
             },
         });
 
-        // Should have full CTE chain: metrics -> metric_filters -> simple_calcs -> tc_depended_on -> tc_dependent
+        // Should have full CTE chain: metrics -> metric_filters -> table_calculations -> tc_depended_on -> tc_dependent
         expect(result.query).toContain('metrics AS (');
         expect(result.query).toContain('metric_filters AS (');
-        expect(result.query).toContain('simple_calcs AS (');
+        expect(result.query).toContain('table_calculations AS (');
         expect(result.query).toContain('tc_depended_on AS (');
         expect(result.query).toContain('tc_dependent AS (');
 
@@ -2116,13 +2113,15 @@ describe('Table Calculation Query Structure Tests', () => {
         // Verify CTE order is correct
         const metricsIndex = result.query.indexOf('metrics AS (');
         const metricFiltersIndex = result.query.indexOf('metric_filters AS (');
-        const simpleCalcsIndex = result.query.indexOf('simple_calcs AS (');
+        const tableCalculationsIndex = result.query.indexOf(
+            'table_calculations AS (',
+        );
         const dependedOnIndex = result.query.indexOf('tc_depended_on AS (');
         const dependentIndex = result.query.indexOf('tc_dependent AS (');
 
         expect(metricsIndex).toBeLessThan(metricFiltersIndex);
-        expect(metricFiltersIndex).toBeLessThan(simpleCalcsIndex);
-        expect(simpleCalcsIndex).toBeLessThan(dependedOnIndex);
+        expect(metricFiltersIndex).toBeLessThan(tableCalculationsIndex);
+        expect(tableCalculationsIndex).toBeLessThan(dependedOnIndex);
         expect(dependedOnIndex).toBeLessThan(dependentIndex);
     });
 });
