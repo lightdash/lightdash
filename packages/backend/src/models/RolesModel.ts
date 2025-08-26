@@ -5,6 +5,7 @@ import {
     ProjectAccess,
     ProjectMemberRole,
     Role,
+    RoleAssignment,
     RoleWithScopes,
     getSystemRoles,
     isSystemRole,
@@ -25,6 +26,17 @@ import { UserTableName } from '../database/entities/users';
 
 type DbRoleWithScopes = DbRole & {
     scopes: string;
+};
+
+type DbOrganizationRoleAssignment = {
+    customRoleUuid: string | null;
+    customRoleName: string | null;
+    roleName: string;
+    assigneeId: string;
+    assigneeName: string;
+    organizationId: string;
+    createdAt: Date;
+    ownerType: string | null;
 };
 
 export class RolesModel {
@@ -300,7 +312,10 @@ export class RolesModel {
             await this.database('project_group_access')
                 .where('group_uuid', groupUuid)
                 .where('project_uuid', projectUuid)
-                .update({ role_uuid: roleUuid });
+                .update({
+                    role_uuid: roleUuid,
+                    role: ProjectMemberRole.VIEWER,
+                });
         } else {
             await this.database('project_group_access').insert({
                 group_uuid: groupUuid,
@@ -321,6 +336,7 @@ export class RolesModel {
             .delete();
     }
 
+    // eslint-disable-next-line class-methods-use-this
     async getProjectAccess(projectUuid: string): Promise<ProjectAccess[]> {
         const access = await this.database(ProjectMembershipsTableName)
             .join(
@@ -341,15 +357,22 @@ export class RolesModel {
             .select(
                 `${ProjectTableName}.project_uuid as projectUuid`,
                 `${UserTableName}.user_uuid as userUuid`,
-                this.database.raw(
-                    `COALESCE(${RolesTableName}.name, ${ProjectMembershipsTableName}.role) as role`,
-                ),
+                `${RolesTableName}.role_uuid as roleUuid`,
+                `${RolesTableName}.name as roleName`,
+                `${ProjectMembershipsTableName}.role as role`,
                 `${UserTableName}.first_name as firstName`,
                 `${UserTableName}.last_name as lastName`,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
-        return access;
+        return access.map((ac) => ({
+            userUuid: ac.userUuid,
+            projectUuid: ac.projectUuid,
+            roleUuid: ac.roleUuid || ac.role,
+            roleName: ac.roleName || ac.role,
+            firstName: ac.firstName,
+            lastName: ac.lastName,
+        }));
     }
 
     async getGroupProjectAccess(
@@ -374,14 +397,20 @@ export class RolesModel {
             .select(
                 `${GroupTableName}.group_uuid as groupUuid`,
                 `${ProjectTableName}.project_uuid as projectUuid`,
-                this.database.raw(
-                    `COALESCE(${RolesTableName}.name, 'viewer') as role`,
-                ),
+                `${RolesTableName}.role_uuid as roleUuid`,
+                `${RolesTableName}.name as roleName`,
+                `project_group_access.role as role`,
                 `${GroupTableName}.name as groupName`,
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
-        return access;
+        return access.map((ac) => ({
+            groupUuid: ac.groupUuid,
+            projectUuid: ac.projectUuid,
+            roleUuid: ac.roleUuid || ac.role,
+            roleName: ac.roleName || ac.role,
+            groupName: ac.groupName,
+        }));
     }
 
     async upsertSystemRoleProjectAccess(
@@ -462,42 +491,64 @@ export class RolesModel {
             .delete();
     }
 
-    async getOrganizationRoleAssignments(orgUuid: string): Promise<
-        Array<{
-            roleId: string;
-            roleName: string;
-            assigneeId: string;
-            assigneeName: string;
-            organizationId: string;
-            createdAt: Date;
-        }>
-    > {
-        const userAssignments = await this.database('organization_memberships')
-            .join('users', 'organization_memberships.user_id', 'users.user_id')
-            .join(
-                'organizations',
-                'organization_memberships.organization_id',
-                'organizations.organization_id',
-            )
-            .leftJoin(
-                'roles',
-                'organization_memberships.role_uuid',
-                'roles.role_uuid',
-            )
-            .select(
-                'roles.role_uuid as roleId',
-                'roles.name as roleName',
-                'users.user_uuid as assigneeId',
-                this.database.raw(
-                    "CONCAT(users.first_name, ' ', users.last_name) as assigneeName",
-                ),
-                'organizations.organization_uuid as organizationId',
-                'organization_memberships.created_at as createdAt',
-            )
-            .where('organizations.organization_uuid', orgUuid)
-            .whereNotNull('organization_memberships.role_uuid');
+    // eslint-disable-next-line class-methods-use-this
+    private mapOrganizationRoleAssignment(
+        userAssignments: DbOrganizationRoleAssignment[],
+    ): RoleAssignment[] {
+        const formattedUserAssignments: RoleAssignment[] = userAssignments.map(
+            (assignment) => ({
+                roleId: assignment.customRoleUuid || assignment.roleName,
+                roleName: assignment.customRoleName || assignment.roleName,
+                assigneeType: 'user' as const,
+                ownerType:
+                    (assignment.ownerType as 'user' | 'system') || 'system',
+                assigneeId: assignment.assigneeId,
+                assigneeName: assignment.assigneeName,
+                organizationId: assignment.organizationId,
+                createdAt: assignment.createdAt,
+                updatedAt: assignment.createdAt, // Use createdAt since updatedAt doesn't exist
+            }),
+        );
+        return formattedUserAssignments;
+    }
 
-        return userAssignments;
+    async getOrganizationRoleAssignments(
+        orgUuid: string,
+    ): Promise<RoleAssignment[]> {
+        const userAssignments: DbOrganizationRoleAssignment[] =
+            await this.database('organization_memberships')
+                .join(
+                    'users',
+                    'organization_memberships.user_id',
+                    'users.user_id',
+                )
+                .join(
+                    'organizations',
+                    'organization_memberships.organization_id',
+                    'organizations.organization_id',
+                )
+                .leftJoin(
+                    'roles',
+                    'organization_memberships.role_uuid',
+                    'roles.role_uuid',
+                )
+                .select(
+                    `${RolesTableName}.role_uuid as customRoleUuid`,
+                    `${RolesTableName}.name as customRoleName`,
+
+                    `${RolesTableName}.owner_type as ownerType`,
+                    `${OrganizationMembershipsTableName}.role as roleName`,
+                    'users.user_uuid as assigneeId',
+
+                    this.database.raw(
+                        "CONCAT(users.first_name, ' ', users.last_name) as assigneeName",
+                    ),
+                    'organizations.organization_uuid as organizationId',
+                    'organization_memberships.created_at as createdAt',
+                )
+                .where('organizations.organization_uuid', orgUuid);
+
+        return this.mapOrganizationRoleAssignment(userAssignments);
     }
 
     async upsertOrganizationUserRoleAssignment(

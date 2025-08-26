@@ -45,6 +45,7 @@ export const SCHEDULER_TASKS = {
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
     RENAME_RESOURCES: 'renameResources',
+    CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -72,6 +73,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
+    [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
 }
 
 export interface EETaskPayloadMap {

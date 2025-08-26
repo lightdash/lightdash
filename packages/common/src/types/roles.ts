@@ -3,7 +3,8 @@ import type { ApiSuccessEmpty } from './api/success';
 export type ProjectAccess = {
     projectUuid: string;
     userUuid: string;
-    role: string;
+    roleUuid: string;
+    roleName: string;
     firstName: string;
     lastName: string;
 };
@@ -11,7 +12,8 @@ export type ProjectAccess = {
 export type GroupProjectAccess = {
     groupUuid: string;
     projectUuid: string;
-    role: string;
+    roleUuid: string;
+    roleName: string;
     groupName: string;
 };
 
@@ -47,7 +49,7 @@ export type AddScopesToRole = {
 // API Response Types
 export type ApiGetRolesResponse = {
     status: 'ok';
-    results: Role[];
+    results: Role[] | RoleWithScopes[];
 };
 
 export type ApiRoleWithScopesResponse = {
@@ -78,6 +80,7 @@ export type ApiGetProjectAccessResponse = {
 export type RoleAssignment = {
     roleId: string;
     roleName: string;
+    ownerType: 'user' | 'system';
     assigneeType: 'user' | 'group';
     assigneeId: string;
     assigneeName: string;

@@ -2,7 +2,6 @@ import {
     type ApiError,
     type CreateProjectMember,
     type ProjectMemberProfile,
-    type UpdateProjectMember,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
@@ -24,39 +23,6 @@ export const useProjectAccess = (projectUuid: string) => {
         onError: (result) => setErrorResponse(result),
         enabled: !!projectUuid,
     });
-};
-
-const removeProjectAccessQuery = async (
-    projectUuid: string,
-    userUuid: string,
-) =>
-    lightdashApi<null>({
-        url: `/projects/${projectUuid}/access/${userUuid}`,
-        method: 'DELETE',
-        body: undefined,
-    });
-
-export const useRevokeProjectAccessMutation = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, string>(
-        (data) => removeProjectAccessQuery(projectUuid, data),
-        {
-            mutationKey: ['project_access_revoke'],
-            onSuccess: async () => {
-                await queryClient.refetchQueries(['project_access_users']);
-                showToastSuccess({
-                    title: `Revoked project access`,
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to revoke project access`,
-                    apiError: error,
-                });
-            },
-        },
-    );
 };
 
 const createProjectAccessQuery = async (
@@ -85,45 +51,6 @@ export const useCreateProjectAccessMutation = (projectUuid: string) => {
             onError: async ({ error }) => {
                 showToastApiError({
                     title: 'Failed to create project access',
-                    apiError: error,
-                });
-            },
-        },
-    );
-};
-
-const updateProjectAccessQuery = async (
-    projectUuid: string,
-    userUuid: string,
-    data: UpdateProjectMember,
-) =>
-    lightdashApi<null>({
-        url: `/projects/${projectUuid}/access/${userUuid}`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
-    });
-
-export const useUpdateProjectAccessMutation = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<
-        null,
-        ApiError,
-        UpdateProjectMember & { userUuid: string }
-    >(
-        ({ userUuid, ...rest }) =>
-            updateProjectAccessQuery(projectUuid, userUuid, rest),
-        {
-            mutationKey: ['project_access_update'],
-            onSuccess: async () => {
-                await queryClient.refetchQueries(['project_access_users']);
-                showToastSuccess({
-                    title: 'Updated project access role',
-                });
-            },
-            onError: async ({ error }) => {
-                showToastApiError({
-                    title: 'Failed to update project access role',
                     apiError: error,
                 });
             },

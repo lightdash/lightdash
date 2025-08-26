@@ -57,30 +57,6 @@ export class OrganizationRolesController extends BaseController {
     }
 
     /**
-     * Get role by ID
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{roleUuid}')
-    @OperationId('GetRoleById')
-    async getRoleById(
-        @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() roleUuid: string,
-    ): Promise<ApiRoleWithScopesResponse> {
-        const role = await this.getRolesService().getRoleByUuid(
-            req.account!,
-            roleUuid,
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: role,
-        };
-    }
-
-    /**
      * Get roles for organization
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -91,7 +67,7 @@ export class OrganizationRolesController extends BaseController {
         @Request() req: express.Request,
         @Path() orgUuid: string,
         @Query() load?: string,
-    ): Promise<ApiGetRolesResponse | ApiRoleWithScopesResponse> {
+    ): Promise<ApiGetRolesResponse> {
         const loadScopes = load === 'scopes';
         const roles = await this.getRolesService().getRolesByOrganizationUuid(
             req.account!,

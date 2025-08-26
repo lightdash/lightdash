@@ -549,6 +549,9 @@ importers:
       '@actions/core':
         specifier: ^1.11.1
         version: 1.11.1
+      '@casl/ability':
+        specifier: ^5.4.3
+        version: 5.4.4
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common

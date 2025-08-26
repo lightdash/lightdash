@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.1952.0",
+    "version": "0.1954.1",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
@@ -11,6 +11,7 @@
     ],
     "dependencies": {
         "@actions/core": "^1.11.1",
+        "@casl/ability": "^5.4.3",
         "@lightdash/common": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
         "@types/columnify": "^1.5.1",

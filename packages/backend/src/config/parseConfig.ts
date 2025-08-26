@@ -709,6 +709,16 @@ export type LightdashConfig = {
         jobTimeout: number;
         screenshotTimeout?: number;
         tasks: Array<SchedulerTaskName>;
+        queryHistory: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches?: number;
+                schedule: string;
+            };
+        };
     };
     groups: {
         enabled: boolean;
@@ -1429,6 +1439,31 @@ export const parseConfig = (): LightdashConfig => {
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
             tasks: parseAndSanitizeSchedulerTasks(),
+            queryHistory: {
+                cleanup: {
+                    enabled:
+                        process.env.QUERY_HISTORY_CLEANUP_ENABLED !== 'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'QUERY_HISTORY_RETENTION_DAYS',
+                        ) || 30,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'QUERY_HISTORY_CLEANUP_BATCH_SIZE',
+                        ) || 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'QUERY_HISTORY_CLEANUP_DELAY_MS',
+                        ) || 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'QUERY_HISTORY_CLEANUP_MAX_BATCHES',
+                        ) || 100,
+                    schedule:
+                        process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
+                        '0 2 * * *',
+                },
+            },
         },
         groups: {
             enabled: process.env.GROUPS_ENABLED === 'true',

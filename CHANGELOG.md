@@ -1,3 +1,30 @@
+## [0.1954.1](https://github.com/lightdash/lightdash/compare/0.1954.0...0.1954.1) (2025-08-26)
+
+
+### Bug Fixes
+
+* remove redundant SQL controls from AI artifact panel ([#16606](https://github.com/lightdash/lightdash/issues/16606)) ([d1e85ff](https://github.com/lightdash/lightdash/commit/d1e85ff1de8fec3955def77c216a910156d5298b))
+
+# [0.1954.0](https://github.com/lightdash/lightdash/compare/0.1953.0...0.1954.0) (2025-08-26)
+
+
+### Bug Fixes
+
+* migrate project access to new endpoints ([#16570](https://github.com/lightdash/lightdash/issues/16570)) ([2b7007e](https://github.com/lightdash/lightdash/commit/2b7007e3197976148ed764ed0ee072649f2a91b1))
+
+
+### Features
+
+* add query history cleanup scheduler task with retention policy ([#16279](https://github.com/lightdash/lightdash/issues/16279)) ([d6e893c](https://github.com/lightdash/lightdash/commit/d6e893c220b7d25af8176736218907d195dd38f4))
+
+# [0.1953.0](https://github.com/lightdash/lightdash/compare/0.1952.0...0.1953.0) (2025-08-26)
+
+
+### Features
+
+* add permission check for CLI project creation ([#16593](https://github.com/lightdash/lightdash/issues/16593)) ([2eb1dfe](https://github.com/lightdash/lightdash/commit/2eb1dfe217b49d1585feadceceb36cc4c50a15eb))
+* add permission checks to warehouse selection UI ([#16591](https://github.com/lightdash/lightdash/issues/16591)) ([e292ec9](https://github.com/lightdash/lightdash/commit/e292ec94c0af6b6efb7b8ced864b78768f3eb123))
+
 # [0.1952.0](https://github.com/lightdash/lightdash/compare/0.1951.1...0.1952.0) (2025-08-26)
 
 

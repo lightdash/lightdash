@@ -20,7 +20,7 @@ export type CreateDBProjectGroupAccess = {
 };
 
 export type UpdateDBProjectGroupAccess = {
-    role?: ProjectMemberRole;
+    role: ProjectMemberRole;
     role_uuid?: string | null;
 };
 

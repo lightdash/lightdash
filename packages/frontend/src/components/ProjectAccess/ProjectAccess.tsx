@@ -1,17 +1,31 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Paper, Table, TextInput } from '@mantine/core';
+import { type Role } from '@lightdash/common';
+import {
+    ActionIcon,
+    Flex,
+    Pagination,
+    Paper,
+    Table,
+    TextInput,
+} from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
-import { useProjectUsersWithRoles } from '../../hooks/useProjectUsersWithRoles';
+import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
+import {
+    useOrganizationRoleAssignments,
+    useOrganizationRoles,
+} from '../../hooks/useOrganizationRoles';
+import { useProjectUsersWithRoles } from '../../hooks/useProjectUsersWithRolesV2';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
+import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
 import CreateProjectAccessModal from './CreateProjectAccessModal';
-import ProjectAccessRow from './ProjectAccessRow';
+import ProjectAccessRowV2 from './ProjectAccessRowV2';
 
 interface ProjectAccessProps {
     projectUuid: string;
@@ -31,10 +45,33 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
     const { cx, classes } = useTableStyles();
 
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
 
-    const { usersWithProjectRole, isLoading, inheritedRoles } =
+    const { usersWithProjectRole, groupRoles, isLoading } =
         useProjectUsersWithRoles(projectUuid);
 
+    const { data: organizationRoles, isLoading: isLoadingOrganizationRoles } =
+        useOrganizationRoles();
+    const {
+        data: organizationRoleAssignments,
+        isLoading: isLoadingOrganizationRoleAssignments,
+    } = useOrganizationRoleAssignments();
+
+    // Fetch organization groups to check for inherited group access
+    const { data: organizationGroups } = useOrganizationGroups({
+        includeMembers: 2000,
+    });
+
+    const rolesData = useMemo(() => {
+        return organizationRoles?.map(
+            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
+                value: role.roleUuid,
+                label: role.name,
+                group:
+                    role.ownerType === 'system' ? 'System role' : 'Custom role',
+            }),
+        );
+    }, [organizationRoles]);
     const canManageProjectAccess = ability.can(
         'manage',
         subject('Project', {
@@ -43,23 +80,42 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
         }),
     );
 
+    // Reset page when search changes
+    useEffect(() => {
+        setPage(1);
+    }, [search]);
+
     const filteredUsers = useMemo(() => {
         if (search && usersWithProjectRole) {
             return new Fuse(usersWithProjectRole, {
-                keys: ['firstName', 'lastName', 'email', 'finalRole'],
+                keys: ['firstName', 'lastName', 'email', 'role', 'projectRole'],
                 ignoreLocation: true,
                 threshold: 0.3,
             })
                 .search(search)
-                .map((result) => ({
-                    ...result.item,
-                    inheritedRole: inheritedRoles?.[result.item.userUuid],
-                }));
+                .map((result) => result.item);
         }
         return usersWithProjectRole;
-    }, [usersWithProjectRole, search, inheritedRoles]);
+    }, [usersWithProjectRole, search]);
 
-    if (isLoading) {
+    // Pagination logic
+    const paginatedUsers = !filteredUsers
+        ? []
+        : (() => {
+              const startIndex = (page - 1) * DEFAULT_PAGE_SIZE;
+              const endIndex = startIndex + DEFAULT_PAGE_SIZE;
+              return filteredUsers.slice(startIndex, endIndex);
+          })();
+
+    const totalPages = !filteredUsers
+        ? 1
+        : Math.ceil(filteredUsers.length / DEFAULT_PAGE_SIZE);
+
+    if (
+        isLoading ||
+        isLoadingOrganizationRoles ||
+        isLoadingOrganizationRoleAssignments
+    ) {
         return <LoadingState title="Loading user access" />;
     }
 
@@ -98,17 +154,33 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredUsers?.map((orgUser) => (
-                            <ProjectAccessRow
+                        {paginatedUsers?.map((orgUser) => (
+                            <ProjectAccessRowV2
                                 key={orgUser.userUuid}
                                 projectUuid={projectUuid}
                                 canManageProjectAccess={canManageProjectAccess}
                                 user={orgUser}
-                                inheritedRoles={orgUser.inheritedRole}
+                                organizationRoles={rolesData || []}
+                                organizationRoleAssignments={
+                                    organizationRoleAssignments || []
+                                }
+                                organizationGroups={organizationGroups || []}
+                                groupRoles={groupRoles || []}
                             />
                         ))}
                     </tbody>
                 </Table>
+                {totalPages > 1 && (
+                    <Flex m="sm" align="center" justify="center">
+                        <Pagination
+                            size="sm"
+                            value={page}
+                            onChange={setPage}
+                            total={totalPages}
+                            mt="sm"
+                        />
+                    </Flex>
+                )}
             </SettingsCard>
 
             {isAddingProjectAccess && (

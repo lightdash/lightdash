@@ -1,9 +1,14 @@
+import { Ability, subject } from '@casl/ability';
 import {
     ApiError,
     ApiHealthResults,
     ApiResponse,
     AuthorizationError,
+    ForbiddenError,
     LightdashError,
+    ProjectType,
+    type LightdashUserWithAbilityRules,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
@@ -60,6 +65,51 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             // ApiErrorResponse
             throw err;
         });
+};
+
+export const getUserContext =
+    async (): Promise<LightdashUserWithAbilityRules> =>
+        lightdashApi<LightdashUserWithAbilityRules>({
+            method: 'GET',
+            url: `/api/v1/user`,
+            body: undefined,
+        });
+
+export const checkProjectCreationPermission = async (
+    projectType: ProjectType,
+): Promise<void> => {
+    try {
+        const user = await getUserContext();
+
+        // Build CASL ability from user's ability rules (same as backend)
+        const ability = new Ability<PossibleAbilities>(user.abilityRules);
+
+        // Check if user has permission to create project of the specified type
+        const canCreate = ability.can(
+            'create',
+            subject('Project', {
+                organizationUuid: user.organizationUuid || '',
+                type: projectType,
+            }),
+        );
+
+        if (!canCreate) {
+            const projectTypeText =
+                projectType === ProjectType.PREVIEW ? 'preview ' : '';
+            throw new ForbiddenError(
+                `You don't have permission to create ${projectTypeText}projects.`,
+            );
+        }
+    } catch (err) {
+        if (
+            err instanceof ForbiddenError ||
+            err instanceof AuthorizationError
+        ) {
+            throw err;
+        }
+        GlobalState.debug(`Failed to check permissions: ${err}`);
+        // If we can't check permissions, we'll let the API call fail with proper error
+    }
 };
 
 export const checkLightdashVersion = async (): Promise<void> => {

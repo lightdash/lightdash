@@ -5,6 +5,7 @@ import {
     ApiGroupResponse,
     ApiSuccessEmpty,
     ApiUpdateProjectGroupAccess,
+    CreateProjectGroupAccess,
     UpdateGroupWithMembers,
 } from '@lightdash/common';
 import {
@@ -193,6 +194,8 @@ export class GroupsController extends BaseController {
 
     /**
      * Add project access to a group
+     *
+     * @deprecated Use ProjectRoleAssignments instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -204,7 +207,7 @@ export class GroupsController extends BaseController {
     async addProjectAccessToGroup(
         @Path() groupUuid: string,
         @Path() projectUuid: string,
-        @Body() projectGroupAccess: Pick<CreateDBProjectGroupAccess, 'role'>,
+        @Body() projectGroupAccess: Pick<CreateProjectGroupAccess, 'role'>,
         @Request() req: express.Request,
     ): Promise<ApiCreateProjectGroupAccess> {
         const results = await this.services
@@ -223,6 +226,8 @@ export class GroupsController extends BaseController {
 
     /**
      * Update project access for a group
+     *
+     *  @deprecated Use ProjectRoleAssignments instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -254,6 +259,8 @@ export class GroupsController extends BaseController {
 
     /**
      * Remove project access from a group
+     *
+     * @deprecated Use ProjectRoleAssignments instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
