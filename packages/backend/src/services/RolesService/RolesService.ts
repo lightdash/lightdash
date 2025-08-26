@@ -4,7 +4,9 @@ import {
     AddScopesToRole,
     CreateRole,
     ForbiddenError,
+    getSystemRoles,
     isSystemRole,
+    NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     Role,
@@ -858,5 +860,81 @@ export class RolesService extends BaseService {
                 organizationUuid,
             },
         });
+    }
+
+    async duplicateRole(
+        account: Account,
+        organizationUuid: string,
+        roleUuid: string,
+        duplicateRoleData: CreateRole,
+    ): Promise<RoleWithScopes> {
+        RolesService.validateOrganizationAccess(account, organizationUuid);
+
+        const { name, description } = duplicateRoleData;
+        if (name !== undefined) {
+            RolesService.validateRoleName(name);
+        }
+
+        let sourceRole: RoleWithScopes;
+        if (isSystemRole(roleUuid)) {
+            sourceRole = getSystemRoles().find(
+                (role) => role.roleUuid === roleUuid,
+            ) as RoleWithScopes;
+
+            if (!sourceRole) {
+                throw new NotFoundError(`System role: ${roleUuid} not found`);
+            }
+        } else {
+            sourceRole = await this.rolesModel.getRoleWithScopesByUuid(
+                roleUuid,
+            );
+            RolesService.validateRoleOwnership(account, sourceRole);
+        }
+
+        const copyOfRoleName = `Copy of: ${sourceRole.name}`;
+        const newDescription =
+            description || sourceRole.description || copyOfRoleName;
+        const newRoleName = name || copyOfRoleName;
+        const newRole = await this.rolesModel.db.transaction(
+            async (tx: Knex.Transaction) => {
+                const role = await this.rolesModel.createRole(
+                    organizationUuid,
+                    {
+                        name: newRoleName,
+                        description: newDescription,
+                        created_by: account.user?.id,
+                    },
+                    tx,
+                );
+
+                if (sourceRole.scopes.length > 0) {
+                    await this.addScopesToRole(
+                        account,
+                        role.roleUuid,
+                        { scopeNames: sourceRole.scopes },
+                        { tx, role },
+                    );
+                }
+                return role;
+            },
+        );
+
+        this.analytics.track({
+            event: 'role.duplicated',
+            userId: account.user?.id,
+            properties: {
+                sourceRoleUuid: roleUuid,
+                newRoleUuid: newRole.roleUuid,
+                newRoleName,
+                isSourceSystemRole: isSystemRole(roleUuid),
+                organizationUuid,
+                scopeCount: sourceRole.scopes.length,
+            },
+        });
+
+        return {
+            ...newRole,
+            scopes: sourceRole.scopes,
+        };
     }
 }

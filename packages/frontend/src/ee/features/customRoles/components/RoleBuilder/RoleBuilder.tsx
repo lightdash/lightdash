@@ -2,8 +2,8 @@ import { Button, Group, Stack, TextInput, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 
-import { isSystemRole } from '@lightdash/common';
 import { Link } from 'react-router';
+import { validateRoleName, validateScopes } from '../../utils/roleValidation';
 import { ScopeSelector } from '../ScopeSelector';
 import { type RoleFormValues } from '../types';
 import styles from './RoleBuilder.module.css';
@@ -45,25 +45,8 @@ export const RoleBuilder: FC<Props> = ({
             scopes: initialScopesObject,
         },
         validate: {
-            name: (value) => {
-                if (!value || value.trim().length === 0) {
-                    return 'Role name is required';
-                }
-                if (value.length < 3) {
-                    return 'Role name must be at least 3 characters';
-                }
-                if (isSystemRole(value.toLocaleLowerCase())) {
-                    return 'Role name cannot match a system role';
-                }
-                return null;
-            },
-            scopes: (value) => {
-                const isScopesEmpty = !Object.values(value).some(Boolean);
-                if (isScopesEmpty) {
-                    return 'At least one scope is required';
-                }
-                return null;
-            },
+            name: validateRoleName,
+            scopes: validateScopes,
         },
     });
 
