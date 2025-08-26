@@ -29,7 +29,7 @@ import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
-    () => import('@lightdash/common/src/pivotTable/pivotQueryResults'),
+    () => import('@lightdash/common/src/pivot/pivotQueryResults'),
 );
 
 const useTableConfig = (

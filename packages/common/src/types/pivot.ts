@@ -1,3 +1,4 @@
+import type { PivotIndexColum } from '../visualizations/types';
 import { type FieldType } from './field';
 import { type ResultRow, type ResultValue } from './results';
 import {
@@ -5,6 +6,7 @@ import {
     getHiddenTableFields,
     type CreateSavedChartVersion,
 } from './savedCharts';
+import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 
 export type PivotConfig = {
     pivotDimensions: string[];
@@ -13,6 +15,14 @@ export type PivotConfig = {
     hiddenMetricFieldIds?: string[];
     columnTotals?: boolean;
     rowTotals?: boolean;
+};
+
+// Used in AsyncQueryService to execute pivoted queries
+export type PivotConfiguration = {
+    indexColumn: PivotIndexColum | PivotIndexColum[] | undefined;
+    valuesColumns: ValuesColumn[];
+    groupByColumns: GroupByColumn[] | undefined;
+    sortBy: SortBy | undefined;
 };
 
 type Field =

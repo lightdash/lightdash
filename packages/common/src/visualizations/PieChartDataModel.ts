@@ -1,6 +1,6 @@
+import { getFirstIndexColumns } from '../pivot/utils';
 import { type AnyType } from '../types/any';
 import { DimensionType } from '../types/field';
-import { getFirstIndexColumns } from '../types/queryHistory';
 import { type RawResultRow } from '../types/results';
 import { type ChartKind } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
