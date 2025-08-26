@@ -99,6 +99,25 @@ Content-Type: application/json
   ]
 }
 
+### STEP 8b: Duplicate an existing role (creates a new role with the same scopes)
+POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}/duplicate
+Content-Type: application/json
+
+{
+  "name": "Copy of: Senior Data Analyst",
+  "description": "Duplicated role with same permissions as Senior Data Analyst"
+}
+
+### STEP 8c: Duplicate a system role (creates a custom role with the same scopes as the system role)
+# Example: Duplicate the "editor" system role to create a custom variant
+POST {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/editor/duplicate
+Content-Type: application/json
+
+{
+  "name": "Custom Editor",
+  "description": "Custom role based on the editor system role with same initial permissions"
+}
+
 ### STEP 9: Remove a specific scope to restrict permissions
 DELETE {{baseUrl}}/api/v2/orgs/{{orgId}}/roles/{{roleId}}/scopes/manage_space
 

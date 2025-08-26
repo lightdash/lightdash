@@ -11,6 +11,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 
 const CACHE_KEY = 'custom-roles';
+const ALL_ROLES_CACHE_KEY = 'all-roles';
 
 export const useCustomRoles = () => {
     const queryClient = useQueryClient();
@@ -86,6 +87,9 @@ export const useCustomRoles = () => {
             await queryClient.invalidateQueries({
                 queryKey: [CACHE_KEY, organization?.organizationUuid],
             });
+            await queryClient.invalidateQueries({
+                queryKey: [ALL_ROLES_CACHE_KEY, organization?.organizationUuid],
+            });
             showToastSuccess({
                 title: `Custom role deleted successfully`,
             });
@@ -98,11 +102,70 @@ export const useCustomRoles = () => {
         },
     });
 
+    const getAllRoles = useQuery<RoleWithScopes[], ApiError>({
+        queryKey: [ALL_ROLES_CACHE_KEY, organization?.organizationUuid],
+        queryFn: async () => {
+            if (!organization?.organizationUuid) {
+                throw new Error('Organization UUID not available');
+            }
+
+            return lightdashApi<RoleWithScopes[]>({
+                method: 'GET',
+                url: `/orgs/${organization?.organizationUuid}/roles?load=scopes`,
+                version: 'v2',
+            });
+        },
+        enabled: !!organization?.organizationUuid,
+    });
+
+    const duplicateRole = useMutation<
+        RoleWithScopes,
+        ApiError,
+        { roleId: string; name: string; description: string }
+    >({
+        mutationFn: async ({ roleId, name, description }) => {
+            if (!organization?.organizationUuid) {
+                throw new Error('Organization UUID not available');
+            }
+
+            const body: { name: string; description?: string } = { name };
+            if (description) {
+                body.description = description;
+            }
+
+            return lightdashApi<RoleWithScopes>({
+                method: 'POST',
+                url: `/orgs/${organization.organizationUuid}/roles/${roleId}/duplicate`,
+                version: 'v2',
+                body: JSON.stringify(body),
+            });
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: [CACHE_KEY, organization?.organizationUuid],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [ALL_ROLES_CACHE_KEY, organization?.organizationUuid],
+            });
+            showToastSuccess({
+                title: `Role duplicated successfully`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to duplicate role`,
+                apiError: error,
+            });
+        },
+    });
+
     return useMemo(() => {
         return {
             listRoles,
             createRole,
             deleteRole,
+            getAllRoles,
+            duplicateRole,
         };
-    }, [listRoles, createRole, deleteRole]);
+    }, [listRoles, createRole, deleteRole, getAllRoles, duplicateRole]);
 };

@@ -17058,6 +17058,10 @@
             },
             "PivotValuesColumn": {
                 "properties": {
+                    "columnIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "pivotValues": {
                         "items": {
                             "properties": {
@@ -18628,7 +18632,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1966.4",
+        "version": "0.1970.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -29204,6 +29208,64 @@
                                 },
                                 "required": ["roleId"],
                                 "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/orgs/{orgUuid}/roles/{roleId}/duplicate": {
+            "post": {
+                "operationId": "DuplicateRole",
+                "responses": {
+                    "201": {
+                        "description": "Role duplicated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleWithScopesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Duplicate a role",
+                "tags": ["v2", "Organization Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "roleId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRole"
                             }
                         }
                     }
