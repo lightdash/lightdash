@@ -200,6 +200,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.API,
                 limit: body.limit,
                 parameters: body.parameters,
+                pivotResults: body.pivotResults,
             });
 
         return {
@@ -240,6 +241,7 @@ export class QueryController extends BaseController {
                 limit: body.limit,
                 context: context ?? QueryExecutionContext.API,
                 parameters: body.parameters,
+                pivotResults: body.pivotResults,
             });
 
         return {
