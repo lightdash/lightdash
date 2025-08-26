@@ -2769,12 +2769,13 @@ export class AiAgentService {
 
                 // Consent is granted - fetch thread messages
                 if (aiThreadAccessConsent === true && context.botId) {
-                    threadMessages = await AiAgentService.fetchThreadMessages({
+                    threadMessages = await this.fetchThreadMessages({
                         client,
                         channelId: event.channel,
                         threadTs: event.thread_ts,
                         excludeMessageTs: event.ts,
                         botId: context.botId,
+                        organizationUuid,
                     });
                 }
             }
@@ -2851,34 +2852,71 @@ export class AiAgentService {
         });
     }
 
-    private static processThreadMessages(
+    private async processThreadMessages(
         messages: MessageElement[] | undefined,
         excludeMessageTs: string,
         botId: string,
-    ): ThreadMessageContext | undefined {
+        organizationUuid: string,
+    ): Promise<ThreadMessageContext | undefined> {
         if (!messages || messages.length === 0) {
             return undefined;
         }
 
-        const threadMessages = messages
-            .filter((msg) => {
-                // Exclude the current message
-                if (msg.ts === excludeMessageTs) {
-                    return false;
-                }
+        const filteredMessages = messages.filter((msg) => {
+            // Exclude the current message
+            if (msg.ts === excludeMessageTs) {
+                return false;
+            }
 
-                // Exclude bot messages and messages from the bot itself
-                if (msg.subtype === 'bot_message' || msg.bot_id === botId) {
-                    return false;
-                }
+            // Exclude bot messages and messages from the bot itself
+            if (msg.subtype === 'bot_message' || msg.bot_id === botId) {
+                return false;
+            }
 
-                return true;
-            })
-            .map((msg) => ({
-                text: msg.text || '[message]',
-                user: msg.user || 'unknown',
+            return true;
+        });
+
+        // Get unique user IDs for batch fetching user info
+        const uniqueUserIds = [
+            ...new Set(
+                filteredMessages
+                    .map((msg) => msg.user)
+                    .filter((userId): userId is string => userId !== undefined),
+            ),
+        ];
+
+        // Batch fetch user information
+        const userInfoMap = new Map<string, string>();
+        await Promise.all(
+            uniqueUserIds.map(async (userId) => {
+                try {
+                    const userInfo = await this.slackClient.getUserInfo(
+                        organizationUuid,
+                        userId,
+                    );
+                    userInfoMap.set(userId, userInfo.name || userId);
+                } catch (error) {
+                    Logger.warn(
+                        `Failed to get user info for ${userId}:`,
+                        error,
+                    );
+                    userInfoMap.set(userId, userId); // Fallback to user ID
+                }
+            }),
+        );
+
+        const threadMessages = filteredMessages.map((msg) => {
+            const userId = msg.user || 'unknown';
+            const userName = userInfoMap.get(userId) || userId;
+            const originalText = msg.text || '[message]';
+            const prefixedText = `${userName}: ${originalText}`;
+
+            return {
+                text: prefixedText,
+                user: userId,
                 ts: msg.ts || '',
-            }));
+            };
+        });
 
         return threadMessages;
     }
@@ -2886,18 +2924,20 @@ export class AiAgentService {
     /**
      * Fetches thread messages from Slack if consent is granted
      */
-    private static async fetchThreadMessages({
+    private async fetchThreadMessages({
         client,
         channelId,
         threadTs,
         excludeMessageTs,
         botId,
+        organizationUuid,
     }: {
         client: WebClient;
         channelId: string;
         threadTs: string;
         excludeMessageTs: string;
         botId: string;
+        organizationUuid: string;
     }): Promise<ThreadMessageContext | undefined> {
         if (!threadTs) {
             return undefined;
@@ -2910,10 +2950,11 @@ export class AiAgentService {
                 limit: 100, // TODO: What should be the limit?
             });
 
-            return this.processThreadMessages(
+            return await this.processThreadMessages(
                 threadHistory.messages,
                 excludeMessageTs,
                 botId,
+                organizationUuid,
             );
         } catch (error) {
             Logger.error(
