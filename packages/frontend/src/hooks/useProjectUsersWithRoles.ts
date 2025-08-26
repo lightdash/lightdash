@@ -69,7 +69,7 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
             Record<string, ProjectMemberRole>
         >((aggregatedRoles, orgUser) => {
             const userGroupRoles = projectGroupAccessQuery.data.reduce<
-                ProjectMemberRole[]
+                string[]
             >((userRoles, groupAccess) => {
                 const group = groupsQuery.data.find(
                     (g) => g.uuid === groupAccess.groupUuid,
@@ -82,9 +82,9 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
             }, []);
 
             const highestRole = getHighestProjectRole(
-                userGroupRoles.map((role) => ({
+                userGroupRoles.map((roleString) => ({
                     type: 'group',
-                    role,
+                    role: roleString as ProjectMemberRole, // Cast string role to ProjectMemberRole for compatibility
                 })),
             );
 

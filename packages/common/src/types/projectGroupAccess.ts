@@ -3,7 +3,7 @@ import { type ProjectMemberRole } from './projectMemberRole';
 export type ProjectGroupAccess = {
     projectUuid: string;
     groupUuid: string;
-    role: ProjectMemberRole;
+    role: ProjectMemberRole | string; // Support both old enum and new custom role UUIDs
 };
 
 export type CreateProjectGroupAccess = ProjectGroupAccess;
