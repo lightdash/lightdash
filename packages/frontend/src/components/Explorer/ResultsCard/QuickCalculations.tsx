@@ -145,11 +145,7 @@ const getSqlForQuickCalculation = (
         case QuickCalculation.RANK_IN_COLUMN:
             return `RANK() OVER(ORDER BY \${${fieldReference}} ASC)`;
         case QuickCalculation.RUNNING_TOTAL:
-            return `SUM(\${${fieldReference}}) OVER(${orderSql(
-                false,
-            )} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-
-          `;
+            return `SUM(\${${fieldReference}}) OVER(ORDER BY \${${fieldReference}} DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
         default:
             assertUnreachable(
                 quickCalculation,
