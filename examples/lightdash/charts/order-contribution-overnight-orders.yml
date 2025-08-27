@@ -1,0 +1,81 @@
+name: Order Contribution - Overnight Orders
+description: ""
+tableName: orders
+updatedAt: "2025-08-27T16:27:13.204Z"
+metricQuery:
+  exploreName: orders
+  dimensions:
+    - orders_shipping_method
+    - orders_order_id
+  metrics:
+    - orders_total_order_amount
+  filters:
+    dimensions:
+      id: 695d44c8-f29a-459b-a697-dbed9fceb8a6
+      and:
+        - id: 6051d06e-110d-4425-a8b5-444deca6b5f2
+          target:
+            fieldId: orders_shipping_method
+          values:
+            - express
+          operator: equals
+          required: false
+  sorts:
+    - fieldId: orders_total_order_amount
+      descending: true
+  limit: 500
+  metricOverrides: {}
+  tableCalculations:
+    - name: order_total_by_shipping_method
+      displayName: Order total by shipping method
+      sql: >-
+        sum(${orders.total_order_amount}) over(partition by
+        ${orders.shipping_method})
+      format:
+        type: default
+        separator: default
+      type: number
+    - name: percentage_of_shipping_method_order_total
+      displayName: percentage_of_shipping_method_order_total
+      sql: ${orders.total_order_amount}/${order_total_by_shipping_method}
+      format:
+        type: percent
+        separator: default
+      type: number
+  additionalMetrics:
+    - name: amount_sum_of_amount
+      label: Sum of Amount
+      description: "Sum of Amount on the table Orders "
+      uuid: e31307ee-84d3-43d1-86ba-999721cb0fe6
+      sql: ${TABLE}.amount
+      table: orders
+      type: sum
+      baseDimensionName: amount
+      formatOptions:
+        type: default
+        separator: default
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: true
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+dashboardSlug: table-calculation-examples
+slug: order-contribution-overnight-orders
+tableConfig:
+  columnOrder:
+    - orders_shipping_method
+    - orders_order_id
+    - orders_total_order_amount
+    - order_total_by_shipping_method
+    - percentage_of_shipping_method_order_total
+spaceSlug: parent-space-3
+version: 1
+downloadedAt: "2025-08-27T17:49:38.467Z"

@@ -1,0 +1,192 @@
+name: Table Calculation Examples
+description: ""
+updatedAt: "2025-08-27T17:34:35.834Z"
+tiles:
+  - x: 0
+    "y": 0
+    h: 13
+    w: 23
+    tabUuid: null
+    type: markdown
+    properties:
+      title: Order Contribution by Shipping Method
+      hideTitle: false
+      content: >+
+        The current implementation successfully demonstrates sequential table
+        calculations, where each CTE builds on the previous one. The first
+        calculation aggregates shipping method totals using window functions,
+        and the second calculation references those results to compute
+        percentage contributions. This layered approach works well for complex
+        metrics that require multiple analytical steps.
+
+
+        - F1. Order Contribution by Shipping method - no filters are applied
+
+        - F2. Order Contribution by Shipping method - filtered by dimension
+        (`shipping method` = 'express')
+
+        - F3. Order Contribution by Shipping method - filtered by first table
+        calculation (`order_total_by_shipping_method` between 900 and 1500)
+
+        - F4. Order Contribution by Shipping method - filtered by last table
+        calculation (`percentage_of_shipping_method_order_total` &gt; 0.05)
+
+        - F5. Order Contribution by Shipping method - filtered by intermediate
+        table calculation (`percentage_of_shipping_method_order_total` &gt; 0.05
+        and `total_percentage_by_shipping_method`)
+
+
+        What works: F1 and F2 (no filters, dimension filters only, single table
+        calculation filter (not shown in a chart))
+
+        What doesn't work: F3 - F5 (any table calculation filtering when
+        multiple table calculations exist)
+
+
+        ### Table Calculation Summary
+
+        The Processing Order:
+
+        1. Raw data filtering happens first - Dimension filters and semantic
+        layer metric filters are applied to your base data
+
+        2. All table calculations run - Using this filtered dataset, all
+        calculations are performed
+
+        3. Table calculation filters apply last - Only then are rows hidden
+        based on calculated values
+
+
+        #### Key Limitations:
+
+        1. Calculated totals don't adjust for filtered rows
+
+
+        If you filter a "percentage of total" calculation to show only values
+        &gt;10%, the percentages were calculated using the complete dataset
+        (after dimension/metric filters). Your visible rows won't add up to 100%
+        because the denominator includes the hidden data.
+
+
+        2. Downstream calculations use pre-filter data
+
+
+        In calculation chains, if you filter an intermediate step, subsequent
+        calculations still reference the original results from that step (based
+        on the filtered dataset). The table calculation filter only hides rows
+        from view - it doesn't change what gets passed to the next calculation.
+
+
+        3. Can't create "true" conditional calculations
+
+
+        You can't say "only calculate X for rows where Y &gt; threshold" because
+        the filtering happens after all calculations are complete. Every row in
+        your filtered dataset gets calculated, then some get hidden.
+
+
+        4. Aggregation functions see all data
+
+
+        Functions like SUM(), AVG(), COUNT() in your table calculations will
+        always operate on the complete dataset (after the inital metric and
+        dimension filters are applied), regardless of any table calculation
+        filters you've applied.
+
+  - x: 23
+    "y": 0
+    h: 13
+    w: 13
+    tabUuid: null
+    type: saved_chart
+    properties:
+      title: F1. Order Contribution by Shipping Method
+      hideTitle: false
+      chartSlug: order-contribution-by-shipping-method
+      chartName: Order Contribution by Shipping Method
+    tileSlug: order-contribution-by-shipping-method
+  - x: 0
+    "y": 13
+    h: 6
+    w: 18
+    tabUuid: null
+    type: saved_chart
+    properties:
+      title: F2. Dimension Filter
+      hideTitle: false
+      chartSlug: order-contribution-overnight-orders
+      chartName: Order Contribution - Overnight Orders
+    tileSlug: order-contribution-overnight-orders
+  - x: 18
+    "y": 13
+    h: 6
+    w: 18
+    tabUuid: null
+    type: saved_chart
+    properties:
+      title: "F3. Filter first table calculation "
+      hideTitle: false
+      chartSlug: f2-filter-first-table-calculation
+      chartName: F3. Filter first table calculation
+    tileSlug: f2-filter-first-table-calculation
+  - x: 0
+    "y": 19
+    h: 7
+    w: 18
+    tabUuid: null
+    type: saved_chart
+    properties:
+      title: ""
+      hideTitle: false
+      chartSlug: f4-filter-last-table-calculation
+      chartName: F4. Filter last table calculation
+    tileSlug: f4-filter-last-table-calculation
+  - x: 18
+    "y": 19
+    h: 7
+    w: 18
+    tabUuid: null
+    type: saved_chart
+    properties:
+      title: F5. Filter an intermediate table calculation
+      hideTitle: false
+      chartSlug: f6-filter-an-intermediate-table-calculation
+      chartName: F5. Filter an intermediate table calculation
+    tileSlug: f6-filter-an-intermediate-table-calculation
+  - x: 0
+    "y": 26
+    h: 5
+    w: 36
+    tabUuid: null
+    type: markdown
+    properties:
+      title: Simple Table Calc example
+      hideTitle: false
+      content: >-
+        This example uses two table calculations to: 
+
+        1. Calculate a running total in order of months
+
+        2. Calculate the running total Month-on-Month percentage change (this
+        references the `running total month` table calculation. 
+  - x: 0
+    "y": 31
+    h: 9
+    w: 15
+    tabUuid: null
+    type: saved_chart
+    properties:
+      title: ""
+      hideTitle: false
+      chartSlug: monthly-order-totals
+      chartName: Monthly Order Totals
+    tileSlug: monthly-order-totals
+filters:
+  metrics: []
+  dimensions: []
+  tableCalculations: []
+tabs: []
+slug: table-calculation-examples
+spaceSlug: parent-space-3
+version: 1
+downloadedAt: "2025-08-27T17:49:38.402Z"
