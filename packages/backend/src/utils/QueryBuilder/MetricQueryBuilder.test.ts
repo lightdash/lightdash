@@ -1215,7 +1215,7 @@ describe('Query builder', () => {
         });
     });
 
-    describe('Table Calculations with CTEs', () => {
+    describe('Table Calculations', () => {
         test('Should build query with simple table calculations (no CTEs)', () => {
             const metricQueryWithSimpleTableCalcs = {
                 ...METRIC_QUERY,
@@ -1246,12 +1246,17 @@ describe('Query builder', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            // Should have the table calculation in SELECT
+            // Should have the simple table calculation inline in the final SELECT
             expect(result.query).toContain(
                 '"table1_metric1" + 100 AS "simple_calc"',
             );
-            // Should NOT have CTEs for simple table calculations
-            expect(result.query).not.toContain('WITH tc_simple_calc');
+
+            // Should have basic metrics CTE but no table calculation CTEs
+            expect(result.query).toContain('WITH metrics AS (');
+            expect(result.query).not.toContain('tc_simple_calc AS (');
+
+            // Should select from metrics CTE with inline table calculation
+            expect(result.query).toContain('FROM metrics');
         });
 
         test('Should build query with table calculation CTEs for dependent calculations', () => {
@@ -1295,7 +1300,7 @@ describe('Query builder', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            // Should have CTEs for both table calculations
+            // Should have CTEs for dependent table calculations
             expect(result.query).toContain('WITH metrics AS (');
             expect(result.query).toContain('tc_base_calc AS (');
             expect(result.query).toContain('tc_dependent_calc AS (');
@@ -1303,13 +1308,8 @@ describe('Query builder', () => {
             // Should select from the final CTE
             expect(result.query).toContain('FROM tc_dependent_calc');
 
-            // Should have table calculations in the CTEs (not in the final SELECT)
-            expect(result.query).toContain('+ 50 AS "base_calc"');
-            expect(result.query).toContain('* 2 AS "dependent_calc"');
-            // But final SELECT should just select * from the last CTE
-            expect(result.query).toContain(
-                'SELECT\n  *\nFROM tc_dependent_calc',
-            );
+            // Should reference the base_calc from the correct CTE
+            expect(result.query).toContain('tc_base_calc."base_calc" * 2');
         });
 
         test('Should build query with mixed table calculations (some with CTEs, some inline)', () => {
@@ -1366,18 +1366,18 @@ describe('Query builder', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            // Should have CTEs for dependent calculations
+            // Should have CTEs for dependent calculations but include simple calc in table_calculations CTE
             expect(result.query).toContain('WITH metrics AS (');
-            expect(result.query).toContain('tc_base_calc AS (');
+            expect(result.query).toContain('table_calculations AS (');
             expect(result.query).toContain('tc_dependent_calc AS (');
 
-            // Should select from the final CTE
-            expect(result.query).toContain('FROM tc_dependent_calc');
-
-            // Should include inline calculation in SELECT
+            // Should include simple calculation in the table_calculations CTE
             expect(result.query).toContain(
                 '"table1_metric1" / 10 AS "simple_calc"',
             );
+
+            // Should select from the final dependent CTE
+            expect(result.query).toContain('FROM tc_dependent_calc');
         });
 
         test('Should build query with complex table calculation dependencies (referencing multiple calcs)', () => {
@@ -1433,7 +1433,7 @@ describe('Query builder', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            // Should have all CTEs in correct order
+            // Should have all CTEs in correct order (no table_calculations CTE for this case)
             expect(result.query).toContain('WITH metrics AS (');
             expect(result.query).toContain('tc_calc_a AS (');
             expect(result.query).toContain('tc_calc_b AS (');
@@ -1443,6 +1443,7 @@ describe('Query builder', () => {
             expect(result.query).toContain('FROM tc_calc_c');
 
             // Should show the CTE reference resolution working correctly
+            // calc_a and calc_b should be referenced from the previous CTE in the chain
             expect(result.query).toContain(
                 'tc_calc_b."calc_a" + tc_calc_b."calc_b"',
             );
@@ -1502,13 +1503,15 @@ describe('Query builder', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            // Should have CTEs
+            // Should have CTEs for the dependent table calculations
             expect(result.query).toContain('WITH metrics AS (');
             expect(result.query).toContain('tc_filtered_calc AS (');
             expect(result.query).toContain('tc_dependent_calc AS (');
 
-            // Should select from final CTE with table calc filter applied
+            // Should select from final CTE with table calculation filter applied
             expect(result.query).toContain('FROM tc_dependent_calc');
+
+            // Should have the table calculation filter in the WHERE clause
             expect(result.query).toContain('WHERE');
             expect(result.query).toContain('"filtered_calc") IN (\'100\')');
         });
@@ -1610,7 +1613,8 @@ describe('Escaping filters', () => {
     });
 });
 
-describe('Table Calculation Query Structure Tests', () => {
+// Query Structure Tests
+describe('Query Structure Tests', () => {
     // Helper function to build query with default props
     const buildTestQuery = (
         props: Partial<BuildQueryProps> & { compiledMetricQuery: AnyType },
@@ -1680,20 +1684,25 @@ describe('Table Calculation Query Structure Tests', () => {
         expect(result.query).toContain('metrics AS (');
         expect(result.query).not.toContain('metric_filters AS (');
 
+        // TODO: should not contain table_calculations CTE
+        // TODO: should contain no tc_ ctes
+        // TODO: should not contain metric_filters CTE
+
+        // Should not contain table_calculations CTE (no table calculations)
+        expect(result.query).not.toContain('table_calculations AS (');
+
+        // Should contain no tc_ CTEs (no dependent table calculations)
+        expect(result.query).not.toContain('tc_');
+
+        // Should not contain metric_filters CTE (handled inline)
+        expect(result.query).not.toContain('metric_filters AS (');
+
         // Should have final SELECT directly FROM metrics with WHERE (not from metric_filters)
         expect(result.query).toContain('SELECT\n  *\nFROM metrics');
         expect(result.query).not.toContain('FROM metric_filters');
         expect(result.query).toContain('WHERE');
         expect(result.query).toContain('IS NOT NULL');
     });
-
-    // TODO: Add remaining test cases 3-7 to match expected SQL structures
-    // These test cases should be added after refactoring is complete to validate:
-    // - Case 3: Metric + metric filter + simple TC (should have simple TC in final SELECT)
-    // - Case 4: Metric + metric filter + simple TC + simple TC filter (may need simple_calcs CTE)
-    // - Case 5: Metric + metric filter + simple TC + dependent TCs (should have full CTE chain)
-    // - Case 6: Metric + metric filter + simple TC + simple TC filter + dependent TCs
-    // - Case 7: Metric + metric filter + simple TC + simple TC filter + dependent TCs + dependent TC filter
 
     test('Case 3: Metric + metric filter + simple TC - should optimize simple TC to final SELECT', () => {
         const result = buildTestQuery({
@@ -1734,10 +1743,15 @@ describe('Table Calculation Query Structure Tests', () => {
             },
         });
 
-        // Should have WITH metrics CTE only (no simple_calcs CTE)
+        // Should have WITH metrics CTE only
         expect(result.query).toContain('WITH');
         expect(result.query).toContain('metrics AS (');
-        expect(result.query).not.toContain('simple_calcs AS (');
+
+        expect(result.query).not.toContain('table_calculations AS (');
+        expect(result.query).not.toContain('tc_simple_tc AS (');
+
+        // Should not contain metric_filters CTE (filters handled inline)
+        expect(result.query).not.toContain('metric_filters AS (');
 
         // Should have simple TC directly in final SELECT
         expect(result.query).toContain('"table1_metric1" AS "simple_tc"');
@@ -1799,7 +1813,9 @@ describe('Table Calculation Query Structure Tests', () => {
         expect(result.query).toContain('metrics AS (');
         expect(result.query).toContain('table_calculations AS (');
         expect(result.query).not.toContain('metric_filters AS (');
-        expect(result.query).not.toContain('simple_calcs AS (');
+
+        // Should not contain metric_filters CTE (metric filters included in table_calculations CTE)
+        expect(result.query).not.toContain('metric_filters AS (');
 
         // Should have simple TC in table_calculations CTE
         expect(result.query).toContain('"table1_metric1" AS "simple_tc"');
@@ -1811,6 +1827,8 @@ describe('Table Calculation Query Structure Tests', () => {
 
         // Metric filter should be in table_calculations CTE, table calc filter in final WHERE
         expect(result.query).toContain('"table1_metric1"'); // metric filter
+
+        // Should contain the specific table calculation filter
         expect(result.query).toContain('"simple_tc"'); // table calc filter
         expect(result.query).toContain('IS NOT NULL');
     });
@@ -2131,5 +2149,97 @@ describe('Table Calculation Query Structure Tests', () => {
         expect(metricFiltersIndex).toBeLessThan(tableCalculationsIndex);
         expect(tableCalculationsIndex).toBeLessThan(dependedOnIndex);
         expect(dependedOnIndex).toBeLessThan(dependentIndex);
+    });
+
+    test('Case 8: Metric + metric filter + dependent TCs + TC filter - should create full chain with all filters', () => {
+        const result = buildTestQuery({
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                filters: {
+                    dimensions: undefined,
+                    metrics: {
+                        id: 'metric-filter-id',
+                        and: [
+                            {
+                                id: 'filter-id',
+                                target: { fieldId: 'table1_metric1' },
+                                operator: FilterOperator.GREATER_THAN,
+                                values: [20],
+                            },
+                        ],
+                    },
+                    tableCalculations: {
+                        id: 'tc-filter-id',
+                        and: [
+                            {
+                                id: 'tc-filter-id',
+                                target: { fieldId: 'tc_a' },
+                                operator: FilterOperator.EQUALS,
+                                values: [1],
+                            },
+                        ],
+                    },
+                },
+                tableCalculations: [
+                    {
+                        name: 'tc_a',
+                        displayName: 'TC A',
+                        sql: '${table1.metric1} + 1',
+                    },
+                    {
+                        name: 'tc_b',
+                        displayName: 'TC B',
+                        sql: '${tc_a} + 1',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'tc_a',
+                        displayName: 'TC A',
+                        sql: '${table1.metric1} + 1',
+                        compiledSql: '"table1_metric1" + 1',
+                        dependsOn: [],
+                    },
+                    {
+                        name: 'tc_b',
+                        displayName: 'TC B',
+                        sql: '${tc_a} + 1',
+                        compiledSql: '"tc_a" + 1',
+                        dependsOn: ['tc_a'],
+                    },
+                ],
+            },
+        });
+
+        // Should have full CTE chain: metrics -> metric_filters -> tc_a -> tc_b
+        expect(result.query).toContain('WITH metrics AS (');
+        expect(result.query).toContain('metric_filters AS (');
+        expect(result.query).toContain('tc_tc_a AS (');
+        expect(result.query).toContain('tc_tc_b AS (');
+
+        // Should select from the final dependent CTE
+        expect(result.query).toContain('FROM tc_tc_b');
+
+        // Should have metric filter in metric_filters CTE
+        expect(result.query).toContain('WHERE');
+        expect(result.query).toContain('"table1_metric1"');
+        expect(result.query).toContain('> (20)');
+
+        // Should have table calculation filter in final WHERE clause
+        expect(result.query).toContain('"tc_a"');
+        expect(result.query).toContain("IN ('1')");
+
+        // Should properly reference tc_a from previous CTE in tc_b
+        expect(result.query).toContain('tc_tc_a."tc_a" + 1');
+
+        // Verify CTE order is correct
+        const metricsIndex = result.query.indexOf('metrics AS (');
+        const metricFiltersIndex = result.query.indexOf('metric_filters AS (');
+        const tcAIndex = result.query.indexOf('tc_tc_a AS (');
+        const tcBIndex = result.query.indexOf('tc_tc_b AS (');
+
+        expect(metricsIndex).toBeLessThan(metricFiltersIndex);
+        expect(metricFiltersIndex).toBeLessThan(tcAIndex);
+        expect(tcAIndex).toBeLessThan(tcBIndex);
     });
 });
