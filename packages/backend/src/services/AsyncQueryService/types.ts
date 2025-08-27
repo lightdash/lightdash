@@ -58,6 +58,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     versionUuid?: string;
     limit?: number | null | undefined;
+    pivotResults?: boolean;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
@@ -67,6 +68,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dashboardSorts: SortField[];
     dateZoom?: DateZoom;
     limit?: number | null | undefined;
+    pivotResults?: boolean;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
