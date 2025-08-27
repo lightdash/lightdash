@@ -1,3 +1,10 @@
+## [0.1957.1](https://github.com/lightdash/lightdash/compare/0.1957.0...0.1957.1) (2025-08-27)
+
+
+### Bug Fixes
+
+* handle metric filters in totals calculation gracefully ([#16562](https://github.com/lightdash/lightdash/issues/16562)) ([6d3e7c1](https://github.com/lightdash/lightdash/commit/6d3e7c1fbf9d2f0784b7504007b94fe6da5a6224))
+
 # [0.1957.0](https://github.com/lightdash/lightdash/compare/0.1956.0...0.1957.0) (2025-08-27)
 
 
