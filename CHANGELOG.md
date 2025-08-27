@@ -1,3 +1,10 @@
+# [0.1955.0](https://github.com/lightdash/lightdash/compare/0.1954.1...0.1955.0) (2025-08-27)
+
+
+### Features
+
+* move pivot sql builder to it's own class ([#16558](https://github.com/lightdash/lightdash/issues/16558)) ([e8d461a](https://github.com/lightdash/lightdash/commit/e8d461a51e250c2c4bd1b89c2ace9da39efff23f))
+
 ## [0.1954.1](https://github.com/lightdash/lightdash/compare/0.1954.0...0.1954.1) (2025-08-26)
 
 
