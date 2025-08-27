@@ -1442,11 +1442,21 @@ const ExplorerProvider: FC<
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
     // Set default sort in unsavedChartVersion if no query has been run yet (validQueryArgs)
+    // and if there are no existing sorts in the unsavedChartVersion
     useEffect(() => {
-        if (!validQueryArgs?.query?.sorts.length && defaultSort) {
+        if (
+            !validQueryArgs?.query?.sorts.length &&
+            !unsavedChartVersion.metricQuery.sorts.length &&
+            defaultSort
+        ) {
             setSortFields([defaultSort]);
         }
-    }, [validQueryArgs, defaultSort, setSortFields]);
+    }, [
+        validQueryArgs,
+        defaultSort,
+        setSortFields,
+        unsavedChartVersion.metricQuery.sorts.length,
+    ]);
 
     // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {

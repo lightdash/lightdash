@@ -569,4 +569,18 @@ export class RolesModel {
                 role_uuid: null, // Clear any custom role assignment
             });
     }
+
+    async getOrganizationAdmins(organizationUuid: string): Promise<string[]> {
+        const orgId = await this.getOrganizationId(organizationUuid);
+        const results = await this.database(OrganizationMembershipsTableName)
+            .where(`${OrganizationMembershipsTableName}.organization_id`, orgId)
+            .leftJoin(
+                UserTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .andWhere('role', 'admin')
+            .select(`${UserTableName}.user_uuid as userUuid`);
+        return results.map((u) => u.userUuid);
+    }
 }

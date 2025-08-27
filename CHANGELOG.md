@@ -1,3 +1,18 @@
+# [0.1958.0](https://github.com/lightdash/lightdash/compare/0.1957.1...0.1958.0) (2025-08-27)
+
+
+### Bug Fixes
+
+* prevent overriding existing sorts with default sort ([#16614](https://github.com/lightdash/lightdash/issues/16614)) ([884352f](https://github.com/lightdash/lightdash/commit/884352f03a952c8a459d43a413d2b985f35792f9))
+
+
+### Features
+
+* add MCP server protected resource discovery endpoint ([#16618](https://github.com/lightdash/lightdash/issues/16618)) ([c84ecf1](https://github.com/lightdash/lightdash/commit/c84ecf1d4e8875a806eab1a1dc8b6458cdc25276))
+* add tag filtering to MCP service project context ([#16560](https://github.com/lightdash/lightdash/issues/16560)) ([d95aea9](https://github.com/lightdash/lightdash/commit/d95aea9698a002b39c6dcfe5ca2918e3fb12570c)), closes [#16512](https://github.com/lightdash/lightdash/issues/16512)
+* enable MCP when AI Copilot feature flag is enabled ([#16578](https://github.com/lightdash/lightdash/issues/16578)) ([f180aaf](https://github.com/lightdash/lightdash/commit/f180aaf1c4133317762d27eacd7111e40b299532)), closes [#16577](https://github.com/lightdash/lightdash/issues/16577)
+* implement SSE transport method for MCP ([#16621](https://github.com/lightdash/lightdash/issues/16621)) ([487ba37](https://github.com/lightdash/lightdash/commit/487ba37d92898103636a8cc79cae3554f0026e7e))
+
 ## [0.1957.1](https://github.com/lightdash/lightdash/compare/0.1957.0...0.1957.1) (2025-08-27)
 
 

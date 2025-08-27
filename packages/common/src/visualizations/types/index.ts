@@ -1,5 +1,5 @@
 import { DimensionType } from '../../types/field';
-import { type PivotConfiguration } from '../../types/queryHistory';
+import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
@@ -47,8 +47,8 @@ export enum AxisSide {
     RIGHT,
 }
 
-export function getColumnAxisType(column: VizColumn): VizIndexType {
-    switch (column.type) {
+export function getColumnAxisType(dimensionType: DimensionType): VizIndexType {
+    switch (dimensionType) {
         case DimensionType.DATE:
         case DimensionType.TIMESTAMP:
             return VizIndexType.TIME;

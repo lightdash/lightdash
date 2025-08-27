@@ -3,6 +3,8 @@ import {
     AnyType,
     CatalogFilter,
     CatalogType,
+    CommercialFeatureFlags,
+    filterExploreByTags,
     ForbiddenError,
     getItemId,
     MissingConfigError,
@@ -47,6 +49,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -94,6 +97,7 @@ type McpServiceArguments = {
     spaceModel: SpaceModel;
     spaceService: SpaceService;
     mcpContextModel: McpContextModel;
+    featureFlagService: FeatureFlagService;
 };
 
 export type ExtraContext = { user: SessionUser; account: OauthAccount };
@@ -124,6 +128,8 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
+    private featureFlagService: FeatureFlagService;
+
     private mcpServer: McpServer;
 
     private mcpCompatLayer: McpSchemaCompatLayer;
@@ -139,6 +145,7 @@ export class McpService extends BaseService {
         spaceService,
         projectModel,
         mcpContextModel,
+        featureFlagService,
     }: McpServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -151,6 +158,7 @@ export class McpService extends BaseService {
         this.projectModel = projectModel;
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
+        this.featureFlagService = featureFlagService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = new McpServer({
@@ -438,10 +446,11 @@ export class McpService extends BaseService {
                     'Set the active project for subsequent MCP operations',
                 inputSchema: {
                     projectUuid: z.string() as AnyType,
+                    tags: z.array(z.string()).optional() as AnyType,
                 },
             },
             async (_args, context) => {
-                const args = _args as { projectUuid: string };
+                const args = _args as { projectUuid: string; tags?: string[] };
                 const { user, organizationUuid, account } = this.getAccount(
                     context as McpProtocolContext,
                 );
@@ -476,6 +485,20 @@ export class McpService extends BaseService {
                     );
                 }
 
+                // Get existing context to preserve tags if not provided
+                const existingContext = await this.mcpContextModel.getContext(
+                    user.userUuid,
+                    organizationUuid,
+                );
+
+                // Determine tags: use provided tags, or preserve existing, or set to null
+                let tagsToSet: string[] | null;
+                if (args.tags !== undefined) {
+                    tagsToSet = args.tags.length > 0 ? args.tags : null;
+                } else {
+                    tagsToSet = existingContext?.context.tags || null;
+                }
+
                 // Set context
                 await this.mcpContextModel.setContext({
                     userUuid: user.userUuid,
@@ -483,21 +506,21 @@ export class McpService extends BaseService {
                     context: {
                         projectUuid: args.projectUuid,
                         projectName: project.name,
+                        tags: tagsToSet,
                     },
                 });
+
+                const result = {
+                    projectUuid: args.projectUuid,
+                    projectName: project.name,
+                    selectedTags: tagsToSet,
+                };
 
                 return {
                     content: [
                         {
                             type: 'text',
-                            text: JSON.stringify(
-                                {
-                                    projectUuid: args.projectUuid,
-                                    projectName: project.name,
-                                },
-                                null,
-                                2,
-                            ),
+                            text: JSON.stringify(result, null, 2),
                         },
                     ],
                 };
@@ -542,13 +565,18 @@ export class McpService extends BaseService {
                     };
                 }
 
-                const { projectUuid, projectName } = contextRow.context;
+                const { projectUuid, projectName, tags } = contextRow.context;
+
                 return {
                     content: [
                         {
                             type: 'text',
                             text: JSON.stringify(
-                                { projectUuid, projectName },
+                                {
+                                    projectUuid,
+                                    projectName,
+                                    selectedTags: tags,
+                                },
                                 null,
                                 2,
                             ),
@@ -680,6 +708,24 @@ export class McpService extends BaseService {
         return contextRow?.context.projectUuid;
     }
 
+    async getTagsFromContext(
+        context: McpProtocolContext,
+    ): Promise<string[] | null> {
+        const { user } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+
+        if (!user || !organizationUuid) {
+            return null;
+        }
+
+        const contextRow = await this.mcpContextModel.getContext(
+            user.userUuid,
+            organizationUuid,
+        );
+
+        return contextRow?.context.tags || null;
+    }
+
     async resolveProjectUuid(context: McpProtocolContext): Promise<string> {
         // Use projectUuid from args or get from context
         const projectUuid = await this.getProjectUuidFromContext(context);
@@ -720,6 +766,9 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // Get tags from context for filtering
+        const tagsFromContext = await this.getTagsFromContext(context);
+
         const findExplores: FindExploresFn = (args) =>
             wrapSentryTransaction('McpService.findExplores', args, async () => {
                 const userAttributes =
@@ -735,7 +784,7 @@ export class McpService extends BaseService {
                         projectUuid,
                         catalogSearch: {
                             type: CatalogType.Table,
-                            yamlTags: undefined,
+                            yamlTags: tagsFromContext || undefined,
                             tables: args.tableName
                                 ? [args.tableName]
                                 : undefined,
@@ -775,7 +824,7 @@ export class McpService extends BaseService {
                                 projectUuid,
                                 catalogSearch: {
                                     type: CatalogType.Field,
-                                    yamlTags: undefined,
+                                    yamlTags: tagsFromContext || undefined,
                                     tables: [table.name],
                                 },
                                 userAttributes,
@@ -866,6 +915,9 @@ export class McpService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // Get tags from context for filtering
+        const tagsFromContext = await this.getTagsFromContext(context);
+
         const findFields: FindFieldFn = (args) =>
             wrapSentryTransaction('McpService.findFields', args, async () => {
                 const userAttributes =
@@ -882,7 +934,7 @@ export class McpService extends BaseService {
                         catalogSearch: {
                             type: CatalogType.Field,
                             searchQuery: args.fieldSearchQuery.label,
-                            yamlTags: undefined,
+                            yamlTags: tagsFromContext || undefined,
                             tables: args.table ? [args.table] : undefined,
                         },
                         context: CatalogSearchContext.MCP,
@@ -1199,6 +1251,21 @@ export class McpService extends BaseService {
         }
 
         return true;
+    }
+
+    // MCP is enabled if MCP_ENABLED is true OR if AI Copilot is enabled
+    public async isEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        if (this.lightdashConfig.mcp.enabled) {
+            return true;
+        }
+
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        return aiCopilotFlag.enabled;
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
