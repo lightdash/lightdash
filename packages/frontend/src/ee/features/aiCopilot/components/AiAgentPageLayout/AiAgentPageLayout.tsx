@@ -1,5 +1,5 @@
 import { type AiAgentMessageAssistant } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box, Flex } from '@mantine-8/core';
 import {
     IconLayoutSidebar,
     IconLayoutSidebarLeftCollapseFilled,
@@ -44,6 +44,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
     const artifactPanelRef = useRef<ImperativePanelHandle>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
     const [contextArtifact, setContextArtifact] = useState<ArtifactData | null>(
         null,
     );
@@ -145,27 +146,59 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                 minSize={10}
                                 maxSize={40}
                                 collapsible
-                                className={styles.sidebar}
+                                className={`${styles.sidebar} ${
+                                    !isResizing ? styles.sidebarTransition : ''
+                                }`}
                             >
-                                <SidebarButton
-                                    leftSection={
-                                        <MantineIcon
-                                            size="md"
-                                            icon={
-                                                isSidebarCollapsed
-                                                    ? IconLayoutSidebar
-                                                    : IconLayoutSidebarLeftCollapseFilled
-                                            }
-                                        />
-                                    }
-                                    onClick={() => toggleSidebar()}
-                                />
+                                <Flex
+                                    w={isSidebarCollapsed ? 'xs' : 'auto'}
+                                    justify="flex-end"
+                                >
+                                    <SidebarButton
+                                        display={
+                                            isSidebarCollapsed ? 'none' : 'flex'
+                                        }
+                                        size="sm"
+                                        leftSection={
+                                            <MantineIcon
+                                                size="md"
+                                                icon={IconLayoutSidebar}
+                                                stroke={1.8}
+                                                color="gray.7"
+                                            />
+                                        }
+                                        onClick={toggleSidebar}
+                                    />
+
+                                    <SidebarButton
+                                        display={
+                                            isSidebarCollapsed ? 'flex' : 'none'
+                                        }
+                                        size="sm"
+                                        leftSection={
+                                            <MantineIcon
+                                                size="md"
+                                                stroke={1.8}
+                                                color="gray.7"
+                                                icon={
+                                                    IconLayoutSidebarLeftCollapseFilled
+                                                }
+                                            />
+                                        }
+                                        onClick={toggleSidebar}
+                                    />
+                                </Flex>
 
                                 {Sidebar}
                             </Panel>
                         </ErrorBoundary>
 
-                        <PanelResizeHandle className={styles.resizeHandle} />
+                        <PanelResizeHandle
+                            className={styles.resizeHandle}
+                            onDragging={(isDragging) =>
+                                setIsResizing(isDragging)
+                            }
+                        />
                     </Fragment>
                 )}
                 <ErrorBoundary>

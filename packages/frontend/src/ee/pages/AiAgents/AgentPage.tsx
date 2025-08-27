@@ -95,6 +95,13 @@ const AgentSidebar: FC<{
                     leftSection={<MantineIcon icon={IconCirclePlus} />}
                     component={Link}
                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
+                    size="sm"
+                    color="gray.9"
+                    {...(!isSidebarCollapsed && {
+                        fullWidth: true,
+                        justify: 'flex-start',
+                        w: 'calc(100% + 1rem)',
+                    })}
                 >
                     {isSidebarCollapsed ? '' : 'New thread'}
                 </SidebarButton>
