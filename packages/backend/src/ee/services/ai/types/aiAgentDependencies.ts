@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
@@ -82,6 +83,7 @@ export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
 export type RunMiniMetricQueryFn = (
     metricQuery: AiMetricQueryWithFilters,
     maxLimit: number,
+    additionalMetrics?: AdditionalMetric[],
 ) => Promise<{
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
