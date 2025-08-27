@@ -3,6 +3,7 @@ import {
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTable,
+    CompiledTableCalculation,
     CompileError,
     createFilterRuleFromModelRequiredFilterRule,
     Explore,
@@ -386,14 +387,6 @@ export class MetricQueryBuilder {
         );
     }
 
-    static hasSimpleTableCalcs(simpleSelects: string[]): boolean {
-        return simpleSelects.length > 0;
-    }
-
-    private hasDependentTableCalcCtes(): boolean {
-        return this.getTableCalcsNeedingCtes().length > 0;
-    }
-
     static hasMetricFilters(metricsSQL: { filtersSQL?: string }): boolean {
         return Boolean(metricsSQL.filtersSQL);
     }
@@ -409,7 +402,10 @@ export class MetricQueryBuilder {
         );
     }
 
-    private getTableCalculationsSQL(): {
+    private getTableCalculationsSQL(
+        interdependentTableCalcs: CompiledTableCalculation[],
+        simpleTableCalcs: CompiledTableCalculation[],
+    ): {
         selects: string[];
         filtersSQL: string | undefined;
     } {
@@ -417,18 +413,8 @@ export class MetricQueryBuilder {
         const { filters } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
-        // Get table calculations that need individual CTEs vs those that can go in the shared CTE
-        const tableCalcsNeedingCtes = this.getTableCalcsNeedingCtes();
-        const tableCalcsForSharedCte =
-            compiledMetricQuery.compiledTableCalculations.filter(
-                (tc) =>
-                    !tableCalcsNeedingCtes.some(
-                        (needsCte) => needsCte.name === tc.name,
-                    ),
-            );
-
         // Selects for table calculations that go in the shared table_calculations CTE
-        const selects = tableCalcsForSharedCte.map((tableCalculation) => {
+        const selects = simpleTableCalcs.map((tableCalculation) => {
             const alias = tableCalculation.name;
             return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
         });
@@ -1244,111 +1230,46 @@ export class MetricQueryBuilder {
         return `${name} AS (\n${MetricQueryBuilder.assembleSqlParts(parts)}\n)`;
     }
 
-    static buildSimpleCalcsCte(
-        currentName: string,
-        simpleSelects: string[],
-        hasDependendTableCalcs: boolean = false,
-        hasTableCalcFilters: boolean = false,
-        metricFiltersSQL?: string,
-    ): { next: string; cte?: string } {
-        if (!MetricQueryBuilder.hasSimpleTableCalcs(simpleSelects))
-            return { next: currentName };
-
-        // Create table_calculations CTE if either:
-        // 1. There are dependent table calculations that need it as foundation, OR
-        // 2. There are table calculation filters that need to reference the calculated columns
-        if (!hasDependendTableCalcs && !hasTableCalcFilters) {
-            return { next: currentName }; // Don't create CTE, let table calcs go to final SELECT
-        }
-
-        const name = 'table_calculations';
-        const parts = [
-            'SELECT',
-            ['  *', ...simpleSelects].join(',\n'),
-            `FROM ${currentName}`,
-            // Include metric filters in this CTE when there are table calc filters but no dependent table calcs
-            hasTableCalcFilters && !hasDependendTableCalcs && metricFiltersSQL
-                ? metricFiltersSQL
-                : undefined,
-        ].filter(Boolean);
-        return { next: name, cte: MetricQueryBuilder.wrapAsCte(name, parts) };
-    }
-
     // Build the optional metric_filters CTE; return next cte name + cte text (if created)
     static buildMetricFiltersCte(
         currentName: string,
-        metricsFiltersSQL?: string,
-        hasDependendTableCalcs: boolean = false,
-    ): { next: string; cte?: string } {
-        if (!metricsFiltersSQL) return { next: currentName };
-
-        // Only create metric_filters CTE if there are dependent table calculations that need it
-        // If there are simple table calculations with filters, the table_calculations CTE will handle metric filters
-        if (!hasDependendTableCalcs) {
-            return { next: currentName };
-        }
-
-        const name = 'metric_filters';
+        metricsFiltersSQL: string,
+    ): { cte: string; cteName: string } {
+        const cteName = 'metric_filters';
         const parts = [
             'SELECT',
             '  *',
             `FROM ${currentName}`,
             metricsFiltersSQL,
         ];
-        return { next: name, cte: MetricQueryBuilder.wrapAsCte(name, parts) };
+        return { cte: MetricQueryBuilder.wrapAsCte(cteName, parts), cteName };
     }
 
-    // Build dependent table calculation CTEs in the correct order with proper FROM clauses
-    private buildDependentTableCalcCtes(currentName: string) {
-        const { warehouseSqlBuilder, compiledMetricQuery } = this.args;
-        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-
-        // Find all table calculations that need individual CTEs
-        // (either they have dependencies OR they're referenced by dependent table calcs)
-        const tableCalcsNeedingCtes = this.getTableCalcsNeedingCtes();
-
-        if (tableCalcsNeedingCtes.length === 0) {
-            return { ctes: [] as string[], lastName: currentName };
-        }
-
-        // Sort table calculations in dependency order
-        const sortedTableCalcs = this.sortTableCalcsByDependencies(
-            tableCalcsNeedingCtes,
-        );
-        const ctes: string[] = [];
-        let lastName = currentName;
-
-        for (const tc of sortedTableCalcs) {
-            const cteName = `tc_${tc.name}`;
-
-            // Create the compiled SQL with proper table calc references
-            const resolvedSql = this.resolveTableCalculationReferences(
-                tc.compiledSql,
-                tc.name,
-                compiledMetricQuery.compiledTableCalculations,
-                lastName,
-            );
-
-            const parts = [
-                'SELECT',
-                [
-                    '  *',
-                    `  ${resolvedSql} AS ${fieldQuoteChar}${tc.name}${fieldQuoteChar}`,
-                ].join(',\n'),
-                `FROM ${lastName}`,
-            ];
-
-            ctes.push(MetricQueryBuilder.wrapAsCte(cteName, parts));
-            lastName = cteName;
-        }
-
-        return { ctes, lastName };
+    static buildSimpleCalcsCte(
+        currentName: string,
+        simpleSelects: string[],
+        hasDependendTableCalcs: boolean = false,
+        metricFiltersSQL?: string,
+    ): { cteName: string; cte?: string } {
+        const cteName = 'table_calculations';
+        const parts = [
+            'SELECT',
+            ['  *', ...simpleSelects].join(',\n'),
+            `FROM ${currentName}`,
+            // Include metric filters in this CTE when there are table calc filters but no dependent table calcs
+            !hasDependendTableCalcs && metricFiltersSQL
+                ? metricFiltersSQL
+                : undefined,
+        ];
+        return { cteName, cte: MetricQueryBuilder.wrapAsCte(cteName, parts) };
     }
 
-    // Get all table calculations that need individual CTEs
-    // This includes: dependent table calcs AND simple table calcs that are referenced by dependent ones
-    private getTableCalcsNeedingCtes() {
+    private getPartitionedTableCalculations(): {
+        simpleTableCalcs: CompiledTableCalculation[];
+        interdependentTableCalcs: CompiledTableCalculation[];
+    } {
         const { compiledTableCalculations } = this.args.compiledMetricQuery;
+
         const tableCalcsNeedingCtes = new Set<string>();
 
         // Add all dependent table calculations
@@ -1364,8 +1285,19 @@ export class MetricQueryBuilder {
             }
         }
 
-        return compiledTableCalculations.filter((tc) =>
-            tableCalcsNeedingCtes.has(tc.name),
+        return compiledTableCalculations.reduce<{
+            simpleTableCalcs: CompiledTableCalculation[];
+            interdependentTableCalcs: CompiledTableCalculation[];
+        }>(
+            (acc, tc) => {
+                if (tableCalcsNeedingCtes.has(tc.name)) {
+                    acc.interdependentTableCalcs.push(tc);
+                } else {
+                    acc.simpleTableCalcs.push(tc);
+                }
+                return acc;
+            },
+            { simpleTableCalcs: [], interdependentTableCalcs: [] },
         );
     }
 
@@ -1443,12 +1375,14 @@ export class MetricQueryBuilder {
     private findContainingCte(
         refName: string,
         currentTcName: string,
-        allTableCalcs: typeof this.args.compiledMetricQuery.compiledTableCalculations,
+        allTableCalcs: CompiledTableCalculation[],
         currentCteName: string,
     ): string {
+        const { interdependentTableCalcs } =
+            this.getPartitionedTableCalculations();
+
         // Check if the referenced table calc needs its own CTE
-        const tableCalcsNeedingCtes = this.getTableCalcsNeedingCtes();
-        const referencedTc = tableCalcsNeedingCtes.find(
+        const referencedTc = interdependentTableCalcs.find(
             (tc) => tc.name === refName,
         );
 
@@ -1456,7 +1390,7 @@ export class MetricQueryBuilder {
             // The referenced table calc has its own CTE
             // Find the most recent CTE that contains this table calculation
             const sortedTableCalcs = this.sortTableCalcsByDependencies(
-                tableCalcsNeedingCtes,
+                interdependentTableCalcs,
             );
             const currentIndex = sortedTableCalcs.findIndex(
                 (tc) => tc.name === currentTcName,
@@ -1484,11 +1418,8 @@ export class MetricQueryBuilder {
         // Otherwise, it's a simple table calc in the shared table_calculations CTE
         // Find the most recent CTE before current that would contain it
         if (currentCteName.startsWith('tc_')) {
-            const tableCalcsNeedingCtesNames = tableCalcsNeedingCtes.map(
-                (tc) => tc.name,
-            );
             const sortedTableCalcs = this.sortTableCalcsByDependencies(
-                tableCalcsNeedingCtes,
+                interdependentTableCalcs,
             );
             const currentIndex = sortedTableCalcs.findIndex(
                 (tc) => tc.name === currentTcName,
@@ -1501,6 +1432,48 @@ export class MetricQueryBuilder {
             return 'table_calculations';
         }
         return currentCteName;
+    }
+
+    // Build dependent table calculation CTEs in the correct order with proper FROM clauses
+    private buildDependentTableCalcCtes(
+        currentName: string,
+        interdependentTableCalcs: CompiledTableCalculation[],
+    ) {
+        const { warehouseSqlBuilder, compiledMetricQuery } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Sort table calculations in dependency order
+        const sortedTableCalcs = this.sortTableCalcsByDependencies(
+            interdependentTableCalcs,
+        );
+        const ctes: string[] = [];
+        let lastCteName = currentName;
+
+        for (const tc of sortedTableCalcs) {
+            const cteName = `tc_${tc.name}`;
+
+            // Create the compiled SQL with proper table calc references
+            const resolvedSql = this.resolveTableCalculationReferences(
+                tc.compiledSql,
+                tc.name,
+                compiledMetricQuery.compiledTableCalculations,
+                lastCteName,
+            );
+
+            const parts = [
+                'SELECT',
+                [
+                    '  *',
+                    `  ${resolvedSql} AS ${fieldQuoteChar}${tc.name}${fieldQuoteChar}`,
+                ].join(',\n'),
+                `FROM ${lastCteName}`,
+            ];
+
+            ctes.push(MetricQueryBuilder.wrapAsCte(cteName, parts));
+            lastCteName = cteName;
+        }
+
+        return { ctes, lastCteName };
     }
 
     // Combine WHERE fragments (strip leading WHERE if present)
@@ -1568,13 +1541,27 @@ export class MetricQueryBuilder {
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
 
+        const { simpleTableCalcs, interdependentTableCalcs } =
+            this.getPartitionedTableCalculations();
+
         // TODO: can we put all of the table calculation generation in here
-        const tableCalculationSQL = this.getTableCalculationsSQL();
+        const tableCalculationSQL = this.getTableCalculationsSQL(
+            interdependentTableCalcs,
+            simpleTableCalcs,
+        );
 
         const needsPostAgg = this.needsPostAggCte({
             requiresQueryInCTE,
             metricsSQL,
         });
+
+        const needsSimpleTableCalcsCte =
+            (simpleTableCalcs.length > 0 && !!tableCalculationSQL.filtersSQL) ||
+            (simpleTableCalcs.length > 0 &&
+                interdependentTableCalcs.length > 0);
+
+        const needsMetricFiltersCte =
+            interdependentTableCalcs.length > 0 && !!metricsSQL.filtersSQL;
 
         if (needsPostAgg) {
             const ctesToAdd: string[] = [];
@@ -1584,54 +1571,66 @@ export class MetricQueryBuilder {
             ctesToAdd.push(
                 MetricQueryBuilder.wrapAsCte(metricsCteName, finalSelectParts),
             );
-            let current = metricsCteName;
+            let currentCteName = metricsCteName;
 
-            // metric filters CTE
-            const metricFilters = MetricQueryBuilder.buildMetricFiltersCte(
-                current,
-                metricsSQL.filtersSQL,
-                this.hasDependentTableCalcCtes(), // Only create CTE if there are dependent table calcs
-            );
-            if (metricFilters.cte) ctesToAdd.push(metricFilters.cte);
-            current = metricFilters.next;
+            // IF we need a metric filters CTE, create it (probably this should be after the simple table calcs CTE)
+            if (needsMetricFiltersCte && metricsSQL.filtersSQL) {
+                const { cte: metricFilters, cteName: metricFiltersCteName } =
+                    MetricQueryBuilder.buildMetricFiltersCte(
+                        currentCteName,
+                        metricsSQL.filtersSQL,
+                    );
+                ctesToAdd.push(metricFilters);
+                currentCteName = metricFiltersCteName;
+            }
 
-            const simpleTableCalcSelects =
-                MetricQueryBuilder.buildSimpleCalcsCte(
-                    current,
+            if (needsSimpleTableCalcsCte) {
+                const {
+                    cte: simpleTableCalcSelects,
+                    cteName: simpleTableCalcSelectsCteName,
+                } = MetricQueryBuilder.buildSimpleCalcsCte(
+                    currentCteName,
                     tableCalculationSQL.selects,
-                    this.hasDependentTableCalcCtes(),
-                    Boolean(tableCalculationSQL.filtersSQL), // Create CTE if there are table calc filters
+                    interdependentTableCalcs.length > 0,
                     metricsSQL.filtersSQL, // Pass metric filters to include when needed
                 );
-            if (simpleTableCalcSelects.cte)
-                ctesToAdd.push(simpleTableCalcSelects.cte);
-            current = simpleTableCalcSelects.next;
+                if (simpleTableCalcSelects) {
+                    ctesToAdd.push(simpleTableCalcSelects);
+                    currentCteName = simpleTableCalcSelectsCteName;
+                }
+            }
 
             // Add dependent table calc CTEs
-            const dep = this.buildDependentTableCalcCtes(current);
-            if (dep.ctes.length) ctesToAdd.push(...dep.ctes);
+            if (interdependentTableCalcs.length > 0) {
+                const { ctes: dependentCtes, lastCteName: dependentCteName } =
+                    this.buildDependentTableCalcCtes(
+                        currentCteName,
+                        interdependentTableCalcs,
+                    );
+                if (dependentCtes.length) ctesToAdd.push(...dependentCtes);
+                currentCteName = dependentCteName;
+            }
 
             // final SELECT from the last CTE; inline table calcs & metric filters only if we never created their CTEs
-            const shouldInlineSimpleCalcs = current === metricsCteName;
+            const shouldInlineSimpleCalcs =
+                !needsSimpleTableCalcsCte &&
+                tableCalculationSQL.selects.length > 0;
+
             const finalSelectColumns = [
                 '  *',
                 ...(shouldInlineSimpleCalcs ? tableCalculationSQL.selects : []),
             ];
 
-            const combinedWhere = MetricQueryBuilder.combineWhereClauses(
-                // Apply metric filters if we didn't create a metric_filters CTE AND they weren't included in table_calculations CTE
-                !metricFilters.cte && current === metricsCteName
-                    ? metricsSQL.filtersSQL
-                    : undefined,
-                // Table calc filters always apply at the end
-                tableCalculationSQL.filtersSQL,
-            );
+            const whereClause =
+                needsSimpleTableCalcsCte || interdependentTableCalcs.length > 0
+                    ? tableCalculationSQL.filtersSQL
+                    : metricsSQL.filtersSQL;
 
-            const finalFromName = dep.lastName; // last dependent CTE if any, otherwise `current`
+            const finalFromName = currentCteName; // last dependent CTE if any, otherwise `current`
             finalSelectParts = [
                 `SELECT\n${finalSelectColumns.join(',\n')}`,
                 `FROM ${finalFromName}`,
-                combinedWhere,
+                whereClause,
             ];
             ctes.push(...ctesToAdd);
         }
