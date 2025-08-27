@@ -1,3 +1,10 @@
+# [0.1956.0](https://github.com/lightdash/lightdash/compare/0.1955.0...0.1956.0) (2025-08-27)
+
+
+### Features
+
+* add pivot configuration to /query/metric-query ([#16579](https://github.com/lightdash/lightdash/issues/16579)) ([9b43f00](https://github.com/lightdash/lightdash/commit/9b43f0043f2198f6f823ab312de3e6117f1ed9dd))
+
 # [0.1955.0](https://github.com/lightdash/lightdash/compare/0.1954.1...0.1955.0) (2025-08-27)
 
 
