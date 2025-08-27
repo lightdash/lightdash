@@ -421,6 +421,7 @@ describe('McpSchemaCompatLayer', () => {
                 }),
             ).toEqual({
                 ...base,
+                customMetrics: null,
                 vizConfig: {
                     ...baseVizConfig,
                     limit: null,
@@ -448,6 +449,7 @@ describe('McpSchemaCompatLayer', () => {
 
             expect(parsed).toEqual({
                 ...base,
+                customMetrics: null,
                 vizConfig: {
                     ...baseVizConfig,
                     limit: null,
@@ -474,6 +476,7 @@ describe('McpSchemaCompatLayer', () => {
             expect(
                 mapped.parse({
                     ...base,
+                    customMetrics: [],
                     vizConfig: {
                         ...baseVizConfig,
                         sorts: [
@@ -487,6 +490,7 @@ describe('McpSchemaCompatLayer', () => {
                 }),
             ).toEqual({
                 ...base,
+                customMetrics: [],
                 filters: null,
                 vizConfig: {
                     ...baseVizConfig,
@@ -503,6 +507,7 @@ describe('McpSchemaCompatLayer', () => {
             expect(
                 mapped.parse({
                     ...base,
+                    customMetrics: [],
                     vizConfig: {
                         ...baseVizConfig,
                         sorts: [
@@ -515,6 +520,7 @@ describe('McpSchemaCompatLayer', () => {
                 }),
             ).toEqual({
                 ...base,
+                customMetrics: [],
                 filters: null,
                 vizConfig: {
                     ...baseVizConfig,
