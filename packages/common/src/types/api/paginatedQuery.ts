@@ -30,6 +30,7 @@ export type ExecuteAsyncSavedChartRequestParams =
         chartUuid: string;
         versionUuid?: string;
         limit?: number | null | undefined;
+        pivotResults?: boolean;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =
@@ -40,6 +41,7 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dashboardSorts: SortField[];
         dateZoom?: DateZoom;
         limit?: number | null | undefined;
+        pivotResults?: boolean;
     };
 
 export type ExecuteAsyncSqlQueryRequestParams =

@@ -1,3 +1,10 @@
+# [0.1959.0](https://github.com/lightdash/lightdash/compare/0.1958.0...0.1959.0) (2025-08-27)
+
+
+### Features
+
+* return pivoted results behind boolean parameter ([#16607](https://github.com/lightdash/lightdash/issues/16607)) ([6510104](https://github.com/lightdash/lightdash/commit/65101043d505349c612ec2e0950e55ddd3887132))
+
 # [0.1958.0](https://github.com/lightdash/lightdash/compare/0.1957.1...0.1958.0) (2025-08-27)
 
 

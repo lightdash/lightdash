@@ -22,6 +22,7 @@ import {
     type DashboardDAO,
     DashboardFilters,
     DEFAULT_RESULTS_PAGE_SIZE,
+    derivePivotConfigurationFromChart,
     Dimension,
     DimensionType,
     DownloadFileType,
@@ -1802,10 +1803,15 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        pivotResults,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            versionUuid,
+        );
         const {
             uuid: savedChartUuid,
             organizationUuid: savedChartOrganizationUuid,
@@ -1814,7 +1820,7 @@ export class AsyncQueryService extends ProjectService {
             tableName: savedChartTableName,
             metricQuery,
             parameters: savedChartParameters,
-        } = await this.savedChartModel.get(chartUuid, versionUuid);
+        } = savedChart;
 
         // Check chart belongs to project
         if (savedChartProjectUuid !== projectUuid) {
@@ -1924,6 +1930,14 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
         });
 
+        const pivotConfiguration = pivotResults
+            ? derivePivotConfigurationFromChart(
+                  savedChart,
+                  metricQueryWithLimit,
+                  fields,
+              )
+            : undefined;
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -1937,6 +1951,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             requestParameters,
         );
@@ -1964,6 +1979,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        pivotResults,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -2149,6 +2165,14 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
         });
 
+        const pivotConfiguration = pivotResults
+            ? derivePivotConfigurationFromChart(
+                  savedChart,
+                  metricQueryWithLimit,
+                  fields,
+              )
+            : undefined;
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -2163,6 +2187,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             requestParameters,
         );
