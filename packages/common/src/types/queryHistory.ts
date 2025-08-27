@@ -1,11 +1,10 @@
-import type { PivotIndexColum, ResultColumns } from '..';
+import type { PivotConfiguration, ResultColumns } from '..';
 import type { PivotValuesColumn } from '../visualizations/types';
 import type { QueryExecutionContext } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import type { WarehouseTypes } from './projects';
-import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 
 export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
@@ -25,32 +24,6 @@ export enum QueryHistoryStatus {
     ERROR = 'error',
     CANCELLED = 'cancelled',
 }
-
-export type PivotConfiguration = {
-    indexColumn: PivotIndexColum | PivotIndexColum[] | undefined;
-    valuesColumns: ValuesColumn[];
-    groupByColumns: GroupByColumn[] | undefined;
-    sortBy: SortBy | undefined;
-};
-
-export const normalizeIndexColumns = (
-    indexColumn: PivotConfiguration['indexColumn'],
-): PivotIndexColum[] => {
-    if (!indexColumn) {
-        return [];
-    }
-    if (Array.isArray(indexColumn)) {
-        return indexColumn;
-    }
-    return [indexColumn];
-};
-
-export const getFirstIndexColumns = (
-    indexColumn: PivotConfiguration['indexColumn'],
-): PivotIndexColum | undefined => {
-    const normalizedIndexColumns = normalizeIndexColumns(indexColumn);
-    return normalizedIndexColumns[0];
-};
 
 export type QueryHistory = {
     queryUuid: string;

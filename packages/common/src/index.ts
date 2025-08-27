@@ -161,11 +161,9 @@ import type {
 } from './types/metricsExplorer';
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ParametersValuesMap } from './types/parameters';
+import { type PivotConfiguration } from './types/pivot';
 import { type ApiPromotionChangesResponse } from './types/promotion';
-import {
-    type PivotConfiguration,
-    type QueryHistoryStatus,
-} from './types/queryHistory';
+import { type QueryHistoryStatus } from './types/queryHistory';
 import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
@@ -201,7 +199,7 @@ export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/validation';
 export * from './ee/index';
-export * from './pivotTable/pivotQueryResults';
+export * from './pivot';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';

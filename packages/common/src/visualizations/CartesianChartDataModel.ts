@@ -1,4 +1,5 @@
 import { intersectionBy } from 'lodash';
+import { getFirstIndexColumns } from '../pivot/utils';
 import { type AnyType } from '../types/any';
 import {
     capitalize,
@@ -8,7 +9,6 @@ import {
     friendlyName,
 } from '../types/field';
 import { type Organization } from '../types/organization';
-import { getFirstIndexColumns } from '../types/queryHistory';
 import { type RawResultRow } from '../types/results';
 import {
     ChartKind,
