@@ -1,3 +1,10 @@
+# [0.1960.0](https://github.com/lightdash/lightdash/compare/0.1959.0...0.1960.0) (2025-08-27)
+
+
+### Features
+
+* add custom roles admin page ([#16566](https://github.com/lightdash/lightdash/issues/16566)) ([d8ee598](https://github.com/lightdash/lightdash/commit/d8ee598a8098e372e5cab562e52097295293c54d))
+
 # [0.1959.0](https://github.com/lightdash/lightdash/compare/0.1958.0...0.1959.0) (2025-08-27)
 
 
