@@ -114,19 +114,34 @@ export class RolesModel {
 
     async getRolesByOrganizationUuid(
         organizationUuid: string,
+        roleTypeFilter?: string,
     ): Promise<Role[]> {
+        if (roleTypeFilter === 'system') {
+            return getSystemRoles();
+        }
+
         const roles = await this.database(RolesTableName)
             .select('*')
             .where('organization_uuid', organizationUuid);
 
-        const systemRoles = getSystemRoles();
         const customRoles = roles.map(RolesModel.mapDbRoleToRole);
+
+        if (roleTypeFilter === 'user') {
+            return customRoles;
+        }
+
+        const systemRoles = getSystemRoles();
         return [...systemRoles, ...customRoles];
     }
 
     async getRolesWithScopesByOrganizationUuid(
         organizationUuid: string,
+        roleTypeFilter?: string,
     ): Promise<RoleWithScopes[]> {
+        if (roleTypeFilter === 'system') {
+            return getSystemRoles();
+        }
+
         const roles = await this.database(RolesTableName)
             .leftJoin(
                 ScopedRolesTableName,
@@ -142,12 +157,15 @@ export class RolesModel {
             .where(`${RolesTableName}.organization_uuid`, organizationUuid)
             .groupBy(`${RolesTableName}.role_uuid`);
 
-        const systemRoles = getSystemRoles();
-
         const customRoles = roles.map(
             RolesModel.mapDbRoleWithScopesToRoleWithScopes,
         );
-        return [...systemRoles, ...customRoles];
+
+        if (roleTypeFilter === 'user') {
+            return customRoles;
+        }
+
+        return [...getSystemRoles(), ...customRoles];
     }
 
     async getRoleByUuid(roleUuid: string): Promise<Role> {

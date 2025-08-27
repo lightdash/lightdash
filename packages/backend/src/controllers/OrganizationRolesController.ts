@@ -67,12 +67,14 @@ export class OrganizationRolesController extends BaseController {
         @Request() req: express.Request,
         @Path() orgUuid: string,
         @Query() load?: string,
-    ): Promise<ApiGetRolesResponse> {
+        @Query() roleTypeFilter?: string,
+    ): Promise<ApiGetRolesResponse | ApiRoleWithScopesResponse> {
         const loadScopes = load === 'scopes';
         const roles = await this.getRolesService().getRolesByOrganizationUuid(
             req.account!,
             orgUuid,
             loadScopes,
+            roleTypeFilter,
         );
 
         this.setStatus(200);
