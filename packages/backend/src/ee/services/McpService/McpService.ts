@@ -1124,6 +1124,7 @@ export class McpService extends BaseService {
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
+                    additionalMetrics: [],
                     tableCalculations: [],
                 },
                 exploreName: metricQuery.exploreName,

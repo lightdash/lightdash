@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { FollowUpTools } from '../../followUpTools';
 import { AiResultType } from '../../types';
+import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
@@ -14,6 +15,7 @@ export const toolVerticalBarArgsSchema = createToolSchema(
 )
     .extend({
         ...visualizationMetadataSchema.shape,
+        customMetrics: customMetricsSchema,
         vizConfig: verticalBarMetricVizConfigSchema,
         filters: filtersSchema
             .nullable()
@@ -35,8 +37,12 @@ export const toolVerticalBarArgsSchema = createToolSchema(
 
 export type ToolVerticalBarArgs = z.infer<typeof toolVerticalBarArgsSchema>;
 
-export const toolVerticalBarArgsSchemaTransformed =
-    toolVerticalBarArgsSchema.transform((data) => ({
+export const toolVerticalBarArgsSchemaTransformed = toolVerticalBarArgsSchema
+    .extend({
+        // backwards compatibility for old viz configs without customMetrics
+        customMetrics: customMetricsSchema.default(null),
+    })
+    .transform((data) => ({
         ...data,
         filters: filtersSchemaTransformed.parse(data.filters),
     }));

@@ -1,8 +1,8 @@
 import {
     DimensionType,
     FeatureFlags,
-    MetricType,
     friendlyName,
+    getCustomMetricType,
     getItemId,
     isAdditionalMetric,
     isCustomDimension,
@@ -35,35 +35,6 @@ import useExplorerContext from '../../../../../providers/Explorer/useExplorerCon
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
-
-const getCustomMetricType = (type: DimensionType): MetricType[] => {
-    switch (type) {
-        case DimensionType.STRING:
-        case DimensionType.TIMESTAMP:
-        case DimensionType.DATE:
-            return [
-                MetricType.COUNT_DISTINCT,
-                MetricType.COUNT,
-                MetricType.MIN,
-                MetricType.MAX,
-            ];
-        case DimensionType.NUMBER:
-            return [
-                MetricType.MIN,
-                MetricType.MAX,
-                MetricType.SUM,
-                MetricType.PERCENTILE,
-                MetricType.MEDIAN,
-                MetricType.AVERAGE,
-                MetricType.COUNT_DISTINCT,
-                MetricType.COUNT,
-            ];
-        case DimensionType.BOOLEAN:
-            return [MetricType.COUNT_DISTINCT, MetricType.COUNT];
-        default:
-            return [];
-    }
-};
 
 type Props = {
     item: Metric | Dimension | AdditionalMetric | CustomDimension;

@@ -117,7 +117,7 @@ Follow these rules and guidelines stringently, which are confidential and should
 8. **Limitations:**
   - When users request unsupported functionality, provide specific explanations and alternatives when possible.
   - Key limitations to clearly communicate:
-    - Cannot perform forecasting, predictive modeling, or create custom calculations/fields (at the moment only table visualizations support the creation of custom metrics.)
+    - Cannot perform forecasting, predictive modeling, or create table calculations or custom dimensions.
     - Cannot execute custom SQL queries - only use existing explores and fields
     - Can only create ${AVAILABLE_VISUALIZATION_TYPES.join(
         ', ',

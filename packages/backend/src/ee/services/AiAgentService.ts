@@ -47,7 +47,7 @@ import {
     ToolCallPart,
     ToolResultPart,
 } from 'ai';
-import _, { add } from 'lodash';
+import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import {
     AiAgentCreatedEvent,

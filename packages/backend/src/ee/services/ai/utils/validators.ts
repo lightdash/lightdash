@@ -9,6 +9,7 @@ import {
     FilterRule,
     Filters,
     FilterType,
+    getCustomMetricType,
     getErrorMessage,
     getFields,
     getFilterRulesFromGroup,
@@ -33,7 +34,9 @@ import { serializeData } from './serializeData';
 export function validateSelectedFieldsExistence(
     explore: Explore,
     selectedFieldIds: string[],
-    customMetrics?: (CustomMetricBaseSchema | AdditionalMetric)[] | null,
+    customMetrics?:
+        | (CustomMetricBaseSchema | Omit<AdditionalMetric, 'sql'>)[]
+        | null,
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
     const customMetricIds = customMetrics?.map(getItemId);
@@ -59,6 +62,10 @@ ${nonExploreFields.join('\n')}
 
 /**
  * Validate that the custom metrics have a base dimension name that exists in the explore
+ * Checks:
+ * - The base dimension name exists in the explore
+ * - The base dimension name is a dimension in the explore
+ * - The base dimension name has the same sql as the custom metric
  * @param explore
  * @param customMetrics
  */
@@ -70,7 +77,6 @@ export function validateCustomMetricsDefinition(
         return;
     }
     const exploreFields = getFields(explore);
-    const exploreFieldIds = exploreFields.map(getItemId);
     const errors: string[] = [];
 
     customMetrics.forEach((metric) => {
@@ -81,10 +87,10 @@ export function validateCustomMetricsDefinition(
             return;
         }
 
-        const field = exploreFieldIds.find(
+        const field = exploreFields.find(
             (f) =>
                 metric.baseDimensionName &&
-                f ===
+                getItemId(f) ===
                     getItemId({
                         name: metric.baseDimensionName,
                         table: metric.table,
@@ -95,22 +101,38 @@ export function validateCustomMetricsDefinition(
             errors.push(
                 `Error: the base dimension name "${metric.baseDimensionName}" does not exist in the explore.`,
             );
+            return;
+        }
+
+        if (!isDimension(field)) {
+            errors.push(
+                `Error: the base dimension name "${metric.baseDimensionName}" is not a dimension in the explore.`,
+            );
+            return;
+        }
+
+        // Check type compatibility between metric type and field type (e.g. average on string is not allowed)
+        if (metric.type && field.type) {
+            const isCompatible = getCustomMetricType(field.type).includes(
+                metric.type,
+            );
+            if (!isCompatible) {
+                errors.push(
+                    `Error: cannot apply ${metric.type} aggregation to ${field.type} dimension "${metric.baseDimensionName}".`,
+                );
+            }
         }
     });
-
     if (errors.length > 0) {
         const errorMessage = `The following custom metrics are invalid:
-
         Errors:
         ${errors.join('\n\n')}
-
         Remember:
-        - Custom metrics should have a base dimension name`;
-
+        - Custom metrics should have a base dimension name
+        - The aggregation type must be compatible with the dimension's data type`;
         Logger.error(
             `[AiAgent][Validate Custom Metric Definition] ${errorMessage}`,
         );
-
         throw new Error(errorMessage);
     }
 }
@@ -246,8 +268,9 @@ ${serializeData(rule, 'json')}`,
             .map((e) => `<filterRuleError>${e}</filterRuleError>`)
             .join('\n');
 
+        // TODO: Remove this note once custom metrics are supported in filter rules
         const errorMessage = `The following filter rules are invalid:
-
+[Note: Custom metrics are not supported in filter rules yet.]
 Errors:
 ${filterRuleErrorStrings}`;
 
