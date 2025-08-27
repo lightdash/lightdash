@@ -269,6 +269,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spaceService: repository.getSpaceService(),
                     mcpContextModel: models.getMcpContextModel(),
                     projectModel: models.getProjectModel(),
+                    featureFlagService: repository.getFeatureFlagService(),
                 }),
             slackService: ({ repository, clients }) =>
                 new CommercialSlackService({
