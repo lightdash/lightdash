@@ -263,6 +263,8 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param userUuid the uuid of the user to update
      * @param body the new membership profile
+     *
+     * @deprecated Use the /api/v2/org/assignments/user/{userId} endpoint instead
      */
     @Middlewares([
         allowApiKeyAuthentication,

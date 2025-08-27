@@ -42,10 +42,10 @@ import { useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
+import { useUpsertOrganizationUserRoleAssignmentMutation } from '../../../hooks/useOrganizationRoles';
 import {
     useDeleteOrganizationUserMutation,
     usePaginatedOrganizationUsers,
-    useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -150,7 +150,7 @@ const UserListItem: FC<{
     const inviteLink = useCreateInviteLinkMutation();
     const { track } = useTracking();
     const { user: activeUser, health } = useApp();
-    const updateUser = useUpdateUserMutation(user.userUuid);
+    const updateUserRole = useUpsertOrganizationUserRoleAssignmentMutation();
     const handleDelete = () => mutate(user.userUuid);
 
     const getNewLink = () => {
@@ -194,8 +194,9 @@ const UserListItem: FC<{
                                     }),
                                 )}
                                 onChange={(newRole: string) => {
-                                    updateUser.mutate({
-                                        role: newRole as OrganizationMemberRole,
+                                    updateUserRole.mutate({
+                                        userId: user.userUuid,
+                                        roleId: newRole,
                                     });
                                 }}
                                 value={user.role}

@@ -2,7 +2,6 @@ import {
     type ApiError,
     type ApiOrganizationMemberProfiles,
     type KnexPaginateArgs,
-    type OrganizationMemberProfileUpdate,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
@@ -13,7 +12,6 @@ import {
 } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../api';
-import useApp from '../providers/App/useApp';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
@@ -47,13 +45,6 @@ const deleteUserQuery = async (id: string) =>
         url: `/org/user/${id}`,
         method: 'DELETE',
         body: undefined,
-    });
-
-const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
-    lightdashApi<null>({
-        url: `/org/users/${id}`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
     });
 
 export const useOrganizationUsers = (params?: {
@@ -178,36 +169,4 @@ export const useDeleteOrganizationUserMutation = () => {
             });
         },
     });
-};
-
-export const useUpdateUserMutation = (userUuid: string) => {
-    const queryClient = useQueryClient();
-    const { user } = useApp();
-    const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, OrganizationMemberProfileUpdate>(
-        (data) => {
-            if (userUuid) {
-                return updateUser(userUuid, data);
-            }
-            throw new Error('user ID is undefined');
-        },
-        {
-            mutationKey: ['organization_membership_roles'],
-            onSuccess: async () => {
-                if (user.data?.userUuid === userUuid) {
-                    await queryClient.refetchQueries(['user']);
-                }
-                await queryClient.refetchQueries(['organization_users']);
-                showToastSuccess({
-                    title: `Success! User was updated.`,
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to update user's permissions`,
-                    apiError: error,
-                });
-            },
-        },
-    );
 };

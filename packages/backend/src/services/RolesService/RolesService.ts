@@ -10,6 +10,7 @@ import {
     getSystemRoles,
     isSystemRole,
     NotImplementedError,
+    OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
     Role,
@@ -283,14 +284,25 @@ export class RolesService extends BaseService {
         RolesService.validateOrganizationAccess(account, orgUuid);
 
         // Ensure only system roles can be assigned at organization level
-        if (!isSystemRole(roleId)) {
+        if (roleId !== OrganizationMemberRole.MEMBER && !isSystemRole(roleId)) {
             throw new ParameterError(
                 'Only system roles can be assigned at organization level',
             );
         }
 
-        // Validate the role exists
-        const role = await this.rolesModel.getRoleByUuid(roleId);
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (user.role === OrganizationMemberRole.ADMIN) {
+            // If user is currently an admin, we need to check if there are more admins
+            // because every org should have at least one admin
+            const adminUuids = await this.rolesModel.getOrganizationAdmins(
+                orgUuid,
+            );
+            if (adminUuids.length === 1) {
+                throw new ParameterError(
+                    'Organization must have at least one admin',
+                );
+            }
+        }
 
         // Assign the system role at organization level
         await this.rolesModel.upsertOrganizationUserRoleAssignment(
@@ -311,11 +323,10 @@ export class RolesService extends BaseService {
         });
 
         // Build response
-        const user = await this.userModel.getUserDetailsByUuid(userUuid);
         return {
             roleId,
-            roleName: role.name,
-            ownerType: isSystemRole(roleId) ? 'system' : 'user',
+            roleName: roleId,
+            ownerType: 'system',
             assigneeType: 'user',
             assigneeId: userUuid,
             assigneeName: `${user.firstName} ${user.lastName}`,
