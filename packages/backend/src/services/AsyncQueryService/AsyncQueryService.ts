@@ -1424,7 +1424,6 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: string[];
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-        pivotConfiguration?: PivotConfiguration,
     ): Promise<ExecuteAsyncQueryReturn> {
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
@@ -1442,6 +1441,7 @@ export class AsyncQueryService extends ProjectService {
                     fields: fieldsMap,
                     originalColumns,
                     missingParameterReferences,
+                    pivotConfiguration,
                 } = args;
 
                 try {
@@ -1681,6 +1681,7 @@ export class AsyncQueryService extends ProjectService {
         metricQuery,
         invalidateCache,
         parameters,
+        pivotConfiguration,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -1776,6 +1777,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             requestParameters,
         );
@@ -2433,12 +2435,12 @@ export class AsyncQueryService extends ProjectService {
                 sql: sqlWithParams,
                 originalColumns,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             {
                 query: metricQuery,
                 invalidateCache,
             },
-            pivotConfiguration,
         );
 
         return {
@@ -2737,12 +2739,12 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             {
                 query: metricQuery,
                 invalidateCache,
             },
-            pivotConfiguration,
         );
 
         return {
@@ -2840,12 +2842,12 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             {
                 query: metricQuery,
                 invalidateCache,
             },
-            pivotConfiguration,
         );
 
         return {

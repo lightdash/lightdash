@@ -1354,21 +1354,26 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ParameterValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'string' },
+                { dataType: 'double' },
+                { dataType: 'array', array: { dataType: 'string' } },
+                { dataType: 'array', array: { dataType: 'double' } },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardParameterValue: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                value: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'double' },
-                        { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'array', array: { dataType: 'double' } },
-                    ],
-                    required: true,
-                },
+                value: { ref: 'ParameterValue', required: true },
                 parameterName: { dataType: 'string', required: true },
             },
             validators: {},
@@ -3424,30 +3429,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-or-number-or-string-Array-or-number-Array_': {
+    'Record_string.ParameterValue_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {},
-            additionalProperties: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'double' },
-                    { dataType: 'array', array: { dataType: 'string' } },
-                    { dataType: 'array', array: { dataType: 'double' } },
-                ],
-            },
+            additionalProperties: { ref: 'ParameterValue' },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ParametersValuesMap: {
         dataType: 'refAlias',
-        type: {
-            ref: 'Record_string.string-or-number-or-string-Array-or-number-Array_',
-            validators: {},
-        },
+        type: { ref: 'Record_string.ParameterValue_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SavedChart: {
@@ -4019,15 +4013,7 @@ const models: TsoaRoute.Models = {
                 },
                 allow_custom_values: { dataType: 'boolean' },
                 multiple: { dataType: 'boolean' },
-                default: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'double' },
-                        { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'array', array: { dataType: 'double' } },
-                    ],
-                },
+                default: { ref: 'ParameterValue' },
                 type: {
                     dataType: 'union',
                     subSchemas: [
@@ -9341,6 +9327,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateDailyJobs'] },
                 { dataType: 'enum', enums: ['exportCsvDashboard'] },
                 { dataType: 'enum', enums: ['renameResources'] },
+                { dataType: 'enum', enums: ['cleanQueryHistory'] },
             ],
             validators: {},
         },
@@ -14679,13 +14666,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CreateDBProjectGroupAccess.role_': {
+    'Pick_CreateProjectGroupAccess.role_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                role: { ref: 'ProjectMemberRole', required: true },
-            },
+            nestedProperties: { role: { dataType: 'string', required: true } },
             validators: {},
         },
     },
@@ -14714,7 +14699,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
-                role: { ref: 'ProjectMemberRole' },
+                role: { ref: 'ProjectMemberRole', required: true },
             },
             validators: {},
         },
@@ -16596,6 +16581,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        pivotConfiguration: { ref: 'PivotConfiguration' },
                         dateZoom: { ref: 'DateZoom' },
                         query: {
                             ref: 'Omit_MetricQueryRequest.csvLimit_',
@@ -31869,7 +31855,7 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'projectGroupAccess',
             required: true,
-            ref: 'Pick_CreateDBProjectGroupAccess.role_',
+            ref: 'Pick_CreateProjectGroupAccess.role_',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
