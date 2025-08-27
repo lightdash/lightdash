@@ -1,11 +1,26 @@
-import { pivotQueryResults } from './pivotQueryResults';
 import {
+    convertSqlPivotedRowsToPivotData,
+    pivotQueryResults,
+} from './pivotQueryResults';
+import {
+    COMPLEX_NON_PIVOTED_ROWS,
+    COMPLEX_SQL_PIVOTED_ROWS,
+    COMPLEX_SQL_PIVOT_DETAILS,
+    EXPECTED_COMPLEX_PIVOT_DATA,
+    EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
+    EXPECTED_PIVOT_DATA,
+    EXPECTED_PIVOT_DATA_METRICS_AS_ROWS,
+    EXPECTED_PIVOT_DATA_WITH_TOTALS,
     METRIC_QUERY_0DIM_2METRIC,
     METRIC_QUERY_1DIM_2METRIC,
     METRIC_QUERY_2DIM_2METRIC,
+    NON_PIVOTED_ROWS,
     RESULT_ROWS_0DIM_2METRIC,
     RESULT_ROWS_1DIM_2METRIC,
     RESULT_ROWS_2DIM_2METRIC,
+    SQL_PIVOTED_ROWS,
+    SQL_PIVOT_DETAILS,
+    getFieldMock,
 } from './pivotQueryResults.mock';
 
 describe('Should pivot data', () => {
@@ -868,5 +883,436 @@ describe('Should pivot data', () => {
             getField: (_fieldId) => undefined,
         });
         expect(results).toStrictEqual(expected);
+    });
+});
+
+describe('convertSqlPivotedRowsToPivotData', () => {
+    it('should convert SQL-pivoted rows to PivotData format', () => {
+        // Pivot "normal" rows (legacy way)
+        const resultLegacy = pivotQueryResults({
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            pivotConfig: {
+                pivotDimensions: ['payments_payment_method'],
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+                hiddenMetricFieldIds: [],
+                columnTotals: false,
+                rowTotals: false,
+            },
+            metricQuery: {
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                ],
+                metrics: ['payments_total_revenue'],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            },
+            rows: NON_PIVOTED_ROWS,
+            options: {
+                maxColumns: 60,
+            },
+        });
+        // Convert SQL Pivoted rows to PivotData
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+        // Verify legacy way to pivot in FE
+        expect(resultLegacy).toStrictEqual(EXPECTED_PIVOT_DATA);
+        // Verify the new conversion matches legacy method
+        expect(result).toStrictEqual(resultLegacy);
+    });
+
+    it('should convert SQL-pivoted rows with totals to PivotData format', () => {
+        // Pivot "normal" rows (legacy way)
+        const resultLegacy = pivotQueryResults({
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            pivotConfig: {
+                pivotDimensions: ['payments_payment_method'],
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+                hiddenMetricFieldIds: [],
+                columnTotals: true,
+                rowTotals: true,
+            },
+            metricQuery: {
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                ],
+                metrics: ['payments_total_revenue'],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            },
+            rows: NON_PIVOTED_ROWS,
+            options: {
+                maxColumns: 60,
+            },
+        });
+        // Convert SQL Pivoted rows to PivotData
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: true,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+        });
+        // Verify legacy way to pivot in FE
+        expect(resultLegacy).toStrictEqual(EXPECTED_PIVOT_DATA_WITH_TOTALS);
+        // Verify the new conversion matches legacy method
+        expect(result).toStrictEqual(resultLegacy);
+    });
+
+    it('should convert SQL-pivoted rows with metricsAsRows: true to PivotData format', () => {
+        // Pivot "normal" rows (legacy way) with metricsAsRows: true
+        const resultLegacy = pivotQueryResults({
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => {
+                if (fieldId === 'payments_total_revenue') {
+                    return 'Payments Total revenue';
+                }
+                return fieldId;
+            },
+            pivotConfig: {
+                pivotDimensions: ['payments_payment_method'],
+                metricsAsRows: true,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+                hiddenMetricFieldIds: [],
+                columnTotals: true,
+                rowTotals: true,
+            },
+            metricQuery: {
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                ],
+                metrics: ['payments_total_revenue'],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            },
+            rows: NON_PIVOTED_ROWS,
+            options: {
+                maxColumns: 60,
+            },
+        });
+
+        // Convert SQL Pivoted rows to PivotData with metricsAsRows: true
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: true,
+                metricsAsRows: true,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => {
+                if (fieldId === 'payments_total_revenue') {
+                    return 'Payments Total revenue';
+                }
+                return fieldId;
+            },
+        });
+
+        // Verify legacy way to pivot in FE matches expected structure
+        expect(resultLegacy).toStrictEqual(EXPECTED_PIVOT_DATA_METRICS_AS_ROWS);
+
+        // Verify the new conversion matches legacy method
+        expect(result).toStrictEqual(resultLegacy);
+    });
+
+    it('should convert complex SQL-pivoted rows to PivotData format', () => {
+        // Pivot "normal" rows (legacy way) with metricsAsRows: true
+        const resultLegacy = pivotQueryResults({
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => {
+                if (fieldId === 'payments_total_revenue') {
+                    return 'Payments Total revenue';
+                }
+                if (fieldId === 'orders_average_order_size') {
+                    return 'Orders Average order size';
+                }
+                if (fieldId === 'orders_total_order_amount') {
+                    return 'Orders Total order amount';
+                }
+                return fieldId;
+            },
+            pivotConfig: {
+                pivotDimensions: [
+                    'payments_payment_method',
+                    'orders_is_completed',
+                ],
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'orders_is_completed',
+                    'orders_promo_code',
+                    'payments_total_revenue',
+                    'orders_average_order_size',
+                    'orders_total_order_amount',
+                ],
+                hiddenMetricFieldIds: [],
+                columnTotals: true,
+                rowTotals: true,
+            },
+            metricQuery: {
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'orders_is_completed',
+                    'orders_promo_code',
+                ],
+                metrics: [
+                    'payments_total_revenue',
+                    'orders_average_order_size',
+                    'orders_total_order_amount',
+                ],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            },
+            rows: COMPLEX_NON_PIVOTED_ROWS,
+            options: {
+                maxColumns: 60,
+            },
+        });
+
+        // Convert SQL Pivoted rows to PivotData with metricsAsRows: true
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: COMPLEX_SQL_PIVOTED_ROWS,
+            pivotDetails: COMPLEX_SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: true,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'orders_is_completed',
+                    'orders_promo_code',
+                    'payments_total_revenue',
+                    'orders_average_order_size',
+                    'orders_total_order_amount',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => {
+                if (fieldId === 'payments_total_revenue') {
+                    return 'Payments Total revenue';
+                }
+                if (fieldId === 'orders_average_order_size') {
+                    return 'Orders Average order size';
+                }
+                if (fieldId === 'orders_total_order_amount') {
+                    return 'Orders Total order amount';
+                }
+                return fieldId;
+            },
+        });
+
+        // Verify legacy way to pivot in FE matches expected structure
+        expect(resultLegacy).toStrictEqual(EXPECTED_COMPLEX_PIVOT_DATA);
+
+        // Verify the new conversion matches legacy method
+        expect(result.titleFields).toStrictEqual(resultLegacy.titleFields);
+        expect(result.headerValueTypes).toStrictEqual(
+            resultLegacy.headerValueTypes,
+        );
+        expect(result.headerValues).toStrictEqual(resultLegacy.headerValues);
+        expect(result.indexValueTypes).toStrictEqual(
+            resultLegacy.indexValueTypes,
+        );
+        expect(result.indexValues).toStrictEqual(resultLegacy.indexValues);
+        expect(result.dataColumnCount).toStrictEqual(
+            resultLegacy.dataColumnCount,
+        );
+        expect(result.dataValues).toStrictEqual(resultLegacy.dataValues);
+        expect(result.rowTotalFields).toStrictEqual(
+            resultLegacy.rowTotalFields,
+        );
+        expect(result.columnTotalFields).toStrictEqual(
+            resultLegacy.columnTotalFields,
+        );
+        expect(result.rowTotals).toStrictEqual(resultLegacy.rowTotals);
+        expect(result.columnTotals).toStrictEqual(resultLegacy.columnTotals);
+        expect(result.cellsCount).toStrictEqual(resultLegacy.cellsCount);
+        expect(result.rowsCount).toStrictEqual(resultLegacy.rowsCount);
+        expect(result.pivotConfig).toStrictEqual(resultLegacy.pivotConfig);
+        expect(result.retrofitData).toStrictEqual(resultLegacy.retrofitData);
+        expect(result.groupedSubtotals).toStrictEqual(
+            resultLegacy.groupedSubtotals,
+        );
+    });
+
+    it('should convert complex SQL-pivoted rows with metric as rows to PivotData format', () => {
+        // Pivot "normal" rows (legacy way) with metricsAsRows: true
+        const resultLegacy = pivotQueryResults({
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => {
+                if (fieldId === 'payments_total_revenue') {
+                    return 'Payments Total revenue';
+                }
+                if (fieldId === 'orders_average_order_size') {
+                    return 'Orders Average order size';
+                }
+                if (fieldId === 'orders_total_order_amount') {
+                    return 'Orders Total order amount';
+                }
+                return fieldId;
+            },
+            pivotConfig: {
+                pivotDimensions: [
+                    'payments_payment_method',
+                    'orders_is_completed',
+                ],
+                metricsAsRows: true,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'orders_is_completed',
+                    'orders_promo_code',
+                    'payments_total_revenue',
+                    'orders_average_order_size',
+                    'orders_total_order_amount',
+                ],
+                hiddenMetricFieldIds: [],
+                columnTotals: true,
+                rowTotals: true,
+            },
+            metricQuery: {
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'orders_is_completed',
+                    'orders_promo_code',
+                ],
+                metrics: [
+                    'payments_total_revenue',
+                    'orders_average_order_size',
+                    'orders_total_order_amount',
+                ],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            },
+            rows: COMPLEX_NON_PIVOTED_ROWS,
+            options: {
+                maxColumns: 60,
+            },
+        });
+
+        // Convert SQL Pivoted rows to PivotData with metricsAsRows: true
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: COMPLEX_SQL_PIVOTED_ROWS,
+            pivotDetails: COMPLEX_SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: true,
+                metricsAsRows: true,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'orders_is_completed',
+                    'orders_promo_code',
+                    'payments_total_revenue',
+                    'orders_average_order_size',
+                    'orders_total_order_amount',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => {
+                if (fieldId === 'payments_total_revenue') {
+                    return 'Payments Total revenue';
+                }
+                if (fieldId === 'orders_average_order_size') {
+                    return 'Orders Average order size';
+                }
+                if (fieldId === 'orders_total_order_amount') {
+                    return 'Orders Total order amount';
+                }
+                return fieldId;
+            },
+        });
+
+        // Verify legacy way to pivot in FE matches expected structure
+        expect(resultLegacy).toStrictEqual(
+            EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
+        );
+
+        // Verify the new conversion matches legacy method
+        expect(result).toStrictEqual(resultLegacy);
+        expect(result.titleFields).toStrictEqual(resultLegacy.titleFields);
+        expect(result.headerValueTypes).toStrictEqual(
+            resultLegacy.headerValueTypes,
+        );
+        expect(result.headerValues).toStrictEqual(resultLegacy.headerValues);
+        expect(result.indexValueTypes).toStrictEqual(
+            resultLegacy.indexValueTypes,
+        );
+        expect(result.indexValues).toStrictEqual(resultLegacy.indexValues);
+        expect(result.dataColumnCount).toStrictEqual(
+            resultLegacy.dataColumnCount,
+        );
+        expect(result.dataValues).toStrictEqual(resultLegacy.dataValues);
+        expect(result.rowTotalFields).toStrictEqual(
+            resultLegacy.rowTotalFields,
+        );
+        expect(result.columnTotalFields).toStrictEqual(
+            resultLegacy.columnTotalFields,
+        );
+        expect(result.rowTotals).toStrictEqual(resultLegacy.rowTotals);
+        expect(result.columnTotals).toStrictEqual(resultLegacy.columnTotals);
+        expect(result.cellsCount).toStrictEqual(resultLegacy.cellsCount);
+        expect(result.rowsCount).toStrictEqual(resultLegacy.rowsCount);
+        expect(result.pivotConfig).toStrictEqual(resultLegacy.pivotConfig);
+        expect(result.retrofitData).toStrictEqual(resultLegacy.retrofitData);
+        expect(result.groupedSubtotals).toStrictEqual(
+            resultLegacy.groupedSubtotals,
+        );
     });
 });
