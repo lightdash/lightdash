@@ -1,0 +1,81 @@
+name: F3. Filter first table calculation
+description: ""
+tableName: orders
+updatedAt: "2025-08-27T17:13:18.143Z"
+metricQuery:
+  exploreName: orders
+  dimensions:
+    - orders_shipping_method
+    - orders_order_id
+  metrics:
+    - orders_total_order_amount
+  filters:
+    tableCalculations:
+      id: 5d349ffa-72dd-40f6-b5f9-925a8721583f
+      and:
+        - id: 3cde1d27-f024-46c0-9504-8a42b87dacd2
+          target:
+            fieldId: order_total_by_shipping_method
+          values:
+            - 900
+            - 1500
+          operator: inBetween
+  sorts:
+    - fieldId: orders_total_order_amount
+      descending: true
+  limit: 500
+  metricOverrides: {}
+  tableCalculations:
+    - name: order_total_by_shipping_method
+      displayName: Order total by shipping method
+      sql: >-
+        sum(${orders.total_order_amount}) over(partition by
+        ${orders.shipping_method})
+      format:
+        type: default
+        separator: default
+      type: number
+    - name: percentage_of_shipping_method_order_total
+      displayName: percentage_of_shipping_method_order_total
+      sql: ${orders.total_order_amount}/${order_total_by_shipping_method}
+      format:
+        type: percent
+        separator: default
+      type: number
+  additionalMetrics:
+    - name: amount_sum_of_amount
+      label: Sum of Amount
+      description: "Sum of Amount on the table Orders "
+      uuid: ea8f675c-4913-4a14-b846-80a0760f2dc6
+      sql: ${TABLE}.amount
+      table: orders
+      type: sum
+      baseDimensionName: amount
+      formatOptions:
+        type: default
+        separator: default
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: true
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+dashboardSlug: table-calculation-examples
+slug: f2-filter-first-table-calculation
+tableConfig:
+  columnOrder:
+    - orders_shipping_method
+    - orders_order_id
+    - orders_total_order_amount
+    - order_total_by_shipping_method
+    - percentage_of_shipping_method_order_total
+spaceSlug: parent-space-3
+version: 1
+downloadedAt: "2025-08-27T17:49:38.467Z"
