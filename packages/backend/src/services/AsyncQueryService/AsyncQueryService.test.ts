@@ -11,7 +11,7 @@ import {
     type QueryHistory,
     type ResultColumns,
 } from '@lightdash/common';
-import type { SshTunnel } from '@lightdash/warehouses';
+import { type SshTunnel } from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -77,6 +77,7 @@ const mockSshTunnel = {
 } as unknown as SshTunnel<CreateWarehouseCredentials>;
 
 jest.mock('@lightdash/warehouses', () => ({
+    ...jest.requireActual('@lightdash/warehouses'),
     SshTunnel: jest.fn(() => mockSshTunnel),
 }));
 

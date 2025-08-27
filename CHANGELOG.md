@@ -1,3 +1,24 @@
+# [0.1957.0](https://github.com/lightdash/lightdash/compare/0.1956.0...0.1957.0) (2025-08-27)
+
+
+### Features
+
+* route to generate AI Agent response ([#16574](https://github.com/lightdash/lightdash/issues/16574)) ([3c85cae](https://github.com/lightdash/lightdash/commit/3c85cae91dd6aa8d823cec99d83ef5192c134029))
+
+# [0.1956.0](https://github.com/lightdash/lightdash/compare/0.1955.0...0.1956.0) (2025-08-27)
+
+
+### Features
+
+* add pivot configuration to /query/metric-query ([#16579](https://github.com/lightdash/lightdash/issues/16579)) ([9b43f00](https://github.com/lightdash/lightdash/commit/9b43f0043f2198f6f823ab312de3e6117f1ed9dd))
+
+# [0.1955.0](https://github.com/lightdash/lightdash/compare/0.1954.1...0.1955.0) (2025-08-27)
+
+
+### Features
+
+* move pivot sql builder to it's own class ([#16558](https://github.com/lightdash/lightdash/issues/16558)) ([e8d461a](https://github.com/lightdash/lightdash/commit/e8d461a51e250c2c4bd1b89c2ace9da39efff23f))
+
 ## [0.1954.1](https://github.com/lightdash/lightdash/compare/0.1954.0...0.1954.1) (2025-08-26)
 
 

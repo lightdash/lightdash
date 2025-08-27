@@ -93,6 +93,7 @@ import PrometheusMetrics from '../../prometheus';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
+import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import {
     ReferenceMap,
     SqlQueryBuilder,
@@ -1423,7 +1424,6 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: string[];
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-        pivotConfiguration?: PivotConfiguration,
     ): Promise<ExecuteAsyncQueryReturn> {
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
@@ -1441,6 +1441,7 @@ export class AsyncQueryService extends ProjectService {
                     fields: fieldsMap,
                     originalColumns,
                     missingParameterReferences,
+                    pivotConfiguration,
                 } = args;
 
                 try {
@@ -1482,18 +1483,21 @@ export class AsyncQueryService extends ProjectService {
                         warehouseCredentialsType,
                     );
 
+                    const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+                        warehouseCredentialsType,
+                        warehouseCredentials.startOfWeek,
+                    );
+
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
-                        pivotedQuery =
-                            await ProjectService.applyPivotToSqlQuery({
-                                warehouseType: warehouseCredentialsType,
-                                sql: compiledQuery,
-                                indexColumn: pivotConfiguration.indexColumn,
-                                valuesColumns: pivotConfiguration.valuesColumns,
-                                groupByColumns:
-                                    pivotConfiguration.groupByColumns,
-                                sortBy: pivotConfiguration.sortBy,
-                            });
+                        const pivotQueryBuilder = new PivotQueryBuilder(
+                            compiledQuery,
+                            pivotConfiguration,
+                            warehouseSqlBuilder,
+                            args.metricQuery.limit,
+                        );
+
+                        pivotedQuery = pivotQueryBuilder.toSql();
                     }
 
                     const query = pivotedQuery || compiledQuery;
@@ -1677,6 +1681,7 @@ export class AsyncQueryService extends ProjectService {
         metricQuery,
         invalidateCache,
         parameters,
+        pivotConfiguration,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -1772,6 +1777,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             requestParameters,
         );
@@ -2429,12 +2435,12 @@ export class AsyncQueryService extends ProjectService {
                 sql: sqlWithParams,
                 originalColumns,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             {
                 query: metricQuery,
                 invalidateCache,
             },
-            pivotConfiguration,
         );
 
         return {
@@ -2733,12 +2739,12 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             {
                 query: metricQuery,
                 invalidateCache,
             },
-            pivotConfiguration,
         );
 
         return {
@@ -2836,12 +2842,12 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns,
                 missingParameterReferences,
+                pivotConfiguration,
             },
             {
                 query: metricQuery,
                 invalidateCache,
             },
-            pivotConfiguration,
         );
 
         return {

@@ -1,6 +1,7 @@
 import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
 import {
     ActionIcon,
+    Alert,
     Anchor,
     Button,
     CopyButton,
@@ -83,7 +84,7 @@ const AssistantBubbleContent: FC<{
                 <Paper
                     withBorder
                     radius="md"
-                    p="md"
+                    pr="md"
                     shadow="none"
                     bg="gray.0"
                     style={{
@@ -91,13 +92,17 @@ const AssistantBubbleContent: FC<{
                     }}
                 >
                     <Group gap="xs" align="center" justify="space-between">
-                        <Group gap="xs" align="flex-start">
-                            <MantineIcon
-                                icon={IconExclamationCircle}
-                                color="gray"
-                                size="sm"
-                                style={{ flexShrink: 0, marginTop: '2px' }}
-                            />
+                        <Alert
+                            icon={
+                                <MantineIcon
+                                    icon={IconExclamationCircle}
+                                    color="gray"
+                                    size="md"
+                                />
+                            }
+                            color="gray.0"
+                            variant="outline"
+                        >
                             <Stack gap={4}>
                                 <Text size="sm" fw={500} c="dimmed">
                                     Something went wrong
@@ -107,13 +112,17 @@ const AssistantBubbleContent: FC<{
                                     again.
                                 </Text>
                             </Stack>
-                        </Group>
+                        </Alert>
                         <Button
                             size="xs"
                             variant="default"
                             color="dark.5"
                             leftSection={
-                                <MantineIcon icon={IconRefresh} size="xs" />
+                                <MantineIcon
+                                    icon={IconRefresh}
+                                    size="sm"
+                                    color="gray.7"
+                                />
                             }
                             onClick={handleRetry}
                         >

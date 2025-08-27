@@ -1332,31 +1332,34 @@
                 "required": ["tableCalculations", "metrics", "dimensions"],
                 "type": "object"
             },
+            "ParameterValue": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    {
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "array"
+                    }
+                ]
+            },
             "DashboardParameterValue": {
                 "properties": {
                     "value": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "items": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "type": "array"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/ParameterValue"
                     },
                     "parameterName": {
                         "type": "string"
@@ -3683,37 +3686,16 @@
                     }
                 ]
             },
-            "Record_string.string-or-number-or-string-Array-or-number-Array_": {
+            "Record_string.ParameterValue_": {
                 "properties": {},
                 "additionalProperties": {
-                    "anyOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        {
-                            "items": {
-                                "type": "string"
-                            },
-                            "type": "array"
-                        },
-                        {
-                            "items": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": "array"
-                        }
-                    ]
+                    "$ref": "#/components/schemas/ParameterValue"
                 },
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
             "ParametersValuesMap": {
-                "$ref": "#/components/schemas/Record_string.string-or-number-or-string-Array-or-number-Array_"
+                "$ref": "#/components/schemas/Record_string.ParameterValue_"
             },
             "SavedChart": {
                 "properties": {
@@ -4481,28 +4463,7 @@
                         "type": "boolean"
                     },
                     "default": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "items": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "type": "array"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/ParameterValue"
                     },
                     "type": {
                         "type": "string",
@@ -5955,6 +5916,26 @@
                     }
                 },
                 "required": ["prompt"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadGenerateResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "response": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["response"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "AiResultType": {
@@ -10145,7 +10126,8 @@
                     "indexCatalog",
                     "generateDailyJobs",
                     "exportCsvDashboard",
-                    "renameResources"
+                    "renameResources",
+                    "cleanQueryHistory"
                 ]
             },
             "SchedulerJobStatus": {
@@ -15620,10 +15602,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateDBProjectGroupAccess.role_": {
+            "Pick_CreateProjectGroupAccess.role_": {
                 "properties": {
                     "role": {
-                        "$ref": "#/components/schemas/ProjectMemberRole"
+                        "type": "string"
                     }
                 },
                 "required": ["role"],
@@ -15654,6 +15636,7 @@
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     }
                 },
+                "required": ["role"],
                 "type": "object"
             },
             "ApiGdriveAccessTokenResponse": {
@@ -17431,6 +17414,9 @@
                     },
                     {
                         "properties": {
+                            "pivotConfiguration": {
+                                "$ref": "#/components/schemas/PivotConfiguration"
+                            },
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"
                             },
@@ -18644,7 +18630,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1950.0",
+        "version": "0.1956.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -26622,7 +26608,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Pick_CreateDBProjectGroupAccess.role_"
+                                "$ref": "#/components/schemas/Pick_CreateProjectGroupAccess.role_"
                             }
                         }
                     }
