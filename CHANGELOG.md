@@ -1,3 +1,10 @@
+# [0.1957.0](https://github.com/lightdash/lightdash/compare/0.1956.0...0.1957.0) (2025-08-27)
+
+
+### Features
+
+* route to generate AI Agent response ([#16574](https://github.com/lightdash/lightdash/issues/16574)) ([3c85cae](https://github.com/lightdash/lightdash/commit/3c85cae91dd6aa8d823cec99d83ef5192c134029))
+
 # [0.1956.0](https://github.com/lightdash/lightdash/compare/0.1955.0...0.1956.0) (2025-08-27)
 
 
