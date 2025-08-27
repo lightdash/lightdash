@@ -1,11 +1,15 @@
 import { CoreMessage, generateObject, LanguageModelV1 } from 'ai';
 import { z } from 'zod';
 
+const TITLE_MAX_LENGTH_CHARS = 60;
 const TitleSchema = z.object({
     title: z
         .string()
         .min(1, 'Title must not be empty')
-        .max(60, 'Title must be 60 characters or less')
+        .max(
+            TITLE_MAX_LENGTH_CHARS,
+            `Title must be ${TITLE_MAX_LENGTH_CHARS} characters or less`,
+        )
         .describe('A concise, descriptive title for the conversation thread'),
 });
 
@@ -23,15 +27,13 @@ export async function generateThreadTitle(
                 role: 'system',
                 content: `You are a helpful assistant that creates short, descriptive titles for conversations.
 
-Generate a concise title (maximum 60 characters) that summarizes the main topic or question being discussed.
+Generate a concise title (maximum ${TITLE_MAX_LENGTH_CHARS} characters) that summarizes the main topic or question being discussed.
 
 Good examples:
-- "Order data analysis"
-- "Sales performance review" 
-- "Customer insights report"
-- "Revenue trends by region"
-- "Dashboard creation help"
-- "Chart formatting issues"
+- "Order data analysis for last 30 days"
+- "Revenue over last 12 months" 
+- "Avg shipping cost by center for promo express orders"
+- "Top 5 shipping methods by order percentage"
 
 The title should be clear, specific, and helpful for someone browsing a list of conversations.`,
             },
@@ -42,7 +44,6 @@ The title should be clear, specific, and helpful for someone browsing a list of 
             },
             ...messages,
         ],
-        maxTokens: 30,
         temperature: 0.3,
     });
 

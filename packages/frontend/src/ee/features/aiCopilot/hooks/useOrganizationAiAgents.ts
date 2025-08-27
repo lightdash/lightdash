@@ -276,7 +276,7 @@ const generateAgentThreadTitle = async (
         body: JSON.stringify({}),
     });
 
-export const useGenerateAgentThreadTitleMutation = (
+const useGenerateAgentThreadTitleMutation = (
     projectUuid: string,
     agentUuid: string,
 ) => {

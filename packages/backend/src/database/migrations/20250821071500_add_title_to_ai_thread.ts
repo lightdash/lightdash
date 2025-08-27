@@ -10,7 +10,7 @@ export async function up(knex: Knex): Promise<void> {
     }
 
     await knex.schema.alterTable(AiThreadTableName, (table) => {
-        table.string('title', 255).nullable();
+        table.string('title').nullable();
         table.timestamp('title_generated_at', { useTz: false }).nullable();
     });
 

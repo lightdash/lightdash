@@ -746,9 +746,7 @@ export class AiAgentModel {
             createdAt: row.created_at as unknown as string,
             createdFrom: row.created_from,
             title: row.title,
-            titleGeneratedAt: row.title_generated_at as unknown as
-                | string
-                | null,
+            titleGeneratedAt: row.title_generated_at?.toString() ?? null,
             firstMessage: {
                 uuid: row.ai_prompt_uuid,
                 message: row.prompt,
