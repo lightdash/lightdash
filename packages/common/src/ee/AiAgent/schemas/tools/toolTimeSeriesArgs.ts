@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { FollowUpTools } from '../../followUpTools';
 import { AiResultType } from '../../types';
+import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
@@ -14,6 +15,7 @@ export const toolTimeSeriesArgsSchema = createToolSchema(
 )
     .extend({
         ...visualizationMetadataSchema.shape,
+        customMetrics: customMetricsSchema,
         vizConfig: timeSeriesMetricVizConfigSchema,
         filters: filtersSchema
             .nullable()
@@ -42,6 +44,8 @@ export const toolTimeSeriesArgsSchemaTransformed = toolTimeSeriesArgsSchema
             xAxisLabel: z.string().default(''),
             yAxisLabel: z.string().default(''),
         }),
+        // backwards compatibility for old viz configs without customMetrics
+        customMetrics: customMetricsSchema.default(null),
     })
     .transform((data) => ({
         ...data,

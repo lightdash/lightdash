@@ -3,7 +3,7 @@ import {
     AiResultType,
     MetricQuery,
     metricQueryVerticalBarViz,
-    type ToolVerticalBarArgsTransformed,
+    ToolVerticalBarArgsTransformed,
 } from '@lightdash/common';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 import { getPivotedResults } from '../utils/getPivotedResults';
@@ -94,11 +94,12 @@ export const renderVerticalBarViz = async ({
     metricQuery: AiMetricQueryWithFilters;
     chartOptions: object;
 }> => {
-    const metricQueryWithFilters = metricQueryVerticalBarViz(
-        vizTool.vizConfig,
-        vizTool.filters,
+    const metricQueryWithFilters = metricQueryVerticalBarViz({
+        vizConfig: vizTool.vizConfig,
+        filters: vizTool.filters,
         maxLimit,
-    );
+        customMetrics: vizTool.customMetrics ?? null,
+    });
     const results = await runMetricQuery(metricQueryWithFilters);
     const chartOptions = await echartsConfigVerticalBarMetric(
         vizTool,
