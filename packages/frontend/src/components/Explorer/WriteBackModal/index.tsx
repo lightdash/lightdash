@@ -59,7 +59,7 @@ const parseError = (
     return `Error: ${errorTitle}\n${getErrorMessage(error)}`;
 };
 
-const SingleItemModalContent = ({
+export const SingleItemModalContent = ({
     handleClose,
     item,
     projectUuid,
