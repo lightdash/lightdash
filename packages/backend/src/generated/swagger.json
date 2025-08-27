@@ -16970,6 +16970,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiRoleWithScopesResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoleWithScopes"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ResultsPaginationMetadata_ResultRow_": {
                 "allOf": [
                     {
@@ -18636,7 +18650,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1957.0",
+        "version": "0.1957.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -18735,7 +18749,14 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiGetRolesResponse"
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiGetRolesResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ApiRoleWithScopesResponse"
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -18766,6 +18787,14 @@
                     {
                         "in": "query",
                         "name": "load",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "roleTypeFilter",
                         "required": false,
                         "schema": {
                             "type": "string"
