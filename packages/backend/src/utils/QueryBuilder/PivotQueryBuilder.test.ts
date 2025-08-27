@@ -933,7 +933,7 @@ describe('PivotQueryBuilder', () => {
                 'SELECT "category", "date" FROM original_query group by "category", "date"',
             );
             // Should calculate total_columns correctly (1 value column default)
-            expect(result).toContain('* 1) as total_columns');
+            expect(result).toContain('* 1 as total_columns');
         });
 
         test('Should handle undefined limit (defaults to 500)', () => {
