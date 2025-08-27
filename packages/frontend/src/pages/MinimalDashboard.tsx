@@ -117,21 +117,32 @@ const MinimalDashboard: FC = () => {
         });
     }, [sortedTabs, generateTabUrl]);
 
+    const gridProps = getResponsiveGridLayoutProps({
+        stackVerticallyOnSmallestBreakpoint: true,
+    });
+
     const layouts = useMemo(() => {
+        const tiles =
+            dashboard?.tiles.filter((tile) =>
+                // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
+                schedulerTabsSelected
+                    ? schedulerTabsSelected.includes(tile.tabUuid)
+                    : // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
+                      !activeTab || activeTab.uuid === tile.tabUuid,
+            ) ?? [];
+
         return {
-            lg:
-                dashboard?.tiles
-                    .filter((tile) =>
-                        // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
-                        schedulerTabsSelected
-                            ? schedulerTabsSelected.includes(tile.tabUuid)
-                            : // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
-                              !activeTab || activeTab.uuid === tile.tabUuid,
-                    )
-                    .map<Layout>((tile) => getReactGridLayoutConfig(tile)) ??
-                [],
+            lg: tiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.lg),
+            ),
+            md: tiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.md),
+            ),
+            sm: tiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.sm),
+            ),
         };
-    }, [dashboard?.tiles, schedulerTabsSelected, activeTab]);
+    }, [dashboard?.tiles, schedulerTabsSelected, activeTab, gridProps.cols]);
 
     const filteredDashboardTiles = useMemo(() => {
         return (
@@ -191,12 +202,7 @@ const MinimalDashboard: FC = () => {
                     sx={{ marginTop: '40px' }}
                 />
             ) : (
-                <ResponsiveGridLayout
-                    {...getResponsiveGridLayoutProps({
-                        stackVerticallyOnSmallestBreakpoint: true,
-                    })}
-                    layouts={layouts}
-                >
+                <ResponsiveGridLayout {...gridProps} layouts={layouts}>
                     {filteredDashboardTiles.map((tile) => (
                         <div key={tile.uuid}>
                             {tile.type === DashboardTileTypes.SAVED_CHART ? (
