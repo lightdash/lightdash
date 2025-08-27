@@ -30,8 +30,8 @@ function getMcpService(req: express.Request): McpService {
     }
 }
 
-/* 
-MCP servers MUST use the HTTP header WWW-Authenticate when returning a 401 Unauthorized to indicate 
+/*
+MCP servers MUST use the HTTP header WWW-Authenticate when returning a 401 Unauthorized to indicate
 the location of the resource server metadata URL as described in RFC9728 Section 5.1 “WWW-Authenticate Response”.
 https://www.rfc-editor.org/rfc/rfc9728#section-5.1
 */
@@ -75,9 +75,28 @@ mcpRouter.all(
             const mcpServer = mcpService.getServer();
 
             if (req.method === 'GET') {
-                throw new NotImplementedError(
-                    'SSE transport method not implemented',
-                );
+                // Handle SSE transport for MCP
+                res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    Connection: 'keep-alive',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Cache-Control',
+                });
+
+                // Keep connection alive with periodic heartbeat
+                const heartbeat = setInterval(() => {
+                    res.write('event: heartbeat\ndata: {}\n\n');
+                }, 30000);
+
+                // Clean up on connection close
+                req.on('close', () => {
+                    clearInterval(heartbeat);
+                });
+
+                // Send initial connection event
+                res.write('event: connect\ndata: {"type": "connect"}\n\n');
+                return await Promise.resolve();
             }
 
             if (req.method === 'POST') {
@@ -111,7 +130,8 @@ mcpRouter.all(
                 return await transport.handleRequest(authReq, res, req.body);
             }
 
-            return res.status(405).json({ error: 'Method not allowed' });
+            res.status(405).json({ error: 'Method not allowed' });
+            return await Promise.resolve();
         } catch (error) {
             Logger.error(`MCP endpoint error: ${getErrorMessage(error)}`);
             if (error instanceof LightdashError) {
