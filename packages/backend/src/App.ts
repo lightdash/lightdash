@@ -587,17 +587,6 @@ export default class App {
             ),
         );
 
-        // Always allow CORS for .well-known routes (required for OAuth discovery)
-        expressApp.use(
-            '/.well-known/*',
-            cors({
-                methods: 'OPTIONS, GET, HEAD',
-                allowedHeaders: '*',
-                credentials: false,
-                origin: true, // Allow all origins for .well-known endpoints
-            }),
-        );
-
         // Root-level .well-known endpoints for OAuth discovery (required by many MCP clients)
         // Use the same handlers as the API-level endpoints to ensure consistency
         expressApp.get(
@@ -605,7 +594,16 @@ export default class App {
             oauthAuthorizationServerHandler,
         );
         expressApp.get(
+            '/.well-known/oauth-authorization-server/api/v1/mcp',
+            oauthAuthorizationServerHandler,
+        );
+
+        expressApp.get(
             '/.well-known/oauth-protected-resource',
+            oauthProtectedResourceHandler,
+        );
+        expressApp.get(
+            '/.well-known/oauth-protected-resource/api/v1/mcp',
             oauthProtectedResourceHandler,
         );
 

@@ -6,7 +6,6 @@ import {
     OAuthIntrospectResponse,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import cors from 'cors';
 import express from 'express';
 import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
@@ -16,17 +15,6 @@ import {
 } from '../services/OAuthService/OAuthService';
 
 const oauthRouter = express.Router({ mergeParams: true });
-
-// Always allow CORS for .well-known routes (required for OAuth discovery)
-oauthRouter.use(
-    '/.well-known/*',
-    cors({
-        methods: 'OPTIONS, GET, HEAD',
-        allowedHeaders: '*',
-        credentials: false,
-        origin: true, // Allow all origins for .well-known endpoints
-    }),
-);
 
 // Get OAuth service from request
 function getOAuthService(req: express.Request): OAuthService {
@@ -430,6 +418,14 @@ export const oauthProtectedResourceHandler = (
 
 oauthRouter.get(
     '/.well-known/oauth-protected-resource',
+    oauthProtectedResourceHandler,
+);
+
+// MCP server protected resource discovery endpoint
+// This endpoint is used to discover the protected resource for MCP
+// Required by some MCP clients
+oauthRouter.get(
+    '/.well-known/oauth-protected-resource/api/v1/mcp',
     oauthProtectedResourceHandler,
 );
 
