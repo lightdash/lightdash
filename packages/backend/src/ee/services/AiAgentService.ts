@@ -920,7 +920,7 @@ export class AiAgentService {
         });
     }
 
-    async streamAgentThreadResponse(
+    private async prepareAgentThreadResponse(
         user: SessionUser,
         {
             agentUuid,
@@ -929,7 +929,7 @@ export class AiAgentService {
             agentUuid: string;
             threadUuid: string;
         },
-    ): Promise<ReturnType<typeof streamAgentResponse>> {
+    ) {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
@@ -960,7 +960,7 @@ export class AiAgentService {
         );
         if (!hasAccess) {
             throw new ForbiddenError(
-                'Insufficient permissions to stream response for this agent',
+                'Insufficient permissions to access this agent thread',
             );
         }
 
@@ -988,16 +988,74 @@ export class AiAgentService {
             );
         }
 
+        const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
+            threadMessages,
+        );
+
+        return { user, chatHistoryMessages, prompt };
+    }
+
+    async streamAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<ReturnType<typeof streamAgentResponse>> {
         try {
-            const chatHistoryMessages =
-                await this.getChatHistoryFromThreadMessages(threadMessages);
+            const {
+                user: validatedUser,
+                chatHistoryMessages,
+                prompt,
+            } = await this.prepareAgentThreadResponse(user, {
+                agentUuid,
+                threadUuid,
+            });
 
             const response = await this.generateOrStreamAgentResponse(
-                user,
+                validatedUser,
                 chatHistoryMessages,
                 {
                     prompt,
                     stream: true,
+                },
+            );
+            return response;
+        } catch (e) {
+            Logger.error('Failed to generate agent thread response:', e);
+            throw new Error('Failed to generate agent thread response');
+        }
+    }
+
+    async generateAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<string> {
+        try {
+            const {
+                user: validatedUser,
+                chatHistoryMessages,
+                prompt,
+            } = await this.prepareAgentThreadResponse(user, {
+                agentUuid,
+                threadUuid,
+            });
+
+            const response = await this.generateOrStreamAgentResponse(
+                validatedUser,
+                chatHistoryMessages,
+                {
+                    prompt,
+                    stream: false,
                 },
             );
             return response;

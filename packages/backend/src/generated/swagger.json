@@ -5918,6 +5918,26 @@
                 "required": ["prompt"],
                 "type": "object"
             },
+            "ApiAiAgentThreadGenerateResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "response": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["response"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiResultType": {
                 "enum": [
                     "time_series_chart",
@@ -18610,7 +18630,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1954.0",
+        "version": "0.1956.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
