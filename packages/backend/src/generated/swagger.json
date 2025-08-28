@@ -6358,6 +6358,12 @@
             },
             "CreateRole": {
                 "properties": {
+                    "scopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "description": {
                         "type": "string"
                     },
@@ -6370,6 +6376,24 @@
             },
             "UpdateRole": {
                 "properties": {
+                    "scopes": {
+                        "properties": {
+                            "remove": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "add": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["remove", "add"],
+                        "type": "object"
+                    },
                     "description": {
                         "type": "string"
                     },
@@ -18653,7 +18677,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1961.0",
+        "version": "0.1961.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -18889,6 +18913,52 @@
                 },
                 "description": "Delete role from organization",
                 "tags": ["v2", "Custom Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "roleUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "get": {
+                "operationId": "GetCustomRoleByUuid",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleWithScopesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get custom role by uuid",
+                "tags": ["v2", "Organization Roles"],
                 "security": [],
                 "parameters": [
                     {

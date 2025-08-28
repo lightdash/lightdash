@@ -35,11 +35,16 @@ export type RoleWithScopes = Role & {
 export type CreateRole = {
     name: string;
     description?: string;
+    scopes?: string[];
 };
 
 export type UpdateRole = {
     name?: string;
     description?: string;
+    scopes?: {
+        add: string[];
+        remove: string[];
+    };
 };
 
 export type AddScopesToRole = {

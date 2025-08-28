@@ -1,21 +1,15 @@
 import {
-    ApiDefaultRoleResponse,
     ApiErrorPayload,
     ApiGetRolesResponse,
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
-    ApiUnassignRoleFromUserResponse,
-    CreateRole,
-    UpdateRole,
 } from '@lightdash/common';
 import {
     Body,
-    Delete,
     Get,
     Middlewares,
     OperationId,
-    Patch,
     Path,
     Post,
     Query,
@@ -105,6 +99,30 @@ export class OrganizationRolesController extends BaseController {
         return {
             status: 'ok',
             results: assignments,
+        };
+    }
+
+    /**
+     * Get custom role by uuid
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{roleUuid}')
+    @OperationId('GetCustomRoleByUuid')
+    async getCustomRoleByUuid(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Path() roleUuid: string,
+    ): Promise<ApiRoleWithScopesResponse> {
+        const role = await this.getRolesService().getRoleByUuid(
+            req.account!,
+            roleUuid,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: role,
         };
     }
 

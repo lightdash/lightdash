@@ -5756,6 +5756,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                scopes: { dataType: 'array', array: { dataType: 'string' } },
                 description: { dataType: 'string' },
                 name: { dataType: 'string', required: true },
             },
@@ -5768,6 +5769,21 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                scopes: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        remove: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        add: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
                 description: { dataType: 'string' },
                 name: { dataType: 'string' },
             },
@@ -35280,6 +35296,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getOrganizationRoleAssignments',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationRolesController_getCustomRoleByUuid: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        orgUuid: {
+            in: 'path',
+            name: 'orgUuid',
+            required: true,
+            dataType: 'string',
+        },
+        roleUuid: {
+            in: 'path',
+            name: 'roleUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v2/orgs/:orgUuid/roles/:roleUuid',
+        ...fetchMiddlewares<RequestHandler>(OrganizationRolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationRolesController.prototype.getCustomRoleByUuid,
+        ),
+
+        async function OrganizationRolesController_getCustomRoleByUuid(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationRolesController_getCustomRoleByUuid,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationRolesController>(
+                        OrganizationRolesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getCustomRoleByUuid',
                     controller,
                     response,
                     next,

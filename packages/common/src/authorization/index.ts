@@ -55,18 +55,21 @@ export const getUserAbilityBuilder = ({
 
         projectProfiles.forEach((projectProfile) => {
             if (projectProfile.roleUuid && customRolesEnabled) {
-                const scopes = customRoleScopes?.[projectProfile.roleUuid];
-                if (!scopes) {
-                    throw new NotFoundError(
-                        `Custom role with uuid ${user.roleUuid} was not found`,
-                    );
-                }
-
                 if (!user.organizationUuid) {
                     throw new NotFoundError(
                         `Organization with uuid ${user.organizationUuid} was not found`,
                     );
                 }
+
+                const scopes = customRoleScopes?.[projectProfile.roleUuid];
+                if (!scopes) {
+                    // eslint-disable-next-line no-console
+                    console.error(
+                        `Custom role with uuid ${projectProfile.roleUuid} was not found`,
+                    );
+                    return;
+                }
+
                 buildAbilityFromScopes(
                     {
                         projectUuid: projectProfile.projectUuid,
