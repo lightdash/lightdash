@@ -231,6 +231,11 @@ export const lightdashConfigMock: LightdashConfig = {
         appName: 'lightdash-app-dev',
         redirectDomain: 'test',
     },
+    gitlab: {
+        clientId: undefined,
+        clientSecret: undefined,
+        redirectDomain: 'test',
+    },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
         browserEndpoint: 'ws://headless-browser:3000',

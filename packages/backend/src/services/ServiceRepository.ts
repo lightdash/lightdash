@@ -19,6 +19,7 @@ import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
+import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
@@ -62,6 +63,7 @@ interface ServiceManifest {
     downloadFileService: DownloadFileService;
     gitIntegrationService: GitIntegrationService;
     githubAppService: GithubAppService;
+    gitlabAppService: GitlabAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
     healthService: HealthService;
@@ -354,6 +356,20 @@ export class ServiceRepository
                 new GithubAppService({
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    userModel: this.models.getUserModel(),
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
+    public getGitlabAppService(): GitlabAppService {
+        return this.getService(
+            'gitlabAppService',
+            () =>
+                new GitlabAppService({
+                    gitlabAppInstallationsModel:
+                        this.models.getGitlabAppInstallationsModel(),
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,

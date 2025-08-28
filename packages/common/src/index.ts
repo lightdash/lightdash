@@ -1102,6 +1102,7 @@ export type HealthState = {
     };
     hasSlack: boolean;
     hasGithub: boolean;
+    hasGitlab: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;

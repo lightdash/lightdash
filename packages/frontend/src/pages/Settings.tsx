@@ -33,6 +33,7 @@ import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettin
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
+import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
@@ -306,9 +307,11 @@ const Settings: FC = () => {
                         <Title order={4}>Integrations</Title>
                         {!health?.hasSlack &&
                             !health?.hasGithub &&
+                            !health?.hasGitlab &&
                             'No integrations available'}
                         {health?.hasSlack && <SlackSettingsPanel />}
                         {health?.hasGithub && <GithubSettingsPanel />}
+                        {health?.hasGitlab && <GitlabSettingsPanel />}
                     </Stack>
                 ),
             });
