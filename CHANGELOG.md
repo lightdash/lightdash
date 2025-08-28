@@ -1,3 +1,10 @@
+## [0.1961.1](https://github.com/lightdash/lightdash/compare/0.1961.0...0.1961.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* allow multiple groupByColumns in pivot configuration ([#16620](https://github.com/lightdash/lightdash/issues/16620)) ([c262cf2](https://github.com/lightdash/lightdash/commit/c262cf2cb80214e400fcb6f8862d53ea4d38c9d6))
+
 # [0.1961.0](https://github.com/lightdash/lightdash/compare/0.1960.0...0.1961.0) (2025-08-28)
 
 
