@@ -1329,70 +1329,7 @@ export class MetricQueryBuilder {
         return sorted;
     }
 
-    // Find which CTE contains the referenced table calculation
-    private findContainingCte(
-        refName: string,
-        currentTcName: string,
-        allTableCalcs: CompiledTableCalculation[],
-        currentCteName: string,
-    ): string {
-        const { interdependentTableCalcs } =
-            this.getPartitionedTableCalculations();
-
-        // Check if the referenced table calc needs its own CTE
-        const referencedTc = interdependentTableCalcs.find(
-            (tc) => tc.name === refName,
-        );
-
-        if (referencedTc) {
-            // The referenced table calc has its own CTE
-            // Find the most recent CTE that contains this table calculation
-            const sortedTableCalcs = this.sortTableCalcsByDependencies(
-                interdependentTableCalcs,
-            );
-            const currentIndex = sortedTableCalcs.findIndex(
-                (tc) => tc.name === currentTcName,
-            );
-            const referencedIndex = sortedTableCalcs.findIndex(
-                (tc) => tc.name === refName,
-            );
-
-            // If the referenced table calc comes before the current one in the chain,
-            // find the most recent CTE before current that contains it
-            if (referencedIndex < currentIndex && currentIndex >= 0) {
-                // The most recent CTE that contains the referenced table calc is the one right before current
-                // because each CTE does SELECT * from the previous one
-                const mostRecentIndex = currentIndex - 1;
-                if (mostRecentIndex >= 0) {
-                    return `tc_${sortedTableCalcs[mostRecentIndex].name}`;
-                }
-                // If no previous CTE, it should be in table_calculations
-                return 'table_calculations';
-            }
-
-            return `tc_${refName}`;
-        }
-
-        // Otherwise, it's a simple table calc in the shared table_calculations CTE
-        // Find the most recent CTE before current that would contain it
-        if (currentCteName.startsWith('tc_')) {
-            const sortedTableCalcs = this.sortTableCalcsByDependencies(
-                interdependentTableCalcs,
-            );
-            const currentIndex = sortedTableCalcs.findIndex(
-                (tc) => tc.name === currentTcName,
-            );
-
-            if (currentIndex > 0) {
-                // It should be available from the previous CTE
-                return `tc_${sortedTableCalcs[currentIndex - 1].name}`;
-            }
-            return 'table_calculations';
-        }
-        return currentCteName;
-    }
-
-    // Resolve table calculation references to point to the correct CTE
+    // Replace template placeholders with the correct CTE reference
     private resolveTableCalculationReferences(
         sql: string,
         currentTcName: string,
@@ -1402,29 +1339,96 @@ export class MetricQueryBuilder {
         const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
-        return sql.replace(
-            new RegExp(
-                `${fieldQuoteChar}([^${fieldQuoteChar}]+)${fieldQuoteChar}`,
-                'g',
-            ),
+        // First, handle new template placeholders
+        const resolvedSql = sql.replace(
+            /\$\{tc_ref:([^}]+)\}/g,
             (match, refName) => {
-                // Check if this is a reference to another table calculation
-                const referencedTc = allTableCalcs.find(
+                // For interdependent table calculations, the reference should point to the
+                // CTE that contains the referenced table calculation. Since each CTE does SELECT *,
+                // all previous table calculations are available in the immediately preceding CTE.
+                const { interdependentTableCalcs } =
+                    this.getPartitionedTableCalculations();
+                const sortedTableCalcs = this.sortTableCalcsByDependencies(
+                    interdependentTableCalcs,
+                );
+
+                const currentIndex = sortedTableCalcs.findIndex(
+                    (tc) => tc.name === currentTcName,
+                );
+                const refIndex = sortedTableCalcs.findIndex(
                     (tc) => tc.name === refName,
                 );
-                if (referencedTc) {
-                    // Find the most recent CTE that contains this table calculation
-                    const cteName = this.findContainingCte(
-                        refName,
-                        currentTcName,
-                        allTableCalcs,
-                        currentCteName,
-                    );
+
+                if (
+                    refIndex >= 0 &&
+                    refIndex < currentIndex &&
+                    currentIndex > 0
+                ) {
+                    // The referenced table calc comes before the current one and should be
+                    // available in the immediately preceding CTE
+                    const prevIndex = currentIndex - 1;
+                    const cteName = `tc_${sortedTableCalcs[prevIndex].name}`;
                     return `${cteName}.${fieldQuoteChar}${refName}${fieldQuoteChar}`;
                 }
-                return match; // Not a table calc reference, leave as is
+
+                // Fallback: use current CTE name
+                return `${currentCteName}.${fieldQuoteChar}${refName}${fieldQuoteChar}`;
             },
         );
+
+        return resolvedSql;
+    }
+
+    // Find which CTE contains the referenced table calculation (simplified version)
+    private findContainingCte(
+        refName: string,
+        currentTcName: string,
+        currentCteName: string,
+    ): string {
+        const { simpleTableCalcs, interdependentTableCalcs } =
+            this.getPartitionedTableCalculations();
+
+        // Check if it's a simple table calculation
+        const isSimpleTableCalc = simpleTableCalcs.some(
+            (tc) => tc.name === refName,
+        );
+        if (isSimpleTableCalc) {
+            // Simple table calcs are in either table_calculations CTE or inline
+            // If we're building dependent CTEs, they should be in table_calculations
+            if (currentCteName.startsWith('tc_')) {
+                return 'table_calculations';
+            }
+            return currentCteName;
+        }
+
+        // It's an interdependent table calculation
+        // Since each interdependent table calc gets its own CTE, and each CTE does SELECT *,
+        // the referenced table calc will be available in the CTE immediately before the current one
+        const sortedTableCalcs = this.sortTableCalcsByDependencies(
+            interdependentTableCalcs,
+        );
+        const currentIndex = sortedTableCalcs.findIndex(
+            (tc) => tc.name === currentTcName,
+        );
+        const refIndex = sortedTableCalcs.findIndex(
+            (tc) => tc.name === refName,
+        );
+
+        if (refIndex >= 0 && refIndex < currentIndex) {
+            // Referenced table calc comes before current one in the dependency chain
+            // Since each CTE does SELECT * from the previous CTE, all previous table calcs
+            // are available in the immediately preceding CTE
+            const prevIndex = currentIndex - 1;
+            if (prevIndex >= 0) {
+                return `tc_${sortedTableCalcs[prevIndex].name}`;
+            }
+            // If there's no previous CTE, the reference should be in table_calculations or the starting CTE
+            return 'table_calculations';
+        }
+
+        // If we can't find the reference in the sorted interdependent calcs,
+        // fall back to the current CTE name
+        return currentCteName;
     }
 
     // Build dependent table calculation CTEs in the correct order with proper FROM clauses

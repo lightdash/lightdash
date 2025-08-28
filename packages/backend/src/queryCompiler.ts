@@ -103,9 +103,9 @@ const compileTableCalculation = (
         (_, p1) => {
             // Check if this is a reference to another table calculation
             if (dependencyGraph.some((dep) => dep.name === p1)) {
-                // For table calc references, we'll leave them as placeholders
+                // For table calc references, include template placeholder with the specific reference
                 // MetricQueryBuilder will resolve these with proper CTE references
-                return `${quoteChar}${p1}${quoteChar}`;
+                return `\${tc_ref:${p1}}`;
             }
 
             // Otherwise, treat it as a field reference

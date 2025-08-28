@@ -1449,6 +1449,52 @@ describe('Query builder', () => {
             );
         });
 
+        test('Should correctly resolve template-based table calculation references', () => {
+            const metricQueryWithTemplateRefs = {
+                ...METRIC_QUERY,
+                tableCalculations: [
+                    {
+                        name: 'a',
+                        displayName: 'A',
+                        sql: '${table1.metric1}',
+                    },
+                    {
+                        name: 'b',
+                        displayName: 'B',
+                        sql: '${a}',
+                    },
+                ],
+                compiledTableCalculations: [
+                    {
+                        name: 'a',
+                        displayName: 'A',
+                        sql: '${table1.metric1}',
+                        compiledSql: '"table1_metric1"',
+                        dependsOn: [],
+                    },
+                    {
+                        name: 'b',
+                        displayName: 'B',
+                        sql: '${a}',
+                        compiledSql: '${tc_ref:a}',
+                        dependsOn: ['a'],
+                    },
+                ],
+            };
+
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: metricQueryWithTemplateRefs,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should correctly resolve ${tc_ref:a} to tc_a."a" (not tc_a.tc_a."a")
+            expect(result.query).toContain('tc_a."a" AS "b"');
+            expect(result.query).not.toContain('tc_a.tc_a."a"');
+        });
+
         test('Should build query with table calculation filters using CTEs', () => {
             const metricQueryWithTableCalcFilter = {
                 ...METRIC_QUERY,
