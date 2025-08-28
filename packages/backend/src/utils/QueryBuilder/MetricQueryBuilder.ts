@@ -1329,41 +1329,6 @@ export class MetricQueryBuilder {
         return sorted;
     }
 
-    // Resolve table calculation references to point to the correct CTE
-    private resolveTableCalculationReferences(
-        sql: string,
-        currentTcName: string,
-        allTableCalcs: typeof this.args.compiledMetricQuery.compiledTableCalculations,
-        currentCteName: string,
-    ): string {
-        const { warehouseSqlBuilder } = this.args;
-        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-
-        return sql.replace(
-            new RegExp(
-                `${fieldQuoteChar}([^${fieldQuoteChar}]+)${fieldQuoteChar}`,
-                'g',
-            ),
-            (match, refName) => {
-                // Check if this is a reference to another table calculation
-                const referencedTc = allTableCalcs.find(
-                    (tc) => tc.name === refName,
-                );
-                if (referencedTc) {
-                    // Find the most recent CTE that contains this table calculation
-                    const cteName = this.findContainingCte(
-                        refName,
-                        currentTcName,
-                        allTableCalcs,
-                        currentCteName,
-                    );
-                    return `${cteName}.${fieldQuoteChar}${refName}${fieldQuoteChar}`;
-                }
-                return match; // Not a table calc reference, leave as is
-            },
-        );
-    }
-
     // Find which CTE contains the referenced table calculation
     private findContainingCte(
         refName: string,
@@ -1425,6 +1390,41 @@ export class MetricQueryBuilder {
             return 'table_calculations';
         }
         return currentCteName;
+    }
+
+    // Resolve table calculation references to point to the correct CTE
+    private resolveTableCalculationReferences(
+        sql: string,
+        currentTcName: string,
+        allTableCalcs: typeof this.args.compiledMetricQuery.compiledTableCalculations,
+        currentCteName: string,
+    ): string {
+        const { warehouseSqlBuilder } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+
+        return sql.replace(
+            new RegExp(
+                `${fieldQuoteChar}([^${fieldQuoteChar}]+)${fieldQuoteChar}`,
+                'g',
+            ),
+            (match, refName) => {
+                // Check if this is a reference to another table calculation
+                const referencedTc = allTableCalcs.find(
+                    (tc) => tc.name === refName,
+                );
+                if (referencedTc) {
+                    // Find the most recent CTE that contains this table calculation
+                    const cteName = this.findContainingCte(
+                        refName,
+                        currentTcName,
+                        allTableCalcs,
+                        currentCteName,
+                    );
+                    return `${cteName}.${fieldQuoteChar}${refName}${fieldQuoteChar}`;
+                }
+                return match; // Not a table calc reference, leave as is
+            },
+        );
     }
 
     // Build dependent table calculation CTEs in the correct order with proper FROM clauses
