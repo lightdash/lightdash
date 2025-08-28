@@ -4,20 +4,20 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { GithubAppInstallationTableName } from '../../database/entities/githubAppInstallation';
+import { GitlabAppInstallationTableName } from '../../database/entities/gitlabAppInstallation';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
-type GithubAppInstallationsModelArguments = {
+type GitlabAppInstallationsModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
 };
 
-export class GithubAppInstallationsModel {
+export class GitlabAppInstallationsModel {
     readonly database: Knex;
 
     readonly encryptionUtil: EncryptionUtil;
 
-    constructor(args: GithubAppInstallationsModelArguments) {
+    constructor(args: GitlabAppInstallationsModelArguments) {
         this.database = args.database;
         this.encryptionUtil = args.encryptionUtil;
     }
@@ -25,7 +25,7 @@ export class GithubAppInstallationsModel {
     async findInstallationId(
         organizationUuid: string,
     ): Promise<string | undefined> {
-        const installation = await this.database(GithubAppInstallationTableName)
+        const installation = await this.database(GitlabAppInstallationTableName)
             .where({ organization_uuid: organizationUuid })
             .first();
 
@@ -64,8 +64,9 @@ export class GithubAppInstallationsModel {
         installationId: string,
         token: string,
         refreshToken: string,
+        gitlabInstanceUrl: string = 'https://gitlab.com',
     ) {
-        await this.database(GithubAppInstallationTableName).insert({
+        await this.database(GitlabAppInstallationTableName).insert({
             organization_uuid: user.organizationUuid,
             encrypted_installation_id:
                 this.encryptionUtil.encrypt(installationId),
@@ -73,6 +74,7 @@ export class GithubAppInstallationsModel {
             updated_by_user_uuid: user.userUuid,
             auth_token: token,
             refresh_token: refreshToken,
+            gitlab_instance_url: gitlabInstanceUrl,
         });
     }
 
@@ -80,7 +82,7 @@ export class GithubAppInstallationsModel {
         user: LightdashUserWithOrg,
         installationId: string,
     ) {
-        await this.database(GithubAppInstallationTableName)
+        await this.database(GitlabAppInstallationTableName)
             .where({ organization_uuid: user.organizationUuid })
             .update({
                 encrypted_installation_id:
@@ -91,18 +93,19 @@ export class GithubAppInstallationsModel {
     }
 
     async getAuth(organizationUuid: string) {
-        const auth = await this.database(GithubAppInstallationTableName)
+        const auth = await this.database(GitlabAppInstallationTableName)
             .where({ organization_uuid: organizationUuid })
-            .select(['auth_token', 'refresh_token'])
+            .select(['auth_token', 'refresh_token', 'gitlab_instance_url'])
             .first();
 
         if (auth === undefined)
             throw new NotFoundError(
-                `Unable to find Github authentication for organization ${organizationUuid}`,
+                `Unable to find GitLab authentication for organization ${organizationUuid}`,
             );
         return {
             token: auth.auth_token,
             refreshToken: auth.refresh_token,
+            gitlabInstanceUrl: auth.gitlab_instance_url,
         };
     }
 
@@ -111,7 +114,7 @@ export class GithubAppInstallationsModel {
         token: string,
         refreshToken: string,
     ) {
-        await this.database(GithubAppInstallationTableName)
+        await this.database(GitlabAppInstallationTableName)
             .where({ organization_uuid: organizationUuid })
             .update({
                 auth_token: token,
@@ -121,7 +124,7 @@ export class GithubAppInstallationsModel {
     }
 
     async deleteInstallation(organizationUuid: string) {
-        await this.database(GithubAppInstallationTableName)
+        await this.database(GitlabAppInstallationTableName)
             .where({ organization_uuid: organizationUuid })
             .delete();
     }
