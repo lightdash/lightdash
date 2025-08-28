@@ -33,7 +33,6 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     ExpiredError,
     Explore,
-    FeatureFlags,
     FieldType,
     ForbiddenError,
     formatRow,
@@ -457,7 +456,11 @@ export class AsyncQueryService extends ProjectService {
         });
 
         const formatter = (row: Record<string, unknown>) =>
-            formatRow(row, queryHistory.fields);
+            formatRow(
+                row,
+                queryHistory.fields,
+                queryHistory.pivotValuesColumns,
+            );
 
         const {
             result: { rows },
@@ -581,7 +584,7 @@ export class AsyncQueryService extends ProjectService {
             ...returnObject,
             pivotDetails: {
                 totalColumnCount: pivotTotalColumnCount,
-                valuesColumns: pivotValuesColumns,
+                valuesColumns: Object.values(pivotValuesColumns),
                 indexColumn: pivotConfiguration.indexColumn,
                 groupByColumns: pivotConfiguration.groupByColumns,
                 sortBy: pivotConfiguration.sortBy,
@@ -1030,6 +1033,16 @@ export class AsyncQueryService extends ProjectService {
                       pivotConfiguration;
 
                   if (!groupByColumns || groupByColumns.length === 0) {
+                      // When there are no group by columns, we can just derive the value columns from the values columns config
+                      valuesColumns.forEach((col) => {
+                          const valueColumnReference = `${col.reference}_${col.aggregation}`;
+                          valuesColumnData.set(valueColumnReference, {
+                              referenceField: col.reference,
+                              pivotColumnName: valueColumnReference,
+                              aggregation: col.aggregation,
+                              pivotValues: [],
+                          });
+                      });
                       write?.(rows);
                       return;
                   }

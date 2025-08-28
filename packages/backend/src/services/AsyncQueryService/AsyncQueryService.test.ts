@@ -857,8 +857,8 @@ describe('AsyncQueryService', () => {
                 sortBy: [],
             };
 
-            const mockPivotValuesColumns = [
-                {
+            const mockPivotValuesColumns = {
+                amount_sum_2021: {
                     referenceField: 'amount',
                     pivotColumnName: 'amount_sum_2021',
                     aggregation: VizAggregationOptions.SUM,
@@ -866,7 +866,7 @@ describe('AsyncQueryService', () => {
                         { referenceField: 'order_date', value: '2021' },
                     ],
                 },
-            ];
+            };
 
             const mockQueryHistory: QueryHistory = {
                 createdAt: new Date(),
@@ -940,7 +940,7 @@ describe('AsyncQueryService', () => {
             expect(result).toMatchObject({
                 pivotDetails: {
                     totalColumnCount: 5,
-                    valuesColumns: mockPivotValuesColumns,
+                    valuesColumns: Object.values(mockPivotValuesColumns),
                     indexColumn: mockPivotConfiguration.indexColumn,
                     groupByColumns: mockPivotConfiguration.groupByColumns,
                     sortBy: mockPivotConfiguration.sortBy,
