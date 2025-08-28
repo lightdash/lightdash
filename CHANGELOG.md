@@ -1,3 +1,10 @@
+# [0.1963.0](https://github.com/lightdash/lightdash/compare/0.1962.0...0.1963.0) (2025-08-28)
+
+
+### Features
+
+* add table calcs to table calc auto complete ([#16467](https://github.com/lightdash/lightdash/issues/16467)) ([8909766](https://github.com/lightdash/lightdash/commit/890976646543ac50c3be4b1850fdc6831282a0de))
+
 # [0.1962.0](https://github.com/lightdash/lightdash/compare/0.1961.3...0.1962.0) (2025-08-28)
 
 
