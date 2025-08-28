@@ -231,10 +231,6 @@ export const compileMetricQuery = ({
             ),
     );
 
-    console.log('--------------------------------');
-    console.log('compiledTableCalculations', compiledTableCalculations);
-    console.log('--------------------------------');
-
     return {
         ...metricQuery,
         compiledTableCalculations,
