@@ -126,16 +126,12 @@ test('Should compile table calculations with references to other table calculati
         (c) => c.name === 'calc_a',
     );
     expect(calcA?.compiledSql).toBe('"table_3_metric_1" + 70');
-    expect(calcA?.cte).toContain('tc_calc_a AS (');
-    expect(calcA?.cte).toContain('"table_3_metric_1" + 70 AS "calc_a"');
 
-    // Check that calc_b references calc_a from CTE and has its own CTE
+    // Check that calc_b references calc_a (CTE generation is now handled in MetricQueryBuilder)
     const calcB = result.compiledTableCalculations.find(
         (c) => c.name === 'calc_b',
     );
-    expect(calcB?.compiledSql).toBe('tc_calc_a."calc_a" * 2');
-    expect(calcB?.cte).toContain('tc_calc_b AS (');
-    expect(calcB?.cte).toContain('tc_calc_a."calc_a" * 2 AS "calc_b"');
+    expect(calcB?.compiledSql).toBe('"calc_a" * 2');
 });
 
 test('Should detect circular dependencies in table calculations', () => {
@@ -206,16 +202,11 @@ test('Should handle complex dependency chains with CTEs', () => {
     );
 
     expect(calcA?.compiledSql).toBe('"table_3_metric_1" + 70');
-    expect(calcA?.cte).toContain('tc_calc_a AS (');
 
     expect(calcB?.compiledSql).toBe('"table_3_metric_1" * 1.5');
-    expect(calcB?.cte).toContain('tc_calc_b AS (');
 
     // calc_c should reference both calc_a and calc_b from the most recent CTE that contains them
-    expect(calcC?.compiledSql).toBe(
-        '(tc_calc_b."calc_a" + tc_calc_b."calc_b") / 2',
-    );
-    expect(calcC?.cte).toContain('tc_calc_c AS (');
+    expect(calcC?.compiledSql).toBe('("calc_a" + "calc_b") / 2');
 });
 
 test('Should compile table calculations with no references without CTEs', () => {
@@ -251,10 +242,8 @@ test('Should compile table calculations with no references without CTEs', () => 
     );
 
     expect(calc1?.compiledSql).toBe('"table_3_metric_1" + 100');
-    expect(calc1?.cte).toBeUndefined();
 
     expect(calc2?.compiledSql).toBe('"table_3_metric_1" * 0.5');
-    expect(calc2?.cte).toBeUndefined();
 });
 
 test('Should handle mixed scenarios with some CTEs and some inline calculations', () => {
@@ -298,15 +287,12 @@ test('Should handle mixed scenarios with some CTEs and some inline calculations'
 
     // simple_calc should have a CTE because it's referenced by dependent_calc
     expect(simpleCalc?.compiledSql).toBe('"table_3_metric_1" + 50');
-    expect(simpleCalc?.cte).toContain('tc_simple_calc AS (');
 
     // dependent_calc should reference simple_calc from CTE and have its own CTE
-    expect(dependentCalc?.compiledSql).toBe('tc_simple_calc."simple_calc" * 2');
-    expect(dependentCalc?.cte).toContain('tc_dependent_calc AS (');
+    expect(dependentCalc?.compiledSql).toBe('"simple_calc" * 2');
 
     // another_simple should not have a CTE since it's not referenced
     expect(anotherSimple?.compiledSql).toBe('"table_3_metric_1" / 10');
-    expect(anotherSimple?.cte).toBeUndefined();
 });
 
 test('Should handle table calculation referencing two other table calculations', () => {
@@ -350,14 +336,9 @@ test('Should handle table calculation referencing two other table calculations',
 
     // Both base calculations should have CTEs since they're referenced
     expect(baseCalc1?.compiledSql).toBe('"table_3_metric_1" + 10');
-    expect(baseCalc1?.cte).toContain('tc_base_calc_1 AS (');
 
     expect(baseCalc2?.compiledSql).toBe('"table_3_metric_1" * 2');
-    expect(baseCalc2?.cte).toContain('tc_base_calc_2 AS (');
 
     // Combined calc should reference both from the most recent CTE that contains them
-    expect(combinedCalc?.compiledSql).toBe(
-        'tc_base_calc_2."base_calc_1" + tc_base_calc_2."base_calc_2"',
-    );
-    expect(combinedCalc?.cte).toContain('tc_combined_calc AS (');
+    expect(combinedCalc?.compiledSql).toBe('"base_calc_1" + "base_calc_2"');
 });
