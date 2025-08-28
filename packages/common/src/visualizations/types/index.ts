@@ -104,7 +104,7 @@ export type PivotValuesColumn = {
     aggregation: VizAggregationOptions;
     pivotValues: {
         referenceField: string;
-        value: string;
+        value: unknown;
     }[];
 };
 
