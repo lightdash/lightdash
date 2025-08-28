@@ -1,3 +1,10 @@
+# [0.1961.0-alpha.1](https://github.com/lightdash/lightdash/compare/0.1960.0...0.1961.0-alpha.1) (2025-08-28)
+
+
+### Features
+
+* add multi-region Docker image replication to GCP build ([794ba87](https://github.com/lightdash/lightdash/commit/794ba87e285b12195c1c10b81fccf398e91859bb))
+
 # [0.1960.0](https://github.com/lightdash/lightdash/compare/0.1959.0...0.1960.0) (2025-08-27)
 
 
