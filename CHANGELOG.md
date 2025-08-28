@@ -1,3 +1,10 @@
+## [0.1961.2](https://github.com/lightdash/lightdash/compare/0.1961.1...0.1961.2) (2025-08-28)
+
+
+### Bug Fixes
+
+* get scopes from custom role groups ([#16617](https://github.com/lightdash/lightdash/issues/16617)) ([7e39a47](https://github.com/lightdash/lightdash/commit/7e39a4786f2ebe933ef0160fc4eaa21d43e58587))
+
 ## [0.1961.1](https://github.com/lightdash/lightdash/compare/0.1961.0...0.1961.1) (2025-08-28)
 
 
