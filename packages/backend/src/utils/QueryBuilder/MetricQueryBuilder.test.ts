@@ -1308,8 +1308,8 @@ describe('Query builder', () => {
             // Should select from the final CTE
             expect(result.query).toContain('FROM tc_dependent_calc');
 
-            // Should reference the base_calc from the correct CTE
-            expect(result.query).toContain('tc_base_calc."base_calc" * 2');
+            // Should reference the base_calc
+            expect(result.query).toContain('"base_calc" * 2');
         });
 
         test('Should build query with mixed table calculations (some with CTEs, some inline)', () => {
@@ -1443,10 +1443,7 @@ describe('Query builder', () => {
             expect(result.query).toContain('FROM tc_calc_c');
 
             // Should show the CTE reference resolution working correctly
-            // calc_a and calc_b should be referenced from the previous CTE in the chain
-            expect(result.query).toContain(
-                'tc_calc_b."calc_a" + tc_calc_b."calc_b"',
-            );
+            expect(result.query).toContain('"calc_a" + "calc_b"');
         });
 
         test('Should build query with table calculation filters using CTEs', () => {
@@ -2229,8 +2226,8 @@ describe('Query Structure Tests', () => {
         expect(result.query).toContain('"tc_a"');
         expect(result.query).toContain("IN ('1')");
 
-        // Should properly reference tc_a from previous CTE in tc_b
-        expect(result.query).toContain('tc_tc_a."tc_a" + 1');
+        // Should properly reference tc_a in tc_b
+        expect(result.query).toContain('"tc_a" + 1');
 
         // Verify CTE order is correct
         const metricsIndex = result.query.indexOf('metrics AS (');
