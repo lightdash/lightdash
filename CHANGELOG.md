@@ -1,3 +1,10 @@
+## [0.1961.3](https://github.com/lightdash/lightdash/compare/0.1961.2...0.1961.3) (2025-08-28)
+
+
+### Bug Fixes
+
+* add upstreamProjectUuid to project creation permission check in CLI ([#16639](https://github.com/lightdash/lightdash/issues/16639)) ([81e39da](https://github.com/lightdash/lightdash/commit/81e39da01884f4d5389f1191c72a5d97c5974b7f))
+
 ## [0.1961.2](https://github.com/lightdash/lightdash/compare/0.1961.1...0.1961.2) (2025-08-28)
 
 
