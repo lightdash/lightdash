@@ -1,20 +1,35 @@
 import { type DashboardTile } from '@lightdash/common';
 import { type Layout } from 'react-grid-layout';
 
+export type ResponsiveGridLayoutProps = {
+    draggableCancel: string;
+    useCSSTransforms: boolean;
+    measureBeforeMount: boolean;
+    breakpoints: { lg: number; md: number; sm: number };
+    cols: { lg: number; md: number; sm: number };
+    rowHeight: number;
+};
+
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,
     isEditMode = false,
-): Layout => ({
-    minH: 1,
-    minW: 6,
-    x: tile.x,
-    y: tile.y,
-    w: tile.w,
-    h: tile.h,
-    i: tile.uuid,
-    isDraggable: isEditMode,
-    isResizable: isEditMode,
-});
+    cols = 36,
+): Layout => {
+    // Scale factor based on the number of columns (36 is the default for lg)
+    const scaleFactor = cols / 36;
+
+    return {
+        minH: 1,
+        minW: Math.max(1, Math.round(6 * scaleFactor)),
+        x: Math.round(tile.x * scaleFactor),
+        y: tile.y,
+        w: Math.round(tile.w * scaleFactor),
+        h: tile.h,
+        i: tile.uuid,
+        isDraggable: isEditMode,
+        isResizable: isEditMode,
+    };
+};
 
 export const getResponsiveGridLayoutProps = ({
     enableAnimation = false,
@@ -28,7 +43,7 @@ export const getResponsiveGridLayoutProps = ({
      * viewports.
      */
     stackVerticallyOnSmallestBreakpoint?: boolean;
-} = {}) => ({
+} = {}): ResponsiveGridLayoutProps => ({
     draggableCancel: '.non-draggable',
     useCSSTransforms: enableAnimation,
     measureBeforeMount: !enableAnimation,

@@ -219,8 +219,9 @@ export class RolesModel {
     async createRole(
         organizationUuid: string,
         roleData: Omit<DbRoleInsert, 'organization_uuid'>,
+        tx?: Knex.Transaction,
     ): Promise<Role> {
-        const [role] = await this.database(RolesTableName)
+        const [role] = await (tx || this.database)(RolesTableName)
             .insert({
                 name: roleData.name,
                 description: roleData.description,
@@ -234,9 +235,10 @@ export class RolesModel {
 
     async updateRole(
         roleUuid: string,
-        updateData: DbRoleUpdate,
+        updateData: Omit<DbRoleUpdate, 'updated_at'>,
+        tx?: Knex.Transaction,
     ): Promise<Role> {
-        const [updatedRole] = await this.database(RolesTableName)
+        const [updatedRole] = await (tx || this.database)(RolesTableName)
             .where('role_uuid', roleUuid)
             .update({
                 ...updateData,
@@ -486,6 +488,7 @@ export class RolesModel {
         roleUuid: string,
         scopeNames: string[],
         grantedBy: string,
+        tx?: Knex.Transaction,
     ): Promise<void> {
         const scopeData = scopeNames.map((scopeName) => ({
             role_uuid: roleUuid,
@@ -493,7 +496,7 @@ export class RolesModel {
             granted_by: grantedBy,
         }));
 
-        await this.database(ScopedRolesTableName)
+        await (tx || this.database)(ScopedRolesTableName)
             .insert(scopeData)
             .onConflict(['role_uuid', 'scope_name'])
             .ignore();
@@ -506,6 +509,21 @@ export class RolesModel {
         await this.database(ScopedRolesTableName)
             .where('role_uuid', roleUuid)
             .where('scope_name', scopeName)
+            .delete();
+    }
+
+    async removeScopesFromRole(
+        roleUuid: string,
+        scopeNames: string[],
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        if (scopeNames.length === 0) {
+            return;
+        }
+
+        await (tx || this.database)(ScopedRolesTableName)
+            .where('role_uuid', roleUuid)
+            .whereIn('scope_name', scopeNames)
             .delete();
     }
 

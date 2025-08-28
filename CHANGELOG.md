@@ -1,3 +1,64 @@
+# [0.1964.0](https://github.com/lightdash/lightdash/compare/0.1963.1...0.1964.0) (2025-08-28)
+
+
+### Features
+
+* add assigning scopes to custom roles ([#16601](https://github.com/lightdash/lightdash/issues/16601)) ([26d444e](https://github.com/lightdash/lightdash/commit/26d444e6c912a35cb5306b8ecc3444a413ec44a3))
+
+## [0.1963.1](https://github.com/lightdash/lightdash/compare/0.1963.0...0.1963.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* dashboard responsive layout depending on columns ([#16616](https://github.com/lightdash/lightdash/issues/16616)) ([4f4c10d](https://github.com/lightdash/lightdash/commit/4f4c10dabbfde905c5469694ad9f6da47b80fed7))
+
+# [0.1963.0](https://github.com/lightdash/lightdash/compare/0.1962.0...0.1963.0) (2025-08-28)
+
+
+### Features
+
+* add table calcs to table calc auto complete ([#16467](https://github.com/lightdash/lightdash/issues/16467)) ([8909766](https://github.com/lightdash/lightdash/commit/890976646543ac50c3be4b1850fdc6831282a0de))
+
+# [0.1962.0](https://github.com/lightdash/lightdash/compare/0.1961.3...0.1962.0) (2025-08-28)
+
+
+### Bug Fixes
+
+* empty selected tabs when scheduling dashboard delivery ([#16486](https://github.com/lightdash/lightdash/issues/16486)) ([bf023a6](https://github.com/lightdash/lightdash/commit/bf023a66e6e3757b3e53d3daf10828b386d0c5df))
+
+
+### Features
+
+* use projectUuid in embed for JWT abilities ([#16518](https://github.com/lightdash/lightdash/issues/16518)) ([7690e57](https://github.com/lightdash/lightdash/commit/7690e57f3e781d53bc6a19160e25be5230d917d9))
+
+## [0.1961.3](https://github.com/lightdash/lightdash/compare/0.1961.2...0.1961.3) (2025-08-28)
+
+
+### Bug Fixes
+
+* add upstreamProjectUuid to project creation permission check in CLI ([#16639](https://github.com/lightdash/lightdash/issues/16639)) ([81e39da](https://github.com/lightdash/lightdash/commit/81e39da01884f4d5389f1191c72a5d97c5974b7f))
+
+## [0.1961.2](https://github.com/lightdash/lightdash/compare/0.1961.1...0.1961.2) (2025-08-28)
+
+
+### Bug Fixes
+
+* get scopes from custom role groups ([#16617](https://github.com/lightdash/lightdash/issues/16617)) ([7e39a47](https://github.com/lightdash/lightdash/commit/7e39a4786f2ebe933ef0160fc4eaa21d43e58587))
+
+## [0.1961.1](https://github.com/lightdash/lightdash/compare/0.1961.0...0.1961.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* allow multiple groupByColumns in pivot configuration ([#16620](https://github.com/lightdash/lightdash/issues/16620)) ([c262cf2](https://github.com/lightdash/lightdash/commit/c262cf2cb80214e400fcb6f8862d53ea4d38c9d6))
+
+# [0.1961.0](https://github.com/lightdash/lightdash/compare/0.1960.0...0.1961.0) (2025-08-28)
+
+
+### Features
+
+* add multi-region Docker image replication to GCP build ([#16551](https://github.com/lightdash/lightdash/issues/16551)) ([8182ddc](https://github.com/lightdash/lightdash/commit/8182ddca32968bd46f310e05a046dade5276cd9f))
+
 # [0.1960.0](https://github.com/lightdash/lightdash/compare/0.1959.0...0.1960.0) (2025-08-27)
 
 

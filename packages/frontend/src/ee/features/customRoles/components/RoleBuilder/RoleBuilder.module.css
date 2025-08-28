@@ -1,0 +1,8 @@
+/* RoleBuilder styles */
+.scrollableContent {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: var(--mantine-spacing-md);
+    margin-right: -17px;
+    padding-right: 17px;
+}

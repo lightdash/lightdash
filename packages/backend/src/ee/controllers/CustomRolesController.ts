@@ -3,7 +3,6 @@ import {
     ApiDefaultRoleResponse,
     ApiErrorPayload,
     ApiRemoveScopeFromRoleResponse,
-    ApiRoleWithScopesResponse,
     ApiUnassignRoleFromUserResponse,
     CreateRole,
     UpdateRole,
@@ -11,7 +10,6 @@ import {
 import {
     Body,
     Delete,
-    Get,
     Middlewares,
     OperationId,
     Patch,
@@ -104,6 +102,7 @@ export class CustomRolesController extends BaseController {
     ): Promise<ApiDefaultRoleResponse> {
         const role = await this.getRolesService().updateRole(
             req.account!,
+            orgUuid,
             roleUuid,
             body,
         );

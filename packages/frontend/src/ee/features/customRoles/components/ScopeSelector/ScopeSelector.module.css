@@ -1,0 +1,31 @@
+/* ScopeSelector styles */
+.stickyHeader {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--mantine-color-body);
+}
+
+.stickyGroupHeader {
+    position: sticky;
+    top: 100px;
+    z-index: 10;
+    background-color: var(--mantine-color-body);
+}
+
+.scopeItem {
+    border-bottom: 1px solid var(--mantine-color-gray-2);
+}
+
+.scopeItem:last-child {
+    border-bottom: none;
+}
+
+.scopeContent {
+    flex: 1;
+    min-width: 0;
+}
+
+.scopeDescription {
+    line-height: 1.4;
+}

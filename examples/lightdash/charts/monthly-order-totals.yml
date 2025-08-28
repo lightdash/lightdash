@@ -1,0 +1,63 @@
+name: Monthly Order Totals
+description: ""
+tableName: orders
+updatedAt: "2025-08-26T14:26:49.388Z"
+metricQuery:
+  exploreName: orders
+  dimensions:
+    - orders_order_date_month
+  metrics:
+    - orders_total_order_amount
+  filters: {}
+  sorts:
+    - fieldId: orders_order_date_month
+      descending: false
+  limit: 500
+  metricOverrides: {}
+  tableCalculations:
+    - name: running_total_month
+      displayName: running_total_month
+      sql: |-
+        SUM(${orders.total_order_amount}) OVER (
+          ORDER BY
+            ${orders.order_date_month}
+          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        )
+      format:
+        type: default
+        separator: default
+      type: number
+    - name: running_total_mom_pct_change
+      displayName: running_total_mom_pct_change
+      sql: >-
+        (${running_total_month} - LAG(${running_total_month}) OVER (ORDER BY
+        ${orders.order_date_month}))
+             / LAG(${running_total_month}) OVER (ORDER BY ${orders.order_date_month})
+      format:
+        type: percent
+        separator: default
+      type: number
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: true
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: true
+    conditionalFormattings: []
+slug: monthly-order-totals
+tableConfig:
+  columnOrder:
+    - orders_order_date_month
+    - orders_total_order_amount
+    - running_total_month
+    - running_total_mom_pct_change
+spaceSlug: parent-space-3
+version: 1
+downloadedAt: "2025-08-27T17:49:38.467Z"

@@ -63,14 +63,35 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     setGridWidth,
     setAddingTab,
 }) => {
+    const gridProps = getResponsiveGridLayoutProps();
     const layouts = useMemo(
         () => ({
             lg:
                 dashboardTiles?.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(tile, isEditMode),
+                    getReactGridLayoutConfig(
+                        tile,
+                        isEditMode,
+                        gridProps.cols.lg,
+                    ),
+                ) ?? [],
+            md:
+                dashboardTiles?.map<Layout>((tile) =>
+                    getReactGridLayoutConfig(
+                        tile,
+                        isEditMode,
+                        gridProps.cols.md,
+                    ),
+                ) ?? [],
+            sm:
+                dashboardTiles?.map<Layout>((tile) =>
+                    getReactGridLayoutConfig(
+                        tile,
+                        isEditMode,
+                        gridProps.cols.sm,
+                    ),
                 ) ?? [],
         }),
-        [dashboardTiles, isEditMode],
+        [dashboardTiles, isEditMode, gridProps],
     );
 
     const { search } = useLocation();
@@ -343,7 +364,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     px="xs"
                                 >
                                     <ResponsiveGridLayout
-                                        {...getResponsiveGridLayoutProps()}
+                                        {...gridProps}
                                         className={`${
                                             hasRequiredDashboardFiltersToSet
                                                 ? 'locked'
@@ -441,6 +462,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             tab={activeTab}
                                             dashboardTiles={dashboardTiles}
                                             dashboardTabs={dashboardTabs}
+                                            dashboardUuid={dashboardUuid!}
                                             onClose={() =>
                                                 setDeletingTab(false)
                                             }

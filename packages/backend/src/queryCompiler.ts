@@ -8,11 +8,9 @@ import {
     convertFieldRefToFieldId,
     Explore,
     ExploreCompiler,
-    getFieldQuoteChar,
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
-    WarehouseClient,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 
@@ -77,66 +75,11 @@ const detectCircularDependencies = (
     }
 };
 
-const sortTableCalcs = (
-    dependencyGraph: TableCalculationDependency[],
-): string[] => {
-    const inDegree = new Map<string, number>();
-    const adjList = new Map<string, string[]>();
-
-    // Initialize
-    for (const dep of dependencyGraph) {
-        inDegree.set(dep.name, 0);
-        adjList.set(dep.name, []);
-    }
-
-    // Build adjacency list and in-degree count
-    for (const dep of dependencyGraph) {
-        for (const dependency of dep.dependencies) {
-            // Only consider dependencies that are table calculations
-            if (dependencyGraph.some((d) => d.name === dependency)) {
-                if (!adjList.has(dependency)) {
-                    adjList.set(dependency, []);
-                }
-                adjList.get(dependency)!.push(dep.name);
-                inDegree.set(dep.name, (inDegree.get(dep.name) || 0) + 1);
-            }
-        }
-    }
-
-    // Topological sort using Kahn's algorithm
-    const queue: string[] = [];
-    const result: string[] = [];
-
-    inDegree.forEach((degree, node) => {
-        if (degree === 0) {
-            queue.push(node);
-        }
-    });
-
-    while (queue.length > 0) {
-        const current = queue.shift()!;
-        result.push(current);
-
-        for (const neighbor of adjList.get(current) || []) {
-            const newDegree = inDegree.get(neighbor)! - 1;
-            inDegree.set(neighbor, newDegree);
-            if (newDegree === 0) {
-                queue.push(neighbor);
-            }
-        }
-    }
-
-    return result;
-};
-
 const compileTableCalculation = (
     tableCalculation: TableCalculation,
     validFieldIds: string[],
     quoteChar: string,
-    compiledTableCalculations: Map<
-        string,
-        CompiledTableCalculation
-    > = new Map(),
+    dependencyGraph: TableCalculationDependency[],
 ): CompiledTableCalculation => {
     if (validFieldIds.includes(tableCalculation.name)) {
         throw new CompileError(
@@ -145,14 +88,24 @@ const compileTableCalculation = (
         );
     }
 
+    // Find dependencies for this table calculation
+    const tableDep = dependencyGraph.find(
+        (dep) => dep.name === tableCalculation.name,
+    );
+    const tableCalcDependencies = tableDep
+        ? tableDep.dependencies.filter((dep) =>
+              dependencyGraph.some((d) => d.name === dep),
+          )
+        : [];
+
     const compiledSql = tableCalculation.sql.replace(
         lightdashVariablePattern,
         (_, p1) => {
             // Check if this is a reference to another table calculation
-            if (compiledTableCalculations.has(p1)) {
-                const referencedTableCalc = compiledTableCalculations.get(p1)!;
-                // Wrap the referenced table calculation SQL in parentheses to preserve precedence
-                return `(${referencedTableCalc.compiledSql})`;
+            if (dependencyGraph.some((dep) => dep.name === p1)) {
+                // For table calc references, we'll leave them as placeholders
+                // MetricQueryBuilder will resolve these with proper CTE references
+                return `${quoteChar}${p1}${quoteChar}`;
             }
 
             // Otherwise, treat it as a field reference
@@ -171,6 +124,7 @@ const compileTableCalculation = (
     return {
         ...tableCalculation,
         compiledSql,
+        dependsOn: tableCalcDependencies,
     };
 };
 
@@ -179,6 +133,10 @@ const compileTableCalculations = (
     validFieldIds: string[],
     quoteChar: string,
 ): CompiledTableCalculation[] => {
+    if (tableCalculations.length === 0) {
+        return [];
+    }
+
     // Build dependency graph to check for circular dependencies
     const dependencyGraph =
         buildTableCalculationDependencyGraph(tableCalculations);
@@ -186,40 +144,14 @@ const compileTableCalculations = (
 
     const compiledTableCalculations: CompiledTableCalculation[] = [];
 
-    // Create a map to track compiled table calculations. We'll go through the
-    // dependency graph first, then add any table calculations that weren't in it.
-    const compiledTableCalcMap = new Map<string, CompiledTableCalculation>();
-
-    // Sort them so we compile them in the correct order
-    const sortedTableCalcNames = sortTableCalcs(dependencyGraph);
-    for (const calcName of sortedTableCalcNames) {
-        const tableCalculation = tableCalculations.find(
-            (tc) => tc.name === calcName,
-        );
-        if (tableCalculation) {
-            const compiled = compileTableCalculation(
-                tableCalculation,
-                validFieldIds,
-                quoteChar,
-                compiledTableCalcMap,
-            );
-            compiledTableCalcMap.set(calcName, compiled);
-            compiledTableCalculations.push(compiled);
-        }
-    }
-
-    // Add any table calculations that weren't in the dependency graph (no dependencies or references)
     for (const tableCalculation of tableCalculations) {
-        if (!compiledTableCalcMap.has(tableCalculation.name)) {
-            const compiled = compileTableCalculation(
-                tableCalculation,
-                validFieldIds,
-                quoteChar,
-                compiledTableCalcMap,
-            );
-            compiledTableCalcMap.set(tableCalculation.name, compiled);
-            compiledTableCalculations.push(compiled);
-        }
+        const compiled = compileTableCalculation(
+            tableCalculation,
+            validFieldIds,
+            quoteChar,
+            dependencyGraph,
+        );
+        compiledTableCalculations.push(compiled);
     }
 
     return compiledTableCalculations;

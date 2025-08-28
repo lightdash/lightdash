@@ -72,6 +72,7 @@ services:
             S3_REGION: ${S3_REGION}
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
+            CUSTOM_ROLES_ENABLED: true
 
             # these were set in https://dashboard.render.com/env-group/evg-cfn4dlhmbjst4ho7s160 but can be public
             SCHEDULER_ENABLED: true

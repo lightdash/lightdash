@@ -529,7 +529,11 @@ export class UserModel {
             )
             .where('group_memberships.organization_id', organizationId)
             .andWhere('group_memberships.user_id', userId)
-            .select('projects.project_uuid', 'project_group_access.role');
+            .select(
+                'projects.project_uuid',
+                'project_group_access.role',
+                'project_group_access.role_uuid',
+            );
         const projectMemberships = await query;
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
@@ -589,7 +593,6 @@ export class UserModel {
             .map((role) => role.roleUuid)
             .filter(Boolean) as string[];
         const customRoleScopes = await this.customRoleScopes(customRoleUuids);
-
         const abilityBuilder = getUserAbilityBuilder({
             user: lightdashUser,
             projectProfiles: [...projectRoles, ...groupProjectRoles],

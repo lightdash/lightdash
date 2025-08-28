@@ -18,6 +18,7 @@ describe('CLI', () => {
             {
                 failOnNonZeroExit: false,
                 env: databaseEnvVars,
+                log: true,
             },
         )
             .its('stdout')
@@ -34,6 +35,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -59,6 +61,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -84,6 +87,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -110,6 +114,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -135,6 +140,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -160,6 +166,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -186,6 +193,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -211,6 +219,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         )
             .its('stderr')
@@ -227,6 +236,7 @@ describe('CLI', () => {
                     NODE_ENV: 'development',
                     ...databaseEnvVars,
                 },
+                log: true,
             },
         ).then((result) => {
             expect(result.code).to.eq(1);

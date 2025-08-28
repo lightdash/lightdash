@@ -370,6 +370,7 @@ describe('Roles API Tests', () => {
                 body: {
                     name: `Project Access Role ${new Date().getTime()}`,
                     description: 'Role for project access testing',
+                    scopes: ['view:Dashboard'],
                 },
             }).then((roleResp) => {
                 cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
@@ -396,6 +397,7 @@ describe('Roles API Tests', () => {
                 body: {
                     name: `Group Project Access Role ${new Date().getTime()}`,
                     description: 'Role for group project access testing',
+                    scopes: ['view:Dashboard'],
                 },
             }).then((roleResp) => {
                 cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
@@ -424,6 +426,7 @@ describe('Roles API Tests', () => {
                 body: {
                     name: `Custom Test Role ${new Date().getTime()}`,
                     description: 'Custom role for assignment testing',
+                    scopes: ['view:Dashboard'],
                 },
             }).then((roleResp) => {
                 cy.wrap(roleResp.body.results.roleUuid).as('testRoleUuid');
@@ -519,6 +522,70 @@ describe('Roles API Tests', () => {
                             }
                         });
                     });
+                });
+            });
+        });
+
+        it('should reject assigning role with 0 scopes to user', () => {
+            const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
+
+            // Create a role with no scopes
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                method: 'POST',
+                body: {
+                    name: `No Scopes Role ${new Date().getTime()}`,
+                    description: 'Role with no scopes for testing',
+                },
+            }).then((roleResp) => {
+                const { roleUuid } = roleResp.body.results;
+                cy.wrap(roleUuid).as('testRoleUuid');
+
+                // Try to assign role with no scopes to user - should fail
+                cy.request({
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                    method: 'POST',
+                    body: {
+                        roleId: roleUuid,
+                    },
+                    failOnStatusCode: false,
+                }).then((assignResp) => {
+                    expect(assignResp.status).to.eq(400);
+                    expect(assignResp.body).to.have.property('status', 'error');
+                    expect(assignResp.body.error.message).to.contain(
+                        'Custom role must have at least one scope',
+                    );
+                });
+            });
+        });
+
+        it('should reject assigning role with 0 scopes to group', () => {
+            // Create a role with no scopes
+            cy.request({
+                url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                method: 'POST',
+                body: {
+                    name: `No Scopes Group Role ${new Date().getTime()}`,
+                    description: 'Role with no scopes for group testing',
+                },
+            }).then((roleResp) => {
+                const { roleUuid } = roleResp.body.results;
+                cy.wrap(roleUuid).as('testRoleUuid');
+
+                // Try to assign role with no scopes to group - should fail
+                cy.request({
+                    url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
+                    method: 'POST',
+                    body: {
+                        roleId: roleUuid,
+                    },
+                    failOnStatusCode: false,
+                }).then((assignResp) => {
+                    expect(assignResp.status).to.eq(400);
+                    expect(assignResp.body).to.have.property('status', 'error');
+                    expect(assignResp.body.error.message).to.contain(
+                        'Custom role must have at least one scope',
+                    );
                 });
             });
         });
@@ -824,8 +891,6 @@ describe('Roles API Tests', () => {
                         expect(resp.status).to.eq(403);
                     });
                 });
-
-                // Try to create project access as viewer
             });
         });
 
