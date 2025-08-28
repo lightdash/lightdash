@@ -1,3 +1,10 @@
+# [0.1964.0](https://github.com/lightdash/lightdash/compare/0.1963.1...0.1964.0) (2025-08-28)
+
+
+### Features
+
+* add assigning scopes to custom roles ([#16601](https://github.com/lightdash/lightdash/issues/16601)) ([26d444e](https://github.com/lightdash/lightdash/commit/26d444e6c912a35cb5306b8ecc3444a413ec44a3))
+
 ## [0.1963.1](https://github.com/lightdash/lightdash/compare/0.1963.0...0.1963.1) (2025-08-28)
 
 
