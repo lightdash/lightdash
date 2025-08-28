@@ -82,6 +82,7 @@ export default function mockHealthResponse(
         hasHeadlessBrowser: false,
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
+        hasGitlab: false,
         hasCacheAutocompleResults: false,
         hasMicrosoftTeams: false,
         appearance: {

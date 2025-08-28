@@ -147,6 +147,10 @@ import {
     GithubAppInstallationTableName,
 } from '../database/entities/githubAppInstallation';
 import {
+    GitlabAppInstallationTable,
+    GitlabAppInstallationTableName,
+} from '../database/entities/gitlabAppInstallation';
+import {
     GroupMembershipTable,
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
@@ -350,6 +354,7 @@ declare module 'knex/types/tables' {
         [SavedChartCustomSqlDimensionsTableName]: SavedChartCustomSqlDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
+        [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;

@@ -15740,18 +15740,6 @@
                 ],
                 "type": "object"
             },
-            "GitIntegrationConfiguration": {
-                "properties": {
-                    "installationId": {
-                        "type": "string"
-                    },
-                    "enabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["enabled"],
-                "type": "object"
-            },
             "GitRepo": {
                 "properties": {
                     "ownerLogin": {
@@ -15765,6 +15753,18 @@
                     }
                 },
                 "required": ["ownerLogin", "fullName", "name"],
+                "type": "object"
+            },
+            "GitIntegrationConfiguration": {
+                "properties": {
+                    "installationId": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["enabled"],
                 "type": "object"
             },
             "Pick_Explore.SummaryExploreFields_": {
@@ -26828,6 +26828,122 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/gitlab/install": {
+            "get": {
+                "operationId": "installGitlabIntegration",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to GitLab OAuth"
+                    }
+                },
+                "description": "Initiate GitLab OAuth integration",
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Custom GitLab instance URL (optional, defaults to gitlab.com)",
+                        "in": "query",
+                        "name": "gitlab_instance_url",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/gitlab/oauth/callback": {
+            "get": {
+                "operationId": "gitlabOauthCallback",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "GitLab OAuth callback handler",
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Authorization code from GitLab",
+                        "in": "query",
+                        "name": "code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "OAuth state parameter for CSRF protection",
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "GitLab instance URL (for self-hosted instances)",
+                        "in": "query",
+                        "name": "gitlab_instance_url",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/gitlab/uninstall": {
+            "delete": {
+                "operationId": "uninstallGitlabIntegration",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/gitlab/repos/list": {
+            "get": {
+                "operationId": "getGitlabProjects",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/GitRepo"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/github/install": {
