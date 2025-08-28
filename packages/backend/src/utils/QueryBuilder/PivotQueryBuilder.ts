@@ -116,6 +116,29 @@ export class PivotQueryBuilder {
     }
 
     /**
+     * Generates query that counts total distinct column combinations for pivot.
+     * Uses a subquery with SELECT DISTINCT for warehouse-agnostic counting.
+     * @param groupByColumns - Columns that are being pivoted
+     * @param valuesColumns - Value columns to multiply count by
+     * @param filteredRowsTable - Name of the CTE containing filtered rows
+     * @returns SQL query for counting total columns
+     */
+    private getTotalColumnsSQL(
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        filteredRowsTable: string,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        // Fallback to 1 when no valuesColumns to ensure at least one column per distinct group
+        // This maintains consistent pivot behavior even when only grouping without aggregations
+        const valuesCount = valuesColumns?.length || 1;
+
+        return `SELECT COUNT(*) * ${valuesCount} as total_columns FROM (SELECT DISTINCT ${groupByColumns
+            .map((col) => `${q}${col.reference}${q}`)
+            .join(', ')} FROM ${filteredRowsTable}) as distinct_groups`;
+    }
+
+    /**
      * Generates the GROUP BY query CTE that performs aggregations.
      * @param indexColumns - Columns to use as row identifiers
      * @param valuesColumns - Columns to aggregate with their aggregation functions
@@ -220,16 +243,18 @@ export class PivotQueryBuilder {
         const maxColumnsPerValueColumn =
             PivotQueryBuilder.calculateMaxColumnsPerValueColumn(valuesColumns);
 
+        const totalColumnsQuery = this.getTotalColumnsSQL(
+            groupByColumns,
+            valuesColumns,
+            'filtered_rows',
+        );
+
         const ctes = [
             `original_query AS (${userSql})`,
             `group_by_query AS (${groupByQuery})`,
             `pivot_query AS (${pivotQuery})`,
             `filtered_rows AS (SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${rowLimit})`,
-            `total_columns AS (SELECT (COUNT(DISTINCT ${groupByColumns
-                .map((col) => `filtered_rows.${q}${col.reference}${q}`)
-                .join(', ')}) * ${
-                valuesColumns?.length || 1
-            }) as total_columns FROM filtered_rows)`,
+            `total_columns AS (${totalColumnsQuery})`,
         ];
 
         const finalSelect = `SELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${rowLimit} and p.${q}column_index${q} <= ${maxColumnsPerValueColumn} order by p.${q}row_index${q}, p.${q}column_index${q}`;
