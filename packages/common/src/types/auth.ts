@@ -9,6 +9,7 @@ import {
     type ExternalUser,
     type IntrinsicUserAttributes,
     type LightdashSessionUser,
+    type LightdashUser,
 } from './user';
 import { type UserAttributeValueMap } from './userAttributes';
 
@@ -54,6 +55,16 @@ export type OauthAuth = {
     scopes: string[];
     expiresAt?: number;
     resource?: URL;
+};
+
+export type OssEmbed = {
+    projectUuid: string;
+    organization: Pick<Organization, 'organizationUuid' | 'name' | 'createdAt'>;
+    encodedSecret: string;
+    dashboardUuids: string[];
+    allowAllDashboards: boolean;
+    createdAt: string;
+    user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
 };
 
 export type Authentication =
@@ -127,6 +138,8 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     user: ExternalUser;
     /** The access permissions the account has */
     access: DashboardAccess;
+    /** The embed configuration associated with the JWT */
+    embed: OssEmbed;
 };
 
 export type ApiKeyAccount = BaseAccountWithHelpers & {
