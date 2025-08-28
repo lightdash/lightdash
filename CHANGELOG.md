@@ -1,3 +1,10 @@
+## [0.1963.1](https://github.com/lightdash/lightdash/compare/0.1963.0...0.1963.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* dashboard responsive layout depending on columns ([#16616](https://github.com/lightdash/lightdash/issues/16616)) ([4f4c10d](https://github.com/lightdash/lightdash/commit/4f4c10dabbfde905c5469694ad9f6da47b80fed7))
+
 # [0.1963.0](https://github.com/lightdash/lightdash/compare/0.1962.0...0.1963.0) (2025-08-28)
 
 
