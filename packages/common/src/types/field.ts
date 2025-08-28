@@ -346,6 +346,7 @@ export const isTableCalculation = (
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
+    dependsOn: string[]; // Names of other table calculations this depends on
 };
 
 export type FieldUrl = {
