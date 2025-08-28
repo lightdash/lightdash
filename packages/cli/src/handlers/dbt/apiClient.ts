@@ -76,6 +76,7 @@ export const getUserContext =
         });
 
 export const checkProjectCreationPermission = async (
+    upstreamProjectUuid: string | undefined,
     projectType: ProjectType,
 ): Promise<void> => {
     try {
@@ -84,11 +85,18 @@ export const checkProjectCreationPermission = async (
         // Build CASL ability from user's ability rules (same as backend)
         const ability = new Ability<PossibleAbilities>(user.abilityRules);
 
+        if (!user.organizationUuid) {
+            throw new ForbiddenError(
+                `You don't have permission to create projects.`,
+            );
+        }
+
         // Check if user has permission to create project of the specified type
         const canCreate = ability.can(
             'create',
             subject('Project', {
-                organizationUuid: user.organizationUuid || '',
+                organizationUuid: user.organizationUuid,
+                upstreamProjectUuid,
                 type: projectType,
             }),
         );

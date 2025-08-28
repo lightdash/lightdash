@@ -82,7 +82,10 @@ export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<ApiCreateProjectResults | undefined> => {
     // Check permissions before proceeding
-    await checkProjectCreationPermission(options.type);
+    await checkProjectCreationPermission(
+        options.upstreamProjectUuid,
+        options.type,
+    );
 
     const dbtVersion = await getDbtVersion();
 
