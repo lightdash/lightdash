@@ -441,6 +441,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             tab={activeTab}
                                             dashboardTiles={dashboardTiles}
                                             dashboardTabs={dashboardTabs}
+                                            dashboardUuid={dashboardUuid!}
                                             onClose={() =>
                                                 setDeletingTab(false)
                                             }

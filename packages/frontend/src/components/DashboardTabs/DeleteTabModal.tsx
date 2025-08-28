@@ -1,10 +1,12 @@
 import {
     isDashboardChartTileType,
+    isDashboardScheduler,
     type DashboardChartTile,
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
 import {
+    Alert,
     Button,
     Group,
     List,
@@ -16,8 +18,9 @@ import {
     Title,
     type ModalProps,
 } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 
@@ -25,6 +28,7 @@ type AddProps = ModalProps & {
     tab: DashboardTab;
     dashboardTiles: DashboardTile[] | undefined;
     dashboardTabs: DashboardTab[] | undefined;
+    dashboardUuid: string;
     onDeleteTab: (tabUuid: string) => void;
     onMoveTile: (tile: DashboardTile) => void;
 };
@@ -38,15 +42,31 @@ export const TabDeleteModal: FC<AddProps> = ({
     tab,
     dashboardTiles,
     dashboardTabs,
+    dashboardUuid,
     onClose: handleClose,
     onDeleteTab: handleDeleteTab,
     onMoveTile: handleMoveTile,
     ...modalProps
 }) => {
-    const [removeAction, setRemoveAction] = useState(RemoveActions.MOVE);
+    const [removeAction, setRemoveAction] = useState('move');
     const [destinationTabId, setDestinationTabId] = useState<
         string | undefined
     >();
+
+    // Fetch schedulers for this dashboard
+    const { data: schedulers } = useDashboardSchedulers(dashboardUuid);
+
+    // Find schedulers that use this tab
+    const affectedSchedulers = useMemo(() => {
+        if (!schedulers) return [];
+
+        return schedulers.filter((scheduler) => {
+            if (isDashboardScheduler(scheduler) && scheduler.selectedTabs) {
+                return scheduler.selectedTabs.includes(tab.uuid);
+            }
+            return false;
+        });
+    }, [schedulers, tab.uuid]);
 
     const destinationTabs = useMemo(
         () =>
@@ -181,6 +201,35 @@ export const TabDeleteModal: FC<AddProps> = ({
                             )}
                     </Stack>
                 </Radio.Group>
+
+                {affectedSchedulers.length > 0 && (
+                    <Alert
+                        color="orange"
+                        icon={<IconAlertCircle size={16} />}
+                        title="Warning: Scheduled deliveries affected"
+                    >
+                        <Stack spacing="xs">
+                            <Text size="sm">
+                                This tab is currently used by{' '}
+                                <Text fw={600} span>
+                                    {affectedSchedulers.length}
+                                </Text>{' '}
+                                scheduled{' '}
+                                {affectedSchedulers.length === 1
+                                    ? 'delivery'
+                                    : 'deliveries'}
+                                :
+                            </Text>
+                            <List size="sm">
+                                {affectedSchedulers.map((scheduler) => (
+                                    <List.Item key={scheduler.schedulerUuid}>
+                                        <Text size="sm">{scheduler.name}</Text>
+                                    </List.Item>
+                                ))}
+                            </List>
+                        </Stack>
+                    </Alert>
+                )}
 
                 {removeAction === RemoveActions.DELETE && (
                     <>

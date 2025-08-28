@@ -12,12 +12,14 @@ import {
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
+    ParameterError,
     QueryHistoryStatus,
     RequestMethod,
     ScreenshotError,
     SessionUser,
     SlackInstallationNotFoundError,
     snakeCaseName,
+    validateSelectedTabs,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -279,7 +281,7 @@ export class UnfurlService extends BaseService {
 
     async getTitleAndDescription(
         parsedUrl: ParsedUrl,
-        selectedTabs?: string[],
+        selectedTabs: string[] | null,
     ): Promise<
         Pick<
             Unfurl,
@@ -293,20 +295,21 @@ export class UnfurlService extends BaseService {
         switch (parsedUrl.lightdashPage) {
             case LightdashPage.DASHBOARD:
                 if (!parsedUrl.dashboardUuid)
-                    throw new Error(
+                    throw new ParameterError(
                         `Missing dashboardUuid when unfurling Dashboard URL ${parsedUrl.url}`,
                     );
                 const dashboard = await this.dashboardModel.getById(
                     parsedUrl.dashboardUuid,
                 );
 
+                validateSelectedTabs(selectedTabs, dashboard.tiles);
+
                 // Filter tiles based on selected tabs if they exist
-                const filteredTiles =
-                    selectedTabs && selectedTabs.length > 0
-                        ? dashboard.tiles.filter((tile) =>
-                              selectedTabs.includes(tile.tabUuid || ''),
-                          )
-                        : dashboard.tiles;
+                const filteredTiles = selectedTabs
+                    ? dashboard.tiles.filter((tile) =>
+                          selectedTabs.includes(tile.tabUuid || ''),
+                      )
+                    : dashboard.tiles;
 
                 return {
                     title: dashboard.name,
@@ -359,7 +362,7 @@ export class UnfurlService extends BaseService {
 
     async unfurlDetails(
         originUrl: string,
-        selectedTabs: string[] = [],
+        selectedTabs: string[] | null,
     ): Promise<Unfurl | undefined> {
         const parsedUrl = await this.parseUrl(originUrl);
 
@@ -445,7 +448,7 @@ export class UnfurlService extends BaseService {
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
-        selectedTabs?: string[];
+        selectedTabs: string[] | null;
     }): Promise<{
         imageUrl?: string;
         pdfFile?: { source: string; fileName: string };
@@ -510,7 +513,7 @@ export class UnfurlService extends BaseService {
         queryFilters: string,
         gridWidth: number | undefined,
         user: SessionUser,
-        selectedTabs?: string[],
+        selectedTabs: string[] | null,
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
@@ -518,6 +521,8 @@ export class UnfurlService extends BaseService {
             user.userUuid,
             dashboard.spaceUuid,
         );
+
+        validateSelectedTabs(selectedTabs, dashboard.tiles);
 
         // Create a new URLSearchParams object for query filters
         const selectedTabsParams = new URLSearchParams();
@@ -622,7 +627,7 @@ export class UnfurlService extends BaseService {
         retries?: number;
         context: ScreenshotContext;
         contextId?: unknown;
-        selectedTabs?: string[];
+        selectedTabs: string[] | null;
     }): Promise<Buffer | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
@@ -1271,7 +1276,7 @@ export class UnfurlService extends BaseService {
 
             try {
                 const { teamId } = context;
-                const details = await this.unfurlDetails(l.url);
+                const details = await this.unfurlDetails(l.url, null);
 
                 if (details) {
                     this.analytics.track({
@@ -1311,6 +1316,7 @@ export class UnfurlService extends BaseService {
                         imageId,
                         authUserUuid,
                         context: ScreenshotContext.SLACK,
+                        selectedTabs: null,
                     });
 
                     if (imageUrl) {
