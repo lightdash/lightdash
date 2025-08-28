@@ -11,6 +11,7 @@ import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
+    type ResponsiveGridLayoutProps,
 } from '../../../../../components/DashboardTabs/gridUtils';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
@@ -31,11 +32,12 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const EmbedDashboardGrid: FC<{
     filteredTiles: DashboardTile[];
-    layouts: { lg: Layout[] };
+    layouts: { lg: Layout[]; md: Layout[]; sm: Layout[] };
     dashboard: any;
     projectUuid: string;
     hasRequiredDashboardFiltersToSet: boolean;
     isTabEmpty?: boolean;
+    gridProps: ResponsiveGridLayoutProps;
 }> = ({
     filteredTiles,
     layouts,
@@ -43,6 +45,7 @@ const EmbedDashboardGrid: FC<{
     projectUuid,
     hasRequiredDashboardFiltersToSet,
     isTabEmpty,
+    gridProps,
 }) => (
     <Group grow pt="sm" px="xs">
         {isTabEmpty ? (
@@ -59,7 +62,7 @@ const EmbedDashboardGrid: FC<{
             </div>
         ) : (
             <ResponsiveGridLayout
-                {...getResponsiveGridLayoutProps({ enableAnimation: false })}
+                {...gridProps}
                 layouts={layouts}
                 className={`react-grid-layout-dashboard ${
                     hasRequiredDashboardFiltersToSet ? 'locked' : ''
@@ -263,6 +266,22 @@ const EmbedDashboard: FC<{
     const tabsEnabled = sortedTabs.length > 1;
     const MAGIC_SCROLL_AREA_HEIGHT = 40;
 
+    const gridProps = getResponsiveGridLayoutProps({ enableAnimation: false });
+    const layouts = useMemo(
+        () => ({
+            lg: filteredTiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.lg),
+            ),
+            md: filteredTiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.md),
+            ),
+            sm: filteredTiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.sm),
+            ),
+        }),
+        [filteredTiles, gridProps.cols],
+    );
+
     if (!projectUuid) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -304,10 +323,6 @@ const EmbedDashboard: FC<{
             </div>
         );
     }
-
-    const layouts = {
-        lg: filteredTiles.map<Layout>((tile) => getReactGridLayoutConfig(tile)),
-    };
 
     // Check if current tab is empty
     const isTabEmpty = tabsEnabled && filteredTiles.length === 0;
@@ -375,6 +390,7 @@ const EmbedDashboard: FC<{
                             hasRequiredDashboardFiltersToSet
                         }
                         isTabEmpty={isTabEmpty}
+                        gridProps={gridProps}
                     />
                 </Tabs>
             ) : (
@@ -386,6 +402,7 @@ const EmbedDashboard: FC<{
                     hasRequiredDashboardFiltersToSet={
                         hasRequiredDashboardFiltersToSet
                     }
+                    gridProps={gridProps}
                 />
             )}
         </div>
