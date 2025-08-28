@@ -1,3 +1,15 @@
+# [0.1962.0](https://github.com/lightdash/lightdash/compare/0.1961.3...0.1962.0) (2025-08-28)
+
+
+### Bug Fixes
+
+* empty selected tabs when scheduling dashboard delivery ([#16486](https://github.com/lightdash/lightdash/issues/16486)) ([bf023a6](https://github.com/lightdash/lightdash/commit/bf023a66e6e3757b3e53d3daf10828b386d0c5df))
+
+
+### Features
+
+* use projectUuid in embed for JWT abilities ([#16518](https://github.com/lightdash/lightdash/issues/16518)) ([7690e57](https://github.com/lightdash/lightdash/commit/7690e57f3e781d53bc6a19160e25be5230d917d9))
+
 ## [0.1961.3](https://github.com/lightdash/lightdash/compare/0.1961.2...0.1961.3) (2025-08-28)
 
 
