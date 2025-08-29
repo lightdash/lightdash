@@ -1,3 +1,10 @@
+## [0.1966.1](https://github.com/lightdash/lightdash/compare/0.1966.0...0.1966.1) (2025-08-29)
+
+
+### Bug Fixes
+
+* disable send now if requried filter is missing ([#16647](https://github.com/lightdash/lightdash/issues/16647)) ([07ce1c3](https://github.com/lightdash/lightdash/commit/07ce1c3f06b9c1201f29d981d087616e3eb56d3d))
+
 # [0.1966.0](https://github.com/lightdash/lightdash/compare/0.1965.0...0.1966.0) (2025-08-29)
 
 
