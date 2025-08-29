@@ -1,3 +1,10 @@
+# [0.1965.0](https://github.com/lightdash/lightdash/compare/0.1964.0...0.1965.0) (2025-08-29)
+
+
+### Features
+
+* generate title for ai agent threads ([#16575](https://github.com/lightdash/lightdash/issues/16575)) ([2300c44](https://github.com/lightdash/lightdash/commit/2300c441bd372d593f89cabe25fe2194c1986401)), closes [#15317](https://github.com/lightdash/lightdash/issues/15317)
+
 # [0.1964.0](https://github.com/lightdash/lightdash/compare/0.1963.1...0.1964.0) (2025-08-28)
 
 
