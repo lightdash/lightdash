@@ -1,3 +1,10 @@
+# [0.1966.0](https://github.com/lightdash/lightdash/compare/0.1965.0...0.1966.0) (2025-08-29)
+
+
+### Features
+
+* table calcs can reference custom dimensions ([#16521](https://github.com/lightdash/lightdash/issues/16521)) ([6b86ef4](https://github.com/lightdash/lightdash/commit/6b86ef45cbd40ad086c712fa418e0b041ee6126d))
+
 # [0.1965.0](https://github.com/lightdash/lightdash/compare/0.1964.0...0.1965.0) (2025-08-29)
 
 
