@@ -28,7 +28,7 @@ function getSortByForPivotConfiguration(
     partialPivot: Omit<PivotConfiguration, 'sortBy'>,
     metricQuery: MetricQuery,
 ): NonNullable<PivotConfiguration['sortBy']> | undefined {
-    const { groupByColumns, indexColumn } = partialPivot;
+    const { groupByColumns, indexColumn, valuesColumns } = partialPivot;
 
     const sortBy = metricQuery.sorts
         .map<NonNullable<PivotConfiguration['sortBy']>[number] | undefined>(
@@ -41,7 +41,12 @@ function getSortByForPivotConfiguration(
                     (col) => col.reference === sort.fieldId,
                 );
 
-                if (isGroupByColumn || isIndexColumn) {
+                const isValueColumn = valuesColumns?.some(
+                    (col) => col.reference === sort.fieldId,
+                );
+
+                // Include sort if the field is present in any part of the pivot configuration
+                if (isGroupByColumn || isIndexColumn || isValueColumn) {
                     return {
                         reference: sort.fieldId,
                         direction: sort.descending
