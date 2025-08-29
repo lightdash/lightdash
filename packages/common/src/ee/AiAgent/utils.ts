@@ -54,11 +54,12 @@ export const parseVizConfig = (
         toolTableVizArgsSchemaTransformed.safeParse(vizConfigUnknown);
     if (toolTableVizArgsParsed.success) {
         const vizTool = toolTableVizArgsParsed.data;
-        const metricQuery = metricQueryTableViz(
-            vizTool.vizConfig,
-            vizTool.filters,
-            maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
-        );
+        const metricQuery = metricQueryTableViz({
+            vizConfig: vizTool.vizConfig,
+            filters: vizTool.filters,
+            maxLimit: maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
+            customMetrics: null, // Will be populated in the backend before running the query
+        });
         return {
             type: AiResultType.TABLE_RESULT,
             vizTool,

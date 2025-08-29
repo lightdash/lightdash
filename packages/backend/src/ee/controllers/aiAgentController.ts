@@ -10,7 +10,6 @@ import {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
-    ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiCreateAiAgent,
@@ -376,33 +375,6 @@ export class AiAgentController extends BaseController {
             results: {
                 title,
             },
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/threads/{threadUuid}/message/{messageUuid}/viz')
-    @OperationId('getAgentThreadMessageViz')
-    async getAgentThreadMessageViz(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() threadUuid: string,
-        @Path() messageUuid: string,
-    ): Promise<ApiAiAgentThreadMessageVizResponse> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results:
-                await this.getAiAgentService().generateAgentThreadMessageViz(
-                    req.user!,
-                    {
-                        agentUuid,
-                        threadUuid,
-                        messageUuid,
-                    },
-                ),
         };
     }
 

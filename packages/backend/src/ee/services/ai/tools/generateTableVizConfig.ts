@@ -1,13 +1,12 @@
 import {
+    Explore,
     getTotalFilterRules,
     isSlackPrompt,
-    metricQueryTableViz,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
+    ToolTableVizArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { stringify } from 'csv-stringify/sync';
-import { CsvService } from '../../../../services/CsvService/CsvService';
 import type {
     CreateOrUpdateArtifactFn,
     GetExploreFn,
@@ -20,6 +19,7 @@ import type {
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
+    validateCustomMetricsDefinition,
     validateFilterRules,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
@@ -48,6 +48,35 @@ export const getGenerateTableVizConfig = ({
 }: Dependencies) => {
     const schema = toolTableVizArgsSchema;
 
+    /**
+     * This function is used to validate the viz tool.
+     * @param vizTool - The complete viz tool with populated custom fields
+     * @param explore - The explore
+     */
+    const validateVizTool = (
+        vizTool: ToolTableVizArgsTransformed,
+        explore: Explore,
+    ) => {
+        const filterRules = getTotalFilterRules(vizTool.filters);
+        const fieldsToValidate = [
+            ...vizTool.vizConfig.dimensions,
+            ...vizTool.vizConfig.metrics,
+            ...vizTool.vizConfig.sorts.map((sortField) => sortField.fieldId),
+        ].filter((x) => typeof x === 'string');
+        validateSelectedFieldsExistence(
+            explore,
+            fieldsToValidate,
+            vizTool.customMetrics,
+        );
+        validateCustomMetricsDefinition(explore, vizTool.customMetrics);
+        validateFilterRules(explore, filterRules);
+        // TODO: Enhance filter validation to support custom metrics
+        // Current validateFilterRules and validateMetricDimensionFilterPlacement only validate
+        // against explore fields. We need to extend these validators to also consider custom metrics
+        // when validating filter rules to ensure filters can reference custom metrics appropriately.
+        validateMetricDimensionFilterPlacement(explore, vizTool.filters);
+    };
+
     return tool({
         description: toolTableVizArgsSchema.description,
         parameters: schema,
@@ -60,24 +89,11 @@ export const getGenerateTableVizConfig = ({
                 const vizTool =
                     toolTableVizArgsSchemaTransformed.parse(toolArgs);
 
-                const filterRules = getTotalFilterRules(vizTool.filters);
-
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
-                const fieldsToValidate = [
-                    ...vizTool.vizConfig.dimensions,
-                    ...vizTool.vizConfig.metrics,
-                    ...vizTool.vizConfig.sorts.map(
-                        (sortField) => sortField.fieldId,
-                    ),
-                ].filter((x) => typeof x === 'string');
-                validateSelectedFieldsExistence(explore, fieldsToValidate);
-                validateFilterRules(explore, filterRules);
-                validateMetricDimensionFilterPlacement(
-                    explore,
-                    vizTool.filters,
-                );
+
+                validateVizTool(vizTool, explore);
                 // end of TODO
 
                 const prompt = await getPrompt();

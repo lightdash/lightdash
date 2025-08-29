@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Filters } from '../../../../types/filter';
+import type { AdditionalMetric } from '../../../../types/metricQuery';
 import type { AiMetricQueryWithFilters } from '../../types';
 import { getValidAiQueryLimit } from '../../validators';
 import { getFieldIdSchema } from '../fieldId';
@@ -39,11 +40,17 @@ export const tableVizConfigSchema = z
 
 export type TableVizConfigSchemaType = z.infer<typeof tableVizConfigSchema>;
 
-export const metricQueryTableViz = (
-    vizConfig: TableVizConfigSchemaType,
-    filters: Filters,
-    maxLimit: number,
-): AiMetricQueryWithFilters => ({
+export const metricQueryTableViz = ({
+    vizConfig,
+    filters,
+    maxLimit,
+    customMetrics,
+}: {
+    vizConfig: TableVizConfigSchemaType;
+    filters: Filters;
+    maxLimit: number;
+    customMetrics: AdditionalMetric[] | null;
+}): AiMetricQueryWithFilters => ({
     exploreName: vizConfig.exploreName,
     metrics: vizConfig.metrics,
     dimensions: vizConfig.dimensions || [],
@@ -53,4 +60,5 @@ export const metricQueryTableViz = (
     })),
     limit: getValidAiQueryLimit(vizConfig.limit, maxLimit),
     filters,
+    additionalMetrics: customMetrics ?? undefined,
 });
