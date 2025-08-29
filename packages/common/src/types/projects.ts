@@ -231,6 +231,7 @@ export const maybeOverrideWarehouseConnection = <
 
 export interface DbtProjectConfigBase {
     type: DbtProjectType;
+    customManifest?: string;
 }
 
 export type DbtProjectEnvironmentVariable = {
@@ -361,6 +362,7 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
     overrides: {
         branch?: string;
         environment?: DbtProjectEnvironmentVariable[];
+        manifest?: string;
     },
 ): T => ({
     ...connection,
@@ -369,6 +371,9 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
         : undefined),
     ...(!isRemoteType(connection) && overrides.environment
         ? { environment: overrides.environment }
+        : undefined),
+    ...(overrides.manifest
+        ? { customManifest: overrides.manifest }
         : undefined),
 });
 

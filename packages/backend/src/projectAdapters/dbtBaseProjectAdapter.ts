@@ -33,6 +33,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
+import { validateCustomManifest } from '../services/ProjectService/manifestUtils';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
@@ -148,14 +149,29 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             projectUuid: string;
         },
         loadSources: boolean = false,
+        customManifest?: string,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
         if (this.dbtClient.installDeps !== undefined) {
             await this.dbtClient.installDeps();
         }
-        Logger.debug('Get dbt manifest');
-        const { manifest } = await this.dbtClient.getDbtManifest();
+
+        let manifest;
+        if (customManifest && customManifest.trim()) {
+            Logger.info(
+                'Using custom manifest instead of compiling dbt project',
+            );
+
+            const manifestResult = validateCustomManifest(
+                customManifest.trim(),
+            );
+            manifest = manifestResult.manifest;
+        } else {
+            Logger.debug('Get dbt manifest');
+            const manifestResult = await this.dbtClient.getDbtManifest();
+            manifest = manifestResult.manifest;
+        }
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
             throw new ParseError(
