@@ -97,7 +97,9 @@ export const useWriteBackCustomMetrics = (projectUuid: string) => {
     );
 };
 
-export const useIsGithubProject = (projectUuid: string) => {
+export const useIsGitProject = (projectUuid: string) => {
     const { data: project } = useProject(projectUuid);
-    return project?.dbtConnection.type === DbtProjectType.GITHUB;
+    return [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
+        project?.dbtConnection.type as DbtProjectType,
+    );
 };

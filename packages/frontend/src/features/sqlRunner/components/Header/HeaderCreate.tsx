@@ -58,8 +58,10 @@ export const HeaderCreate: FC = () => {
 
     const [writeBackDisabledMessage, writeBackOpenUrl] = useMemo(() => {
         const hasGithubEnabled = gitIntegration?.enabled;
-        const hasGithubProject =
-            project?.dbtConnection.type === DbtProjectType.GITHUB;
+        const hasGitProject = [
+            DbtProjectType.GITHUB,
+            DbtProjectType.GITLAB,
+        ].includes(project?.dbtConnection.type as DbtProjectType);
         const hasGithubIntegration = health?.data?.hasGithub;
 
         if (!hasGithubIntegration) {
@@ -74,15 +76,15 @@ export const HeaderCreate: FC = () => {
                 `${health?.data?.siteUrl}/generalSettings/integrations`,
             ];
         }
-        if (!hasGithubProject) {
+        if (!hasGitProject) {
             return [
                 <Text key="writeBackDisabledMessage">
                     This project{' '}
                     <Text span fw={600}>
                         {project?.name}
                     </Text>{' '}
-                    is not connected to a Github repository, click here to open
-                    project settings page
+                    is not connected to a GitHub or GitLab repository, click
+                    here to open project settings page
                 </Text>,
                 `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
             ];

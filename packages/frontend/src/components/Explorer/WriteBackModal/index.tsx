@@ -16,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
+import { IconGitBranch, IconInfoCircle } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
@@ -26,14 +26,14 @@ import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
 import {
-    useIsGithubProject,
+    useIsGitProject,
     useWriteBackCustomDimensions,
     useWriteBackCustomMetrics,
 } from './hooks';
 import { convertToDbt, getItemId, getItemLabel, match } from './utils';
 
 const prDisabledMessage =
-    'Pull requests can only be opened for GitHub connected projects';
+    'Pull requests can only be opened for Git connected projects (GitHub/GitLab)';
 const texts = {
     customDimension: {
         name: 'custom dimension',
@@ -100,7 +100,7 @@ const SingleItemModalContent = ({
     const [showDiff, setShowDiff] = useState(true);
     const [error, setError] = useState<string | undefined>();
 
-    const isGithubProject = useIsGithubProject(projectUuid);
+    const isGitProject = useIsGitProject(projectUuid);
 
     const previewCode = useMemo(() => {
         try {
@@ -125,7 +125,7 @@ const SingleItemModalContent = ({
         );
     }
 
-    const disableErrorTooltip = isGithubProject && !error;
+    const disableErrorTooltip = isGitProject && !error;
 
     const errorTooltipLabel = error
         ? `Unsupported ${texts[type].baseName} definition`
@@ -144,7 +144,7 @@ const SingleItemModalContent = ({
             title={
                 <Group spacing="xs">
                     <MantineIcon
-                        icon={IconBrandGithub}
+                        icon={IconGitBranch}
                         size="lg"
                         color="gray.7"
                     />
@@ -171,8 +171,8 @@ const SingleItemModalContent = ({
         >
             <Stack p="md">
                 <Text>
-                    Create a pull request in your dbt project's GitHub
-                    repository for the following {texts[type].name}:
+                    Create a pull request in your dbt project's git repository
+                    for the following {texts[type].name}:
                 </Text>
                 <List spacing="xs" pl="xs">
                     <List.Item fz="xs" ff="monospace">
@@ -273,7 +273,7 @@ const MultipleItemsModalContent = ({
         () => writeBackCustomMetricsIsLoading,
     );
 
-    const isGithubProject = useIsGithubProject(projectUuid);
+    const isGitProject = useIsGitProject(projectUuid);
 
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
@@ -313,11 +313,11 @@ const MultipleItemsModalContent = ({
     }
 
     const disableErrorTooltip =
-        isGithubProject && selectedItemIds.length > 0 && !error;
+        isGitProject && selectedItemIds.length > 0 && !error;
 
     const errorTooltipLabel = error
         ? `Unsupported ${texts[type].baseName} definition`
-        : !isGithubProject
+        : !isGitProject
         ? prDisabledMessage
         : `Select ${texts[type].baseName}s to open a pull request`;
 
@@ -332,7 +332,7 @@ const MultipleItemsModalContent = ({
             title={
                 <Group spacing="xs">
                     <MantineIcon
-                        icon={IconBrandGithub}
+                        icon={IconGitBranch}
                         size="lg"
                         color="gray.7"
                     />
@@ -352,8 +352,8 @@ const MultipleItemsModalContent = ({
                     borderBottom: `1px solid ${theme.colors.gray[4]}`,
                 })}
             >
-                Create a pull request in your dbt project's GitHub repository
-                for the following {texts[type].baseName}s
+                Create a pull request in your dbt project's git repository for
+                the following {texts[type].baseName}s
             </Text>
 
             <Stack p="md">
