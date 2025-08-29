@@ -190,7 +190,7 @@ const computeDashboardChartSeries = (
             availableDimensions: chart.metricQuery.dimensions,
             isStacked: false,
             pivotKeys: validPivotDimensions,
-            rows: resultData.rows,
+            resultsData: resultData,
             xField: chart.chartConfig.config.layout.xField,
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
