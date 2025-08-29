@@ -13,6 +13,7 @@ import { getConfig, setAnswer } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { checkProjectCreationPermission, lightdashApi } from './dbt/apiClient';
 import getDbtProfileTargetName from './dbt/getDbtProfileTargetName';
 import { getDbtVersion } from './dbt/getDbtVersion';
@@ -81,11 +82,11 @@ type CreateProjectOptions = {
 export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<ApiCreateProjectResults | undefined> => {
-    // Check permissions before proceeding
-    await checkProjectCreationPermission(
-        options.upstreamProjectUuid,
-        options.type,
-    );
+    // TODO enable this when the problem with the permission check is fixed, back-end permission check works as expected
+    // await checkProjectCreationPermission(
+    //     options.upstreamProjectUuid,
+    //     options.type,
+    // );
 
     const dbtVersion = await getDbtVersion();
 
