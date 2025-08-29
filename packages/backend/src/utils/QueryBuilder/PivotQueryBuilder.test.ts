@@ -892,6 +892,7 @@ describe('PivotQueryBuilder', () => {
                 sortBy: [
                     { reference: 'date', direction: SortByDirection.DESC },
                     { reference: 'store_id', direction: SortByDirection.ASC },
+                    // product_category is not on the sort by so it will default to ASC
                 ],
             };
 
@@ -905,7 +906,7 @@ describe('PivotQueryBuilder', () => {
 
             // Should respect sort directions for specified columns only
             expect(result).toContain(
-                'dense_rank() over (order by "date" DESC, "store_id" ASC)',
+                'dense_rank() over (order by "date" DESC, "store_id" ASC, "product_category" ASC)',
             );
         });
     });

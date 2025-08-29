@@ -170,31 +170,6 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Gets the field name for sorting, handling aggregated value columns.
-     * @param reference - The field reference
-     * @param valuesColumns - Value columns with their aggregations
-     * @returns The actual field name to use in SQL (with aggregation suffix if needed)
-     */
-    private static getSortFieldName(
-        reference: string,
-        valuesColumns: PivotConfiguration['valuesColumns'],
-    ): string {
-        const valueColumn = valuesColumns?.find(
-            (col) => col.reference === reference,
-        );
-
-        if (valueColumn) {
-            return PivotQueryBuilder.getValueColumnFieldName(
-                reference,
-                valueColumn.aggregation,
-            );
-        }
-
-        // For regular columns (dimensions), use the reference as-is
-        return reference;
-    }
-
-    /**
      * Builds ORDER BY clause for groupBy columns with their sort directions.
      * @param groupByColumns - Group by columns to order by
      * @param sortBy - Sort configuration for columns
@@ -206,48 +181,50 @@ export class PivotQueryBuilder {
         sortBy: PivotConfiguration['sortBy'],
         q: string,
     ): string {
+        // ! We always need all groupBy columns so that dense_rank() can be used to calculate column_index (calculate all unique combinations of groupBy columns)
         return groupByColumns
             .map((col) => {
                 const sortConfig = sortBy?.find(
                     (s) => s.reference === col.reference,
                 );
+
                 const sortDirection =
                     sortConfig?.direction === SortByDirection.DESC
                         ? ' DESC'
                         : ' ASC';
+
                 return `${q}${col.reference}${q}${sortDirection}`;
             })
             .join(', ');
     }
 
     /**
-     * Builds ORDER BY clause for all sortable columns in the pivot.
+     * Builds ORDER BY clause for row_index calculation.
+     * Includes all index columns with sorting directions from sortBy or ASC if not specified.
+     *
      * @param indexColumns - Normalized index columns
-     * @param valuesColumns - Value columns with aggregations
      * @param sortBy - Sort configuration for all columns
      * @param q - Quote character for field names
-     * @returns ORDER BY clause string for all sorted columns
+     * @returns ORDER BY clause string for row index ordering
      */
-    private static buildFullOrderBy(
+    private static buildRowIndexOrderBy(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
-        valuesColumns: PivotConfiguration['valuesColumns'],
         sortBy: PivotConfiguration['sortBy'],
         q: string,
     ): string {
-        if (!sortBy?.length) {
-            // Default to sorting by index columns ascending
-            return indexColumns
-                .map((col) => `${q}${col.reference}${q} ASC`)
-                .join(', ');
-        }
-
-        return sortBy
-            .map((sort) => {
-                const fieldName = PivotQueryBuilder.getSortFieldName(
-                    sort.reference,
-                    valuesColumns,
+        // ! We always need all index columns so that dense_rank() can be used to calculate row_index (calculate all unique combinations of index columns)
+        return indexColumns
+            .map((col) => {
+                const indexColumnSort = sortBy?.find(
+                    (sort) => sort.reference === col.reference,
                 );
-                return `${q}${fieldName}${q} ${sort.direction}`;
+
+                const sortDirection =
+                    indexColumnSort?.direction === SortByDirection.DESC
+                        ? ' DESC'
+                        : ' ASC';
+
+                return `${q}${col.reference}${q} ${sortDirection}`;
             })
             .join(', ');
     }
@@ -280,9 +257,9 @@ export class PivotQueryBuilder {
             }),
         ];
 
-        const fullOrderBy = PivotQueryBuilder.buildFullOrderBy(
+        // Build ORDER BY for row_index - should only consider index columns, not groupBy columns
+        const rowIndexOrderBy = PivotQueryBuilder.buildRowIndexOrderBy(
             indexColumns,
-            valuesColumns,
             sortBy,
             q,
         );
@@ -295,7 +272,7 @@ export class PivotQueryBuilder {
 
         return `SELECT ${selectReferences.join(
             ', ',
-        )}, dense_rank() over (order by ${fullOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${groupByOrderBy}) as ${q}column_index${q} FROM group_by_query`;
+        )}, dense_rank() over (order by ${rowIndexOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${groupByOrderBy}) as ${q}column_index${q} FROM group_by_query`;
     }
 
     /**
