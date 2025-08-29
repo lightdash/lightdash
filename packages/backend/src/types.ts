@@ -21,6 +21,8 @@ export interface ProjectAdapter {
                   projectUuid: string;
               }
             | undefined,
+        loadSources?: boolean,
+        customManifest?: string,
     ): Promise<(Explore | ExploreError)[]>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;

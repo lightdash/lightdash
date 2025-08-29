@@ -1197,7 +1197,12 @@ export class ProjectService extends BaseService {
                     try {
                         // There's no project yet, so we don't track
                         const trackingParams = undefined;
-                        return await adapter.compileAllExplores(trackingParams);
+                        // Get the custom manifest from the create project configuration
+                        return await adapter.compileAllExplores(
+                            trackingParams,
+                            false,
+                            createProject.dbtConnection.customManifest,
+                        );
                     } finally {
                         await adapter.destroy();
                         await sshTunnel.disconnect();
@@ -1518,8 +1523,11 @@ export class ProjectService extends BaseService {
                                 organizationUuid: user.organizationUuid,
                                 userUuid: user.userUuid,
                             };
+                            // Get the custom manifest from the updated project configuration
                             const explores = await adapter.compileAllExplores(
                                 trackingParams,
+                                false,
+                                updatedProject.dbtConnection.customManifest,
                             );
                             const lightdashProjectConfig =
                                 await adapter.getLightdashProjectConfig(
@@ -3455,7 +3463,11 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
             };
-            const explores = await adapter.compileAllExplores(trackingParams);
+            const explores = await adapter.compileAllExplores(
+                trackingParams,
+                false,
+                project.dbtConnection.customManifest,
+            );
             this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
@@ -4951,6 +4963,7 @@ export class ProjectService extends BaseService {
             dbtConnectionOverrides?: {
                 branch?: string;
                 environment?: DbtProjectEnvironmentVariable[];
+                manifest?: string;
             };
             warehouseConnectionOverrides?: { schema?: string };
         },
@@ -4990,6 +5003,8 @@ export class ProjectService extends BaseService {
         // it is possible that the user `abilities` are not uptodate
         // Before we check permissions on scheduleCompileProject
         // Permissions will be checked again with the uptodate user on scheduler
+        // Custom manifest is now stored in the project's dbtConnection configuration
+
         const { jobUuid } = await this.scheduleCompileProject(
             user,
             previewProject.project.projectUuid,
