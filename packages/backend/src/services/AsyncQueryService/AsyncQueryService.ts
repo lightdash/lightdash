@@ -580,11 +580,20 @@ export class AsyncQueryService extends ProjectService {
             return returnObject;
         }
 
+        const sortedValuesColumns = Object.values(pivotValuesColumns).sort(
+            (a, b) => {
+                if (a.columnIndex && b.columnIndex) {
+                    return a.columnIndex - b.columnIndex;
+                }
+                return 0;
+            },
+        );
+
         return {
             ...returnObject,
             pivotDetails: {
                 totalColumnCount: pivotTotalColumnCount,
-                valuesColumns: Object.values(pivotValuesColumns),
+                valuesColumns: sortedValuesColumns,
                 indexColumn: pivotConfiguration.indexColumn,
                 groupByColumns: pivotConfiguration.groupByColumns,
                 sortBy: pivotConfiguration.sortBy,
@@ -1035,12 +1044,18 @@ export class AsyncQueryService extends ProjectService {
                   if (!groupByColumns || groupByColumns.length === 0) {
                       // When there are no group by columns, we can just derive the value columns from the values columns config
                       valuesColumns.forEach((col) => {
-                          const valueColumnReference = `${col.reference}_${col.aggregation}`;
+                          const valueColumnField =
+                              PivotQueryBuilder.getValueColumnFieldName(
+                                  col.reference,
+                                  col.aggregation,
+                              );
+                          const valueColumnReference = `${valueColumnField}`;
                           valuesColumnData.set(valueColumnReference, {
                               referenceField: col.reference,
                               pivotColumnName: valueColumnReference,
                               aggregation: col.aggregation,
                               pivotValues: [],
+                              // columnIndex is omitted when no groupBy columns
                           });
                       });
                       write?.(rows);
@@ -1078,7 +1093,12 @@ export class AsyncQueryService extends ProjectService {
                           .join('_');
 
                       valuesColumns.forEach((col) => {
-                          const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
+                          const valueColumnField =
+                              PivotQueryBuilder.getValueColumnFieldName(
+                                  col.reference,
+                                  col.aggregation,
+                              );
+                          const valueColumnReference = `${valueColumnField}_${valueSuffix}`;
 
                           valuesColumnData.set(valueColumnReference, {
                               referenceField: col.reference, // The original y field name
@@ -1088,11 +1108,12 @@ export class AsyncQueryService extends ProjectService {
                                   referenceField: c.reference,
                                   value: row[c.reference],
                               })),
+                              columnIndex: row.column_index,
                           });
 
                           currentTransformedRow = currentTransformedRow ?? {};
                           currentTransformedRow[valueColumnReference] =
-                              row[`${col.reference}_${col.aggregation}`];
+                              row[valueColumnField];
                       });
                   });
               }

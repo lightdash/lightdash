@@ -106,6 +106,7 @@ export type PivotValuesColumn = {
         referenceField: string;
         value: unknown;
     }[];
+    columnIndex?: number;
 };
 
 export type PivotChartData = {
