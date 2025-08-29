@@ -95,11 +95,12 @@ export const renderTimeSeriesViz = async ({
     >;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryTimeSeriesViz(
-        vizTool.vizConfig,
-        vizTool.filters,
+    const metricQuery = metricQueryTimeSeriesViz({
+        vizConfig: vizTool.vizConfig,
+        filters: vizTool.filters,
         maxLimit,
-    );
+        customMetrics: vizTool.customMetrics ?? null,
+    });
     const results = await runMetricQuery(metricQuery);
     const chartOptions = await echartsConfigTimeSeriesMetric(
         vizTool,

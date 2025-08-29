@@ -33,7 +33,9 @@ import { serializeData } from './serializeData';
 export function validateSelectedFieldsExistence(
     explore: Explore,
     selectedFieldIds: string[],
-    customMetrics?: (CustomMetricBaseSchema | AdditionalMetric)[] | null,
+    customMetrics?:
+        | (CustomMetricBaseSchema | Omit<AdditionalMetric, 'sql'>)[]
+        | null,
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
     const customMetricIds = customMetrics?.map(getItemId);
@@ -59,6 +61,10 @@ ${nonExploreFields.join('\n')}
 
 /**
  * Validate that the custom metrics have a base dimension name that exists in the explore
+ * Checks:
+ * - The base dimension name exists in the explore
+ * - The base dimension name is a dimension in the explore
+ * - The base dimension name has the same sql as the custom metric
  * @param explore
  * @param customMetrics
  */
@@ -70,7 +76,6 @@ export function validateCustomMetricsDefinition(
         return;
     }
     const exploreFields = getFields(explore);
-    const exploreFieldIds = exploreFields.map(getItemId);
     const errors: string[] = [];
 
     customMetrics.forEach((metric) => {
@@ -81,10 +86,10 @@ export function validateCustomMetricsDefinition(
             return;
         }
 
-        const field = exploreFieldIds.find(
+        const field = exploreFields.find(
             (f) =>
                 metric.baseDimensionName &&
-                f ===
+                getItemId(f) ===
                     getItemId({
                         name: metric.baseDimensionName,
                         table: metric.table,
@@ -94,6 +99,13 @@ export function validateCustomMetricsDefinition(
         if (!field) {
             errors.push(
                 `Error: the base dimension name "${metric.baseDimensionName}" does not exist in the explore.`,
+            );
+            return;
+        }
+
+        if (!isDimension(field)) {
+            errors.push(
+                `Error: the base dimension name "${metric.baseDimensionName}" is not a dimension in the explore.`,
             );
         }
     });

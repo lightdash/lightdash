@@ -5,6 +5,7 @@ import type { AiMetricQueryWithFilters } from '../../types';
 import { getValidAiQueryLimit } from '../../validators';
 import { getFieldIdSchema } from '../fieldId';
 import sortFieldSchema from '../sortField';
+import type { ToolVerticalBarArgsTransformed } from '../tools';
 
 export const verticalBarMetricVizConfigSchema = z.object({
     exploreName: z
@@ -63,11 +64,17 @@ export type VerticalBarMetricVizConfigSchemaType = z.infer<
     typeof verticalBarMetricVizConfigSchema
 >;
 
-export const metricQueryVerticalBarViz = (
-    vizConfig: VerticalBarMetricVizConfigSchemaType,
-    filters: Filters,
-    maxLimit: number,
-): AiMetricQueryWithFilters => {
+export const metricQueryVerticalBarViz = ({
+    vizConfig,
+    filters,
+    maxLimit,
+    customMetrics,
+}: {
+    vizConfig: VerticalBarMetricVizConfigSchemaType;
+    filters: Filters;
+    maxLimit: number;
+    customMetrics: ToolVerticalBarArgsTransformed['customMetrics'] | null;
+}): AiMetricQueryWithFilters => {
     const metrics = vizConfig.yMetrics;
     const dimensions = [
         vizConfig.xDimension,
@@ -86,5 +93,6 @@ export const metricQueryVerticalBarViz = (
         })),
         exploreName: vizConfig.exploreName,
         filters,
+        additionalMetrics: customMetrics ?? [],
     };
 };

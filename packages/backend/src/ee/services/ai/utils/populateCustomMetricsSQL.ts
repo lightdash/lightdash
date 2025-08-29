@@ -13,7 +13,7 @@ import {
  */
 export function populateCustomMetricsSQL(
     customMetrics:
-        | (CustomMetricBaseSchema | AdditionalMetric)[]
+        | (CustomMetricBaseSchema | Omit<AdditionalMetric, 'sql'>)[]
         | null
         | undefined,
     explore: Explore,

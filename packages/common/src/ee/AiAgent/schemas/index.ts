@@ -9,6 +9,7 @@ import {
     toolVerticalBarArgsSchema,
 } from './tools';
 
+export * from './customMetrics';
 export * from './filters';
 export * from './tools';
 export * from './visualizations';

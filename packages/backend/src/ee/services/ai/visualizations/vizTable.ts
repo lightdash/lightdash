@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     AiMetricQueryWithFilters,
     AiResultType,
     getItemLabelWithoutTableName,
@@ -31,7 +32,7 @@ export const renderTableViz = async ({
         vizConfig: vizTool.vizConfig,
         filters: vizTool.filters,
         maxLimit,
-        customMetrics: null, // Will be populated in the backend before running the query
+        customMetrics: vizTool.customMetrics ?? null,
     });
     const results = await runMetricQuery(query);
 
