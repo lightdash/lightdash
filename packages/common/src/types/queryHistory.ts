@@ -47,7 +47,7 @@ export type QueryHistory = {
     error: string | null;
     cacheKey: string;
     pivotConfiguration: PivotConfiguration | null;
-    pivotValuesColumns: PivotValuesColumn[] | null;
+    pivotValuesColumns: Record<string, PivotValuesColumn> | null;
     pivotTotalColumnCount: number | null;
     resultsFileName: string | null; // S3 file name
     resultsCreatedAt: Date | null;
