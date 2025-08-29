@@ -12,9 +12,11 @@ import type {
     GetExploreFn,
     RunMiniMetricQueryFn,
 } from '../types/aiAgentDependencies';
+import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
+    validateCustomMetricsDefinition,
     validateFilterRules,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
@@ -39,11 +41,11 @@ export const getRunMetricQuery = ({
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
 
-                const filterRules = getTotalFilterRules(vizTool.filters);
-
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
+
+                const filterRules = getTotalFilterRules(vizTool.filters);
 
                 const fieldsToValidate = [
                     ...vizTool.vizConfig.dimensions,
@@ -53,21 +55,30 @@ export const getRunMetricQuery = ({
                     ),
                 ].filter((x) => typeof x === 'string');
 
-                validateSelectedFieldsExistence(explore, fieldsToValidate);
+                validateSelectedFieldsExistence(
+                    explore,
+                    fieldsToValidate,
+                    vizTool.customMetrics,
+                );
                 validateFilterRules(explore, filterRules);
                 validateMetricDimensionFilterPlacement(
                     explore,
                     vizTool.filters,
                 );
+                validateCustomMetricsDefinition(explore, vizTool.customMetrics);
 
                 const query = metricQueryTableViz({
                     vizConfig: vizTool.vizConfig,
                     filters: vizTool.filters,
                     maxLimit,
-                    customMetrics: null,
+                    customMetrics: vizTool.customMetrics,
                 });
 
-                const results = await runMiniMetricQuery(query, maxLimit);
+                const results = await runMiniMetricQuery(
+                    query,
+                    maxLimit,
+                    populateCustomMetricsSQL(vizTool.customMetrics, explore),
+                );
 
                 const fieldIds = results.rows[0]
                     ? Object.keys(results.rows[0])
