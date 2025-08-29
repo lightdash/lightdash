@@ -1,3 +1,10 @@
+## [0.1966.4](https://github.com/lightdash/lightdash/compare/0.1966.3...0.1966.4) (2025-08-29)
+
+
+### Bug Fixes
+
+* format pivoted results ([#16641](https://github.com/lightdash/lightdash/issues/16641)) ([fe46b46](https://github.com/lightdash/lightdash/commit/fe46b46dcdff0ef0ae4e3ecbca83dd91d11387f4))
+
 ## [0.1966.3](https://github.com/lightdash/lightdash/compare/0.1966.2...0.1966.3) (2025-08-29)
 
 
