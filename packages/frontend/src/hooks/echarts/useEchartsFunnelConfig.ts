@@ -135,13 +135,21 @@ const useEchartsFunnelConfig = (
                         ? `${percentOfMax}%`
                         : '';
                     const valueString = labels?.showValue ? formattedValue : '';
-                    const numbersString = `${
-                        valueString || percentString ? ':' : ''
-                    } ${[percentString, valueString]
-                        .filter(Boolean)
-                        .join(' - ')}`;
+                    const fieldName =
+                        labels?.position !== FunnelChartLabelPosition.HIDDEN
+                            ? name
+                            : '';
 
-                    return `${name}${numbersString}`;
+                    const parts = [];
+                    if (fieldName) parts.push(fieldName);
+                    if (valueString || percentString) {
+                        const numbersString = [percentString, valueString]
+                            .filter(Boolean)
+                            .join(' - ');
+                        parts.push(numbersString);
+                    }
+                    
+                    return parts.join(': ');
                 },
             },
             emphasis: {
