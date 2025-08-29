@@ -1,3 +1,4 @@
+import { DbtProjectType } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { updateFile } from '../../clients/github/Github';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -48,11 +49,13 @@ describe('GitIntegrationService', () => {
                 repo: 'repo',
                 path: 'path',
                 projectUuid: 'projectUuid',
-                type: 'customMetrics',
+                fieldType: 'customMetrics',
                 fields: [CUSTOM_METRIC],
                 branch: 'branch',
                 token: 'token',
                 quoteChar: `'`,
+                mainBranch: 'main',
+                type: DbtProjectType.GITHUB,
             });
             expect(updateFile).toHaveBeenCalledTimes(1);
             expect(updateFile).toHaveBeenCalledWith(
@@ -67,11 +70,13 @@ describe('GitIntegrationService', () => {
                 repo: 'repo',
                 path: 'path',
                 projectUuid: 'projectUuid',
-                type: 'customDimensions',
+                fieldType: 'customDimensions',
                 fields: [CUSTOM_DIMENSION],
                 branch: 'branch',
                 token: 'token',
                 quoteChar: `'`,
+                mainBranch: 'main',
+                type: DbtProjectType.GITHUB,
             });
             expect(updateFile).toHaveBeenCalledTimes(1);
             // @ts-expect-error
