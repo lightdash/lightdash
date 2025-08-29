@@ -162,7 +162,7 @@ export class PivotQueryBuilder {
      * @param aggregation - The aggregation type
      * @returns The field name with aggregation suffix
      */
-    private static getValueColumnFieldName(
+    static getValueColumnFieldName(
         reference: string,
         aggregation: string,
     ): string {
