@@ -701,6 +701,8 @@ export class AiAgentModel {
                     | 'agent_uuid'
                     | 'created_at'
                     | 'created_from'
+                    | 'title'
+                    | 'title_generated_at'
                 > &
                     Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> &
                     Pick<DbUser, 'user_uuid'> &
@@ -712,6 +714,8 @@ export class AiAgentModel {
                 `${AiThreadTableName}.agent_uuid`,
                 `${AiThreadTableName}.created_at`,
                 `${AiThreadTableName}.created_from`,
+                `${AiThreadTableName}.title`,
+                `${AiThreadTableName}.title_generated_at`,
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
@@ -741,6 +745,8 @@ export class AiAgentModel {
             agentUuid: row.agent_uuid!,
             createdAt: row.created_at as unknown as string,
             createdFrom: row.created_from,
+            title: row.title,
+            titleGeneratedAt: row.title_generated_at?.toString() ?? null,
             firstMessage: {
                 uuid: row.ai_prompt_uuid,
                 message: row.prompt,
@@ -1994,5 +2000,20 @@ export class AiAgentModel {
             .orderBy(`${AiArtifactsTableName}.created_at`, 'desc');
 
         return results;
+    }
+
+    async updateThreadTitle({
+        threadUuid,
+        title,
+    }: {
+        threadUuid: string;
+        title: string;
+    }): Promise<void> {
+        await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({
+                title,
+                title_generated_at: new Date(),
+            });
     }
 }

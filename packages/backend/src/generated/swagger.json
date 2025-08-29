@@ -5580,6 +5580,14 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "titleGeneratedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "createdFrom": {
                         "type": "string"
                     },
@@ -5596,6 +5604,8 @@
                 "required": [
                     "user",
                     "firstMessage",
+                    "titleGeneratedAt",
+                    "title",
                     "createdFrom",
                     "createdAt",
                     "agentUuid",
@@ -5637,6 +5647,14 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "titleGeneratedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "createdFrom": {
                         "type": "string"
                     },
@@ -5653,6 +5671,8 @@
                 "required": [
                     "user",
                     "firstMessage",
+                    "titleGeneratedAt",
+                    "title",
                     "createdFrom",
                     "createdAt",
                     "agentUuid",
@@ -5927,6 +5947,26 @@
                             }
                         },
                         "required": ["response"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadGenerateTitleResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
                         "type": "object"
                     },
                     "status": {
