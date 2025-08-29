@@ -149,7 +149,7 @@ const useEchartsFunnelConfig = (
                         parts.push(numbersString);
                     }
                     
-                    return parts.join(': ');
+                    return fieldName ? parts.join(': ') : parts.join('');
                 },
             },
             emphasis: {
