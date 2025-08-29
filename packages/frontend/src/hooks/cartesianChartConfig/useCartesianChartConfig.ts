@@ -881,7 +881,7 @@ const useCartesianChartConfig = ({
                     availableDimensions,
                     isStacked,
                     pivotKeys,
-                    rows: resultsData.rows,
+                    resultsData,
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
                     defaultLabel,
