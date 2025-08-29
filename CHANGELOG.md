@@ -1,3 +1,10 @@
+## [0.1966.3](https://github.com/lightdash/lightdash/compare/0.1966.2...0.1966.3) (2025-08-29)
+
+
+### Bug Fixes
+
+* **mcp:** Clear tags when setting a new project ([#16646](https://github.com/lightdash/lightdash/issues/16646)) ([e0c138a](https://github.com/lightdash/lightdash/commit/e0c138ab24d9c4134418c8f2a1fbfe40d300f83e))
+
 ## [0.1966.2](https://github.com/lightdash/lightdash/compare/0.1966.1...0.1966.2) (2025-08-29)
 
 
