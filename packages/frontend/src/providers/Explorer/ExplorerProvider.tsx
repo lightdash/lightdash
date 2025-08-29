@@ -3,8 +3,11 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
+    derivePivotConfigurationFromChart,
+    FeatureFlags,
     getAvailableParametersFromTables,
     getFieldRef,
+    getFieldsFromMetricQuery,
     getItemId,
     isTimeZone,
     lightdashVariablePattern,
@@ -23,6 +26,7 @@ import {
     type MetricQuery,
     type ParameterDefinitions,
     type ParameterValue,
+    type PivotConfiguration,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
@@ -49,6 +53,7 @@ import {
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import {
     executeQueryAndWaitForResults,
     useCancelQuery,
@@ -1458,6 +1463,10 @@ const ExplorerProvider: FC<
         unsavedChartVersion.metricQuery.sorts.length,
     ]);
 
+    const useSqlPivotResults = useFeatureFlagEnabled(
+        FeatureFlags.UseSqlPivotResults,
+    );
+
     // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {
         const fields = new Set([
@@ -1469,14 +1478,40 @@ const ExplorerProvider: FC<
         ]);
         const hasFields = fields.size > 0;
         if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
+            const metricQuery = unsavedChartVersion.metricQuery;
+            let pivotConfiguration: PivotConfiguration | undefined;
+
+            console.log('apply pivot config', useSqlPivotResults && !!explore);
+            if (useSqlPivotResults && explore) {
+                const items = getFieldsFromMetricQuery(metricQuery, explore);
+                pivotConfiguration = derivePivotConfigurationFromChart(
+                    {
+                        chartConfig: unsavedChartVersion.chartConfig,
+                        pivotConfig: unsavedChartVersion.pivotConfig,
+                    },
+                    metricQuery,
+                    items,
+                );
+                console.log('apply pivot config 2', {
+                    asd: {
+                        chartConfig: unsavedChartVersion.chartConfig,
+                        pivotConfig: unsavedChartVersion.pivotConfig,
+                    },
+                    metricQuery,
+                    items,
+                });
+            }
+            console.log('apply pivot config 3', pivotConfiguration);
+
             setValidQueryArgs({
                 projectUuid,
                 tableId: unsavedChartVersion.tableName,
-                query: unsavedChartVersion.metricQuery,
+                query: metricQuery,
                 ...(isEditMode ? {} : viewModeQueryArgs),
                 dateZoomGranularity,
                 invalidateCache: minimal,
                 parameters: unsavedChartVersion.parameters || {},
+                pivotConfiguration,
             });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
@@ -1494,6 +1529,10 @@ const ExplorerProvider: FC<
         unsavedChartVersion.metricQuery,
         unsavedChartVersion.tableName,
         unsavedChartVersion.parameters,
+        unsavedChartVersion.chartConfig,
+        unsavedChartVersion.pivotConfig,
+        explore,
+        useSqlPivotResults,
         projectUuid,
         isEditMode,
         viewModeQueryArgs,

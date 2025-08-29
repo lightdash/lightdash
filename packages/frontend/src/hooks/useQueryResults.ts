@@ -15,6 +15,7 @@ import {
     type MetricQuery,
     ParameterError,
     type ParametersValuesMap,
+    type PivotConfiguration,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ReadyQueryResultsPage,
@@ -39,6 +40,7 @@ export type QueryResultsProps = {
     context?: string;
     invalidateCache?: boolean;
     parameters?: ParametersValuesMap;
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /**
@@ -139,6 +141,7 @@ const executeAsyncQuery = (
             queryLimit = data.csvLimit ?? MAX_SAFE_INTEGER;
         }
 
+        console.log('executeAsyncMetricQuery', data.pivotConfiguration);
         return executeAsyncMetricQuery(
             data.projectUuid,
             {
@@ -157,6 +160,7 @@ const executeAsyncQuery = (
                 },
                 invalidateCache: true, // Note: do not cache explore queries
                 parameters: data.parameters,
+                pivotConfiguration: data.pivotConfiguration,
             },
             { signal },
         );
