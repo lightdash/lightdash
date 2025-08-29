@@ -1,3 +1,10 @@
+## [0.1966.2](https://github.com/lightdash/lightdash/compare/0.1966.1...0.1966.2) (2025-08-29)
+
+
+### Bug Fixes
+
+* **cli:** temporarily disable permissions warning for project creation ([#16651](https://github.com/lightdash/lightdash/issues/16651)) ([5846a6d](https://github.com/lightdash/lightdash/commit/5846a6d94d54db70a915ddc476dd4cd50e91c44a))
+
 ## [0.1966.1](https://github.com/lightdash/lightdash/compare/0.1966.0...0.1966.1) (2025-08-29)
 
 
