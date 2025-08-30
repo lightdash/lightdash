@@ -57,6 +57,23 @@ const mapTableCalculationsToCompletions = (
         return [...acc, technicalOption, friendlyOption];
     }, []);
 
+const mapCustomDimensionsToCompletions = (
+    customDimensions: { id: string; name: string }[],
+): Ace.Completion[] =>
+    customDimensions.reduce<Ace.Completion[]>((acc, customDim) => {
+        const technicalOption: Ace.Completion = {
+            caption: `\${${customDim.id}}`,
+            value: `\${${customDim.id}}`,
+            meta: 'Custom dimension',
+            score: Number.MAX_VALUE,
+        };
+        const friendlyOption: Ace.Completion = {
+            ...technicalOption,
+            caption: customDim.name,
+        };
+        return [...acc, technicalOption, friendlyOption];
+    }, []);
+
 export const useTableCalculationAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
@@ -69,6 +86,10 @@ export const useTableCalculationAceEditorCompleter = (): {
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
     );
     const tableCalculations = useExplorerContext(
         (context) =>
@@ -119,10 +140,23 @@ export const useTableCalculationAceEditorCompleter = (): {
                 [],
             );
 
-            // Add table calculations to completions
+            // Add custom dimensions to completions (filtered to active ones)
+            const activeCustomDimensions = (customDimensions || []).filter(
+                (customDim) => activeFields.has(customDim.id),
+            );
+            const customDimensionCompletions = mapCustomDimensionsToCompletions(
+                activeCustomDimensions,
+            );
+
+            // Doesn't need to be filtered to active -- table calcs don't exist when not active
             const tableCalculationCompletions =
                 mapTableCalculationsToCompletions(tableCalculations);
-            const allCompletions = [...fields, ...tableCalculationCompletions];
+
+            const allCompletions = [
+                ...fields,
+                ...tableCalculationCompletions,
+                ...customDimensionCompletions,
+            ];
 
             langTools.setCompleters([createCompleter(allCompletions)]);
         }
@@ -134,6 +168,7 @@ export const useTableCalculationAceEditorCompleter = (): {
         explore,
         activeFields,
         additionalMetrics,
+        customDimensions,
         tableCalculations,
     ]);
 
