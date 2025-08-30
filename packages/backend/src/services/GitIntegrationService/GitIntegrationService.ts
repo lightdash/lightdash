@@ -4,6 +4,8 @@ import {
     AdditionalMetric,
     ApiGithubDbtWritePreview,
     CustomDimension,
+    DbtGithubProjectConfig,
+    DbtGitlabProjectConfig,
     DbtProjectType,
     DbtSchemaEditor,
     ForbiddenError,
@@ -26,17 +28,8 @@ import {
     LightdashAnalytics,
     WriteBackEvent,
 } from '../../analytics/LightdashAnalytics';
-import {
-    checkFileDoesNotExist,
-    createBranch,
-    createFile,
-    createPullRequest,
-    getBranches,
-    getFileContent,
-    getLastCommit,
-    getOrRefreshToken,
-    updateFile,
-} from '../../clients/github/Github';
+import * as GithubClient from '../../clients/github/Github';
+import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -54,7 +47,7 @@ type GitIntegrationServiceArguments = {
     analytics: LightdashAnalytics;
 };
 
-type GithubProps = {
+type GitProps = {
     owner: string;
     repo: string;
     branch: string;
@@ -63,7 +56,12 @@ type GithubProps = {
     installationId?: string; // For github requests using the installation id as a bot
     mainBranch: string;
     quoteChar: `"` | `'`;
+    hostDomain?: string; // For GitLab or GitHub Enterprise
+    type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
 };
+
+// Keep backward compatibility
+type GithubProps = GitProps;
 
 export class GitIntegrationService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -117,36 +115,53 @@ export class GitIntegrationService extends BaseService {
         };
     }
 
-    static async createBranch({
-        owner,
-        repo,
-        mainBranch,
-        token,
-        branch,
-    }: {
-        branch: string;
-        owner: string;
-        repo: string;
-        mainBranch: string;
-        token: string;
-    }) {
-        const { sha: commitSha } = await getLastCommit({
-            owner,
-            repo,
-            branch: mainBranch,
-            token,
-        });
+    static async createBranch(gitProps: GitProps) {
+        const { owner, repo, mainBranch, token, branch, type, hostDomain } =
+            gitProps;
+
+        let commitSha: string;
+        if (type === DbtProjectType.GITHUB) {
+            const { sha } = await GithubClient.getLastCommit({
+                owner,
+                repo,
+                branch: mainBranch,
+                token,
+            });
+            commitSha = sha;
+        } else {
+            const { sha } = await GitlabClient.getLastCommit({
+                owner,
+                repo,
+                branch: mainBranch,
+                token,
+                hostDomain,
+            });
+            commitSha = sha;
+        }
+
         Logger.debug(
             `Creating branch ${branch} from ${mainBranch} (commit: ${commitSha}) in ${owner}/${repo}`,
         );
-        // create branch in git
-        const newBranch = await createBranch({
-            branch,
-            owner,
-            repo,
-            sha: commitSha,
-            token,
-        });
+
+        if (type === DbtProjectType.GITHUB) {
+            await GithubClient.createBranch({
+                branch,
+                owner,
+                repo,
+                sha: commitSha,
+                token,
+            });
+        } else {
+            await GitlabClient.createBranch({
+                branch,
+                owner,
+                repo,
+                sha: commitSha,
+                token,
+                hostDomain,
+            });
+        }
+
         Logger.debug(
             `Successfully created branch ${branch} in ${owner}/${repo}`,
         );
@@ -210,6 +225,8 @@ Affected charts:
         table,
         token,
         branch,
+        type,
+        hostDomain,
     }: {
         owner: string;
         repo: string;
@@ -218,6 +235,8 @@ Affected charts:
         table: string;
         branch: string;
         token: string;
+        type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
+        hostDomain?: string;
     }) {
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
@@ -229,17 +248,35 @@ Affected charts:
                 'Your project needs to be compiled before writing back custom fields. Please refresh your project to fix this issue.',
             );
 
-        // Github's path cannot start with a slash
         const fileName = GitIntegrationService.removeExtraSlashes(
             `${path}/${explore.ymlPath}`,
         );
-        const { content: fileContent, sha: fileSha } = await getFileContent({
-            fileName,
-            owner,
-            repo,
-            branch,
-            token,
-        });
+
+        let fileContent: string;
+        let fileSha: string;
+
+        if (type === DbtProjectType.GITHUB) {
+            const result = await GithubClient.getFileContent({
+                fileName,
+                owner,
+                repo,
+                branch,
+                token,
+            });
+            fileContent = result.content;
+            fileSha = result.sha;
+        } else {
+            const result = await GitlabClient.getFileContent({
+                fileName,
+                owner,
+                repo,
+                branch,
+                token,
+                hostDomain,
+            });
+            fileContent = result.content;
+            fileSha = result.sha;
+        }
 
         const yamlSchema = new DbtSchemaEditor(fileContent, fileName);
 
@@ -250,36 +287,38 @@ Affected charts:
         return { yamlSchema, fileName, fileContent, fileSha };
     }
 
-    async updateFile({
-        owner,
-        repo,
-        path,
-        projectUuid,
-        token,
-        branch,
-        quoteChar,
-        fields,
-        type,
-    }: {
-        owner: string;
-        repo: string;
-        path: string;
-        projectUuid: string;
-        branch: string;
-        token: string;
-        quoteChar?: `"` | `'`;
-    } & (
-        | {
-              type: 'customDimensions';
-              fields: CustomDimension[];
-          }
-        | {
-              type: 'customMetrics';
-              fields: AdditionalMetric[];
-          }
-    )): Promise<void> {
+    async updateFile(
+        args: GitProps &
+            (
+                | {
+                      fieldType: 'customDimensions';
+                      fields: CustomDimension[];
+                  }
+                | {
+                      fieldType: 'customMetrics';
+                      fields: AdditionalMetric[];
+                  }
+            ) & {
+                projectUuid: string;
+            },
+    ): Promise<void> {
+        const {
+            owner,
+            repo,
+            path,
+            projectUuid,
+            token,
+            branch,
+            quoteChar,
+            fields,
+            fieldType,
+            type: gitType,
+            hostDomain,
+        } = args;
         const fieldsType =
-            type === 'customDimensions' ? 'custom dimension' : 'custom metric';
+            fieldType === 'customDimensions'
+                ? 'custom dimension'
+                : 'custom metric';
 
         if (fields === undefined || fields?.length === 0)
             throw new ParameterError(`No custom ${fieldsType}s found`);
@@ -298,6 +337,8 @@ Affected charts:
                     branch,
                     token,
                     projectUuid,
+                    type: gitType,
+                    hostDomain,
                 });
 
             if (!yamlSchema.hasModels()) {
@@ -305,7 +346,7 @@ Affected charts:
             }
 
             let updatedYml: string;
-            if (type === 'customDimensions') {
+            if (fieldType === 'customDimensions') {
                 const warehouseCredentials =
                     await this.projectModel.getWarehouseCredentialsForProject(
                         projectUuid,
@@ -322,26 +363,43 @@ Affected charts:
                     .toString({
                         quoteChar,
                     });
-            } else if (type === 'customMetrics') {
+            } else if (fieldType === 'customMetrics') {
                 updatedYml = yamlSchema
                     .addCustomMetrics(fieldsForTable as AdditionalMetric[])
                     .toString({
                         quoteChar,
                     });
             } else {
-                throw new ParameterError(`Unknown type: ${type}`);
+                throw new ParameterError(`Unknown type: ${fieldType}`);
             }
 
-            await updateFile({
-                owner,
-                repo,
-                fileName,
-                content: updatedYml,
-                fileSha,
-                branchName: branch,
-                token,
-                message: `Updated file ${fileName} with ${fieldsForTable?.length} custom ${fieldsType} from table ${table}`,
-            });
+            const message = `Updated file ${fileName} with ${fieldsForTable?.length} custom ${fieldsType} from table ${table}`;
+
+            if (gitType === DbtProjectType.GITHUB) {
+                await GithubClient.updateFile({
+                    owner,
+                    repo,
+                    fileName,
+                    content: updatedYml,
+                    fileSha,
+                    branchName: branch,
+                    token,
+                    message,
+                });
+            } else {
+                await GitlabClient.updateFile({
+                    owner,
+                    repo,
+                    fileName,
+                    content: updatedYml,
+                    fileSha,
+                    branch,
+                    token,
+                    hostDomain,
+                    message,
+                });
+            }
+
             Logger.debug(
                 `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branch})`,
             );
@@ -351,21 +409,38 @@ Affected charts:
     async getProjectRepo(projectUuid: string) {
         const project = await this.projectModel.get(projectUuid);
 
-        if (project.dbtConnection.type !== DbtProjectType.GITHUB)
+        if (
+            ![DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
+                project.dbtConnection.type,
+            )
+        )
             throw new ParameterError(
                 `invalid dbt connection type ${project.dbtConnection.type} for project ${project.name}`,
             );
-        const [owner, repo] = project.dbtConnection.repository.split('/');
-        const { branch } = project.dbtConnection;
-        const path = project.dbtConnection.project_sub_path;
-        return { owner, repo, branch, path };
+        const connection = project.dbtConnection as
+            | DbtGithubProjectConfig
+            | DbtGitlabProjectConfig;
+        const [owner, repo] = connection.repository.split('/');
+        const { branch } = connection;
+        const path = connection.project_sub_path;
+        const hostDomain = connection.host_domain;
+        return {
+            owner,
+            repo,
+            branch,
+            path,
+            hostDomain,
+            type: project.dbtConnection.type as
+                | DbtProjectType.GITHUB
+                | DbtProjectType.GITLAB,
+        };
     }
 
     async getOrUpdateToken(organizationUuid: string) {
         const { token, refreshToken } =
             await this.githubAppInstallationsModel.getAuth(organizationUuid);
         const { token: newToken, refreshToken: newRefreshToken } =
-            await getOrRefreshToken(token, refreshToken);
+            await GithubClient.getOrRefreshToken(token, refreshToken);
         if (newToken !== token) {
             await this.githubAppInstallationsModel.updateAuth(
                 organizationUuid,
@@ -387,31 +462,48 @@ Affected charts:
     - installationId: Optional, The installation id of the user
     - quoteChar: The quote character to use when replacing YML content ("" or "'")
     */
-    private async getGithubProps(
+    private async getGitProps(
         user: SessionUser,
         projectUuid: string,
         quoteChar: `"` | `'`,
     ) {
-        const { owner, repo, branch, path } = await this.getProjectRepo(
-            projectUuid,
-        );
+        const { owner, repo, branch, path, hostDomain, type } =
+            await this.getProjectRepo(projectUuid);
         let token: string = '';
         let installationId: string | undefined;
-        try {
-            installationId = await this.getInstallationId(user); // This should throw an error if there is no github installation
-            token = await this.getOrUpdateToken(user.organizationUuid!);
-        } catch {
+
+        if (type === DbtProjectType.GITHUB) {
+            // GitHub logic - try app installation first, fallback to PAT
+            try {
+                installationId = await this.getInstallationId(user);
+                token = await this.getOrUpdateToken(user.organizationUuid!);
+            } catch {
+                const project = await this.projectModel.getWithSensitiveFields(
+                    projectUuid,
+                );
+                const connection =
+                    project.dbtConnection as DbtGithubProjectConfig;
+                token = connection.personal_access_token || '';
+                if (!token) {
+                    throw new ParameterError(
+                        'Invalid personal access token for GitHub project',
+                    );
+                }
+            }
+        } else if (type === DbtProjectType.GITLAB) {
+            // GitLab logic - only personal access tokens supported
             const project = await this.projectModel.getWithSensitiveFields(
                 projectUuid,
             );
-            if (project.dbtConnection.type === DbtProjectType.GITHUB) {
-                token = project.dbtConnection.personal_access_token || '';
-                if (!token) {
-                    throw new ParameterError('Invalid personal access token');
-                }
-            } else {
-                throw new ParameterError('No github project found');
+            const connection = project.dbtConnection as DbtGitlabProjectConfig;
+            token = connection.personal_access_token || '';
+            if (!token) {
+                throw new ParameterError(
+                    'Invalid personal access token for GitLab project',
+                );
             }
+        } else {
+            throw new ParameterError(`Unsupported project type: ${type}`);
         }
 
         const userName = `${snakeCaseName(
@@ -419,17 +511,28 @@ Affected charts:
         )}${snakeCaseName(user.lastName)}`;
         const branchName = `lightdash-${userName}-${nanoid(4)}`;
 
-        const githubProps: GithubProps = {
+        const gitProps: GitProps = {
             owner,
             repo,
             branch: branchName,
             mainBranch: branch,
             token,
             path,
+            hostDomain,
+            type,
             installationId,
             quoteChar,
         };
-        return githubProps;
+        return gitProps;
+    }
+
+    // Keep backward compatibility
+    private async getGithubProps(
+        user: SessionUser,
+        projectUuid: string,
+        quoteChar: `"` | `'`,
+    ) {
+        return this.getGitProps(user, projectUuid, quoteChar);
     }
 
     async createPullRequest(
@@ -464,19 +567,24 @@ Affected charts:
             throw new ForbiddenError();
         }
 
-        const githubProps = await this.getGithubProps(
-            user,
-            projectUuid,
-            quoteChar,
-        );
+        const gitProps = await this.getGitProps(user, projectUuid, quoteChar);
 
-        await GitIntegrationService.createBranch(githubProps);
-        await this.updateFile({
-            ...githubProps,
-            ...args,
-            projectUuid,
-            quoteChar,
-        });
+        await GitIntegrationService.createBranch(gitProps);
+        if (args.type === 'customMetrics') {
+            await this.updateFile({
+                ...gitProps,
+                fieldType: 'customMetrics',
+                fields: args.fields,
+                projectUuid,
+            });
+        } else {
+            await this.updateFile({
+                ...gitProps,
+                fieldType: 'customDimensions',
+                fields: args.fields,
+                projectUuid,
+            });
+        }
 
         const fieldsInfo =
             fields.length === 1
@@ -489,18 +597,42 @@ Affected charts:
             context: QueryExecutionContext.EXPLORE,
         };
         try {
-            const pullRequest = await createPullRequest({
-                ...githubProps,
-                title: `Adds ${fieldsInfo}`,
-                body: `Created by Lightdash, this pull request adds ${fieldsInfo} to the dbt model.
+            let pullRequest: {
+                html_url: string;
+                title: string;
+                number: number;
+            };
+
+            if (gitProps.type === DbtProjectType.GITHUB) {
+                pullRequest = await GithubClient.createPullRequest({
+                    ...gitProps,
+                    title: `Adds ${fieldsInfo}`,
+                    body: `Created by Lightdash, this pull request adds ${fieldsInfo} to the dbt model.
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
 > ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this pull request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`,
-                head: githubProps.branch,
-                base: githubProps.mainBranch,
-            });
+                    head: gitProps.branch,
+                    base: gitProps.mainBranch,
+                });
+            } else {
+                pullRequest = await GitlabClient.createPullRequest({
+                    ...gitProps,
+                    title: `Adds ${fieldsInfo}`,
+                    body: `Created by Lightdash, this merge request adds ${fieldsInfo} to the dbt model.
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+
+> ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this merge request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this merge request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`,
+                    head: gitProps.branch,
+                    base: gitProps.mainBranch,
+                });
+            }
+
             Logger.debug(
-                `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
+                `Successfully created ${
+                    gitProps.type === DbtProjectType.GITHUB
+                        ? 'pull request'
+                        : 'merge request'
+                } #${pullRequest.number} in ${gitProps.owner}/${gitProps.repo}`,
             );
 
             this.analytics.track({
@@ -546,20 +678,36 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     }
 
     private static async createSqlFile({
-        githubProps,
+        gitProps,
         name,
         sql,
     }: {
-        githubProps: GithubProps;
+        gitProps: GitProps;
         name: string;
         sql: string;
     }) {
         const fileName = GitIntegrationService.getFilePath(
-            githubProps.path,
+            gitProps.path,
             name,
             'sql',
         );
-        await checkFileDoesNotExist({ ...githubProps, path: fileName });
+
+        if (gitProps.type === DbtProjectType.GITHUB) {
+            await GithubClient.checkFileDoesNotExist({
+                ...gitProps,
+                path: fileName,
+            });
+        } else {
+            await GitlabClient.checkFileDoesNotExist({
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                path: fileName,
+                branch: gitProps.branch,
+                token: gitProps.token,
+                hostDomain: gitProps.hostDomain,
+            });
+        }
+
         const content = `
 {{
   config(
@@ -570,29 +718,58 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 ${sql}
 `;
 
-        return createFile({
-            ...githubProps,
+        const message = `Created file ${fileName} `;
+
+        if (gitProps.type === DbtProjectType.GITHUB) {
+            return GithubClient.createFile({
+                ...gitProps,
+                fileName,
+                content,
+                message,
+            });
+        }
+        return GitlabClient.createFile({
+            owner: gitProps.owner,
+            repo: gitProps.repo,
             fileName,
             content,
-            message: `Created file ${fileName} `,
+            branch: gitProps.branch,
+            token: gitProps.token,
+            hostDomain: gitProps.hostDomain,
+            message,
         });
     }
 
     private static async createYmlFile({
-        githubProps,
+        gitProps,
         name,
         columns,
     }: {
-        githubProps: GithubProps;
+        gitProps: GitProps;
         name: string;
         columns: VizColumn[];
     }) {
         const fileName = GitIntegrationService.getFilePath(
-            githubProps.path,
+            gitProps.path,
             name,
             'yml',
         );
-        await checkFileDoesNotExist({ ...githubProps, path: fileName });
+
+        if (gitProps.type === DbtProjectType.GITHUB) {
+            await GithubClient.checkFileDoesNotExist({
+                ...gitProps,
+                path: fileName,
+            });
+        } else {
+            await GitlabClient.checkFileDoesNotExist({
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                path: fileName,
+                branch: gitProps.branch,
+                token: gitProps.token,
+                hostDomain: gitProps.hostDomain,
+            });
+        }
 
         const content = new DbtSchemaEditor(`version: 2`)
             .addModel({
@@ -611,14 +788,28 @@ ${sql}
                 })),
             })
             .toString({
-                quoteChar: githubProps.quoteChar,
+                quoteChar: gitProps.quoteChar,
             });
 
-        return createFile({
-            ...githubProps,
+        const message = `Created file ${fileName} `;
+
+        if (gitProps.type === DbtProjectType.GITHUB) {
+            return GithubClient.createFile({
+                ...gitProps,
+                fileName,
+                content,
+                message,
+            });
+        }
+        return GitlabClient.createFile({
+            owner: gitProps.owner,
+            repo: gitProps.repo,
             fileName,
             content,
-            message: `Created file ${fileName} `,
+            branch: gitProps.branch,
+            token: gitProps.token,
+            hostDomain: gitProps.hostDomain,
+            message,
         });
     }
 
@@ -630,25 +821,27 @@ ${sql}
         columns: VizColumn[],
         quoteChar: `"` | `'` = '"',
     ): Promise<PullRequestCreated> {
-        const githubProps = await this.getGithubProps(
-            user,
-            projectUuid,
-            quoteChar,
-        );
-        await GitIntegrationService.createBranch(githubProps);
+        const gitProps = await this.getGitProps(user, projectUuid, quoteChar);
+        await GitIntegrationService.createBranch(gitProps);
 
         await GitIntegrationService.createSqlFile({
-            githubProps,
+            gitProps,
             name,
             sql,
         });
         await GitIntegrationService.createYmlFile({
-            githubProps,
+            gitProps,
             name,
             columns,
         });
         Logger.debug(
-            `Creating pull request from branch ${githubProps.branch} to ${githubProps.mainBranch} in ${githubProps.owner}/${githubProps.repo}`,
+            `Creating ${
+                gitProps.type === DbtProjectType.GITHUB
+                    ? 'pull request'
+                    : 'merge request'
+            } from branch ${gitProps.branch} to ${gitProps.mainBranch} in ${
+                gitProps.owner
+            }/${gitProps.repo}`,
         );
         const eventProperties: WriteBackEvent['properties'] = {
             name,
@@ -657,18 +850,42 @@ ${sql}
             context: QueryExecutionContext.SQL_RUNNER,
         };
         try {
-            const pullRequest = await createPullRequest({
-                ...githubProps,
-                title: `Creates \`${name}\` SQL and YML model`,
-                body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
+            let pullRequest: {
+                html_url: string;
+                title: string;
+                number: number;
+            };
+
+            if (gitProps.type === DbtProjectType.GITHUB) {
+                pullRequest = await GithubClient.createPullRequest({
+                    ...gitProps,
+                    title: `Creates \`${name}\` SQL and YML model`,
+                    body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
 
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `,
-                head: githubProps.branch,
-                base: githubProps.mainBranch,
-            });
+                    head: gitProps.branch,
+                    base: gitProps.mainBranch,
+                });
+            } else {
+                pullRequest = await GitlabClient.createPullRequest({
+                    ...gitProps,
+                    title: `Creates \`${name}\` SQL and YML model`,
+                    body: `Created by Lightdash, this merge request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
+
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+            `,
+                    head: gitProps.branch,
+                    base: gitProps.mainBranch,
+                });
+            }
+
             Logger.debug(
-                `Successfully created pull request #${pullRequest.number} in ${githubProps.owner}/${githubProps.repo}`,
+                `Successfully created ${
+                    gitProps.type === DbtProjectType.GITHUB
+                        ? 'pull request'
+                        : 'merge request'
+                } #${pullRequest.number} in ${gitProps.owner}/${gitProps.repo}`,
             );
 
             this.analytics.track({
@@ -698,10 +915,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         name: string,
     ): Promise<ApiGithubDbtWritePreview['results']> {
-        const { owner, repo, path } = await this.getProjectRepo(projectUuid);
+        const { owner, repo, path, type, hostDomain } =
+            await this.getProjectRepo(projectUuid);
+
+        const baseUrl =
+            type === DbtProjectType.GITHUB
+                ? `https://github.com/${owner}/${repo}`
+                : `https://${hostDomain || 'gitlab.com'}/${owner}/${repo}`;
 
         return {
-            url: `https://github.com/${owner}/${repo}`,
+            url: baseUrl,
             repo,
             path: `${path}/models/lightdash`,
             files: [
@@ -713,8 +936,20 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     }
 
     async getBranches(user: SessionUser, projectUuid: string) {
-        const githubProps = await this.getGithubProps(user, projectUuid, '"');
-        const branches = await getBranches(githubProps);
+        const gitProps = await this.getGitProps(user, projectUuid, '"');
+
+        let branches: Array<{ name: string }>;
+        if (gitProps.type === DbtProjectType.GITHUB) {
+            branches = await GithubClient.getBranches(gitProps);
+        } else {
+            branches = await GitlabClient.getBranches({
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                token: gitProps.token,
+                hostDomain: gitProps.hostDomain,
+            });
+        }
+
         return branches.map((branch) => branch.name);
     }
 }

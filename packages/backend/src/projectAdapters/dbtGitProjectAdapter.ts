@@ -57,7 +57,7 @@ const gitErrorHandler = (e: unknown, repository: string) => {
     }
     if (e.message.includes('Repository not found')) {
         throw new NotFoundError(
-            `Could not find Git repository "${repository}". Check that your personal access token has access to the repository and that the repository name is correct.`,
+            `Could not find git repository "${repository}". Check that your personal access token has access to the repository and that the repository name is correct.`,
         );
     }
     if (e instanceof GitError) {
