@@ -91,22 +91,74 @@ export const checkProjectCreationPermission = async (
             );
         }
 
-        // Check if user has permission to create project of the specified type
-        const canCreate = ability.can(
-            'create',
-            subject('Project', {
-                organizationUuid: user.organizationUuid,
-                upstreamProjectUuid,
-                type: projectType,
-            }),
-        );
+        // Replicates logic from ProjectService.validateProjectCreationPermissions
+        switch (projectType) {
+            case ProjectType.DEFAULT:
+                if (
+                    ability.can(
+                        'create',
+                        subject('Project', {
+                            organizationUuid: user.organizationUuid,
+                            type: ProjectType.DEFAULT,
+                        }),
+                    )
+                ) {
+                    return;
+                }
+                throw new ForbiddenError(
+                    "You don't have permission to create projects",
+                );
 
-        if (!canCreate) {
-            const projectTypeText =
-                projectType === ProjectType.PREVIEW ? 'preview ' : '';
-            throw new ForbiddenError(
-                `You don't have permission to create ${projectTypeText}projects.`,
-            );
+            case ProjectType.PREVIEW:
+                if (upstreamProjectUuid) {
+                    if (
+                        // checks if user has permission to access upstream project
+                        ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid: user.organizationUuid,
+                                projectUuid: upstreamProjectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            "Unable to create preview project: you don't have permission to access upstream project",
+                        );
+                    }
+
+                    if (
+                        // checks if user has permission to create project from an upstream project on a project level
+                        ability.can(
+                            'create',
+                            subject('Project', {
+                                upstreamProjectUuid,
+                                type: ProjectType.PREVIEW,
+                            }),
+                        )
+                    ) {
+                        return;
+                    }
+                }
+
+                if (
+                    // checks if user has permission to create project on an organization level
+                    ability.can(
+                        'create',
+                        subject('Project', {
+                            organizationUuid: user.organizationUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    )
+                ) {
+                    return;
+                }
+
+                throw new ForbiddenError(
+                    "You don't have permission to create preview projects",
+                );
+
+            default:
+                throw new Error(`Unknown project type: ${projectType}`);
         }
     } catch (err) {
         if (
