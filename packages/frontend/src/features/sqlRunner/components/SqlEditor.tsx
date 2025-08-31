@@ -75,8 +75,9 @@ export const SqlEditor: FC<{
         search: undefined,
     });
 
+    // TODO: Update this type to use the results of the API call
     const transformedData:
-        | { database: string; tablesBySchema: TablesBySchema }
+        | { database?: string; tablesBySchema?: TablesBySchema }
         | undefined = useMemo(() => {
         if (!tablesData || isEmpty(tablesData)) return undefined;
         const [database] = Object.keys(tablesData);
@@ -84,10 +85,12 @@ export const SqlEditor: FC<{
 
         const tablesBySchema = Object.entries(tablesData).flatMap(
             ([, schemas]) =>
-                Object.entries(schemas).map(([schema, tables]) => ({
-                    schema,
-                    tables,
-                })),
+                schemas
+                    ? Object.entries(schemas).map(([schema, tables]) => ({
+                          schema,
+                          tables,
+                      }))
+                    : [],
         );
         return {
             database,
