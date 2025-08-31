@@ -1035,17 +1035,27 @@ const getEchartAxes = ({
         }
 
         axisConfig.nameGap = defaultNameGap || 0;
-        if (rotate) {
-            const rotateRadians = (rotate * Math.PI) / 180;
+
+        // Smart label handling: detect long labels and apply rotation automatically
+        const isLongLabel = longestLabelWidth && longestLabelWidth > 80; // Threshold for considering a label "long"
+        const shouldAutoRotate = !rotate && isLongLabel;
+        const effectiveRotate = rotate || (shouldAutoRotate ? 45 : 0);
+
+        if (effectiveRotate) {
+            const rotateRadians = (effectiveRotate * Math.PI) / 180;
             const oppositeSide =
                 (longestLabelWidth || 0) * Math.sin(rotateRadians);
             axisConfig.axisLabel = axisConfig.axisLabel || {};
-            axisConfig.axisLabel.rotate = rotate;
+            axisConfig.axisLabel.rotate = effectiveRotate;
             axisConfig.axisLabel.margin = 12;
             axisConfig.nameGap = oppositeSide + 15;
+
+            
+            axisConfig.axisLabel.hideOverlap = false;
         } else {
             axisConfig.axisLabel = axisConfig.axisLabel || {};
-            axisConfig.axisLabel.hideOverlap = true;
+           
+            axisConfig.axisLabel.hideOverlap = !isLongLabel;
         }
 
         return axisConfig;
