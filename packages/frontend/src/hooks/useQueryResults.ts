@@ -141,7 +141,6 @@ const executeAsyncQuery = (
             queryLimit = data.csvLimit ?? MAX_SAFE_INTEGER;
         }
 
-        console.log('executeAsyncMetricQuery', data.pivotConfiguration);
         return executeAsyncMetricQuery(
             data.projectUuid,
             {
