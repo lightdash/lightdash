@@ -10,13 +10,15 @@ export type ResponsiveGridLayoutProps = {
     rowHeight: number;
 };
 
+const DEFAULT_COLS = 36;
+
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,
     isEditMode = false,
-    cols = 36,
+    cols = DEFAULT_COLS,
 ): Layout => {
     // Scale factor based on the number of columns (36 is the default for lg)
-    const scaleFactor = cols / 36;
+    const scaleFactor = cols / DEFAULT_COLS;
 
     return {
         minH: 1,
