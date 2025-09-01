@@ -1,3 +1,10 @@
+# [0.1971.0](https://github.com/lightdash/lightdash/compare/0.1970.0...0.1971.0) (2025-09-01)
+
+
+### Features
+
+* add duplicate role endpoint ([#16610](https://github.com/lightdash/lightdash/issues/16610)) ([e3ffa65](https://github.com/lightdash/lightdash/commit/e3ffa65d2196aea3679e5ce98ad2b7da2d5f06dc))
+
 # [0.1970.0](https://github.com/lightdash/lightdash/compare/0.1969.1...0.1970.0) (2025-09-01)
 
 
