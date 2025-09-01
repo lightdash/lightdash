@@ -1,3 +1,10 @@
+# [0.1970.0](https://github.com/lightdash/lightdash/compare/0.1969.1...0.1970.0) (2025-09-01)
+
+
+### Features
+
+* allow creating custom metrics on table and viz tool calls ([#16608](https://github.com/lightdash/lightdash/issues/16608)) ([dd0872a](https://github.com/lightdash/lightdash/commit/dd0872a157dd789db98bd6c2e9cbbbc9b0e7cfcd))
+
 ## [0.1969.1](https://github.com/lightdash/lightdash/compare/0.1969.0...0.1969.1) (2025-09-01)
 
 
