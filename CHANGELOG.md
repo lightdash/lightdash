@@ -1,3 +1,15 @@
+# [0.1968.0](https://github.com/lightdash/lightdash/compare/0.1967.0...0.1968.0) (2025-09-01)
+
+
+### Bug Fixes
+
+* move AI thread title migration to EE directory ([#16668](https://github.com/lightdash/lightdash/issues/16668)) ([459ec5c](https://github.com/lightdash/lightdash/commit/459ec5cfbbc4510537194372abce272c10873dfb))
+
+
+### Features
+
+* support multiple email domains in organization setup ([#16660](https://github.com/lightdash/lightdash/issues/16660)) ([55925b0](https://github.com/lightdash/lightdash/commit/55925b093549ab8f5f308539c91344b07eea740e)), closes [#16642](https://github.com/lightdash/lightdash/issues/16642)
+
 # [0.1967.0](https://github.com/lightdash/lightdash/compare/0.1966.5...0.1967.0) (2025-09-01)
 
 
