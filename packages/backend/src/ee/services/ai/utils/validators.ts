@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     booleanFilterSchema,
     CompiledField,
+    convertAdditionalMetric,
     CustomMetricBaseSchema,
     dateFilterSchema,
     Explore,
@@ -15,15 +16,19 @@ import {
     getFilterRulesFromGroup,
     getFilterTypeFromItemType,
     getItemId,
+    isAdditionalMetric,
     isDimension,
     isMetric,
+    Metric,
     numberFilterSchema,
+    renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     stringFilterSchema,
     SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
+import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
 
 /**
@@ -137,7 +142,10 @@ export function validateCustomMetricsDefinition(
     }
 }
 
-function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
+function validateFilterRule(
+    filterRule: FilterRule,
+    field: CompiledField | AdditionalMetric,
+) {
     const filterType = getFilterTypeFromItemType(field.type);
 
     switch (filterType) {
@@ -211,16 +219,29 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
     }
 
     try {
-        renderFilterRuleSqlFromField(
-            filterRule,
-            field,
-            // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw
-            '"',
-            "'",
-            (string: string) => string.replaceAll('\\', '\\\\'),
-            WeekDay.SUNDAY,
-            SupportedDbtAdapter.BIGQUERY,
-        );
+        if (isAdditionalMetric(field)) {
+            renderFilterRuleSql(
+                filterRule,
+                field.type,
+                field.sql,
+                // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw
+                '"',
+                (string: string) => string.replaceAll('\\', '\\\\'),
+                WeekDay.SUNDAY,
+                SupportedDbtAdapter.BIGQUERY,
+            );
+        } else {
+            renderFilterRuleSqlFromField(
+                filterRule,
+                field,
+                // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw
+                '"',
+                "'",
+                (string: string) => string.replaceAll('\\', '\\\\'),
+                WeekDay.SUNDAY,
+                SupportedDbtAdapter.BIGQUERY,
+            );
+        }
     } catch (e) {
         const errorMessage = `Error: ${getErrorMessage(e)}
 
@@ -236,20 +257,30 @@ ${serializeData(filterRule, 'json')}`;
 export function validateFilterRules(
     explore: Explore,
     filterRules: FilterRule[],
+    customMetrics?: CustomMetricBaseSchema[] | null,
 ) {
     const exploreFields = getFields(explore);
-    const exploreFieldIds = exploreFields.map(getItemId);
+    const customMetricFields = populateCustomMetricsSQL(
+        customMetrics || [],
+        explore,
+    );
+    const allFields = [...exploreFields, ...customMetricFields];
+    const allFieldIds = allFields.map(getItemId);
     const filterRuleErrors: string[] = [];
 
     filterRules.forEach((rule) => {
-        const exploreFieldIndex = exploreFieldIds.indexOf(rule.target.fieldId);
-        const field = exploreFields[exploreFieldIndex];
+        const fieldIndex = allFieldIds.indexOf(rule.target.fieldId);
+        const field = allFields[fieldIndex];
 
         if (!field) {
             filterRuleErrors.push(
                 `Error: the field with id "${
                     rule.target.fieldId
-                }" does not exist in the selected explore.
+                }" does not exist in ${
+                    customMetricFields.includes(field)
+                        ? 'custom metrics'
+                        : 'the selected explore'
+                }.
 FilterRule:
 ${serializeData(rule, 'json')}`,
             );
@@ -268,9 +299,8 @@ ${serializeData(rule, 'json')}`,
             .map((e) => `<filterRuleError>${e}</filterRuleError>`)
             .join('\n');
 
-        // TODO: Remove this note once custom metrics are supported in filter rules
         const errorMessage = `The following filter rules are invalid:
-[Note: Custom metrics are not supported in filter rules yet.]
+
 Errors:
 ${filterRuleErrorStrings}`;
 
@@ -284,15 +314,26 @@ ${filterRuleErrorStrings}`;
  * Validate that metrics are not placed in dimension filters and vice versa
  * @param explore - The explore containing field definitions
  * @param filters - The filters object containing dimension and metric filter groups
+ * @param customMetrics - Custom metrics that may be used in filters
  */
 export function validateMetricDimensionFilterPlacement(
     explore: Explore,
     filters?: Filters,
+    customMetrics?: CustomMetricBaseSchema[] | null,
 ) {
     if (!filters) return;
 
     const exploreFields = getFields(explore);
-    const exploreFieldIds = exploreFields.map(getItemId);
+    const customMetricFields = customMetrics
+        ? customMetrics.map((metric) =>
+              convertAdditionalMetric({
+                  additionalMetric: { ...metric, sql: '' },
+                  table: explore.tables[metric.table],
+              }),
+          )
+        : [];
+    const allFields = [...exploreFields, ...customMetricFields];
+    const allFieldIds = allFields.map(getItemId);
     const errors: string[] = [];
 
     // Extract filter rules from filter groups
@@ -301,20 +342,24 @@ export function validateMetricDimensionFilterPlacement(
 
     // Check if any dimension filter rules contain metric fields
     dimensionFilterRules.forEach((rule) => {
-        const fieldIndex = exploreFieldIds.indexOf(rule.target.fieldId);
-        const field = exploreFields[fieldIndex];
+        const fieldIndex = allFieldIds.indexOf(rule.target.fieldId);
+        const field = allFields[fieldIndex];
 
         if (field && isMetric(field)) {
+            const fieldSource = customMetricFields.includes(field)
+                ? 'custom metric'
+                : 'explore metric';
             errors.push(
                 `Error: Metric field "${rule.target.fieldId}" (${
                     field.label
-                }) cannot be used in dimension filters. Metrics should be placed in metric filters instead.
+                }) from ${fieldSource} cannot be used in dimension filters. Metrics should be placed in metric filters instead.
 
 Field Details:
 - Field ID: ${rule.target.fieldId}
 - Field Label: ${field.label}
 - Field Type: ${field.fieldType}
 - Table: ${field.table}
+- Source: ${fieldSource}
 
 FilterRule:
 ${serializeData(rule, 'json')}`,
@@ -324,8 +369,8 @@ ${serializeData(rule, 'json')}`,
 
     // Check if any metric filter rules contain dimension fields
     metricFilterRules.forEach((rule) => {
-        const fieldIndex = exploreFieldIds.indexOf(rule.target.fieldId);
-        const field = exploreFields[fieldIndex];
+        const fieldIndex = allFieldIds.indexOf(rule.target.fieldId);
+        const field = allFields[fieldIndex];
 
         if (field && isDimension(field)) {
             errors.push(
@@ -352,7 +397,7 @@ ${errors.join('\n\n')}
 
 Remember:
 - Dimension fields (fieldType: "dimension") should only be used in dimension filters
-- Metric fields (fieldType: "metric") should only be used in metric filters`;
+- Metric fields (fieldType: "metric", including custom metrics) should only be used in metric filters`;
 
         Logger.error(
             `[AiAgent][Validate Metric/Dimension Filter Placement] ${errorMessage}`,

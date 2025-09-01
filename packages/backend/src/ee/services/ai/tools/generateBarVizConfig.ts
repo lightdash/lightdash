@@ -71,12 +71,12 @@ export const getGenerateBarVizConfig = ({
             vizTool.customMetrics,
         );
         validateCustomMetricsDefinition(explore, vizTool.customMetrics);
-        validateFilterRules(explore, filterRules);
-        // TODO: Enhance filter validation to support custom metrics
-        // Current validateFilterRules and validateMetricDimensionFilterPlacement only validate
-        // against explore fields. We need to extend these validators to also consider custom metrics
-        // when validating filter rules to ensure filters can reference custom metrics appropriately.
-        validateMetricDimensionFilterPlacement(explore, vizTool.filters);
+        validateFilterRules(explore, filterRules, vizTool.customMetrics);
+        validateMetricDimensionFilterPlacement(
+            explore,
+            vizTool.filters,
+            vizTool.customMetrics,
+        );
     };
 
     return tool({
