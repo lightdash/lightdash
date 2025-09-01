@@ -3,8 +3,11 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
+    derivePivotConfigurationFromChart,
+    FeatureFlags,
     getAvailableParametersFromTables,
     getFieldRef,
+    getFieldsFromMetricQuery,
     getItemId,
     isTimeZone,
     lightdashVariablePattern,
@@ -23,6 +26,7 @@ import {
     type MetricQuery,
     type ParameterDefinitions,
     type ParameterValue,
+    type PivotConfiguration,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
@@ -49,6 +53,7 @@ import {
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import {
     executeQueryAndWaitForResults,
     useCancelQuery,
@@ -1400,6 +1405,9 @@ const ExplorerProvider: FC<
         // get last value from queryUuidHistory
         queryUuidHistory[queryUuidHistory.length - 1],
     );
+    const useSqlPivotResults = useFeatureFlagEnabled(
+        FeatureFlags.UseSqlPivotResults,
+    );
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
             let queryUuid = queryResults.queryUuid;
@@ -1408,13 +1416,15 @@ const ExplorerProvider: FC<
             // 2. limit is different from current totalResults
             if (limit === null || limit !== queryResults.totalResults) {
                 // Create query args with the specified limit
-                const queryArgsWithLimit = validQueryArgs
-                    ? {
-                          ...validQueryArgs,
-                          csvLimit: limit,
-                          invalidateCache: minimal,
-                      }
-                    : null;
+                const queryArgsWithLimit: QueryResultsProps | null =
+                    validQueryArgs
+                        ? {
+                              ...validQueryArgs,
+                              csvLimit: limit,
+                              invalidateCache: minimal,
+                              pivotResults: useSqlPivotResults,
+                          }
+                        : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
                     queryArgsWithLimit,
                 );
@@ -1430,6 +1440,7 @@ const ExplorerProvider: FC<
             queryResults.totalResults,
             validQueryArgs,
             minimal,
+            useSqlPivotResults,
         ],
     );
 
@@ -1469,14 +1480,30 @@ const ExplorerProvider: FC<
         ]);
         const hasFields = fields.size > 0;
         if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
+            const metricQuery = unsavedChartVersion.metricQuery;
+            let pivotConfiguration: PivotConfiguration | undefined;
+
+            if (useSqlPivotResults && explore) {
+                const items = getFieldsFromMetricQuery(metricQuery, explore);
+                pivotConfiguration = derivePivotConfigurationFromChart(
+                    {
+                        chartConfig: unsavedChartVersion.chartConfig,
+                        pivotConfig: unsavedChartVersion.pivotConfig,
+                    },
+                    metricQuery,
+                    items,
+                );
+            }
+
             setValidQueryArgs({
                 projectUuid,
                 tableId: unsavedChartVersion.tableName,
-                query: unsavedChartVersion.metricQuery,
+                query: metricQuery,
                 ...(isEditMode ? {} : viewModeQueryArgs),
                 dateZoomGranularity,
                 invalidateCache: minimal,
                 parameters: unsavedChartVersion.parameters || {},
+                pivotConfiguration,
             });
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
@@ -1494,6 +1521,10 @@ const ExplorerProvider: FC<
         unsavedChartVersion.metricQuery,
         unsavedChartVersion.tableName,
         unsavedChartVersion.parameters,
+        unsavedChartVersion.chartConfig,
+        unsavedChartVersion.pivotConfig,
+        explore,
+        useSqlPivotResults,
         projectUuid,
         isEditMode,
         viewModeQueryArgs,

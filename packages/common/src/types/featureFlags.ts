@@ -52,6 +52,11 @@ export enum FeatureFlags {
      * Use workers for async query execution
      */
     WorkerQueryExecution = 'worker-query-execution',
+
+    /**
+     * Enable SQL pivot results conversion to PivotData format
+     */
+    UseSqlPivotResults = 'use-sql-pivot-results',
 }
 
 export type FeatureFlag = {
