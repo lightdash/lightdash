@@ -186,11 +186,16 @@ export class InstanceConfigurationService extends BaseService {
             );
 
             // Optional steps are performed at the end
-            if (setup.organization.emailDomain) {
+            if (
+                setup.organization.emailDomains &&
+                setup.organization.emailDomains.length > 0
+            ) {
                 this.logger.debug(
-                    `Initial setup: Whitelisting domain "${setup.organization.emailDomain}"`,
+                    `Initial setup: Whitelisting domains "${setup.organization.emailDomains.join(
+                        ', ',
+                    )}"`,
                 );
-                const emailDomains = [setup.organization.emailDomain];
+                const { emailDomains } = setup.organization;
                 // Validates input
                 const error = validateOrganizationEmailDomains(emailDomains);
                 if (error) {
@@ -207,11 +212,13 @@ export class InstanceConfigurationService extends BaseService {
                 );
 
                 this.logger.info(
-                    `Initial setup: Whitelisted domain "${setup.organization.emailDomain}"`,
+                    `Initial setup: Whitelisted domains "${setup.organization.emailDomains.join(
+                        ', ',
+                    )}"`,
                 );
             } else {
                 this.logger.info(
-                    `Initial setup: No whitelisted domain, skipping`,
+                    `Initial setup: No whitelisted domains, skipping`,
                 );
             }
 
@@ -449,7 +456,8 @@ export class InstanceConfigurationService extends BaseService {
     ) {
         if (
             !config.organization?.defaultRole ||
-            !config.organization?.emailDomain
+            !config.organization?.emailDomains ||
+            config.organization.emailDomains.length === 0
         ) {
             this.logger.debug(
                 `Update instance: No default role config found, skipping`,
@@ -459,7 +467,7 @@ export class InstanceConfigurationService extends BaseService {
 
         const orgUuid = await this.getSingleOrg();
 
-        const emailDomains = [config.organization.emailDomain];
+        const { emailDomains } = config.organization;
         // Validates input
         const error = validateOrganizationEmailDomains(emailDomains);
         if (error) {
@@ -476,7 +484,11 @@ export class InstanceConfigurationService extends BaseService {
         );
 
         this.logger.info(
-            `Update instance: Updated default role to ${config.organization.defaultRole} for organization ${orgUuid}`,
+            `Update instance: Updated default role to ${
+                config.organization.defaultRole
+            } for domains "${emailDomains.join(
+                ', ',
+            )}" in organization ${orgUuid}`,
         );
     }
 
