@@ -133,12 +133,14 @@ export const getFileContent = async ({
     repo,
     branch,
     token,
+    hostDomain,
 }: {
     fileName: string;
     owner: string;
     repo: string;
     branch: string;
     token: string;
+    hostDomain?: string;
 }) => {
     const { octokit, headers } = getOctokitRestForUser(token);
     try {
@@ -177,12 +179,14 @@ export const createBranch = async ({
     sha,
     branch,
     token,
+    hostDomain,
 }: {
     owner: string;
     repo: string;
     sha: string;
     branch: string;
     token: string;
+    hostDomain?: string;
 }) => {
     const { octokit, headers } = getOctokitRestForUser(token);
 
@@ -219,7 +223,7 @@ export const updateFile = async ({
     fileName,
     content,
     fileSha,
-    branchName,
+    branch,
     message,
     token,
 }: {
@@ -228,7 +232,7 @@ export const updateFile = async ({
     fileName: string;
     content: string;
     fileSha: string;
-    branchName: string;
+    branch: string;
     message: string;
     token: string;
 }) => {
@@ -241,7 +245,7 @@ export const updateFile = async ({
             message,
             content: Buffer.from(content, 'utf-8').toString('base64'),
             sha: fileSha,
-            branch: branchName,
+            branch,
             headers,
             committer: {
                 name: 'Lightdash',
