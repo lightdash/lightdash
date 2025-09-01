@@ -17,7 +17,7 @@ import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
-import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
+import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
@@ -133,7 +133,7 @@ export const useDashboardChartReadyQuery = (
         return prev;
     });
 
-    const useSqlPivotResults = useFeatureFlagEnabled(
+    const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
@@ -192,7 +192,7 @@ export const useDashboardChartReadyQuery = (
                     },
                     invalidateCache,
                     parameters: parameterValues,
-                    pivotResults: useSqlPivotResults,
+                    pivotResults: useSqlPivotResults?.enabled,
                 },
             );
 
