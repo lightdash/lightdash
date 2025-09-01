@@ -1,3 +1,10 @@
+# [0.1969.0](https://github.com/lightdash/lightdash/compare/0.1968.0...0.1969.0) (2025-09-01)
+
+
+### Features
+
+* add custom dims to table calc auto complete ([#16650](https://github.com/lightdash/lightdash/issues/16650)) ([22ee097](https://github.com/lightdash/lightdash/commit/22ee0972f69c191cbc794fe56be7c3e602412adb))
+
 # [0.1968.0](https://github.com/lightdash/lightdash/compare/0.1967.0...0.1968.0) (2025-09-01)
 
 
