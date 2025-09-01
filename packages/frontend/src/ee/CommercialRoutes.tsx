@@ -3,6 +3,7 @@ import NavBar from '../components/NavBar';
 import PrivateRoute from '../components/PrivateRoute';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
+import { AiAgentAdminMockup } from './features/aiCopilot/components/AiAgentAdminPanel/AiAgentAdminMockup';
 import { AiAgentThreadStreamStoreProvider } from './features/aiCopilot/streaming/AiAgentThreadStreamStoreProvider';
 import EmbeddedApp from './features/embed/EmbeddedApp';
 import AgentPage from './pages/AiAgents/AgentPage';
@@ -119,10 +120,23 @@ const COMMERCIAL_SLACK_AUTH_ROUTES: RouteObject[] = [
     },
 ];
 
+const COMMERCIAL_ADMIN_ROUTES: RouteObject[] = [
+    {
+        path: '/ai-agents-admin',
+        element: (
+            <PrivateRoute>
+                <NavBar />
+                <AiAgentAdminMockup />
+            </PrivateRoute>
+        ),
+    },
+];
+
 export const CommercialWebAppRoutes = [
     ...COMMERCIAL_EMBED_ROUTES,
     ...COMMERCIAL_AI_AGENTS_ROUTES,
     ...COMMERCIAL_SLACK_AUTH_ROUTES,
+    ...COMMERCIAL_ADMIN_ROUTES,
 ];
 
 export const CommercialMobileRoutes = [...COMMERCIAL_EMBED_ROUTES];
