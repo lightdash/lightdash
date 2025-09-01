@@ -1243,18 +1243,35 @@ export const convertSqlPivotedRowsToPivotData = ({
             let current = acc;
             for (let i = 0; i < pivotValues.length; i += 1) {
                 const pivotValue = String(pivotValues[i]);
-                if (!current[pivotValue]) {
-                    current[pivotValue] = {};
+                if (
+                    !Object.prototype.hasOwnProperty.call(current, pivotValue)
+                ) {
+                    Object.defineProperty(current, pivotValue, {
+                        value: {},
+                        writable: true,
+                        enumerable: true,
+                        configurable: true,
+                    });
                 }
                 current = current[pivotValue] as RecursiveRecord<number>;
             }
 
             // For metricsAsRows, don't include metric in column key
             if (!pivotConfig.metricsAsRows) {
-                current[valuesColumn.referenceField] = index;
+                Object.defineProperty(current, valuesColumn.referenceField, {
+                    value: index,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
             } else {
                 // Use a generic key since metrics are in rows, not columns
-                current.value = index;
+                Object.defineProperty(current, 'value', {
+                    value: index,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
             }
 
             return acc;
