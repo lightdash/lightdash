@@ -61,6 +61,213 @@ describe('Roles API Tests', () => {
             });
         });
 
+        describe('Duplicate Role', () => {
+            const cleanupRole = (roleUuid: string) => {
+                cy.request({
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
+                    method: 'DELETE',
+                    failOnStatusCode: false,
+                });
+            };
+
+            it('should duplicate a system role', () => {
+                const newRoleName = `Copy of Editor ${new Date().getTime()}`;
+
+                // Duplicate the editor system role
+                cy.request({
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/editor/duplicate`,
+                    method: 'POST',
+                    body: {
+                        name: newRoleName,
+                    },
+                }).then((resp) => {
+                    expect(resp.status).to.eq(201);
+                    expect(resp.body).to.have.property('status', 'ok');
+                    expect(resp.body.results).to.have.property(
+                        'name',
+                        newRoleName,
+                    );
+                    expect(resp.body.results).to.have.property('roleUuid');
+                    expect(resp.body.results).to.have.property('scopes');
+                    expect(resp.body.results.scopes).to.be.an('array');
+                    // Editor should have scopes
+                    expect(resp.body.results.scopes.length).to.be.greaterThan(
+                        0,
+                    );
+
+                    // Should include editor scopes
+                    expect(resp.body.results.scopes).to.include('create:Space');
+                    expect(resp.body.results.scopes).to.include('manage:Job');
+
+                    cleanupRole(resp.body.results.roleUuid);
+                });
+            });
+
+            it('should add scopes to a custom role', () => {
+                const roleName = `Test Role ${new Date().getTime()}`;
+                let roleUuid: string;
+
+                // Setup: create a custom role
+                cy.request({
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                    method: 'POST',
+                    body: {
+                        name: roleName,
+                        description: 'Test role for scopes',
+                    },
+                })
+                    .then((createResp) => {
+                        expect(createResp.status).to.eq(201);
+                        roleUuid = createResp.body.results.roleUuid;
+
+                        // Test: add scopes to the role
+                        return cy.request({
+                            url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}/scopes`,
+                            method: 'POST',
+                            body: {
+                                scopeNames: ['view_project', 'view_dashboard'],
+                            },
+                        });
+                    })
+                    .then((scopeResp) => {
+                        // Assertions
+                        expect(scopeResp.status).to.eq(200);
+                        expect(scopeResp.body).to.have.property('status', 'ok');
+                    });
+            });
+
+            it('should duplicate a custom role with scopes', () => {
+                const originalRoleName = `Original Role ${new Date().getTime()}`;
+                const duplicatedRoleName = `Duplicated Role ${new Date().getTime()}`;
+                let originalRoleUuid: string;
+
+                // Setup: create a custom role
+                cy.request({
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                    method: 'POST',
+                    body: {
+                        name: originalRoleName,
+                        description: 'Original role to be duplicated',
+                    },
+                })
+                    .then((createResp) => {
+                        originalRoleUuid = createResp.body.results.roleUuid;
+
+                        // Setup: add scopes to the original role
+                        return cy.request({
+                            url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${originalRoleUuid}/scopes`,
+                            method: 'POST',
+                            body: {
+                                scopeNames: [
+                                    'view_project',
+                                    'view_dashboard',
+                                    'create:Space',
+                                ],
+                            },
+                        });
+                    })
+                    .then(() =>
+                        // Test: duplicate the custom role
+                        cy.request({
+                            url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${originalRoleUuid}/duplicate`,
+                            method: 'POST',
+                            body: {
+                                name: duplicatedRoleName,
+                            },
+                        }),
+                    )
+                    .then((duplicateResp) => {
+                        cleanupRole(duplicateResp.body.results.roleUuid);
+
+                        // Assertions
+                        expect(duplicateResp.status).to.eq(201);
+                        expect(duplicateResp.body).to.have.property(
+                            'status',
+                            'ok',
+                        );
+                        expect(duplicateResp.body.results).to.have.property(
+                            'name',
+                            duplicatedRoleName,
+                        );
+                        expect(duplicateResp.body.results).to.have.property(
+                            'roleUuid',
+                        );
+                        expect(duplicateResp.body.results.roleUuid).to.not.eq(
+                            originalRoleUuid,
+                        );
+                        expect(duplicateResp.body.results).to.have.property(
+                            'scopes',
+                        );
+                        expect(duplicateResp.body.results.scopes).to.be.an(
+                            'array',
+                        );
+
+                        // Should have the same scopes as the original
+                        expect(
+                            duplicateResp.body.results.scopes,
+                        ).to.have.lengthOf(3);
+                        expect(duplicateResp.body.results.scopes).to.include(
+                            'view_project',
+                        );
+                        expect(duplicateResp.body.results.scopes).to.include(
+                            'view_dashboard',
+                        );
+                        expect(duplicateResp.body.results.scopes).to.include(
+                            'create:Space',
+                        );
+                    });
+            });
+
+            it('should duplicate a system role', () => {
+                const originalRoleUuid = 'developer';
+                const duplicatedRoleName = `Duplicated Role ${new Date().getTime()}`;
+
+                // Test: duplicate the custom role
+                cy.request({
+                    url: `${orgRolesApiUrl}/${testOrgUuid}/roles/${originalRoleUuid}/duplicate`,
+                    method: 'POST',
+                    body: {
+                        name: duplicatedRoleName,
+                    },
+                }).then((duplicateResp) => {
+                    cleanupRole(duplicateResp.body.results.roleUuid);
+
+                    // Assertions
+                    expect(duplicateResp.status).to.eq(201);
+                    expect(duplicateResp.body).to.have.property('status', 'ok');
+                    expect(duplicateResp.body.results).to.have.property(
+                        'name',
+                        duplicatedRoleName,
+                    );
+                    expect(duplicateResp.body.results).to.have.property(
+                        'roleUuid',
+                    );
+                    expect(duplicateResp.body.results.roleUuid).to.not.eq(
+                        'originalRoleUuid',
+                    );
+                    expect(duplicateResp.body.results).to.have.property(
+                        'scopes',
+                    );
+                    expect(duplicateResp.body.results.scopes).to.be.an('array');
+
+                    // Should have the same scopes as the original
+                    expect(
+                        duplicateResp.body.results.scopes,
+                    ).to.have.lengthOf.greaterThan(10);
+
+                    expect(duplicateResp.body.results.scopes).to.include(
+                        'manage:VirtualView',
+                    );
+                    expect(duplicateResp.body.results.scopes).to.include(
+                        'manage:Job',
+                    );
+                    expect(duplicateResp.body.results.scopes).to.include(
+                        'manage:CompileProject',
+                    );
+                });
+            });
+        });
+
         it('should list organization roles without scopes', () => {
             cy.request({
                 url: `${orgRolesApiUrl}/${testOrgUuid}/roles`,
