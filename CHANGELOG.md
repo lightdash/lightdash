@@ -1,3 +1,10 @@
+## [0.1969.1](https://github.com/lightdash/lightdash/compare/0.1969.0...0.1969.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* mobile dashbaord layout ([#16666](https://github.com/lightdash/lightdash/issues/16666)) ([91d7dcd](https://github.com/lightdash/lightdash/commit/91d7dcd23e78981e099c0be7b532371f1b1611eb))
+
 # [0.1969.0](https://github.com/lightdash/lightdash/compare/0.1968.0...0.1969.0) (2025-09-01)
 
 
