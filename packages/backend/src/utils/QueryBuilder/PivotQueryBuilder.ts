@@ -224,7 +224,7 @@ export class PivotQueryBuilder {
                         ? ' DESC'
                         : ' ASC';
 
-                return `${q}${col.reference}${q} ${sortDirection}`;
+                return `${q}${col.reference}${q}${sortDirection}`;
             })
             .join(', ');
     }
