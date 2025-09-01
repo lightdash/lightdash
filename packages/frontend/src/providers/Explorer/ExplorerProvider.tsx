@@ -1481,7 +1481,6 @@ const ExplorerProvider: FC<
             const metricQuery = unsavedChartVersion.metricQuery;
             let pivotConfiguration: PivotConfiguration | undefined;
 
-            console.log('apply pivot config', useSqlPivotResults && !!explore);
             if (useSqlPivotResults && explore) {
                 const items = getFieldsFromMetricQuery(metricQuery, explore);
                 pivotConfiguration = derivePivotConfigurationFromChart(
@@ -1492,16 +1491,7 @@ const ExplorerProvider: FC<
                     metricQuery,
                     items,
                 );
-                console.log('apply pivot config 2', {
-                    asd: {
-                        chartConfig: unsavedChartVersion.chartConfig,
-                        pivotConfig: unsavedChartVersion.pivotConfig,
-                    },
-                    metricQuery,
-                    items,
-                });
             }
-            console.log('apply pivot config 3', pivotConfiguration);
 
             setValidQueryArgs({
                 projectUuid,
