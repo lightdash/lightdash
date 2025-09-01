@@ -150,7 +150,7 @@ describe('PivotQueryBuilder', () => {
                 'dense_rank() over (order by "date" ASC) as "row_index"',
             );
             expect(result).toContain(
-                'dense_rank() over (order by "event_type") as "column_index"',
+                'dense_rank() over (order by "event_type" ASC) as "column_index"',
             );
 
             // Should apply limits and column constraints
@@ -892,7 +892,7 @@ describe('PivotQueryBuilder', () => {
                 sortBy: [
                     { reference: 'date', direction: SortByDirection.DESC },
                     { reference: 'store_id', direction: SortByDirection.ASC },
-                    // product_category should default to ASC
+                    // product_category is not on the sort by so it will default to ASC
                 ],
             };
 
@@ -904,7 +904,7 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // Should respect sort directions for index columns
+            // Should respect sort directions for specified columns only
             expect(result).toContain(
                 'dense_rank() over (order by "date" DESC, "store_id" ASC, "product_category" ASC)',
             );

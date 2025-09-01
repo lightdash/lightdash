@@ -65,30 +65,6 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Builds ORDER BY clause for index columns with their sort directions.
-     * @param indexColumns - Normalized index columns to order by
-     * @param sortBy - Optional sort configuration for each column
-     * @param q - Quote character for field names
-     * @returns ORDER BY clause string
-     */
-    private static buildIndexColumnsOrderBy(
-        indexColumns: ReturnType<typeof normalizeIndexColumns>,
-        sortBy: PivotConfiguration['sortBy'],
-        q: string,
-    ): string {
-        return indexColumns
-            .map((col) => {
-                const sortDirection =
-                    sortBy?.find((s) => s.reference === col.reference)
-                        ?.direction === SortByDirection.DESC
-                        ? 'DESC'
-                        : 'ASC';
-                return `${q}${col.reference}${q} ${sortDirection}`;
-            })
-            .join(', ');
-    }
-
-    /**
      * Calculates the maximum number of columns allowed per value column.
      * @param valuesColumns - The value columns configuration
      * @returns Maximum columns per value to stay within pivot column limits
@@ -164,7 +140,11 @@ export class PivotQueryBuilder {
                     col.aggregation,
                     col.reference,
                 );
-                return `${aggregationField} AS ${q}${col.reference}_${col.aggregation}${q}`;
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                return `${aggregationField} AS ${q}${fieldName}${q}`;
             }),
         ];
 
@@ -174,6 +154,79 @@ export class PivotQueryBuilder {
         ].join(', ')} FROM original_query group by ${Array.from(
             new Set(groupBySelectDimensions),
         ).join(', ')}`;
+    }
+
+    /**
+     * Gets the field name with aggregation suffix for value columns.
+     * @param reference - The field reference
+     * @param aggregation - The aggregation type
+     * @returns The field name with aggregation suffix
+     */
+    private static getValueColumnFieldName(
+        reference: string,
+        aggregation: string,
+    ): string {
+        return `${reference}_${aggregation}`;
+    }
+
+    /**
+     * Builds ORDER BY clause for groupBy columns with their sort directions.
+     * @param groupByColumns - Group by columns to order by
+     * @param sortBy - Sort configuration for columns
+     * @param q - Quote character for field names
+     * @returns ORDER BY clause string for groupBy columns
+     */
+    private static buildGroupByOrderBy(
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        sortBy: PivotConfiguration['sortBy'],
+        q: string,
+    ): string {
+        // ! We always need all groupBy columns so that dense_rank() can be used to calculate column_index (calculate all unique combinations of groupBy columns)
+        return groupByColumns
+            .map((col) => {
+                const sortConfig = sortBy?.find(
+                    (s) => s.reference === col.reference,
+                );
+
+                const sortDirection =
+                    sortConfig?.direction === SortByDirection.DESC
+                        ? ' DESC'
+                        : ' ASC';
+
+                return `${q}${col.reference}${q}${sortDirection}`;
+            })
+            .join(', ');
+    }
+
+    /**
+     * Builds ORDER BY clause for row_index calculation.
+     * Includes all index columns with sorting directions from sortBy or ASC if not specified.
+     *
+     * @param indexColumns - Normalized index columns
+     * @param sortBy - Sort configuration for all columns
+     * @param q - Quote character for field names
+     * @returns ORDER BY clause string for row index ordering
+     */
+    private static buildRowIndexOrderBy(
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        sortBy: PivotConfiguration['sortBy'],
+        q: string,
+    ): string {
+        // ! We always need all index columns so that dense_rank() can be used to calculate row_index (calculate all unique combinations of index columns)
+        return indexColumns
+            .map((col) => {
+                const indexColumnSort = sortBy?.find(
+                    (sort) => sort.reference === col.reference,
+                );
+
+                const sortDirection =
+                    indexColumnSort?.direction === SortByDirection.DESC
+                        ? ' DESC'
+                        : ' ASC';
+
+                return `${q}${col.reference}${q}${sortDirection}`;
+            })
+            .join(', ');
     }
 
     /**
@@ -195,22 +248,31 @@ export class PivotQueryBuilder {
         const selectReferences = [
             ...indexColumns.map((col) => col.reference),
             ...groupByColumns.map((col) => `${q}${col.reference}${q}`),
-            ...(valuesColumns || []).map(
-                (col) => `${q}${col.reference}_${col.aggregation}${q}`,
-            ),
+            ...(valuesColumns || []).map((col) => {
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                return `${q}${fieldName}${q}`;
+            }),
         ];
 
-        const indexColumnsOrderBy = PivotQueryBuilder.buildIndexColumnsOrderBy(
+        // Build ORDER BY for row_index - should only consider index columns, not groupBy columns
+        const rowIndexOrderBy = PivotQueryBuilder.buildRowIndexOrderBy(
             indexColumns,
+            sortBy,
+            q,
+        );
+
+        const groupByOrderBy = PivotQueryBuilder.buildGroupByOrderBy(
+            groupByColumns,
             sortBy,
             q,
         );
 
         return `SELECT ${selectReferences.join(
             ', ',
-        )}, dense_rank() over (order by ${indexColumnsOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
-            groupByColumns[0]?.reference
-        }${q}) as ${q}column_index${q} FROM group_by_query`;
+        )}, dense_rank() over (order by ${rowIndexOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${groupByOrderBy}) as ${q}column_index${q} FROM group_by_query`;
     }
 
     /**
