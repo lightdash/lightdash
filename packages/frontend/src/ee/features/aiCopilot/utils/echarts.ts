@@ -9,7 +9,6 @@ import {
     type MetricQuery,
     type PivotReference,
     type ResultRow,
-    type TableVizConfigSchemaType,
     type TimeSeriesMetricVizConfigSchemaType,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
@@ -173,15 +172,9 @@ const getTimeSeriesMetricEchartsConfig = (
     };
 };
 
-const getTableMetricEchartsConfig = (
-    _config: TableVizConfigSchemaType,
-    _rows: Record<string, unknown>[],
-    _metadata: AiVizMetadata,
-): ChartConfig => {
-    return {
-        type: ChartType.TABLE,
-    };
-};
+const getTableMetricEchartsConfig = (): ChartConfig => ({
+    type: ChartType.TABLE,
+});
 
 export const getChartConfigFromAiAgentVizConfig = ({
     vizConfigOutput,
@@ -229,14 +222,7 @@ export const getChartConfigFromAiAgentVizConfig = ({
         case AiResultType.TABLE_RESULT:
             return {
                 ...parsedConfig,
-                echartsConfig: getTableMetricEchartsConfig(
-                    parsedConfig.vizTool.vizConfig,
-                    rows,
-                    {
-                        title: parsedConfig.vizTool.title,
-                        description: parsedConfig.vizTool.description,
-                    },
-                ),
+                echartsConfig: getTableMetricEchartsConfig(),
             };
         default:
             return assertUnreachable(parsedConfig, 'Invalid chart type');
