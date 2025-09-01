@@ -276,11 +276,7 @@ export function validateFilterRules(
             filterRuleErrors.push(
                 `Error: the field with id "${
                     rule.target.fieldId
-                }" does not exist in ${
-                    customMetricFields.includes(field)
-                        ? 'custom metrics'
-                        : 'the selected explore'
-                }.
+                }" does not exist.
 FilterRule:
 ${serializeData(rule, 'json')}`,
             );
@@ -325,9 +321,9 @@ export function validateMetricDimensionFilterPlacement(
 
     const exploreFields = getFields(explore);
     const customMetricFields = customMetrics
-        ? customMetrics.map((metric) =>
+        ? populateCustomMetricsSQL(customMetrics, explore).map((metric) =>
               convertAdditionalMetric({
-                  additionalMetric: { ...metric, sql: '' },
+                  additionalMetric: metric,
                   table: explore.tables[metric.table],
               }),
           )

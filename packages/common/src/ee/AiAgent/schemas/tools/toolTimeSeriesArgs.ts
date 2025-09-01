@@ -20,7 +20,7 @@ export const toolTimeSeriesArgsSchema = createToolSchema(
         filters: filtersSchema
             .nullable()
             .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics. If they are custom metrics, place them in the metrics filter group.',
+                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
             ),
         followUpTools: z
             .array(
