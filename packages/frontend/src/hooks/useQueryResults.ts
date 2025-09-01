@@ -28,7 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useFeatureFlagEnabled } from './useFeatureFlagEnabled';
+import { useFeatureFlag } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
 
 export type QueryResultsProps = {
@@ -210,7 +210,7 @@ export const useGetReadyQueryResults = (
         return missingRequiredParameters.length === 0;
     }, [data, missingRequiredParameters]);
 
-    const useSqlPivotResults = useFeatureFlagEnabled(
+    const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
@@ -225,7 +225,9 @@ export const useGetReadyQueryResults = (
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
             return executeAsyncQuery(
-                data ? { ...data, pivotResults: useSqlPivotResults } : null,
+                data
+                    ? { ...data, pivotResults: useSqlPivotResults?.enabled }
+                    : null,
                 signal,
             );
         },

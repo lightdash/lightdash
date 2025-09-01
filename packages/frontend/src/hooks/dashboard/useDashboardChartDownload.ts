@@ -9,7 +9,7 @@ import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
+import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 export const useDashboardChartDownload = (
@@ -30,7 +30,7 @@ export const useDashboardChartDownload = (
         (c) => c.dateZoomGranularity,
     );
 
-    const useSqlPivotResults = useFeatureFlagEnabled(
+    const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
@@ -58,7 +58,7 @@ export const useDashboardChartDownload = (
                         limit: limit ?? MAX_SAFE_INTEGER,
                         invalidateCache: false,
                         parameters,
-                        pivotResults: useSqlPivotResults,
+                        pivotResults: useSqlPivotResults?.enabled,
                     }),
                 });
 

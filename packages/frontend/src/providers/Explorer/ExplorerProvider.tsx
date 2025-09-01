@@ -53,7 +53,7 @@ import {
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
+import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import {
     executeQueryAndWaitForResults,
     useCancelQuery,
@@ -1405,7 +1405,7 @@ const ExplorerProvider: FC<
         // get last value from queryUuidHistory
         queryUuidHistory[queryUuidHistory.length - 1],
     );
-    const useSqlPivotResults = useFeatureFlagEnabled(
+    const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
     const getDownloadQueryUuid = useCallback(
@@ -1422,7 +1422,7 @@ const ExplorerProvider: FC<
                               ...validQueryArgs,
                               csvLimit: limit,
                               invalidateCache: minimal,
-                              pivotResults: useSqlPivotResults,
+                              pivotResults: useSqlPivotResults?.enabled,
                           }
                         : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
@@ -1483,7 +1483,7 @@ const ExplorerProvider: FC<
             const metricQuery = unsavedChartVersion.metricQuery;
             let pivotConfiguration: PivotConfiguration | undefined;
 
-            if (useSqlPivotResults && explore) {
+            if (useSqlPivotResults?.enabled && explore) {
                 const items = getFieldsFromMetricQuery(metricQuery, explore);
                 pivotConfiguration = derivePivotConfigurationFromChart(
                     {
