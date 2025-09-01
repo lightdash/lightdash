@@ -1,3 +1,11 @@
+## [0.1966.5](https://github.com/lightdash/lightdash/compare/0.1966.4...0.1966.5) (2025-09-01)
+
+
+### Bug Fixes
+
+* respect column_index when transforming rows ([#16654](https://github.com/lightdash/lightdash/issues/16654)) ([fa20f13](https://github.com/lightdash/lightdash/commit/fa20f137dbb2cf32a741b3d8d684f4c7339f3ce0))
+* take into account all user defined sorts for row_index and column_index ([#16649](https://github.com/lightdash/lightdash/issues/16649)) ([1e0f02e](https://github.com/lightdash/lightdash/commit/1e0f02ede432403c89111af21ac08d101b023194))
+
 ## [0.1966.4](https://github.com/lightdash/lightdash/compare/0.1966.3...0.1966.4) (2025-08-29)
 
 
