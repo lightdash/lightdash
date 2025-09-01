@@ -11,6 +11,7 @@ import {
     type DownloadOptions,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
+    FeatureFlags,
     MAX_SAFE_INTEGER,
     type MetricQuery,
     ParameterError,
@@ -27,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
+import { useFeatureFlagEnabled } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
 
 export type QueryResultsProps = {
@@ -41,6 +43,7 @@ export type QueryResultsProps = {
     invalidateCache?: boolean;
     parameters?: ParametersValuesMap;
     pivotConfiguration?: PivotConfiguration;
+    pivotResults?: boolean;
 };
 
 /**
@@ -115,6 +118,7 @@ const executeAsyncQuery = (
                 limit: data.csvLimit,
                 invalidateCache: data.invalidateCache,
                 parameters: data.parameters,
+                pivotResults: data.pivotResults,
             },
             { signal },
         );
@@ -127,6 +131,7 @@ const executeAsyncQuery = (
                 limit: data.csvLimit,
                 invalidateCache: data.invalidateCache,
                 parameters: data.parameters,
+                pivotResults: data.pivotResults,
             },
             { signal },
         );
@@ -205,12 +210,24 @@ export const useGetReadyQueryResults = (
         return missingRequiredParameters.length === 0;
     }, [data, missingRequiredParameters]);
 
+    const useSqlPivotResults = useFeatureFlagEnabled(
+        FeatureFlags.UseSqlPivotResults,
+    );
+
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         enabled: isEnabled,
-        queryKey: ['create-query', data, missingRequiredParameters],
+        queryKey: [
+            'create-query',
+            data,
+            missingRequiredParameters,
+            useSqlPivotResults,
+        ],
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
-            return executeAsyncQuery(data, signal);
+            return executeAsyncQuery(
+                data ? { ...data, pivotResults: useSqlPivotResults } : null,
+                signal,
+            );
         },
     });
 

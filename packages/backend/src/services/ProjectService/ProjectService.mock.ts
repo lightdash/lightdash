@@ -434,6 +434,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         defaultLimit: 500,
         csvCellsLimit: 100,
         timezone: undefined,
+        useSqlPivotResults: false,
     },
 };
 

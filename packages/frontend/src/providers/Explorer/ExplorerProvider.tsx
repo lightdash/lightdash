@@ -1405,6 +1405,9 @@ const ExplorerProvider: FC<
         // get last value from queryUuidHistory
         queryUuidHistory[queryUuidHistory.length - 1],
     );
+    const useSqlPivotResults = useFeatureFlagEnabled(
+        FeatureFlags.UseSqlPivotResults,
+    );
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
             let queryUuid = queryResults.queryUuid;
@@ -1413,13 +1416,15 @@ const ExplorerProvider: FC<
             // 2. limit is different from current totalResults
             if (limit === null || limit !== queryResults.totalResults) {
                 // Create query args with the specified limit
-                const queryArgsWithLimit = validQueryArgs
-                    ? {
-                          ...validQueryArgs,
-                          csvLimit: limit,
-                          invalidateCache: minimal,
-                      }
-                    : null;
+                const queryArgsWithLimit: QueryResultsProps | null =
+                    validQueryArgs
+                        ? {
+                              ...validQueryArgs,
+                              csvLimit: limit,
+                              invalidateCache: minimal,
+                              pivotResults: useSqlPivotResults,
+                          }
+                        : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
                     queryArgsWithLimit,
                 );
@@ -1435,6 +1440,7 @@ const ExplorerProvider: FC<
             queryResults.totalResults,
             validQueryArgs,
             minimal,
+            useSqlPivotResults,
         ],
     );
 
@@ -1462,10 +1468,6 @@ const ExplorerProvider: FC<
         setSortFields,
         unsavedChartVersion.metricQuery.sorts.length,
     ]);
-
-    const useSqlPivotResults = useFeatureFlagEnabled(
-        FeatureFlags.UseSqlPivotResults,
-    );
 
     // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {
