@@ -993,42 +993,9 @@ export const convertSqlPivotedRowsToPivotData = ({
         indexColumns = [];
     }
 
-    // todo: eventually this will be done in the backend with SQL
-    const sortedValuesColumns = pivotDetails.valuesColumns.sort((a, b) => {
-        if (!pivotDetails.groupByColumns) {
-            return 0;
-        }
-        // sort in order of groupByColumn
-        return pivotDetails.groupByColumns?.reduce<number>(
-            (compare, groupByColumn) => {
-                if (compare !== 0) {
-                    // already knows sort
-                    return compare;
-                }
-                // compare next pivot value
-                const aPivotValue = a.pivotValues.find(
-                    ({ referenceField }) =>
-                        referenceField === groupByColumn.reference,
-                )?.value;
-                const bPivotValue = b.pivotValues.find(
-                    ({ referenceField }) =>
-                        referenceField === groupByColumn.reference,
-                )?.value;
-
-                if (aPivotValue && bPivotValue) {
-                    return String(aPivotValue).localeCompare(
-                        String(bPivotValue),
-                    );
-                }
-                return 0;
-            },
-            0,
-        );
-    });
-
     // Get unique base metrics from valuesColumns
     const baseMetricsArray = Array.from(
-        new Set(sortedValuesColumns.map((col) => col.referenceField)),
+        new Set(pivotDetails.valuesColumns.map((col) => col.referenceField)),
     );
 
     const headerValueTypes = getHeaderValueTypes({
@@ -1056,7 +1023,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     const headerValues: PivotData['headerValues'] = [];
     pivotDetails.groupByColumns?.forEach(({ reference }, index) => {
         headerValues.push([]);
-        let columns = sortedValuesColumns;
+        let columns = pivotDetails.valuesColumns;
         if (pivotConfig.metricsAsRows) {
             // For metrics as rows, we only need unique combinations of pivot values, excluding per metric duplicates
             columns = Array.from(
@@ -1124,7 +1091,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     // Add metric labels for columns if not metrics as rows
     if (!pivotConfig.metricsAsRows && baseMetricsArray.length > 0) {
         headerValues.push(
-            sortedValuesColumns.map(({ referenceField }) => ({
+            pivotDetails.valuesColumns.map(({ referenceField }) => ({
                 type: 'label' as const,
                 fieldId: referenceField,
             })),
@@ -1175,7 +1142,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     const uniqueColumns = pivotConfig.metricsAsRows
         ? Array.from(
               new Map(
-                  sortedValuesColumns.map((col) => [
+                  pivotDetails.valuesColumns.map((col) => [
                       col.pivotValues
                           .map(
                               ({ referenceField, value }) =>
@@ -1186,7 +1153,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                   ]),
               ).values(),
           )
-        : sortedValuesColumns;
+        : pivotDetails.valuesColumns;
 
     if (pivotConfig.metricsAsRows) {
         // multiply rows per metric
@@ -1203,7 +1170,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                 // For each unique column combination, find the corresponding value for this metric
                 const rowData = uniqueColumns.map((uniqueCol) => {
                     // Find the actual column in sortedValuesColumns that matches this unique combination and metric
-                    const matchingColumn = sortedValuesColumns.find(
+                    const matchingColumn = pivotDetails.valuesColumns.find(
                         (col) =>
                             col.referenceField === metric &&
                             col.pivotValues.every((pv) =>
@@ -1234,7 +1201,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             );
             setIndexByKey(rowIndices, indexRowValues, rowIndex);
 
-            return sortedValuesColumns.map((valueCol) =>
+            return pivotDetails.valuesColumns.map((valueCol) =>
                 row[valueCol.pivotColumnName]
                     ? row[valueCol.pivotColumnName].value
                     : null,
@@ -1399,7 +1366,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             }
 
             // Add data columns with generated field IDs using metadata
-            sortedValuesColumns.forEach((valueCol, colIndex) => {
+            pivotDetails.valuesColumns.forEach((valueCol, colIndex) => {
                 const pivotDimensions = (pivotDetails.groupByColumns || []).map(
                     (col) => col.reference,
                 );
@@ -1457,7 +1424,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                   },
               ]
             : []),
-        ...sortedValuesColumns.map((valueCol, colIndex) => {
+        ...pivotDetails.valuesColumns.map((valueCol, colIndex) => {
             const pivotDimensions = (pivotDetails.groupByColumns || []).map(
                 (col) => col.reference,
             );
