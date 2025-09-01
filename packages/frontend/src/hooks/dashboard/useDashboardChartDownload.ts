@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     MAX_SAFE_INTEGER,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -8,6 +9,7 @@ import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 export const useDashboardChartDownload = (
@@ -26,6 +28,10 @@ export const useDashboardChartDownload = (
     );
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
+    );
+
+    const { data: useSqlPivotResults } = useFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
     );
 
     const getDownloadQueryUuid = useCallback(
@@ -52,6 +58,7 @@ export const useDashboardChartDownload = (
                         limit: limit ?? MAX_SAFE_INTEGER,
                         invalidateCache: false,
                         parameters,
+                        pivotResults: useSqlPivotResults?.enabled,
                     }),
                 });
 
@@ -79,6 +86,7 @@ export const useDashboardChartDownload = (
             dashboardSorts,
             dateZoomGranularity,
             parameters,
+            useSqlPivotResults,
         ],
     );
 

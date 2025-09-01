@@ -1,5 +1,5 @@
 import { Anchor, Button, Group, Modal, Stack, Text } from '@mantine/core';
-import { IconBrandGithub } from '@tabler/icons-react';
+import { IconGitBranch } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 
 export const CreatedPullRequestModalContent = ({
@@ -18,7 +18,7 @@ export const CreatedPullRequestModalContent = ({
             title={
                 <Group spacing="xs">
                     <MantineIcon
-                        icon={IconBrandGithub}
+                        icon={IconGitBranch}
                         size="lg"
                         color="gray.7"
                     />
@@ -36,7 +36,7 @@ export const CreatedPullRequestModalContent = ({
                     <Anchor href={data.prUrl} target="_blank" span fw={700}>
                         #{data.prUrl.split('/').pop()}
                     </Anchor>{' '}
-                    was successfully created on Github.
+                    was successfully created on git.
                     <Text pt="md">
                         Once it is merged, refresh your dbt connection to see
                         your updated metrics and dimensions.

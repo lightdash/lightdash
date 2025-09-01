@@ -60,11 +60,12 @@ export const getRunMetricQuery = ({
                     vizTool.filters,
                 );
 
-                const query = metricQueryTableViz(
-                    vizTool.vizConfig,
-                    vizTool.filters,
+                const query = metricQueryTableViz({
+                    vizConfig: vizTool.vizConfig,
+                    filters: vizTool.filters,
                     maxLimit,
-                );
+                    customMetrics: null,
+                });
 
                 const results = await runMiniMetricQuery(query, maxLimit);
 

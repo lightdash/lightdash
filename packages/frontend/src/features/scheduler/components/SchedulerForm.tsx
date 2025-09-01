@@ -1409,9 +1409,10 @@ const SchedulerForm: FC<Props> = ({
                 }
                 onBack={onBack}
                 canSendNow={Boolean(
-                    form.values.slackTargets.length ||
+                    (form.values.slackTargets.length ||
                         form.values.emailTargets.length ||
-                        form.values.msTeamsTargets.length,
+                        form.values.msTeamsTargets.length) &&
+                        requiredFiltersWithoutValues.length === 0,
                 )}
                 onSendNow={isThresholdAlert ? undefined : handleSendNow}
                 loading={loading}

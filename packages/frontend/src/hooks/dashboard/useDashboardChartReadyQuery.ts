@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getAvailableParametersFromTables,
     getDimensions,
     getItemId,
@@ -16,6 +17,7 @@ import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
+import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
@@ -131,6 +133,10 @@ export const useDashboardChartReadyQuery = (
         return prev;
     });
 
+    const { data: useSqlPivotResults } = useFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
+    );
+
     const queryKey = useMemo(
         () => [
             'dashboard_chart_ready_query',
@@ -145,6 +151,7 @@ export const useDashboardChartReadyQuery = (
             hasADateDimension ? granularity : null,
             invalidateCache,
             chartParameterValues,
+            useSqlPivotResults,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -159,6 +166,7 @@ export const useDashboardChartReadyQuery = (
             granularity,
             invalidateCache,
             chartParameterValues,
+            useSqlPivotResults,
         ],
     );
 
@@ -184,6 +192,7 @@ export const useDashboardChartReadyQuery = (
                     },
                     invalidateCache,
                     parameters: parameterValues,
+                    pivotResults: useSqlPivotResults?.enabled,
                 },
             );
 

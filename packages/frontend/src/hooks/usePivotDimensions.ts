@@ -1,5 +1,6 @@
-import { type MetricQuery } from '@lightdash/common';
+import { FeatureFlags, type MetricQuery } from '@lightdash/common';
 import { useMemo, useState } from 'react';
+import { useFeatureFlag } from './useFeatureFlagEnabled';
 
 const usePivotDimensions = (
     initialPivotDimensions: string[] | undefined,
@@ -9,7 +10,15 @@ const usePivotDimensions = (
         initialPivotDimensions,
     );
 
+    const { data: useSqlPivotResults } = useFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
+    );
+
     const validPivotDimensions = useMemo(() => {
+        if (useSqlPivotResults?.enabled) {
+            // If SQL pivot is enabled, we should always use the pivot value and let the backend handle the validation
+            return dirtyPivotDimensions;
+        }
         if (metricQuery) {
             const availableDimensions = metricQuery.dimensions;
 
@@ -25,7 +34,7 @@ const usePivotDimensions = (
             }
             return undefined;
         }
-    }, [metricQuery, dirtyPivotDimensions]);
+    }, [metricQuery, dirtyPivotDimensions, useSqlPivotResults]);
 
     return {
         validPivotDimensions,

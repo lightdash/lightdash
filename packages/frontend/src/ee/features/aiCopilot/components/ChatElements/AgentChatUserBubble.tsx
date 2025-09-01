@@ -52,7 +52,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 py="xs"
                 px="sm"
                 withBorder={true}
-                bg="white"
+                bg="gray.0"
                 color="white"
                 style={{
                     overflow: 'unset',

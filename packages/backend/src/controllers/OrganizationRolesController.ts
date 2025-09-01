@@ -4,6 +4,7 @@ import {
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
+    CreateRole,
 } from '@lightdash/common';
 import {
     Body,
@@ -155,6 +156,37 @@ export class OrganizationRolesController extends BaseController {
         return {
             status: 'ok',
             results: assignment,
+        };
+    }
+
+    /**
+     * Duplicate a role
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Role duplicated')
+    @Post('/{roleId}/duplicate')
+    @OperationId('DuplicateRole')
+    async duplicateRole(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Path() roleId: string,
+        @Body() body: CreateRole,
+    ): Promise<ApiRoleWithScopesResponse> {
+        const duplicatedRole = await this.getRolesService().duplicateRole(
+            req.account!,
+            orgUuid,
+            roleId,
+            body,
+        );
+
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: duplicatedRole,
         };
     }
 }

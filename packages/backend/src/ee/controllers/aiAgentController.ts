@@ -6,10 +6,10 @@ import {
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateResponse,
+    ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
-    ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiCreateAiAgent,
@@ -352,28 +352,29 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/threads/{threadUuid}/message/{messageUuid}/viz')
-    @OperationId('getAgentThreadMessageViz')
-    async getAgentThreadMessageViz(
+    @Post('/{agentUuid}/threads/{threadUuid}/generate-title')
+    @OperationId('generateAgentThreadTitle')
+    async generateAgentThreadTitle(
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
-        @Path() messageUuid: string,
-    ): Promise<ApiAiAgentThreadMessageVizResponse> {
+    ): Promise<ApiAiAgentThreadGenerateTitleResponse> {
         this.setStatus(200);
+
+        const title = await this.getAiAgentService().generateThreadTitle(
+            req.user!,
+            {
+                agentUuid,
+                threadUuid,
+            },
+        );
 
         return {
             status: 'ok',
-            results:
-                await this.getAiAgentService().generateAgentThreadMessageViz(
-                    req.user!,
-                    {
-                        agentUuid,
-                        threadUuid,
-                        messageUuid,
-                    },
-                ),
+            results: {
+                title,
+            },
         };
     }
 

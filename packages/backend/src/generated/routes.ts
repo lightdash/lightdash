@@ -5017,6 +5017,22 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                titleGeneratedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                title: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 createdFrom: { dataType: 'string', required: true },
                 createdAt: { dataType: 'string', required: true },
                 agentUuid: { dataType: 'string', required: true },
@@ -5057,6 +5073,22 @@ const models: TsoaRoute.Models = {
                         message: { dataType: 'string', required: true },
                         uuid: { dataType: 'string', required: true },
                     },
+                    required: true,
+                },
+                titleGeneratedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                title: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 createdFrom: { dataType: 'string', required: true },
@@ -5334,6 +5366,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentThreadGenerateTitleResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        title: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiResultType: {
         dataType: 'refEnum',
         enums: [
@@ -5342,93 +5392,6 @@ const models: TsoaRoute.Models = {
             'one_line_result',
             'table',
         ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    metrics: {
-                        dataType: 'array',
-                        array: { dataType: 'string' },
-                        required: true,
-                    },
-                    dimensions: {
-                        dataType: 'array',
-                        array: { dataType: 'string' },
-                        required: true,
-                    },
-                    sorts: {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'SortField' },
-                        required: true,
-                    },
-                    limit: { dataType: 'double', required: true },
-                    exploreName: { dataType: 'string', required: true },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiMetricQuery: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.AnyType_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { dataType: 'any' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAiAgentThreadMessageViz: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        fields: { ref: 'ItemsMap', required: true },
-                        cacheMetadata: { ref: 'CacheMetadata', required: true },
-                        rows: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'Record_string.AnyType_',
-                            },
-                            required: true,
-                        },
-                    },
-                    required: true,
-                },
-                chartOptions: { dataType: 'object' },
-                metricQuery: { ref: 'AiMetricQuery', required: true },
-                type: { ref: 'AiResultType', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAiAgentThreadMessageVizResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'ApiAiAgentThreadMessageViz', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExecuteAsyncQueryResultsCommon: {
@@ -9606,6 +9569,16 @@ const models: TsoaRoute.Models = {
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.AnyType_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { dataType: 'any' },
             validators: {},
         },
     },
@@ -16235,6 +16208,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                columnIndex: { dataType: 'double' },
                 pivotValues: {
                     dataType: 'array',
                     array: {
@@ -16519,23 +16493,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                metrics: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                dimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                sorts: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SortField' },
-                    required: true,
-                },
-                limit: { dataType: 'double', required: true },
-                exploreName: { dataType: 'string', required: true },
                 filters: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -16545,11 +16502,28 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 tableCalculations: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'TableCalculation' },
                     required: true,
                 },
+                exploreName: { dataType: 'string', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
                 additionalMetrics: {
                     dataType: 'union',
                     subSchemas: [
@@ -21056,7 +21030,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAiAgentController_getAgentThreadMessageViz: Record<
+    const argsAiAgentController_generateAgentThreadTitle: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -21079,21 +21053,15 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        messageUuid: {
-            in: 'path',
-            name: 'messageUuid',
-            required: true,
-            dataType: 'string',
-        },
     };
-    app.get(
-        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/message/:messageUuid/viz',
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/generate-title',
         ...fetchMiddlewares<RequestHandler>(AiAgentController),
         ...fetchMiddlewares<RequestHandler>(
-            AiAgentController.prototype.getAgentThreadMessageViz,
+            AiAgentController.prototype.generateAgentThreadTitle,
         ),
 
-        async function AiAgentController_getAgentThreadMessageViz(
+        async function AiAgentController_generateAgentThreadTitle(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -21103,7 +21071,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsAiAgentController_getAgentThreadMessageViz,
+                    args: argsAiAgentController_generateAgentThreadTitle,
                     request,
                     response,
                 });
@@ -21121,7 +21089,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'getAgentThreadMessageViz',
+                    methodName: 'generateAgentThreadTitle',
                     controller,
                     response,
                     next,
@@ -35445,6 +35413,74 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationRolesController_duplicateRole: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        orgUuid: {
+            in: 'path',
+            name: 'orgUuid',
+            required: true,
+            dataType: 'string',
+        },
+        roleId: {
+            in: 'path',
+            name: 'roleId',
+            required: true,
+            dataType: 'string',
+        },
+        body: { in: 'body', name: 'body', required: true, ref: 'CreateRole' },
+    };
+    app.post(
+        '/api/v2/orgs/:orgUuid/roles/:roleId/duplicate',
+        ...fetchMiddlewares<RequestHandler>(OrganizationRolesController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationRolesController.prototype.duplicateRole,
+        ),
+
+        async function OrganizationRolesController_duplicateRole(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationRolesController_duplicateRole,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationRolesController>(
+                        OrganizationRolesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'duplicateRole',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
                 });
             } catch (err) {
                 return next(err);

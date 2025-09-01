@@ -1,5 +1,5 @@
 import type { Filters } from '../../types/filter';
-import type { MetricQuery } from '../../types/metricQuery';
+import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
 import type {
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
@@ -16,7 +16,9 @@ export enum AiResultType {
 export type AiMetricQuery = Pick<
     MetricQuery,
     'metrics' | 'dimensions' | 'sorts' | 'limit' | 'exploreName'
->;
+> & {
+    additionalMetrics: Omit<AdditionalMetric, 'sql'>[];
+};
 
 export type AiMetricQueryWithFilters = AiMetricQuery & {
     filters: Filters;

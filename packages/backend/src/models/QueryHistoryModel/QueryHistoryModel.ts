@@ -17,25 +17,6 @@ import {
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
 ): QueryHistory {
-    function getPivotValuesColumns() {
-        if (!queryHistory.pivot_configuration) {
-            return null;
-        }
-
-        const { groupByColumns, valuesColumns: valuesColumnsConfig } =
-            queryHistory.pivot_configuration;
-
-        // From ProjectService.pivotQueryWorkerTask
-        return groupByColumns && groupByColumns.length > 0
-            ? Object.values(queryHistory.pivot_values_columns ?? {})
-            : valuesColumnsConfig.map((col) => ({
-                  referenceField: col.reference,
-                  pivotColumnName: `${col.reference}_${col.aggregation}`,
-                  aggregation: col.aggregation,
-                  pivotValues: [],
-              }));
-    }
-
     return {
         queryUuid: queryHistory.query_uuid,
         createdAt: queryHistory.created_at,
@@ -60,7 +41,7 @@ function convertDbQueryHistoryToQueryHistory(
         error: queryHistory.error,
         cacheKey: queryHistory.cache_key,
         pivotConfiguration: queryHistory.pivot_configuration,
-        pivotValuesColumns: getPivotValuesColumns(),
+        pivotValuesColumns: queryHistory.pivot_values_columns,
         pivotTotalColumnCount: queryHistory.pivot_total_column_count,
         resultsFileName: queryHistory.results_file_name,
         resultsCreatedAt: queryHistory.results_created_at,

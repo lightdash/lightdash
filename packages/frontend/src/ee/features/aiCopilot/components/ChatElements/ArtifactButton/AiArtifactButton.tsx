@@ -1,6 +1,6 @@
 import { type AiAgentMessageAssistant } from '@lightdash/common';
-import { Box, Group, Loader, Title, UnstyledButton } from '@mantine-8/core';
-import { IconChartDots3 } from '@tabler/icons-react';
+import { Box, Loader, Text, UnstyledButton } from '@mantine-8/core';
+import { IconArtboard } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import styles from './AiArtifactButton.module.css';
@@ -23,46 +23,36 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
     return (
         <UnstyledButton
             className={styles.artifactButton}
-            artifact-open={isArtifactOpen ? 'true' : undefined}
+            data-artifact-open={isArtifactOpen}
+            data-loading={isLoading}
             onClick={onClick}
             disabled={isLoading}
         >
-            <Group className={styles.container}>
-                <Group className={styles.content}>
+            <Box className={styles.container}>
+                {isLoading ? (
+                    <Loader size={14} color="gray.5" />
+                ) : (
+                    <MantineIcon
+                        icon={IconArtboard}
+                        size={14}
+                        className={styles.icon}
+                    />
+                )}
+
+                <Box className={styles.content}>
                     {isLoading ? (
-                        <Loader
-                            size={14}
-                            color="gray"
-                            className={styles.icon}
-                        />
+                        <Text size="sm" c="dimmed">
+                            Creating...
+                        </Text>
                     ) : (
-                        <MantineIcon
-                            icon={IconChartDots3}
-                            size={14}
-                            color="gray"
-                            className={styles.icon}
-                        />
+                        displayTitle && (
+                            <Text size="sm" fw={500} className={styles.title}>
+                                {displayTitle}
+                            </Text>
+                        )
                     )}
-                    <Box className={styles.text}>
-                        {isLoading ? (
-                            <Title
-                                order={6}
-                                c="dimmed"
-                                tt="uppercase"
-                                size="xs"
-                            >
-                                Loading...
-                            </Title>
-                        ) : (
-                            displayTitle && (
-                                <Title order={6} fw={500}>
-                                    {displayTitle}
-                                </Title>
-                            )
-                        )}
-                    </Box>
-                </Group>
-            </Group>
+                </Box>
+            </Box>
         </UnstyledButton>
     );
 };

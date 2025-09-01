@@ -5580,6 +5580,14 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "titleGeneratedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "createdFrom": {
                         "type": "string"
                     },
@@ -5596,6 +5604,8 @@
                 "required": [
                     "user",
                     "firstMessage",
+                    "titleGeneratedAt",
+                    "title",
                     "createdFrom",
                     "createdAt",
                     "agentUuid",
@@ -5637,6 +5647,14 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "titleGeneratedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "createdFrom": {
                         "type": "string"
                     },
@@ -5653,6 +5671,8 @@
                 "required": [
                     "user",
                     "firstMessage",
+                    "titleGeneratedAt",
+                    "title",
                     "createdFrom",
                     "createdAt",
                     "agentUuid",
@@ -5938,100 +5958,16 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiResultType": {
-                "enum": [
-                    "time_series_chart",
-                    "vertical_bar_chart",
-                    "one_line_result",
-                    "table"
-                ],
-                "type": "string"
-            },
-            "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_": {
-                "properties": {
-                    "metrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "metrics",
-                    "dimensions",
-                    "sorts",
-                    "limit",
-                    "exploreName"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "AiMetricQuery": {
-                "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName_"
-            },
-            "Record_string.AnyType_": {
-                "properties": {},
-                "additionalProperties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ApiAiAgentThreadMessageViz": {
+            "ApiAiAgentThreadGenerateTitleResponse": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "fields": {
-                                "$ref": "#/components/schemas/ItemsMap"
-                            },
-                            "cacheMetadata": {
-                                "$ref": "#/components/schemas/CacheMetadata"
-                            },
-                            "rows": {
-                                "items": {
-                                    "$ref": "#/components/schemas/Record_string.AnyType_"
-                                },
-                                "type": "array"
+                            "title": {
+                                "type": "string"
                             }
                         },
-                        "required": ["fields", "cacheMetadata", "rows"],
+                        "required": ["title"],
                         "type": "object"
-                    },
-                    "chartOptions": {
-                        "additionalProperties": true,
-                        "type": "object"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/AiMetricQuery"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/AiResultType"
-                    }
-                },
-                "required": ["results", "metricQuery", "type"],
-                "type": "object"
-            },
-            "ApiAiAgentThreadMessageVizResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ApiAiAgentThreadMessageViz"
                     },
                     "status": {
                         "type": "string",
@@ -6041,6 +5977,15 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "AiResultType": {
+                "enum": [
+                    "time_series_chart",
+                    "vertical_bar_chart",
+                    "one_line_result",
+                    "table"
+                ],
+                "type": "string"
             },
             "ApiExecuteAsyncQueryResultsCommon": {
                 "properties": {
@@ -10417,6 +10362,12 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "Record_string.AnyType_": {
+                "properties": {},
+                "additionalProperties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "ApiJobStatusResponse": {
                 "properties": {
@@ -17107,6 +17058,10 @@
             },
             "PivotValuesColumn": {
                 "properties": {
+                    "columnIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "pivotValues": {
                         "items": {
                             "properties": {
@@ -17362,17 +17317,34 @@
             },
             "Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__": {
                 "properties": {
-                    "metrics": {
-                        "items": {
-                            "type": "string"
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {},
+                            "metrics": {},
+                            "dimensions": {}
                         },
-                        "type": "array"
+                        "type": "object"
                     },
                     "dimensions": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "exploreName": {
+                        "type": "string"
                     },
                     "sorts": {
                         "items": {
@@ -17383,23 +17355,6 @@
                     "limit": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    },
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {},
-                            "metrics": {},
-                            "dimensions": {}
-                        },
-                        "type": "object"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array"
                     },
                     "additionalMetrics": {
                         "items": {
@@ -17433,13 +17388,13 @@
                     }
                 },
                 "required": [
-                    "metrics",
-                    "dimensions",
-                    "sorts",
-                    "limit",
-                    "exploreName",
                     "filters",
-                    "tableCalculations"
+                    "dimensions",
+                    "metrics",
+                    "tableCalculations",
+                    "exploreName",
+                    "sorts",
+                    "limit"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -18677,7 +18632,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1961.1",
+        "version": "0.1970.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -29253,6 +29208,64 @@
                                 },
                                 "required": ["roleId"],
                                 "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/orgs/{orgUuid}/roles/{roleId}/duplicate": {
+            "post": {
+                "operationId": "DuplicateRole",
+                "responses": {
+                    "201": {
+                        "description": "Role duplicated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRoleWithScopesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Duplicate a role",
+                "tags": ["v2", "Organization Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "roleId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRole"
                             }
                         }
                     }

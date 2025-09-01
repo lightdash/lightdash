@@ -1,3 +1,100 @@
+# [0.1971.0](https://github.com/lightdash/lightdash/compare/0.1970.0...0.1971.0) (2025-09-01)
+
+
+### Features
+
+* add duplicate role endpoint ([#16610](https://github.com/lightdash/lightdash/issues/16610)) ([e3ffa65](https://github.com/lightdash/lightdash/commit/e3ffa65d2196aea3679e5ce98ad2b7da2d5f06dc))
+
+# [0.1970.0](https://github.com/lightdash/lightdash/compare/0.1969.1...0.1970.0) (2025-09-01)
+
+
+### Features
+
+* allow creating custom metrics on table and viz tool calls ([#16608](https://github.com/lightdash/lightdash/issues/16608)) ([dd0872a](https://github.com/lightdash/lightdash/commit/dd0872a157dd789db98bd6c2e9cbbbc9b0e7cfcd))
+
+## [0.1969.1](https://github.com/lightdash/lightdash/compare/0.1969.0...0.1969.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* mobile dashbaord layout ([#16666](https://github.com/lightdash/lightdash/issues/16666)) ([91d7dcd](https://github.com/lightdash/lightdash/commit/91d7dcd23e78981e099c0be7b532371f1b1611eb))
+
+# [0.1969.0](https://github.com/lightdash/lightdash/compare/0.1968.0...0.1969.0) (2025-09-01)
+
+
+### Features
+
+* add custom dims to table calc auto complete ([#16650](https://github.com/lightdash/lightdash/issues/16650)) ([22ee097](https://github.com/lightdash/lightdash/commit/22ee0972f69c191cbc794fe56be7c3e602412adb))
+
+# [0.1968.0](https://github.com/lightdash/lightdash/compare/0.1967.0...0.1968.0) (2025-09-01)
+
+
+### Bug Fixes
+
+* move AI thread title migration to EE directory ([#16668](https://github.com/lightdash/lightdash/issues/16668)) ([459ec5c](https://github.com/lightdash/lightdash/commit/459ec5cfbbc4510537194372abce272c10873dfb))
+
+
+### Features
+
+* support multiple email domains in organization setup ([#16660](https://github.com/lightdash/lightdash/issues/16660)) ([55925b0](https://github.com/lightdash/lightdash/commit/55925b093549ab8f5f308539c91344b07eea740e)), closes [#16642](https://github.com/lightdash/lightdash/issues/16642)
+
+# [0.1967.0](https://github.com/lightdash/lightdash/compare/0.1966.5...0.1967.0) (2025-09-01)
+
+
+### Features
+
+* gitlab write back ([#16643](https://github.com/lightdash/lightdash/issues/16643)) ([e37c2a1](https://github.com/lightdash/lightdash/commit/e37c2a155f1796043e204dbd77e5e4ebf0e5fe6c))
+
+## [0.1966.5](https://github.com/lightdash/lightdash/compare/0.1966.4...0.1966.5) (2025-09-01)
+
+
+### Bug Fixes
+
+* respect column_index when transforming rows ([#16654](https://github.com/lightdash/lightdash/issues/16654)) ([fa20f13](https://github.com/lightdash/lightdash/commit/fa20f137dbb2cf32a741b3d8d684f4c7339f3ce0))
+* take into account all user defined sorts for row_index and column_index ([#16649](https://github.com/lightdash/lightdash/issues/16649)) ([1e0f02e](https://github.com/lightdash/lightdash/commit/1e0f02ede432403c89111af21ac08d101b023194))
+
+## [0.1966.4](https://github.com/lightdash/lightdash/compare/0.1966.3...0.1966.4) (2025-08-29)
+
+
+### Bug Fixes
+
+* format pivoted results ([#16641](https://github.com/lightdash/lightdash/issues/16641)) ([fe46b46](https://github.com/lightdash/lightdash/commit/fe46b46dcdff0ef0ae4e3ecbca83dd91d11387f4))
+
+## [0.1966.3](https://github.com/lightdash/lightdash/compare/0.1966.2...0.1966.3) (2025-08-29)
+
+
+### Bug Fixes
+
+* **mcp:** Clear tags when setting a new project ([#16646](https://github.com/lightdash/lightdash/issues/16646)) ([e0c138a](https://github.com/lightdash/lightdash/commit/e0c138ab24d9c4134418c8f2a1fbfe40d300f83e))
+
+## [0.1966.2](https://github.com/lightdash/lightdash/compare/0.1966.1...0.1966.2) (2025-08-29)
+
+
+### Bug Fixes
+
+* **cli:** temporarily disable permissions warning for project creation ([#16651](https://github.com/lightdash/lightdash/issues/16651)) ([5846a6d](https://github.com/lightdash/lightdash/commit/5846a6d94d54db70a915ddc476dd4cd50e91c44a))
+
+## [0.1966.1](https://github.com/lightdash/lightdash/compare/0.1966.0...0.1966.1) (2025-08-29)
+
+
+### Bug Fixes
+
+* disable send now if requried filter is missing ([#16647](https://github.com/lightdash/lightdash/issues/16647)) ([07ce1c3](https://github.com/lightdash/lightdash/commit/07ce1c3f06b9c1201f29d981d087616e3eb56d3d))
+
+# [0.1966.0](https://github.com/lightdash/lightdash/compare/0.1965.0...0.1966.0) (2025-08-29)
+
+
+### Features
+
+* table calcs can reference custom dimensions ([#16521](https://github.com/lightdash/lightdash/issues/16521)) ([6b86ef4](https://github.com/lightdash/lightdash/commit/6b86ef45cbd40ad086c712fa418e0b041ee6126d))
+
+# [0.1965.0](https://github.com/lightdash/lightdash/compare/0.1964.0...0.1965.0) (2025-08-29)
+
+
+### Features
+
+* generate title for ai agent threads ([#16575](https://github.com/lightdash/lightdash/issues/16575)) ([2300c44](https://github.com/lightdash/lightdash/commit/2300c441bd372d593f89cabe25fe2194c1986401)), closes [#15317](https://github.com/lightdash/lightdash/issues/15317)
+
 # [0.1964.0](https://github.com/lightdash/lightdash/compare/0.1963.1...0.1964.0) (2025-08-28)
 
 

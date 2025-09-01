@@ -485,18 +485,10 @@ export class McpService extends BaseService {
                     );
                 }
 
-                // Get existing context to preserve tags if not provided
-                const existingContext = await this.mcpContextModel.getContext(
-                    user.userUuid,
-                    organizationUuid,
-                );
-
                 // Determine tags: use provided tags, or preserve existing, or set to null
-                let tagsToSet: string[] | null;
+                let tagsToSet: string[] | null = null;
                 if (args.tags !== undefined) {
                     tagsToSet = args.tags.length > 0 ? args.tags : null;
-                } else {
-                    tagsToSet = existingContext?.context.tags || null;
                 }
 
                 // Set context
@@ -1132,6 +1124,7 @@ export class McpService extends BaseService {
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
+                    additionalMetrics: [],
                     tableCalculations: [],
                 },
                 exploreName: metricQuery.exploreName,

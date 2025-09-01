@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     AiMetricQueryWithFilters,
     AiResultType,
     getItemLabelWithoutTableName,
@@ -27,11 +28,12 @@ export const renderTableViz = async ({
     >;
     csv: string;
 }> => {
-    const query = metricQueryTableViz(
-        vizTool.vizConfig,
-        vizTool.filters,
+    const query = metricQueryTableViz({
+        vizConfig: vizTool.vizConfig,
+        filters: vizTool.filters,
         maxLimit,
-    );
+        customMetrics: vizTool.customMetrics ?? null,
+    });
     const results = await runMetricQuery(query);
 
     const fieldIds = results.rows[0] ? Object.keys(results.rows[0]) : [];

@@ -123,10 +123,12 @@ import { type ValidationResponse } from './types/validation';
 import type {
     ApiAiAgentArtifactResponse,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadSummaryListResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -940,8 +942,10 @@ type ApiResults =
     | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
-    | Account
-    | ApiAiAgentArtifactResponse['results'];
+    | ApiAiAgentArtifactResponse['results']
+    | ApiAiAgentThreadGenerateTitleResponse['results']
+    | ApiAiAgentThreadSummaryListResponse['results']
+    | Account;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1416,13 +1420,15 @@ export function formatRawRows(
 export function formatRow(
     row: { [col: string]: AnyType },
     itemsMap: ItemsMap,
+    pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
 ): ResultRow {
     const resultRow: ResultRow = {};
     const columnNames = Object.keys(row || {});
 
     for (const columnName of columnNames) {
         const value = row[columnName];
-        const item = itemsMap[columnName];
+        const pivotValuesColumn = pivotValuesColumns?.[columnName];
+        const item = itemsMap[pivotValuesColumn?.referenceField ?? columnName];
 
         resultRow[columnName] = {
             value: {
@@ -1438,8 +1444,9 @@ export function formatRow(
 export function formatRows(
     rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
+    pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
 ): ResultRow[] {
-    return rows.map((row) => formatRow(row, itemsMap));
+    return rows.map((row) => formatRow(row, itemsMap, pivotValuesColumns));
 }
 
 const isObject = (object: AnyType) =>

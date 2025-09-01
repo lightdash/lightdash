@@ -140,6 +140,8 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     agentUuid: string;
     createdAt: string;
     createdFrom: string;
+    title: string | null;
+    titleGeneratedAt: string | null;
     firstMessage: {
         uuid: string;
         message: string;
@@ -231,6 +233,13 @@ export type ApiAiAgentThreadGenerateResponse = {
     status: 'ok';
     results: {
         response: string;
+    };
+};
+
+export type ApiAiAgentThreadGenerateTitleResponse = {
+    status: 'ok';
+    results: {
+        title: string;
     };
 };
 

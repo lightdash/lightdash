@@ -8,18 +8,15 @@ import {
     AiAgentUserPreferences,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
-    AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
-    ApiAiAgentThreadMessageViz,
     ApiAiAgentThreadMessageVizQuery,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     ApiUpdateUserAgentPreferences,
-    assertUnreachable,
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
@@ -82,6 +79,7 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
+import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
 import { getModel } from './ai/models';
 import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
 import {
@@ -103,10 +101,8 @@ import {
     getFeedbackBlocks,
     getFollowUpToolBlocks,
 } from './ai/utils/getSlackBlocks';
+import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
-import { renderTableViz } from './ai/visualizations/vizTable';
-import { renderTimeSeriesViz } from './ai/visualizations/vizTimeSeries';
-import { renderVerticalBarViz } from './ai/visualizations/vizVerticalBar';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -309,41 +305,6 @@ export class AiAgentService {
         return filteredExplore;
     }
 
-    private async runAiMetricQuery(
-        user: SessionUser,
-        projectUuid: string,
-        metricQuery: AiMetricQueryWithFilters,
-    ) {
-        const account = fromSession(user);
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            null,
-            metricQuery.exploreName,
-        );
-
-        const metricQueryFields = [
-            ...metricQuery.dimensions,
-            ...metricQuery.metrics,
-        ];
-
-        validateSelectedFieldsExistence(explore, metricQueryFields);
-
-        return this.projectService.runExploreQuery(
-            account,
-            {
-                ...metricQuery,
-                // TODO: add tableCalculations
-                tableCalculations: [],
-            },
-            projectUuid,
-            metricQuery.exploreName,
-            metricQuery.limit,
-            undefined,
-            QueryExecutionContext.AI,
-        );
-    }
-
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
@@ -362,7 +323,11 @@ export class AiAgentService {
             ...metricQuery.metrics,
         ];
 
-        validateSelectedFieldsExistence(explore, metricQueryFields);
+        validateSelectedFieldsExistence(
+            explore,
+            metricQueryFields,
+            metricQuery.additionalMetrics,
+        );
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
@@ -370,6 +335,10 @@ export class AiAgentService {
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
+                    additionalMetrics: populateCustomMetricsSQL(
+                        metricQuery.additionalMetrics,
+                        explore,
+                    ),
                     // TODO: add tableCalculations
                     tableCalculations: [],
                 },
@@ -1065,119 +1034,43 @@ export class AiAgentService {
         }
     }
 
-    async generateAgentThreadMessageViz(
+    async generateThreadTitle(
         user: SessionUser,
         {
             agentUuid,
             threadUuid,
-            messageUuid,
         }: {
             agentUuid: string;
             threadUuid: string;
-            messageUuid: string;
         },
-    ): Promise<ApiAiAgentThreadMessageViz> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
+    ): Promise<string> {
+        try {
+            // Reuse existing validation and data fetching logic
+            const { chatHistoryMessages } =
+                await this.prepareAgentThreadResponse(user, {
+                    agentUuid,
+                    threadUuid,
+                });
 
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        if (!isCopilotEnabled) {
-            throw new ForbiddenError('Copilot is not enabled');
-        }
+            // Get model configuration
+            const { model } = getModel(this.lightdashConfig.ai.copilot);
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
-
-        const thread = await this.aiAgentModel.getThread({
-            organizationUuid,
-            agentUuid,
-            threadUuid,
-        });
-
-        if (!thread) {
-            throw new NotFoundError(`Thread not found: ${threadUuid}`);
-        }
-
-        // Check if user has access to this agent/thread
-        const hasAccess = await this.checkAgentThreadAccess(
-            user,
-            agent,
-            thread.user.uuid,
-        );
-        if (!hasAccess) {
-            throw new ForbiddenError(
-                'Insufficient permissions to access this thread',
+            // Generate title using the dedicated title generator
+            const title = await generateTitleFromMessages(
+                model,
+                chatHistoryMessages,
             );
-        }
 
-        const { projectUuid } = agent;
+            // Save the title to the database
+            await this.aiAgentModel.updateThreadTitle({
+                threadUuid,
+                title,
+            });
 
-        const message = await this.aiAgentModel.findThreadMessage('assistant', {
-            organizationUuid,
-            threadUuid,
-            messageUuid,
-        });
-
-        // @ts-ignore we can keep this runtime check just in case
-        if (message.role === 'user') {
-            throw new ForbiddenError(
-                'User messages are not supported for this endpoint',
-            );
-        }
-
-        const parsedVizConfig = parseVizConfig(
-            message.vizConfigOutput,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
-        );
-
-        if (!parsedVizConfig) {
-            throw new ForbiddenError('Could not generate a visualization');
-        }
-
-        this.analytics.track({
-            event: 'ai_agent.web_viz_query',
-            userId: user.userUuid,
-            properties: {
-                projectId: agent.projectUuid,
-                organizationId: organizationUuid,
-                agentId: agent.uuid,
-                agentName: agent.name,
-                vizType: parsedVizConfig.type,
-            },
-        });
-
-        switch (parsedVizConfig.type) {
-            case AiResultType.VERTICAL_BAR_RESULT:
-                return renderVerticalBarViz({
-                    runMetricQuery: (q) =>
-                        this.runAiMetricQuery(user, projectUuid, q),
-                    vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
-                });
-            case AiResultType.TIME_SERIES_RESULT:
-                return renderTimeSeriesViz({
-                    runMetricQuery: (q) =>
-                        this.runAiMetricQuery(user, projectUuid, q),
-                    vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
-                });
-            case AiResultType.TABLE_RESULT:
-                return renderTableViz({
-                    runMetricQuery: (q) =>
-                        this.runAiMetricQuery(user, projectUuid, q),
-                    vizTool: parsedVizConfig.vizTool,
-                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
-                });
-            default:
-                return assertUnreachable(parsedVizConfig, 'Invalid viz type');
+            return title;
+        } catch (e) {
+            Logger.error('Failed to generate thread title:', e);
+            throw new Error('Failed to generate thread title');
         }
     }
 
@@ -1786,7 +1679,11 @@ export class AiAgentService {
                 ...metricQuery.metrics,
             ];
 
-            validateSelectedFieldsExistence(explore, metricQueryFields);
+            validateSelectedFieldsExistence(
+                explore,
+                metricQueryFields,
+                metricQuery.additionalMetrics,
+            );
 
             const account = fromSession(user);
             return this.projectService.runMetricQuery({
@@ -1794,6 +1691,10 @@ export class AiAgentService {
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
+                    additionalMetrics: populateCustomMetricsSQL(
+                        metricQuery.additionalMetrics,
+                        explore,
+                    ),
                     // TODO: add tableCalculations
                     tableCalculations: [],
                 },

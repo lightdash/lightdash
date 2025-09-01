@@ -343,7 +343,9 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                     name: process.env.LD_SETUP_ADMIN_NAME || 'Admin User',
                     email: process.env.LD_SETUP_ADMIN_EMAIL!,
                 },
-                emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN,
+                emailDomains: getArrayFromCommaSeparatedList(
+                    'LD_SETUP_ORGANIZATION_EMAIL_DOMAIN',
+                ),
                 defaultRole:
                     parseEnum<AllowedEmailDomainsRole>(
                         process.env.LD_SETUP_ORGANIZATION_DEFAULT_ROLE,
@@ -437,7 +439,9 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
             admin: {
                 email: process.env.LD_SETUP_ADMIN_EMAIL,
             },
-            emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN,
+            emailDomains: getArrayFromCommaSeparatedList(
+                'LD_SETUP_ORGANIZATION_EMAIL_DOMAIN',
+            ),
             defaultRole: parseEnum<AllowedEmailDomainsRole>(
                 process.env.LD_SETUP_ORGANIZATION_DEFAULT_ROLE,
                 AllowedEmailDomainsRoles,
@@ -680,6 +684,7 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
+        useSqlPivotResults: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -759,7 +764,7 @@ export type LightdashConfig = {
                 email: string;
                 name: string;
             };
-            emailDomain?: string;
+            emailDomains: string[];
             name: string;
             defaultRole: AllowedEmailDomainsRole;
         };
@@ -782,7 +787,7 @@ export type LightdashConfig = {
             admin: {
                 email?: string;
             };
-            emailDomain?: string;
+            emailDomains: string[];
             defaultRole?: AllowedEmailDomainsRole;
         };
         apiKey: {
@@ -1382,6 +1387,7 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
+            useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS === 'true',
         },
         chart: {
             versionHistory: {
