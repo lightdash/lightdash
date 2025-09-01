@@ -1,3 +1,10 @@
+# [0.1967.0](https://github.com/lightdash/lightdash/compare/0.1966.5...0.1967.0) (2025-09-01)
+
+
+### Features
+
+* gitlab write back ([#16643](https://github.com/lightdash/lightdash/issues/16643)) ([e37c2a1](https://github.com/lightdash/lightdash/commit/e37c2a155f1796043e204dbd77e5e4ebf0e5fe6c))
+
 ## [0.1966.5](https://github.com/lightdash/lightdash/compare/0.1966.4...0.1966.5) (2025-09-01)
 
 
