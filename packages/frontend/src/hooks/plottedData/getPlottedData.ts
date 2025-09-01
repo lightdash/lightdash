@@ -1,7 +1,9 @@
 import {
+    formatItemValue,
     hashFieldReference,
     type ApiQueryResults,
     type FieldId,
+    type ItemsMap,
     type PivotReference,
     type ResultRow,
     type ResultValue,
@@ -103,6 +105,7 @@ export const getPlottedData = (
 
 export const getPivotedDataFromPivotDetails = (
     resultsData: InfiniteQueryResults,
+    itemsMap: ItemsMap | undefined,
 ): {
     pivotValuesMap: PivotValueMap;
     rowKeyMap: RowKeyMap;
@@ -121,11 +124,12 @@ export const getPivotedDataFromPivotDetails = (
     const pivotValuesMap: PivotValueMap = pivotDetails.valuesColumns.reduce(
         (acc, column) => {
             column.pivotValues.forEach((value) => {
+                const field = itemsMap?.[value.referenceField];
                 acc[value.referenceField] = {
                     ...acc[value.referenceField],
                     [String(value.value)]: {
                         raw: value.value,
-                        formatted: String(value.value), // TODO: format value
+                        formatted: formatItemValue(field, value.value),
                     },
                 };
             });
@@ -157,6 +161,7 @@ export const getPivotedDataFromPivotDetails = (
 
 export const getPlottedDataFromPivotDetails = (
     resultsData: InfiniteQueryResults,
+    itemsMap: ItemsMap | undefined,
 ) => {
     const { pivotDetails, rows } = resultsData;
 
@@ -168,5 +173,5 @@ export const getPlottedDataFromPivotDetails = (
         };
     }
 
-    return getPivotedDataFromPivotDetails(resultsData);
+    return getPivotedDataFromPivotDetails(resultsData, itemsMap);
 };

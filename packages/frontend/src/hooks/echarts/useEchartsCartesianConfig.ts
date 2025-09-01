@@ -1754,8 +1754,6 @@ const useEchartsCartesianConfig = (
     }, [resultsData?.pivotDetails]);
 
     const { rows, rowKeyMap } = useMemo(() => {
-        // TODO: Use environment variable to switch between legacy and new implementation
-        // For now, use the new implementation if pivotDetails are available
         if (resultsData?.pivotDetails) {
             return getPlottedDataFromPivotDetails(resultsData);
         }
