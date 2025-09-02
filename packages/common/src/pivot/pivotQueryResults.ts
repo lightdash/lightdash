@@ -1,6 +1,7 @@
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import {
     FieldType,
@@ -375,6 +376,145 @@ const combinedRetrofit = (
     return data;
 };
 
+const getHeaderValueTypes = ({
+    metricsAsRows,
+    pivotDimensionNames,
+}: {
+    metricsAsRows: boolean;
+    pivotDimensionNames: string[];
+}): PivotData['headerValueTypes'] => {
+    const headerDimensionValueTypes = pivotDimensionNames.map<{
+        type: FieldType.DIMENSION;
+        fieldId: string;
+    }>((fieldId) => ({
+        type: FieldType.DIMENSION,
+        fieldId,
+    }));
+    const headerMetricValueTypes: { type: FieldType.METRIC }[] = metricsAsRows
+        ? []
+        : [{ type: FieldType.METRIC }];
+    return [...headerDimensionValueTypes, ...headerMetricValueTypes];
+};
+
+const getColumnTotals = ({
+    summableMetricFieldIds,
+    rowIndices,
+    totalColumns,
+    dataColumns,
+    dataValues,
+    hasIndex,
+    pivotConfig,
+    indexValues,
+}: {
+    summableMetricFieldIds: string[];
+    rowIndices: RecursiveRecord<number>;
+    totalColumns: number;
+    dataColumns: number;
+    dataValues: (ResultValue | null)[][];
+    hasIndex: boolean;
+    indexValues: PivotData['indexValues'];
+    pivotConfig: Pick<PivotConfig, 'metricsAsRows' | 'columnTotals'>;
+}) => {
+    let columnTotalFields: PivotData['columnTotalFields'];
+    let columnTotals: PivotData['columnTotals'];
+    const N_DATA_COLUMNS = dataColumns;
+    if (pivotConfig.columnTotals && hasIndex) {
+        if (pivotConfig.metricsAsRows) {
+            const N_TOTAL_ROWS = summableMetricFieldIds.length;
+            const N_TOTAL_COLS = totalColumns;
+            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
+
+            summableMetricFieldIds.forEach((fieldId, metricIndex) => {
+                columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
+                    fieldId,
+                };
+            });
+
+            columnTotals = columnTotals.map((row, rowIndex) =>
+                row.map((_, totalColIndex) => {
+                    const totalColFieldId =
+                        columnTotalFields![rowIndex][N_TOTAL_COLS - 1]?.fieldId;
+
+                    const valueColIndices = totalColFieldId
+                        ? getAllIndicesForFieldId(rowIndices, totalColFieldId)
+                        : [];
+                    return dataValues
+                        .filter((__, dataValueColIndex) =>
+                            valueColIndices.includes(dataValueColIndex),
+                        )
+                        .reduce(
+                            (acc, value) =>
+                                acc + parseNumericValue(value[totalColIndex]),
+                            0,
+                        );
+                }),
+            );
+        } else {
+            const N_TOTAL_COLS = indexValues[0].length;
+            const N_TOTAL_ROWS = 1;
+
+            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
+
+            // set the last index cell as the "Total"
+            columnTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+                fieldId: undefined,
+            };
+
+            columnTotals = columnTotals.map((row, _totalRowIndex) =>
+                row.map((_col, colIndex) =>
+                    dataValues
+                        .map((dataRow) => dataRow[colIndex])
+                        .reduce(
+                            (acc, value) => acc + parseNumericValue(value),
+                            0,
+                        ),
+                ),
+            );
+        }
+    }
+    return { columnTotalFields, columnTotals };
+};
+
+const getTitleFields = ({
+    hasHeader,
+    hasIndex,
+    headerValueTypes,
+    indexValueTypes,
+}: {
+    hasHeader: boolean;
+    hasIndex: boolean;
+    headerValueTypes: PivotData['headerValueTypes'];
+    indexValueTypes: PivotData['indexValueTypes'];
+}): PivotData['titleFields'] => {
+    const titleFields: PivotData['titleFields'] = create2DArray(
+        hasHeader ? headerValueTypes.length : 1,
+        hasIndex ? indexValueTypes.length : 1,
+    );
+    headerValueTypes.forEach((headerValueType, headerIndex) => {
+        if (headerValueType.type === FieldType.DIMENSION) {
+            titleFields[headerIndex][
+                hasIndex ? indexValueTypes.length - 1 : 0
+            ] = {
+                fieldId: headerValueType.fieldId,
+                direction: 'header',
+            };
+        }
+    });
+    indexValueTypes.forEach((indexValueType, indexIndex) => {
+        if (indexValueType.type === FieldType.DIMENSION) {
+            titleFields[hasHeader ? headerValueTypes.length - 1 : 0][
+                indexIndex
+            ] = {
+                fieldId: indexValueType.fieldId,
+                direction: 'index',
+            };
+        }
+    });
+    return titleFields;
+};
+
 export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
@@ -410,19 +550,10 @@ export const pivotQueryResults = ({
     const headerDimensions = pivotConfig.pivotDimensions.filter(
         (pivotDimension) => dimensions.includes(pivotDimension),
     );
-    const headerDimensionValueTypes = headerDimensions.map<{
-        type: FieldType.DIMENSION;
-        fieldId: string;
-    }>((d) => ({
-        type: FieldType.DIMENSION,
-        fieldId: d,
-    }));
-    const headerMetricValueTypes: { type: FieldType.METRIC }[] =
-        pivotConfig.metricsAsRows ? [] : [{ type: FieldType.METRIC }];
-    const headerValueTypes: PivotData['headerValueTypes'] = [
-        ...headerDimensionValueTypes,
-        ...headerMetricValueTypes,
-    ];
+    const headerValueTypes = getHeaderValueTypes({
+        metricsAsRows: pivotConfig.metricsAsRows,
+        pivotDimensionNames: headerDimensions,
+    });
 
     // Indices (row index)
     const indexDimensions = dimensions
@@ -683,89 +814,22 @@ export const pivotQueryResults = ({
         }
     }
 
-    let columnTotalFields: PivotData['columnTotalFields'];
-    let columnTotals: PivotData['columnTotals'];
-    if (pivotConfig.columnTotals && hasIndex) {
-        if (pivotConfig.metricsAsRows) {
-            const N_TOTAL_ROWS = summableMetricFieldIds.length;
-            const N_TOTAL_COLS = indexValueTypes.length;
-
-            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
-            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
-
-            summableMetricFieldIds.forEach((fieldId, metricIndex) => {
-                columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
-                    fieldId,
-                };
-            });
-
-            columnTotals = columnTotals.map((row, rowIndex) =>
-                row.map((_, totalColIndex) => {
-                    const totalColFieldId =
-                        columnTotalFields![rowIndex][N_TOTAL_COLS - 1]?.fieldId;
-
-                    const valueColIndices = totalColFieldId
-                        ? getAllIndicesForFieldId(rowIndices, totalColFieldId)
-                        : [];
-                    return dataValues
-                        .filter((__, dataValueColIndex) =>
-                            valueColIndices.includes(dataValueColIndex),
-                        )
-                        .reduce(
-                            (acc, value) =>
-                                acc + parseNumericValue(value[totalColIndex]),
-                            0,
-                        );
-                }),
-            );
-        } else {
-            const N_TOTAL_COLS = indexValues[0].length;
-            const N_TOTAL_ROWS = 1;
-
-            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
-            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
-
-            // set the last index cell as the "Total"
-            columnTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
-                fieldId: undefined,
-            };
-
-            columnTotals = columnTotals.map((row, _totalRowIndex) =>
-                row.map((_col, colIndex) =>
-                    dataValues
-                        .map((dataRow) => dataRow[colIndex])
-                        .reduce(
-                            (acc, value) => acc + parseNumericValue(value),
-                            0,
-                        ),
-                ),
-            );
-        }
-    }
-
-    const titleFields: PivotData['titleFields'] = create2DArray(
-        hasHeader ? headerValueTypes.length : 1,
-        hasIndex ? indexValueTypes.length : 1,
-    );
-    headerValueTypes.forEach((headerValueType, headerIndex) => {
-        if (headerValueType.type === FieldType.DIMENSION) {
-            titleFields[headerIndex][
-                hasIndex ? indexValueTypes.length - 1 : 0
-            ] = {
-                fieldId: headerValueType.fieldId,
-                direction: 'header',
-            };
-        }
+    const { columnTotalFields, columnTotals } = getColumnTotals({
+        summableMetricFieldIds,
+        totalColumns: indexValueTypes.length,
+        dataColumns: N_DATA_COLUMNS,
+        dataValues,
+        rowIndices,
+        pivotConfig,
+        indexValues,
+        hasIndex,
     });
-    indexValueTypes.forEach((indexValueType, indexIndex) => {
-        if (indexValueType.type === FieldType.DIMENSION) {
-            titleFields[hasHeader ? headerValueTypes.length - 1 : 0][
-                indexIndex
-            ] = {
-                fieldId: indexValueType.fieldId,
-                direction: 'index',
-            };
-        }
+
+    const titleFields = getTitleFields({
+        hasIndex,
+        hasHeader,
+        headerValueTypes,
+        indexValueTypes,
     });
 
     const cellsCount =
@@ -884,4 +948,567 @@ export const pivotResultsAsCsv = ({
         });
 
     return [...headers, ...pivotedRows];
+};
+
+/**
+ * Converts SQL-pivoted results to PivotData format
+ * This handles results that are already pivoted at the SQL level (e.g., payments_total_revenue_any_bank_transfer)
+ * and transforms them into the same PivotData structure as pivotQueryResults
+ */
+export const convertSqlPivotedRowsToPivotData = ({
+    rows,
+    pivotDetails,
+    pivotConfig,
+    getField,
+    getFieldLabel,
+}: {
+    rows: ResultRow[];
+    pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
+    pivotConfig: Pick<
+        PivotConfig,
+        | 'rowTotals'
+        | 'columnTotals'
+        | 'metricsAsRows'
+        | 'hiddenMetricFieldIds'
+        | 'columnOrder'
+    >; // only use properties that are not part of pivot details metadata
+    getField: FieldFunction;
+    getFieldLabel: FieldLabelFunction;
+}): PivotData => {
+    if (rows.length === 0) {
+        throw new Error('Cannot convert SQL pivoted results with no rows');
+    }
+
+    const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+
+    // Extract information from pivot details metadata
+    let indexColumns: string[];
+    if (pivotDetails.indexColumn) {
+        if (Array.isArray(pivotDetails.indexColumn)) {
+            indexColumns = pivotDetails.indexColumn.map((col) => col.reference);
+        } else {
+            indexColumns = [pivotDetails.indexColumn.reference];
+        }
+    } else {
+        indexColumns = [];
+    }
+
+    // Get unique base metrics from valuesColumns
+    const baseMetricsArray = Array.from(
+        new Set(pivotDetails.valuesColumns.map((col) => col.referenceField)),
+    );
+
+    const headerValueTypes = getHeaderValueTypes({
+        metricsAsRows: pivotConfig.metricsAsRows,
+        pivotDimensionNames: (pivotDetails.groupByColumns ?? []).map(
+            ({ reference }) => reference,
+        ),
+    });
+
+    const indexValueTypes: PivotData['indexValueTypes'] =
+        pivotConfig.metricsAsRows
+            ? [
+                  ...indexColumns.map((col) => ({
+                      type: FieldType.DIMENSION as const,
+                      fieldId: col,
+                  })),
+                  { type: FieldType.METRIC as const },
+              ]
+            : indexColumns.map((col) => ({
+                  type: FieldType.DIMENSION as const,
+                  fieldId: col,
+              }));
+
+    // Build header values (pivot dimension values)
+    const headerValues: PivotData['headerValues'] = [];
+    pivotDetails.groupByColumns?.forEach(({ reference }, index) => {
+        headerValues.push([]);
+        let columns = pivotDetails.valuesColumns;
+        if (pivotConfig.metricsAsRows) {
+            // For metrics as rows, we only need unique combinations of pivot values, excluding per metric duplicates
+            columns = Array.from(
+                new Map(
+                    columns.map((col) => [
+                        col.pivotValues
+                            .map(
+                                ({ referenceField, value }) =>
+                                    `${referenceField}:${value}`,
+                            )
+                            .join('|'),
+                        col,
+                    ]),
+                ).values(),
+            );
+        }
+        columns.forEach(({ pivotValues, pivotColumnName }) => {
+            const pivotValue = pivotValues.find(
+                ({ referenceField }) => referenceField === reference,
+            );
+            if (pivotValue) {
+                const field = getField(pivotValue.referenceField);
+                const formattedValue = field
+                    ? formatItemValue(field, pivotValue.value)
+                    : String(pivotValue.value);
+                const allColumnsWithSamePivotValues = columns.filter(
+                    (matchingColumn) => {
+                        const referencesToMatch = (
+                            pivotDetails.groupByColumns || []
+                        )
+                            .map((groupByColumn) => groupByColumn.reference)
+                            .slice(0, index + 1);
+                        // Match all pivot values
+                        return referencesToMatch.every((referenceToMatch) => {
+                            const pivotValueA = pivotValues.find(
+                                ({ referenceField: referenceField3 }) =>
+                                    referenceField3 === referenceToMatch,
+                            );
+                            const pivotValueB = matchingColumn.pivotValues.find(
+                                ({ referenceField: referenceField3 }) =>
+                                    referenceField3 === referenceToMatch,
+                            );
+                            return pivotValueA?.value === pivotValueB?.value;
+                        });
+                    },
+                );
+                const isFirstInGroup =
+                    allColumnsWithSamePivotValues[0].pivotColumnName ===
+                    pivotColumnName;
+                headerValues[index].push({
+                    type: 'value' as const,
+                    fieldId: reference,
+                    value: {
+                        raw: pivotValue.value,
+                        formatted: formattedValue,
+                    },
+                    colSpan: isFirstInGroup
+                        ? allColumnsWithSamePivotValues.length
+                        : 0,
+                });
+            }
+        });
+    });
+
+    // Add metric labels for columns if not metrics as rows
+    if (!pivotConfig.metricsAsRows && baseMetricsArray.length > 0) {
+        headerValues.push(
+            pivotDetails.valuesColumns.map(({ referenceField }) => ({
+                type: 'label' as const,
+                fieldId: referenceField,
+            })),
+        );
+    }
+
+    const filteredHeaderValues = headerValues.filter((row) => row.length > 0);
+
+    // Build index values (row identifiers)
+    let indexValues: PivotData['indexValues'];
+
+    if (pivotConfig.metricsAsRows) {
+        indexValues = rows.reduce<PivotData['indexValues']>((acc, row) => {
+            // multiply rows per metric
+            baseMetricsArray.forEach((metric) => {
+                acc.push([
+                    ...indexColumns.map((col) => ({
+                        type: 'value' as const,
+                        fieldId: col,
+                        value: row[col].value,
+                        colSpan: 1,
+                    })),
+                    {
+                        type: 'label' as const,
+                        fieldId: metric,
+                    },
+                ]);
+            });
+            return acc;
+        }, []);
+    } else {
+        indexValues = rows.map((row) =>
+            indexColumns.map((col) => ({
+                type: 'value' as const,
+                fieldId: col,
+                value: row[col].value,
+                colSpan: 1,
+            })),
+        );
+    }
+
+    // Build data values (the actual pivot data)
+    let dataValues: PivotData['dataValues'];
+    const rowIndices: RecursiveRecord<number> = {};
+    let rowCount = 0;
+
+    // Get unique columns
+    const uniqueColumns = pivotConfig.metricsAsRows
+        ? Array.from(
+              new Map(
+                  pivotDetails.valuesColumns.map((col) => [
+                      col.pivotValues
+                          .map(
+                              ({ referenceField, value }) =>
+                                  `${referenceField}:${value}`,
+                          )
+                          .join('|'),
+                      col,
+                  ]),
+              ).values(),
+          )
+        : pivotDetails.valuesColumns;
+
+    if (pivotConfig.metricsAsRows) {
+        // multiply rows per metric
+        dataValues = rows.reduce<PivotData['dataValues']>((acc, row) => {
+            baseMetricsArray.forEach((metric) => {
+                const indexRowValues = [
+                    ...indexColumns.map((fieldId) =>
+                        String(row[fieldId].value.raw),
+                    ),
+                    metric,
+                ];
+
+                // Build row data for this metric using unique columns
+                // For each unique column combination, find the corresponding value for this metric
+                const rowData = uniqueColumns.map((uniqueCol) => {
+                    // Find the actual column in sortedValuesColumns that matches this unique combination and metric
+                    const matchingColumn = pivotDetails.valuesColumns.find(
+                        (col) =>
+                            col.referenceField === metric &&
+                            col.pivotValues.every((pv) =>
+                                uniqueCol.pivotValues.some(
+                                    (upv) =>
+                                        upv.referenceField ===
+                                            pv.referenceField &&
+                                        upv.value === pv.value,
+                                ),
+                            ),
+                    );
+
+                    return matchingColumn && row[matchingColumn.pivotColumnName]
+                        ? row[matchingColumn.pivotColumnName].value
+                        : null;
+                });
+
+                acc.push(rowData);
+                setIndexByKey(rowIndices, indexRowValues, rowCount);
+                rowCount += 1;
+            });
+            return acc;
+        }, []);
+    } else {
+        dataValues = rows.map((row, rowIndex) => {
+            const indexRowValues = indexColumns.map((fieldId) =>
+                String(row[fieldId].value.raw),
+            );
+            setIndexByKey(rowIndices, indexRowValues, rowIndex);
+
+            return pivotDetails.valuesColumns.map((valueCol) =>
+                row[valueCol.pivotColumnName]
+                    ? row[valueCol.pivotColumnName].value
+                    : null,
+            );
+        });
+        rowCount = rows.length;
+    }
+
+    const fullPivotConfig: PivotConfig = {
+        pivotDimensions:
+            pivotDetails.groupByColumns?.map((col) => col.reference) || [],
+        metricsAsRows: pivotConfig.metricsAsRows || false,
+        columnOrder: pivotConfig.columnOrder,
+        hiddenMetricFieldIds: pivotConfig.hiddenMetricFieldIds || [],
+        columnTotals: pivotConfig.columnTotals,
+        rowTotals: pivotConfig.rowTotals,
+    };
+
+    // Compute row totals if requested
+    let rowTotalFields: PivotData['rowTotalFields'];
+    let rowTotals: PivotData['rowTotals'];
+    const hasHeader = headerValueTypes.length > 0;
+    const hasIndex = indexValueTypes.length > 0;
+    const N_DATA_ROWS = hasIndex ? dataValues.length : 1;
+    const N_DATA_COLUMNS = hasHeader ? uniqueColumns.length : 1;
+
+    // Build column indices using unique columns
+    const columnIndices = uniqueColumns.reduce<RecursiveRecord<number>>(
+        (acc, valuesColumn, index) => {
+            const pivotValues = (pivotDetails.groupByColumns || []).map(
+                (col) =>
+                    valuesColumn.pivotValues.find(
+                        ({ referenceField }) =>
+                            referenceField === col.reference,
+                    )?.value,
+            );
+
+            // Create nested structure based on pivotValues
+            let current = acc;
+            for (let i = 0; i < pivotValues.length; i += 1) {
+                const pivotValue = String(pivotValues[i]);
+                if (
+                    !Object.prototype.hasOwnProperty.call(current, pivotValue)
+                ) {
+                    Object.defineProperty(current, pivotValue, {
+                        value: {},
+                        writable: true,
+                        enumerable: true,
+                        configurable: true,
+                    });
+                }
+                current = current[pivotValue] as RecursiveRecord<number>;
+            }
+
+            // For metricsAsRows, don't include metric in column key
+            if (!pivotConfig.metricsAsRows) {
+                Object.defineProperty(current, valuesColumn.referenceField, {
+                    value: index,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
+            } else {
+                // Use a generic key since metrics are in rows, not columns
+                Object.defineProperty(current, 'value', {
+                    value: index,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                });
+            }
+
+            return acc;
+        },
+        {},
+    );
+
+    const summableMetricFieldIds = baseMetricsArray.filter((metricId) => {
+        const field = getField(metricId);
+
+        // Skip if field is not found or is a dimension or is hidden
+        if (!field || isDimension(field)) return false;
+        if (hiddenMetricFieldIds.includes(metricId)) return false;
+
+        return isSummable(field);
+    });
+
+    if (fullPivotConfig.rowTotals && hasHeader) {
+        if (fullPivotConfig.metricsAsRows) {
+            const N_TOTAL_COLS = 1;
+            const N_TOTAL_ROWS = headerValues.length;
+
+            rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
+
+            // set the last header cell as the "Total"
+            rowTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+                fieldId: undefined,
+            };
+
+            rowTotals = rowTotals.map((row, rowIndex) =>
+                row.map(() =>
+                    dataValues[rowIndex].reduce(
+                        (acc, value) => acc + parseNumericValue(value),
+                        0,
+                    ),
+                ),
+            );
+        } else {
+            const N_TOTAL_COLS = summableMetricFieldIds.length;
+            const N_TOTAL_ROWS = headerValues.length;
+
+            rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            rowTotals = create2DArray(rows.length, N_TOTAL_COLS);
+
+            // Set the last header cell as the "Total"
+            summableMetricFieldIds.forEach((fieldId, metricIndex) => {
+                rowTotalFields![N_TOTAL_ROWS - 1][metricIndex] = {
+                    fieldId,
+                };
+            });
+
+            rowTotals = rowTotals.map((row, rowIndex) =>
+                row.map((_, totalColIndex) => {
+                    const totalColFieldId =
+                        rowTotalFields![N_TOTAL_ROWS - 1][totalColIndex]
+                            ?.fieldId;
+                    const valueColIndices = totalColFieldId
+                        ? getAllIndicesForFieldId(
+                              columnIndices,
+                              totalColFieldId,
+                          )
+                        : [];
+                    return dataValues[rowIndex]
+                        .filter((__, dataValueColIndex) =>
+                            valueColIndices.includes(dataValueColIndex),
+                        )
+                        .reduce(
+                            (acc, value) => acc + parseNumericValue(value),
+                            0,
+                        );
+                }),
+            );
+        }
+    }
+
+    const { columnTotalFields, columnTotals } = getColumnTotals({
+        summableMetricFieldIds,
+        totalColumns: indexValueTypes.length,
+        dataColumns: N_DATA_COLUMNS,
+        dataValues,
+        rowIndices,
+        pivotConfig,
+        indexValues,
+        hasIndex,
+    });
+
+    // Build retrofit data for backwards compatibility
+    const allCombinedData = rows
+        .map((row) => {
+            const combinedRow: ResultRow = {};
+
+            // Add index columns
+            indexColumns.forEach((col) => {
+                combinedRow[col] = row[col];
+            });
+
+            if (pivotConfig.metricsAsRows) {
+                // Add metric label with correct index (after all index columns)
+                const labelIndex = indexColumns.length;
+                const metricLabel =
+                    getFieldLabel(baseMetricsArray[0]) || baseMetricsArray[0];
+                combinedRow[`label-${labelIndex}`] = {
+                    value: {
+                        raw: metricLabel,
+                        formatted: metricLabel,
+                    },
+                };
+            }
+
+            // Add data columns with generated field IDs using metadata
+            pivotDetails.valuesColumns.forEach((valueCol, colIndex) => {
+                const pivotDimensions = (pivotDetails.groupByColumns || []).map(
+                    (col) => col.reference,
+                );
+                const fieldId = pivotConfig.metricsAsRows
+                    ? `${pivotDimensions.join('__')}__${colIndex}`
+                    : `${pivotDimensions.join('__')}__${
+                          valueCol.referenceField
+                      }__${colIndex}`;
+
+                if (row[valueCol.pivotColumnName]) {
+                    combinedRow[fieldId] = row[valueCol.pivotColumnName];
+                }
+            });
+
+            return combinedRow;
+        })
+        .map((combinedRow, rowIndex) => {
+            // Add row totals if enabled
+            if (fullPivotConfig.rowTotals && rowTotals) {
+                const rowTotalValue = rowTotals[rowIndex]?.[0];
+                if (rowTotalValue !== undefined) {
+                    const field = getField(baseMetricsArray[0]);
+                    const formattedValue = field
+                        ? formatItemValue(field, rowTotalValue)
+                        : String(rowTotalValue);
+
+                    return {
+                        ...combinedRow,
+                        'row-total-0': {
+                            value: {
+                                raw: rowTotalValue,
+                                formatted: formattedValue,
+                            },
+                        },
+                    };
+                }
+            }
+            return combinedRow;
+        });
+
+    const pivotColumnInfo: PivotColumn[] = [
+        ...indexColumns.map((col) => ({
+            fieldId: col,
+            baseId: undefined,
+            underlyingId: undefined,
+            columnType: 'indexValue' as const,
+        })),
+        ...(pivotConfig.metricsAsRows
+            ? [
+                  {
+                      fieldId: `label-${indexColumns.length}`,
+                      baseId: undefined,
+                      underlyingId: undefined,
+                      columnType: 'label' as const,
+                  },
+              ]
+            : []),
+        ...pivotDetails.valuesColumns.map((valueCol, colIndex) => {
+            const pivotDimensions = (pivotDetails.groupByColumns || []).map(
+                (col) => col.reference,
+            );
+            const fieldId = pivotConfig.metricsAsRows
+                ? `${pivotDimensions.join('__')}__${colIndex}`
+                : `${pivotDimensions.join('__')}__${
+                      valueCol.referenceField
+                  }__${colIndex}`;
+
+            return {
+                fieldId,
+                baseId: pivotConfig.metricsAsRows
+                    ? pivotDimensions[0]
+                    : valueCol.referenceField,
+                underlyingId: undefined,
+                columnType: undefined,
+            };
+        }),
+        ...(fullPivotConfig.rowTotals
+            ? [
+                  {
+                      fieldId: 'row-total-0',
+                      baseId: 'row-total-0',
+                      underlyingId: undefined,
+                      columnType: 'rowTotal' as const,
+                  },
+              ]
+            : []),
+    ];
+
+    const titleFields = getTitleFields({
+        hasIndex,
+        hasHeader,
+        headerValueTypes,
+        indexValueTypes,
+    });
+
+    const pivotData: PivotData = {
+        titleFields,
+        headerValueTypes,
+        headerValues: filteredHeaderValues,
+        indexValueTypes,
+        indexValues,
+        dataColumnCount: N_DATA_COLUMNS,
+        dataValues,
+        rowTotalFields,
+        columnTotalFields,
+        rowTotals,
+        columnTotals,
+        cellsCount: pivotConfig.metricsAsRows
+            ? indexColumns.length +
+              1 + // label column
+              uniqueColumns.length +
+              (rowTotals ? rowTotals[0].length : 0)
+            : indexColumns.length +
+              uniqueColumns.length +
+              (rowTotals ? rowTotals[0].length : 0),
+        rowsCount: pivotConfig.metricsAsRows
+            ? rows.length * baseMetricsArray.length
+            : rows.length,
+        pivotConfig: fullPivotConfig,
+        retrofitData: {
+            allCombinedData,
+            pivotColumnInfo,
+        },
+        groupedSubtotals: undefined,
+    };
+
+    return combinedRetrofit(pivotData, getField, getFieldLabel);
 };

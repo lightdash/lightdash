@@ -1118,14 +1118,15 @@ export class McpService extends BaseService {
         const runMiniMetricQuery: RunMiniMetricQueryFn = async (
             metricQuery,
             maxLimit,
+            additionalMetrics,
         ) =>
             this.projectService.runMetricQuery({
                 account,
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
-                    additionalMetrics: [],
                     tableCalculations: [],
+                    additionalMetrics: additionalMetrics ?? [],
                 },
                 exploreName: metricQuery.exploreName,
                 csvLimit: maxLimit,

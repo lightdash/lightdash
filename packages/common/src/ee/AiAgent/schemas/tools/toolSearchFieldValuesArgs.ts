@@ -30,7 +30,9 @@ export const toolSearchFieldValuesArgsSchema = createToolSchema(
             .nullable(),
         filters: filtersSchema
             .nullable()
-            .describe('Filters to apply when searching for field values'),
+            .describe(
+                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
+            ),
     })
     .build();
 

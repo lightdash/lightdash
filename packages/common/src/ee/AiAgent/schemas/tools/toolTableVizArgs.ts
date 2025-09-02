@@ -20,7 +20,7 @@ export const toolTableVizArgsSchema = createToolSchema(
         filters: filtersSchema
             .nullable()
             .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
             ),
         followUpTools: z
             .array(

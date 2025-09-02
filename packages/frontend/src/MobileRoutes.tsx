@@ -16,9 +16,10 @@ import {
     IconHome,
     IconLayoutDashboard,
     IconLogout,
+    IconRobot,
 } from '@tabler/icons-react';
 import posthog from 'posthog-js';
-import React, { useCallback, useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
@@ -34,6 +35,7 @@ import MobileView from './components/Mobile';
 import ProjectSwitcher from './components/NavBar/ProjectSwitcher';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
+import { useAiAgentButtonVisibility } from './ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import AuthPopupResult, {
@@ -74,7 +76,7 @@ const RedirectToResource: FC = () => {
     return <Navigate to="/no-mobile-page" />;
 };
 
-const MobileNavBar: FC = () => {
+export const MobileNavBar: FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const toggleMenu = useCallback(
         () => setIsMenuOpen((prevValue) => !prevValue),
@@ -89,6 +91,8 @@ const MobileNavBar: FC = () => {
             window.location.href = '/login';
         },
     });
+
+    const isAiAgentButtonVisible = useAiAgentButtonVisibility();
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
@@ -149,6 +153,15 @@ const MobileNavBar: FC = () => {
                     icon={<MantineIcon icon={IconChartAreaLine} />}
                     onClick={toggleMenu}
                 />
+                {isAiAgentButtonVisible && (
+                    <RouterNavLink
+                        exact
+                        label="Ask AI"
+                        to={`/projects/${activeProjectUuid}/ai-agents`}
+                        icon={<MantineIcon icon={IconRobot} />}
+                        onClick={toggleMenu}
+                    />
+                )}
                 <Divider my="lg" />
                 <RouterNavLink
                     exact

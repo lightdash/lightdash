@@ -1,9 +1,11 @@
 import {
+    Explore,
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     metricQueryTableViz,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
+    ToolRunMetricQueryArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -12,9 +14,11 @@ import type {
     GetExploreFn,
     RunMiniMetricQueryFn,
 } from '../types/aiAgentDependencies';
+import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
+    validateCustomMetricsDefinition,
     validateFilterRules,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
@@ -30,8 +34,33 @@ export const getRunMetricQuery = ({
     getExplore,
     runMiniMetricQuery,
     maxLimit,
-}: Dependencies) =>
-    tool({
+}: Dependencies) => {
+    const validateVizTool = (
+        vizTool: ToolRunMetricQueryArgsTransformed,
+        explore: Explore,
+    ) => {
+        const filterRules = getTotalFilterRules(vizTool.filters);
+        const fieldsToValidate = [
+            ...vizTool.vizConfig.dimensions,
+            ...vizTool.vizConfig.metrics,
+            ...vizTool.vizConfig.sorts.map((sortField) => sortField.fieldId),
+        ].filter((x) => typeof x === 'string');
+
+        validateSelectedFieldsExistence(
+            explore,
+            fieldsToValidate,
+            vizTool.customMetrics,
+        );
+        validateCustomMetricsDefinition(explore, vizTool.customMetrics);
+        validateFilterRules(explore, filterRules, vizTool.customMetrics);
+        validateMetricDimensionFilterPlacement(
+            explore,
+            vizTool.filters,
+            vizTool.customMetrics,
+        );
+    };
+
+    return tool({
         description: toolRunMetricQueryArgsSchema.description,
         parameters: toolRunMetricQueryArgsSchema,
         execute: async (toolArgs) => {
@@ -39,35 +68,24 @@ export const getRunMetricQuery = ({
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
 
-                const filterRules = getTotalFilterRules(vizTool.filters);
-
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
 
-                const fieldsToValidate = [
-                    ...vizTool.vizConfig.dimensions,
-                    ...vizTool.vizConfig.metrics,
-                    ...vizTool.vizConfig.sorts.map(
-                        (sortField) => sortField.fieldId,
-                    ),
-                ].filter((x) => typeof x === 'string');
-
-                validateSelectedFieldsExistence(explore, fieldsToValidate);
-                validateFilterRules(explore, filterRules);
-                validateMetricDimensionFilterPlacement(
-                    explore,
-                    vizTool.filters,
-                );
+                validateVizTool(vizTool, explore);
 
                 const query = metricQueryTableViz({
                     vizConfig: vizTool.vizConfig,
                     filters: vizTool.filters,
                     maxLimit,
-                    customMetrics: null,
+                    customMetrics: vizTool.customMetrics,
                 });
 
-                const results = await runMiniMetricQuery(query, maxLimit);
+                const results = await runMiniMetricQuery(
+                    query,
+                    maxLimit,
+                    populateCustomMetricsSQL(vizTool.customMetrics, explore),
+                );
 
                 const fieldIds = results.rows[0]
                     ? Object.keys(results.rows[0])
@@ -101,3 +119,4 @@ export const getRunMetricQuery = ({
             }
         },
     });
+};

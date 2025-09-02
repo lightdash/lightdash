@@ -1,3 +1,32 @@
+## [0.1973.2](https://github.com/lightdash/lightdash/compare/0.1973.1...0.1973.2) (2025-09-02)
+
+
+### Bug Fixes
+
+* revert "fix: mobile dashbaord layout ([#16666](https://github.com/lightdash/lightdash/issues/16666))" ([#16693](https://github.com/lightdash/lightdash/issues/16693)) ([ce8300d](https://github.com/lightdash/lightdash/commit/ce8300d8e5817b505a928c70a7186d822a7d61cb))
+
+## [0.1973.1](https://github.com/lightdash/lightdash/compare/0.1973.0...0.1973.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* pass hiddenMetricFieldIds from pivotConfig to pivotData ([#16677](https://github.com/lightdash/lightdash/issues/16677)) ([13a731d](https://github.com/lightdash/lightdash/commit/13a731d6b938a9dadf2219b142b045ef5d346bf7))
+
+# [0.1973.0](https://github.com/lightdash/lightdash/compare/0.1972.0...0.1973.0) (2025-09-02)
+
+
+### Features
+
+* enable custom metric filters in ai ([#16672](https://github.com/lightdash/lightdash/issues/16672)) ([bf146aa](https://github.com/lightdash/lightdash/commit/bf146aa4376adea5677592eb09298ae7d4770f48))
+
+# [0.1972.0](https://github.com/lightdash/lightdash/compare/0.1971.0...0.1972.0) (2025-09-02)
+
+
+### Features
+
+* add ai agents mobile view ([#16674](https://github.com/lightdash/lightdash/issues/16674)) ([98748b5](https://github.com/lightdash/lightdash/commit/98748b5b5cf3d74b83042a6931d02c9f92fd8f4b))
+* can create custom metrics when runMetricQuery mcp ([#16624](https://github.com/lightdash/lightdash/issues/16624)) ([6b2bd5c](https://github.com/lightdash/lightdash/commit/6b2bd5c2d7de50e9d9b0d883caf34eff3a150c4f))
+
 # [0.1971.0](https://github.com/lightdash/lightdash/compare/0.1970.0...0.1971.0) (2025-09-01)
 
 

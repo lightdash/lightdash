@@ -1,4 +1,5 @@
 import { type z } from 'zod';
+import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
 import { createToolSchema } from '../toolSchemaBuilder';
 import { tableVizConfigSchema } from '../visualizations';
@@ -21,10 +22,11 @@ export const toolRunMetricQueryArgsSchema = createToolSchema(
 )
     .extend({
         vizConfig: tableVizConfigSchema,
+        customMetrics: customMetricsSchema,
         filters: filtersSchema
             .nullable()
             .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
             ),
     })
     .build();
@@ -36,6 +38,7 @@ export type ToolRunMetricQueryArgs = z.infer<
 export const toolRunMetricQueryArgsSchemaTransformed =
     toolRunMetricQueryArgsSchema.transform((data) => ({
         ...data,
+        customMetrics: customMetricsSchema.parse(data.customMetrics ?? []),
         filters: filtersSchemaTransformed.parse(data.filters ?? null),
     }));
 

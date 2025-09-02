@@ -1,9 +1,7 @@
-import { Navigate, Outlet, type RouteObject } from 'react-router';
-import NavBar from '../components/NavBar';
+import { Navigate, type RouteObject } from 'react-router';
 import PrivateRoute from '../components/PrivateRoute';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
-import { AiAgentThreadStreamStoreProvider } from './features/aiCopilot/streaming/AiAgentThreadStreamStoreProvider';
 import EmbeddedApp from './features/embed/EmbeddedApp';
 import AgentPage from './pages/AiAgents/AgentPage';
 import AgentsRedirect from './pages/AiAgents/AgentsRedirect';
@@ -11,6 +9,7 @@ import AgentsWelcome from './pages/AiAgents/AgentsWelcome';
 import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
 import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPage';
+import { AiAgentsRootLayout } from './pages/AiAgents/AiAgentsRootLayout';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import EmbedDashboard from './pages/EmbedDashboard';
 import EmbedExplore from './pages/EmbedExplore';
@@ -54,10 +53,7 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
         path: '/projects/:projectUuid/ai-agents',
         element: (
             <PrivateRoute>
-                <NavBar />
-                <AiAgentThreadStreamStoreProvider>
-                    <Outlet />
-                </AiAgentThreadStreamStoreProvider>
+                <AiAgentsRootLayout />
             </PrivateRoute>
         ),
         children: [
@@ -125,4 +121,7 @@ export const CommercialWebAppRoutes = [
     ...COMMERCIAL_SLACK_AUTH_ROUTES,
 ];
 
-export const CommercialMobileRoutes = [...COMMERCIAL_EMBED_ROUTES];
+export const CommercialMobileRoutes = [
+    ...COMMERCIAL_EMBED_ROUTES,
+    ...COMMERCIAL_AI_AGENTS_ROUTES,
+];
