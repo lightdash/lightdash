@@ -1,3 +1,10 @@
+## [0.1973.2](https://github.com/lightdash/lightdash/compare/0.1973.1...0.1973.2) (2025-09-02)
+
+
+### Bug Fixes
+
+* revert "fix: mobile dashbaord layout ([#16666](https://github.com/lightdash/lightdash/issues/16666))" ([#16693](https://github.com/lightdash/lightdash/issues/16693)) ([ce8300d](https://github.com/lightdash/lightdash/commit/ce8300d8e5817b505a928c70a7186d822a7d61cb))
+
 ## [0.1973.1](https://github.com/lightdash/lightdash/compare/0.1973.0...0.1973.1) (2025-09-02)
 
 
