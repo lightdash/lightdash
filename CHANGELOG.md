@@ -1,3 +1,10 @@
+## [0.1973.1](https://github.com/lightdash/lightdash/compare/0.1973.0...0.1973.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* pass hiddenMetricFieldIds from pivotConfig to pivotData ([#16677](https://github.com/lightdash/lightdash/issues/16677)) ([13a731d](https://github.com/lightdash/lightdash/commit/13a731d6b938a9dadf2219b142b045ef5d346bf7))
+
 # [0.1973.0](https://github.com/lightdash/lightdash/compare/0.1972.0...0.1973.0) (2025-09-02)
 
 
