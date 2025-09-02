@@ -1215,7 +1215,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             pivotDetails.groupByColumns?.map((col) => col.reference) || [],
         metricsAsRows: pivotConfig.metricsAsRows || false,
         columnOrder: pivotConfig.columnOrder,
-        hiddenMetricFieldIds: [],
+        hiddenMetricFieldIds: pivotConfig.hiddenMetricFieldIds || [],
         columnTotals: pivotConfig.columnTotals,
         rowTotals: pivotConfig.rowTotals,
     };
