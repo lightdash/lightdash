@@ -1,3 +1,10 @@
+# [0.1973.0](https://github.com/lightdash/lightdash/compare/0.1972.0...0.1973.0) (2025-09-02)
+
+
+### Features
+
+* enable custom metric filters in ai ([#16672](https://github.com/lightdash/lightdash/issues/16672)) ([bf146aa](https://github.com/lightdash/lightdash/commit/bf146aa4376adea5677592eb09298ae7d4770f48))
+
 # [0.1972.0](https://github.com/lightdash/lightdash/compare/0.1971.0...0.1972.0) (2025-09-02)
 
 
