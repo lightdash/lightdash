@@ -7,6 +7,7 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Stack, Text, Title } from '@mantine-8/core';
+import { useMediaQuery } from '@mantine-8/hooks';
 import { IconX } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
@@ -48,6 +49,7 @@ export const AiChartVisualization: FC<Props> = ({
     projectUuid,
     message,
 }) => {
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const { data: health } = useHealth();
     const { data: organization } = useOrganization();
     const { metricQuery, fields } = queryExecutionHandle.data.query;
@@ -141,7 +143,7 @@ export const AiChartVisualization: FC<Props> = ({
                                 {queryExecutionHandle.data.metadata.description}
                             </Text>
                         </Stack>
-                        <Group gap="sm">
+                        <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
                             <ViewSqlButton sql={compiledSql?.query} />
                             <AiChartQuickOptions
                                 message={message}

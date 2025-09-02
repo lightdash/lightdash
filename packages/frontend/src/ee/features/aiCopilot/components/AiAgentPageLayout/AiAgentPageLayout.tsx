@@ -1,5 +1,6 @@
 import { type AiAgentMessageAssistant } from '@lightdash/common';
-import { Box, Flex } from '@mantine-8/core';
+import { Box, Drawer, Flex } from '@mantine-8/core';
+import { useMediaQuery } from '@mantine-8/hooks';
 import {
     IconLayoutSidebar,
     IconLayoutSidebarLeftCollapseFilled,
@@ -48,6 +49,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const [contextArtifact, setContextArtifact] = useState<ArtifactData | null>(
         null,
     );
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     const updateCollapsedState = () => {
         const isCollapsed = sidebarPanelRef.current?.isCollapsed() ?? false;
@@ -210,21 +212,46 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         <Box className={styles.chatContent}>{children}</Box>
                     </Panel>
 
-                    {contextArtifact && (
-                        <PanelResizeHandle className={styles.resizeHandle} />
-                    )}
+                    {!isMobile && (
+                        <>
+                            {contextArtifact && (
+                                <PanelResizeHandle
+                                    className={styles.resizeHandle}
+                                />
+                            )}
 
-                    <Panel
-                        id="artifact"
-                        ref={artifactPanelRef}
-                        defaultSize={0}
-                        minSize={50}
-                        collapsible
-                        collapsedSize={0}
-                        className={styles.artifact}
-                    >
-                        {contextArtifact && <AiArtifactPanel />}
-                    </Panel>
+                            <Panel
+                                id="artifact"
+                                ref={artifactPanelRef}
+                                defaultSize={0}
+                                minSize={50}
+                                collapsible
+                                collapsedSize={0}
+                                className={styles.artifact}
+                            >
+                                {contextArtifact && <AiArtifactPanel />}
+                            </Panel>
+                        </>
+                    )}
+                    {isMobile && (
+                        <Drawer
+                            opened={!!contextArtifact}
+                            onClose={clearArtifact}
+                            size="75%"
+                            position="bottom"
+                            h="75%"
+                            withCloseButton={false}
+                            styles={{
+                                body: {
+                                    padding: 0,
+                                    paddingBottom: 'var(--mantine-spacing-lg)',
+                                    height: '100%',
+                                },
+                            }}
+                        >
+                            {contextArtifact && <AiArtifactPanel />}
+                        </Drawer>
+                    )}
                 </ErrorBoundary>
             </PanelGroup>
         </AiAgentPageLayoutContext.Provider>
