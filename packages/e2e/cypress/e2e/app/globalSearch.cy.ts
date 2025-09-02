@@ -1,32 +1,31 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-// Search requests are debounced, so take that into account when waiting for the search request to complete
-const SEARCHED_QUERIES = new Set<string>();
-
-function search(query: string) {
-    const hasPerformedSearch = SEARCHED_QUERIES.has(query);
-    cy.findByRole('search').click();
-
-    if (!hasPerformedSearch) {
-        SEARCHED_QUERIES.add(query);
-        cy.intercept('**/search/**').as('search');
-    }
-
-    cy.findByPlaceholderText(/Search Jaffle shop/gi)
-        .clear()
-        .type(query);
-
-    if (!hasPerformedSearch) {
-        cy.wait('@search');
-    }
-}
-
 describe('Global search', () => {
     beforeEach(() => {
         cy.login();
     });
 
     it('Should search all result types', () => {
+        // Search requests are debounced, so take that into account when waiting for the search request to complete
+        const SEARCHED_QUERIES = new Set<string>();
+
+        function search(query: string) {
+            const hasPerformedSearch = SEARCHED_QUERIES.has(query);
+            cy.findByRole('search').click();
+
+            if (!hasPerformedSearch) {
+                SEARCHED_QUERIES.add(query);
+                cy.intercept('**/search/**').as('search');
+            }
+
+            cy.findByPlaceholderText(/Search Jaffle shop/gi)
+                .clear()
+                .type(query);
+
+            if (!hasPerformedSearch) {
+                cy.wait('@search');
+            }
+        }
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
 
         cy.contains('Search Jaffle shop').should('be.visible');
@@ -86,7 +85,7 @@ describe('Global search', () => {
         cy.contains('Customer id').should('be.visible');
 
         // search and select field
-        search('First order');
+        search('Date of first order');
         cy.findByRole('dialog')
             .findByRole('menuitem', {
                 name: 'Orders - Date of first order Metric · Min of Order date',
