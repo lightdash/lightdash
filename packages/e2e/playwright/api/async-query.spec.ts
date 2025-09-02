@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-await-in-loop, no-promise-executor-return, no-restricted-syntax, global-require, prefer-destructuring */
 import { test, expect, APIRequestContext } from '@playwright/test';
-import {
-    CreateWarehouseCredentials,
-    SEED_PROJECT,
-} from '@lightdash/common';
-import { login, logout } from '../support/auth';
-import warehouseConnections from '../support/warehouses';
+import { SEED_PROJECT } from '@lightdash/common';
+import { login } from '../support/auth';
+import { createProject, deleteProjectsByName, getJwtToken } from '../support/commands';
+import warehouseConnections, { isSnowflakeConfigured, isBigQueryConfigured } from '../support/warehouses';
 
 const apiV1 = '/api/v1';
 const apiV2 = '/api/v2';
@@ -45,27 +43,9 @@ async function waitForJobCompletion(request: APIRequestContext, jobUuid: string,
     return false;
 }
 
-async function createProject(request: APIRequestContext, name: string, warehouseConfig: CreateWarehouseCredentials): Promise<string | undefined> {
-    const createResp = await request.post(`${apiV1}/org/projects`, {
-        headers: { 'Content-type': 'application/json' },
-        data: {
-            name,
-            type: 'DEFAULT',
-            dbtConnection: {
-                target: '',
-                environment: [],
-                type: 'dbt',
-                project_dir: process.env.DBT_PROJECT_DIR,
-            },
-            dbtVersion: 'v1.7',
-            warehouseConnection: warehouseConfig,
-        },
-    });
-    expect(createResp.status()).toBe(200);
-    const createBody = await createResp.json();
-    const projectUuid = createBody.results?.project?.projectUuid as string | undefined;
-    if (!projectUuid) return undefined;
-
+async function createProjectWithRefresh(request: APIRequestContext, name: string, warehouseConfig: any): Promise<string | undefined> {
+    const projectUuid = await createProject(request, name, warehouseConfig);
+    
     const refreshResp = await request.post(`${apiV1}/projects/${projectUuid}/refresh`);
     expect(refreshResp.status()).toBe(200);
     const refreshBody = await refreshResp.json();
@@ -73,73 +53,6 @@ async function createProject(request: APIRequestContext, name: string, warehouse
     const success = await waitForJobCompletion(request, jobUuid);
     if (!success) return undefined;
     return projectUuid;
-}
-
-async function deleteProjectsByName(request: APIRequestContext, names: string[]) {
-    const getResp = await request.get(`${apiV1}/org/projects`);
-    const getBody = await getResp.json();
-    const projects = (getBody.results || []) as Array<{ projectUuid: string; name: string }>;
-    for (const p of projects) {
-        if (names.includes(p.name)) {
-            await request.delete(`${apiV1}/org/projects/${p.projectUuid}`, {
-                headers: { 'Content-type': 'application/json' },
-            });
-        }
-    }
-}
-
-function isSnowflakeConfigured() {
-    return !!(process.env.SNOWFLAKE_ACCOUNT && process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD);
-}
-function isBigQueryConfigured() {
-    return !!credentialsJson;
-}
-
-async function getJwtToken(request: APIRequestContext, projectUuid: string, options?: { userEmail?: string; userExternalId?: string | null; canExplore?: boolean; canExportCsv?: boolean; canExportImages?: boolean; canExportPagePdf?: boolean; canDateZoom?: boolean }) {
-    const { userEmail = 'test@example.com', userExternalId = 'test-user-123', canExplore = false, canExportCsv = false, canExportImages = false, canExportPagePdf = false, canDateZoom = false } = options || {};
-
-    // get a dashboard uuid
-    const dashboardsResp = await request.get(`${apiV1}/projects/${projectUuid}/dashboards`);
-    expect(dashboardsResp.status()).toBe(200);
-    const dashboardsBody = await dashboardsResp.json();
-    const dashboardUuid = dashboardsBody.results[0].uuid as string;
-
-    const configResp = await request.get(`${apiV1}/embed/${projectUuid}/config`);
-    expect(configResp.status()).toBe(200);
-
-    const jwtData = {
-        content: {
-            type: 'dashboard',
-            projectUuid,
-            dashboardUuid,
-            canExportCsv,
-            canExportImages,
-            canExportPagePdf,
-            canDateZoom,
-            canExplore,
-        },
-        userAttributes: {
-            email: userEmail,
-            externalId: userExternalId || '',
-        },
-        user: {
-            email: userEmail,
-            externalId: userExternalId ?? undefined,
-        },
-        expiresIn: '1h',
-    };
-
-    const embedResp = await request.post(`${apiV1}/embed/${projectUuid}/get-embed-url`, {
-        headers: { 'Content-Type': 'application/json' },
-        data: jwtData,
-    });
-    expect(embedResp.status()).toBe(200);
-    const embedBody = await embedResp.json();
-    const url: string = embedBody.results.url;
-    const token = url.split('#')[1];
-    // logout to clear session for JWT-auth requests when needed
-    await logout(request);
-    return token;
 }
 
 async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string, jwt?: string) {
@@ -271,7 +184,7 @@ test.describe('Async Query API', () => {
         let projectUuid: string | undefined;
 
         test('should execute async query and get all results paged', async ({ request }) => {
-            projectUuid = await createProject(request, projectName, warehouseConnections.postgresSQL);
+            projectUuid = await createProjectWithRefresh(request, projectName, warehouseConnections.postgresSQL);
             expect(projectUuid).toBeTruthy();
             await runAsyncQueryTest(request, projectUuid!);
         });
@@ -287,7 +200,7 @@ test.describe('Async Query API', () => {
         let projectUuid: string | undefined;
 
         test('should execute async query and get all results paged', async ({ request }) => {
-            projectUuid = await createProject(request, projectName, warehouseConnections.snowflake);
+            projectUuid = await createProjectWithRefresh(request, projectName, warehouseConnections.snowflake);
             expect(projectUuid).toBeTruthy();
             await runAsyncQueryTest(request, projectUuid!);
         });

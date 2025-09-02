@@ -1,7 +1,7 @@
 import { CreateWarehouseCredentials, WarehouseTypes } from '@lightdash/common';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: JSON import for BigQuery credentials
-import bigqueryCredentials from '../../cypress/fixtures/credentials.json';
+import bigqueryCredentials from '../fixtures/credentials.json';
 
 const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
     postgresSQL: {
@@ -65,5 +65,13 @@ const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
         type: 'trino'
     }, */
 };
+
+export function isSnowflakeConfigured() {
+    return !!(process.env.SNOWFLAKE_ACCOUNT && process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD);
+}
+
+export function isBigQueryConfigured() {
+    return !!warehouseConnections.bigQuery.keyfileContents;
+}
 
 export default warehouseConnections;
