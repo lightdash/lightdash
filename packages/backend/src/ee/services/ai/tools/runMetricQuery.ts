@@ -1,9 +1,11 @@
 import {
+    Explore,
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     metricQueryTableViz,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
+    ToolRunMetricQueryArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -32,8 +34,33 @@ export const getRunMetricQuery = ({
     getExplore,
     runMiniMetricQuery,
     maxLimit,
-}: Dependencies) =>
-    tool({
+}: Dependencies) => {
+    const validateVizTool = (
+        vizTool: ToolRunMetricQueryArgsTransformed,
+        explore: Explore,
+    ) => {
+        const filterRules = getTotalFilterRules(vizTool.filters);
+        const fieldsToValidate = [
+            ...vizTool.vizConfig.dimensions,
+            ...vizTool.vizConfig.metrics,
+            ...vizTool.vizConfig.sorts.map((sortField) => sortField.fieldId),
+        ].filter((x) => typeof x === 'string');
+
+        validateSelectedFieldsExistence(
+            explore,
+            fieldsToValidate,
+            vizTool.customMetrics,
+        );
+        validateCustomMetricsDefinition(explore, vizTool.customMetrics);
+        validateFilterRules(explore, filterRules, vizTool.customMetrics);
+        validateMetricDimensionFilterPlacement(
+            explore,
+            vizTool.filters,
+            vizTool.customMetrics,
+        );
+    };
+
+    return tool({
         description: toolRunMetricQueryArgsSchema.description,
         parameters: toolRunMetricQueryArgsSchema,
         execute: async (toolArgs) => {
@@ -45,27 +72,7 @@ export const getRunMetricQuery = ({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
 
-                const filterRules = getTotalFilterRules(vizTool.filters);
-
-                const fieldsToValidate = [
-                    ...vizTool.vizConfig.dimensions,
-                    ...vizTool.vizConfig.metrics,
-                    ...vizTool.vizConfig.sorts.map(
-                        (sortField) => sortField.fieldId,
-                    ),
-                ].filter((x) => typeof x === 'string');
-
-                validateSelectedFieldsExistence(
-                    explore,
-                    fieldsToValidate,
-                    vizTool.customMetrics,
-                );
-                validateFilterRules(explore, filterRules);
-                validateMetricDimensionFilterPlacement(
-                    explore,
-                    vizTool.filters,
-                );
-                validateCustomMetricsDefinition(explore, vizTool.customMetrics);
+                validateVizTool(vizTool, explore);
 
                 const query = metricQueryTableViz({
                     vizConfig: vizTool.vizConfig,
@@ -112,3 +119,4 @@ export const getRunMetricQuery = ({
             }
         },
     });
+};
