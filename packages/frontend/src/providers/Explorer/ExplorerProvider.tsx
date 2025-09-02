@@ -1393,6 +1393,12 @@ const ExplorerProvider: FC<
         ],
     );
 
+    // Check if results section is open
+    const isResultsOpen = useMemo(
+        () => reducerState.expandedSections.includes(ExplorerSection.RESULTS),
+        [reducerState.expandedSections],
+    );
+
     // Use custom query manager to reduce duplication
     const mainQueryManager = useQueryManager(
         validQueryArgs,
@@ -1404,6 +1410,7 @@ const ExplorerProvider: FC<
     const unpivotedQueryManager = useQueryManager(
         unpivotedQueryArgs,
         missingRequiredParameters,
+        isResultsOpen, // Only execute unpivoted query when results panel is open
     );
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
         unpivotedQueryManager;
@@ -1472,12 +1479,6 @@ const ExplorerProvider: FC<
         setSortFields,
         unsavedChartVersion.metricQuery.sorts.length,
     ]);
-
-    // Check if results section is open
-    const isResultsOpen = useMemo(
-        () => reducerState.expandedSections.includes(ExplorerSection.RESULTS),
-        [reducerState.expandedSections],
-    );
 
     // Check if we need unpivoted data (chart is pivoted)
     const needsUnpivotedData = useMemo(() => {
@@ -1557,11 +1558,11 @@ const ExplorerProvider: FC<
             // Set main query args (with pivot configuration for chart)
             setValidQueryArgs(mainQueryArgs);
 
-            // Only set unpivoted query args if results panel is open AND chart is pivoted
-            if (needsUnpivotedData && isResultsOpen) {
+            // Always prepare unpivoted query args when needed, regardless of results panel state
+            // The query manager will only execute when results panel is open
+            if (needsUnpivotedData) {
                 setUnpivotedQueryArgs(unpivotedQueryArgsTemplate);
             } else {
-                // Clear unpivoted query if not needed or results panel is closed
                 setUnpivotedQueryArgs(null);
             }
 
@@ -1591,32 +1592,6 @@ const ExplorerProvider: FC<
         dateZoomGranularity,
         minimal,
         needsUnpivotedData,
-        isResultsOpen,
-    ]);
-
-    // Effect to trigger unpivoted query when results panel opens
-    useEffect(() => {
-        if (
-            isResultsOpen &&
-            needsUnpivotedData &&
-            !unpivotedQueryArgs &&
-            validQueryArgs
-        ) {
-            const unpivotedQueryArgsTemplate = {
-                ...validQueryArgs,
-                pivotConfiguration: undefined,
-            };
-
-            setUnpivotedQueryArgs(unpivotedQueryArgsTemplate);
-        } else if (!isResultsOpen && unpivotedQueryArgs) {
-            setUnpivotedQueryArgs(null);
-        }
-    }, [
-        isResultsOpen,
-        needsUnpivotedData,
-        unpivotedQueryArgs,
-        unsavedChartVersion.metricQuery,
-        validQueryArgs,
     ]);
 
     useEffect(() => {

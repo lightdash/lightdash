@@ -4,6 +4,10 @@ import { memo, useCallback, useMemo, useState, type FC } from 'react';
 
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
+import type {
+    useGetReadyQueryResults,
+    useInfiniteQueryResults,
+} from '../../../hooks/useQueryResults';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -19,7 +23,10 @@ import {
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
 
-const getQueryStatus = (query: any, queryResults: any) => {
+const getQueryStatus = (
+    query: ReturnType<typeof useGetReadyQueryResults>,
+    queryResults: ReturnType<typeof useInfiniteQueryResults>,
+): 'loading' | 'error' | 'idle' | 'success' => {
     const isCreatingQuery = query.isFetching;
     const isFetchingFirstPage = queryResults.isFetchingFirstPage;
 
@@ -30,8 +37,10 @@ const getQueryStatus = (query: any, queryResults: any) => {
         return 'loading';
     } else if (query.status === 'loading' || !query.isFetched) {
         return 'idle';
+    } else if (query.status === 'success') {
+        return 'success';
     } else {
-        return query.status;
+        return 'error';
     }
 };
 

@@ -8,8 +8,12 @@ import {
 export const useQueryManager = (
     queryArgs: QueryResultsProps | null,
     missingRequiredParameters: string[] | null,
+    enabled: boolean = true,
 ) => {
-    const query = useGetReadyQueryResults(queryArgs, missingRequiredParameters);
+    const query = useGetReadyQueryResults(
+        enabled ? queryArgs : null,
+        enabled ? missingRequiredParameters : null,
+    );
     const [queryUuidHistory, setQueryUuidHistory] = useState<string[]>([]);
 
     useEffect(() => {
