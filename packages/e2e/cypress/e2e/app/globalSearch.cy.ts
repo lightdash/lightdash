@@ -18,8 +18,9 @@ describe('Global search', () => {
                 cy.intercept('**/search/**').as('search');
             }
 
-            cy.findByPlaceholderText(/Search Jaffle shop/gi).clear();
-            cy.findByPlaceholderText(/Search Jaffle shop/gi).type(query);
+            cy.findByPlaceholderText(/Search Jaffle shop/gi)
+                .clear()
+                .type(query);
 
             if (!hasPerformedSearch) {
                 cy.wait('@search');
@@ -84,7 +85,7 @@ describe('Global search', () => {
         cy.contains('Customer id').should('be.visible');
 
         // search and select field
-        search('First order');
+        search('Date of first order');
         cy.findByRole('dialog')
             .findByRole('menuitem', {
                 name: 'Orders - Date of first order Metric · Min of Order date',
