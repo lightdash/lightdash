@@ -138,10 +138,8 @@ const MinimalDashboard: FC = () => {
             md: tiles.map<Layout>((tile) =>
                 getReactGridLayoutConfig(tile, false, gridProps.cols.md),
             ),
-            // On the smallest breakpoint, we don't need to pass the cols parameter,
-            // we are stacking vertically, so we don't want to add a scale factor
             sm: tiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, false),
+                getReactGridLayoutConfig(tile, false, gridProps.cols.sm),
             ),
         };
     }, [dashboard?.tiles, schedulerTabsSelected, activeTab, gridProps.cols]);
