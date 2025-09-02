@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { AnyType, SEED_PROJECT } from '@lightdash/common';
+import { SEED_PROJECT } from '@lightdash/common';
 import { login } from '../support/auth';
 
 const apiUrl = '/api/v1';
@@ -22,9 +22,9 @@ test.describe('Search API - Enhanced Dashboard and Chart Search', () => {
                 `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/search/${searchKeyword}`,
             );
             expect(response.status()).toBe(200);
-            expect(response.body).toHaveProperty('results');
-
             const body = await response.json();
+
+            expect(body).toHaveProperty('results');
             const { dashboards, savedCharts } = body.results;
 
             expect(dashboards).toBeInstanceOf(Array);
@@ -113,9 +113,9 @@ test.describe('Search API - Enhanced Dashboard and Chart Search', () => {
                 `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/search/xyznonexistentterm`,
             );
             expect(response.status()).toBe(200);
-            expect(response.body).toHaveProperty('results');
-
             const body = await response.json();
+            expect(body).toHaveProperty('results');
+
             const { dashboards, savedCharts, sqlCharts } = body.results;
             expect(dashboards).toBeInstanceOf(Array);
             expect(dashboards).toHaveLength(0);
@@ -130,7 +130,8 @@ test.describe('Search API - Enhanced Dashboard and Chart Search', () => {
                 `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/search/${encodeURIComponent("revenue' OR '1'='1")}`,
             );
             expect(response.status()).toBe(200);
-            expect(response.body).toHaveProperty('results');
+            const body = await response.json();
+            expect(body).toHaveProperty('results');
         });
     });
 });
