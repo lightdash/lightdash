@@ -1,3 +1,11 @@
+# [0.1972.0](https://github.com/lightdash/lightdash/compare/0.1971.0...0.1972.0) (2025-09-02)
+
+
+### Features
+
+* add ai agents mobile view ([#16674](https://github.com/lightdash/lightdash/issues/16674)) ([98748b5](https://github.com/lightdash/lightdash/commit/98748b5b5cf3d74b83042a6931d02c9f92fd8f4b))
+* can create custom metrics when runMetricQuery mcp ([#16624](https://github.com/lightdash/lightdash/issues/16624)) ([6b2bd5c](https://github.com/lightdash/lightdash/commit/6b2bd5c2d7de50e9d9b0d883caf34eff3a150c4f))
+
 # [0.1971.0](https://github.com/lightdash/lightdash/compare/0.1970.0...0.1971.0) (2025-09-01)
 
 
