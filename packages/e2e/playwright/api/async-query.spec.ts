@@ -3,50 +3,12 @@ import { test, expect, APIRequestContext } from '@playwright/test';
 import {
     CreateWarehouseCredentials,
     SEED_PROJECT,
-    WarehouseTypes,
 } from '@lightdash/common';
 import { login, logout } from '../support/auth';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: JSON import for BigQuery credentials
-import credentialsJson from '../../cypress/fixtures/credentials.json';
+import warehouseConnections from '../support/warehouses';
 
 const apiV1 = '/api/v1';
 const apiV2 = '/api/v2';
-
-// Build warehouse connections from environment variables
-const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
-    postgresSQL: {
-        host: process.env.PGHOST || 'db-dev',
-        user: process.env.PGUSER || 'postgres',
-        password: process.env.PGPASSWORD || 'password',
-        dbname: 'postgres',
-        schema: 'jaffle',
-        port: Number(process.env.PGPORT || 5432),
-        sslmode: 'disable' as const,
-        type: WarehouseTypes.POSTGRES,
-    },
-    snowflake: {
-        account: process.env.SNOWFLAKE_ACCOUNT as string,
-        user: process.env.SNOWFLAKE_USER as string,
-        password: process.env.SNOWFLAKE_PASSWORD as string,
-        role: 'SYSADMIN',
-        database: 'SNOWFLAKE_DATABASE_STAGING',
-        warehouse: 'TESTING',
-        schema: 'JAFFLE',
-        type: WarehouseTypes.SNOWFLAKE,
-    },
-    bigQuery: {
-        project: 'lightdash-database-staging',
-        location: 'europe-west1',
-        dataset: 'e2e_jaffle_shop',
-        keyfileContents: credentialsJson as any,
-        timeoutSeconds: undefined,
-        priority: 'interactive',
-        retries: 0,
-        maximumBytesBilled: undefined,
-        type: WarehouseTypes.BIGQUERY,
-    },
-};
 
 const runQueryBody = {
     context: 'exploreView',
