@@ -6366,6 +6366,203 @@
             "ApiRemoveScopeFromRoleResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
+            "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentUser"
+                            },
+                            {
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "slackUserId": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["email", "slackUserId"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "createdFrom": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "user",
+                    "uuid",
+                    "createdFrom",
+                    "title"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ThreadSummary": {
+                "$ref": "#/components/schemas/Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_"
+            },
+            "Pick_AiAgentSummary.uuid-or-name-or-imageUrl_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["name", "uuid", "imageUrl"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentAdminFeedbackSummary": {
+                "properties": {
+                    "total": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "neutral": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "downvotes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "upvotes": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["total", "neutral", "downvotes", "upvotes"],
+                "type": "object"
+            },
+            "AiAgentAdminThreadSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ThreadSummary"
+                    },
+                    {
+                        "properties": {
+                            "feedbackSummary": {
+                                "$ref": "#/components/schemas/AiAgentAdminFeedbackSummary"
+                            },
+                            "project": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "uuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name", "uuid"],
+                                "type": "object"
+                            },
+                            "agent": {
+                                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-imageUrl_"
+                            }
+                        },
+                        "required": ["feedbackSummary", "project", "agent"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentAdminConversationsSummary": {
+                "properties": {
+                    "threads": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentAdminThreadSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["threads"],
+                "type": "object"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_AiAgentAdminConversationsSummary_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/AiAgentAdminConversationsSummary"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_AiAgentAdminConversationsSummary__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentAdminConversationsSummary_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminConversationsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentAdminConversationsSummary__"
+            },
+            "AiAgentAdminSortField": {
+                "type": "string",
+                "enum": ["createdAt", "title"]
+            },
             "ApiJobScheduledResponse": {
                 "properties": {
                     "results": {
@@ -10253,20 +10450,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
                 "type": "object"
             },
             "KnexPaginatedData_SchedulerAndTargets-Array_": {
@@ -18632,7 +18815,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1970.0",
+        "version": "0.1972.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
