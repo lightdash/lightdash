@@ -21,7 +21,7 @@ import { useVisualizationContext } from '../../../../../components/LightdashVisu
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
-import { useSavePromptQuery } from '../../hooks/useOrganizationAiAgents';
+import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 
 type Props = {

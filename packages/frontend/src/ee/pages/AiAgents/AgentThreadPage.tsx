@@ -5,10 +5,10 @@ import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
-    useAiAgent,
+    useProjectAiAgent as useAiAgent,
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
-} from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
+} from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useAiAgentPageLayout } from '../../features/aiCopilot/providers/AiLayoutProvider';
 import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
