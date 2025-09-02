@@ -82,6 +82,7 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
     yFields: ['my_metric', 'my_second_metric'],
     xField: 'my_dimension',
     availableDimensions: ['my_dimension', 'dimension_x'],
+    itemsMap: undefined,
 };
 
 export const expectedSimpleSeriesMap: Record<string, Series> = {

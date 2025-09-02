@@ -1755,7 +1755,7 @@ const useEchartsCartesianConfig = (
 
     const { rows, rowKeyMap } = useMemo(() => {
         if (resultsData?.pivotDetails) {
-            return getPlottedDataFromPivotDetails(resultsData);
+            return getPlottedDataFromPivotDetails(resultsData, undefined);
         }
 
         // Legacy implementation - comment out when fully migrated
