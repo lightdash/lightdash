@@ -61,8 +61,8 @@ import {
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
+    getPivotedDataFromPivotDetails,
     getPlottedData,
-    getPlottedDataFromPivotDetails,
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
@@ -1755,7 +1755,7 @@ const useEchartsCartesianConfig = (
 
     const { rows, rowKeyMap } = useMemo(() => {
         if (resultsData?.pivotDetails) {
-            return getPlottedDataFromPivotDetails(resultsData, undefined);
+            return getPivotedDataFromPivotDetails(resultsData, undefined);
         }
 
         // Legacy implementation - comment out when fully migrated

@@ -158,20 +158,3 @@ export const getPivotedDataFromPivotDetails = (
         rowKeyMap,
     };
 };
-
-export const getPlottedDataFromPivotDetails = (
-    resultsData: InfiniteQueryResults,
-    itemsMap: ItemsMap | undefined,
-) => {
-    const { pivotDetails, rows } = resultsData;
-
-    if (!pivotDetails) {
-        return {
-            pivotValuesMap: {},
-            rowKeyMap: {},
-            rows,
-        };
-    }
-
-    return getPivotedDataFromPivotDetails(resultsData, itemsMap);
-};
