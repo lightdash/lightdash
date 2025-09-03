@@ -13,7 +13,11 @@ import {
 import { Knex } from 'knex';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
+import { DBProjectGroupAccess } from '../database/entities/projectGroupAccess';
+import {
+    DbProjectMembership,
+    ProjectMembershipsTableName,
+} from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
 import {
     DbRole,
@@ -284,6 +288,28 @@ export class RolesModel {
             .where('user_id', userId)
             .where('project_id', project.project_id)
             .update({ role_uuid: null });
+    }
+
+    async getProjectAccessByUserUuid(
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<DbProjectMembership[]> {
+        const userId = await this.getUserId(userUuid);
+        const project = await this.database(ProjectTableName)
+            .select('project_id')
+            .where('project_uuid', projectUuid)
+            .first();
+
+        if (!project) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} not found`,
+            );
+        }
+        const projectAccess = await this.database(ProjectMembershipsTableName)
+            .where('user_id', userId)
+            .where('project_id', project.project_id)
+            .select('*');
+        return projectAccess;
     }
 
     async upsertSystemRoleGroupAccess(

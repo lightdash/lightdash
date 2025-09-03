@@ -1,19 +1,12 @@
 import { subject } from '@casl/ability';
-import {
-    OrganizationMemberRole,
-    ProjectMemberRole,
-    validateEmail,
-    type CreateProjectMember,
-    type InviteLink,
-} from '@lightdash/common';
+import { validateEmail, type InviteLink } from '@lightdash/common';
 
 import { Button, Group, Modal, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
-import { useCreateProjectAccessMutation } from '../../hooks/useProjectAccess';
+import { useUpsertProjectUserRoleAssignmentMutation } from '../../hooks/useProjectRoles';
 import useApp from '../../providers/App/useApp';
 import { TrackPage } from '../../providers/Tracking/TrackingProvider';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -28,68 +21,59 @@ import MantineIcon from '../common/MantineIcon';
 
 interface Props {
     projectUuid: string;
+    roles: { value: string; label: string; group: string }[];
     onClose: () => void;
 }
 
-const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
+const CreateProjectAccessModal: FC<Props> = ({
+    projectUuid,
+    roles,
+    onClose,
+}) => {
     const { track } = useTracking();
     const { user } = useApp();
 
+    const { mutateAsync: upsertMutation, isLoading } =
+        useUpsertProjectUserRoleAssignmentMutation(projectUuid);
+
     const { data: organizationUsers } = useOrganizationUsers();
-    const { mutateAsync: createMutation, isLoading } =
-        useCreateProjectAccessMutation(projectUuid);
 
-    const {
-        mutateAsync: inviteMutation,
-        isLoading: isInvitationLoading,
-        reset,
-    } = useCreateInviteLinkMutation();
-
-    const form = useForm<Pick<CreateProjectMember, 'email' | 'role'>>({
+    const form = useForm<{ userId: string; roleId: string }>({
         initialValues: {
-            email: '',
-            role: ProjectMemberRole.VIEWER,
+            userId: '',
+            roleId: 'viewer',
         },
     });
 
-    const [addNewMember, setAddNewMember] = useState<boolean>(false);
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
-    const [emailOptions, setEmailOptions] = useState<string[]>([]);
+    const [emailOptions, setEmailOptions] = useState<
+        { value: string; label: string }[]
+    >([]);
 
     useEffect(() => {
         if (organizationUsers) {
-            setEmailOptions(organizationUsers.map(({ email }) => email));
+            const userData = organizationUsers.map((us) => ({
+                value: us.userUuid,
+                label: us.email,
+            }));
+            setEmailOptions(userData);
         }
     }, [organizationUsers]);
 
-    const handleSubmit = async (
-        formData: Pick<CreateProjectMember, 'email' | 'role'>,
-    ) => {
+    const handleSubmit = async (formData: {
+        userId: string;
+        roleId: string;
+    }) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
         setInviteLink(undefined);
 
-        if (addNewMember) {
-            const data = await inviteMutation({
-                email: formData.email,
-                role: OrganizationMemberRole.MEMBER,
-            });
-            await createMutation({
-                ...formData,
-                sendEmail: false,
-            });
-            setAddNewMember(false);
-            setInviteLink(data);
-            reset();
-            form.reset();
-        } else {
-            await createMutation({
-                ...formData,
-                sendEmail: true,
-            });
-            form.reset();
-        }
+        await upsertMutation({
+            ...formData,
+            sendEmail: true,
+        });
+        form.reset();
     };
 
     const userCanInviteUsersToOrganization = user.data?.ability.can(
@@ -121,7 +105,7 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                 <form
                     name="add_user_to_project"
                     onSubmit={form.onSubmit(
-                        (values: Pick<CreateProjectMember, 'email' | 'role'>) =>
+                        (values: { userId: string; roleId: string }) =>
                             handleSubmit(values),
                     )}
                 >
@@ -154,36 +138,23 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                                     validateEmail(query) &&
                                     userCanInviteUsersToOrganization
                                 ) {
-                                    setAddNewMember(true);
-                                    setEmailOptions((prevState) => [
-                                        ...prevState,
-                                        query,
-                                    ]);
                                     return query;
                                 }
                             }}
                             data={emailOptions}
-                            {...form.getInputProps('email')}
+                            {...form.getInputProps('userId')}
                             sx={{ flexGrow: 1 }}
                         />
                         <Select
-                            data={Object.values(ProjectMemberRole).map(
-                                (orgMemberRole) => ({
-                                    value: orgMemberRole,
-                                    label: orgMemberRole.replace('_', ' '),
-                                }),
-                            )}
+                            data={roles}
                             disabled={isLoading}
                             required
                             placeholder="Select role"
                             dropdownPosition="bottom"
                             withinPortal
-                            {...form.getInputProps('role')}
+                            {...form.getInputProps('roleId')}
                         />
-                        <Button
-                            disabled={isLoading || isInvitationLoading}
-                            type="submit"
-                        >
+                        <Button disabled={isLoading} type="submit">
                             Give access
                         </Button>
                     </Group>

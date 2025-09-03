@@ -891,6 +891,7 @@ export class ServiceRepository
                     organizationModel: this.models.getOrganizationModel(),
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
+                    emailClient: this.clients.getEmailClient(),
                 }),
         );
     }
