@@ -1,3 +1,10 @@
+# [0.1978.0](https://github.com/lightdash/lightdash/compare/0.1977.1...0.1978.0) (2025-09-03)
+
+
+### Features
+
+* **cli:** improved project permission errors ([#16655](https://github.com/lightdash/lightdash/issues/16655)) ([1cb2005](https://github.com/lightdash/lightdash/commit/1cb20052de66c7ac1987d8bb40e802d897a0e96b))
+
 ## [0.1977.1](https://github.com/lightdash/lightdash/compare/0.1977.0...0.1977.1) (2025-09-03)
 
 
