@@ -1,3 +1,10 @@
+# [0.1976.0](https://github.com/lightdash/lightdash/compare/0.1975.0...0.1976.0) (2025-09-03)
+
+
+### Features
+
+* add new cartesian chart util to handle backend pivoted data ([#16656](https://github.com/lightdash/lightdash/issues/16656)) ([5d1fa2d](https://github.com/lightdash/lightdash/commit/5d1fa2d0b229b5c088d9ca7d5aaafa776cf1254b))
+
 # [0.1975.0](https://github.com/lightdash/lightdash/compare/0.1974.0...0.1975.0) (2025-09-03)
 
 
