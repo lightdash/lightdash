@@ -186,6 +186,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({
             {isAddingProjectAccess && (
                 <CreateProjectAccessModal
                     projectUuid={projectUuid}
+                    roles={rolesData || []}
                     onClose={() => onAddProjectAccessClose()}
                 />
             )}
