@@ -3,8 +3,6 @@ import {
     ChartScheduler,
     CreateSchedulerAndTargetsWithoutIds,
     DashboardScheduler,
-    ScheduledJobs,
-    SchedulerAndTargets,
     SchedulerFormat,
     SchedulerSlackTarget,
     SEED_PROJECT,
@@ -49,7 +47,7 @@ test.describe('Lightdash scheduler endpoints', () => {
         const projectResponse = await request.get(`${apiUrl}/projects/${projectUuid}/charts`);
         const projectBody = await projectResponse.json();
         const savedChart = projectBody.results.find(
-            (s: any) => s.name === 'How much revenue do we have per payment method?',
+            (s: { name: string }) => s.name === 'How much revenue do we have per payment method?',
         );
 
         // Create scheduler
@@ -107,7 +105,7 @@ test.describe('Lightdash scheduler endpoints', () => {
         // Get dashboards
         const projectResponse = await request.get(`${apiUrl}/projects/${projectUuid}/dashboards`);
         const projectBody = await projectResponse.json();
-        const dashboard = projectBody.results.find((d: any) => d.name === 'Jaffle dashboard');
+        const dashboard = projectBody.results.find((d: { name: string; uuid: string }) => d.name === 'Jaffle dashboard');
 
         // Create dashboard scheduler
         const createResponse = await request.post(`${apiUrl}/dashboards/${dashboard.uuid}/schedulers`, {

@@ -61,7 +61,7 @@ test.describe('MCP server', () => {
         expect(body.result.tools.length).toBeGreaterThan(0);
         
         // Check that we have some expected tools
-        const toolNames = body.result.tools.map((tool: any) => tool.name);
+        const toolNames = body.result.tools.map((tool: { name: string }) => tool.name);
         expect(toolNames).toEqual(expect.arrayContaining([
             expect.stringMatching(/.*/)
         ]));

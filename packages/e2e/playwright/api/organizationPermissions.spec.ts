@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
-    DbtProjectType,
-    DbtVersionOptionLatest,
     MetricQuery,
-    ProjectType,
     SEED_PROJECT,
-    type CreateProject,
 } from '@lightdash/common';
 import { anotherLogin } from '../support/auth';
 

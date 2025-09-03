@@ -1,74 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { 
     AnyType, 
-    SEED_PROJECT, 
-    CreateDashboard,
-    Dashboard,
-    UpdateDashboard,
-    CreateChartInDashboard,
-    SavedChart,
-    isDashboardVersionedFields,
-    DashboardTileTypes
+    SEED_PROJECT
 } from '@lightdash/common';
 import { login } from '../support/auth';
 
 const apiUrl = '/api/v1';
-
-// Helper functions for dashboard operations
-async function createDashboard(request: any, projectUuid: string, body: CreateDashboard): Promise<Dashboard> {
-    const response = await request.post(`${apiUrl}/projects/${projectUuid}/dashboards`, {
-        data: body,
-    });
-    expect(response.status()).toBe(201);
-    const result = await response.json();
-    return result.results;
-}
-
-async function updateDashboard(request: any, dashboardUuid: string, body: UpdateDashboard): Promise<Dashboard> {
-    const response = await request.patch(`${apiUrl}/dashboards/${dashboardUuid}`, {
-        data: body,
-    });
-    expect(response.status()).toBe(200);
-    const result = await response.json();
-    return result.results;
-}
-
-async function createChartAndUpdateDashboard(
-    request: any,
-    projectUuid: string, 
-    body: CreateChartInDashboard,
-    dashboard?: UpdateDashboard
-): Promise<{ chart: SavedChart; dashboard: Dashboard }> {
-    const response = await request.post(`${apiUrl}/projects/${projectUuid}/saved`, {
-        data: body,
-    });
-    expect(response.status()).toBe(200);
-    const result = await response.json();
-    const newChart = result.results;
-    expect(newChart.name).toBe(body.name);
-    expect(newChart.dashboardUuid).toBe(body.dashboardUuid);
-    
-    const updatedDashboard = await updateDashboard(request, body.dashboardUuid, {
-        ...dashboard,
-        tabs: [],
-        tiles: [
-            ...(dashboard && isDashboardVersionedFields(dashboard) ? dashboard.tiles : []),
-            {
-                tabUuid: undefined,
-                type: DashboardTileTypes.SAVED_CHART,
-                x: 0,
-                y: 0,
-                h: 5,
-                w: 5,
-                properties: {
-                    savedChartUuid: newChart.uuid,
-                },
-            },
-        ],
-    });
-    
-    return { chart: newChart, dashboard: updatedDashboard };
-}
 
 test.describe('Lightdash catalog all tables and fields', () => {
     test.beforeEach(async ({ request }) => {
@@ -83,7 +20,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
         const body = await response.json();
         expect(body.results.length).toBeGreaterThan(0);
         
-        const userTable = body.results.find((table: any) => table.name === 'users');
+        const userTable = body.results.find((table: AnyType) => table.name === 'users');
         expect(userTable).toEqual({
             name: 'users',
             label: 'Users',
@@ -107,7 +44,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
         expect(body.results.length).toBeGreaterThan(10);
 
         const dimension = body.results.find(
-            (field: any) =>
+            (field: AnyType) =>
                 field.name === 'payment_method' &&
                 field.tableLabel === 'Payments',
         );
@@ -129,7 +66,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
         });
 
         const metric = body.results.find(
-            (field: any) =>
+            (field: AnyType) =>
                 field.name === 'total_revenue' &&
                 field.tableLabel === 'Payments',
         );
@@ -165,11 +102,11 @@ test.describe('Lightdash catalog search', () => {
         const body = await response.json();
         expect(body.results.length).toBeGreaterThan(10);
 
-        const table = body.results.find((t: any) => t.name === 'customers' && t.type === 'table');
+        const table = body.results.find((t: AnyType) => t.name === 'customers' && t.type === 'table');
         expect(table).toHaveProperty('name', 'customers');
 
         const field = body.results.find(
-            (f: any) => f.name === 'customer_id' && f.tableLabel === 'Users',
+            (f: AnyType) => f.name === 'customer_id' && f.tableLabel === 'Users',
         );
         expect(field).toHaveProperty('name', 'customer_id');
     });
@@ -183,7 +120,7 @@ test.describe('Lightdash catalog search', () => {
         expect(body.results).toHaveLength(2); // payment and stg_payments
 
         const field = body.results.find(
-            (f: any) =>
+            (f: AnyType) =>
                 f.name === 'payment_method' && f.tableLabel === 'Payments',
         );
         expect(field).toHaveProperty('name', 'payment_method');
@@ -217,7 +154,7 @@ test.describe('Lightdash catalog search', () => {
 
         // Check for a returned field
         const matchingField = body.results.find(
-            (f: any) =>
+            (f: AnyType) =>
                 f.name === 'customer_id' &&
                 f.tableLabel === 'Users' &&
                 f.type === 'field',
@@ -225,7 +162,7 @@ test.describe('Lightdash catalog search', () => {
         expect(matchingField).toHaveProperty('name', 'customer_id');
 
         // Check for a table
-        const matchingTable = body.results.find((t: any) => t.name === 'customers');
+        const matchingTable = body.results.find((t: AnyType) => t.name === 'customers');
         expect(matchingTable).toHaveProperty('name', 'customers');
     });
 
@@ -238,7 +175,7 @@ test.describe('Lightdash catalog search', () => {
         expect(body.results.length).toBeGreaterThan(0);
 
         const matchingField = body.results.find(
-            (f: any) => f.name === 'date_of_first_order' && f.type === 'field',
+            (f: AnyType) => f.name === 'date_of_first_order' && f.type === 'field',
         );
         expect(matchingField).toHaveProperty('description', 'Min of Order date');
     });
@@ -299,7 +236,7 @@ test.describe('Lightdash analytics', () => {
         expect(body.results.charts.length).toBeGreaterThanOrEqual(1);
 
         const chart = body.results.charts.find(
-            (c: any) => c.name === 'How many users were created each month ?',
+            (c: AnyType) => c.name === 'How many users were created each month ?',
         );
 
         expect(chart).toHaveProperty('dashboardName', null);
@@ -318,7 +255,7 @@ test.describe('Lightdash analytics', () => {
         expect(body.results.charts.length).toBeGreaterThanOrEqual(2); // at least 2
 
         const chart = body.results.charts.find(
-            (c: any) => c.name === 'How much revenue do we have per payment method?',
+            (c: AnyType) => c.name === 'How much revenue do we have per payment method?',
         );
         expect(chart).toHaveProperty('dashboardName', null);
         expect(chart).toHaveProperty('spaceName', 'Jaffle shop');
@@ -327,7 +264,7 @@ test.describe('Lightdash analytics', () => {
         expect(chart).toHaveProperty('spaceUuid');
     });
 
-    test.skip('Should get analytics for charts within dashboards', async ({ request }) => {
+    test.skip('Should get analytics for charts within dashboards', async () => {
         // Skipping this test as it requires complex dashboard/chart creation logic
         // and imports from dashboard.cy that would need to be fully converted
     });
@@ -341,7 +278,7 @@ test.describe('Lightdash analytics', () => {
         expect(body.results.charts.length).toBeGreaterThanOrEqual(3); // at least 3
 
         const chart = body.results.charts.find(
-            (c: any) => c.name === 'How much revenue do we have per payment method?',
+            (c: AnyType) => c.name === 'How much revenue do we have per payment method?',
         );
         expect(chart).toHaveProperty('dashboardName', null);
         expect(chart).toHaveProperty('spaceName', 'Jaffle shop');

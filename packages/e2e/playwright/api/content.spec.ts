@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { AnyType, SEED_PROJECT } from '@lightdash/common';
+import { SEED_PROJECT } from '@lightdash/common';
 import { login, loginAsEditor, loginAsViewer } from '../support/auth';
-import { chartMock } from '../support/mocks';
 
 const apiUrl = '/api/v2';
 

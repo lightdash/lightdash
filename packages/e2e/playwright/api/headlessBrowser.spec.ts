@@ -22,7 +22,7 @@ test.describe('Lightdash headless browser', () => {
         expect(body.response).toHaveProperty('flag', 'single-test');
     });
 
-    test.skip('Should make multiple concurrent requests to headless browser', async ({ request }) => {
+    test.skip('Should make multiple concurrent requests to headless browser', async () => {
         // Skipping this test as it uses node-fetch directly and would require 
         // different implementation approach in Playwright
     });

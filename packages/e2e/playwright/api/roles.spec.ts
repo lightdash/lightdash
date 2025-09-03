@@ -347,7 +347,9 @@ test.describe('Roles API Tests', () => {
             expect(customAssignResponse.status()).toBe(200);
 
             // Wait a moment for the assignment to be processed, then verify custom role
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise<void>(resolve => {
+                setTimeout(resolve, 100);
+            });
             
             const assignmentsResponse = await request.get(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`);
             expect(assignmentsResponse.status()).toBe(200);
@@ -563,10 +565,10 @@ test.describe('Roles API Tests', () => {
                 )
             );
 
-            responses.forEach(async (response) => {
+            const bodies = await Promise.all(responses.map(response => response.json()));
+            responses.forEach((response, index) => {
                 expect([400, 409, 422, 500]).toContain(response.status());
-                const body = await response.json();
-                expect(body).toHaveProperty('status', 'error');
+                expect(bodies[index]).toHaveProperty('status', 'error');
             });
         });
 
@@ -617,23 +619,23 @@ test.describe('Roles API Tests', () => {
     });
 
     test.describe('Project Permission Checks', () => {
-        test.skip('should forbid viewer from creating roles', async ({ request }) => {
+        test.skip('should forbid viewer from creating roles', async () => {
             // Skipped: requires loginWithPermissions function that doesn't exist in Playwright auth
         });
         
-        test.skip('should forbid viewer from getting project access', async ({ request }) => {
+        test.skip('should forbid viewer from getting project access', async () => {
             // Skipped: requires loginWithPermissions function that doesn't exist in Playwright auth
         });
 
-        test.skip('should forbid viewer from creating user project access', async ({ request }) => {
+        test.skip('should forbid viewer from creating user project access', async () => {
             // Skipped: requires loginWithPermissions function that doesn't exist in Playwright auth
         });
 
-        test.skip('should forbid viewer from updating user project access', async ({ request }) => {
+        test.skip('should forbid viewer from updating user project access', async () => {
             // Skipped: requires loginWithPermissions function that doesn't exist in Playwright auth
         });
 
-        test.skip('should forbid viewer from removing user project access', async ({ request }) => {
+        test.skip('should forbid viewer from removing user project access', async () => {
             // Skipped: requires loginWithPermissions function that doesn't exist in Playwright auth
         });
     });

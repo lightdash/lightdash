@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { CreateEmbedJwt, DecodedEmbed, SEED_PROJECT } from '@lightdash/common';
+import { DecodedEmbed, SEED_PROJECT } from '@lightdash/common';
 import { login, anotherLogin } from '../support/auth';
 
 const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
@@ -16,11 +16,9 @@ test.describe('Embed Management API', () => {
         embedConfig = body.results;
     });
 
-    test.beforeEach(async ({ request }) => {
-        await login(request);
-    });
 
-    test('should get project embed configuration', async ({ request }) => {
+
+    test('should get project embed configuration', async () => {
         expect(embedConfig).toBeTruthy();
         expect(embedConfig.projectUuid).toBe(SEED_PROJECT.project_uuid);
         expect(embedConfig.dashboardUuids.length).toBeGreaterThan(0);
