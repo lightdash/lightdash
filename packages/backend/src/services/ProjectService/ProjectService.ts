@@ -4951,6 +4951,7 @@ export class ProjectService extends BaseService {
             dbtConnectionOverrides?: {
                 branch?: string;
                 environment?: DbtProjectEnvironmentVariable[];
+                manifest?: string;
             };
             warehouseConnectionOverrides?: { schema?: string };
         },
@@ -4990,6 +4991,7 @@ export class ProjectService extends BaseService {
         // it is possible that the user `abilities` are not uptodate
         // Before we check permissions on scheduleCompileProject
         // Permissions will be checked again with the uptodate user on scheduler
+
         const { jobUuid } = await this.scheduleCompileProject(
             user,
             previewProject.project.projectUuid,

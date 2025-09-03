@@ -1122,6 +1122,7 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.BITBUCKET]: 'BitBucket',
     [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
     [DbtProjectType.NONE]: 'CLI',
+    [DbtProjectType.MANIFEST]: 'Manifest',
 };
 
 export enum CreateProjectTableConfiguration {
