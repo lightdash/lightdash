@@ -112,9 +112,10 @@ export const Layout: FC<Props> = ({ items }) => {
             availableDimensions.filter(
                 (item) =>
                     !pivotDimensions?.includes(getItemId(item)) &&
-                    isCartesianChart &&
-                    getItemId(item) !==
-                        visualizationConfig.chartConfig.dirtyLayout?.xField,
+                    (!isCartesianChart ||
+                        getItemId(item) !==
+                            visualizationConfig.chartConfig.dirtyLayout
+                                ?.xField),
             ),
         [
             availableDimensions,
