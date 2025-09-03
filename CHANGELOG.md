@@ -1,3 +1,10 @@
+## [0.1976.1](https://github.com/lightdash/lightdash/compare/0.1976.0...0.1976.1) (2025-09-03)
+
+
+### Bug Fixes
+
+* derive pivot config from chart layout instead of series ([#16701](https://github.com/lightdash/lightdash/issues/16701)) ([677a707](https://github.com/lightdash/lightdash/commit/677a707968ccefb840c88bf787825dac0922a8c8))
+
 # [0.1976.0](https://github.com/lightdash/lightdash/compare/0.1975.0...0.1976.0) (2025-09-03)
 
 
