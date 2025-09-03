@@ -364,7 +364,8 @@ export class InstanceConfigurationService extends BaseService {
         if (
             config.dbt?.personal_access_token ||
             config.project?.httpPath ||
-            config.project?.dbtVersion
+            config.project?.dbtVersion ||
+            config.project?.personalAccessToken
         ) {
             // This will throw an error if there is not exactly 1 project
             const projectUuid = await this.getSingleProject();
@@ -401,7 +402,10 @@ export class InstanceConfigurationService extends BaseService {
             let updatedWarehouseConnection:
                 | CreateWarehouseCredentials
                 | undefined;
-            if (config.project?.httpPath) {
+            if (
+                config.project?.httpPath ||
+                config.project?.personalAccessToken
+            ) {
                 if (warehouseConnection.type !== WarehouseTypes.DATABRICKS) {
                     throw new ParameterError(
                         `Project ${projectUuid} is not a Databricks project. Only Databricks projects are supported at the moment.`,
@@ -409,7 +413,12 @@ export class InstanceConfigurationService extends BaseService {
                 }
                 updatedWarehouseConnection = {
                     ...warehouseConnection,
-                    httpPath: config.project.httpPath,
+                    ...(config.project.httpPath && {
+                        httpPath: config.project.httpPath,
+                    }),
+                    ...(config.project.personalAccessToken && {
+                        personalAccessToken: config.project.personalAccessToken,
+                    }),
                 };
             }
 
