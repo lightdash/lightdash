@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { login } from '../support/auth';
 
 test.describe('MCP server', () => {
@@ -59,11 +59,13 @@ test.describe('MCP server', () => {
         expect(body.result).toHaveProperty('tools');
         expect(body.result.tools).toEqual(expect.any(Array));
         expect(body.result.tools.length).toBeGreaterThan(0);
-        
+
         // Check that we have some expected tools
-        const toolNames = body.result.tools.map((tool: { name: string }) => tool.name);
-        expect(toolNames).toEqual(expect.arrayContaining([
-            expect.stringMatching(/.*/)
-        ]));
+        const toolNames = body.result.tools.map(
+            (tool: { name: string }) => tool.name,
+        );
+        expect(toolNames).toEqual(
+            expect.arrayContaining([expect.stringMatching(/.*/)]),
+        );
     });
 });

@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
 import { SEED_PROJECT } from '@lightdash/common';
+import { expect, test } from '@playwright/test';
 import { login, loginAsEditor, loginAsViewer } from '../support/auth';
 
 const apiUrl = '/api/v2';
@@ -16,7 +16,7 @@ interface ContentItem {
 
 test.describe('Lightdash catalog all tables and fields', () => {
     let content: ContentItem[] = [];
-    
+
     test.beforeEach(async ({ request }) => {
         await login(request);
     });
@@ -24,7 +24,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
     test('Should list all content', async ({ request }) => {
         const response = await request.get(`${apiUrl}/content?pageSize=999`);
         expect(response.status()).toBe(200);
-        
+
         const body = await response.json();
         content = body.results.data;
         const charts = body.results.data.filter(
@@ -42,9 +42,11 @@ test.describe('Lightdash catalog all tables and fields', () => {
     test.describe('Test pagination', () => {
         test('Should pageSize', async ({ request }) => {
             const randomPageSize = Math.floor(Math.random() * 10 + 1);
-            const response = await request.get(`${apiUrl}/content?pageSize=${randomPageSize}`);
+            const response = await request.get(
+                `${apiUrl}/content?pageSize=${randomPageSize}`,
+            );
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             expect(body.results.data.length).toBe(randomPageSize);
             expect(body.results.pagination.pageSize).toBe(randomPageSize);
@@ -57,34 +59,38 @@ test.describe('Lightdash catalog all tables and fields', () => {
         });
 
         test('Should second page', async ({ request }) => {
-            const response = await request.get(`${apiUrl}/content?pageSize=2&page=2`);
+            const response = await request.get(
+                `${apiUrl}/content?pageSize=2&page=2`,
+            );
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             expect(body.results.data.length).toBe(2);
             expect(body.results.pagination.pageSize).toBe(2);
             expect(body.results.pagination.page).toBe(2);
 
             const uuids = body.results.data.map((d: ContentItem) => d.uuid);
-            expect(uuids).toEqual(
-                content.slice(2, 4).map((d) => d.uuid),
-            );
+            expect(uuids).toEqual(content.slice(2, 4).map((d) => d.uuid));
         });
 
         test.skip('Should get page count', async ({ request }) => {
             const response = await request.get(`${apiUrl}/content?pageSize=2`);
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             expect(body.results.pagination.totalPageCount).toBeGreaterThan(0);
         });
     });
 
     test.describe('Test order', () => {
-        test('Should return charts and dashboards sorted by last_updated_at', async ({ request }) => {
-            const response = await request.get(`${apiUrl}/content?pageSize=999`);
+        test('Should return charts and dashboards sorted by last_updated_at', async ({
+            request,
+        }) => {
+            const response = await request.get(
+                `${apiUrl}/content?pageSize=999`,
+            );
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             content = body.results.data;
             const sortedByLastUpdated = [...content].sort(
@@ -119,7 +125,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
                 `${apiUrl}/content?spaceUuids=${content[0]?.space?.uuid}`,
             );
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             expect(body.results.data.length).toBeGreaterThan(0);
             const uuids = body.results.data.map((d: ContentItem) => d.uuid);
@@ -133,7 +139,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
                 `${apiUrl}/content?pageSize=999&contentTypes=dashboard`,
             );
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             const charts = body.results.data.filter(
                 (d: ContentItem) => d.contentType === 'chart',
@@ -151,7 +157,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
                 `${apiUrl}/content?pageSize=999&contentTypes=chart`,
             );
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             const charts = body.results.data.filter(
                 (d: ContentItem) => d.contentType === 'chart',
@@ -169,7 +175,7 @@ test.describe('Lightdash catalog all tables and fields', () => {
                 `${apiUrl}/content?pageSize=999&contentTypes=chart&contentTypes=dashboard`,
             );
             expect(response.status()).toBe(200);
-            
+
             const body = await response.json();
             const charts = body.results.data.filter(
                 (d: ContentItem) => d.contentType === 'chart',
@@ -185,13 +191,15 @@ test.describe('Lightdash catalog all tables and fields', () => {
 });
 
 test.describe('Permission tests', () => {
-    test('As an admin, I should see public and private spaces', async ({ request }) => {
+    test('As an admin, I should see public and private spaces', async ({
+        request,
+    }) => {
         await login(request);
         const response = await request.get(
             `${apiUrl}/content?contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(response.status()).toBe(200);
-        
+
         const body = await response.json();
         const expectedSpaceNames = [
             'Parent Space 4',
@@ -200,12 +208,12 @@ test.describe('Permission tests', () => {
             'Parent Space 1',
             SEED_PROJECT.name,
         ];
-        const actualSpaceNames = body.results.data.map((d: ContentItem) => d.name);
+        const actualSpaceNames = body.results.data.map(
+            (d: ContentItem) => d.name,
+        );
 
         expect(
-            expectedSpaceNames.every((name) =>
-                actualSpaceNames.includes(name),
-            ),
+            expectedSpaceNames.every((name) => actualSpaceNames.includes(name)),
         ).toBe(true);
 
         const parentSpace2 = body.results.data.find(
@@ -217,19 +225,21 @@ test.describe('Permission tests', () => {
             `${apiUrl}/content?spaceUuids=${parentSpace2?.uuid}&contentTypes=dashboard&contentTypes=chart&contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(childResponse.status()).toBe(200);
-        
+
         const childBody = await childResponse.json();
         expect(childBody.results.data.length).toBe(1);
         expect(childBody.results.data[0].name).toBe('Child Space 2.1');
     });
 
-    test('As an editor, I should see public spaces and private spaces that belong to me', async ({ request }) => {
+    test('As an editor, I should see public spaces and private spaces that belong to me', async ({
+        request,
+    }) => {
         await loginAsEditor(request);
         const response = await request.get(
             `${apiUrl}/content?contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(response.status()).toBe(200);
-        
+
         const body = await response.json();
         const expectedSpaceNames = [
             'Parent Space 4',
@@ -237,12 +247,12 @@ test.describe('Permission tests', () => {
             'Parent Space 1',
             SEED_PROJECT.name,
         ];
-        const actualSpaceNames = body.results.data.map((d: ContentItem) => d.name);
+        const actualSpaceNames = body.results.data.map(
+            (d: ContentItem) => d.name,
+        );
 
         expect(
-            expectedSpaceNames.every((name) =>
-                actualSpaceNames.includes(name),
-            ),
+            expectedSpaceNames.every((name) => actualSpaceNames.includes(name)),
         ).toBe(true);
 
         expect(actualSpaceNames.includes('Parent Space 2')).not.toBe(true);
@@ -256,27 +266,29 @@ test.describe('Permission tests', () => {
             `${apiUrl}/content?spaceUuids=${parentSpace4?.uuid}&contentTypes=dashboard&contentTypes=chart&contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(childResponse.status()).toBe(200);
-        
+
         const childBody = await childResponse.json();
         expect(childBody.results.data.length).toBe(1);
         expect(childBody.results.data[0].name).toBe('Child Space 4.1');
     });
 
-    test('As a viewer, I should see public spaces and private spaces that belong to me', async ({ request }) => {
+    test('As a viewer, I should see public spaces and private spaces that belong to me', async ({
+        request,
+    }) => {
         await loginAsViewer(request);
         const response = await request.get(
             `${apiUrl}/content?contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(response.status()).toBe(200);
-        
+
         const body = await response.json();
         const expectedSpaceNames = ['Parent Space 1', SEED_PROJECT.name];
-        const actualSpaceNames = body.results.data.map((d: ContentItem) => d.name);
+        const actualSpaceNames = body.results.data.map(
+            (d: ContentItem) => d.name,
+        );
 
         expect(
-            expectedSpaceNames.every((name) =>
-                actualSpaceNames.includes(name),
-            ),
+            expectedSpaceNames.every((name) => actualSpaceNames.includes(name)),
         ).toBe(true);
 
         const parentSpace1 = body.results.data.find(
@@ -292,7 +304,7 @@ test.describe('Permission tests', () => {
             `${apiUrl}/content?spaceUuids=${parentSpace1?.uuid}&contentTypes=dashboard&contentTypes=chart&contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(childResponse.status()).toBe(200);
-        
+
         const childBody = await childResponse.json();
         expect(childBody.results.data.length).toBe(3);
         expect(

@@ -67,7 +67,11 @@ const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
 };
 
 export function isSnowflakeConfigured() {
-    return !!(process.env.SNOWFLAKE_ACCOUNT && process.env.SNOWFLAKE_USER && process.env.SNOWFLAKE_PASSWORD);
+    return !!(
+        process.env.SNOWFLAKE_ACCOUNT &&
+        process.env.SNOWFLAKE_USER &&
+        process.env.SNOWFLAKE_PASSWORD
+    );
 }
 
 export function isBigQueryConfigured() {

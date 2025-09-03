@@ -1,8 +1,5 @@
-import { test, expect } from '@playwright/test';
-import {
-    MetricQuery,
-    SEED_PROJECT,
-} from '@lightdash/common';
+import { MetricQuery, SEED_PROJECT } from '@lightdash/common';
+import { expect, test } from '@playwright/test';
 import { anotherLogin } from '../support/auth';
 
 const apiUrl = '/api/v1';
@@ -38,7 +35,9 @@ test.describe('Lightdash API organization permission tests', () => {
         expect(body.results).toHaveProperty('email', 'another@lightdash.com');
     });
 
-    test('Should get forbidden error (403) from GET project endpoints from another organization', async ({ request }) => {
+    test('Should get forbidden error (403) from GET project endpoints from another organization', async ({
+        request,
+    }) => {
         const projectUuid = SEED_PROJECT.project_uuid; // Same project_uuid that belongs to another organization
         const endpoints = [
             `/projects/${projectUuid}`,
@@ -51,7 +50,7 @@ test.describe('Lightdash API organization permission tests', () => {
         ];
 
         const responses = await Promise.all(
-            endpoints.map(endpoint => request.get(`${apiUrl}${endpoint}`))
+            endpoints.map((endpoint) => request.get(`${apiUrl}${endpoint}`)),
         );
 
         responses.forEach((response) => {
@@ -59,7 +58,9 @@ test.describe('Lightdash API organization permission tests', () => {
         });
     });
 
-    test('Should get a forbidden error (403) from PATCH project', async ({ request }) => {
+    test('Should get a forbidden error (403) from PATCH project', async ({
+        request,
+    }) => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const endpoint = `${apiUrl}/projects/${projectUuid}`;
 
@@ -71,9 +72,13 @@ test.describe('Lightdash API organization permission tests', () => {
         expect(response.status()).toBe(403);
     });
 
-    test('Should get an empty list of dashboards from projects', async ({ request }) => {
+    test('Should get an empty list of dashboards from projects', async ({
+        request,
+    }) => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        const response = await request.get(`${apiUrl}/projects/${projectUuid}/dashboards`);
+        const response = await request.get(
+            `${apiUrl}/projects/${projectUuid}/dashboards`,
+        );
 
         expect(response.status()).toBe(200);
         const body = await response.json();
@@ -81,7 +86,9 @@ test.describe('Lightdash API organization permission tests', () => {
         expect(body.results).toHaveLength(0);
     });
 
-    test('Should get forbidden error (403) from POST runQuery', async ({ request }) => {
+    test('Should get forbidden error (403) from POST runQuery', async ({
+        request,
+    }) => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const endpoint = `/projects/${projectUuid}/explores/customers/runQuery`;
 
@@ -93,7 +100,9 @@ test.describe('Lightdash API organization permission tests', () => {
         expect(response.status()).toBe(403);
     });
 
-    test('Should get forbidden error (403) from POST sqlQuery', async ({ request }) => {
+    test('Should get forbidden error (403) from POST sqlQuery', async ({
+        request,
+    }) => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const endpoint = `/projects/${projectUuid}/sqlQuery`;
 
@@ -105,7 +114,9 @@ test.describe('Lightdash API organization permission tests', () => {
         expect(response.status()).toBe(403);
     });
 
-    test('Should get forbidden error (403) from GET savedChart endpoints from another organization', async ({ request }) => {
+    test('Should get forbidden error (403) from GET savedChart endpoints from another organization', async ({
+        request,
+    }) => {
         // First login as original user to get chart UUID
         await request.get('/api/v1/logout'); // logout current user
         await request.post('/api/v1/login', {
@@ -116,7 +127,9 @@ test.describe('Lightdash API organization permission tests', () => {
         });
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await request.get(`${apiUrl}/projects/${projectUuid}/charts`);
+        const projectResponse = await request.get(
+            `${apiUrl}/projects/${projectUuid}/charts`,
+        );
         expect(projectResponse.status()).toBe(200);
         const projectBody = await projectResponse.json();
         const savedChartUuid = projectBody.results[0].uuid;
@@ -130,7 +143,7 @@ test.describe('Lightdash API organization permission tests', () => {
         ];
 
         const responses = await Promise.all(
-            endpoints.map(endpoint => request.get(`${apiUrl}${endpoint}`))
+            endpoints.map((endpoint) => request.get(`${apiUrl}${endpoint}`)),
         );
 
         responses.forEach((response) => {
@@ -138,7 +151,9 @@ test.describe('Lightdash API organization permission tests', () => {
         });
     });
 
-    test('Should get an empty project list (200) from GET /org/projects', async ({ request }) => {
+    test('Should get an empty project list (200) from GET /org/projects', async ({
+        request,
+    }) => {
         const response = await request.get(`${apiUrl}/org/projects`, {
             headers: { 'Content-type': 'application/json' },
         });
@@ -149,7 +164,9 @@ test.describe('Lightdash API organization permission tests', () => {
         expect(body.results).toHaveLength(0);
     });
 
-    test('Should get forbidden error (403) from GET dashboardRouter endpoints', async ({ request }) => {
+    test('Should get forbidden error (403) from GET dashboardRouter endpoints', async ({
+        request,
+    }) => {
         // First login as original user to get dashboard UUID
         await request.get('/api/v1/logout'); // logout current user
         await request.post('/api/v1/login', {
@@ -160,7 +177,9 @@ test.describe('Lightdash API organization permission tests', () => {
         });
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await request.get(`${apiUrl}/projects/${projectUuid}/dashboards`);
+        const projectResponse = await request.get(
+            `${apiUrl}/projects/${projectUuid}/dashboards`,
+        );
         expect(projectResponse.status()).toBe(200);
         const projectBody = await projectResponse.json();
         const dashboardUuid = projectBody.results[0].uuid;
@@ -170,7 +189,7 @@ test.describe('Lightdash API organization permission tests', () => {
 
         const endpoints = [`/dashboards/${dashboardUuid}`];
         const responses = await Promise.all(
-            endpoints.map(endpoint => request.get(`${apiUrl}${endpoint}`))
+            endpoints.map((endpoint) => request.get(`${apiUrl}${endpoint}`)),
         );
 
         responses.forEach((response) => {
@@ -178,7 +197,9 @@ test.describe('Lightdash API organization permission tests', () => {
         });
     });
 
-    test('Should get forbidden error (403) from PATCH dashboard', async ({ request }) => {
+    test('Should get forbidden error (403) from PATCH dashboard', async ({
+        request,
+    }) => {
         // First login as original user to get dashboard UUID
         await request.get('/api/v1/logout'); // logout current user
         await request.post('/api/v1/login', {
@@ -189,7 +210,9 @@ test.describe('Lightdash API organization permission tests', () => {
         });
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await request.get(`${apiUrl}/projects/${projectUuid}/dashboards`);
+        const projectResponse = await request.get(
+            `${apiUrl}/projects/${projectUuid}/dashboards`,
+        );
         expect(projectResponse.status()).toBe(200);
         const projectBody = await projectResponse.json();
         const dashboardUuid = projectBody.results[0].uuid;
@@ -197,17 +220,20 @@ test.describe('Lightdash API organization permission tests', () => {
         // Switch back to other org user
         await anotherLogin(request);
 
-        const response = await request.patch(`${apiUrl}/dashboards/${dashboardUuid}`, {
-            headers: { 'Content-type': 'application/json' },
-            data: {
-                name: '',
-                filters: {
-                    metrics: [],
-                    dimensions: [],
+        const response = await request.patch(
+            `${apiUrl}/dashboards/${dashboardUuid}`,
+            {
+                headers: { 'Content-type': 'application/json' },
+                data: {
+                    name: '',
+                    filters: {
+                        metrics: [],
+                        dimensions: [],
+                    },
+                    tiles: [],
                 },
-                tiles: [],
             },
-        });
+        );
 
         expect(response.status()).toBe(403);
     });

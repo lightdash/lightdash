@@ -1,9 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-await-in-loop, no-promise-executor-return, no-restricted-syntax, global-require, prefer-destructuring */
-import { test, expect, APIRequestContext } from '@playwright/test';
 import { SEED_PROJECT } from '@lightdash/common';
+import { APIRequestContext, expect, test } from '@playwright/test';
 import { login } from '../support/auth';
-import { createProject, deleteProjectsByName, getJwtToken } from '../support/commands';
-import warehouseConnections, { isSnowflakeConfigured, isBigQueryConfigured } from '../support/warehouses';
+import {
+    createProject,
+    deleteProjectsByName,
+    getJwtToken,
+} from '../support/commands';
+import warehouseConnections, {
+    isBigQueryConfigured,
+    isSnowflakeConfigured,
+} from '../support/warehouses';
 
 const apiV1 = '/api/v1';
 const apiV2 = '/api/v2';
@@ -28,7 +35,11 @@ const runQueryBody = {
     },
 };
 
-async function waitForJobCompletion(request: APIRequestContext, jobUuid: string, timeoutMs = 60_000) {
+async function waitForJobCompletion(
+    request: APIRequestContext,
+    jobUuid: string,
+    timeoutMs = 60_000,
+) {
     const start = Date.now();
     // poll /api/v1/jobs/:jobUuid until DONE or ERROR
     // returns boolean indicating success
@@ -43,10 +54,16 @@ async function waitForJobCompletion(request: APIRequestContext, jobUuid: string,
     return false;
 }
 
-async function createProjectWithRefresh(request: APIRequestContext, name: string, warehouseConfig: any): Promise<string | undefined> {
+async function createProjectWithRefresh(
+    request: APIRequestContext,
+    name: string,
+    warehouseConfig: any,
+): Promise<string | undefined> {
     const projectUuid = await createProject(request, name, warehouseConfig);
-    
-    const refreshResp = await request.post(`${apiV1}/projects/${projectUuid}/refresh`);
+
+    const refreshResp = await request.post(
+        `${apiV1}/projects/${projectUuid}/refresh`,
+    );
     expect(refreshResp.status()).toBe(200);
     const refreshBody = await refreshResp.json();
     const jobUuid = refreshBody.results?.jobUuid as string;
@@ -55,8 +72,14 @@ async function createProjectWithRefresh(request: APIRequestContext, name: string
     return projectUuid;
 }
 
-async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string, jwt?: string) {
-    const headers: Record<string, string> = { 'Content-type': 'application/json' };
+async function runAsyncQueryTest(
+    request: APIRequestContext,
+    projectUuid: string,
+    jwt?: string,
+) {
+    const headers: Record<string, string> = {
+        'Content-type': 'application/json',
+    };
     if (jwt) headers['lightdash-embed-token'] = jwt;
 
     // 404 before valid query id
@@ -70,10 +93,13 @@ async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string
     expect(notFoundBody.error?.name).toBe('NotFoundError');
 
     // execute
-    const execResp = await request.post(`${apiV2}/projects/${projectUuid}/query/metric-query`, {
-        headers,
-        data: runQueryBody,
-    });
+    const execResp = await request.post(
+        `${apiV2}/projects/${projectUuid}/query/metric-query`,
+        {
+            headers,
+            data: runQueryBody,
+        },
+    );
     expect(execResp.status()).toBe(200);
     const execBody = await execResp.json();
     const queryUuid: string = execBody.results.queryUuid;
@@ -82,7 +108,10 @@ async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string
     const start = Date.now();
     const timeoutMs = 60_000;
     async function getResults() {
-        const r = await request.get(`${apiV2}/projects/${projectUuid}/query/${queryUuid}`, { headers });
+        const r = await request.get(
+            `${apiV2}/projects/${projectUuid}/query/${queryUuid}`,
+            { headers },
+        );
         const b = await r.json();
         return { r, b } as const;
     }
@@ -102,7 +131,10 @@ async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string
     const pageOneRows = b.results.rows;
 
     // page=1 size=500 equals default
-    const page1Resp = await request.get(`${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=500`, { headers });
+    const page1Resp = await request.get(
+        `${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=500`,
+        { headers },
+    );
     const page1Body = await page1Resp.json();
     expect(page1Resp.status()).toBe(200);
     expect(page1Body.status).toBe('ok');
@@ -110,7 +142,10 @@ async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string
     expect(page1Body.results.rows).toEqual(pageOneRows);
 
     // page=2 size=500 not equal to page 1
-    const page2Resp = await request.get(`${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=2&pageSize=500`, { headers });
+    const page2Resp = await request.get(
+        `${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=2&pageSize=500`,
+        { headers },
+    );
     const page2Body = await page2Resp.json();
     expect(page2Resp.status()).toBe(200);
     expect(page2Body.status).toBe('ok');
@@ -118,7 +153,10 @@ async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string
     expect(page2Body.results.rows).not.toEqual(pageOneRows);
 
     // page=1 size=100 equals slice of first 100
-    const page1Size100Resp = await request.get(`${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=100`, { headers });
+    const page1Size100Resp = await request.get(
+        `${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=100`,
+        { headers },
+    );
     const page1Size100Body = await page1Size100Resp.json();
     expect(page1Size100Resp.status()).toBe(200);
     expect(page1Size100Body.status).toBe('ok');
@@ -126,7 +164,10 @@ async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string
     expect(page1Size100Body.results.rows).toEqual(pageOneRows.slice(0, 100));
 
     // page beyond available
-    const beyondResp = await request.get(`${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=6&pageSize=500`, { headers });
+    const beyondResp = await request.get(
+        `${apiV2}/projects/${projectUuid}/query/${queryUuid}?page=6&pageSize=500`,
+        { headers },
+    );
     if (beyondResp.status() !== 422) {
         // some backends may differ, but we assert error name when 422
         const body = await beyondResp.json();
@@ -139,18 +180,28 @@ async function runAsyncQueryTest(request: APIRequestContext, projectUuid: string
     }
 }
 
-async function runMetricQueryAndValidateResponse(request: APIRequestContext, queryBody: any, projectUuid: string) {
+async function runMetricQueryAndValidateResponse(
+    request: APIRequestContext,
+    queryBody: any,
+    projectUuid: string,
+) {
     // 404 before valid query id
-    const nf = await request.get(`${apiV2}/projects/${projectUuid}/query/13a00154-d590-40f2-bb27-d541f70aa8c6`, { failOnStatusCode: false });
+    const nf = await request.get(
+        `${apiV2}/projects/${projectUuid}/query/13a00154-d590-40f2-bb27-d541f70aa8c6`,
+        { failOnStatusCode: false },
+    );
     expect(nf.status()).toBe(404);
     const nfBody = await nf.json();
     expect(nfBody.status).toBe('error');
     expect(nfBody.error?.name).toBe('NotFoundError');
 
-    const exec = await request.post(`${apiV2}/projects/${projectUuid}/query/metric-query`, {
-        headers: { 'Content-type': 'application/json' },
-        data: queryBody,
-    });
+    const exec = await request.post(
+        `${apiV2}/projects/${projectUuid}/query/metric-query`,
+        {
+            headers: { 'Content-type': 'application/json' },
+            data: queryBody,
+        },
+    );
     expect(exec.status()).toBe(200);
     const execBody = await exec.json();
     const queryUuid = execBody.results.queryUuid as string;
@@ -158,7 +209,9 @@ async function runMetricQueryAndValidateResponse(request: APIRequestContext, que
     const start = Date.now();
     const timeoutMs = 60_000;
     while (Date.now() - start < timeoutMs) {
-        const resp = await request.get(`${apiV2}/projects/${projectUuid}/query/${queryUuid}`);
+        const resp = await request.get(
+            `${apiV2}/projects/${projectUuid}/query/${queryUuid}`,
+        );
         const body = await resp.json();
         if (resp.status() !== 200 || body.results?.error !== undefined) {
             throw new Error(`Error: ${body.results?.error}`);
@@ -183,8 +236,14 @@ test.describe('Async Query API', () => {
         const projectName = 'postgresSQL query test';
         let projectUuid: string | undefined;
 
-        test('should execute async query and get all results paged', async ({ request }) => {
-            projectUuid = await createProjectWithRefresh(request, projectName, warehouseConnections.postgresSQL);
+        test('should execute async query and get all results paged', async ({
+            request,
+        }) => {
+            projectUuid = await createProjectWithRefresh(
+                request,
+                projectName,
+                warehouseConnections.postgresSQL,
+            );
             expect(projectUuid).toBeTruthy();
             await runAsyncQueryTest(request, projectUuid!);
         });
@@ -195,12 +254,21 @@ test.describe('Async Query API', () => {
     });
 
     test.describe('Snowflake', () => {
-        test.skip(!isSnowflakeConfigured(), 'Snowflake env vars not configured');
+        test.skip(
+            !isSnowflakeConfigured(),
+            'Snowflake env vars not configured',
+        );
         const projectName = 'snowflake query test';
         let projectUuid: string | undefined;
 
-        test('should execute async query and get all results paged', async ({ request }) => {
-            projectUuid = await createProjectWithRefresh(request, projectName, warehouseConnections.snowflake);
+        test('should execute async query and get all results paged', async ({
+            request,
+        }) => {
+            projectUuid = await createProjectWithRefresh(
+                request,
+                projectName,
+                warehouseConnections.snowflake,
+            );
             expect(projectUuid).toBeTruthy();
             await runAsyncQueryTest(request, projectUuid!);
         });
@@ -211,12 +279,21 @@ test.describe('Async Query API', () => {
     });
 
     test.describe('BigQuery', () => {
-        test.skip(!isBigQueryConfigured(), 'BigQuery credentials not configured');
+        test.skip(
+            !isBigQueryConfigured(),
+            'BigQuery credentials not configured',
+        );
         const projectName = 'bigquery query test';
         let projectUuid: string | undefined;
 
-        test('should execute async query and get all results paged', async ({ request }) => {
-            projectUuid = await createProject(request, projectName, warehouseConnections.bigQuery);
+        test('should execute async query and get all results paged', async ({
+            request,
+        }) => {
+            projectUuid = await createProject(
+                request,
+                projectName,
+                warehouseConnections.bigQuery,
+            );
             expect(projectUuid).toBeTruthy();
             await runAsyncQueryTest(request, projectUuid!);
         });
@@ -229,28 +306,49 @@ test.describe('Async Query API', () => {
     test.describe('JWT Auth', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
-        test('should not execute async query when JWT cannot explore', async ({ request }) => {
-            const jwt = await getJwtToken(request, projectUuid, { canExplore: false });
-            const resp = await request.post(`${apiV2}/projects/${projectUuid}/query/metric-query`, {
-                headers: { 'Content-type': 'application/json', 'lightdash-embed-token': jwt },
-                data: runQueryBody,
+        test('should not execute async query when JWT cannot explore', async ({
+            request,
+        }) => {
+            const jwt = await getJwtToken(request, projectUuid, {
+                canExplore: false,
             });
+            const resp = await request.post(
+                `${apiV2}/projects/${projectUuid}/query/metric-query`,
+                {
+                    headers: {
+                        'Content-type': 'application/json',
+                        'lightdash-embed-token': jwt,
+                    },
+                    data: runQueryBody,
+                },
+            );
             expect(resp.status()).toBe(403);
         });
 
-        test('should execute async query and get all results paged using JWT authentication', async ({ request }) => {
-            const jwt = await getJwtToken(request, projectUuid, { canExplore: true });
+        test('should execute async query and get all results paged using JWT authentication', async ({
+            request,
+        }) => {
+            const jwt = await getJwtToken(request, projectUuid, {
+                canExplore: true,
+            });
             await runAsyncQueryTest(request, SEED_PROJECT.project_uuid, jwt);
         });
 
-        test('should execute async query and get all results paged using JWT auth with empty external ID', async ({ request }) => {
-            const jwt = await getJwtToken(request, projectUuid, { userExternalId: null, canExplore: true });
+        test('should execute async query and get all results paged using JWT auth with empty external ID', async ({
+            request,
+        }) => {
+            const jwt = await getJwtToken(request, projectUuid, {
+                userExternalId: null,
+                canExplore: true,
+            });
             await runAsyncQueryTest(request, SEED_PROJECT.project_uuid, jwt);
         });
     });
 
     test.describe('Invalid query filters', () => {
-        test('should not return invalid string filter metric query', async ({ request }) => {
+        test('should not return invalid string filter metric query', async ({
+            request,
+        }) => {
             const projectUuid = SEED_PROJECT.project_uuid;
             const runQueryBodyInvalidFilters = {
                 context: 'exploreView',
@@ -286,7 +384,11 @@ test.describe('Async Query API', () => {
                 },
             };
 
-            await runMetricQueryAndValidateResponse(request, runQueryBodyInvalidFilters, projectUuid);
+            await runMetricQueryAndValidateResponse(
+                request,
+                runQueryBodyInvalidFilters,
+                projectUuid,
+            );
         });
     });
 });

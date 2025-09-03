@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
 import { SEED_PROJECT } from '@lightdash/common';
+import { expect, test } from '@playwright/test';
 import { login, logout } from '../support/auth';
 
 const apiUrl = '/api/v1';
@@ -24,8 +24,14 @@ test.describe('Service Accounts API', () => {
         expect(response.status()).toBe(201);
         const body = await response.json();
         expect(body.results).toHaveProperty('token');
-        expect(body.results).toHaveProperty('description', serviceAccount.description);
-        expect(body.results).toHaveProperty('expiresAt', serviceAccount.expiresAt);
+        expect(body.results).toHaveProperty(
+            'description',
+            serviceAccount.description,
+        );
+        expect(body.results).toHaveProperty(
+            'expiresAt',
+            serviceAccount.expiresAt,
+        );
         expect(body.results.scopes).toEqual(serviceAccount.scopes);
     });
 
@@ -35,7 +41,7 @@ test.describe('Service Accounts API', () => {
         expect(response.status()).toBe(200);
         const body = await response.json();
         expect(body.results).toEqual(expect.any(Array));
-        
+
         // Service accounts should have required properties
         if (body.results.length > 0) {
             const firstAccount = body.results[0];
@@ -47,7 +53,9 @@ test.describe('Service Accounts API', () => {
         }
     });
 
-    test('Should access authorized endpoints with service account token', async ({ request }) => {
+    test('Should access authorized endpoints with service account token', async ({
+        request,
+    }) => {
         // First create a service account
         const serviceAccount = {
             description: 'e2e test service account for auth',
@@ -55,17 +63,20 @@ test.describe('Service Accounts API', () => {
             scopes: ['org:admin'],
         };
 
-        const createResponse = await request.post(`${apiUrl}/service-accounts`, {
-            headers: { 'Content-Type': 'application/json' },
-            data: serviceAccount,
-        });
-        
+        const createResponse = await request.post(
+            `${apiUrl}/service-accounts`,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                data: serviceAccount,
+            },
+        );
+
         const createBody = await createResponse.json();
         const { token } = createBody.results;
 
         // Test accessing projects endpoint with the service account token
         await logout(request);
-        
+
         const authResponse = await request.get(`${apiUrl}/org/projects`, {
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -75,7 +86,9 @@ test.describe('Service Accounts API', () => {
         expect(authResponse.status()).toBe(200);
     });
 
-    test('Should access /groupAccesses with "org:admin" service account token', async ({ request }) => {
+    test('Should access /groupAccesses with "org:admin" service account token', async ({
+        request,
+    }) => {
         // First create a service account
         const serviceAccount = {
             description: 'e2e test service account for auth',
@@ -83,27 +96,35 @@ test.describe('Service Accounts API', () => {
             scopes: ['org:admin'],
         };
 
-        const createResponse = await request.post(`${apiUrl}/service-accounts`, {
-            headers: { 'Content-Type': 'application/json' },
-            data: serviceAccount,
-        });
-        
+        const createResponse = await request.post(
+            `${apiUrl}/service-accounts`,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                data: serviceAccount,
+            },
+        );
+
         const createBody = await createResponse.json();
         const { token } = createBody.results;
 
         // Test accessing projects endpoint with the service account token
         await logout(request);
-        
-        const authResponse = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/groupAccesses`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
+
+        const authResponse = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/groupAccesses`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             },
-        });
+        );
 
         expect(authResponse.status()).toBe(200);
     });
 
-    test('Should not access /groupAccesses with "org:read" service account token', async ({ request }) => {
+    test('Should not access /groupAccesses with "org:read" service account token', async ({
+        request,
+    }) => {
         // First create a service account
         const serviceAccount = {
             description: 'e2e test service account for auth',
@@ -111,27 +132,35 @@ test.describe('Service Accounts API', () => {
             scopes: ['org:read'],
         };
 
-        const createResponse = await request.post(`${apiUrl}/service-accounts`, {
-            headers: { 'Content-Type': 'application/json' },
-            data: serviceAccount,
-        });
-        
+        const createResponse = await request.post(
+            `${apiUrl}/service-accounts`,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                data: serviceAccount,
+            },
+        );
+
         const createBody = await createResponse.json();
         const { token } = createBody.results;
 
         // Test accessing projects endpoint with the service account token
         await logout(request);
-        
-        const authResponse = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/groupAccesses`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
+
+        const authResponse = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/groupAccesses`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             },
-        });
+        );
 
         expect(authResponse.status()).toBe(403);
     });
 
-    test('Should not access unauthorized endpoints with service account token', async ({ request }) => {
+    test('Should not access unauthorized endpoints with service account token', async ({
+        request,
+    }) => {
         // First create a service account
         const serviceAccount = {
             description: 'e2e test service account for unauth',
@@ -139,22 +168,28 @@ test.describe('Service Accounts API', () => {
             scopes: ['org:admin'],
         };
 
-        const createResponse = await request.post(`${apiUrl}/service-accounts`, {
-            headers: { 'Content-Type': 'application/json' },
-            data: serviceAccount,
-        });
-        
+        const createResponse = await request.post(
+            `${apiUrl}/service-accounts`,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                data: serviceAccount,
+            },
+        );
+
         const createBody = await createResponse.json();
         const { token } = createBody.results;
 
         // Test accessing users endpoint with the service account token
         await logout(request);
-        
-        const authResponse = await request.get(`${apiUrl}/org/allowedEmailDomains`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
+
+        const authResponse = await request.get(
+            `${apiUrl}/org/allowedEmailDomains`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             },
-        });
+        );
 
         expect(authResponse.status()).toBe(401);
     });

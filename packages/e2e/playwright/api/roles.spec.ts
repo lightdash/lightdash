@@ -1,4 +1,3 @@
-import { test, expect } from '@playwright/test';
 import {
     AnyType,
     SEED_GROUP,
@@ -6,14 +5,15 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
 } from '@lightdash/common';
-import { login, anotherLogin } from '../support/auth';
+import { expect, test } from '@playwright/test';
+import { anotherLogin, login } from '../support/auth';
 
 const orgRolesApiUrl = '/api/v2/orgs';
 const projectRolesApiUrl = '/api/v2/projects';
 
 test.describe('Roles API Tests', () => {
     let testRoleUuid: string | null = null;
-    
+
     test.beforeEach(async ({ request }) => {
         await login(request);
         testRoleUuid = null; // Reset for each test
@@ -24,21 +24,28 @@ test.describe('Roles API Tests', () => {
     test.afterEach(async ({ request }) => {
         // Clean up test role if it exists
         if (testRoleUuid) {
-            await request.delete(`${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}`);
+            await request.delete(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}`,
+            );
         }
     });
 
     test.describe('Organization Roles', () => {
-        test('should create a custom role in organization', async ({ request }) => {
+        test('should create a custom role in organization', async ({
+            request,
+        }) => {
             const roleName = `Custom Role ${new Date().getTime()}`;
             const roleDescription = 'Test role created by integration test';
 
-            const response = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: roleName,
-                    description: roleDescription,
+            const response = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: roleName,
+                        description: roleDescription,
+                    },
                 },
-            });
+            );
 
             expect(response.status()).toBe(201);
             const body = await response.json();
@@ -46,26 +53,36 @@ test.describe('Roles API Tests', () => {
             expect(body.results).toHaveProperty('name', roleName);
             expect(body.results).toHaveProperty('description', roleDescription);
             expect(body.results).toHaveProperty('roleUuid');
-            expect(body.results).toHaveProperty('organizationUuid', testOrgUuid);
+            expect(body.results).toHaveProperty(
+                'organizationUuid',
+                testOrgUuid,
+            );
 
             // Store for cleanup
             testRoleUuid = body.results.roleUuid;
         });
 
-        test('should list organization roles without scopes', async ({ request }) => {
+        test('should list organization roles without scopes', async ({
+            request,
+        }) => {
             // Create a test role first
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: `Custom Role ${new Date().getTime()}`,
-                    description: 'Custom role description',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: `Custom Role ${new Date().getTime()}`,
+                        description: 'Custom role description',
+                    },
                 },
-            });
+            );
             expect(createResponse.status()).toBe(201);
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // List roles
-            const response = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles`);
+            const response = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+            );
             expect(response.status()).toBe(200);
             const body = await response.json();
             expect(body).toHaveProperty('status', 'ok');
@@ -74,8 +91,12 @@ test.describe('Roles API Tests', () => {
             expect(body.results.length).toBeGreaterThan(0);
         });
 
-        test('should return system roles with all inherited scopes', async ({ request }) => {
-            const response = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles?load=scopes`);
+        test('should return system roles with all inherited scopes', async ({
+            request,
+        }) => {
+            const response = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles?load=scopes`,
+            );
             expect(response.status()).toBe(200);
             const body = await response.json();
             expect(body).toHaveProperty('status', 'ok');
@@ -111,35 +132,45 @@ test.describe('Roles API Tests', () => {
             }
         });
 
-        test('should list organization roles with scopes', async ({ request }) => {
+        test('should list organization roles with scopes', async ({
+            request,
+        }) => {
             // Create a role first
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: `Custom Role ${new Date().getTime()}`,
-                    description: 'Custom role description',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: `Custom Role ${new Date().getTime()}`,
+                        description: 'Custom role description',
+                    },
                 },
-            });
+            );
             expect(createResponse.status()).toBe(201);
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Add scopes to role
-            const scopeResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}/scopes`, {
-                data: {
-                    scopeNames: ['view_project', 'view_dashboard'],
+            const scopeResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}/scopes`,
+                {
+                    data: {
+                        scopeNames: ['view_project', 'view_dashboard'],
+                    },
                 },
-            });
+            );
             expect(scopeResponse.status()).toBe(200);
             const scopeBody = await scopeResponse.json();
             expect(scopeBody).toHaveProperty('status', 'ok');
 
             // List roles with scopes
-            const listResponse = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles?load=scopes`);
+            const listResponse = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles?load=scopes`,
+            );
             expect(listResponse.status()).toBe(200);
             const listBody = await listResponse.json();
             expect(listBody).toHaveProperty('status', 'ok');
             expect(listBody.results).toEqual(expect.any(Array));
-            
+
             // When loading scopes, each role should have a scopes property
             expect(listBody.results.length).toBeGreaterThan(0);
             const roleWithScopes = listBody.results.find(
@@ -151,9 +182,13 @@ test.describe('Roles API Tests', () => {
             expect(roleWithScopes.scopes).toContain('view_dashboard');
         });
 
-        test('should forbid listing roles from different organization', async ({ request }) => {
+        test('should forbid listing roles from different organization', async ({
+            request,
+        }) => {
             await anotherLogin(request);
-            const response = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles`);
+            const response = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+            );
             expect(response.status()).toBe(403);
         });
 
@@ -161,26 +196,35 @@ test.describe('Roles API Tests', () => {
             // First create a role to update
             const roleName = `Updatable Role ${new Date().getTime()}`;
 
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: roleName,
-                    description: 'Original description',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: roleName,
+                        description: 'Original description',
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             const updatedDescription = 'Updated description';
 
             // Update the role
-            const updateResponse = await request.patch(`${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}`, {
-                data: {
-                    description: updatedDescription,
+            const updateResponse = await request.patch(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}`,
+                {
+                    data: {
+                        description: updatedDescription,
+                    },
                 },
-            });
+            );
             expect(updateResponse.status()).toBe(200);
             const updateBody = await updateResponse.json();
-            expect(updateBody.results).toHaveProperty('description', updatedDescription);
+            expect(updateBody.results).toHaveProperty(
+                'description',
+                updatedDescription,
+            );
             expect(updateBody.results).toHaveProperty('name', roleName);
         });
 
@@ -188,17 +232,22 @@ test.describe('Roles API Tests', () => {
             // First create a role to delete
             const roleName = `Deletable Role ${new Date().getTime()}`;
 
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: roleName,
-                    description: 'Role to be deleted',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: roleName,
+                        description: 'Role to be deleted',
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             const { roleUuid } = createBody.results;
 
             // Delete the role
-            const deleteResponse = await request.delete(`${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`);
+            const deleteResponse = await request.delete(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
+            );
             expect(deleteResponse.status()).toBe(200);
             const deleteBody = await deleteResponse.json();
             expect(deleteBody).toHaveProperty('status', 'ok');
@@ -208,68 +257,96 @@ test.describe('Roles API Tests', () => {
     test.describe('Unified Role Assignments', () => {
         const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
-        test('should reject custom role assignment at organization level', async ({ request }) => {
+        test('should reject custom role assignment at organization level', async ({
+            request,
+        }) => {
             // First create a test role
             const roleName = `User Assignment Role ${new Date().getTime()}`;
 
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: roleName,
-                    description: 'Role for user assignment testing',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: roleName,
+                        description: 'Role for user assignment testing',
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Try to assign custom role to user - should return 400 (only system roles allowed)
-            const assignResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`, {
-                data: {
-                    roleId: testRoleUuid,
+            const assignResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
+                {
+                    data: {
+                        roleId: testRoleUuid,
+                    },
                 },
-            });
+            );
             expect(assignResponse.status()).toBe(400);
             const assignBody = await assignResponse.json();
-            expect(assignBody.error.message).toContain('Only system roles can be assigned at organization level');
+            expect(assignBody.error.message).toContain(
+                'Only system roles can be assigned at organization level',
+            );
         });
 
-        test('should reject organization role assignment for group', async ({ request }) => {
+        test('should reject organization role assignment for group', async ({
+            request,
+        }) => {
             // First create a test role
             const roleName = `Group Assignment Role ${new Date().getTime()}`;
 
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: roleName,
-                    description: 'Role for group assignment testing',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: roleName,
+                        description: 'Role for group assignment testing',
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Try to assign role to group using separate endpoint API - should fail
-            const assignResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`, {
-                data: {
-                    roleId: testRoleUuid,
+            const assignResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
+                {
+                    data: {
+                        roleId: testRoleUuid,
+                    },
                 },
-            });
+            );
             expect(assignResponse.status()).toBe(404);
         });
 
-        test('should return 404 for deleting organization role assignment (not supported)', async ({ request }) => {
+        test('should return 404 for deleting organization role assignment (not supported)', async ({
+            request,
+        }) => {
             // Try to delete organization assignment - should return 404
-            const deleteResponse = await request.delete(`${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`);
+            const deleteResponse = await request.delete(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
+            );
             expect(deleteResponse.status()).toBe(404);
         });
 
-        test('should return 404 when trying to delete group from org (not supported)', async ({ request }) => {
+        test('should return 404 when trying to delete group from org (not supported)', async ({
+            request,
+        }) => {
             // Try to delete group assignment - should return 404
-            const deleteResponse = await request.delete(`${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`);
+            const deleteResponse = await request.delete(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
+            );
             expect(deleteResponse.status()).toBe(404);
         });
     });
 
     test.describe('Project Access Management', () => {
         test('should get project access information', async ({ request }) => {
-            const response = await request.get(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`);
+            const response = await request.get(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+            );
             expect(response.status()).toBe(200);
             const body = await response.json();
             expect(body).toHaveProperty('status', 'ok');
@@ -280,81 +357,103 @@ test.describe('Roles API Tests', () => {
             const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
             // Create a test role
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: `Project Access Role ${new Date().getTime()}`,
-                    description: 'Role for project access testing',
-                    scopes: ['view:Dashboard'],
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: `Project Access Role ${new Date().getTime()}`,
+                        description: 'Role for project access testing',
+                        scopes: ['view:Dashboard'],
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Create project access using separate endpoint
-            const accessResponse = await request.post(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`, {
-                data: {
-                    roleId: testRoleUuid,
+            const accessResponse = await request.post(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                {
+                    data: {
+                        roleId: testRoleUuid,
+                    },
                 },
-            });
+            );
             // With upsert endpoint, should always succeed (200)
             expect(accessResponse.status()).toBe(200);
         });
 
         test('should create group project access', async ({ request }) => {
             // Create a test role
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: `Group Project Access Role ${new Date().getTime()}`,
-                    description: 'Role for group project access testing',
-                    scopes: ['view:Dashboard'],
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: `Group Project Access Role ${new Date().getTime()}`,
+                        description: 'Role for group project access testing',
+                        scopes: ['view:Dashboard'],
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Create project access for group using upsert endpoint
-            const accessResponse = await request.post(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`, {
-                data: {
-                    roleId: testRoleUuid,
+            const accessResponse = await request.post(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
+                {
+                    data: {
+                        roleId: testRoleUuid,
+                    },
                 },
-            });
+            );
             // With upsert endpoint, should always succeed (200)
             expect(accessResponse.status()).toBe(200);
         });
 
-        test('should assign custom role then system role, removing role_uuid', async ({ request }) => {
+        test('should assign custom role then system role, removing role_uuid', async ({
+            request,
+        }) => {
             const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
             // First create a custom role
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: `Custom Test Role ${new Date().getTime()}`,
-                    description: 'Custom role for assignment testing',
-                    scopes: ['view:Dashboard'],
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: `Custom Test Role ${new Date().getTime()}`,
+                        description: 'Custom role for assignment testing',
+                        scopes: ['view:Dashboard'],
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
             const customRoleUuid = createBody.results.roleUuid;
 
             // Step 1: Assign custom role to user
-            const customAssignResponse = await request.post(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`, {
-                data: {
-                    roleId: customRoleUuid,
+            const customAssignResponse = await request.post(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                {
+                    data: {
+                        roleId: customRoleUuid,
+                    },
                 },
-            });
+            );
             // With upsert endpoint, should always succeed (200)
             expect(customAssignResponse.status()).toBe(200);
 
             // Wait a moment for the assignment to be processed, then verify custom role
-            await new Promise<void>(resolve => {
+            await new Promise<void>((resolve) => {
                 setTimeout(resolve, 100);
             });
-            
-            const assignmentsResponse = await request.get(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`);
+
+            const assignmentsResponse = await request.get(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+            );
             expect(assignmentsResponse.status()).toBe(200);
             const assignmentsBody = await assignmentsResponse.json();
-            
+
             const userAssignment = assignmentsBody.results.find(
                 (assignment: AnyType) =>
                     assignment.assigneeType === 'user' &&
@@ -366,21 +465,27 @@ test.describe('Roles API Tests', () => {
                 expect(userAssignment.roleName).toContain('Custom Test Role');
 
                 // Step 3: Assign system role (editor) to the same user
-                const systemAssignResponse = await request.post(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`, {
-                    data: {
-                        roleId: 'editor', // System role
+                const systemAssignResponse = await request.post(
+                    `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                    {
+                        data: {
+                            roleId: 'editor', // System role
+                        },
                     },
-                });
+                );
                 expect(systemAssignResponse.status()).toBe(200);
                 const systemAssignBody = await systemAssignResponse.json();
                 expect(systemAssignBody.results.roleId).toBe('editor');
                 expect(systemAssignBody.results.roleName).toBe('editor');
 
                 // Step 4: Verify the custom role_uuid was removed and system role applied
-                const finalAssignmentsResponse = await request.get(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`);
+                const finalAssignmentsResponse = await request.get(
+                    `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
+                );
                 expect(finalAssignmentsResponse.status()).toBe(200);
-                const finalAssignmentsBody = await finalAssignmentsResponse.json();
-                
+                const finalAssignmentsBody =
+                    await finalAssignmentsResponse.json();
+
                 const finalUserAssignment = finalAssignmentsBody.results.find(
                     (assignment: AnyType) =>
                         assignment.assigneeType === 'user' &&
@@ -397,61 +502,85 @@ test.describe('Roles API Tests', () => {
             }
         });
 
-        test('should reject assigning role with 0 scopes to user', async ({ request }) => {
+        test('should reject assigning role with 0 scopes to user', async ({
+            request,
+        }) => {
             const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
             // Create a role with no scopes
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: `No Scopes Role ${new Date().getTime()}`,
-                    description: 'Role with no scopes for testing',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: `No Scopes Role ${new Date().getTime()}`,
+                        description: 'Role with no scopes for testing',
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Try to assign role with no scopes to user - should fail
-            const assignResponse = await request.post(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`, {
-                data: {
-                    roleId: testRoleUuid,
+            const assignResponse = await request.post(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${testUserUuid}`,
+                {
+                    data: {
+                        roleId: testRoleUuid,
+                    },
                 },
-            });
+            );
             expect(assignResponse.status()).toBe(400);
             const assignBody = await assignResponse.json();
             expect(assignBody).toHaveProperty('status', 'error');
-            expect(assignBody.error.message).toContain('Custom role must have at least one scope');
+            expect(assignBody.error.message).toContain(
+                'Custom role must have at least one scope',
+            );
         });
 
-        test('should reject assigning role with 0 scopes to group', async ({ request }) => {
+        test('should reject assigning role with 0 scopes to group', async ({
+            request,
+        }) => {
             // Create a role with no scopes
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: `No Scopes Group Role ${new Date().getTime()}`,
-                    description: 'Role with no scopes for group testing',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: `No Scopes Group Role ${new Date().getTime()}`,
+                        description: 'Role with no scopes for group testing',
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Try to assign role with no scopes to group - should fail
-            const assignResponse = await request.post(`${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`, {
-                data: {
-                    roleId: testRoleUuid,
+            const assignResponse = await request.post(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/group/${SEED_GROUP.groupUuid}`,
+                {
+                    data: {
+                        roleId: testRoleUuid,
+                    },
                 },
-            });
+            );
             expect(assignResponse.status()).toBe(400);
             const assignBody = await assignResponse.json();
             expect(assignBody).toHaveProperty('status', 'error');
-            expect(assignBody.error.message).toContain('Custom role must have at least one scope');
+            expect(assignBody.error.message).toContain(
+                'Custom role must have at least one scope',
+            );
         });
     });
 
     test.describe('Role Scopes Management', () => {
-        test('should prevent adding scopes to system roles', async ({ request }) => {
+        test('should prevent adding scopes to system roles', async ({
+            request,
+        }) => {
             // Get system roles first
-            const rolesResponse = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles`);
+            const rolesResponse = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+            );
             const rolesBody = await rolesResponse.json();
-            
+
             const systemRole = rolesBody.results.find(
                 (role: AnyType) =>
                     role.ownerType === 'system' && role.name === 'editor',
@@ -459,22 +588,29 @@ test.describe('Roles API Tests', () => {
 
             if (systemRole) {
                 // Try to add scopes to system role
-                const scopeResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes`, {
-                    data: {
-                        scopeNames: ['view:Dashboard'],
+                const scopeResponse = await request.post(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes`,
+                    {
+                        data: {
+                            scopeNames: ['view:Dashboard'],
+                        },
                     },
-                });
+                );
                 expect([400, 403, 404, 500]).toContain(scopeResponse.status());
                 const scopeBody = await scopeResponse.json();
                 expect(scopeBody).toHaveProperty('status', 'error');
             }
         });
 
-        test('should prevent removing scopes from system roles', async ({ request }) => {
+        test('should prevent removing scopes from system roles', async ({
+            request,
+        }) => {
             // Get system roles first
-            const rolesResponse = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles`);
+            const rolesResponse = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+            );
             const rolesBody = await rolesResponse.json();
-            
+
             const systemRole = rolesBody.results.find(
                 (role: AnyType) =>
                     role.ownerType === 'system' && role.name === 'editor',
@@ -482,7 +618,9 @@ test.describe('Roles API Tests', () => {
 
             if (systemRole) {
                 // Try to remove scope from system role
-                const removeResponse = await request.delete(`${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes/create:Space`);
+                const removeResponse = await request.delete(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes/create:Space`,
+                );
                 expect([400, 403, 404, 500]).toContain(removeResponse.status());
                 const removeBody = await removeResponse.json();
                 expect(removeBody).toHaveProperty('status', 'error');
@@ -493,27 +631,35 @@ test.describe('Roles API Tests', () => {
             // First create a test role
             const roleName = `Scoped Role ${new Date().getTime()}`;
 
-            const createResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: roleName,
-                    description: 'Role for scope testing',
+            const createResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: roleName,
+                        description: 'Role for scope testing',
+                    },
                 },
-            });
+            );
             const createBody = await createResponse.json();
             testRoleUuid = createBody.results.roleUuid;
 
             // Add scopes to role
-            const scopeResponse = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}/scopes`, {
-                data: {
-                    scopeNames: ['view_project', 'view_dashboard'],
+            const scopeResponse = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}/scopes`,
+                {
+                    data: {
+                        scopeNames: ['view_project', 'view_dashboard'],
+                    },
                 },
-            });
+            );
             expect(scopeResponse.status()).toBe(200);
             const scopeBody = await scopeResponse.json();
             expect(scopeBody).toHaveProperty('status', 'ok');
 
             // Remove a scope from role
-            const removeResponse = await request.delete(`${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}/scopes/view_project`);
+            const removeResponse = await request.delete(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${testRoleUuid}/scopes/view_project`,
+            );
             expect(removeResponse.status()).toBe(200);
             const removeBody = await removeResponse.json();
             expect(removeBody).toHaveProperty('status', 'ok');
@@ -521,30 +667,42 @@ test.describe('Roles API Tests', () => {
     });
 
     test.describe('Authorization and Security', () => {
-        test('should prevent unauthorized users from managing roles', async ({ request }) => {
+        test('should prevent unauthorized users from managing roles', async ({
+            request,
+        }) => {
             await anotherLogin(request); // Switch to different org user
 
             // Try to create a role in the original org
-            const response = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: 'Unauthorized Role',
-                    description: 'This should fail',
+            const response = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: 'Unauthorized Role',
+                        description: 'This should fail',
+                    },
                 },
-            });
+            );
             expect(response.status()).toBe(403);
         });
 
-        test('should validate role creation with empty name', async ({ request }) => {
-            const response = await request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
-                data: {
-                    name: '',
-                    description: 'Role with empty name',
+        test('should validate role creation with empty name', async ({
+            request,
+        }) => {
+            const response = await request.post(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    data: {
+                        name: '',
+                        description: 'Role with empty name',
+                    },
                 },
-            });
+            );
             expect([400, 422]).toContain(response.status());
         });
 
-        test('should prevent creating role with system role name', async ({ request }) => {
+        test('should prevent creating role with system role name', async ({
+            request,
+        }) => {
             const systemRoleNames = [
                 'viewer',
                 'interactive_viewer',
@@ -555,17 +713,20 @@ test.describe('Roles API Tests', () => {
 
             // Test creating role with each system role name
             const responses = await Promise.all(
-                systemRoleNames.map(systemRoleName =>
+                systemRoleNames.map((systemRoleName) =>
                     request.post(`${orgRolesApiUrl}/${testOrgUuid}/roles`, {
                         data: {
                             name: systemRoleName,
-                            description: 'Attempt to create role with system name',
+                            description:
+                                'Attempt to create role with system name',
                         },
-                    })
-                )
+                    }),
+                ),
             );
 
-            const bodies = await Promise.all(responses.map(response => response.json()));
+            const bodies = await Promise.all(
+                responses.map((response) => response.json()),
+            );
             responses.forEach((response, index) => {
                 expect([400, 409, 422, 500]).toContain(response.status());
                 expect(bodies[index]).toHaveProperty('status', 'error');
@@ -574,9 +735,11 @@ test.describe('Roles API Tests', () => {
 
         test('should prevent deleting system roles', async ({ request }) => {
             // Get system roles first
-            const rolesResponse = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles`);
+            const rolesResponse = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+            );
             const rolesBody = await rolesResponse.json();
-            
+
             const systemRole = rolesBody.results.find(
                 (role: AnyType) =>
                     role.ownerType === 'system' &&
@@ -587,7 +750,9 @@ test.describe('Roles API Tests', () => {
 
             if (systemRole) {
                 // Try to delete system role
-                const deleteResponse = await request.delete(`${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`);
+                const deleteResponse = await request.delete(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`,
+                );
                 expect([400, 403, 404, 500]).toContain(deleteResponse.status());
                 const deleteBody = await deleteResponse.json();
                 expect(deleteBody).toHaveProperty('status', 'error');
@@ -596,9 +761,11 @@ test.describe('Roles API Tests', () => {
 
         test('should prevent updating system roles', async ({ request }) => {
             // Get system roles first
-            const rolesResponse = await request.get(`${orgRolesApiUrl}/${testOrgUuid}/roles`);
+            const rolesResponse = await request.get(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+            );
             const rolesBody = await rolesResponse.json();
-            
+
             const systemRole = rolesBody.results.find(
                 (role: AnyType) =>
                     role.ownerType === 'system' && role.name === 'editor',
@@ -606,11 +773,14 @@ test.describe('Roles API Tests', () => {
 
             if (systemRole) {
                 // Try to update system role
-                const updateResponse = await request.patch(`${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`, {
-                    data: {
-                        description: 'Attempting to modify system role',
+                const updateResponse = await request.patch(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`,
+                    {
+                        data: {
+                            description: 'Attempting to modify system role',
+                        },
                     },
-                });
+                );
                 expect([400, 403, 404, 500]).toContain(updateResponse.status());
                 const updateBody = await updateResponse.json();
                 expect(updateBody).toHaveProperty('status', 'error');
@@ -622,7 +792,7 @@ test.describe('Roles API Tests', () => {
         test.skip('should forbid viewer from creating roles', async () => {
             // Skipped: requires loginWithPermissions function that doesn't exist in Playwright auth
         });
-        
+
         test.skip('should forbid viewer from getting project access', async () => {
             // Skipped: requires loginWithPermissions function that doesn't exist in Playwright auth
         });

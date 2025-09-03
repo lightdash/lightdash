@@ -1,4 +1,3 @@
-import { APIRequestContext, expect } from '@playwright/test';
 import {
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
@@ -9,8 +8,13 @@ import {
     SEED_ORG_2_ADMIN_EMAIL,
     SEED_ORG_2_ADMIN_PASSWORD,
 } from '@lightdash/common';
+import { APIRequestContext, expect } from '@playwright/test';
 
-export async function loginAs(request: APIRequestContext, email: string, password: string) {
+export async function loginAs(
+    request: APIRequestContext,
+    email: string,
+    password: string,
+) {
     const response = await request.post('/api/v1/login', {
         data: {
             email,
@@ -22,19 +26,35 @@ export async function loginAs(request: APIRequestContext, email: string, passwor
 }
 
 export async function login(request: APIRequestContext) {
-    return loginAs(request, SEED_ORG_1_ADMIN_EMAIL.email, SEED_ORG_1_ADMIN_PASSWORD.password);
+    return loginAs(
+        request,
+        SEED_ORG_1_ADMIN_EMAIL.email,
+        SEED_ORG_1_ADMIN_PASSWORD.password,
+    );
 }
 
 export async function loginAsEditor(request: APIRequestContext) {
-    return loginAs(request, SEED_ORG_1_EDITOR_EMAIL.email, SEED_ORG_1_EDITOR_PASSWORD.password);
+    return loginAs(
+        request,
+        SEED_ORG_1_EDITOR_EMAIL.email,
+        SEED_ORG_1_EDITOR_PASSWORD.password,
+    );
 }
 
 export async function loginAsViewer(request: APIRequestContext) {
-    return loginAs(request, SEED_ORG_1_VIEWER_EMAIL.email, SEED_ORG_1_VIEWER_PASSWORD.password);
+    return loginAs(
+        request,
+        SEED_ORG_1_VIEWER_EMAIL.email,
+        SEED_ORG_1_VIEWER_PASSWORD.password,
+    );
 }
 
 export async function anotherLogin(request: APIRequestContext) {
-    return loginAs(request, SEED_ORG_2_ADMIN_EMAIL.email, SEED_ORG_2_ADMIN_PASSWORD.password);
+    return loginAs(
+        request,
+        SEED_ORG_2_ADMIN_EMAIL.email,
+        SEED_ORG_2_ADMIN_PASSWORD.password,
+    );
 }
 
 export async function logout(request: APIRequestContext) {

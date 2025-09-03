@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
 import { SEED_PROJECT } from '@lightdash/common';
+import { expect, test } from '@playwright/test';
 import { login } from '../support/auth';
 
 const apiUrl = '/api/v1';
@@ -10,7 +10,9 @@ test.describe('Content as Code API', () => {
     });
 
     test('download charts as code', async ({ request }) => {
-        const resp = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts/code`);
+        const resp = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts/code`,
+        );
         expect(resp.status()).toBe(200);
         const body = await resp.json();
         expect(body.results).toBeDefined();
@@ -19,7 +21,9 @@ test.describe('Content as Code API', () => {
     });
 
     test('download charts as code with offset', async ({ request }) => {
-        const resp = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts/code?offset=1`);
+        const resp = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts/code?offset=1`,
+        );
         expect(resp.status()).toBe(200);
         const body = await resp.json();
         expect(body.results).toBeDefined();
@@ -27,7 +31,9 @@ test.describe('Content as Code API', () => {
     });
 
     test('download dashboards as code', async ({ request }) => {
-        const resp = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards/code`);
+        const resp = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards/code`,
+        );
         expect(resp.status()).toBe(200);
         const body = await resp.json();
         expect(body.results).toBeDefined();
@@ -35,7 +41,9 @@ test.describe('Content as Code API', () => {
     });
 
     test('download dashboards as code with offset', async ({ request }) => {
-        const resp = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards/code?offset=1`);
+        const resp = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards/code?offset=1`,
+        );
         expect(resp.status()).toBe(200);
         const body = await resp.json();
         expect(body.results).toBeDefined();

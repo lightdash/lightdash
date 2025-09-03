@@ -1,4 +1,3 @@
-import { test, expect, APIRequestContext } from '@playwright/test';
 import {
     CreateChartInDashboard,
     CreateDashboard,
@@ -10,6 +9,7 @@ import {
     SEED_PROJECT,
     UpdateDashboard,
 } from '@lightdash/common';
+import { APIRequestContext, expect, test } from '@playwright/test';
 import { login } from '../support/auth';
 import { chartMock, dashboardMock } from '../support/mocks';
 
@@ -28,29 +28,39 @@ interface ChartWithName {
 
 const cleanupTestData = async (request: APIRequestContext) => {
     try {
-        const dashboardsResponse = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+        const dashboardsResponse = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+        );
         if (dashboardsResponse.ok()) {
             const dashboardsBody = await dashboardsResponse.json();
             await Promise.all(
                 dashboardsBody.results
-                    .filter((dashboard: DashboardWithName) => 
-                        dashboard.name === dashboardMock.name || dashboard.name.includes('Dashboard with charts')
+                    .filter(
+                        (dashboard: DashboardWithName) =>
+                            dashboard.name === dashboardMock.name ||
+                            dashboard.name.includes('Dashboard with charts'),
                     )
-                    .map((dashboard: DashboardWithName) => 
-                        request.delete(`${apiUrl}/dashboards/${dashboard.uuid}`)
-                    )
+                    .map((dashboard: DashboardWithName) =>
+                        request.delete(
+                            `${apiUrl}/dashboards/${dashboard.uuid}`,
+                        ),
+                    ),
             );
         }
 
-        const chartsResponse = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`);
+        const chartsResponse = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+        );
         if (chartsResponse.ok()) {
             const chartsBody = await chartsResponse.json();
             await Promise.all(
                 chartsBody.results
-                    .filter((chart: ChartWithName) => chart.name === chartMock.name)
-                    .map((chart: ChartWithName) => 
-                        request.delete(`${apiUrl}/saved/${chart.uuid}`)
+                    .filter(
+                        (chart: ChartWithName) => chart.name === chartMock.name,
                     )
+                    .map((chart: ChartWithName) =>
+                        request.delete(`${apiUrl}/saved/${chart.uuid}`),
+                    ),
             );
         }
     } catch (error) {
@@ -63,11 +73,14 @@ const createDashboard = async (
     projectUuid: string,
     body: CreateDashboard,
 ): Promise<Dashboard> => {
-    const response = await request.post(`${apiUrl}/projects/${projectUuid}/dashboards`, {
-        data: body,
-    });
+    const response = await request.post(
+        `${apiUrl}/projects/${projectUuid}/dashboards`,
+        {
+            data: body,
+        },
+    );
     expect(response.status()).toBe(201);
-    
+
     const responseBody = await response.json();
     return responseBody.results;
 };
@@ -77,11 +90,14 @@ const updateDashboard = async (
     dashboardUuid: string,
     body: UpdateDashboard,
 ): Promise<Dashboard> => {
-    const response = await request.patch(`${apiUrl}/dashboards/${dashboardUuid}`, {
-        data: body,
-    });
+    const response = await request.patch(
+        `${apiUrl}/dashboards/${dashboardUuid}`,
+        {
+            data: body,
+        },
+    );
     expect(response.status()).toBe(200);
-    
+
     const responseBody = await response.json();
     return responseBody.results;
 };
@@ -92,35 +108,44 @@ const createChartAndUpdateDashboard = async (
     body: CreateChartInDashboard,
     dashboard?: UpdateDashboard,
 ): Promise<{ chart: SavedChart; dashboard: Dashboard }> => {
-    const response = await request.post(`${apiUrl}/projects/${projectUuid}/saved`, {
-        data: body,
-    });
+    const response = await request.post(
+        `${apiUrl}/projects/${projectUuid}/saved`,
+        {
+            data: body,
+        },
+    );
     expect(response.status()).toBe(200);
-    
+
     const responseBody = await response.json();
     const newChart = responseBody.results;
     expect(newChart.name).toBe(body.name);
     expect(newChart.dashboardUuid).toBe(body.dashboardUuid);
-    
-    const updatedDashboard = await updateDashboard(request, body.dashboardUuid, {
-        ...dashboard,
-        tabs: [],
-        tiles: [
-            ...(dashboard && isDashboardVersionedFields(dashboard) ? dashboard.tiles : []),
-            {
-                tabUuid: undefined,
-                type: DashboardTileTypes.SAVED_CHART,
-                x: 0,
-                y: 0,
-                h: 5,
-                w: 5,
-                properties: {
-                    savedChartUuid: newChart.uuid,
+
+    const updatedDashboard = await updateDashboard(
+        request,
+        body.dashboardUuid,
+        {
+            ...dashboard,
+            tabs: [],
+            tiles: [
+                ...(dashboard && isDashboardVersionedFields(dashboard)
+                    ? dashboard.tiles
+                    : []),
+                {
+                    tabUuid: undefined,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: 0,
+                    y: 0,
+                    h: 5,
+                    w: 5,
+                    properties: {
+                        savedChartUuid: newChart.uuid,
+                    },
                 },
-            },
-        ],
-    });
-    
+            ],
+        },
+    );
+
     return {
         chart: newChart,
         dashboard: updatedDashboard,
@@ -129,7 +154,7 @@ const createChartAndUpdateDashboard = async (
 
 test.describe.serial('Lightdash dashboard', () => {
     const dashboardName = 'Dashboard with charts that belong to dashboard';
-    
+
     test.beforeEach(async ({ request }) => {
         await login(request);
     });
@@ -144,7 +169,9 @@ test.describe.serial('Lightdash dashboard', () => {
         await cleanupTestData(request);
     });
 
-    test('Should create charts that belong to dashboard', async ({ request }) => {
+    test('Should create charts that belong to dashboard', async ({
+        request,
+    }) => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const newDashboard = await createDashboard(request, projectUuid, {
@@ -152,7 +179,7 @@ test.describe.serial('Lightdash dashboard', () => {
             name: dashboardName,
         });
 
-        const { chart: newChart, dashboard: updatedDashboard } = 
+        const { chart: newChart, dashboard: updatedDashboard } =
             await createChartAndUpdateDashboard(request, projectUuid, {
                 ...chartMock,
                 dashboardUuid: newDashboard.uuid,
@@ -164,7 +191,7 @@ test.describe.serial('Lightdash dashboard', () => {
         expect(tile.properties.savedChartUuid).toBe(newChart.uuid);
         expect(tile.properties.belongsToDashboard).toBe(true);
 
-        const { chart: newChart2, dashboard: updatedDashboard2 } = 
+        const { chart: newChart2, dashboard: updatedDashboard2 } =
             await createChartAndUpdateDashboard(
                 request,
                 projectUuid,
@@ -190,40 +217,50 @@ test.describe.serial('Lightdash dashboard', () => {
                 properties.savedChartUuid === newChart2.uuid &&
                 properties.belongsToDashboard,
         );
-        
+
         expect(firstTile).toBeDefined();
         expect(secondTile).toBeDefined();
     });
 
-    test('Should update chart that belongs to dashboard', async ({ request }) => {
+    test('Should update chart that belongs to dashboard', async ({
+        request,
+    }) => {
         const newDescription = 'updated chart description';
-        
-        const response = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+
+        const response = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+        );
         const responseBody = await response.json();
-        
+
         const dashboard = responseBody.results
             .sort((d: DashboardWithName) => d.updatedAt)
             .reverse()
             .find((s: DashboardWithName) => s.name === dashboardName);
 
-        const dashboardResponse = await request.get(`${apiUrl}/dashboards/${dashboard.uuid}`);
+        const dashboardResponse = await request.get(
+            `${apiUrl}/dashboards/${dashboard.uuid}`,
+        );
         const dashboardBody = await dashboardResponse.json();
-        
+
         const tileWithChartInDashboard = dashboardBody.results.tiles.find(
             (tile: DashboardChartTile) => tile.properties.belongsToDashboard,
         );
 
         expect(tileWithChartInDashboard).toBeDefined();
 
-        const chartInDashboard = tileWithChartInDashboard.properties.savedChartUuid;
+        const chartInDashboard =
+            tileWithChartInDashboard.properties.savedChartUuid;
 
-        const chartResponse = await request.patch(`${apiUrl}/saved/${chartInDashboard}`, {
-            data: {
-                description: newDescription,
+        const chartResponse = await request.patch(
+            `${apiUrl}/saved/${chartInDashboard}`,
+            {
+                data: {
+                    description: newDescription,
+                },
             },
-        });
+        );
         expect(chartResponse.status()).toBe(200);
-        
+
         const chartBody = await chartResponse.json();
         expect(chartBody.results.name).toBe(chartMock.name);
         expect(chartBody.results.description).toBe(newDescription);
@@ -231,36 +268,49 @@ test.describe.serial('Lightdash dashboard', () => {
         expect(chartBody.results.dashboardName).toBe(dashboardName);
     });
 
-    test('Should get chart summaries without charts that belongs to dashboard', async ({ request }) => {
-        const response = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+    test('Should get chart summaries without charts that belongs to dashboard', async ({
+        request,
+    }) => {
+        const response = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+        );
         const responseBody = await response.json();
-        
+
         const dashboard = responseBody.results
             .sort((d: DashboardWithName) => d.updatedAt)
             .reverse()
             .find((s: DashboardWithName) => s.name === dashboardName);
 
-        const dashboardResponse = await request.get(`${apiUrl}/dashboards/${dashboard.uuid}`);
+        const dashboardResponse = await request.get(
+            `${apiUrl}/dashboards/${dashboard.uuid}`,
+        );
         const dashboardBody = await dashboardResponse.json();
-        
+
         const tileWithChartInDashboard = dashboardBody.results.tiles.find(
             (tile: DashboardChartTile) => tile.properties.belongsToDashboard,
         );
-        
+
         expect(tileWithChartInDashboard).toBeDefined();
 
-        const chartInDashboard = tileWithChartInDashboard.properties.savedChartUuid;
+        const chartInDashboard =
+            tileWithChartInDashboard.properties.savedChartUuid;
 
-        const chartResponse = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`);
+        const chartResponse = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+        );
         expect(chartResponse.status()).toBe(200);
-        
+
         const chartBody = await chartResponse.json();
-        const projectChartsUuids = chartBody.results.map(({ uuid }: ChartWithName) => uuid);
+        const projectChartsUuids = chartBody.results.map(
+            ({ uuid }: ChartWithName) => uuid,
+        );
         expect(projectChartsUuids.length).not.toBe(0);
         expect(projectChartsUuids).not.toContain(chartInDashboard);
     });
 
-    test('Should create dashboard with parameters and retrieve them correctly', async ({ request }) => {
+    test('Should create dashboard with parameters and retrieve them correctly', async ({
+        request,
+    }) => {
         const testParameters = {
             time_zoom: {
                 parameterName: 'time_zoom',
@@ -285,9 +335,11 @@ test.describe.serial('Lightdash dashboard', () => {
         );
         expect(createdDashboard.name).toBe(dashboardWithParameters.name);
 
-        const response = await request.get(`${apiUrl}/dashboards/${createdDashboard.uuid}`);
+        const response = await request.get(
+            `${apiUrl}/dashboards/${createdDashboard.uuid}`,
+        );
         expect(response.status()).toBe(200);
-        
+
         const body = await response.json();
         const retrievedDashboard = body.results;
 
@@ -326,9 +378,11 @@ test.describe.serial('Lightdash dashboard', () => {
 
         await updateDashboard(request, createdDashboard.uuid, updatePayload);
 
-        const finalResponse = await request.get(`${apiUrl}/dashboards/${createdDashboard.uuid}`);
+        const finalResponse = await request.get(
+            `${apiUrl}/dashboards/${createdDashboard.uuid}`,
+        );
         expect(finalResponse.status()).toBe(200);
-        
+
         const finalBody = await finalResponse.json();
         const finalDashboard = finalBody.results;
 

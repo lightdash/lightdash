@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '@playwright/test';
-import { ChartKind, CreateSqlChart, SEED_PROJECT, UpdateSqlChart } from '@lightdash/common';
+import {
+    ChartKind,
+    CreateSqlChart,
+    SEED_PROJECT,
+    UpdateSqlChart,
+} from '@lightdash/common';
+import { expect, test } from '@playwright/test';
 import { login } from '../support/auth';
 
 const apiUrl = '/api/v1';
@@ -10,9 +15,13 @@ test.describe('SQL Runner API', () => {
         await login(request);
     });
 
-    test('Saved SQL chart: create, update, get, delete', async ({ request }) => {
+    test('Saved SQL chart: create, update, get, delete', async ({
+        request,
+    }) => {
         // get first space in project
-        const spacesResp = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`);
+        const spacesResp = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+        );
         expect(spacesResp.status()).toBe(200);
         const spacesBody = await spacesResp.json();
         const space = spacesBody.results[0];
@@ -32,37 +41,58 @@ test.describe('SQL Runner API', () => {
             spaceUuid: space.uuid,
         } as any; // CreateSqlChart from common may not include all fields, keep loose
 
-        const createResp = await request.post(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`, {
-            headers: { 'Content-Type': 'application/json' },
-            data: createPayload,
-        });
+        const createResp = await request.post(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                data: createPayload,
+            },
+        );
         expect(createResp.status()).toBe(200);
         const { results: createResults } = await createResp.json();
         const { savedSqlUuid } = createResults as { savedSqlUuid: string };
         expect(savedSqlUuid).toBeTruthy();
 
         const updatePayload: UpdateSqlChart = {
-            unversionedData: { name: 'test update', description: null, spaceUuid: space.uuid },
+            unversionedData: {
+                name: 'test update',
+                description: null,
+                spaceUuid: space.uuid,
+            },
             versionedData: {
                 sql: 'SELECT * FROM postgres.jaffle.payments',
                 limit: 22,
-                config: { display: {}, metadata: { version: 1 }, type: ChartKind.TABLE, columns: {} },
+                config: {
+                    display: {},
+                    metadata: { version: 1 },
+                    type: ChartKind.TABLE,
+                    columns: {},
+                },
             },
         } as any;
 
-        const updateResp = await request.patch(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`, {
-            headers: { 'Content-Type': 'application/json' },
-            data: updatePayload,
-        });
+        const updateResp = await request.patch(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                data: updatePayload,
+            },
+        );
         expect(updateResp.status()).toBe(200);
 
-        const getResp = await request.get(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`);
+        const getResp = await request.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
+        );
         expect(getResp.status()).toBe(200);
         const getBody = await getResp.json();
         expect(getBody.results.name).toBe('test update');
-        expect(getBody.results.sql).toBe('SELECT * FROM postgres.jaffle.payments');
+        expect(getBody.results.sql).toBe(
+            'SELECT * FROM postgres.jaffle.payments',
+        );
 
-        const delResp = await request.delete(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`);
+        const delResp = await request.delete(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
+        );
         expect(delResp.status()).toBe(200);
     });
 });
