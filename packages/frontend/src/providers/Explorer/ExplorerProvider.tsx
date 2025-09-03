@@ -1545,27 +1545,17 @@ const ExplorerProvider: FC<
                 pivotConfiguration,
             };
 
-            const unpivotedQueryArgsTemplate = needsUnpivotedData
-                ? {
-                      projectUuid,
-                      tableId: unsavedChartVersion.tableName,
-                      query: metricQuery,
-                      ...(isEditMode ? {} : viewModeQueryArgs),
-                      dateZoomGranularity,
-                      invalidateCache: minimal,
-                      parameters: unsavedChartVersion.parameters || {},
-                      pivotConfiguration: undefined, // No pivot for results table
-                      ...(!isEditMode ? { pivotResults: false } : {}),
-                  }
-                : null;
-
             // Set main query args (with pivot configuration for chart)
             setValidQueryArgs(mainQueryArgs);
 
             // Always prepare unpivoted query args when needed, regardless of results panel state
             // The query manager will only execute when results panel is open
             if (needsUnpivotedData) {
-                setUnpivotedQueryArgs(unpivotedQueryArgsTemplate);
+                setUnpivotedQueryArgs({
+                    ...mainQueryArgs,
+                    pivotConfiguration: undefined, // No pivot for results table in explore page
+                    pivotResults: false, // No pivot for results table in chart page
+                });
             } else {
                 setUnpivotedQueryArgs(null);
             }
