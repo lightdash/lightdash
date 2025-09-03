@@ -882,7 +882,8 @@ const ExplorerProvider: FC<
     projectUuid: propProjectUuid,
 }) => {
     const { pathname } = useLocation();
-    const isTablesRoute = pathname.includes('/tables');
+    const isTablesRoute =
+        pathname.endsWith('/tables') || pathname.endsWith('/tables/');
 
     const [autoFetchEnabled] = useLocalStorage({
         key: AUTO_FETCH_ENABLED_KEY,
