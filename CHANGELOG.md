@@ -1,3 +1,10 @@
+# [0.1974.0](https://github.com/lightdash/lightdash/compare/0.1973.2...0.1974.0) (2025-09-03)
+
+
+### Features
+
+* add support for BigQuery ADC authentication from CLI ([#16688](https://github.com/lightdash/lightdash/issues/16688)) ([8904813](https://github.com/lightdash/lightdash/commit/8904813f7d46b71ceeb8040713505a20935624e5)), closes [#7021](https://github.com/lightdash/lightdash/issues/7021)
+
 ## [0.1973.2](https://github.com/lightdash/lightdash/compare/0.1973.1...0.1973.2) (2025-09-02)
 
 
