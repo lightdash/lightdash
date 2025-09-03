@@ -675,7 +675,7 @@ describe('PivotQueryBuilder', () => {
             );
         });
 
-        test('Should deduplicate index and group by columns', () => {
+        test('Should throw error when index and group by columns overlap', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -694,14 +694,11 @@ describe('PivotQueryBuilder', () => {
                 mockWarehouseSqlBuilder,
             );
 
-            const result = builder.toSql();
-
-            // Should contain "date" only once in the group by
-            const groupByMatches = result.match(/group by.*?"date"/g) || [];
-            expect(groupByMatches.length).toBe(1);
-
-            // Should not duplicate date in the select
-            expect(result).not.toContain('"date", "date"');
+            // Should throw an error since no index columns are provided
+            expect(() => builder.toSql()).toThrow(ParameterError);
+            expect(() => builder.toSql()).toThrow(
+                'Group column(s) cannot also be part of the index column(s):',
+            );
         });
     });
 
