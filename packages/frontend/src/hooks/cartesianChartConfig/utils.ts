@@ -6,10 +6,13 @@ import {
     isDimension,
     type CartesianSeriesType,
     type ItemsMap,
-    type ResultRow,
     type Series,
 } from '@lightdash/common';
-import { getPivotedData } from '../plottedData/getPlottedData';
+import {
+    getPivotedData,
+    getPivotedDataFromPivotDetails,
+} from '../plottedData/getPlottedData';
+import type { InfiniteQueryResults } from '../useQueryResults';
 
 export type GetExpectedSeriesMapArgs = {
     defaultSmooth?: boolean;
@@ -17,12 +20,13 @@ export type GetExpectedSeriesMapArgs = {
     defaultCartesianType: CartesianSeriesType;
     defaultAreaStyle: Series['areaStyle'];
     isStacked: boolean;
-    rows: ResultRow[];
+    resultsData: InfiniteQueryResults;
     pivotKeys: string[] | undefined;
     yFields: string[];
     xField: string;
     availableDimensions: string[];
     defaultLabel?: Series['label'];
+    itemsMap: ItemsMap | undefined;
 };
 
 export const getExpectedSeriesMap = ({
@@ -31,12 +35,13 @@ export const getExpectedSeriesMap = ({
     defaultCartesianType,
     defaultAreaStyle,
     isStacked,
-    rows,
+    resultsData,
     pivotKeys,
     yFields,
     xField,
     availableDimensions,
     defaultLabel,
+    itemsMap,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
 
@@ -49,12 +54,19 @@ export const getExpectedSeriesMap = ({
         label: defaultLabel,
     };
     if (pivotKeys && pivotKeys.length > 0) {
-        const { rowKeyMap } = getPivotedData(
-            rows,
-            pivotKeys,
-            yFields.filter((yField) => !availableDimensions.includes(yField)),
-            yFields.filter((yField) => availableDimensions.includes(yField)),
-        );
+        // Use new pivoted data format if available
+        const { rowKeyMap } = resultsData.pivotDetails
+            ? getPivotedDataFromPivotDetails(resultsData, itemsMap)
+            : getPivotedData(
+                  resultsData.rows,
+                  pivotKeys,
+                  yFields.filter(
+                      (yField) => !availableDimensions.includes(yField),
+                  ),
+                  yFields.filter((yField) =>
+                      availableDimensions.includes(yField),
+                  ),
+              );
 
         expectedSeriesMap = Object.values(rowKeyMap).reduce<
             Record<string, Series>
