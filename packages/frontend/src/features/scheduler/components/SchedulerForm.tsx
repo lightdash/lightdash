@@ -385,7 +385,11 @@ const SchedulerForm: FC<Props> = ({
                         : null;
                 },
             },
-            filters: (value: DashboardFilterRule[]) => {
+            filters: (value: DashboardFilterRule[] | null) => {
+                if (!value) {
+                    // Dashboard filters are null for charts
+                    return null;
+                }
                 const requiredFiltersWithoutValues = value.filter(
                     (filter) =>
                         filter.required &&
