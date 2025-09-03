@@ -8,15 +8,17 @@
             "dom"
         ],
         "types": [
+            "cypress",
+            "@testing-library/cypress",
             "node",
+            "cypress-file-upload",
             "@playwright/test"
         ],
-        "strictNullChecks": true,
+        "strictNullChecks": true, /* Enable strict null checks. */
         "esModuleInterop": true,
-        "resolveJsonModule": true,
-        "skipLibCheck": true
+        "resolveJsonModule": true
     },
     "include": [
-        "playwright/**/*.ts"
+        "**/*.ts"
     ]
 }
