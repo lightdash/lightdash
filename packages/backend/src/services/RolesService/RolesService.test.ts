@@ -6,6 +6,7 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -37,6 +38,7 @@ describe('RolesService', () => {
             mockOrganizationModel as unknown as OrganizationModel,
         groupsModel: mockGroupsModel as unknown as GroupsModel,
         projectModel: mockProjectModel as unknown as ProjectModel,
+        emailClient: {} as unknown as EmailClient,
     });
     beforeEach(() => {
         jest.clearAllMocks();

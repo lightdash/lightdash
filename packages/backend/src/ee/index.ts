@@ -107,16 +107,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
                 }),
-            rolesService: ({ repository, context, models }) =>
-                new RolesService({
-                    lightdashConfig: context.lightdashConfig,
-                    analytics: context.lightdashAnalytics,
-                    rolesModel: models.getRolesModel(),
-                    userModel: models.getUserModel(),
-                    organizationModel: models.getOrganizationModel(),
-                    groupsModel: models.getGroupsModel(),
-                    projectModel: models.getProjectModel(),
-                }),
             scimService: ({ models, context }) =>
                 new ScimService({
                     lightdashConfig: context.lightdashConfig,
