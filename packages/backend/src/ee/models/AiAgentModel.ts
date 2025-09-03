@@ -954,6 +954,13 @@ export class AiAgentModel {
                         );
                 });
             }
+            if (filters.search) {
+                void finalQuery.where(
+                    `${AiThreadTableName}.title`,
+                    'ILIKE',
+                    `%${filters.search}%`,
+                );
+            }
         }
 
         if (sort) {
