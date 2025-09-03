@@ -457,6 +457,9 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
                 process.env.LD_SETUP_DBT_VERSION,
                 SupportedDbtVersions,
             ),
+            personalAccessToken: isApiValidToken(
+                TokenEnvironmentVariable.PERSONAL_ACCESS_TOKEN,
+            )?.value,
         },
         serviceAccount: isApiValidToken(
             TokenEnvironmentVariable.SERVICE_ACCOUNT,
@@ -800,6 +803,7 @@ export type LightdashConfig = {
         project: {
             httpPath?: CreateDatabricksCredentials['httpPath'];
             dbtVersion?: DbtVersionOption;
+            personalAccessToken?: CreateDatabricksCredentials['personalAccessToken'];
         };
         serviceAccount?: {
             token: string;
