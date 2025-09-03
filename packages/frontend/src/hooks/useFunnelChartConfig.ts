@@ -2,6 +2,7 @@ import {
     FunnelChartDataInput,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
+    getItemLabelWithoutTableName,
     isField,
     isMetric,
     isTableCalculation,
@@ -198,8 +199,12 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                             if (dataValue > dataMaxValue) {
                                 dataMaxValue = dataValue;
                             }
+                            const item = itemsMap?.[id];
+                            const fieldName = item
+                                ? getItemLabelWithoutTableName(item)
+                                : id;
                             acc.push({
-                                name: id,
+                                name: fieldName,
                                 value: dataValue,
                                 meta: {
                                     value: resultsData.rows[0][id].value,
@@ -214,7 +219,14 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                 maxValue: dataMaxValue,
             };
         }
-    }, [allNumericFieldIds, dataInput, fieldId, resultsData, selectedField]);
+    }, [
+        allNumericFieldIds,
+        dataInput,
+        fieldId,
+        resultsData,
+        selectedField,
+        itemsMap,
+    ]);
 
     const colorDefaults = useMemo(() => {
         return Object.fromEntries(
