@@ -3,7 +3,6 @@ import {
     OrganizationMemberRole,
     validateEmail,
     type InviteLink,
-    type ProjectMemberRole,
     type Role,
 } from '@lightdash/common';
 
@@ -62,15 +61,16 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
     const [emailOptions, setEmailOptions] = useState<string[]>([]);
 
-    // Prepare role options with grouping
+    // Reuse existing role selection logic from ProjectAccess component
     const roleOptions = useMemo(() => {
-        if (!organizationRoles) return [];
-
-        return organizationRoles.map((role: Role) => ({
-            value: role.roleUuid,
-            label: role.name,
-            group: role.ownerType === 'system' ? 'System role' : 'Custom role',
-        }));
+        return organizationRoles?.map(
+            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
+                value: role.roleUuid,
+                label: role.name,
+                group:
+                    role.ownerType === 'system' ? 'System role' : 'Custom role',
+            }),
+        );
     }, [organizationRoles]);
 
     // Set default role to viewer when roles are loaded
@@ -100,71 +100,40 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
         });
         setInviteLink(undefined);
 
-        if (addNewMember) {
-            const data = await inviteMutation({
+        // Check if user already exists in organization
+        const existingUser = organizationUsers?.find(
+            (u) => u.email === formData.email,
+        );
+
+        if (existingUser) {
+            // For existing users, just assign the role using the v2 endpoint
+            await upsertRoleMutation({
+                userId: existingUser.userUuid,
+                roleId: formData.roleId,
+            });
+        } else {
+            // For new users, use the extended v1 endpoint with roleId
+            await createMutation({
                 email: formData.email,
-                role: OrganizationMemberRole.MEMBER,
+                role: 'viewer' as any, // Required but not used when roleId is provided
+                roleId: formData.roleId,
+                sendEmail: true,
             });
 
-            // Find the user that was just created/invited
-            const existingUser = organizationUsers?.find(
-                (u) => u.email === formData.email,
-            );
-
-            if (existingUser) {
-                // Use the v2 API to assign the role
-                await upsertRoleMutation({
-                    userId: existingUser.userUuid,
-                    roleId: formData.roleId,
-                });
-            } else {
-                // Fallback to old API with mapped role if user not found
-                const selectedRole = organizationRoles?.find(
-                    (r) => r.roleUuid === formData.roleId,
-                );
-                const roleName =
-                    selectedRole?.name.toLowerCase().replace(' ', '_') ||
-                    'viewer';
-                await createMutation({
+            if (addNewMember) {
+                // Invite user to organization as well
+                const data = await inviteMutation({
                     email: formData.email,
-                    role: roleName as ProjectMemberRole,
-                    sendEmail: false,
+                    role: OrganizationMemberRole.MEMBER,
                 });
+
+                setAddNewMember(false);
+                setInviteLink(data);
+                reset();
             }
-
-            setAddNewMember(false);
-            setInviteLink(data);
-            reset();
-            form.reset();
-        } else {
-            // For existing users, find their UUID and use the v2 API
-            const existingUser = organizationUsers?.find(
-                (u) => u.email === formData.email,
-            );
-
-            if (existingUser) {
-                // Use the v2 API to assign the role
-                await upsertRoleMutation({
-                    userId: existingUser.userUuid,
-                    roleId: formData.roleId,
-                });
-            } else {
-                // Fallback to old API if user not found
-                const selectedRole = organizationRoles?.find(
-                    (r) => r.roleUuid === formData.roleId,
-                );
-                const roleName =
-                    selectedRole?.name.toLowerCase().replace(' ', '_') ||
-                    'viewer';
-                await createMutation({
-                    email: formData.email,
-                    role: roleName as ProjectMemberRole,
-                    sendEmail: true,
-                });
-            }
-
-            form.reset();
         }
+
+        form.reset();
     };
 
     const userCanInviteUsersToOrganization = user.data?.ability.can(

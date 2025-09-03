@@ -673,6 +673,7 @@ export type CreateProjectMember = {
     email: string;
     role: ProjectMemberRole;
     sendEmail: boolean;
+    roleId?: string; // Optional roleId for custom roles
 };
 
 export type UpdateProjectMember = {
