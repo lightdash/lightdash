@@ -1552,6 +1552,7 @@ const ExplorerProvider: FC<
                       invalidateCache: minimal,
                       parameters: unsavedChartVersion.parameters || {},
                       pivotConfiguration: undefined, // No pivot for results table
+                      ...(!isEditMode ? { pivotResults: false } : {}),
                   }
                 : null;
 
