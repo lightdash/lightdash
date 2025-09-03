@@ -1,4 +1,7 @@
-import { type AiAgentAdminThreadSummary } from '@lightdash/common';
+import {
+    type AiAgentAdminThreadSummary,
+    type AiAgentMessageAssistant,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -6,16 +9,21 @@ import {
     Divider,
     Group,
     LoadingOverlay,
+    Modal,
     Title,
     Tooltip,
 } from '@mantine-8/core';
 import { IconExternalLink, IconX } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useAiAgentThread } from '../../hooks/useOrganizationAiAgents';
-import { AiAgentPageLayoutContext } from '../../providers/AiLayoutProvider';
+import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import {
+    AiAgentPageLayoutContext,
+    type ArtifactData,
+} from '../../providers/AiLayoutProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
+import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 
 type ThreadPreviewSidebarProps = {
     thread: AiAgentAdminThreadSummary;
@@ -34,7 +42,31 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
         thread.uuid,
     );
 
-    if (!isOpen) {
+    const [contextArtifact, setContextArtifact] = useState<ArtifactData | null>(
+        null,
+    );
+
+    const setArtifact = (
+        artifactUuid: string,
+        versionUuid: string,
+        message: AiAgentMessageAssistant,
+        messageProjectUuid: string,
+        messageAgentUuid: string,
+    ) => {
+        setContextArtifact({
+            artifactUuid,
+            versionUuid,
+            message,
+            projectUuid: messageProjectUuid,
+            agentUuid: messageAgentUuid,
+        });
+    };
+
+    const clearArtifact = () => {
+        setContextArtifact(null);
+    };
+
+    if (!isOpen || !thread) {
         return null;
     }
 
@@ -77,31 +109,52 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
             <Divider />
 
             {threadData && (
-                <AiAgentPageLayoutContext.Provider
-                    value={{
-                        artifact: null,
-                        setArtifact: () => {},
-                        isSidebarCollapsed: false,
-                        collapseSidebar: () => {},
-                        expandSidebar: () => {},
-                        toggleSidebar: () => {},
-                        collapseArtifact: () => {},
-                        expandArtifact: () => {},
-                        clearArtifact: () => {},
-                        agentUuid: thread.agent.uuid,
-                        projectUuid: thread.project.uuid,
-                    }}
-                >
-                    <Box
-                        mah="calc(100vh - 150px)"
-                        style={{ overflowY: 'auto' }}
+                <>
+                    <AiAgentPageLayoutContext.Provider
+                        value={{
+                            artifact: contextArtifact,
+                            setArtifact,
+                            isSidebarCollapsed: false,
+                            collapseSidebar: () => {},
+                            expandSidebar: () => {},
+                            toggleSidebar: () => {},
+                            collapseArtifact: () => {},
+                            expandArtifact: () => {},
+                            clearArtifact,
+                            agentUuid: thread.agent.uuid,
+                            projectUuid: thread.project.uuid,
+                        }}
                     >
-                        <AgentChatDisplay
-                            thread={threadData}
-                            agentName={thread.agent.name}
-                        />
-                    </Box>
-                </AiAgentPageLayoutContext.Provider>
+                        <Box
+                            mah="calc(100vh - 150px)"
+                            style={{ overflowY: 'auto' }}
+                        >
+                            <AgentChatDisplay
+                                thread={threadData}
+                                agentName={thread.agent.name}
+                            />
+                        </Box>
+                        {!!contextArtifact && (
+                            <Modal
+                                withinPortal
+                                opened={!!contextArtifact}
+                                onClose={clearArtifact}
+                                size="lg"
+                                withCloseButton={false}
+                                centered
+                                mih="90vh"
+                                styles={{
+                                    body: {
+                                        height: '500px',
+                                        padding: 0,
+                                    },
+                                }}
+                            >
+                                {contextArtifact && <AiArtifactPanel />}
+                            </Modal>
+                        )}
+                    </AiAgentPageLayoutContext.Provider>
+                </>
             )}
         </Box>
     );

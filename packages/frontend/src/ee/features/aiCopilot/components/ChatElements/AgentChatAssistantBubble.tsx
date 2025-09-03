@@ -61,7 +61,7 @@ const AssistantBubbleContent: FC<{
     const messageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : (message.message ?? 'No response...');
+            : message.message ?? 'No response...';
 
     const handleRetry = useCallback(() => {
         void streamMessage({
