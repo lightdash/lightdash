@@ -1,3 +1,10 @@
+## [0.1977.1](https://github.com/lightdash/lightdash/compare/0.1977.0...0.1977.1) (2025-09-03)
+
+
+### Bug Fixes
+
+* prevent overlapping columns between group by and index in pivot queries ([#16704](https://github.com/lightdash/lightdash/issues/16704)) ([b0d6d98](https://github.com/lightdash/lightdash/commit/b0d6d98985bb3713449f987015725d2eb76de252))
+
 # [0.1977.0](https://github.com/lightdash/lightdash/compare/0.1976.2...0.1977.0) (2025-09-03)
 
 
