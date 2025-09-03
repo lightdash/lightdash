@@ -123,8 +123,8 @@ const AiAgentAdminThreadsTable = ({
                         selectedFeedback === 'thumbs_up'
                             ? 1
                             : selectedFeedback === 'thumbs_down'
-                              ? -1
-                              : undefined,
+                            ? -1
+                            : undefined,
                 },
                 sort: {
                     field: sortBy?.sortField ?? 'createdAt',
