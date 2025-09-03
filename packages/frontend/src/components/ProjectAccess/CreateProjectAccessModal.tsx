@@ -1,19 +1,21 @@
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberRole,
-    ProjectMemberRole,
     validateEmail,
-    type CreateProjectMember,
     type InviteLink,
+    type ProjectMemberRole,
+    type Role,
 } from '@lightdash/common';
 
 import { Button, Group, Modal, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
+import { useOrganizationRoles } from '../../hooks/useOrganizationRoles';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../hooks/useProjectAccess';
+import { useUpsertProjectUserRoleAssignmentMutation } from '../../hooks/useProjectRoles';
 import useApp from '../../providers/App/useApp';
 import { TrackPage } from '../../providers/Tracking/TrackingProvider';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -36,8 +38,12 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
     const { user } = useApp();
 
     const { data: organizationUsers } = useOrganizationUsers();
+    const { data: organizationRoles, isLoading: isLoadingRoles } =
+        useOrganizationRoles();
     const { mutateAsync: createMutation, isLoading } =
         useCreateProjectAccessMutation(projectUuid);
+    const { mutateAsync: upsertRoleMutation, isLoading: isUpsertingRole } =
+        useUpsertProjectUserRoleAssignmentMutation(projectUuid);
 
     const {
         mutateAsync: inviteMutation,
@@ -45,10 +51,10 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
         reset,
     } = useCreateInviteLinkMutation();
 
-    const form = useForm<Pick<CreateProjectMember, 'email' | 'role'>>({
+    const form = useForm<{ email: string; roleId: string }>({
         initialValues: {
             email: '',
-            role: ProjectMemberRole.VIEWER,
+            roleId: '',
         },
     });
 
@@ -56,15 +62,39 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
     const [emailOptions, setEmailOptions] = useState<string[]>([]);
 
+    // Prepare role options with grouping
+    const roleOptions = useMemo(() => {
+        if (!organizationRoles) return [];
+
+        return organizationRoles.map((role: Role) => ({
+            value: role.roleUuid,
+            label: role.name,
+            group: role.ownerType === 'system' ? 'System role' : 'Custom role',
+        }));
+    }, [organizationRoles]);
+
+    // Set default role to viewer when roles are loaded
+    useEffect(() => {
+        if (organizationRoles && !form.values.roleId) {
+            const viewerRole = organizationRoles.find(
+                (role) => role.name.toLowerCase() === 'viewer',
+            );
+            if (viewerRole) {
+                form.setFieldValue('roleId', viewerRole.roleUuid);
+            }
+        }
+    }, [organizationRoles, form]);
+
     useEffect(() => {
         if (organizationUsers) {
             setEmailOptions(organizationUsers.map(({ email }) => email));
         }
     }, [organizationUsers]);
 
-    const handleSubmit = async (
-        formData: Pick<CreateProjectMember, 'email' | 'role'>,
-    ) => {
+    const handleSubmit = async (formData: {
+        email: string;
+        roleId: string;
+    }) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
@@ -75,19 +105,64 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                 email: formData.email,
                 role: OrganizationMemberRole.MEMBER,
             });
-            await createMutation({
-                ...formData,
-                sendEmail: false,
-            });
+
+            // Find the user that was just created/invited
+            const existingUser = organizationUsers?.find(
+                (u) => u.email === formData.email,
+            );
+
+            if (existingUser) {
+                // Use the v2 API to assign the role
+                await upsertRoleMutation({
+                    userId: existingUser.userUuid,
+                    roleId: formData.roleId,
+                });
+            } else {
+                // Fallback to old API with mapped role if user not found
+                const selectedRole = organizationRoles?.find(
+                    (r) => r.roleUuid === formData.roleId,
+                );
+                const roleName =
+                    selectedRole?.name.toLowerCase().replace(' ', '_') ||
+                    'viewer';
+                await createMutation({
+                    email: formData.email,
+                    role: roleName as ProjectMemberRole,
+                    sendEmail: false,
+                });
+            }
+
             setAddNewMember(false);
             setInviteLink(data);
             reset();
             form.reset();
         } else {
-            await createMutation({
-                ...formData,
-                sendEmail: true,
-            });
+            // For existing users, find their UUID and use the v2 API
+            const existingUser = organizationUsers?.find(
+                (u) => u.email === formData.email,
+            );
+
+            if (existingUser) {
+                // Use the v2 API to assign the role
+                await upsertRoleMutation({
+                    userId: existingUser.userUuid,
+                    roleId: formData.roleId,
+                });
+            } else {
+                // Fallback to old API if user not found
+                const selectedRole = organizationRoles?.find(
+                    (r) => r.roleUuid === formData.roleId,
+                );
+                const roleName =
+                    selectedRole?.name.toLowerCase().replace(' ', '_') ||
+                    'viewer';
+                await createMutation({
+                    email: formData.email,
+                    role: roleName as ProjectMemberRole,
+                    sendEmail: true,
+                });
+            }
+
             form.reset();
         }
     };
@@ -121,7 +196,7 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                 <form
                     name="add_user_to_project"
                     onSubmit={form.onSubmit(
-                        (values: Pick<CreateProjectMember, 'email' | 'role'>) =>
+                        (values: { email: string; roleId: string }) =>
                             handleSubmit(values),
                     )}
                 >
@@ -135,7 +210,9 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                             searchable
                             creatable
                             required
-                            disabled={isLoading}
+                            disabled={
+                                isLoading || isLoadingRoles || isUpsertingRole
+                            }
                             getCreateLabel={(query) => {
                                 if (validateEmail(query)) {
                                     return (
@@ -167,21 +244,23 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                             sx={{ flexGrow: 1 }}
                         />
                         <Select
-                            data={Object.values(ProjectMemberRole).map(
-                                (orgMemberRole) => ({
-                                    value: orgMemberRole,
-                                    label: orgMemberRole.replace('_', ' '),
-                                }),
-                            )}
-                            disabled={isLoading}
+                            data={roleOptions}
+                            disabled={
+                                isLoading || isLoadingRoles || isUpsertingRole
+                            }
                             required
                             placeholder="Select role"
                             dropdownPosition="bottom"
                             withinPortal
-                            {...form.getInputProps('role')}
+                            {...form.getInputProps('roleId')}
                         />
                         <Button
-                            disabled={isLoading || isInvitationLoading}
+                            disabled={
+                                isLoading ||
+                                isInvitationLoading ||
+                                isLoadingRoles ||
+                                isUpsertingRole
+                            }
                             type="submit"
                         >
                             Give access
