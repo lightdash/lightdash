@@ -1,3 +1,10 @@
+# [0.1975.0](https://github.com/lightdash/lightdash/compare/0.1974.0...0.1975.0) (2025-09-03)
+
+
+### Features
+
+* create preview from manifest.json ([#16648](https://github.com/lightdash/lightdash/issues/16648)) ([3d439e3](https://github.com/lightdash/lightdash/commit/3d439e39c9cdbed7880f867f96c986d5eb8c81aa))
+
 # [0.1974.0](https://github.com/lightdash/lightdash/compare/0.1973.2...0.1974.0) (2025-09-03)
 
 
