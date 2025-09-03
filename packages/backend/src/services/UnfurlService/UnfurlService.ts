@@ -538,20 +538,29 @@ export class UnfurlService extends BaseService {
                 JSON.stringify(selectedTabsList),
             );
 
+        const urlBase = `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`;
+
+        // Normalize the query filters
+        const suffix =
+            queryFilters &&
+            !(queryFilters.startsWith('?') || queryFilters.startsWith('&'))
+                ? `?${queryFilters}`
+                : queryFilters ?? '';
+
+        const url = new URL(
+            urlBase + suffix,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        );
+
+        for (const [k, v] of selectedTabsParams.entries()) {
+            url.searchParams.set(k, v);
+        }
+
         const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             name: dashboard.name,
-            minimalUrl: new URL(
-                `/minimal/projects/${
-                    dashboard.projectUuid
-                }/dashboards/${dashboardUuid}${queryFilters}${
-                    selectedTabsParams.toString()
-                        ? `${selectedTabsParams.toString()}`
-                        : ''
-                }`,
-                this.lightdashConfig.headlessBrowser.internalLightdashHost,
-            ).href,
+            minimalUrl: url.href,
             pageType: LightdashPage.DASHBOARD,
         };
 
