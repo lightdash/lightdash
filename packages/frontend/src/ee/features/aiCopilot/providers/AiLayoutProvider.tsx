@@ -25,6 +25,8 @@ export interface AiAgentPageLayoutContextType {
         messageProjectUuid: string,
         messageAgentUuid: string,
     ) => void;
+    agentUuid?: string;
+    projectUuid?: string;
 }
 
 export const AiAgentPageLayoutContext =

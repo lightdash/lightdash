@@ -1,15 +1,38 @@
-import { Box, Stack, Text, Title } from '@mantine-8/core';
-import { IconLock } from '@tabler/icons-react';
+import { type AiAgentAdminThreadSummary } from '@lightdash/common';
+import { Box, Stack, Text, Title, useMantineTheme } from '@mantine-8/core';
+import { IconGripVertical, IconLock } from '@tabler/icons-react';
+import { useState } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import useApp from '../../../../../providers/App/useApp';
 import AiAgentAdminThreadsTable from './AiAgentAdminThreadsTable';
+import styles from './AiAgentsAdminLayout.module.css';
+import { ThreadPreviewSidebar } from './ThreadPreviewSidebar';
 
 export const AiAgentsAdminLayout = () => {
     const { user } = useApp();
+    const theme = useMantineTheme();
+    const [selectedThread, setSelectedThread] =
+        useState<AiAgentAdminThreadSummary | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
     const canManageOrganization = user.data?.ability.can(
         'manage',
         'Organization',
     );
+
+    const handleThreadSelect = (thread: AiAgentAdminThreadSummary): void => {
+        setSelectedThread(thread);
+        setIsSidebarOpen(true);
+    };
+
+    const handleCloseSidebar = () => {
+        setIsSidebarOpen(false);
+        setSelectedThread(null);
+    };
+
     if (!canManageOrganization) {
         return (
             <Box mt="30vh">
@@ -26,16 +49,66 @@ export const AiAgentsAdminLayout = () => {
             </Box>
         );
     }
-    return (
-        <Stack>
-            <Box>
-                <Title order={2}>AI Agents Admin Panel</Title>
-                <Text c="gray.6" size="sm" fw={400}>
-                    View and manage AI Agents threads
-                </Text>
-            </Box>
 
-            <AiAgentAdminThreadsTable />
+    return (
+        <Stack h={`calc(100vh - ${NAVBAR_HEIGHT}px)`} style={{ flex: 1 }}>
+            <PanelGroup direction="horizontal">
+                <Panel
+                    id="threads-table"
+                    defaultSize={isSidebarOpen ? 70 : 100}
+                    minSize={50}
+                    className={styles.threadsTable}
+                >
+                    <Box my="lg">
+                        <Title order={2}>AI Agents Admin Panel</Title>
+                        <Text c="gray.6" size="sm" fw={400}>
+                            View and manage AI Agents threads
+                        </Text>
+                    </Box>
+
+                    <AiAgentAdminThreadsTable
+                        onThreadSelect={handleThreadSelect}
+                        selectedThread={selectedThread}
+                        setSelectedThread={setSelectedThread}
+                    />
+                </Panel>
+
+                {isSidebarOpen && (
+                    <>
+                        <PanelResizeHandle
+                            className={styles.resizeHandle}
+                            style={{
+                                width: 2,
+                                backgroundColor: theme.colors.gray[3],
+                                cursor: 'col-resize',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <MantineIcon
+                                color="gray"
+                                icon={IconGripVertical}
+                                size="sm"
+                            />
+                        </PanelResizeHandle>
+                        <Panel
+                            id="thread-preview"
+                            defaultSize={30}
+                            minSize={25}
+                            maxSize={50}
+                        >
+                            {!!selectedThread && (
+                                <ThreadPreviewSidebar
+                                    thread={selectedThread}
+                                    isOpen={isSidebarOpen}
+                                    onClose={handleCloseSidebar}
+                                />
+                            )}
+                        </Panel>
+                    </>
+                )}
+            </PanelGroup>
         </Stack>
     );
 };
