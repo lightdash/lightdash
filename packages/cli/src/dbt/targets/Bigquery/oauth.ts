@@ -2,6 +2,7 @@ import { BigqueryAuthenticationType, ParseError } from '@lightdash/common';
 import {
     ExternalAccountClient,
     GoogleAuth,
+    IdentityPoolClient,
     UserRefreshClient,
 } from 'google-auth-library';
 
@@ -25,7 +26,10 @@ export const getBigqueryCredentialsFromOauth = async (): Promise<
             };
         }
         throw new ParseError(`Cannot get credentials from UserRefreshClient`);
-    } else if (credentials.credential instanceof ExternalAccountClient) {
+    } else if (
+        credentials.credential instanceof ExternalAccountClient ||
+        credentials.credential instanceof IdentityPoolClient
+    ) {
         // Support ADC via workforce identity federation / external_account configuration.
         // In this case we should rely on ADC at runtime and not pass explicit credentials.
         return {
