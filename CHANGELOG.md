@@ -1,3 +1,11 @@
+## [0.1976.2](https://github.com/lightdash/lightdash/compare/0.1976.1...0.1976.2) (2025-09-03)
+
+
+### Bug Fixes
+
+* add support for IdentityPoolClient in BigQuery OAuth authentication ([#16710](https://github.com/lightdash/lightdash/issues/16710)) ([79aa29c](https://github.com/lightdash/lightdash/commit/79aa29cf96ecd1bf76ae7a9a972710c13e446249))
+* edit chart scheduled delivery ([#16707](https://github.com/lightdash/lightdash/issues/16707)) ([5e911a8](https://github.com/lightdash/lightdash/commit/5e911a8df76b18c32f5cc2ec0f846600e96b540c))
+
 ## [0.1976.1](https://github.com/lightdash/lightdash/compare/0.1976.0...0.1976.1) (2025-09-03)
 
 
