@@ -67,14 +67,14 @@ describe('Table calculations', () => {
 
         cy.findByText('Table calculation').click();
 
-        cy.findByPlaceholderText('E.g. Cumulative order count').type('Ranking');
-
         cy.get('#ace-editor').type(
             `'rank_' || RANK() OVER(ORDER BY \${orders.total_order_amount} ASC)`,
             { parseSpecialCharSequences: false },
         );
         cy.get(`.mantine-Select-input[value='number']`).click();
         cy.contains('string').click();
+
+        cy.findByPlaceholderText('E.g. Cumulative order count').type('Ranking');
         cy.get('form').contains('Create').click({ force: true });
 
         // Run query
@@ -115,12 +115,12 @@ describe('Table calculations', () => {
 
         cy.findByText('Table calculation').click();
 
-        cy.findByPlaceholderText('E.g. Cumulative order count').type('Ranking');
-
         cy.get('#ace-editor').type(
             `RANK() OVER(ORDER BY \${orders.total_order_amount} ASC) * 100`,
             { parseSpecialCharSequences: false },
         );
+
+        cy.findByPlaceholderText('E.g. Cumulative order count').type('Ranking');
         // Defaults to number
         cy.get('form').contains('Create').click({ force: true });
 
