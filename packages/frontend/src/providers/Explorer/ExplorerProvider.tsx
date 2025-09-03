@@ -45,7 +45,7 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
@@ -881,6 +881,9 @@ const ExplorerProvider: FC<
     dateZoomGranularity,
     projectUuid: propProjectUuid,
 }) => {
+    const { pathname } = useLocation();
+    const isTablesRoute = pathname.includes('/tables');
+
     const [autoFetchEnabled] = useLocalStorage({
         key: AUTO_FETCH_ENABLED_KEY,
         defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
@@ -1604,6 +1607,14 @@ const ExplorerProvider: FC<
 
     const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
+        if (isTablesRoute) {
+            dispatch({
+                type: ActionType.RESET,
+                payload: defaultStateWithConfig,
+            });
+            return;
+        }
+
         resetCachedChartConfig();
         // cancel query creation
         void queryClient.cancelQueries({
@@ -1622,6 +1633,7 @@ const ExplorerProvider: FC<
         queryClient,
         resetQueryResults,
         defaultStateWithConfig,
+        isTablesRoute,
         mainQueryManager,
         unpivotedQueryManager,
     ]);
