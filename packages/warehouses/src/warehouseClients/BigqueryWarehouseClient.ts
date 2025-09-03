@@ -12,6 +12,7 @@ import {
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     AnyType,
+    BigqueryAuthenticationType,
     BigqueryDataset,
     CreateBigqueryCredentials,
     DimensionType,
@@ -186,7 +187,14 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 // empty string is not a valid value for location
                 location: credentials.location || undefined,
                 maxRetries: credentials.retries,
-                credentials: credentials.keyfileContents,
+
+                ...(credentials.authenticationType ===
+                BigqueryAuthenticationType.ADC
+                    ? {
+                          // Support ADC via workforce identity federation / external_account configuration.
+                          // In this case we should rely on ADC at runtime and not pass explicit credentials.
+                      }
+                    : { credentials: credentials.keyfileContents }),
             });
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
