@@ -1,3 +1,15 @@
+# [0.1977.0](https://github.com/lightdash/lightdash/compare/0.1976.2...0.1977.0) (2025-09-03)
+
+
+### Bug Fixes
+
+* cascade delete on user deletion for `ai_web_app_thread` and `ai_web_app_prompt` tables ([#16697](https://github.com/lightdash/lightdash/issues/16697)) ([3036592](https://github.com/lightdash/lightdash/commit/3036592beb06a9495021e29bd50163382526a05b)), closes [#16702](https://github.com/lightdash/lightdash/issues/16702)
+
+
+### Features
+
+* add PAT support for instance update setup ([#16699](https://github.com/lightdash/lightdash/issues/16699)) ([c515b1c](https://github.com/lightdash/lightdash/commit/c515b1c133a3b4aed38adf50900b07aa0bcd67e2))
+
 ## [0.1976.2](https://github.com/lightdash/lightdash/compare/0.1976.1...0.1976.2) (2025-09-03)
 
 
