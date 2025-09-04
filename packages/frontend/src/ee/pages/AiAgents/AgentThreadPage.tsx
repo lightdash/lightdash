@@ -9,14 +9,21 @@ import {
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useAiAgentPageLayout } from '../../features/aiCopilot/providers/AiLayoutProvider';
+import { setArtifact } from '../../features/aiCopilot/store/aiArtifactSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../features/aiCopilot/store/hooks';
 import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
     const { user } = useApp();
-    const { setArtifact, artifact } = useAiAgentPageLayout();
+    const artifact = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.artifact,
+    );
+    const dispatch = useAiAgentStoreDispatch();
 
     const { data: thread, isLoading: isLoadingThread } = useAiAgentThread(
         projectUuid!,
@@ -34,15 +41,20 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
 
                 // Only auto-open if no artifact is currently set or it's different
                 if (
-                    artifact?.artifactUuid !== messageArtifact.uuid ||
-                    artifact?.versionUuid !== messageArtifact.versionUuid
+                    (artifact?.artifactUuid !== messageArtifact.uuid ||
+                        artifact?.versionUuid !==
+                            messageArtifact.versionUuid) &&
+                    projectUuid &&
+                    agentUuid
                 ) {
-                    setArtifact(
-                        messageArtifact.uuid,
-                        messageArtifact.versionUuid,
-                        lastMessage,
-                        projectUuid!,
-                        agentUuid!,
+                    dispatch(
+                        setArtifact({
+                            artifactUuid: messageArtifact.uuid,
+                            versionUuid: messageArtifact.versionUuid,
+                            message: lastMessage,
+                            projectUuid: projectUuid,
+                            agentUuid: agentUuid,
+                        }),
                     );
                 }
             },
@@ -83,6 +95,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             enableAutoScroll={true}
             promptUuid={promptUuid}
             debug={debug}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
         >
             <AgentChatInput
                 disabled={
