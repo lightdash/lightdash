@@ -30,5 +30,8 @@
         "dayjs": "^1.11.10",
         "js-yaml": "^4.1.0",
         "node-fetch": "^2.7.0"
+    },
+    "devDependencies": {
+        "@estruyf/github-actions-reporter": "^1.10.0"
     }
 }

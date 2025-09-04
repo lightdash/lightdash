@@ -92,7 +92,7 @@ jobs:
                   TZ: 'UTC'
             - name: Upload Playwright Report
               uses: actions/upload-artifact@v4
-              if: failure()
+              if: always()
               with:
                   name: playwright-report-api
                   path: packages/e2e/playwright-report/
