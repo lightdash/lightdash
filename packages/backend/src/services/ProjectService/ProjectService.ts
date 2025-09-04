@@ -3943,6 +3943,11 @@ export class ProjectService extends BaseService {
                     );
                 }
                 if (isExploreError(explore)) {
+                    this.logger.error(
+                        `Explore "${exploreName}" has an error. ${JSON.stringify(
+                            explore.errors,
+                        )}`,
+                    );
                     throw new NotExistsError(
                         `Explore "${exploreName}" has an error.`,
                     );
