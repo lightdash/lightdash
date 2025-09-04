@@ -266,8 +266,16 @@ type Props = {
 
 export const AssistantBubble: FC<Props> = memo(
     ({ message, isActive = false, debug = false }) => {
-        const { agentUuid, projectUuid } = useParams();
-        const { setArtifact, artifact } = useAiAgentPageLayout();
+        const { agentUuid: agentUuidParam, projectUuid: projectUuidParam } =
+            useParams();
+        const {
+            setArtifact,
+            artifact,
+            agentUuid: contextAgentUuid,
+            projectUuid: contextProjectUuid,
+        } = useAiAgentPageLayout();
+        const projectUuid = projectUuidParam ?? contextProjectUuid;
+        const agentUuid = agentUuidParam ?? contextAgentUuid;
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 

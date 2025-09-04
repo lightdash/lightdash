@@ -39,6 +39,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
@@ -46,8 +47,19 @@ import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useInfiniteAiAgentAdminThreads } from '../../hooks/useAiAgentAdmin';
 import { AiAgentAdminTopToolbar } from './AiAgentAdminTopToolbar';
 
-const AiAgentAdminThreadsTable = () => {
+type AiAgentAdminThreadsTableProps = {
+    onThreadSelect?: (thread: AiAgentAdminThreadSummary) => void;
+    selectedThread?: AiAgentAdminThreadSummary | null;
+    setSelectedThread?: (thread: AiAgentAdminThreadSummary) => void;
+};
+
+const AiAgentAdminThreadsTable = ({
+    onThreadSelect,
+    setSelectedThread,
+    selectedThread,
+}: AiAgentAdminThreadsTableProps) => {
     const theme = useMantineTheme();
+    const navigate = useNavigate();
     const [sorting, setSorting] = useState<MRT_SortingState>([
         { id: 'createdAt', desc: true },
     ]);
@@ -492,19 +504,37 @@ const AiAgentAdminThreadsTable = () => {
                 },
             },
         },
-        mantineTableBodyRowProps: () => {
+        mantineTableBodyRowProps: ({ row }) => {
+            const thread = row.original;
+            const isSelected = selectedThread?.uuid === thread.uuid;
+
             return {
                 sx: {
                     cursor: 'pointer',
                     '&:hover': {
                         td: {
-                            backgroundColor: theme.colors.gray[0],
+                            backgroundColor: isSelected
+                                ? theme.colors.indigo[0]
+                                : theme.colors.gray[0],
+
                             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                         },
                     },
+                    ...(isSelected && {
+                        td: {
+                            backgroundColor: theme.colors.indigo[0],
+                        },
+                    }),
                 },
                 onClick: () => {
-                    // TODO: Navigate to thread detail view with row
+                    setSelectedThread?.(thread);
+                    if (onThreadSelect) {
+                        onThreadSelect(thread);
+                    } else {
+                        void navigate(
+                            `/projects/${thread.project.uuid}/ai-agents/${thread.agent.uuid}/threads/${thread.uuid}`,
+                        );
+                    }
                 },
             };
         },
