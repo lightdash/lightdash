@@ -1,3 +1,10 @@
+# [0.1982.0](https://github.com/lightdash/lightdash/compare/0.1981.0...0.1982.0) (2025-09-04)
+
+
+### Features
+
+* show thread preview on click of row ([#16721](https://github.com/lightdash/lightdash/issues/16721)) ([e2822c9](https://github.com/lightdash/lightdash/commit/e2822c9877e8379b7edb29da1cd0bfb671b192a6))
+
 # [0.1981.0](https://github.com/lightdash/lightdash/compare/0.1980.0...0.1981.0) (2025-09-04)
 
 
