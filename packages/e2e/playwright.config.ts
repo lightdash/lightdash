@@ -10,6 +10,7 @@ export default defineConfig({
     reporter: [
         ['html'], // HTML report for detailed viewing
         ['list'], // Clean console output showing test results
+        ['github'], // GitHub Actions reporter for CI
         [
             '@estruyf/github-actions-reporter', // GitHub Actions reporter for CI
             <GitHubActionOptions>{
