@@ -45,7 +45,7 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
@@ -881,10 +881,6 @@ const ExplorerProvider: FC<
     dateZoomGranularity,
     projectUuid: propProjectUuid,
 }) => {
-    const { pathname } = useLocation();
-    const isTablesRoute =
-        pathname.endsWith('/tables') || pathname.endsWith('/tables/');
-
     const [autoFetchEnabled] = useLocalStorage({
         key: AUTO_FETCH_ENABLED_KEY,
         defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
@@ -1404,18 +1400,19 @@ const ExplorerProvider: FC<
     );
 
     // Use custom query manager to reduce duplication
-    const mainQueryManager = useQueryManager(
+    const [mainQueryManager, mainSetQueryUuidHistory] = useQueryManager(
         validQueryArgs,
         missingRequiredParameters,
     );
     const { query, queryResults } = mainQueryManager;
 
     // Unpivoted query manager for results table
-    const unpivotedQueryManager = useQueryManager(
-        unpivotedQueryArgs,
-        missingRequiredParameters,
-        isResultsOpen, // Only execute unpivoted query when results panel is open
-    );
+    const [unpivotedQueryManager, unpivotedSetQueryUuidHistory] =
+        useQueryManager(
+            unpivotedQueryArgs,
+            missingRequiredParameters,
+            isResultsOpen, // Only execute unpivoted query when results panel is open
+        );
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
         unpivotedQueryManager;
 
@@ -1458,12 +1455,17 @@ const ExplorerProvider: FC<
         ],
     );
 
+    const queryClient = useQueryClient();
     const resetQueryResults = useCallback(() => {
         setValidQueryArgs(null);
-        mainQueryManager.clearQuery();
         setUnpivotedQueryArgs(null);
-        unpivotedQueryManager.clearQuery();
-    }, [mainQueryManager, unpivotedQueryManager]);
+        mainSetQueryUuidHistory([]);
+        unpivotedSetQueryUuidHistory([]);
+        void queryClient.removeQueries({
+            queryKey: ['create-query'],
+            exact: false,
+        });
+    }, [queryClient, mainSetQueryUuidHistory, unpivotedSetQueryUuidHistory]);
 
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
@@ -1596,25 +1598,15 @@ const ExplorerProvider: FC<
         runQuery();
     }, [runQuery, autoFetchEnabled, isEditMode, query.isFetched]);
 
-    const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
-        if (isTablesRoute) {
-            dispatch({
-                type: ActionType.RESET,
-                payload: defaultStateWithConfig,
-            });
-            return;
-        }
-
         resetCachedChartConfig();
         // cancel query creation
         void queryClient.cancelQueries({
             queryKey: ['create-query'],
             exact: false,
         });
-        // reset query history
-        mainQueryManager.setQueryUuidHistory([]);
-        unpivotedQueryManager.setQueryUuidHistory([]);
+        mainSetQueryUuidHistory([]);
+        unpivotedSetQueryUuidHistory([]);
         dispatch({
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
@@ -1624,9 +1616,8 @@ const ExplorerProvider: FC<
         queryClient,
         resetQueryResults,
         defaultStateWithConfig,
-        isTablesRoute,
-        mainQueryManager,
-        unpivotedQueryManager,
+        mainSetQueryUuidHistory,
+        unpivotedSetQueryUuidHistory,
     ]);
 
     const navigate = useNavigate();
@@ -1679,7 +1670,7 @@ const ExplorerProvider: FC<
 
         if (query.data?.queryUuid) {
             // remove current queryUuid from query history
-            mainQueryManager.setQueryUuidHistory((prev: string[]) => {
+            mainSetQueryUuidHistory((prev: string[]) => {
                 return prev.filter(
                     (queryUuid: string) => queryUuid !== query.data.queryUuid,
                 );
@@ -1693,7 +1684,7 @@ const ExplorerProvider: FC<
         missingRequiredParameters,
         query.data,
         cancelQueryMutation,
-        mainQueryManager,
+        mainSetQueryUuidHistory,
     ]);
 
     const openVisualizationConfig = useCallback(() => {

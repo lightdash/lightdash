@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     type QueryResultsProps,
     useGetReadyQueryResults,
@@ -27,10 +27,5 @@ export const useQueryManager = (
         queryUuidHistory[queryUuidHistory.length - 1],
     );
 
-    const clearQuery = useCallback(() => {
-        query.remove();
-        setQueryUuidHistory([]);
-    }, [query]);
-
-    return { query, queryResults, clearQuery, setQueryUuidHistory };
+    return [{ query, queryResults }, setQueryUuidHistory] as const;
 };
