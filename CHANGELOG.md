@@ -1,3 +1,10 @@
+# [0.1979.0](https://github.com/lightdash/lightdash/compare/0.1978.0...0.1979.0) (2025-09-04)
+
+
+### Features
+
+* display ai agent admin panel for all threads ([#16705](https://github.com/lightdash/lightdash/issues/16705)) ([668a15b](https://github.com/lightdash/lightdash/commit/668a15b23ad3cc6e5d313d91e5789825341129e4))
+
 # [0.1978.0](https://github.com/lightdash/lightdash/compare/0.1977.1...0.1978.0) (2025-09-03)
 
 
