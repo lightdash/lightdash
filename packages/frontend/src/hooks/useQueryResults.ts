@@ -226,7 +226,11 @@ export const useGetReadyQueryResults = (
         queryFn: ({ signal }) => {
             return executeAsyncQuery(
                 data
-                    ? { ...data, pivotResults: useSqlPivotResults?.enabled }
+                    ? {
+                          ...data,
+                          pivotResults:
+                              data.pivotResults ?? useSqlPivotResults?.enabled,
+                      }
                     : null,
                 signal,
             );

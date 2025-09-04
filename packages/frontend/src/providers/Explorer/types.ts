@@ -314,6 +314,8 @@ export interface ExplorerContextType {
     state: ExplorerState;
     query: ReturnType<typeof useGetReadyQueryResults>;
     queryResults: ReturnType<typeof useInfiniteQueryResults>;
+    unpivotedQuery: ReturnType<typeof useGetReadyQueryResults>;
+    unpivotedQueryResults: ReturnType<typeof useInfiniteQueryResults>;
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;
