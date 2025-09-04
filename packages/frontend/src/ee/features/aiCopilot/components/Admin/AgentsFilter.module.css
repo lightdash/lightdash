@@ -1,0 +1,41 @@
+.filterButton {
+    border: 1px dashed var(--mantine-color-gray-3);
+    background-color: transparent;
+    text-overflow: ellipsis;
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.filterButton:hover {
+    background-color: var(--mantine-color-gray-0);
+    transition: background-color var(--mantine-other-transitionDuration)
+        var(--mantine-other-transitionTimingFunction);
+}
+
+.filterButtonSelected {
+    border: 1px solid var(--mantine-color-indigo-2);
+    background-color: var(--mantine-color-indigo-0);
+    text-overflow: ellipsis;
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.filterButtonSelected:hover {
+    background-color: var(--mantine-color-gray-0);
+    transition: background-color var(--mantine-other-transitionDuration)
+        var(--mantine-other-transitionTimingFunction);
+}
+
+.buttonLabel {
+    height: 24px;
+}
+
+.checkboxBody {
+    align-items: center;
+}
+
+.checkboxInput {
+    border-radius: var(--mantine-radius-sm);
+}
+
+.checkboxLabel {
+    padding-left: var(--mantine-spacing-xs);
+}

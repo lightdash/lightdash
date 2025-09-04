@@ -2,6 +2,8 @@ import {
     AiAgentAdminFilters,
     AiAgentAdminSort,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentResponse,
+    ApiAiAgentSummaryResponse,
     ApiErrorPayload,
     KnexPaginateArgs,
 } from '@lightdash/common';
@@ -90,6 +92,20 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: threads,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/agents')
+    @OperationId('getAllAgents')
+    async getAllAgents(
+        @Request() req: express.Request,
+    ): Promise<ApiAiAgentSummaryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().listAgents(req.user!),
         };
     }
 

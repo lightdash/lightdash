@@ -2,10 +2,12 @@ import {
     type AiAgentAdminFilters,
     type AiAgentAdminSort,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentSummaryResponse,
     type ApiError,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
+    useQuery,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
@@ -82,5 +84,22 @@ export const useInfiniteAiAgentAdminThreads = (
             }
         },
         ...infinityQueryOpts,
+    });
+};
+
+const getAiAgentAdminAgents = async () => {
+    return lightdashApi<ApiAiAgentSummaryResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/agents`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentAdminAgents = () => {
+    return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-list'],
+        queryFn: getAiAgentAdminAgents,
+        keepPreviousData: true,
     });
 };

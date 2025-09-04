@@ -3,13 +3,10 @@ import {
     type AiAgentAdminThreadSummary,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
-    Divider,
     Group,
     Paper,
     Text,
-    TextInput,
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
@@ -23,10 +20,8 @@ import {
     IconMessageCircleStar,
     IconRadar,
     IconRobotFace,
-    IconSearch,
     IconTextCaption,
     IconUser,
-    IconX,
 } from '@tabler/icons-react';
 import {
     MantineReactTable,
@@ -49,6 +44,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useInfiniteAiAgentAdminThreads } from '../../hooks/useAiAgentAdmin';
+import { AiAgentAdminTopToolbar } from './AiAgentAdminTopToolbar';
 
 const AiAgentAdminThreadsTable = () => {
     const theme = useMantineTheme();
@@ -56,8 +52,17 @@ const AiAgentAdminThreadsTable = () => {
         { id: 'createdAt', desc: true },
     ]);
     const [search, setSearch] = useState<string | undefined>(undefined);
-    const clearSearch = useCallback(() => setSearch(''), [setSearch]);
     const deferredSearch = useDeferredValue(search);
+    const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
+        [],
+    );
+    const [selectedAgentUuids, setSelectedAgentUuids] = useState<string[]>([]);
+    const [selectedSource, setSelectedSource] = useState<
+        'all' | 'web_app' | 'slack'
+    >('all');
+    const [selectedFeedback, setSelectedFeedback] = useState<
+        'all' | 'thumbs_up' | 'thumbs_down'
+    >('all');
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
@@ -92,6 +97,22 @@ const AiAgentAdminThreadsTable = () => {
                 pagination: {},
                 filters: {
                     ...(deferredSearch && { search: deferredSearch }),
+                    projectUuids:
+                        selectedProjectUuids.length > 0
+                            ? selectedProjectUuids
+                            : undefined,
+                    agentUuids:
+                        selectedAgentUuids.length > 0
+                            ? selectedAgentUuids
+                            : undefined,
+                    createdFrom:
+                        selectedSource !== 'all' ? selectedSource : undefined,
+                    humanScore:
+                        selectedFeedback === 'thumbs_up'
+                            ? 1
+                            : selectedFeedback === 'thumbs_down'
+                            ? -1
+                            : undefined,
                 },
                 sort: {
                     field: sortBy?.sortField ?? 'createdAt',
@@ -218,6 +239,7 @@ const AiAgentAdminThreadsTable = () => {
             ),
             Cell: ({ row }) => {
                 const thread = row.original;
+
                 return (
                     <Text c="gray.9" fz="sm" fw={400}>
                         {thread.project.name}
@@ -256,6 +278,7 @@ const AiAgentAdminThreadsTable = () => {
             header: 'Source',
             enableSorting: false,
             enableEditing: false,
+            size: 120,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconRadar} color="gray.6" />
@@ -272,28 +295,26 @@ const AiAgentAdminThreadsTable = () => {
                 }
 
                 return (
-                    <Paper px="xs">
-                        <Group gap="two">
-                            {label === 'Slack' ? (
-                                <SlackSvg
-                                    style={{
-                                        width: '12px',
-                                        height: '12px',
-                                    }}
-                                />
-                            ) : (
-                                <MantineIcon
-                                    icon={IconMessageCircleStar}
-                                    size="md"
-                                    color={'blue.6'}
-                                    stroke={1.6}
-                                />
-                            )}
-                            <Text fz="xs" c="gray.7" fw={500}>
-                                {label}
-                            </Text>
-                        </Group>
-                    </Paper>
+                    <Group gap="two">
+                        {label === 'Slack' ? (
+                            <SlackSvg
+                                style={{
+                                    width: '12px',
+                                    height: '12px',
+                                }}
+                            />
+                        ) : (
+                            <MantineIcon
+                                icon={IconMessageCircleStar}
+                                size="md"
+                                color={'indigo.8'}
+                                stroke={1.6}
+                            />
+                        )}
+                        <Text fz="xs" c="gray.7" fw={500}>
+                            {label}
+                        </Text>
+                    </Group>
                 );
             },
         },
@@ -302,6 +323,7 @@ const AiAgentAdminThreadsTable = () => {
             header: 'Feedback',
             enableSorting: false,
             enableEditing: false,
+            size: 140,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconClick} color="gray.6" />
@@ -503,72 +525,24 @@ const AiAgentAdminThreadsTable = () => {
                 },
             };
         },
-        renderTopToolbar: () => {
-            return (
-                <Box>
-                    <Group
-                        p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-                        justify="space-between"
-                    >
-                        <Tooltip
-                            withinPortal
-                            variant="xs"
-                            label="Search by title"
-                        >
-                            <TextInput
-                                size="xs"
-                                radius="md"
-                                styles={(inputTheme) => ({
-                                    input: {
-                                        height: 32,
-                                        width: 309,
-                                        textOverflow: 'ellipsis',
-                                        fontSize: inputTheme.fontSizes.sm,
-                                        fontWeight: 400,
-                                        color: search
-                                            ? inputTheme.colors.gray[8]
-                                            : inputTheme.colors.gray[5],
-                                        boxShadow: inputTheme.shadows.subtle,
-                                        border: `1px solid ${inputTheme.colors.gray[3]}`,
-                                        '&:hover': {
-                                            border: `1px solid ${inputTheme.colors.gray[4]}`,
-                                        },
-                                        '&:focus': {
-                                            border: `1px solid ${inputTheme.colors.blue[5]}`,
-                                        },
-                                    },
-                                })}
-                                type="search"
-                                variant="default"
-                                placeholder="Search threads by title"
-                                value={search ?? ''}
-                                leftSection={
-                                    <MantineIcon
-                                        size="md"
-                                        color="gray.6"
-                                        icon={IconSearch}
-                                    />
-                                }
-                                onChange={(e) => setSearch(e.target.value)}
-                                rightSection={
-                                    search && (
-                                        <ActionIcon
-                                            onClick={clearSearch}
-                                            variant="transparent"
-                                            size="xs"
-                                            color="gray.5"
-                                        >
-                                            <MantineIcon icon={IconX} />
-                                        </ActionIcon>
-                                    )
-                                }
-                            />
-                        </Tooltip>
-                    </Group>
-                    <Divider color="gray.2" />
-                </Box>
-            );
-        },
+        renderTopToolbar: () => (
+            <AiAgentAdminTopToolbar
+                search={search}
+                setSearch={setSearch}
+                selectedProjectUuids={selectedProjectUuids}
+                setSelectedProjectUuids={setSelectedProjectUuids}
+                selectedAgentUuids={selectedAgentUuids}
+                setSelectedAgentUuids={setSelectedAgentUuids}
+                selectedSource={selectedSource}
+                setSelectedSource={setSelectedSource}
+                selectedFeedback={selectedFeedback}
+                setSelectedFeedback={setSelectedFeedback}
+                totalResults={totalResults}
+                isFetching={isFetching}
+                hasNextPage={hasNextPage ?? false}
+                currentResultsCount={flatData.length}
+            />
+        ),
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}

@@ -3,6 +3,7 @@ import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
     AiAgentAdminSort,
+    AiAgentSummary,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -62,6 +63,17 @@ export class AiAgentAdminService {
             paginateArgs,
             filters,
             sort,
+        });
+    }
+
+    async listAgents(user: SessionUser): Promise<AiAgentSummary[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        AiAgentAdminService.checkOrganizationAdminAccess(user);
+        return this.aiAgentModel.findAllAgents({
+            organizationUuid,
         });
     }
 }

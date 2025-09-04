@@ -1,0 +1,154 @@
+import {
+    ActionIcon,
+    Button,
+    Checkbox,
+    Group,
+    Popover,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconBox, IconX } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useProjects } from '../../../../../hooks/useProjects';
+import classes from './ProjectsFilter.module.css';
+
+type ProjectsFilterProps = {
+    selectedProjectUuids: string[];
+    setSelectedProjectUuids: (projectUuids: string[]) => void;
+};
+
+const ProjectsFilter: FC<ProjectsFilterProps> = ({
+    selectedProjectUuids,
+    setSelectedProjectUuids,
+}) => {
+    const { data: projects, isLoading } = useProjects();
+
+    const hasSelectedProjects = selectedProjectUuids.length > 0;
+
+    const projectNames = useMemo(() => {
+        return projects
+            ?.filter((project) =>
+                selectedProjectUuids.includes(project.projectUuid),
+            )
+            .map((project) => project.name)
+            .join(', ');
+    }, [projects, selectedProjectUuids]);
+
+    const buttonLabel = hasSelectedProjects ? projectNames : 'All projects';
+
+    return (
+        <Group gap="two">
+            <Popover width={300} position="bottom-start">
+                <Popover.Target>
+                    <Tooltip
+                        withinPortal
+                        variant="xs"
+                        label="Filter threads by project"
+                    >
+                        <Button
+                            h={32}
+                            c="gray.7"
+                            fw={500}
+                            fz="sm"
+                            variant="default"
+                            radius="md"
+                            py="xs"
+                            px="sm"
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconBox}
+                                    size="md"
+                                    color={
+                                        hasSelectedProjects
+                                            ? 'indigo.5'
+                                            : 'gray.5'
+                                    }
+                                />
+                            }
+                            loading={isLoading}
+                            className={
+                                hasSelectedProjects
+                                    ? classes.filterButtonSelected
+                                    : classes.filterButton
+                            }
+                            classNames={{
+                                label: classes.buttonLabel,
+                            }}
+                        >
+                            {buttonLabel}
+                        </Button>
+                    </Tooltip>
+                </Popover.Target>
+                <Popover.Dropdown p="sm">
+                    <Stack gap={4}>
+                        <Text fz="xs" c="dark.3" fw={600}>
+                            Filter by projects:
+                        </Text>
+
+                        {projects?.length === 0 && (
+                            <Text fz="xs" fw={500} c="gray.6">
+                                No projects available.
+                            </Text>
+                        )}
+
+                        <Stack gap="xs">
+                            {projects?.map((project) => (
+                                <Checkbox
+                                    key={project.projectUuid}
+                                    label={project.name}
+                                    checked={selectedProjectUuids.includes(
+                                        project.projectUuid,
+                                    )}
+                                    size="xs"
+                                    classNames={{
+                                        body: classes.checkboxBody,
+                                        input: classes.checkboxInput,
+                                        label: classes.checkboxLabel,
+                                    }}
+                                    onChange={() => {
+                                        if (
+                                            selectedProjectUuids.includes(
+                                                project.projectUuid,
+                                            )
+                                        ) {
+                                            setSelectedProjectUuids(
+                                                selectedProjectUuids.filter(
+                                                    (uuid) =>
+                                                        uuid !==
+                                                        project.projectUuid,
+                                                ),
+                                            );
+                                        } else {
+                                            setSelectedProjectUuids([
+                                                ...selectedProjectUuids,
+                                                project.projectUuid,
+                                            ]);
+                                        }
+                                    }}
+                                />
+                            ))}
+                        </Stack>
+                    </Stack>
+                </Popover.Dropdown>
+            </Popover>
+            {hasSelectedProjects && (
+                <Tooltip variant="xs" label="Clear all project filters">
+                    <ActionIcon
+                        size="xs"
+                        color="gray.5"
+                        variant="subtle"
+                        onClick={() => {
+                            setSelectedProjectUuids([]);
+                        }}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </Group>
+    );
+};
+
+export default ProjectsFilter;
