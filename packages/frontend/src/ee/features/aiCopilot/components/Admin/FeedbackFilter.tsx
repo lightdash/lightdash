@@ -1,14 +1,13 @@
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
 import { IconThumbDown, IconThumbUp } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import classes from './FeedbackFilter.module.css';
 
-type FeedbackFilterProps = {
-    selectedFeedback: 'all' | 'thumbs_up' | 'thumbs_down';
-    setSelectedFeedback: (
-        feedback: 'all' | 'thumbs_up' | 'thumbs_down',
-    ) => void;
-};
+type FeedbackFilterProps = Pick<
+    ReturnType<typeof useAiAgentAdminFilters>,
+    'selectedFeedback' | 'setSelectedFeedback'
+>;
 
 export const FeedbackFilter = ({
     selectedFeedback,

@@ -14,12 +14,13 @@ import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../hooks/useProjects';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
+import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import classes from './ProjectsFilter.module.css';
 
-type ProjectsFilterProps = {
-    selectedProjectUuids: string[];
-    setSelectedProjectUuids: (projectUuids: string[]) => void;
-};
+type ProjectsFilterProps = Pick<
+    ReturnType<typeof useAiAgentAdminFilters>,
+    'selectedProjectUuids' | 'setSelectedProjectUuids'
+>;
 
 const ProjectsFilter: FC<ProjectsFilterProps> = ({
     selectedProjectUuids,
