@@ -1551,18 +1551,6 @@ const ExplorerProvider: FC<
             // Set main query args (with pivot configuration for chart)
             setValidQueryArgs(mainQueryArgs);
 
-            // Always prepare unpivoted query args when needed, regardless of results panel state
-            // The query manager will only execute when results panel is open
-            if (needsUnpivotedData) {
-                setUnpivotedQueryArgs({
-                    ...mainQueryArgs,
-                    pivotConfiguration: undefined, // No pivot for results table in explore page
-                    pivotResults: false, // No pivot for results table in chart page
-                });
-            } else {
-                setUnpivotedQueryArgs(null);
-            }
-
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
                 payload: cloneDeep(unsavedChartVersion.metricQuery),
@@ -1588,8 +1576,24 @@ const ExplorerProvider: FC<
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
-        needsUnpivotedData,
     ]);
+
+    useEffect(() => {
+        if (!validQueryArgs) {
+            setUnpivotedQueryArgs(null);
+            return;
+        }
+
+        if (needsUnpivotedData) {
+            setUnpivotedQueryArgs({
+                ...validQueryArgs,
+                pivotConfiguration: undefined, // No pivot for results table in explore page
+                pivotResults: false, // No pivot for results table in chart page
+            });
+        } else {
+            setUnpivotedQueryArgs(null);
+        }
+    }, [validQueryArgs, needsUnpivotedData]);
 
     useEffect(() => {
         // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query

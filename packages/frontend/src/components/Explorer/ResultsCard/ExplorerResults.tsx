@@ -65,6 +65,7 @@ export const ExplorerResults = memo(() => {
     const resultsData = useExplorerContext((context) => {
         const hasPivotConfig = !!context.state.unsavedChartVersion.pivotConfig;
         const hasUnpivotedQuery = !!context.unpivotedQuery.data?.queryUuid;
+        const hasMainQuery = !!context.query.data?.queryUuid;
         const shouldUseUnpivotedData = hasPivotConfig && hasUnpivotedQuery;
 
         // Check if we need to show loading for unpivoted data
@@ -74,11 +75,13 @@ export const ExplorerResults = memo(() => {
             context.unpivotedQuery.status === 'loading';
         const needsUnpivotedQuery =
             hasPivotConfig &&
+            hasMainQuery && // Only show loading if main query has been run
             !hasUnpivotedQuery &&
             !context.unpivotedQuery.isFetching &&
             !context.unpivotedQuery.data;
         const shouldShowLoadingForUnpivoted =
             hasPivotConfig &&
+            hasMainQuery && // Only show loading if main query has been run
             !hasUnpivotedQuery &&
             (isUnpivotedQueryLoading || needsUnpivotedQuery);
 
