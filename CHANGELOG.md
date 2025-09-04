@@ -1,3 +1,15 @@
+# [0.1981.0](https://github.com/lightdash/lightdash/compare/0.1980.0...0.1981.0) (2025-09-04)
+
+
+### Bug Fixes
+
+* subtotals for SQL pivoted table ([#16733](https://github.com/lightdash/lightdash/issues/16733)) ([15cad5c](https://github.com/lightdash/lightdash/commit/15cad5cf52e368a5a42b864cb37e7c8bbc5e7c3f))
+
+
+### Features
+
+* support custom dimensions as xField and indexColumn in cartesian charts ([#16719](https://github.com/lightdash/lightdash/issues/16719)) ([4cb0edb](https://github.com/lightdash/lightdash/commit/4cb0edba91e9528866b9171b6e4b29916a55de91))
+
 # [0.1980.0](https://github.com/lightdash/lightdash/compare/0.1979.0...0.1980.0) (2025-09-04)
 
 
