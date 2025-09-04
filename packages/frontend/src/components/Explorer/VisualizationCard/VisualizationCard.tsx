@@ -245,13 +245,16 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     isVisualizationCard
                     onToggle={toggleSection}
                     headerElement={
-                        <VisualizationWarning
-                            pivotDimensions={
-                                unsavedChartVersion.pivotConfig?.columns
-                            }
-                            resultsData={resultsData}
-                            isLoading={isLoadingQueryResults}
-                        />
+                        isOpen && (
+                            <VisualizationWarning
+                                pivotDimensions={
+                                    unsavedChartVersion.pivotConfig?.columns
+                                }
+                                chartConfig={unsavedChartVersion.chartConfig}
+                                resultsData={resultsData}
+                                isLoading={isLoadingQueryResults}
+                            />
+                        )
                     }
                     rightHeaderElement={
                         isOpen && (
