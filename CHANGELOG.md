@@ -1,3 +1,11 @@
+# [0.1980.0](https://github.com/lightdash/lightdash/compare/0.1979.0...0.1980.0) (2025-09-04)
+
+
+### Features
+
+* add tooltop bar ai threads filters ([#16718](https://github.com/lightdash/lightdash/issues/16718)) ([7849182](https://github.com/lightdash/lightdash/commit/7849182b39f82ff2ba039731bf498449eba2af04))
+* allow write back on custom metric artifact ([#16625](https://github.com/lightdash/lightdash/issues/16625)) ([91ea316](https://github.com/lightdash/lightdash/commit/91ea31686c166e63c4cdfe2aaa9d77f7d2217f90))
+
 # [0.1979.0](https://github.com/lightdash/lightdash/compare/0.1978.0...0.1979.0) (2025-09-04)
 
 
