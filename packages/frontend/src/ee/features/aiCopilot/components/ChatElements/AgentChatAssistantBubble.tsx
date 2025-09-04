@@ -28,11 +28,11 @@ import {
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, type FC } from 'react';
-import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import { useUpdatePromptFeedbackMutation } from '../../hooks/useProjectAiAgents';
-import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
+import { setArtifact } from '../../store/aiArtifactSlice';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAiAgentThreadStreamMutation } from '../../streaming/useAiAgentThreadStreamMutation';
 import {
     useAiAgentThreadMessageStreaming,
@@ -61,7 +61,7 @@ const AssistantBubbleContent: FC<{
     const messageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : message.message ?? 'No response...';
+            : (message.message ?? 'No response...');
 
     const handleRetry = useCallback(() => {
         void streamMessage({
@@ -262,20 +262,14 @@ type Props = {
     message: AiAgentMessageAssistant;
     isActive?: boolean;
     debug?: boolean;
+    projectUuid: string;
+    agentUuid: string;
 };
 
 export const AssistantBubble: FC<Props> = memo(
-    ({ message, isActive = false, debug = false }) => {
-        const { agentUuid: agentUuidParam, projectUuid: projectUuidParam } =
-            useParams();
-        const {
-            setArtifact,
-            artifact,
-            agentUuid: contextAgentUuid,
-            projectUuid: contextProjectUuid,
-        } = useAiAgentPageLayout();
-        const projectUuid = projectUuidParam ?? contextProjectUuid;
-        const agentUuid = agentUuidParam ?? contextAgentUuid;
+    ({ message, isActive = false, debug = false, projectUuid, agentUuid }) => {
+        const artifact = useAppSelector((state) => state.aiArtifact.artifact);
+        const dispatch = useAppDispatch();
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
@@ -332,15 +326,17 @@ export const AssistantBubble: FC<Props> = memo(
                     agentUuid={agentUuid}
                 />
 
-                {isArtifactAvailable && (
+                {isArtifactAvailable && projectUuid && agentUuid && (
                     <AiArtifactButton
                         onClick={() =>
-                            setArtifact(
-                                message.artifact!.uuid,
-                                message.artifact!.versionUuid,
-                                message,
-                                projectUuid,
-                                agentUuid,
+                            dispatch(
+                                setArtifact({
+                                    artifactUuid: message.artifact!.uuid,
+                                    versionUuid: message.artifact!.versionUuid,
+                                    message: message,
+                                    projectUuid: projectUuid,
+                                    agentUuid: agentUuid,
+                                }),
                             )
                         }
                         isArtifactOpen={

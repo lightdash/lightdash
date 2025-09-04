@@ -16,6 +16,8 @@ type Props = {
     enableAutoScroll?: boolean;
     padding?: string;
     debug?: boolean;
+    projectUuid?: string;
+    agentUuid?: string;
 };
 
 export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
@@ -24,6 +26,8 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     enableAutoScroll = false,
     children,
     debug,
+    projectUuid,
+    agentUuid,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
 
@@ -65,10 +69,14 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                 <UserBubble message={message} />
                             ) : (
                                 <ErrorBoundary>
-                                    <AssistantBubble
-                                        message={message}
-                                        debug={debug}
-                                    />
+                                    {projectUuid && agentUuid && (
+                                        <AssistantBubble
+                                            message={message}
+                                            debug={debug}
+                                            projectUuid={projectUuid}
+                                            agentUuid={agentUuid}
+                                        />
+                                    )}
                                 </ErrorBoundary>
                             )}
                         </Fragment>

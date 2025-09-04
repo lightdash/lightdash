@@ -1,30 +1,29 @@
-import { useSelector } from 'react-redux';
-import { type AiAgentThreadStreamState } from './AiAgentThreadStreamStore';
+import { useAppSelector } from '../store/hooks';
 
 export const useAiAgentThreadStreamQuery = (threadUuid: string) => {
-    const threadStream = useSelector((state: AiAgentThreadStreamState) =>
-        threadUuid in state.threads ? state.threads[threadUuid] : null,
+    const threadStream = useAppSelector((state) =>
+        threadUuid in state.aiAgentThreadStream
+            ? state.aiAgentThreadStream[threadUuid]
+            : null,
     );
 
     return threadStream;
 };
 
-export const useAiAgentThreadStreaming = (threadUuid: string) => {
-    return useSelector((state: AiAgentThreadStreamState) => {
-        const threadStream = state.threads[threadUuid];
+export const useAiAgentThreadStreaming = (threadUuid: string) =>
+    useAppSelector((state) => {
+        const threadStream = state.aiAgentThreadStream[threadUuid];
         return threadStream?.isStreaming;
     });
-};
 
 export const useAiAgentThreadMessageStreaming = (
     threadUuid: string,
     messageUuid: string,
-) => {
-    return useSelector((state: AiAgentThreadStreamState) => {
-        const threadStream = state.threads[threadUuid];
+) =>
+    useAppSelector((state) => {
+        const threadStream = state.aiAgentThreadStream[threadUuid];
         return (
             threadStream?.isStreaming &&
             threadStream?.messageUuid === messageUuid
         );
     });
-};
