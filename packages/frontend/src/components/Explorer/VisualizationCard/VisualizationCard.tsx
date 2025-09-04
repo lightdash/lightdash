@@ -39,6 +39,7 @@ import { type EchartSeriesClickEvent } from '../../SimpleChart';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
+import VisualizationWarning from './VisualizationWarning';
 
 export type EchartsClickEvent = {
     event: EchartSeriesClickEvent;
@@ -243,6 +244,18 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     isOpen={isOpen}
                     isVisualizationCard
                     onToggle={toggleSection}
+                    headerElement={
+                        isOpen && (
+                            <VisualizationWarning
+                                pivotDimensions={
+                                    unsavedChartVersion.pivotConfig?.columns
+                                }
+                                chartConfig={unsavedChartVersion.chartConfig}
+                                resultsData={resultsData}
+                                isLoading={isLoadingQueryResults}
+                            />
+                        )
+                    }
                     rightHeaderElement={
                         isOpen && (
                             <>

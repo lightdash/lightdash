@@ -1,3 +1,17 @@
+# [0.1984.0](https://github.com/lightdash/lightdash/compare/0.1983.0...0.1984.0) (2025-09-04)
+
+
+### Features
+
+* support unpivoted data for results table in pivoted charts ([#16682](https://github.com/lightdash/lightdash/issues/16682)) ([99a9f2e](https://github.com/lightdash/lightdash/commit/99a9f2e2c6b6586f72f743c10f560fb410e9b143))
+
+# [0.1983.0](https://github.com/lightdash/lightdash/compare/0.1982.1...0.1983.0) (2025-09-04)
+
+
+### Features
+
+* add visualization warning for incorrect chart configurations ([#16741](https://github.com/lightdash/lightdash/issues/16741)) ([0aada4b](https://github.com/lightdash/lightdash/commit/0aada4b491efbf244c6fe7dd8b97c8be4a0d60ef))
+
 ## [0.1982.1](https://github.com/lightdash/lightdash/compare/0.1982.0...0.1982.1) (2025-09-04)
 
 
