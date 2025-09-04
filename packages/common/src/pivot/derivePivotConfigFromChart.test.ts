@@ -1,4 +1,8 @@
-import { ChartType, type SavedChartDAO } from '../types/savedCharts';
+import {
+    ChartType,
+    type CartesianChartConfig,
+    type SavedChartDAO,
+} from '../types/savedCharts';
 import {
     SortByDirection,
     VizAggregationOptions,
@@ -12,6 +16,9 @@ import {
 } from './derivePivotConfigFromChart.mock';
 
 // Jest provides describe/it/expect globals
+
+import { BinType, CustomDimensionType, type ItemsMap } from '../types/field';
+import type { MetricQuery } from '../types/metricQuery';
 
 describe('derivePivotConfigurationFromChart', () => {
     it('derives pivot configuration for Cartesian charts with pivot config', () => {
@@ -160,5 +167,69 @@ describe('derivePivotConfigurationFromChart', () => {
                 direction: SortByDirection.DESC,
             },
         ]);
+    });
+
+    it('supports custom dimensions (bin) as valid xField and indexColumn in cartesian charts', () => {
+        const items: ItemsMap = {
+            ...mockItems,
+            amount_range: {
+                id: 'amount_range',
+                name: 'amount range',
+                table: 'payments',
+                type: CustomDimensionType.BIN,
+                dimensionId: 'payments_amount',
+                binType: BinType.FIXED_NUMBER,
+                binNumber: 5,
+            },
+        };
+
+        const mq: MetricQuery = {
+            ...mockMetricQuery,
+            dimensions: ['amount_range', 'payments_payment_method'],
+            sorts: [
+                {
+                    fieldId: 'payments_total_revenue',
+                    descending: true,
+                },
+            ],
+        };
+
+        const cartesianWithCustomX: CartesianChartConfig = {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: {
+                    xField: 'amount_range',
+                    yField: ['payments_total_revenue'],
+                },
+                eChartsConfig: { series: [] },
+            },
+        };
+
+        const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
+            chartConfig: cartesianWithCustomX,
+            pivotConfig: { columns: ['payments_payment_method'] },
+        };
+
+        const result = derivePivotConfigurationFromChart(savedChart, mq, items);
+
+        expect(result).toEqual({
+            indexColumn: {
+                reference: 'amount_range',
+                type: VizIndexType.CATEGORY,
+            },
+            valuesColumns: [
+                {
+                    reference: 'payments_total_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            groupByColumns: [{ reference: 'payments_payment_method' }],
+            sortBy: [
+                {
+                    reference: 'payments_total_revenue',
+                    direction: SortByDirection.DESC,
+                },
+            ],
+        });
     });
 });

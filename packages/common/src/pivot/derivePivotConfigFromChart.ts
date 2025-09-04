@@ -2,7 +2,13 @@
  * Derives pivot configuration from a saved chart's configuration and metric query
  * This enables consistent pivoting across all chart types
  */
-import { isDimension, type ItemsMap } from '../types/field';
+import {
+    CustomDimensionType,
+    DimensionType,
+    isCustomDimension,
+    isDimension,
+    type ItemsMap,
+} from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
 import type { PivotConfiguration } from '../types/pivot';
 
@@ -89,14 +95,29 @@ function getTablePivotConfiguration(
         .map((dim) => {
             const field = fields[dim];
 
-            if (!field || !isDimension(field)) {
-                return undefined;
+            if (!field) return undefined;
+
+            if (isDimension(field)) {
+                return {
+                    reference: dim,
+                    type: getColumnAxisType(field.type),
+                };
             }
 
-            return {
-                reference: dim,
-                type: getColumnAxisType(field.type),
-            };
+            if (isCustomDimension(field)) {
+                // For SQL custom dimensions, use provided dimensionType; otherwise default to CATEGORY
+                const axisType =
+                    field.type === CustomDimensionType.SQL
+                        ? getColumnAxisType(field.dimensionType)
+                        : getColumnAxisType(DimensionType.STRING);
+
+                return {
+                    reference: dim,
+                    type: axisType,
+                };
+            }
+
+            return undefined;
         })
         .filter((col): col is NonNullable<typeof col> => col !== undefined);
 
@@ -162,8 +183,15 @@ function getCartesianPivotConfiguration(
         const xAxisDimension = fields[xField];
         let xAxisType: VizIndexType | undefined;
 
-        if (xAxisDimension && isDimension(xAxisDimension)) {
-            xAxisType = getColumnAxisType(xAxisDimension.type);
+        if (xAxisDimension) {
+            if (isDimension(xAxisDimension)) {
+                xAxisType = getColumnAxisType(xAxisDimension.type);
+            } else if (isCustomDimension(xAxisDimension)) {
+                xAxisType =
+                    xAxisDimension.type === CustomDimensionType.SQL
+                        ? getColumnAxisType(xAxisDimension.dimensionType)
+                        : getColumnAxisType(DimensionType.STRING);
+            }
         }
 
         const indexColumn = xAxisType
