@@ -10,9 +10,9 @@ export default defineConfig({
     reporter: [
         ['html'], // HTML report for detailed viewing
         ['list'], // Clean console output showing test results
-        ['github'], // GitHub Actions reporter for CI
+        ['github'], // Adds comment to PR with test results
         [
-            '@estruyf/github-actions-reporter', // GitHub Actions reporter for CI
+            '@estruyf/github-actions-reporter', // Adds test results to GitHub Actions summary page
             <GitHubActionOptions>{
                 title: "", // removes header
                 useDetails: true, // creates expandable sections for each file
