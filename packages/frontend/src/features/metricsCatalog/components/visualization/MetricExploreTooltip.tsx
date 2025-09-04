@@ -17,7 +17,7 @@ import {
     type DefaultMantineColor,
 } from '@mantine/core';
 import dayjs from 'dayjs';
-import { uniqBy } from 'lodash';
+import uniqBy from 'lodash/uniqBy';
 import { memo, useMemo, type FC } from 'react';
 import { type TooltipProps } from 'recharts';
 import {

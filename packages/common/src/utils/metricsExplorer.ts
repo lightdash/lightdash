@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
-import { groupBy, mapKeys, type Dictionary } from 'lodash';
+import { type Dictionary } from 'lodash';
+import groupBy from 'lodash/groupBy';
+import mapKeys from 'lodash/mapKeys';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';

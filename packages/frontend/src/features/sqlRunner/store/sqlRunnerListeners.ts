@@ -1,6 +1,6 @@
 import { ChartKind } from '@lightdash/common';
 import { isAnyOf } from '@reduxjs/toolkit';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
     selectChartFieldConfigByKind,

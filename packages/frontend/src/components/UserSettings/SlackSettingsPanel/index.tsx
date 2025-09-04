@@ -29,7 +29,7 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';

@@ -25,7 +25,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';
-import { uniqBy } from 'lodash';
+import uniqBy from 'lodash/uniqBy';
 import React, {
     forwardRef,
     useEffect,

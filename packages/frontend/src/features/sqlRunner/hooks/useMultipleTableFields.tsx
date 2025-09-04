@@ -1,6 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
-import { isEmpty } from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 import { useMemo } from 'react';
 import {
     fetchTableFields,

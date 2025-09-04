@@ -24,7 +24,7 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
-import { differenceBy } from 'lodash';
+import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import FieldSelect from '../../common/FieldSelect';

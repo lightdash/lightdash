@@ -29,7 +29,7 @@ import {
     IconUsers,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { chunk } from 'lodash';
+import chunk from 'lodash/chunk';
 import { forwardRef, useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {

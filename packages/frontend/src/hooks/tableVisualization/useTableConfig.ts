@@ -21,7 +21,7 @@ import {
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
-import { uniq } from 'lodash';
+import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
