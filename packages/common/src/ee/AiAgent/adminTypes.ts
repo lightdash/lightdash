@@ -13,6 +13,7 @@ export type AiAgentAdminFilters = {
     humanScore?: number; // (-1, 0, 1)
     dateFrom?: string; // ISO date string
     dateTo?: string; // ISO date string
+    search?: string; // Search by thread title
 };
 
 export type AiAgentAdminSortField = 'createdAt' | 'title';

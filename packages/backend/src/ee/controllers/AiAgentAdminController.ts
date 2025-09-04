@@ -45,9 +45,9 @@ export class AiAgentAdminController extends BaseController {
         @Query() humanScore?: AiAgentAdminFilters['humanScore'],
         @Query() dateFrom?: AiAgentAdminFilters['dateFrom'],
         @Query() dateTo?: AiAgentAdminFilters['dateTo'],
+        @Query() search?: AiAgentAdminFilters['search'],
         // Sorting
-        @Query()
-        sortField?: AiAgentAdminSort['field'],
+        @Query() sortField?: AiAgentAdminSort['field'],
         @Query() sortDirection?: AiAgentAdminSort['direction'],
     ): Promise<ApiAiAgentAdminConversationsResponse> {
         const paginateArgs: KnexPaginateArgs | undefined =
@@ -69,6 +69,7 @@ export class AiAgentAdminController extends BaseController {
             ...(humanScore !== undefined && { humanScore }),
             ...(dateFrom && { dateFrom }),
             ...(dateTo && { dateTo }),
+            ...(search && { search }),
         };
 
         const sort: AiAgentAdminSort | undefined = sortField
