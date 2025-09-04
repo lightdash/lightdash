@@ -355,6 +355,7 @@ const useTableConfig = (
                     pivotConfig,
                     getField,
                     getFieldLabel,
+                    groupedSubtotals,
                 })
                 .then((data) => {
                     setPivotTableData({

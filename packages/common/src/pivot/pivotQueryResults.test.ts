@@ -935,6 +935,7 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             },
             getField: getFieldMock,
             getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
         });
         // Verify legacy way to pivot in FE
         expect(resultLegacy).toStrictEqual(EXPECTED_PIVOT_DATA);
@@ -990,6 +991,7 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             },
             getField: getFieldMock,
             getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
         });
         // Verify legacy way to pivot in FE
         expect(resultLegacy).toStrictEqual(EXPECTED_PIVOT_DATA_WITH_TOTALS);
@@ -1056,6 +1058,7 @@ describe('convertSqlPivotedRowsToPivotData', () => {
                 }
                 return fieldId;
             },
+            groupedSubtotals: undefined,
         });
 
         // Verify legacy way to pivot in FE matches expected structure
@@ -1153,40 +1156,14 @@ describe('convertSqlPivotedRowsToPivotData', () => {
                 }
                 return fieldId;
             },
+            groupedSubtotals: undefined,
         });
 
         // Verify legacy way to pivot in FE matches expected structure
         expect(resultLegacy).toStrictEqual(EXPECTED_COMPLEX_PIVOT_DATA);
 
         // Verify the new conversion matches legacy method
-        expect(result.titleFields).toStrictEqual(resultLegacy.titleFields);
-        expect(result.headerValueTypes).toStrictEqual(
-            resultLegacy.headerValueTypes,
-        );
-        expect(result.headerValues).toStrictEqual(resultLegacy.headerValues);
-        expect(result.indexValueTypes).toStrictEqual(
-            resultLegacy.indexValueTypes,
-        );
-        expect(result.indexValues).toStrictEqual(resultLegacy.indexValues);
-        expect(result.dataColumnCount).toStrictEqual(
-            resultLegacy.dataColumnCount,
-        );
-        expect(result.dataValues).toStrictEqual(resultLegacy.dataValues);
-        expect(result.rowTotalFields).toStrictEqual(
-            resultLegacy.rowTotalFields,
-        );
-        expect(result.columnTotalFields).toStrictEqual(
-            resultLegacy.columnTotalFields,
-        );
-        expect(result.rowTotals).toStrictEqual(resultLegacy.rowTotals);
-        expect(result.columnTotals).toStrictEqual(resultLegacy.columnTotals);
-        expect(result.cellsCount).toStrictEqual(resultLegacy.cellsCount);
-        expect(result.rowsCount).toStrictEqual(resultLegacy.rowsCount);
-        expect(result.pivotConfig).toStrictEqual(resultLegacy.pivotConfig);
-        expect(result.retrofitData).toStrictEqual(resultLegacy.retrofitData);
-        expect(result.groupedSubtotals).toStrictEqual(
-            resultLegacy.groupedSubtotals,
-        );
+        expect(result).toStrictEqual(resultLegacy);
     });
 
     it('should convert complex SQL-pivoted rows with metric as rows to PivotData format', () => {
@@ -1277,6 +1254,7 @@ describe('convertSqlPivotedRowsToPivotData', () => {
                 }
                 return fieldId;
             },
+            groupedSubtotals: undefined,
         });
 
         // Verify legacy way to pivot in FE matches expected structure
@@ -1286,33 +1264,5 @@ describe('convertSqlPivotedRowsToPivotData', () => {
 
         // Verify the new conversion matches legacy method
         expect(result).toStrictEqual(resultLegacy);
-        expect(result.titleFields).toStrictEqual(resultLegacy.titleFields);
-        expect(result.headerValueTypes).toStrictEqual(
-            resultLegacy.headerValueTypes,
-        );
-        expect(result.headerValues).toStrictEqual(resultLegacy.headerValues);
-        expect(result.indexValueTypes).toStrictEqual(
-            resultLegacy.indexValueTypes,
-        );
-        expect(result.indexValues).toStrictEqual(resultLegacy.indexValues);
-        expect(result.dataColumnCount).toStrictEqual(
-            resultLegacy.dataColumnCount,
-        );
-        expect(result.dataValues).toStrictEqual(resultLegacy.dataValues);
-        expect(result.rowTotalFields).toStrictEqual(
-            resultLegacy.rowTotalFields,
-        );
-        expect(result.columnTotalFields).toStrictEqual(
-            resultLegacy.columnTotalFields,
-        );
-        expect(result.rowTotals).toStrictEqual(resultLegacy.rowTotals);
-        expect(result.columnTotals).toStrictEqual(resultLegacy.columnTotals);
-        expect(result.cellsCount).toStrictEqual(resultLegacy.cellsCount);
-        expect(result.rowsCount).toStrictEqual(resultLegacy.rowsCount);
-        expect(result.pivotConfig).toStrictEqual(resultLegacy.pivotConfig);
-        expect(result.retrofitData).toStrictEqual(resultLegacy.retrofitData);
-        expect(result.groupedSubtotals).toStrictEqual(
-            resultLegacy.groupedSubtotals,
-        );
     });
 });
