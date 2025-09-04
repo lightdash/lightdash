@@ -13,12 +13,13 @@ import { useMemo, type FC } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
+import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import classes from './AgentsFilter.module.css';
 
-type AgentsFilterProps = {
-    selectedAgentUuids: string[];
-    setSelectedAgentUuids: (agentUuids: string[]) => void;
-};
+type AgentsFilterProps = Pick<
+    ReturnType<typeof useAiAgentAdminFilters>,
+    'selectedAgentUuids' | 'setSelectedAgentUuids'
+>;
 
 const AgentsFilter: FC<AgentsFilterProps> = ({
     selectedAgentUuids,

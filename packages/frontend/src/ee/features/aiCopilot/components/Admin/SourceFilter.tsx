@@ -1,12 +1,13 @@
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
 import { IconBrandSlack, IconMessageCircleStar } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import classes from './SourceFilter.module.css';
 
-type SourceFilterProps = {
-    selectedSource: 'all' | 'web_app' | 'slack';
-    setSelectedSource: (source: 'all' | 'web_app' | 'slack') => void;
-};
+type SourceFilterProps = Pick<
+    ReturnType<typeof useAiAgentAdminFilters>,
+    'selectedSource' | 'setSelectedSource'
+>;
 
 export const SourceFilter = ({
     selectedSource,
