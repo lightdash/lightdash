@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import {
     resetChartState,
     setChartConfig,

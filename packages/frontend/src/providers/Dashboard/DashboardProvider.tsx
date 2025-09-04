@@ -18,7 +18,7 @@ import {
     type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
 } from '@lightdash/common';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';

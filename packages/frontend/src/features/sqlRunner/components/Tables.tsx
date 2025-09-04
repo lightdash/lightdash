@@ -25,7 +25,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import Fuse from 'fuse.js';
-import { isEmpty } from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';

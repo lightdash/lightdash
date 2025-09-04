@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { Ability, AbilityBuilder } from '@casl/ability';
-import { groupBy, isEqual } from 'lodash';
+import groupBy from 'lodash/groupBy';
+import isEqual from 'lodash/isEqual';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { projectMemberAbilities } from './projectMemberAbility';
 import {

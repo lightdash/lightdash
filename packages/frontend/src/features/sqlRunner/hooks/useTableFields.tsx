@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
-import { isEmpty } from 'lodash';
+import isEmpty from 'lodash/isEmpty';
 import { lightdashApi } from '../../../api';
 
 export type GetTableFieldsParams = {

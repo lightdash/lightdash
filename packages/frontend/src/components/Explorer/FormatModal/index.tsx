@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Modal, Stack, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { useCallback, useEffect } from 'react';
 import { type ValueOf } from 'type-fest';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';

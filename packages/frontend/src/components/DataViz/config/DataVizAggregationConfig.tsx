@@ -20,7 +20,7 @@ import {
     IconSum,
     IconTrendingUp,
 } from '@tabler/icons-react';
-import { capitalize } from 'lodash';
+import capitalize from 'lodash/capitalize';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { usePillSelectStyles } from '../hooks/usePillSelectStyles';

@@ -9,7 +9,9 @@ import {
     UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
-import { differenceBy, filter, includes } from 'lodash';
+import differenceBy from 'lodash/differenceBy';
+import filter from 'lodash/filter';
+import includes from 'lodash/includes';
 import {
     memo,
     useCallback,

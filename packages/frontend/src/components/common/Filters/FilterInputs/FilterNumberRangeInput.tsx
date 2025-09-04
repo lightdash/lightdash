@@ -1,5 +1,5 @@
 import { Group, Stack, Text, type TextInputProps } from '@mantine/core';
-import { isNil } from 'lodash';
+import isNil from 'lodash/isNil';
 import { type FC } from 'react';
 import z from 'zod';
 import FilterNumberInput from './FilterNumberInput';

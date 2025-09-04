@@ -1,7 +1,7 @@
 import { DashboardSummaryTone, type DashboardSummary } from '@lightdash/common';
 import { Button, Flex, Select, Stack, Textarea } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { capitalize } from 'lodash';
+import capitalize from 'lodash/capitalize';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { getToneEmoji } from '../utils';

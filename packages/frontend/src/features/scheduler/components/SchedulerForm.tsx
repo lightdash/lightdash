@@ -57,7 +57,9 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
-import { debounce, intersection, isEqual } from 'lodash';
+import debounce from 'lodash/debounce';
+import intersection from 'lodash/intersection';
+import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
 import FieldSelect from '../../../components/common/FieldSelect';

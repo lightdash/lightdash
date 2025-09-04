@@ -1,5 +1,5 @@
 import { type LanguageMap, type SavedChart } from '@lightdash/common';
-import { get } from 'lodash';
+import get from 'lodash/get';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
