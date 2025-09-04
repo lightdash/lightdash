@@ -1,3 +1,106 @@
+## [0.1982.1](https://github.com/lightdash/lightdash/compare/0.1982.0...0.1982.1) (2025-09-04)
+
+
+### Bug Fixes
+
+* scheduled delivery previews with tabs ([#16724](https://github.com/lightdash/lightdash/issues/16724)) ([ef78558](https://github.com/lightdash/lightdash/commit/ef785585da7de32859187f9999fb5cadebd7e70a))
+
+# [0.1982.0](https://github.com/lightdash/lightdash/compare/0.1981.0...0.1982.0) (2025-09-04)
+
+
+### Features
+
+* show thread preview on click of row ([#16721](https://github.com/lightdash/lightdash/issues/16721)) ([e2822c9](https://github.com/lightdash/lightdash/commit/e2822c9877e8379b7edb29da1cd0bfb671b192a6))
+
+# [0.1981.0](https://github.com/lightdash/lightdash/compare/0.1980.0...0.1981.0) (2025-09-04)
+
+
+### Bug Fixes
+
+* subtotals for SQL pivoted table ([#16733](https://github.com/lightdash/lightdash/issues/16733)) ([15cad5c](https://github.com/lightdash/lightdash/commit/15cad5cf52e368a5a42b864cb37e7c8bbc5e7c3f))
+
+
+### Features
+
+* support custom dimensions as xField and indexColumn in cartesian charts ([#16719](https://github.com/lightdash/lightdash/issues/16719)) ([4cb0edb](https://github.com/lightdash/lightdash/commit/4cb0edba91e9528866b9171b6e4b29916a55de91))
+
+# [0.1980.0](https://github.com/lightdash/lightdash/compare/0.1979.0...0.1980.0) (2025-09-04)
+
+
+### Features
+
+* add tooltop bar ai threads filters ([#16718](https://github.com/lightdash/lightdash/issues/16718)) ([7849182](https://github.com/lightdash/lightdash/commit/7849182b39f82ff2ba039731bf498449eba2af04))
+* allow write back on custom metric artifact ([#16625](https://github.com/lightdash/lightdash/issues/16625)) ([91ea316](https://github.com/lightdash/lightdash/commit/91ea31686c166e63c4cdfe2aaa9d77f7d2217f90))
+
+# [0.1979.0](https://github.com/lightdash/lightdash/compare/0.1978.0...0.1979.0) (2025-09-04)
+
+
+### Features
+
+* display ai agent admin panel for all threads ([#16705](https://github.com/lightdash/lightdash/issues/16705)) ([668a15b](https://github.com/lightdash/lightdash/commit/668a15b23ad3cc6e5d313d91e5789825341129e4))
+
+# [0.1978.0](https://github.com/lightdash/lightdash/compare/0.1977.1...0.1978.0) (2025-09-03)
+
+
+### Features
+
+* **cli:** improved project permission errors ([#16655](https://github.com/lightdash/lightdash/issues/16655)) ([1cb2005](https://github.com/lightdash/lightdash/commit/1cb20052de66c7ac1987d8bb40e802d897a0e96b))
+
+## [0.1977.1](https://github.com/lightdash/lightdash/compare/0.1977.0...0.1977.1) (2025-09-03)
+
+
+### Bug Fixes
+
+* prevent overlapping columns between group by and index in pivot queries ([#16704](https://github.com/lightdash/lightdash/issues/16704)) ([b0d6d98](https://github.com/lightdash/lightdash/commit/b0d6d98985bb3713449f987015725d2eb76de252))
+
+# [0.1977.0](https://github.com/lightdash/lightdash/compare/0.1976.2...0.1977.0) (2025-09-03)
+
+
+### Bug Fixes
+
+* cascade delete on user deletion for `ai_web_app_thread` and `ai_web_app_prompt` tables ([#16697](https://github.com/lightdash/lightdash/issues/16697)) ([3036592](https://github.com/lightdash/lightdash/commit/3036592beb06a9495021e29bd50163382526a05b)), closes [#16702](https://github.com/lightdash/lightdash/issues/16702)
+
+
+### Features
+
+* add PAT support for instance update setup ([#16699](https://github.com/lightdash/lightdash/issues/16699)) ([c515b1c](https://github.com/lightdash/lightdash/commit/c515b1c133a3b4aed38adf50900b07aa0bcd67e2))
+
+## [0.1976.2](https://github.com/lightdash/lightdash/compare/0.1976.1...0.1976.2) (2025-09-03)
+
+
+### Bug Fixes
+
+* add support for IdentityPoolClient in BigQuery OAuth authentication ([#16710](https://github.com/lightdash/lightdash/issues/16710)) ([79aa29c](https://github.com/lightdash/lightdash/commit/79aa29cf96ecd1bf76ae7a9a972710c13e446249))
+* edit chart scheduled delivery ([#16707](https://github.com/lightdash/lightdash/issues/16707)) ([5e911a8](https://github.com/lightdash/lightdash/commit/5e911a8df76b18c32f5cc2ec0f846600e96b540c))
+
+## [0.1976.1](https://github.com/lightdash/lightdash/compare/0.1976.0...0.1976.1) (2025-09-03)
+
+
+### Bug Fixes
+
+* derive pivot config from chart layout instead of series ([#16701](https://github.com/lightdash/lightdash/issues/16701)) ([677a707](https://github.com/lightdash/lightdash/commit/677a707968ccefb840c88bf787825dac0922a8c8))
+
+# [0.1976.0](https://github.com/lightdash/lightdash/compare/0.1975.0...0.1976.0) (2025-09-03)
+
+
+### Features
+
+* add new cartesian chart util to handle backend pivoted data ([#16656](https://github.com/lightdash/lightdash/issues/16656)) ([5d1fa2d](https://github.com/lightdash/lightdash/commit/5d1fa2d0b229b5c088d9ca7d5aaafa776cf1254b))
+
+# [0.1975.0](https://github.com/lightdash/lightdash/compare/0.1974.0...0.1975.0) (2025-09-03)
+
+
+### Features
+
+* create preview from manifest.json ([#16648](https://github.com/lightdash/lightdash/issues/16648)) ([3d439e3](https://github.com/lightdash/lightdash/commit/3d439e39c9cdbed7880f867f96c986d5eb8c81aa))
+
+# [0.1974.0](https://github.com/lightdash/lightdash/compare/0.1973.2...0.1974.0) (2025-09-03)
+
+
+### Features
+
+* add support for BigQuery ADC authentication from CLI ([#16688](https://github.com/lightdash/lightdash/issues/16688)) ([8904813](https://github.com/lightdash/lightdash/commit/8904813f7d46b71ceeb8040713505a20935624e5)), closes [#7021](https://github.com/lightdash/lightdash/issues/7021)
+
 ## [0.1973.2](https://github.com/lightdash/lightdash/compare/0.1973.1...0.1973.2) (2025-09-02)
 
 

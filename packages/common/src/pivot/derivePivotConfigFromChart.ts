@@ -2,18 +2,20 @@
  * Derives pivot configuration from a saved chart's configuration and metric query
  * This enables consistent pivoting across all chart types
  */
-
-import { uniqBy } from 'lodash';
-import { isDimension, type ItemsMap } from '../types/field';
+import {
+    CustomDimensionType,
+    DimensionType,
+    isCustomDimension,
+    isDimension,
+    type ItemsMap,
+} from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
 import type { PivotConfiguration } from '../types/pivot';
 
 import {
     ChartType,
     isCartesianChartConfig,
-    type PivotValue,
     type SavedChartDAO,
-    type Series,
 } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
@@ -93,14 +95,29 @@ function getTablePivotConfiguration(
         .map((dim) => {
             const field = fields[dim];
 
-            if (!field || !isDimension(field)) {
-                return undefined;
+            if (!field) return undefined;
+
+            if (isDimension(field)) {
+                return {
+                    reference: dim,
+                    type: getColumnAxisType(field.type),
+                };
             }
 
-            return {
-                reference: dim,
-                type: getColumnAxisType(field.type),
-            };
+            if (isCustomDimension(field)) {
+                // For SQL custom dimensions, use provided dimensionType; otherwise default to CATEGORY
+                const axisType =
+                    field.type === CustomDimensionType.SQL
+                        ? getColumnAxisType(field.dimensionType)
+                        : getColumnAxisType(DimensionType.STRING);
+
+                return {
+                    reference: dim,
+                    type: axisType,
+                };
+            }
+
+            return undefined;
         })
         .filter((col): col is NonNullable<typeof col> => col !== undefined);
 
@@ -137,7 +154,7 @@ function getCartesianPivotConfiguration(
     metricQuery: MetricQuery,
     fields: ItemsMap,
 ): PivotConfiguration | undefined {
-    const { chartConfig } = savedChart;
+    const { chartConfig, pivotConfig } = savedChart;
 
     if (chartConfig.type !== ChartType.CARTESIAN) {
         throw new Error('Chart is not a Cartesian chart');
@@ -147,63 +164,57 @@ function getCartesianPivotConfiguration(
         throw new Error('Invalid cartesian chart config - no eCharts config');
     }
 
-    const { eChartsConfig } = chartConfig.config;
-    const series = eChartsConfig?.series;
-    const firstSeries = series?.[0];
+    const {
+        layout: { xField, yField },
+    } = chartConfig.config;
 
-    if (firstSeries && firstSeries.encode.yRef.pivotValues?.length) {
-        // Extract pivot configuration from the first series
-        const { yRef, xRef } = firstSeries.encode;
+    if (pivotConfig?.columns && xField && yField) {
+        // Extract pivot columns
+        const groupByColumns = pivotConfig.columns.map((pv) => ({
+            reference: pv,
+        }));
 
-        if (yRef.pivotValues) {
-            // Extract unique group by columns from pivot values
-            const groupByColumns = yRef.pivotValues.map((pv: PivotValue) => ({
-                reference: pv.field,
-            }));
+        // Extract value columns
+        const valuesColumns = yField.map((yf) => ({
+            reference: yf,
+            aggregation: VizAggregationOptions.ANY,
+        }));
 
-            // Extract value columns
-            const valuesColumns = uniqBy(series, 'encode.yRef.field').map(
-                (s: Series) => ({
-                    reference: s.encode.yRef.field,
-                    aggregation: VizAggregationOptions.ANY,
-                }),
-            );
+        const xAxisDimension = fields[xField];
+        let xAxisType: VizIndexType | undefined;
 
-            const xAxisDimension = fields[xRef.field];
-            let xAxisType: VizIndexType | undefined;
-
-            if (xAxisDimension && isDimension(xAxisDimension)) {
+        if (xAxisDimension) {
+            if (isDimension(xAxisDimension)) {
                 xAxisType = getColumnAxisType(xAxisDimension.type);
+            } else if (isCustomDimension(xAxisDimension)) {
+                xAxisType =
+                    xAxisDimension.type === CustomDimensionType.SQL
+                        ? getColumnAxisType(xAxisDimension.dimensionType)
+                        : getColumnAxisType(DimensionType.STRING);
             }
-
-            const indexColumn = xAxisType
-                ? {
-                      reference: xRef.field,
-                      type: xAxisType,
-                  }
-                : undefined;
-
-            const partialPivotConfiguration: Omit<
-                PivotConfiguration,
-                'sortBy'
-            > = {
-                indexColumn,
-                valuesColumns,
-                groupByColumns,
-            };
-
-            const pivotConfiguration: PivotConfiguration = {
-                ...partialPivotConfiguration,
-                sortBy: getSortByForPivotConfiguration(
-                    partialPivotConfiguration,
-                    metricQuery,
-                ),
-            };
-
-            return pivotConfiguration;
         }
-    }
 
+        const indexColumn = xAxisType
+            ? {
+                  reference: xField,
+                  type: xAxisType,
+              }
+            : undefined;
+
+        const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
+            indexColumn,
+            valuesColumns,
+            groupByColumns,
+        };
+
+        return {
+            ...partialPivotConfiguration,
+            sortBy: getSortByForPivotConfiguration(
+                partialPivotConfiguration,
+                metricQuery,
+            ),
+        };
+    }
     return undefined;
 }
 

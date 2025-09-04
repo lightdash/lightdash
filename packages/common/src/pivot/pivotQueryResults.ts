@@ -961,6 +961,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     pivotConfig,
     getField,
     getFieldLabel,
+    groupedSubtotals,
 }: {
     rows: ResultRow[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
@@ -974,6 +975,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     >; // only use properties that are not part of pivot details metadata
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
+    groupedSubtotals: PivotQueryResultsArgs['groupedSubtotals'];
 }): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot convert SQL pivoted results with no rows');
@@ -1507,7 +1509,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             allCombinedData,
             pivotColumnInfo,
         },
-        groupedSubtotals: undefined,
+        groupedSubtotals,
     };
 
     return combinedRetrofit(pivotData, getField, getFieldLabel);

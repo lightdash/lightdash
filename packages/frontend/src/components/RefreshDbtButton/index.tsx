@@ -69,7 +69,10 @@ const RefreshDbtButton: FC<{
     )
         return null;
 
-    if (data?.dbtConnection?.type === DbtProjectType.NONE) {
+    if (
+        data?.dbtConnection?.type === DbtProjectType.NONE ||
+        data?.dbtConnection?.type === DbtProjectType.MANIFEST
+    ) {
         if (data?.dbtConnection.hideRefreshButton) {
             return null;
         }

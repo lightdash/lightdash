@@ -36,6 +36,7 @@ import {
     type Item,
     type ItemsMap,
     type PivotReference,
+    type PivotValuesColumn,
     type ResultRow,
     type Series,
     type TableCalculation,
@@ -59,7 +60,11 @@ import {
     defaultGrid,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
-import getPlottedData from '../plottedData/getPlottedData';
+import {
+    getPivotedDataFromPivotDetails,
+    getPlottedData,
+    type RowKeyMap,
+} from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
@@ -310,18 +315,41 @@ export type EChartSeries = {
     symbolSize?: number;
 };
 
+const convertPivotValuesColumnsIntoMap = (
+    valuesColumns?: PivotValuesColumn[],
+) => {
+    if (!valuesColumns) return;
+    return Object.fromEntries(
+        valuesColumns.map((column) => [column.pivotColumnName, column]),
+    );
+};
+
 export const getFormattedValue = (
     value: any,
     key: string,
     itemsMap: ItemsMap,
     convertToUTC: boolean = true,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
 ): string => {
-    return formatItemValue(itemsMap[key], value, convertToUTC);
+    const pivotValuesColumn = pivotValuesColumnsMap?.[key];
+    const item = itemsMap[pivotValuesColumn?.referenceField ?? key];
+    return formatItemValue(item, value, convertToUTC);
 };
 
 const valueFormatter =
-    (yFieldId: string, itemsMap: ItemsMap) => (rawValue: any) => {
-        return getFormattedValue(rawValue, yFieldId, itemsMap);
+    (
+        yFieldId: string,
+        itemsMap: ItemsMap,
+        pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+    ) =>
+    (rawValue: any) => {
+        return getFormattedValue(
+            rawValue,
+            yFieldId,
+            itemsMap,
+            undefined,
+            pivotValuesColumnsMap,
+        );
     };
 
 const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
@@ -589,6 +617,7 @@ type GetPivotSeriesArg = {
     yFieldHash: string;
     xFieldHash: string;
     pivotReference: Required<PivotReference>;
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
 };
 
 const seriesValueFormatter = (item: Item, value: unknown) => {
@@ -620,10 +649,17 @@ const getPivotSeries = ({
     yFieldHash,
     flipAxes,
     cartesianChart,
+    pivotValuesColumnsMap,
 }: GetPivotSeriesArg): EChartSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
-            const formattedValue = getFormattedValue(value, field, itemsMap);
+            const formattedValue = getFormattedValue(
+                value,
+                field,
+                itemsMap,
+                undefined,
+                pivotValuesColumnsMap,
+            );
             return acc ? `${acc} - ${formattedValue}` : formattedValue;
         },
         '',
@@ -662,7 +698,11 @@ const getPivotSeries = ({
             },
         ],
         tooltip: {
-            valueFormatter: valueFormatter(series.encode.yRef.field, itemsMap),
+            valueFormatter: valueFormatter(
+                series.encode.yRef.field,
+                itemsMap,
+                pivotValuesColumnsMap,
+            ),
         },
         showSymbol: series.showSymbol ?? true,
         ...(series.label?.show && {
@@ -715,6 +755,7 @@ type GetSimpleSeriesArg = {
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
 };
 
 const getSimpleSeries = ({
@@ -723,6 +764,7 @@ const getSimpleSeries = ({
     yFieldHash,
     xFieldHash,
     itemsMap,
+    pivotValuesColumnsMap,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -749,7 +791,11 @@ const getSimpleSeries = ({
         },
     ],
     tooltip: {
-        valueFormatter: valueFormatter(yFieldHash, itemsMap),
+        valueFormatter: valueFormatter(
+            yFieldHash,
+            itemsMap,
+            pivotValuesColumnsMap,
+        ),
     },
     ...getSimpleSeriesSymbolConfig(series),
     ...(series.label?.show && {
@@ -769,6 +815,105 @@ const getSimpleSeries = ({
         },
     }),
 });
+
+// New series generation for pre-pivoted data from backend
+const getEchartsSeriesFromPivotedData = (
+    itemsMap: ItemsMap,
+    cartesianChart: CartesianChart,
+    rowKeyMap: RowKeyMap,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+): EChartSeries[] => {
+    // Use pivotDetails to find the correct column name for each series
+    const findMatchingColumnName = (series: Series): string | undefined => {
+        if (isPivotReferenceWithValues(series.encode.yRef)) {
+            const yRef = series.encode.yRef;
+            const valuesColumn = Object.values(
+                pivotValuesColumnsMap || {},
+            ).find((col) => {
+                return (
+                    col.referenceField === yRef.field &&
+                    col.pivotValues.length === yRef.pivotValues.length &&
+                    col.pivotValues.every(
+                        (pv, idx) => pv.value === yRef.pivotValues[idx].value,
+                    )
+                );
+            });
+
+            if (valuesColumn) {
+                return valuesColumn.pivotColumnName;
+            }
+        }
+
+        // For non-pivoted fields (like the index column), use the field name directly
+        return series.encode.yRef.field;
+    };
+
+    const allSeries = cartesianChart.eChartsConfig.series || [];
+
+    const resultSeries = allSeries
+        .filter((s) => !s.hidden)
+        .sort((a, b) => {
+            const aColumnName = findMatchingColumnName(a);
+            const bColumnName = findMatchingColumnName(b);
+
+            if (aColumnName && bColumnName && pivotValuesColumnsMap) {
+                const aColumn = pivotValuesColumnsMap[aColumnName];
+                const bColumn = pivotValuesColumnsMap[bColumnName];
+
+                if (
+                    aColumn?.columnIndex !== undefined &&
+                    bColumn?.columnIndex !== undefined
+                ) {
+                    return aColumn.columnIndex - bColumn.columnIndex;
+                }
+            }
+
+            return 0;
+        })
+        .map<EChartSeries>((series) => {
+            const { flipAxes } = cartesianChart.layout;
+            const xFieldHash = hashFieldReference(series.encode.xRef);
+
+            // Find the actual column name in the data
+            const actualYFieldName = findMatchingColumnName(series);
+            const yFieldHash =
+                actualYFieldName || hashFieldReference(series.encode.yRef);
+
+            // For pre-pivoted data, check if this is a pivoted column
+            const yFieldReference = rowKeyMap[yFieldHash];
+
+            if (
+                yFieldReference &&
+                typeof yFieldReference === 'object' &&
+                'pivotValues' in yFieldReference &&
+                yFieldReference.pivotValues
+            ) {
+                // This is a pivoted column, use the pivot reference
+                return getPivotSeries({
+                    series,
+                    itemsMap,
+                    cartesianChart,
+                    pivotReference: yFieldReference as Required<PivotReference>,
+                    flipAxes,
+                    xFieldHash,
+                    yFieldHash,
+                    pivotValuesColumnsMap,
+                });
+            }
+
+            // Simple series for non-pivoted columns
+            return getSimpleSeries({
+                series,
+                itemsMap,
+                flipAxes,
+                yFieldHash,
+                xFieldHash,
+                pivotValuesColumnsMap,
+            });
+        });
+
+    return resultSeries;
+};
 
 const getEchartsSeries = (
     itemsMap: ItemsMap,
@@ -1619,26 +1764,56 @@ const useEchartsCartesianConfig = (
         return [];
     }, [itemsMap, validCartesianConfig]);
 
-    const { rows } = useMemo(() => {
+    const pivotValuesColumnsMap = useMemo(() => {
+        if (!resultsData?.pivotDetails) return;
+        return convertPivotValuesColumnsIntoMap(
+            resultsData.pivotDetails.valuesColumns,
+        );
+    }, [resultsData?.pivotDetails]);
+
+    const { rows, rowKeyMap } = useMemo(() => {
+        if (resultsData?.pivotDetails) {
+            return getPivotedDataFromPivotDetails(resultsData, undefined);
+        }
+
+        // Legacy implementation - comment out when fully migrated
         return getPlottedData(
             resultsData?.rows,
             pivotDimensions,
             pivotedKeys,
             nonPivotedKeys,
         );
-    }, [resultsData?.rows, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+    }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
     const series = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {
             return [];
         }
 
+        // Use new series generation for pre-pivoted data
+        if (resultsData?.pivotDetails && rowKeyMap) {
+            return getEchartsSeriesFromPivotedData(
+                itemsMap,
+                validCartesianConfig,
+                rowKeyMap,
+                pivotValuesColumnsMap,
+            );
+        }
+
+        // Legacy implementation
         return getEchartsSeries(
             itemsMap,
             validCartesianConfig,
             pivotDimensions,
         );
-    }, [validCartesianConfig, resultsData, itemsMap, pivotDimensions]);
+    }, [
+        validCartesianConfig,
+        resultsData,
+        itemsMap,
+        pivotDimensions,
+        rowKeyMap,
+        pivotValuesColumnsMap,
+    ]);
 
     const resultsAndMinsAndMaxes = useMemo(
         () => getResultValueArray(rows, true, true),
@@ -1857,6 +2032,8 @@ const useEchartsCartesianConfig = (
                                     tooltipValue,
                                     dim.split('.')[0],
                                     itemsMap,
+                                    undefined,
+                                    pivotValuesColumnsMap,
                                 )}</b></td>
                             </tr>
                         `;
@@ -1890,6 +2067,8 @@ const useEchartsCartesianConfig = (
                             fieldValue,
                             fieldValueReference.split('.')[0],
                             itemsMap,
+                            undefined,
+                            pivotValuesColumnsMap,
                         );
                         tooltipHtml = tooltipHtml.replace(
                             field,
@@ -1919,6 +2098,8 @@ const useEchartsCartesianConfig = (
                             getTooltipHeader(),
                             dimensionId,
                             itemsMap,
+                            undefined,
+                            pivotValuesColumnsMap,
                         );
 
                         return `${tooltipHeader}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
@@ -1927,7 +2108,12 @@ const useEchartsCartesianConfig = (
                 return `${getTooltipHeader()}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
             },
         }),
-        [itemsMap, validCartesianConfig?.layout.flipAxes, tooltipConfig],
+        [
+            itemsMap,
+            validCartesianConfig?.layout.flipAxes,
+            tooltipConfig,
+            pivotValuesColumnsMap,
+        ],
     );
 
     const sortedResultsByTotals = useMemo(() => {

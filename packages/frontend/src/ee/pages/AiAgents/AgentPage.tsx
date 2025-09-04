@@ -29,10 +29,10 @@ import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPa
 import { SidebarButton } from '../../features/aiCopilot/components/AiAgentPageLayout/SidebarButton';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import {
-    useAiAgent,
+    useProjectAiAgent as useAiAgent,
     useAiAgentThreads,
-} from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
-import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+    useProjectAiAgents,
+} from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useAiAgentPageLayout } from '../../features/aiCopilot/providers/AiLayoutProvider';
 
 const INITIAL_MAX_THREADS = 10;

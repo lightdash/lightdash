@@ -1,4 +1,8 @@
 import {
+    AiAgentAdminConversationsSummary,
+    AiAgentAdminFilters,
+    AiAgentAdminSort,
+    AiAgentAdminThreadSummary,
     AiAgentMessage,
     AiAgentMessageAssistant,
     AiAgentMessageUser,
@@ -18,6 +22,8 @@ import {
     CreateWebAppPrompt,
     CreateWebAppThread,
     isToolName,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotFoundError,
     SlackPrompt,
     ToolName,
@@ -27,7 +33,10 @@ import {
     type AiAgent,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DbEmail, EmailTableName } from '../../database/entities/emails';
+import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import { DbUser, UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
@@ -52,6 +61,7 @@ import {
     AiAgentSlackIntegrationTableName,
     AiAgentTableName,
     AiAgentUserAccessTableName,
+    DbAiAgent,
     DbAiAgentIntegration,
     DbAiAgentSlackIntegration,
 } from '../database/entities/aiAgent';
@@ -757,6 +767,268 @@ export class AiAgentModel {
                 slackUserId: row.slack_user_id,
             },
         }));
+    }
+
+    async findAdminThreadsPaginated({
+        organizationUuid,
+        paginateArgs,
+        filters,
+        sort,
+    }: {
+        organizationUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        filters?: AiAgentAdminFilters;
+        sort?: AiAgentAdminSort;
+    }): Promise<KnexPaginatedData<AiAgentAdminConversationsSummary>> {
+        const threadFeedbackQuery = this.database(AiPromptTableName)
+            .select([
+                'ai_thread_uuid',
+                this.database.raw(`
+                     COUNT(CASE WHEN human_score = 1 THEN 1 END) as upvotes,
+                     COUNT(CASE WHEN human_score = -1 THEN 1 END) as downvotes,
+                     COUNT(CASE WHEN human_score = 0 THEN 1 END) as neutral,
+                     COUNT(*) as total_feedback
+                 `),
+            ])
+            .from(AiPromptTableName)
+            .whereNotNull('human_score')
+            .groupBy('ai_thread_uuid');
+        const threadsWithFeedbackQuery = this.database
+            .with('thread_feedback', threadFeedbackQuery)
+            .select<
+                {
+                    ai_thread_uuid: DbAiThread['ai_thread_uuid'];
+                    agent_uuid: AiAgent['uuid'];
+                    agent_image_url: AiAgent['imageUrl'];
+                    created_at: Date;
+                    created_from: DbAiThread['created_from'];
+                    title: DbAiThread['title'];
+                    title_generated_at: DbAiThread['title_generated_at'];
+                    first_prompt: DbAiPrompt['prompt'];
+                    user_uuid: DbUser['user_uuid'];
+                    user_name: string;
+                    user_email: DbEmail['email'];
+                    slack_user_id: DbAiSlackThread['slack_user_id'];
+                    agent_name: AiAgent['name'];
+                    project_name: DbProject['name'];
+                    organization_uuid: DbAiThread['organization_uuid'];
+                    project_uuid: DbAiThread['project_uuid'];
+
+                    // Feedback aggregation from CTE
+                    upvotes: number;
+                    downvotes: number;
+                    neutral: number;
+                    total_feedback: number;
+                }[]
+            >([
+                // Original thread fields
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.agent_uuid`,
+                `${AiThreadTableName}.created_at`,
+                `${AiThreadTableName}.created_from`,
+                `${AiThreadTableName}.title`,
+                `${AiThreadTableName}.title_generated_at`,
+                `${AiPromptTableName}.prompt as first_prompt`,
+                `${UserTableName}.user_uuid`,
+                this.database.raw(
+                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
+                ),
+                `${EmailTableName}.email as user_email`,
+                `${AiSlackThreadTableName}.slack_user_id`,
+                `${AiAgentTableName}.name as agent_name`,
+                `${AiAgentTableName}.image_url as agent_image_url`,
+                `${ProjectTableName}.name as project_name`,
+                `${ProjectTableName}.project_uuid`,
+
+                // Feedback aggregation from CTE
+                'thread_feedback.upvotes',
+                'thread_feedback.downvotes',
+                'thread_feedback.neutral',
+                'thread_feedback.total_feedback',
+            ])
+            .from(AiThreadTableName)
+            .join(
+                AiPromptTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiPromptTableName}.ai_thread_uuid`,
+            )
+            .join(
+                UserTableName,
+                `${AiPromptTableName}.created_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .leftJoin(
+                EmailTableName,
+                `${EmailTableName}.user_id`,
+                '=',
+                `${UserTableName}.user_id`,
+            )
+            .andWhere(`${EmailTableName}.is_primary`, true)
+            .join(
+                AiAgentTableName,
+                `${AiThreadTableName}.agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .join(
+                ProjectTableName,
+                `${AiAgentTableName}.project_uuid`,
+                `${ProjectTableName}.project_uuid`,
+            )
+            .leftJoin(
+                AiSlackThreadTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiSlackThreadTableName}.ai_thread_uuid`,
+            )
+            .leftJoin(
+                'thread_feedback',
+                `${AiThreadTableName}.ai_thread_uuid`,
+                'thread_feedback.ai_thread_uuid',
+            )
+            .where(
+                `${AiPromptTableName}.created_at`,
+                this.database(AiPromptTableName)
+                    .select(this.database.raw('MIN(created_at)'))
+                    .whereRaw(
+                        `${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid`,
+                    ),
+            )
+            .andWhere(
+                `${AiThreadTableName}.organization_uuid`,
+                organizationUuid,
+            );
+
+        const finalQuery = threadsWithFeedbackQuery;
+
+        if (filters) {
+            if (filters.projectUuids && filters.projectUuids.length > 0) {
+                void finalQuery.whereIn(
+                    `${ProjectTableName}.project_uuid`,
+                    filters.projectUuids,
+                );
+            }
+            if (filters.agentUuids && filters.agentUuids.length > 0) {
+                void finalQuery.whereIn(
+                    `${AiThreadTableName}.agent_uuid`,
+                    filters.agentUuids,
+                );
+            }
+            if (filters.userUuids && filters.userUuids.length > 0) {
+                void finalQuery.whereIn(
+                    `${UserTableName}.user_uuid`,
+                    filters.userUuids,
+                );
+            }
+            if (filters.createdFrom) {
+                void finalQuery.where(
+                    `${AiThreadTableName}.created_from`,
+                    filters.createdFrom,
+                );
+            }
+            if (filters.dateFrom) {
+                void finalQuery.where(
+                    `${AiThreadTableName}.created_at`,
+                    '>=',
+                    filters.dateFrom,
+                );
+            }
+            if (filters.dateTo) {
+                void finalQuery.where(
+                    `${AiThreadTableName}.created_at`,
+                    '<=',
+                    filters.dateTo,
+                );
+            }
+            if (filters.humanScore !== undefined) {
+                void finalQuery.whereExists((qb) => {
+                    void qb
+                        .select('*')
+                        .from(AiPromptTableName)
+                        .whereRaw(
+                            `${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid`,
+                        )
+                        .where(
+                            'human_score',
+                            filters.humanScore === 0
+                                ? null
+                                : filters.humanScore,
+                        );
+                });
+            }
+            if (filters.search) {
+                void finalQuery.where(
+                    `${AiThreadTableName}.title`,
+                    'ILIKE',
+                    `%${filters.search}%`,
+                );
+            }
+        }
+
+        if (sort) {
+            const { field, direction } = sort;
+            switch (field) {
+                case 'createdAt':
+                    void finalQuery.orderBy(
+                        `${AiThreadTableName}.created_at`,
+                        direction,
+                    );
+                    break;
+                case 'title':
+                    void finalQuery.orderBy(
+                        `${AiThreadTableName}.title`,
+                        direction,
+                    );
+                    break;
+                default:
+                    void finalQuery.orderBy(
+                        `${AiThreadTableName}.created_at`,
+                        'desc',
+                    );
+            }
+        } else {
+            void finalQuery.orderBy(`${AiThreadTableName}.created_at`, 'desc');
+        }
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            finalQuery,
+            paginateArgs,
+        );
+
+        const threads: AiAgentAdminThreadSummary[] = data.map(
+            (row): AiAgentAdminThreadSummary => ({
+                uuid: row.ai_thread_uuid,
+                createdAt: row.created_at.toISOString(),
+                createdFrom: row.created_from,
+                title: row.title || row.first_prompt,
+                user: {
+                    uuid: row.user_uuid,
+                    name: row.user_name,
+                    slackUserId: row.slack_user_id,
+                    email: row.user_email,
+                },
+                agent: {
+                    uuid: row.agent_uuid,
+                    name: row.agent_name,
+                    imageUrl: row.agent_image_url,
+                },
+                project: {
+                    uuid: row.project_uuid,
+                    name: row.project_name,
+                },
+                feedbackSummary: {
+                    upvotes: row.upvotes,
+                    downvotes: row.downvotes,
+                    neutral: row.neutral,
+                    total: row.total_feedback,
+                },
+            }),
+        );
+
+        return {
+            data: {
+                threads,
+            },
+            pagination,
+        };
     }
 
     async getThread({

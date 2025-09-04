@@ -171,6 +171,7 @@ const computeDashboardChartSeries = (
     chart: ApiChartAndResults['chart'],
     validPivotDimensions: string[] | undefined,
     resultData: InfiniteQueryResults | undefined,
+    itemsMap: ItemsMap,
 ) => {
     if (!chart.chartConfig || !resultData || resultData.rows.length === 0) {
         return [];
@@ -190,10 +191,11 @@ const computeDashboardChartSeries = (
             availableDimensions: chart.metricQuery.dimensions,
             isStacked: false,
             pivotKeys: validPivotDimensions,
-            rows: resultData.rows,
+            resultsData: resultData,
             xField: chart.chartConfig.config.layout.xField,
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
+            itemsMap,
         });
         const newSeries = mergeExistingAndExpectedSeries({
             expectedSeriesMap,
@@ -233,7 +235,7 @@ const ValidDashboardChartTile: FC<{
     const { health } = useApp();
 
     const {
-        executeQueryResponse: { cacheMetadata, metricQuery },
+        executeQueryResponse: { cacheMetadata, metricQuery, fields },
         chart,
     } = dashboardChartReadyQuery;
 
@@ -251,8 +253,9 @@ const ValidDashboardChartTile: FC<{
             chart,
             validPivotDimensions,
             resultsData,
+            fields,
         );
-    }, [resultsData, chart, validPivotDimensions]);
+    }, [resultsData, chart, validPivotDimensions, fields]);
 
     const resultsDataWithQueryData = useMemo(
         () => ({
@@ -331,8 +334,14 @@ const ValidDashboardChartTileMinimal: FC<{
             chart,
             validPivotDimensions,
             resultsData,
+            dashboardChartReadyQuery.executeQueryResponse?.fields,
         );
-    }, [resultsData, chart, validPivotDimensions]);
+    }, [
+        resultsData,
+        chart,
+        validPivotDimensions,
+        dashboardChartReadyQuery.executeQueryResponse?.fields,
+    ]);
 
     const resultsDataWithQueryData = useMemo(
         () => ({

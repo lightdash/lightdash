@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
-import { round } from 'lodash';
+import round from 'lodash/round';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';

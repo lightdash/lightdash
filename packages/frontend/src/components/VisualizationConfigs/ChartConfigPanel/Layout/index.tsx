@@ -110,9 +110,19 @@ export const Layout: FC<Props> = ({ items }) => {
     const availableGroupByDimensions = useMemo(
         () =>
             availableDimensions.filter(
-                (item) => !pivotDimensions?.includes(getItemId(item)),
+                (item) =>
+                    !pivotDimensions?.includes(getItemId(item)) &&
+                    (!isCartesianChart ||
+                        getItemId(item) !==
+                            visualizationConfig.chartConfig.dirtyLayout
+                                ?.xField),
             ),
-        [availableDimensions, pivotDimensions],
+        [
+            availableDimensions,
+            visualizationConfig.chartConfig,
+            isCartesianChart,
+            pivotDimensions,
+        ],
     );
 
     const canAddPivot = useMemo(
@@ -293,15 +303,12 @@ export const Layout: FC<Props> = ({ items }) => {
                                     availableDimensions.find(
                                         (item) => getItemId(item) === pivotKey,
                                     );
-                                const fieldOptions = groupSelectedField
-                                    ? [
-                                          groupSelectedField,
-                                          ...availableGroupByDimensions,
-                                      ]
-                                    : availableGroupByDimensions;
                                 const activeField = chartHasMetricOrTableCalc
                                     ? groupSelectedField
                                     : undefined;
+                                const inactiveItemIds = dirtyLayout?.xField
+                                    ? [dirtyLayout.xField, ...pivotDimensions]
+                                    : pivotDimensions;
                                 return (
                                     <Group spacing="xs" key={pivotKey}>
                                         <FieldSelect
@@ -310,7 +317,10 @@ export const Layout: FC<Props> = ({ items }) => {
                                             }
                                             placeholder="Select a field to group by"
                                             item={activeField}
-                                            items={fieldOptions}
+                                            items={availableDimensions}
+                                            inactiveItemIds={inactiveItemIds.filter(
+                                                (id) => id !== pivotKey,
+                                            )} // keep current value enabled
                                             onChange={(newValue) => {
                                                 if (!newValue) return;
                                                 setPivotDimensions(

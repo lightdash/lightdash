@@ -1,7 +1,7 @@
 import { rem } from '@mantine-8/core';
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useParams } from 'react-router';
-import { useAiAgentThread } from '../../hooks/useOrganizationAiAgents';
+import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 
 const SCROLL_TO_BOTTOM_THRESHOLD = {

@@ -1,5 +1,5 @@
 import { getScopes, ScopeGroup, type Scope } from '@lightdash/common';
-import { startCase } from 'lodash';
+import startCase from 'lodash/startCase';
 
 const GROUP_DISPLAY_NAMES: Record<ScopeGroup, string> = {
     [ScopeGroup.CONTENT]: 'Content Management',

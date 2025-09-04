@@ -1,7 +1,7 @@
 import { Badge, Loader, Paper, Stack, Table, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { useAiAgentThreads } from '../hooks/useOrganizationAiAgents';
+import { useAiAgentThreads } from '../hooks/useProjectAiAgents';
 
 type ConversationsListProps = {
     agentUuid: string;

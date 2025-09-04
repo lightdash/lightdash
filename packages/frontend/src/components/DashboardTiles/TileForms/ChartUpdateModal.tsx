@@ -24,7 +24,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import { uniqBy } from 'lodash';
+import uniqBy from 'lodash/uniqBy';
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';

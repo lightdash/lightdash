@@ -370,6 +370,22 @@ export class PivotQueryBuilder {
         const { valuesColumns, groupByColumns, sortBy } =
             this.pivotConfiguration;
 
+        // Validate that no groupBy column is also part of the index columns
+        if (groupByColumns && groupByColumns.length > 0) {
+            const indexRefs = new Set(indexColumns.map((c) => c.reference));
+            const overlapping = groupByColumns
+                .map((c) => c.reference)
+                .filter((ref) => indexRefs.has(ref));
+            if (overlapping.length > 0) {
+                // Throw a clear parameter error listing the offending columns
+                throw new ParameterError(
+                    `Group column(s) cannot also be part of the index column(s): ${overlapping.join(
+                        ', ',
+                    )}`,
+                );
+            }
+        }
+
         const userSql = this.sql.replace(/;\s*$/, '');
         const groupByQuery = this.getGroupByQuerySQL(
             indexColumns,

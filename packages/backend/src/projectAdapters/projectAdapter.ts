@@ -19,6 +19,7 @@ import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
+import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
 
 export const projectAdapterFromConfig = async (
@@ -59,6 +60,15 @@ export const projectAdapterFromConfig = async (
         case DbtProjectType.NONE:
             return new DbtNoneCredentialsProjectAdapter({
                 warehouseClient,
+            });
+
+        case DbtProjectType.MANIFEST:
+            return new DbtManifestProjectAdapter({
+                warehouseClient,
+                cachedWarehouse,
+                dbtVersion,
+                analytics,
+                manifest: config.manifest,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:

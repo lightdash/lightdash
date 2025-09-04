@@ -5,7 +5,7 @@ import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
-import { useAiAgentArtifactVizQuery } from '../../hooks/useOrganizationAiAgents';
+import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
 import { AiChartVisualization } from './AiChartVisualization';
 import { ChatElementsUtils } from './utils';

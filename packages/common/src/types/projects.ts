@@ -14,6 +14,7 @@ export enum DbtProjectType {
     BITBUCKET = 'bitbucket',
     AZURE_DEVOPS = 'azure_devops',
     NONE = 'none',
+    MANIFEST = 'manifest',
 }
 
 export enum WarehouseTypes {
@@ -274,6 +275,12 @@ export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {
     hideRefreshButton?: boolean;
 }
 
+export interface DbtManifestProjectConfig extends DbtProjectConfigBase {
+    type: DbtProjectType.MANIFEST;
+    manifest: string;
+    hideRefreshButton: boolean;
+}
+
 export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.DBT;
     profiles_dir?: string;
@@ -335,7 +342,8 @@ export type DbtProjectConfig =
     | DbtBitBucketProjectConfig
     | DbtGitlabProjectConfig
     | DbtAzureDevOpsProjectConfig
-    | DbtNoneProjectConfig;
+    | DbtNoneProjectConfig
+    | DbtManifestProjectConfig;
 
 export const isGitProjectType = (
     connection: DbtProjectConfig,
@@ -361,16 +369,28 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
     overrides: {
         branch?: string;
         environment?: DbtProjectEnvironmentVariable[];
+        manifest?: string;
     },
-): T => ({
-    ...connection,
-    ...(isGitProjectType(connection) && overrides.branch
-        ? { branch: overrides.branch }
-        : undefined),
-    ...(!isRemoteType(connection) && overrides.environment
-        ? { environment: overrides.environment }
-        : undefined),
-});
+): T => {
+    // If manifest is provided, create a MANIFEST connection type
+    if (overrides.manifest) {
+        return {
+            type: DbtProjectType.MANIFEST,
+            manifest: overrides.manifest,
+            hideRefreshButton: true,
+        } as T;
+    }
+
+    return {
+        ...connection,
+        ...(isGitProjectType(connection) && overrides.branch
+            ? { branch: overrides.branch }
+            : undefined),
+        ...(!isRemoteType(connection) && overrides.environment
+            ? { environment: overrides.environment }
+            : undefined),
+    };
+};
 
 export type Project = {
     organizationUuid: string;

@@ -82,11 +82,10 @@ type CreateProjectOptions = {
 export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<ApiCreateProjectResults | undefined> => {
-    // TODO enable this when the problem with the permission check is fixed, back-end permission check works as expected
-    // await checkProjectCreationPermission(
-    //     options.upstreamProjectUuid,
-    //     options.type,
-    // );
+    await checkProjectCreationPermission(
+        options.upstreamProjectUuid,
+        options.type,
+    );
 
     const dbtVersion = await getDbtVersion();
 

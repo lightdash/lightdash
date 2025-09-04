@@ -20,6 +20,7 @@ import { EmbedModel } from './models/EmbedModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentService } from './services/AiAgentService';
 import { AiService } from './services/AiService/AiService';
 import { CommercialCacheService } from './services/CommercialCacheService';
@@ -106,6 +107,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
+                }),
+            aiAgentAdminService: ({ models }) =>
+                new AiAgentAdminService({
+                    aiAgentModel: models.getAiAgentModel(),
                 }),
             rolesService: ({ repository, context, models }) =>
                 new RolesService({

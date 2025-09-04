@@ -881,10 +881,11 @@ const useCartesianChartConfig = ({
                     availableDimensions,
                     isStacked,
                     pivotKeys,
-                    rows: resultsData.rows,
+                    resultsData,
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
                     defaultLabel,
+                    itemsMap,
                 });
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
@@ -916,6 +917,7 @@ const useCartesianChartConfig = ({
         availableDimensions,
         isStacked,
         referenceLines,
+        itemsMap,
     ]);
 
     const validConfig: CartesianChart = useMemo(() => {

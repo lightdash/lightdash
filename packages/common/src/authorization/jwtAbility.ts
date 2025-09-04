@@ -1,5 +1,5 @@
 import { type AbilityBuilder } from '@casl/ability';
-import { flow } from 'lodash';
+import flow from 'lodash/flow';
 import { type CreateEmbedJwt } from '../ee';
 import type { OssEmbed } from '../types/auth';
 import type { MemberAbility } from './types';

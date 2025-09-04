@@ -19,6 +19,7 @@ import {
     Select,
     Stack,
     Text,
+    Textarea,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -212,6 +213,8 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     const [environment, setEnvironment] = useState<
         DbtProjectEnvironmentVariable[]
     >([]);
+    const [manifestJson, setManifestJson] = useState<string>('');
+    const [manifestError, setManifestError] = useState<string>('');
 
     const handleGeneratePreviewName = useCallback(() => {
         return uniqueNamesGenerator({
@@ -296,13 +299,77 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
         selectedProjectUuid,
     ]);
 
+    const reduceManifest = useCallback((manifestString: string): string => {
+        try {
+            const parsed = JSON.parse(manifestString);
+
+            // Keep only the keys that Lightdash actually needs
+            // Removes unused keys like exposures, selectors, unit_tests, etc
+            const reducedManifest = {
+                nodes: parsed.nodes || {},
+                metadata: parsed.metadata || {},
+                metrics: parsed.metrics || {},
+                docs: parsed.docs || {},
+            };
+
+            return JSON.stringify(reducedManifest);
+        } catch (e) {
+            // If parsing fails, return original string to let validation handle the error
+            return manifestString;
+        }
+    }, []);
+
+    const validateManifest = useCallback((value: string) => {
+        if (!value.trim()) {
+            setManifestError('');
+            return true;
+        }
+
+        try {
+            const parsed = JSON.parse(value);
+            if (!parsed.nodes || !parsed.metadata) {
+                setManifestError(
+                    'Invalid manifest.json: missing required fields (nodes, metadata)',
+                );
+                return false;
+            }
+            setManifestError('');
+            return true;
+        } catch (e) {
+            setManifestError('Invalid JSON format');
+            return false;
+        }
+    }, []);
+
+    const handleManifestChange = useCallback(
+        (value: string) => {
+            setManifestJson(value);
+            validateManifest(value);
+        },
+        [validateManifest],
+    );
+
     const handleCreatePreview = useCallback(async () => {
         if (!selectedProjectUuid || !previewName) return;
+
+        // Validate manifest if provided
+        if (manifestJson.trim() && !validateManifest(manifestJson)) {
+            return;
+        }
+
+        // Reduce manifest size by removing unnecessary keys
+        const finalManifest = manifestJson.trim()
+            ? reduceManifest(manifestJson.trim())
+            : undefined;
 
         await createPreviewProject({
             projectUuid: selectedProjectUuid,
             name: previewName,
-            dbtConnectionOverrides: { branch: selectedBranch, environment },
+            dbtConnectionOverrides: {
+                branch: selectedBranch,
+                environment,
+                manifest: finalManifest,
+            },
             warehouseConnectionOverrides: { schema },
         });
         onClose();
@@ -312,8 +379,11 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
         createPreviewProject,
         selectedBranch,
         environment,
+        manifestJson,
         schema,
         onClose,
+        validateManifest,
+        reduceManifest,
     ]);
 
     const branches = useBranches(selectedProjectUuid);
@@ -459,6 +529,22 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                             }
                                             disabled={isPreviewCreating}
                                         />
+
+                                        <Textarea
+                                            label="Custom manifest.json (optional)"
+                                            placeholder="Paste your manifest.json content here..."
+                                            value={manifestJson}
+                                            onChange={(e) =>
+                                                handleManifestChange(
+                                                    e.currentTarget.value,
+                                                )
+                                            }
+                                            minRows={8}
+                                            maxRows={15}
+                                            disabled={isPreviewCreating}
+                                            error={manifestError}
+                                            description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
+                                        />
                                     </Stack>
                                 )}
                                 <FormCollapseButton
@@ -471,26 +557,58 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                 </FormCollapseButton>
                             </>
                         ) : (
-                            <Text color="gray.6">
-                                This{' '}
-                                <Text span weight={600}>
-                                    {projectDetails?.dbtConnection?.type
-                                        ? DbtProjectTypeLabels[
-                                              projectDetails.dbtConnection.type
-                                          ]
-                                        : 'unknown'}
-                                </Text>{' '}
-                                project will copy the same connection details as
-                                the parent project. To change the branch of the
-                                source code, switch to Github connection on{' '}
-                                <Anchor
-                                    target="_blank"
-                                    href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}
+                            <>
+                                <Text color="gray.6">
+                                    This{' '}
+                                    <Text span weight={600}>
+                                        {projectDetails?.dbtConnection?.type
+                                            ? DbtProjectTypeLabels[
+                                                  projectDetails.dbtConnection
+                                                      .type
+                                              ]
+                                            : 'unknown'}
+                                    </Text>{' '}
+                                    project will copy the same connection
+                                    details as the parent project. To change the
+                                    branch of the source code, switch to Github
+                                    connection on{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}
+                                    >
+                                        project settings
+                                    </Anchor>{' '}
+                                    .
+                                </Text>
+
+                                {isOpen && (
+                                    <Stack>
+                                        <Textarea
+                                            label="Custom manifest.json (optional)"
+                                            placeholder="Paste your manifest.json content here..."
+                                            value={manifestJson}
+                                            onChange={(e) =>
+                                                handleManifestChange(
+                                                    e.currentTarget.value,
+                                                )
+                                            }
+                                            minRows={8}
+                                            maxRows={15}
+                                            disabled={isPreviewCreating}
+                                            error={manifestError}
+                                            description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
+                                        />
+                                    </Stack>
+                                )}
+                                <FormCollapseButton
+                                    isSectionOpen={isOpen}
+                                    onClick={() => {
+                                        setIsOpen(!isOpen);
+                                    }}
                                 >
-                                    project settings
-                                </Anchor>{' '}
-                                .
-                            </Text>
+                                    Advanced configuration options
+                                </FormCollapseButton>
+                            </>
                         )}
                     </Stack>
 

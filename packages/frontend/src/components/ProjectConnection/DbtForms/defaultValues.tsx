@@ -9,6 +9,7 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
 } from '@lightdash/common';
+import { type DbtManifestProjectConfig } from '@lightdash/common/src';
 
 export const githubDefaultValues: DbtGithubProjectConfig = {
     type: DbtProjectType.GITHUB,
@@ -84,6 +85,12 @@ const noneDefaultValues: DbtNoneProjectConfig = {
     hideRefreshButton: false,
 } as const;
 
+const manifestDefaultValues: DbtManifestProjectConfig = {
+    type: DbtProjectType.MANIFEST,
+    manifest: '',
+    hideRefreshButton: false,
+} as const;
+
 export const dbtDefaults = {
     dbtVersion: DefaultSupportedDbtVersion,
     dbtType: DbtProjectType.GITHUB,
@@ -95,5 +102,6 @@ export const dbtDefaults = {
         [DbtProjectType.AZURE_DEVOPS]: azureDevopsDefaultValues,
         [DbtProjectType.DBT_CLOUD_IDE]: dbtCloudIdeDefaultValues,
         [DbtProjectType.NONE]: noneDefaultValues,
+        [DbtProjectType.MANIFEST]: manifestDefaultValues,
     } as const,
 } as const;

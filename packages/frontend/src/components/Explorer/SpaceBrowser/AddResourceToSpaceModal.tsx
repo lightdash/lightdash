@@ -20,7 +20,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconFolder } from '@tabler/icons-react';
-import { uniqBy } from 'lodash';
+import uniqBy from 'lodash/uniqBy';
 import React, {
     forwardRef,
     useCallback,

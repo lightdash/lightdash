@@ -1,4 +1,5 @@
 import {
+    BigqueryAuthenticationType,
     CreateBigqueryCredentials,
     ParseError,
     WarehouseTypes,
@@ -104,18 +105,30 @@ export const convertBigquerySchema = async (
                 `BigQuery project is required for ${target.method} authentication method`,
             );
 
-        return {
+        const result: CreateBigqueryCredentials = {
             type: WarehouseTypes.BIGQUERY,
             project: target.project || '',
             dataset: target.dataset || target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
-            keyfileContents: await getBigqueryCredentials(target),
+            keyfileContents: {},
             retries: target.retries,
             maximumBytesBilled: target.maximum_bytes_billed,
             location: target.location,
             executionProject: target.execution_project,
         };
+
+        const oauthOrKeyResult = await getBigqueryCredentials(target);
+        if (
+            oauthOrKeyResult.authenticationType ===
+            BigqueryAuthenticationType.ADC
+        ) {
+            result.authenticationType = BigqueryAuthenticationType.ADC;
+        } else {
+            result.keyfileContents = oauthOrKeyResult;
+        }
+
+        return result;
     }
 
     const errs = betterAjvErrors(

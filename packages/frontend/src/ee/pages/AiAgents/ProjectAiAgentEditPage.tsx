@@ -66,8 +66,8 @@ import {
     InstructionsTemplates,
 } from '../../features/aiCopilot/components/InstructionsSupport';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useDeleteAiAgentMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 import {
+    useDeleteAiAgentMutation,
     useProjectAiAgent,
     useProjectAiAgents,
     useProjectCreateAiAgentMutation,

@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPencil, IconRotate2 } from '@tabler/icons-react';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from '../../parameters/components/ParameterInput';

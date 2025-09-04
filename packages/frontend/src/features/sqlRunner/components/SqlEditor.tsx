@@ -6,7 +6,8 @@ import Editor, {
     type OnMount,
 } from '@monaco-editor/react';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { debounce, isEmpty } from 'lodash';
+import debounce from 'lodash/debounce';
+import isEmpty from 'lodash/isEmpty';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';

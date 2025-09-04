@@ -11,7 +11,7 @@ import { useForm } from '@mantine/form';
 import { type FC, useMemo } from 'react';
 
 import { type Role, type RoleWithScopes } from '@lightdash/common';
-import { startCase } from 'lodash';
+import startCase from 'lodash/startCase';
 import { validateRoleName } from './utils/roleValidation';
 
 type Props = {

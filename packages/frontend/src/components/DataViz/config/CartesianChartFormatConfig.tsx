@@ -1,7 +1,7 @@
 import { Format } from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
 import { IconClearAll, IconPercentage } from '@tabler/icons-react';
-import { capitalize } from 'lodash';
+import capitalize from 'lodash/capitalize';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 

@@ -6,7 +6,7 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { Flex } from '@mantine/core';
-import { mapValues } from 'lodash';
+import mapValues from 'lodash/mapValues';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import ActiveFilters from '../../../../../components/DashboardFilter/ActiveFilters';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';

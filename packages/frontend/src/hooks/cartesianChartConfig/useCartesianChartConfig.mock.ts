@@ -62,24 +62,27 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
     defaultCartesianType: CartesianSeriesType.BAR,
     defaultAreaStyle: undefined,
     isStacked: false,
-    rows: [
-        {
-            dimension_x: { value: { raw: 'a', formatted: 'a' } },
-            my_dimension: { value: { raw: 'a', formatted: 'a' } },
-            my_metric: { value: { raw: 'a', formatted: 'a' } },
-            my_second_metric: { value: { raw: 'a', formatted: 'a' } },
-        },
-        {
-            dimension_x: { value: { raw: 'b', formatted: 'b' } },
-            my_dimension: { value: { raw: 'a', formatted: 'a' } },
-            my_metric: { value: { raw: 'a', formatted: 'a' } },
-            my_second_metric: { value: { raw: 'a', formatted: 'a' } },
-        },
-    ],
+    resultsData: {
+        rows: [
+            {
+                dimension_x: { value: { raw: 'a', formatted: 'a' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+                my_second_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'b', formatted: 'b' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+                my_second_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+        ],
+    } as any,
     pivotKeys: undefined,
     yFields: ['my_metric', 'my_second_metric'],
     xField: 'my_dimension',
     availableDimensions: ['my_dimension', 'dimension_x'],
+    itemsMap: undefined,
 };
 
 export const expectedSimpleSeriesMap: Record<string, Series> = {
@@ -203,32 +206,34 @@ export const multiPivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
     ...simpleSeriesMapArgs,
     pivotKeys: ['dimension_x', 'dimension_y'],
     yFields: ['my_metric'],
-    rows: [
-        {
-            dimension_x: { value: { raw: 'a', formatted: 'a' } },
-            dimension_y: { value: { raw: 'a', formatted: 'a' } },
-            my_dimension: { value: { raw: 'a', formatted: 'a' } },
-            my_metric: { value: { raw: 'a', formatted: 'a' } },
-        },
-        {
-            dimension_x: { value: { raw: 'b', formatted: 'b' } },
-            dimension_y: { value: { raw: 'b', formatted: 'b' } },
-            my_dimension: { value: { raw: 'a', formatted: 'a' } },
-            my_metric: { value: { raw: 'a', formatted: 'a' } },
-        },
-        {
-            dimension_x: { value: { raw: 'a', formatted: 'a' } },
-            dimension_y: { value: { raw: 'b', formatted: 'b' } },
-            my_dimension: { value: { raw: 'a', formatted: 'a' } },
-            my_metric: { value: { raw: 'a', formatted: 'a' } },
-        },
-        {
-            dimension_x: { value: { raw: 'b', formatted: 'b' } },
-            dimension_y: { value: { raw: 'a', formatted: 'a' } },
-            my_dimension: { value: { raw: 'a', formatted: 'a' } },
-            my_metric: { value: { raw: 'a', formatted: 'a' } },
-        },
-    ],
+    resultsData: {
+        rows: [
+            {
+                dimension_x: { value: { raw: 'a', formatted: 'a' } },
+                dimension_y: { value: { raw: 'a', formatted: 'a' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'b', formatted: 'b' } },
+                dimension_y: { value: { raw: 'b', formatted: 'b' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'a', formatted: 'a' } },
+                dimension_y: { value: { raw: 'b', formatted: 'b' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'b', formatted: 'b' } },
+                dimension_y: { value: { raw: 'a', formatted: 'a' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+        ],
+    } as any,
 };
 
 export const expectedMultiPivotedSeriesMap: Record<string, Series> = {

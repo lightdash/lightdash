@@ -1,4 +1,4 @@
-import { intersectionBy } from 'lodash';
+import intersectionBy from 'lodash/intersectionBy';
 import { getFirstIndexColumns } from '../pivot/utils';
 import { type AnyType } from '../types/any';
 import {

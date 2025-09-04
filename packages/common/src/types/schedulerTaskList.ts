@@ -1,4 +1,4 @@
-import { includes } from 'lodash';
+import includes from 'lodash/includes';
 import { type SlackPromptJobPayload } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';

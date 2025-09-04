@@ -121,6 +121,7 @@ import { type UserWarehouseCredentials } from './types/userWarehouseCredentials'
 import { type ValidationResponse } from './types/validation';
 
 import type {
+    ApiAiAgentAdminConversationsResponse,
     ApiAiAgentArtifactResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
@@ -945,7 +946,8 @@ type ApiResults =
     | ApiAiAgentArtifactResponse['results']
     | ApiAiAgentThreadGenerateTitleResponse['results']
     | ApiAiAgentThreadSummaryListResponse['results']
-    | Account;
+    | Account
+    | ApiAiAgentAdminConversationsResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1122,6 +1124,7 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.BITBUCKET]: 'BitBucket',
     [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
     [DbtProjectType.NONE]: 'CLI',
+    [DbtProjectType.MANIFEST]: 'Manifest',
 };
 
 export enum CreateProjectTableConfiguration {

@@ -13,6 +13,7 @@ import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
 import BitBucketForm from './DbtForms/BitBucketForm';
 import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
+import DbtManifestForm from './DbtForms/DbtManifestForm';
 import DbtNoneForm from './DbtForms/DbtNoneForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
@@ -63,6 +64,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             DbtProjectType.BITBUCKET,
             DbtProjectType.AZURE_DEVOPS,
             DbtProjectType.NONE,
+            DbtProjectType.MANIFEST,
         ];
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(DbtProjectType.DBT);
@@ -93,6 +95,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return AzureDevOpsForm;
             case DbtProjectType.NONE:
                 return DbtNoneForm;
+            case DbtProjectType.MANIFEST:
+                return DbtManifestForm;
             default: {
                 return assertUnreachable(
                     type,
@@ -124,6 +128,9 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             env: `environment-variables`,
         },
         [DbtProjectType.NONE]: {
+            env: `environment-variables-3`,
+        },
+        [DbtProjectType.MANIFEST]: {
             env: `environment-variables-3`,
         },
     };

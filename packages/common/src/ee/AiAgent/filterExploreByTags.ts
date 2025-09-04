@@ -1,4 +1,8 @@
-import { concat, flatMap, intersection, mapValues, pickBy } from 'lodash';
+import concat from 'lodash/concat';
+import flatMap from 'lodash/flatMap';
+import intersection from 'lodash/intersection';
+import mapValues from 'lodash/mapValues';
+import pickBy from 'lodash/pickBy';
 
 type FilterableTable = {
     dimensions: Record<string, { tags?: string[] }>;

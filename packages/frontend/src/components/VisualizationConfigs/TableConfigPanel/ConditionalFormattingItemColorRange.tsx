@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Group, Select, Stack } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
-import { capitalize } from 'lodash';
+import capitalize from 'lodash/capitalize';
 import { type FC } from 'react';
 import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../common/MantineIcon';

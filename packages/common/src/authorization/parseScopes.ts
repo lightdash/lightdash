@@ -1,4 +1,5 @@
-import { camelCase, upperFirst } from 'lodash';
+import camelCase from 'lodash/camelCase';
+import upperFirst from 'lodash/upperFirst';
 import { type ScopeModifer, type ScopeName } from '../types/scopes';
 import { getAllScopeMap } from './scopes';
 import { type AbilityAction, type CaslSubjectNames } from './types';
