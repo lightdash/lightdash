@@ -1,3 +1,10 @@
+## [0.1982.1](https://github.com/lightdash/lightdash/compare/0.1982.0...0.1982.1) (2025-09-04)
+
+
+### Bug Fixes
+
+* scheduled delivery previews with tabs ([#16724](https://github.com/lightdash/lightdash/issues/16724)) ([ef78558](https://github.com/lightdash/lightdash/commit/ef785585da7de32859187f9999fb5cadebd7e70a))
+
 # [0.1982.0](https://github.com/lightdash/lightdash/compare/0.1981.0...0.1982.0) (2025-09-04)
 
 
