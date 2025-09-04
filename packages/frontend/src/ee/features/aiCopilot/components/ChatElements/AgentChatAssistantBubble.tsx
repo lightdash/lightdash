@@ -31,7 +31,7 @@ import { memo, useCallback, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
-import { useUpdatePromptFeedbackMutation } from '../../hooks/useOrganizationAiAgents';
+import { useUpdatePromptFeedbackMutation } from '../../hooks/useProjectAiAgents';
 import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
 import { useAiAgentThreadStreamMutation } from '../../streaming/useAiAgentThreadStreamMutation';
 import {
