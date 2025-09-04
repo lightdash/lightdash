@@ -1,3 +1,10 @@
+# [0.1983.0](https://github.com/lightdash/lightdash/compare/0.1982.1...0.1983.0) (2025-09-04)
+
+
+### Features
+
+* add visualization warning for incorrect chart configurations ([#16741](https://github.com/lightdash/lightdash/issues/16741)) ([0aada4b](https://github.com/lightdash/lightdash/commit/0aada4b491efbf244c6fe7dd8b97c8be4a0d60ef))
+
 ## [0.1982.1](https://github.com/lightdash/lightdash/compare/0.1982.0...0.1982.1) (2025-09-04)
 
 
