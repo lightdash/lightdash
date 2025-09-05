@@ -222,7 +222,7 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Paper px="xs">
+                    <Paper px="xs" maw="100%">
                         <Group gap="two" wrap="nowrap">
                             <LightdashUserAvatar
                                 size={12}
@@ -230,7 +230,13 @@ const AiAgentAdminThreadsTable = ({
                                 name={thread.agent.name}
                                 src={thread.agent.imageUrl}
                             />
-                            <Text fz="sm" fw={500} c="gray.7">
+                            <Text
+                                fz="sm"
+                                fw={500}
+                                c="gray.7"
+                                truncate
+                                maw={220}
+                            >
                                 {thread.agent.name}
                             </Text>
                         </Group>
@@ -467,6 +473,7 @@ const AiAgentAdminThreadsTable = ({
                 h: '3xl',
                 pos: 'relative',
                 style: {
+                    userSelect: 'none',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
                     borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderRight: props.column.getIsResizing()
