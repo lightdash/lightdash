@@ -527,6 +527,42 @@ describe('PivotQueryBuilder', () => {
             // The regex should remove trailing semicolons and whitespace but it seems to keep some
             expect(result).toContain('SELECT * FROM events');
         });
+
+        test('Should remove comments and limits from base SQL in original_query CTE', () => {
+            const sqlWithCommentsAndLimit = `
+                -- leading comment with LIMIT 999
+                SELECT * FROM events /* inline block comment */ WHERE id > 1
+                -- another comment
+                LIMIT 123; /* end comment */
+            `;
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                sqlWithCommentsAndLimit,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                50,
+            );
+
+            const result = builder.toSql();
+
+            // base sql doesn't contain comments or limits
+            expect(result)
+                .toBe(`WITH original_query AS (SELECT * FROM events WHERE id > 1),
+group_by_query AS (SELECT "date", sum("event_id") AS "event_id_sum" FROM original_query group by "date")
+SELECT * FROM group_by_query LIMIT 50`);
+        });
     });
 
     describe('Limit handling', () => {
