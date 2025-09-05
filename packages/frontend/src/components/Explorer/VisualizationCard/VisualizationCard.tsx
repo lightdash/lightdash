@@ -225,6 +225,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 initialPivotDimensions={
                     unsavedChartVersion.pivotConfig?.columns
                 }
+                unsavedMetricQuery={unsavedChartVersion.metricQuery}
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
                 isLoading={isLoadingQueryResults}
