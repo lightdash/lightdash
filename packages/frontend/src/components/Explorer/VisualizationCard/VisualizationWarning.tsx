@@ -56,7 +56,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
             resultsData?.pivotDetails?.groupByColumns || []
         ).map((c: { reference: string }) => c.reference);
         // Only show when using SQL pivot results
-        if (!useSqlPivotResults) return false;
+        if (!useSqlPivotResults?.enabled) return false;
         // If both sides empty/undefined, no warning
         if (
             resultsPivotDimensions.length === 0 &&
