@@ -479,7 +479,9 @@ export const removeCommentsAndOuterLimitOffset = (sql: string): string => {
     // remove either "LIMIT x OFFSET y" or "OFFSET y LIMIT x" at the end of the query
     const limitOffsetRegex =
         /(\b(?:(?:limit\s+\d+(?:\s+offset\s+\d+)?)|(?:offset\s+\d+\s+limit\s+\d+))\s*(?:;|\s*)?)$/i;
-    let sqlWithoutLimit = sqlWithoutStrings.replace(limitOffsetRegex, '');
+    let sqlWithoutLimit = sqlWithoutStrings
+        .trim()
+        .replace(limitOffsetRegex, '');
     // remove semicolon from the end of the query
     sqlWithoutLimit = sqlWithoutLimit.trim().replace(/;+$/g, '');
     // restore strings
