@@ -1584,7 +1584,9 @@ const ExplorerProvider: FC<
             return;
         }
 
-        if (needsUnpivotedData) {
+        if (needsUnpivotedData && isResultsOpen) {
+            // Only set unpivoted args if results panel is actually open
+            // This prevents setting args that won't be executed
             setUnpivotedQueryArgs({
                 ...validQueryArgs,
                 pivotConfiguration: undefined, // No pivot for results table in explore page
@@ -1593,7 +1595,7 @@ const ExplorerProvider: FC<
         } else {
             setUnpivotedQueryArgs(null);
         }
-    }, [validQueryArgs, needsUnpivotedData]);
+    }, [validQueryArgs, needsUnpivotedData, isResultsOpen]);
 
     useEffect(() => {
         // If auto-fetch is disabled or the query hasn't been fetched yet, don't run the query
