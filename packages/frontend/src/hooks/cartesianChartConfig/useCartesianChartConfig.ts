@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CartesianSeriesType,
+    FeatureFlags,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -25,6 +26,7 @@ import {
     getMarkLineAxis,
     type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
+import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import type { InfiniteQueryResults } from '../useQueryResults';
 import {
     getExpectedSeriesMap,
@@ -659,6 +661,10 @@ const useCartesianChartConfig = ({
         [getOldTableCalculationMetadataIndex, tableCalculationsMetadata],
     );
 
+    const { data: useSqlPivotResults } = useFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
+    );
+
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
@@ -800,7 +806,9 @@ const useCartesianChartConfig = ({
                     newYFields = [availableDimensions[1]];
                 }
 
-                if (itemsMap !== undefined) setPivotDimensions(newPivotFields);
+                // don't fallback pivot dimensions if we are using sql pivot results
+                if (itemsMap !== undefined && !useSqlPivotResults?.enabled)
+                    setPivotDimensions(newPivotFields);
                 return {
                     ...prev,
                     xField: newXField,
@@ -817,6 +825,7 @@ const useCartesianChartConfig = ({
         isFieldValidTableCalculation,
         itemsMap,
         setPivotDimensions,
+        useSqlPivotResults,
     ]);
 
     const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
