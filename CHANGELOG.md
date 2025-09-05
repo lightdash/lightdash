@@ -1,3 +1,10 @@
+# [0.1985.0](https://github.com/lightdash/lightdash/compare/0.1984.3...0.1985.0) (2025-09-05)
+
+
+### Features
+
+* add askAiButtonEnabled configuration option ([#16753](https://github.com/lightdash/lightdash/issues/16753)) ([96929aa](https://github.com/lightdash/lightdash/commit/96929aadafb4eb480388c370cf72e85a1c94c95f)), closes [#16748](https://github.com/lightdash/lightdash/issues/16748)
+
 ## [0.1984.3](https://github.com/lightdash/lightdash/compare/0.1984.2...0.1984.3) (2025-09-05)
 
 
