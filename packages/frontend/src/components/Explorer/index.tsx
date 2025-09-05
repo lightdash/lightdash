@@ -48,6 +48,24 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             enabled: !!unsavedChartVersionTableName,
         });
 
+        const fromDashboard = useExplorerContext(
+            (context) => context.state.fromDashboard,
+        );
+
+        const previouslyFetchedState = useExplorerContext(
+            (context) => context.state.previouslyFetchedState,
+        );
+
+        const fetchResults = useExplorerContext(
+            (context) => context.actions.fetchResults,
+        );
+
+        useEffect(() => {
+            if (!previouslyFetchedState && (fromDashboard || isEditMode)) {
+                fetchResults();
+            }
+        }, [previouslyFetchedState, fetchResults, fromDashboard, isEditMode]);
+
         useEffect(() => {
             if (isError) {
                 // If there's an error, we set the parameter references to an empty array

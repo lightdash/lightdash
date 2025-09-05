@@ -299,6 +299,8 @@ export interface ExplorerReduceState {
             items?: CustomDimension[] | AdditionalMetric[];
         };
     };
+
+    fromDashboard?: string;
 }
 
 export interface ExplorerState extends ExplorerReduceState {

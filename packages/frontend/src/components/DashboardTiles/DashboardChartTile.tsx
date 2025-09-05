@@ -684,12 +684,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         async (chartPathname: string, chartSearch: string) => {
             const shareUrl = await createShareUrl({
                 path: chartPathname,
-                params: `?` + chartSearch,
+                params: `?` + chartSearch + `&fromDashboard=${dashboardUuid}`,
             });
 
             window.open(`/share/${shareUrl.nanoid}`, '_blank');
         },
-        [createShareUrl],
+        [createShareUrl, dashboardUuid],
     );
 
     const [dashboardTileFilterOptions, setDashboardTileFilterOptions] =
