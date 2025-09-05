@@ -91,6 +91,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
+                            selectedProjectUuids={selectedProjectUuids}
                         />
                         <Divider
                             orientation="vertical"
