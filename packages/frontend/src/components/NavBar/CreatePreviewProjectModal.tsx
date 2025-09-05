@@ -270,8 +270,10 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     }, [projects, selectedProjectUuid]);
 
     const { data: projectDetails } = useProject(selectedProjectUuid);
-    const hasGithub = useMemo(() => {
-        return projectDetails?.dbtConnection?.type === DbtProjectType.GITHUB;
+    const hasGitIntegration = useMemo(() => {
+        return [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
+            projectDetails?.dbtConnection?.type as DbtProjectType,
+        );
     }, [projectDetails?.dbtConnection?.type]);
 
     useEffect(() => {
@@ -480,14 +482,14 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                 </Tooltip>
                             }
                         />
-                        {hasGithub ? (
+                        {hasGitIntegration ? (
                             <>
                                 <Select
                                     withinPortal
                                     label="Branch"
                                     placeholder={
                                         branches.isLoading
-                                            ? 'Loading branches from Github...'
+                                            ? 'Loading branches...'
                                             : 'Select branch'
                                     }
                                     searchable
@@ -571,7 +573,7 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                     project will copy the same connection
                                     details as the parent project. To change the
                                     branch of the source code, switch to Github
-                                    connection on{' '}
+                                    or GitLab connection on{' '}
                                     <Anchor
                                         target="_blank"
                                         href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}

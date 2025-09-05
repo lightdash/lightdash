@@ -1,3 +1,39 @@
+## [0.1985.1](https://github.com/lightdash/lightdash/compare/0.1985.0...0.1985.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* address scroll & filter out non-agent projects ([#16749](https://github.com/lightdash/lightdash/issues/16749)) ([6d693f8](https://github.com/lightdash/lightdash/commit/6d693f8312f18c9f0a80edc2078cac17dee712a1))
+* skip user setup when analytics tracking is disabled ([#16752](https://github.com/lightdash/lightdash/issues/16752)) ([a3b22a8](https://github.com/lightdash/lightdash/commit/a3b22a89c61127d3a0dc35d2f401a49971a492aa)), closes [#16747](https://github.com/lightdash/lightdash/issues/16747)
+
+# [0.1985.0](https://github.com/lightdash/lightdash/compare/0.1984.3...0.1985.0) (2025-09-05)
+
+
+### Features
+
+* add askAiButtonEnabled configuration option ([#16753](https://github.com/lightdash/lightdash/issues/16753)) ([96929aa](https://github.com/lightdash/lightdash/commit/96929aadafb4eb480388c370cf72e85a1c94c95f)), closes [#16748](https://github.com/lightdash/lightdash/issues/16748)
+
+## [0.1984.3](https://github.com/lightdash/lightdash/compare/0.1984.2...0.1984.3) (2025-09-05)
+
+
+### Bug Fixes
+
+* put unpivoted data results ([#16751](https://github.com/lightdash/lightdash/issues/16751)) ([37761a7](https://github.com/lightdash/lightdash/commit/37761a704e27564eaa71c433bccd3eedc9f61924))
+
+## [0.1984.2](https://github.com/lightdash/lightdash/compare/0.1984.1...0.1984.2) (2025-09-05)
+
+
+### Bug Fixes
+
+* check for enabled property in useSqlPivotResults ([#16750](https://github.com/lightdash/lightdash/issues/16750)) ([5f05dfb](https://github.com/lightdash/lightdash/commit/5f05dfb36a8c1856ef67aa092c6573acaed18509))
+
+## [0.1984.1](https://github.com/lightdash/lightdash/compare/0.1984.0...0.1984.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* add branch to gitlab ([#16727](https://github.com/lightdash/lightdash/issues/16727)) ([1cf5b5f](https://github.com/lightdash/lightdash/commit/1cf5b5f39ef9129ee0d8833511e3f5a2f654a5d7))
+
 # [0.1984.0](https://github.com/lightdash/lightdash/compare/0.1983.0...0.1984.0) (2025-09-04)
 
 

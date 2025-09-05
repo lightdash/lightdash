@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine/core';
 import {
+    IconBrain,
     IconBrowser,
     IconBuildingSkyscraper,
     IconCalendarStats,
@@ -586,6 +587,20 @@ const Settings: FC = () => {
                                             }
                                         />
                                     )}
+                                {user.ability.can(
+                                    'manage',
+                                    subject('AiAgent', {
+                                        organizationUuid:
+                                            organization.organizationUuid,
+                                    }),
+                                ) && (
+                                    <RouterNavLink
+                                        label="AI Agents"
+                                        exact
+                                        to="/ai-agents/admin"
+                                        icon={<MantineIcon icon={IconBrain} />}
+                                    />
+                                )}
                             </Box>
 
                             {organization &&
