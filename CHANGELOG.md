@@ -1,3 +1,11 @@
+## [0.1985.1](https://github.com/lightdash/lightdash/compare/0.1985.0...0.1985.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* address scroll & filter out non-agent projects ([#16749](https://github.com/lightdash/lightdash/issues/16749)) ([6d693f8](https://github.com/lightdash/lightdash/commit/6d693f8312f18c9f0a80edc2078cac17dee712a1))
+* skip user setup when analytics tracking is disabled ([#16752](https://github.com/lightdash/lightdash/issues/16752)) ([a3b22a8](https://github.com/lightdash/lightdash/commit/a3b22a89c61127d3a0dc35d2f401a49971a492aa)), closes [#16747](https://github.com/lightdash/lightdash/issues/16747)
+
 # [0.1985.0](https://github.com/lightdash/lightdash/compare/0.1984.3...0.1985.0) (2025-09-05)
 
 
