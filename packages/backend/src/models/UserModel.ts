@@ -227,13 +227,14 @@ export class UserModel {
             isVerified?: boolean;
         },
     ) {
+        const canSkipSetupForAnalytics = !this.lightdashConfig.rudder.writeKey;
         const userIn: DbUserIn = isOpenIdUser(createUser)
             ? {
                   first_name: createUser.openId.firstName || '',
                   last_name: createUser.openId.lastName || '',
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: false,
+                  is_setup_complete: canSkipSetupForAnalytics,
                   is_active: createUser.isActive,
               }
             : {
@@ -241,7 +242,7 @@ export class UserModel {
                   last_name: createUser.lastName.trim(),
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: false,
+                  is_setup_complete: canSkipSetupForAnalytics,
                   is_active: createUser.isActive,
               };
         const [newUser] = await trx<DbUser>('users')
