@@ -8,7 +8,7 @@ import { useSpace } from '../../../hooks/useSpaces';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
-import { CommentWithMentions } from './CommentWithMentions';
+import { LazyCommentWithMentions } from './CommentWithMentions/LazyCommentWithMentions';
 
 type Props = {
     userName: string;
@@ -95,7 +95,7 @@ export const CommentForm: FC<Props> = ({
                     </Grid.Col>
                     <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
                         {userNames ? (
-                            <CommentWithMentions
+                            <LazyCommentWithMentions
                                 suggestions={userNames}
                                 shouldClearEditor={shouldClearEditor}
                                 setShouldClearEditor={setShouldClearEditor}
