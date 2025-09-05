@@ -1,3 +1,10 @@
+## [0.1984.2](https://github.com/lightdash/lightdash/compare/0.1984.1...0.1984.2) (2025-09-05)
+
+
+### Bug Fixes
+
+* check for enabled property in useSqlPivotResults ([#16750](https://github.com/lightdash/lightdash/issues/16750)) ([5f05dfb](https://github.com/lightdash/lightdash/commit/5f05dfb36a8c1856ef67aa092c6573acaed18509))
+
 ## [0.1984.1](https://github.com/lightdash/lightdash/compare/0.1984.0...0.1984.1) (2025-09-05)
 
 
