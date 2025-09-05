@@ -4,14 +4,16 @@ import {
     Checkbox,
     Group,
     Popover,
+    ScrollArea,
     Stack,
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { IconBox, IconX } from '@tabler/icons-react';
+import { IconBox, IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../hooks/useProjects';
+import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import classes from './ProjectsFilter.module.css';
 
 type ProjectsFilterProps = {
@@ -24,17 +26,30 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
     setSelectedProjectUuids,
 }) => {
     const { data: projects, isLoading } = useProjects();
+    const organizationAiAgents = useAiAgentAdminAgents();
+
+    const projectsWithAgents = useMemo(() => {
+        if (!projects || !organizationAiAgents.data) return [];
+
+        const projectUuidsWithAgents = new Set(
+            organizationAiAgents.data.map((agent) => agent.projectUuid),
+        );
+
+        return projects.filter((project) =>
+            projectUuidsWithAgents.has(project.projectUuid),
+        );
+    }, [projects, organizationAiAgents.data]);
 
     const hasSelectedProjects = selectedProjectUuids.length > 0;
 
     const projectNames = useMemo(() => {
-        return projects
+        return projectsWithAgents
             ?.filter((project) =>
                 selectedProjectUuids.includes(project.projectUuid),
             )
             .map((project) => project.name)
             .join(', ');
-    }, [projects, selectedProjectUuids]);
+    }, [projectsWithAgents, selectedProjectUuids]);
 
     const buttonLabel = hasSelectedProjects ? projectNames : 'All projects';
 
@@ -67,7 +82,9 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                                     }
                                 />
                             }
-                            loading={isLoading}
+                            loading={
+                                isLoading || organizationAiAgents.isLoading
+                            }
                             className={
                                 hasSelectedProjects
                                     ? classes.filterButtonSelected
@@ -83,53 +100,70 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
-                        <Text fz="xs" c="dark.3" fw={600}>
-                            Filter by projects:
-                        </Text>
+                        <Group gap="two">
+                            <Text fz="xs" c="dark.3" fw={600}>
+                                Filter by projects:
+                            </Text>
+                            <Tooltip
+                                variant="xs"
+                                label="Showing projects with agents only"
+                            >
+                                <MantineIcon
+                                    color="gray.5"
+                                    icon={IconHelpCircle}
+                                />
+                            </Tooltip>
+                        </Group>
 
-                        {projects?.length === 0 && (
+                        {projectsWithAgents?.length === 0 && (
                             <Text fz="xs" fw={500} c="gray.6">
-                                No projects available.
+                                No projects with agents available.
                             </Text>
                         )}
 
-                        <Stack gap="xs">
-                            {projects?.map((project) => (
-                                <Checkbox
-                                    key={project.projectUuid}
-                                    label={project.name}
-                                    checked={selectedProjectUuids.includes(
-                                        project.projectUuid,
-                                    )}
-                                    size="xs"
-                                    classNames={{
-                                        body: classes.checkboxBody,
-                                        input: classes.checkboxInput,
-                                        label: classes.checkboxLabel,
-                                    }}
-                                    onChange={() => {
-                                        if (
-                                            selectedProjectUuids.includes(
-                                                project.projectUuid,
-                                            )
-                                        ) {
-                                            setSelectedProjectUuids(
-                                                selectedProjectUuids.filter(
-                                                    (uuid) =>
-                                                        uuid !==
-                                                        project.projectUuid,
-                                                ),
-                                            );
-                                        } else {
-                                            setSelectedProjectUuids([
-                                                ...selectedProjectUuids,
-                                                project.projectUuid,
-                                            ]);
-                                        }
-                                    }}
-                                />
-                            ))}
-                        </Stack>
+                        <ScrollArea.Autosize
+                            mah={200}
+                            type="always"
+                            scrollbars="y"
+                        >
+                            <Stack gap="xs">
+                                {projectsWithAgents.map((project) => (
+                                    <Checkbox
+                                        key={project.projectUuid}
+                                        label={project.name}
+                                        checked={selectedProjectUuids.includes(
+                                            project.projectUuid,
+                                        )}
+                                        size="xs"
+                                        classNames={{
+                                            body: classes.checkboxBody,
+                                            input: classes.checkboxInput,
+                                            label: classes.checkboxLabel,
+                                        }}
+                                        onChange={() => {
+                                            if (
+                                                selectedProjectUuids.includes(
+                                                    project.projectUuid,
+                                                )
+                                            ) {
+                                                setSelectedProjectUuids(
+                                                    selectedProjectUuids.filter(
+                                                        (uuid) =>
+                                                            uuid !==
+                                                            project.projectUuid,
+                                                    ),
+                                                );
+                                            } else {
+                                                setSelectedProjectUuids([
+                                                    ...selectedProjectUuids,
+                                                    project.projectUuid,
+                                                ]);
+                                            }
+                                        }}
+                                    />
+                                ))}
+                            </Stack>
+                        </ScrollArea.Autosize>
                     </Stack>
                 </Popover.Dropdown>
             </Popover>
