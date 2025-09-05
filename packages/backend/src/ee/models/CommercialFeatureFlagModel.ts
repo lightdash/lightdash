@@ -121,6 +121,13 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             };
         }
 
+        if (this.lightdashConfig.ai.copilot.askAiButtonEnabled) {
+            return {
+                id: featureFlagId,
+                enabled: true,
+            };
+        }
+
         return {
             id: featureFlagId,
             enabled: await isFeatureFlagEnabled(

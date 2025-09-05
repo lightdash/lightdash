@@ -198,6 +198,7 @@ export const lightdashConfigMock: LightdashConfig = {
             maxQueryLimit: 10000,
             telemetryEnabled: false,
             requiresFeatureFlag: false,
+            askAiButtonEnabled: false,
             defaultProvider: 'openai',
             providers: {
                 openai: {
