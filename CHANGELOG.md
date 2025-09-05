@@ -1,3 +1,10 @@
+## [0.1984.1](https://github.com/lightdash/lightdash/compare/0.1984.0...0.1984.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* add branch to gitlab ([#16727](https://github.com/lightdash/lightdash/issues/16727)) ([1cf5b5f](https://github.com/lightdash/lightdash/commit/1cf5b5f39ef9129ee0d8833511e3f5a2f654a5d7))
+
 # [0.1984.0](https://github.com/lightdash/lightdash/compare/0.1983.0...0.1984.0) (2025-09-04)
 
 
