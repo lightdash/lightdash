@@ -1,3 +1,10 @@
+## [0.1984.3](https://github.com/lightdash/lightdash/compare/0.1984.2...0.1984.3) (2025-09-05)
+
+
+### Bug Fixes
+
+* put unpivoted data results ([#16751](https://github.com/lightdash/lightdash/issues/16751)) ([37761a7](https://github.com/lightdash/lightdash/commit/37761a704e27564eaa71c433bccd3eedc9f61924))
+
 ## [0.1984.2](https://github.com/lightdash/lightdash/compare/0.1984.1...0.1984.2) (2025-09-05)
 
 
