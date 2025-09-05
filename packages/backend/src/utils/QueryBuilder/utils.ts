@@ -500,7 +500,7 @@ export const applyLimitToSqlQuery = ({
     limit,
 }: {
     sqlQuery: string;
-    limit: number | undefined;
+    limit: number | null | undefined;
 }): string => {
     // do nothing if limit is undefined
     if (limit === undefined) {
@@ -508,6 +508,9 @@ export const applyLimitToSqlQuery = ({
         let sql = removeComments(sqlQuery);
         sql = sql.trim().replace(/;+$/g, '');
         return sql.trim();
+    }
+    if (limit === null) {
+        return removeCommentsAndOuterLimitOffset(sqlQuery);
     }
     // get any existing outer limit and offset from the SQL query
     const existingLimitOffset = extractOuterLimitOffsetFromSQL(sqlQuery);
