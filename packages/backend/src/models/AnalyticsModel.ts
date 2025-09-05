@@ -1,5 +1,7 @@
 import {
     OrganizationMemberRole,
+    UnusedContent,
+    UnusedContentItem,
     UserActivity,
     UserWithCount,
     ViewStatistics,
@@ -24,6 +26,8 @@ import {
     tableMostCreatedChartsSql,
     tableMostQueriesSql,
     tableNoQueriesSql,
+    unusedChartsSql,
+    unusedDashboardsSql,
     userMostViewedDashboardSql,
     usersInProjectSql,
 } from './AnalyticsModelSql';
@@ -350,5 +354,67 @@ export class AnalyticsModel {
         });
 
         return results;
+    }
+
+    async getUnusedContent(projectUuid: string): Promise<UnusedContent> {
+        return Sentry.startSpan(
+            {
+                op: 'AnalyticsModel.getUnusedContent',
+                name: 'AnalyticsModel.getUnusedContent',
+            },
+            async () => {
+                const [chartsResults, dashboardsResults] = await Promise.all([
+                    this.database.raw(unusedChartsSql(projectUuid)),
+                    this.database.raw(unusedDashboardsSql(projectUuid)),
+                ]);
+
+                const charts: UnusedContentItem[] = chartsResults.rows.map(
+                    (row: Record<string, unknown>) => ({
+                        lastViewedAt: row.last_viewed_at as Date | null,
+                        lastViewedByUserUuid: row.last_viewed_by_user_uuid as
+                            | string
+                            | null,
+                        lastViewedByUserName: row.last_viewed_by_user_name as
+                            | string
+                            | null,
+                        createdByUserUuid: String(
+                            row.created_by_user_uuid || '',
+                        ),
+                        createdByUserName: String(
+                            row.created_by_user_name || '',
+                        ),
+                        createdAt: row.created_at as Date,
+                        contentUuid: String(row.content_uuid || ''),
+                        contentName: String(row.content_name || ''),
+                        contentType: 'chart' as const,
+                        viewsCount: Number(row.views_count) || 0,
+                    }),
+                );
+
+                const dashboards: UnusedContentItem[] =
+                    dashboardsResults.rows.map(
+                        (row: Record<string, unknown>) => ({
+                            lastViewedAt: row.last_viewed_at as Date | null,
+                            lastViewedByUserUuid:
+                                row.last_viewed_by_user_uuid as string | null,
+                            lastViewedByUserName:
+                                row.last_viewed_by_user_name as string | null,
+                            createdByUserUuid: String(
+                                row.created_by_user_uuid || '',
+                            ),
+                            createdByUserName: String(
+                                row.created_by_user_name || '',
+                            ),
+                            createdAt: row.created_at as Date,
+                            contentUuid: String(row.content_uuid || ''),
+                            contentName: String(row.content_name || ''),
+                            contentType: 'dashboard' as const,
+                            viewsCount: Number(row.views_count) || 0,
+                        }),
+                    );
+
+                return { charts, dashboards };
+            },
+        );
     }
 }

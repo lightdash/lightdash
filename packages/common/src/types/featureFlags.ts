@@ -57,6 +57,11 @@ export enum FeatureFlags {
      * Enable SQL pivot results conversion to PivotData format
      */
     UseSqlPivotResults = 'use-sql-pivot-results',
+
+    /**
+     * Enable the unused content dashboard showing least viewed charts and dashboards
+     */
+    UnusedContentDashboard = 'unused-content-dashboard',
 }
 
 export type FeatureFlag = {
