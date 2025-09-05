@@ -5,6 +5,7 @@ import {
     isUserWithOrg,
     SchedulerJobStatus,
     SessionUser,
+    UnusedContent,
     UserActivity,
 } from '@lightdash/common';
 
@@ -128,5 +129,39 @@ export class AnalyticsService extends BaseService {
             projectUuid,
         });
         return upload.path;
+    }
+
+    async getUnusedContent(
+        projectUuid: string,
+        user: SessionUser,
+    ): Promise<UnusedContent> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Analytics', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        this.analytics.track({
+            event: 'usage_analytics.dashboard_viewed',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: user.organizationUuid,
+                dashboardType: 'user_activity',
+            },
+        });
+
+        return this.analyticsModel.getUnusedContent(projectUuid);
     }
 }

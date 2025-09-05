@@ -3,6 +3,7 @@ import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
 import {
     type ApiUserActivityDownloadCsv,
+    type UnusedContent,
     type UserActivity,
     type ViewStatistics,
 } from './types/analytics';
@@ -865,6 +866,7 @@ type ApiResults =
     | SlackSettings
     | ApiSlackChannelsResponse['results']
     | UserActivity
+    | UnusedContent
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult
