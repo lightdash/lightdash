@@ -1,9 +1,5 @@
 import { type AgentToolCallArgs, type ToolName } from '@lightdash/common';
-import {
-    configureStore,
-    createSlice,
-    type PayloadAction,
-} from '@reduxjs/toolkit';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 type ToolCall = {
     toolCallId: string;
@@ -11,7 +7,7 @@ type ToolCall = {
     toolArgs: AgentToolCallArgs;
 };
 
-export interface StreamingState {
+export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
     content: string;
@@ -20,17 +16,20 @@ export interface StreamingState {
     error?: string;
 }
 
-type State = Record<string, StreamingState>;
+type State = Record<string, AiAgentThreadStreamingState>;
 
 const initialState: State = {};
-const initialThread: Omit<StreamingState, 'threadUuid' | 'messageUuid'> = {
+const initialThread: Omit<
+    AiAgentThreadStreamingState,
+    'threadUuid' | 'messageUuid'
+> = {
     content: '',
     isStreaming: true,
     toolCalls: [],
 };
 
-const threadStreamSlice = createSlice({
-    name: 'threadStream',
+export const aiAgentThreadStreamSlice = createSlice({
+    name: 'aiAgentThreadStream',
     initialState,
     reducers: {
         startStreaming: (
@@ -83,7 +82,7 @@ const threadStreamSlice = createSlice({
             const streamingThread = state[threadUuid];
             if (streamingThread) {
                 const existingIndex = streamingThread.toolCalls.findIndex(
-                    (tc) => tc.toolCallId === toolCallId,
+                    (tc: ToolCall) => tc.toolCallId === toolCallId,
                 );
                 if (existingIndex !== -1) {
                     streamingThread.toolCalls[existingIndex] = {
@@ -122,13 +121,4 @@ export const {
     stopStreaming,
     setError,
     addToolCall,
-} = threadStreamSlice.actions;
-
-export const store = configureStore({
-    reducer: {
-        threads: threadStreamSlice.reducer,
-    },
-});
-
-export type AiAgentThreadStreamState = ReturnType<typeof store.getState>;
-export type AiAgentThreadStreamDispatch = typeof store.dispatch;
+} = aiAgentThreadStreamSlice.actions;
