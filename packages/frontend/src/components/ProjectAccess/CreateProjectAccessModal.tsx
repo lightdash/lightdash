@@ -1,19 +1,20 @@
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberRole,
-    ProjectMemberRole,
     validateEmail,
-    type CreateProjectMember,
     type InviteLink,
+    type Role,
 } from '@lightdash/common';
 
 import { Button, Group, Modal, Select, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
+import { useOrganizationRoles } from '../../hooks/useOrganizationRoles';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../hooks/useProjectAccess';
+import { useUpsertProjectUserRoleAssignmentMutation } from '../../hooks/useProjectRoles';
 import useApp from '../../providers/App/useApp';
 import { TrackPage } from '../../providers/Tracking/TrackingProvider';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -36,8 +37,12 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
     const { user } = useApp();
 
     const { data: organizationUsers } = useOrganizationUsers();
+    const { data: organizationRoles, isLoading: isLoadingRoles } =
+        useOrganizationRoles();
     const { mutateAsync: createMutation, isLoading } =
         useCreateProjectAccessMutation(projectUuid);
+    const { mutateAsync: upsertRoleMutation, isLoading: isUpsertingRole } =
+        useUpsertProjectUserRoleAssignmentMutation(projectUuid);
 
     const {
         mutateAsync: inviteMutation,
@@ -45,10 +50,10 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
         reset,
     } = useCreateInviteLinkMutation();
 
-    const form = useForm<Pick<CreateProjectMember, 'email' | 'role'>>({
+    const form = useForm<{ email: string; roleId: string }>({
         initialValues: {
             email: '',
-            role: ProjectMemberRole.VIEWER,
+            roleId: '',
         },
     });
 
@@ -56,40 +61,79 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
     const [emailOptions, setEmailOptions] = useState<string[]>([]);
 
+    // Reuse existing role selection logic from ProjectAccess component
+    const roleOptions = useMemo(() => {
+        return organizationRoles?.map(
+            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
+                value: role.roleUuid,
+                label: role.name,
+                group:
+                    role.ownerType === 'system' ? 'System role' : 'Custom role',
+            }),
+        );
+    }, [organizationRoles]);
+
+    // Set default role to viewer when roles are loaded
+    useEffect(() => {
+        if (organizationRoles && !form.values.roleId) {
+            const viewerRole = organizationRoles.find(
+                (role) => role.name.toLowerCase() === 'viewer',
+            );
+            if (viewerRole) {
+                form.setFieldValue('roleId', viewerRole.roleUuid);
+            }
+        }
+    }, [organizationRoles, form]);
+
     useEffect(() => {
         if (organizationUsers) {
             setEmailOptions(organizationUsers.map(({ email }) => email));
         }
     }, [organizationUsers]);
 
-    const handleSubmit = async (
-        formData: Pick<CreateProjectMember, 'email' | 'role'>,
-    ) => {
+    const handleSubmit = async (formData: {
+        email: string;
+        roleId: string;
+    }) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
         setInviteLink(undefined);
 
-        if (addNewMember) {
-            const data = await inviteMutation({
-                email: formData.email,
-                role: OrganizationMemberRole.MEMBER,
+        // Check if user already exists in organization
+        const existingUser = organizationUsers?.find(
+            (u) => u.email === formData.email,
+        );
+
+        if (existingUser) {
+            // For existing users, just assign the role using the v2 endpoint
+            await upsertRoleMutation({
+                userId: existingUser.userUuid,
+                roleId: formData.roleId,
             });
-            await createMutation({
-                ...formData,
-                sendEmail: false,
-            });
-            setAddNewMember(false);
-            setInviteLink(data);
-            reset();
-            form.reset();
         } else {
+            // For new users, use the extended v1 endpoint with roleId
             await createMutation({
-                ...formData,
+                email: formData.email,
+                role: 'viewer' as any, // Required but not used when roleId is provided
+                roleId: formData.roleId,
                 sendEmail: true,
             });
-            form.reset();
+
+            if (addNewMember) {
+                // Invite user to organization as well
+                const data = await inviteMutation({
+                    email: formData.email,
+                    role: OrganizationMemberRole.MEMBER,
+                });
+
+                setAddNewMember(false);
+                setInviteLink(data);
+                reset();
+            }
         }
+
+        form.reset();
     };
 
     const userCanInviteUsersToOrganization = user.data?.ability.can(
@@ -121,7 +165,7 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                 <form
                     name="add_user_to_project"
                     onSubmit={form.onSubmit(
-                        (values: Pick<CreateProjectMember, 'email' | 'role'>) =>
+                        (values: { email: string; roleId: string }) =>
                             handleSubmit(values),
                     )}
                 >
@@ -135,7 +179,9 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                             searchable
                             creatable
                             required
-                            disabled={isLoading}
+                            disabled={
+                                isLoading || isLoadingRoles || isUpsertingRole
+                            }
                             getCreateLabel={(query) => {
                                 if (validateEmail(query)) {
                                     return (
@@ -167,21 +213,23 @@ const CreateProjectAccessModal: FC<Props> = ({ projectUuid, onClose }) => {
                             sx={{ flexGrow: 1 }}
                         />
                         <Select
-                            data={Object.values(ProjectMemberRole).map(
-                                (orgMemberRole) => ({
-                                    value: orgMemberRole,
-                                    label: orgMemberRole.replace('_', ' '),
-                                }),
-                            )}
-                            disabled={isLoading}
+                            data={roleOptions}
+                            disabled={
+                                isLoading || isLoadingRoles || isUpsertingRole
+                            }
                             required
                             placeholder="Select role"
                             dropdownPosition="bottom"
                             withinPortal
-                            {...form.getInputProps('role')}
+                            {...form.getInputProps('roleId')}
                         />
                         <Button
-                            disabled={isLoading || isInvitationLoading}
+                            disabled={
+                                isLoading ||
+                                isInvitationLoading ||
+                                isLoadingRoles ||
+                                isUpsertingRole
+                            }
                             type="submit"
                         >
                             Give access
