@@ -11,11 +11,12 @@
             "cypress",
             "@testing-library/cypress",
             "node",
-            "cypress-file-upload"
+            "cypress-file-upload",
+            "@playwright/test"
         ],
         "strictNullChecks": true, /* Enable strict null checks. */
         "esModuleInterop": true,
-        "resolveJsonModule": true,
+        "resolveJsonModule": true
     },
     "include": [
         "**/*.ts"
