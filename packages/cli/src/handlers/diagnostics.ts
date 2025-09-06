@@ -115,6 +115,17 @@ export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
     // Auth Status
     console.log(styles.bold('Authentication Status:'));
     const authStatus = await getAuthStatus();
+
+    // Check for LIGHTDASH_API_KEY environment variable
+    const hasEnvApiKey = !!process.env.LIGHTDASH_API_KEY;
+    if (hasEnvApiKey) {
+        console.log(
+            `  ⚠️ ${styles.warning(
+                'LIGHTDASH_API_KEY environment variable is set and will override config file credentials',
+            )}`,
+        );
+    }
+
     if (authStatus.hasAuth) {
         console.log(`  ✅ Authenticated`);
         console.log(`  Instance: ${authStatus.serverUrl}`);
