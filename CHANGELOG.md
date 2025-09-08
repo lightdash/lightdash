@@ -1,3 +1,10 @@
+## [0.1985.2](https://github.com/lightdash/lightdash/compare/0.1985.1...0.1985.2) (2025-09-08)
+
+
+### Bug Fixes
+
+* pat expire in hours ([#16730](https://github.com/lightdash/lightdash/issues/16730)) ([324b710](https://github.com/lightdash/lightdash/commit/324b710cc41571ed9c7a15c90b69bd7b94e9e45c))
+
 ## [0.1985.1](https://github.com/lightdash/lightdash/compare/0.1985.0...0.1985.1) (2025-09-05)
 
 
