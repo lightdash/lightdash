@@ -863,9 +863,9 @@ describe('PivotQueryBuilder', () => {
                 'dense_rank() over (order by "date" ASC, "store_id" ASC, "product_category" ASC)',
             );
 
-            // Should include all columns in select references
+            // Should include all columns in select references (all should be quoted now)
             expect(result).toContain(
-                'date, store_id, product_category, "category", "region"',
+                '"date", "store_id", "product_category", "category", "region"',
             );
         });
 
