@@ -12,11 +12,12 @@ import {
 import {
     Collapse,
     Group,
+    Loader,
     SegmentedControl,
     Stack,
     Switch,
 } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { lazy, Suspense, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -24,7 +25,13 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import { ReferenceLines } from './ReferenceLines';
-import { TooltipConfig } from './TooltipConfig';
+
+// Lazy load because it imports heavy module "@monaco-editor/react"
+const TooltipConfig = lazy(() =>
+    import('./TooltipConfig').then((module) => ({
+        default: module.TooltipConfig,
+    })),
+);
 
 enum Positions {
     Left = 'left',
@@ -217,7 +224,9 @@ export const Legend: FC<Props> = ({ items }) => {
                 <ReferenceLines items={items} projectUuid={projectUuid} />
             )}
             {projectUuid && (
-                <TooltipConfig fields={autocompleteFieldsTooltip} />
+                <Suspense fallback={<Loader size="sm" />}>
+                    <TooltipConfig fields={autocompleteFieldsTooltip} />
+                </Suspense>
             )}
         </Stack>
     );
