@@ -111,6 +111,7 @@ import {
     NotFoundError,
     NotSupportedError,
     OpenIdIdentityIssuerType,
+    OrganizationMemberRole,
     type ParameterDefinitions,
     ParameterError,
     type ParametersValuesMap,
@@ -4604,11 +4605,22 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        await this.projectModel.createProjectAccess(
-            projectUuid,
-            data.email,
-            data.role,
-        );
+        if (data.roleId) {
+            // Use the roleId-based method for custom roles
+            await this.projectModel.createProjectAccessWithRoleId(
+                projectUuid,
+                data.email,
+                data.roleId,
+                user.organizationUuid,
+            );
+        } else {
+            // Use the traditional enum role method
+            await this.projectModel.createProjectAccess(
+                projectUuid,
+                data.email,
+                data.role,
+            );
+        }
         const project = await this.projectModel.getSummary(projectUuid);
         const projectUrl = new URL(
             `/projects/${projectUuid}/home`,

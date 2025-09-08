@@ -1311,6 +1311,71 @@ export class ProjectModel {
         }
     }
 
+    async createProjectAccessWithRoleId(
+        projectUuid: string,
+        email: string,
+        roleId: string,
+        organizationUuid: string,
+    ): Promise<void> {
+        try {
+            const [project] = await this.database('projects')
+                .select('project_id', 'organization_id')
+                .where('project_uuid', projectUuid);
+
+            if (!project) {
+                throw new NotFoundError(`Project ${projectUuid} not found`);
+            }
+
+            // Verify role exists in organization
+            const [role] = await this.database('roles')
+                .select('role_uuid')
+                .where('role_uuid', roleId)
+                .andWhere('organization_uuid', organizationUuid);
+
+            if (!role) {
+                throw new NotFoundError(
+                    `Role ${roleId} not found in organization`,
+                );
+            }
+
+            const [user] = await this.database('users')
+                .leftJoin('emails', 'emails.user_id', 'users.user_id')
+                .leftJoin(
+                    OrganizationMembershipsTableName,
+                    `${OrganizationMembershipsTableName}.user_id`,
+                    'users.user_id',
+                )
+                .select('users.user_id')
+                .where('email', email)
+                .andWhere(
+                    `${OrganizationMembershipsTableName}.organization_id`,
+                    project.organization_id,
+                );
+            if (user === undefined) {
+                throw new NotExistsError(
+                    `Can't find user with email ${email} in the organization`,
+                );
+            }
+            await this.database('project_memberships').insert({
+                project_id: project.project_id,
+                user_id: user.user_id,
+                role: null, // Use null for enum role when using role_uuid
+                role_uuid: roleId,
+            });
+        } catch (error: AnyType) {
+            if (
+                error instanceof DatabaseError &&
+                error.constraint ===
+                    'project_memberships_project_id_user_id_unique'
+            ) {
+                throw new AlreadyExistsError(
+                    `This user email ${email} already has access to this project`,
+                );
+            }
+            throw error;
+        }
+    }
+
     async updateProjectAccess(
         projectUuid: string,
         userUuid: string,
