@@ -31,11 +31,19 @@ export const useUpsertProjectUserRoleAssignmentMutation = (
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation(
-        async ({ userId, roleId }: { userId: string; roleId: string }) => {
+        async ({
+            userId,
+            roleId,
+            sendEmail,
+        }: {
+            userId: string;
+            roleId: string;
+            sendEmail?: boolean;
+        }) => {
             return lightdashApi({
                 url: `/projects/${projectId}/roles/assignments/user/${userId}`,
                 method: 'POST',
-                body: JSON.stringify({ roleId }),
+                body: JSON.stringify({ roleId, sendEmail }),
                 version: 'v2',
             });
         },

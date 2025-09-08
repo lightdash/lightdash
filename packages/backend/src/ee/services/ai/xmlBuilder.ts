@@ -1,7 +1,7 @@
 export function xmlBuilder(
     tag: string,
     props: Record<string, string | number | boolean> | null,
-    ...children: (string | null | undefined)[]
+    ...children: (string | null | undefined | boolean)[]
 ): string {
     const attributes = props
         ? Object.entries(props)
@@ -12,7 +12,12 @@ export function xmlBuilder(
     const attributeString = attributes ? ` ${attributes}` : '';
     const filteredChildren = children
         .flat()
-        .filter((child) => child != null) as string[];
+        .filter(
+            (child) =>
+                typeof child !== 'boolean' &&
+                typeof child !== 'undefined' &&
+                child !== null,
+        );
 
     if (filteredChildren.length === 0) {
         return `<${tag}${attributeString}/>`;

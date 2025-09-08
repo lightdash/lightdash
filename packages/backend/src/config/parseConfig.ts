@@ -40,15 +40,11 @@ import {
 
 enum TokenEnvironmentVariable {
     SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
-    PERSONAL_ACCESS_TOKEN = 'LD_SETUP_PROJECT_PAT',
 }
 
 const tokenConfigs = {
     [TokenEnvironmentVariable.SERVICE_ACCOUNT]: {
         prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
-    },
-    [TokenEnvironmentVariable.PERSONAL_ACCESS_TOKEN]: {
-        prefix: AuthTokenPrefix.PERSONAL_ACCESS_TOKEN,
     },
 };
 
@@ -337,6 +333,14 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
     try {
         if (!process.env.LD_SETUP_ADMIN_EMAIL) return undefined;
 
+        const projectPat = process.env.LD_SETUP_PROJECT_PAT;
+        if (!projectPat) {
+            throw new ParameterError(
+                `LD_SETUP_PROJECT_PAT is required for initial setup`,
+                { variant: 'ApiToken' },
+            );
+        }
+
         return {
             organization: {
                 admin: {
@@ -379,9 +383,7 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                 database: process.env.LD_SETUP_PROJECT_SCHEMA!,
                 serverHostName: process.env.LD_SETUP_PROJECT_HOST!,
                 httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH!,
-                personalAccessToken: isApiValidToken(
-                    TokenEnvironmentVariable.PERSONAL_ACCESS_TOKEN,
-                )?.value!,
+                personalAccessToken: projectPat,
                 requireUserCredentials: undefined,
                 startOfWeek: parseEnum<WeekDay>(
                     process.env.LD_SETUP_START_OF_WEEK,
@@ -411,7 +413,10 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
         // Unless it's related to API tokens, in which case we throw an error to get
         // a proper token. Otherwise, the CLI will not work and the app will be in a state
         // that needs to be recovered.
-        if (e instanceof ParseError && e.data.variant === 'ApiToken') {
+        if (
+            (e instanceof ParseError && e.data.variant === 'ApiToken') ||
+            (e instanceof ParameterError && e.data.variant === 'ApiToken')
+        ) {
             throw e;
         }
 
@@ -457,9 +462,7 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
                 process.env.LD_SETUP_DBT_VERSION,
                 SupportedDbtVersions,
             ),
-            personalAccessToken: isApiValidToken(
-                TokenEnvironmentVariable.PERSONAL_ACCESS_TOKEN,
-            )?.value,
+            personalAccessToken: process.env.LD_SETUP_PROJECT_PAT,
         },
         serviceAccount: isApiValidToken(
             TokenEnvironmentVariable.SERVICE_ACCOUNT,

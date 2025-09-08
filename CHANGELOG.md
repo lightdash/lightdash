@@ -1,3 +1,45 @@
+# [0.1987.0](https://github.com/lightdash/lightdash/compare/0.1986.0...0.1987.0) (2025-09-08)
+
+
+### Features
+
+* add option to remove prefix from personal access tokens ([#16782](https://github.com/lightdash/lightdash/issues/16782)) ([e151b15](https://github.com/lightdash/lightdash/commit/e151b15e878985a161560cf0349f6ee08acb4344))
+
+# [0.1986.0](https://github.com/lightdash/lightdash/compare/0.1985.5...0.1986.0) (2025-09-08)
+
+
+### Features
+
+* auto-run explores from dashboards ([#16756](https://github.com/lightdash/lightdash/issues/16756)) ([a4603ea](https://github.com/lightdash/lightdash/commit/a4603ea6c57a4874d413edcc2efa59e0775e1f90))
+
+## [0.1985.5](https://github.com/lightdash/lightdash/compare/0.1985.4...0.1985.5) (2025-09-08)
+
+
+### Bug Fixes
+
+* allow boolean values in xmlBuilder children ([#16775](https://github.com/lightdash/lightdash/issues/16775)) ([a835862](https://github.com/lightdash/lightdash/commit/a8358621b68be85c9a89334f1a464f55b6a76c50))
+
+## [0.1985.4](https://github.com/lightdash/lightdash/compare/0.1985.3...0.1985.4) (2025-09-08)
+
+
+### Bug Fixes
+
+* add user access with custom roles ([#16720](https://github.com/lightdash/lightdash/issues/16720)) ([45bb9ad](https://github.com/lightdash/lightdash/commit/45bb9adde0b936084d41ee8561948e9a63b80ad9))
+
+## [0.1985.3](https://github.com/lightdash/lightdash/compare/0.1985.2...0.1985.3) (2025-09-08)
+
+
+### Bug Fixes
+
+* lazy load CommentWithMentions component to reduce bundle size ([#16737](https://github.com/lightdash/lightdash/issues/16737)) ([4de03db](https://github.com/lightdash/lightdash/commit/4de03dbc4e52762b70e694503d355394e12bb545)), closes [#13587](https://github.com/lightdash/lightdash/issues/13587)
+
+## [0.1985.2](https://github.com/lightdash/lightdash/compare/0.1985.1...0.1985.2) (2025-09-08)
+
+
+### Bug Fixes
+
+* pat expire in hours ([#16730](https://github.com/lightdash/lightdash/issues/16730)) ([324b710](https://github.com/lightdash/lightdash/commit/324b710cc41571ed9c7a15c90b69bd7b94e9e45c))
+
 ## [0.1985.1](https://github.com/lightdash/lightdash/compare/0.1985.0...0.1985.1) (2025-09-05)
 
 

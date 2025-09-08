@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AddScopesToRole,
+    CreateProjectMember,
     CreateRole,
     ForbiddenError,
     getSystemRoles,
@@ -19,6 +20,7 @@ import {
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -35,6 +37,7 @@ type RolesServiceArguments = {
     organizationModel: OrganizationModel;
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
+    emailClient: EmailClient;
 };
 
 export class RolesService extends BaseService {
@@ -52,6 +55,8 @@ export class RolesService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly emailClient: EmailClient;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -60,6 +65,7 @@ export class RolesService extends BaseService {
         organizationModel,
         groupsModel,
         projectModel,
+        emailClient,
     }: RolesServiceArguments) {
         super({ serviceName: 'RolesService' });
         this.lightdashConfig = lightdashConfig;
@@ -69,6 +75,7 @@ export class RolesService extends BaseService {
         this.organizationModel = organizationModel;
         this.groupsModel = groupsModel;
         this.projectModel = projectModel;
+        this.emailClient = emailClient;
     }
 
     private static validateOrganizationAccess(
@@ -517,6 +524,12 @@ export class RolesService extends BaseService {
         await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
 
+        const userProjectRole =
+            await this.rolesModel.getProjectAccessByUserUuid(
+                userUuid,
+                projectUuid,
+            );
+
         if (isSystemRole(roleId)) {
             await this.rolesModel.upsertSystemRoleProjectAccess(
                 projectUuid,
@@ -536,6 +549,37 @@ export class RolesService extends BaseService {
                 roleId,
             );
         }
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+
+        // If the user is added to the project for the first time, send an invitation email
+        const userEmail = user.email;
+        const sendInvitationEmail =
+            userProjectRole.length === 0 && request.sendEmail && userEmail;
+        if (sendInvitationEmail) {
+            this.logger.debug(
+                `Sending email to ${userEmail} for project ${project.name} with role ${role.name}`,
+            );
+            const projectUrl = new URL(
+                `/projects/${projectUuid}/home`,
+                this.lightdashConfig.siteUrl,
+            ).href;
+            const data = isSystemRole(roleId)
+                ? {
+                      email: userEmail,
+                      role: roleId,
+                      sendEmail: true,
+                  }
+                : {
+                      email: userEmail,
+                      customRoleName: role.name,
+                  };
+            await this.emailClient.sendProjectAccessEmail(
+                user,
+                data,
+                project.name,
+                projectUrl,
+            );
+        }
 
         this.analytics.track({
             event: isSystemRole(roleId)
@@ -549,7 +593,6 @@ export class RolesService extends BaseService {
                 isSystemRole: isSystemRole(roleId),
             },
         });
-        const user = await this.userModel.getUserDetailsByUuid(userUuid);
 
         return {
             roleId,
