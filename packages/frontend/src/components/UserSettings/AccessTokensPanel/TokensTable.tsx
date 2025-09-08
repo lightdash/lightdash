@@ -65,10 +65,20 @@ const TokenItem: FC<{
                 <td>
                     <Group align="center" position="left" spacing="xs">
                         <span>
-                            {expiresAt
-                                ? formatDate(expiresAt)
-                                : 'No expiration date'}
+                            {expiresAt ? (
+                                <Tooltip
+                                    withinPortal
+                                    position="top"
+                                    maw={350}
+                                    label={formatTimestamp(expiresAt)}
+                                >
+                                    <span>{formatDate(expiresAt)}</span>
+                                </Tooltip>
+                            ) : (
+                                'No expiration date'
+                            )}
                         </span>
+
                         {rotatedAt && (
                             <Tooltip
                                 withinPortal
