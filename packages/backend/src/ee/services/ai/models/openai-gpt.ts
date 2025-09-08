@@ -8,15 +8,10 @@ export const getOpenaiGptmodel = (
 ) => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
-        compatibility: 'strict',
-        ...(config.baseUrl
-            ? { baseURL: config.baseUrl, compatibility: 'compatible' }
-            : {}),
+        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });
 
-    const model = openai(config.modelName, {
-        structuredOutputs: true,
-    });
+    const model = openai(config.modelName);
 
     return {
         model,

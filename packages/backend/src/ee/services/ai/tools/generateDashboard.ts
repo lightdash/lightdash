@@ -61,7 +61,7 @@ export const getGenerateDashboard = ({
 
     return tool({
         description: toolDashboardArgsSchema.description,
-        parameters: schema,
+        inputSchema: schema,
         execute: async (toolArgs) => {
             try {
                 const args = toolDashboardArgsSchemaTransformed.parse(toolArgs);

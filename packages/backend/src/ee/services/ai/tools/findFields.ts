@@ -94,7 +94,7 @@ const getFieldsText = (
 export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
     tool({
         description: toolFindFieldsArgsSchema.description,
-        parameters: toolFindFieldsArgsSchema,
+        inputSchema: toolFindFieldsArgsSchema,
         execute: async (args) => {
             try {
                 const fieldSearchQueryResults = await Promise.all(
