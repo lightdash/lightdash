@@ -383,6 +383,7 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
 
             process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
             process.env.LD_SETUP_SERVICE_ACCOUNT_EXPIRATION = '0';
+            process.env.LD_SETUP_PROJECT_PAT = 'project_personal_access_token';
         });
 
         afterEach(() => {
@@ -399,23 +400,42 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
             });
         });
 
-        test('should parse personal access token', () => {
-            process.env.LD_SETUP_PROJECT_PAT = 'ldpat_personal-access-token';
-            const config = parseConfig();
-            expect(config.initialSetup?.project?.personalAccessToken).toBe(
-                'ldpat_personal-access-token',
-            );
-        });
-
         test('should throw error if service account token is not prefixed with "svc_"', () => {
             process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN =
                 'service-account-token';
             expect(() => parseConfig()).toThrowError(ParseError);
         });
 
-        test('should throw error if personal access token is not prefixed with "pat-"', () => {
-            process.env.LD_SETUP_PROJECT_PAT = 'personal-access-token';
-            expect(() => parseConfig()).toThrowError(ParseError);
+        test('should parse personal access token', () => {
+            process.env.LD_SETUP_PROJECT_PAT = 'project_personal_access_token';
+            const config = parseConfig();
+            expect(config.initialSetup?.project?.personalAccessToken).toBe(
+                'project_personal_access_token',
+            );
+        });
+
+        test('should throw ParameterError when LD_SETUP_PROJECT_PAT is missing but LD_SETUP_ADMIN_EMAIL is set', () => {
+            delete process.env.LD_SETUP_PROJECT_PAT;
+            expect(() => parseConfig()).toThrowError(ParameterError);
+            expect(() => parseConfig()).toThrowError(
+                'LD_SETUP_PROJECT_PAT is required for initial setup',
+            );
+        });
+
+        test('should throw ParameterError when LD_SETUP_PROJECT_PAT is empty string', () => {
+            process.env.LD_SETUP_PROJECT_PAT = '';
+            expect(() => parseConfig()).toThrowError(ParameterError);
+            expect(() => parseConfig()).toThrowError(
+                'LD_SETUP_PROJECT_PAT is required for initial setup',
+            );
+        });
+
+        test('should return undefined initialSetup when LD_SETUP_ADMIN_EMAIL is not set', () => {
+            delete process.env.LD_SETUP_ADMIN_EMAIL;
+            // LD_SETUP_PROJECT_PAT should be ignored when admin email is not set
+            process.env.LD_SETUP_PROJECT_PAT = 'some_token';
+            const config = parseConfig();
+            expect(config.initialSetup).toBeUndefined();
         });
     });
 });
