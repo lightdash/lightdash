@@ -291,28 +291,35 @@ export default class EmailClient {
 
     public async sendProjectAccessEmail(
         userThatInvited: Pick<SessionUser, 'firstName' | 'lastName'>,
-        projectMember: CreateProjectMember,
+        projectMember:
+            | CreateProjectMember
+            | { email: string; customRoleName: string },
         projectName: string,
         projectUrl: string,
     ) {
-        let roleAction = 'view';
-        switch (projectMember.role) {
-            case ProjectMemberRole.VIEWER:
-                roleAction = 'view';
-                break;
-            case ProjectMemberRole.INTERACTIVE_VIEWER:
-                roleAction = 'explore';
-                break;
-            case ProjectMemberRole.EDITOR:
-            case ProjectMemberRole.DEVELOPER:
-                roleAction = 'edit';
-                break;
-            case ProjectMemberRole.ADMIN:
-                roleAction = 'manage';
-                break;
-            default:
-                const nope: never = projectMember.role;
+        let roleAction = '';
+        if ('customRoleName' in projectMember) {
+            roleAction = ``;
+        } else {
+            switch (projectMember.role) {
+                case ProjectMemberRole.VIEWER:
+                    roleAction = 'view';
+                    break;
+                case ProjectMemberRole.INTERACTIVE_VIEWER:
+                    roleAction = 'explore';
+                    break;
+                case ProjectMemberRole.EDITOR:
+                case ProjectMemberRole.DEVELOPER:
+                    roleAction = 'edit';
+                    break;
+                case ProjectMemberRole.ADMIN:
+                    roleAction = 'manage';
+                    break;
+                default:
+                    const nope: never = projectMember.role;
+            }
         }
+
         return this.sendEmail({
             to: projectMember.email,
             subject: `${userThatInvited.firstName} ${userThatInvited.lastName} invited you to ${projectName}`,

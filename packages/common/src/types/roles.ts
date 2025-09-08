@@ -115,6 +115,7 @@ export type UpdateRoleAssignmentRequest = {
 
 export type UpsertUserRoleAssignmentRequest = {
     roleId: string;
+    sendEmail?: boolean;
 };
 
 // API Response Types for Unified Assignments
