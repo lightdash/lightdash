@@ -1,3 +1,10 @@
+## [0.1985.3](https://github.com/lightdash/lightdash/compare/0.1985.2...0.1985.3) (2025-09-08)
+
+
+### Bug Fixes
+
+* lazy load CommentWithMentions component to reduce bundle size ([#16737](https://github.com/lightdash/lightdash/issues/16737)) ([4de03db](https://github.com/lightdash/lightdash/commit/4de03dbc4e52762b70e694503d355394e12bb545)), closes [#13587](https://github.com/lightdash/lightdash/issues/13587)
+
 ## [0.1985.2](https://github.com/lightdash/lightdash/compare/0.1985.1...0.1985.2) (2025-09-08)
 
 
