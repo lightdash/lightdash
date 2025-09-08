@@ -1,3 +1,10 @@
+## [0.1985.5](https://github.com/lightdash/lightdash/compare/0.1985.4...0.1985.5) (2025-09-08)
+
+
+### Bug Fixes
+
+* allow boolean values in xmlBuilder children ([#16775](https://github.com/lightdash/lightdash/issues/16775)) ([a835862](https://github.com/lightdash/lightdash/commit/a8358621b68be85c9a89334f1a464f55b6a76c50))
+
 ## [0.1985.4](https://github.com/lightdash/lightdash/compare/0.1985.3...0.1985.4) (2025-09-08)
 
 
