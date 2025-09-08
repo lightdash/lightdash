@@ -91,7 +91,7 @@ export const getGenerateTimeSeriesVizConfig = ({
 
     return tool({
         description: toolTimeSeriesArgsSchema.description,
-        parameters: schema,
+        inputSchema: schema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📈 Generating your line chart...');

@@ -86,7 +86,7 @@ export const getGenerateTableVizConfig = ({
 
     return tool({
         description: toolTableVizArgsSchema.description,
-        parameters: schema,
+        inputSchema: schema,
         execute: async (toolArgs) => {
             let isOneRow = false;
             try {

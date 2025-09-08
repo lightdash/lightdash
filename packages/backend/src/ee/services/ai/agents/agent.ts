@@ -1,13 +1,15 @@
-import { AnyType, assertUnreachable } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     generateObject,
     generateText,
     NoSuchToolError,
     smoothStream,
+    stepCountIs,
     streamText,
+    ToolCallRepairFunction,
+    ToolSet,
 } from 'ai';
-import type { ZodType } from 'zod';
 import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
 import { getFindCharts } from '../tools/findCharts';
@@ -25,10 +27,10 @@ import type {
 } from '../types/aiAgent';
 
 export const defaultAgentOptions = {
-    toolChoice: 'auto',
-    maxSteps: 10,
+    toolChoice: 'auto' as const,
+    stopWhen: stepCountIs(10),
     maxRetries: 3,
-} as const;
+};
 
 const getAgentTelemetryConfig = (
     functionId: string,
@@ -53,6 +55,82 @@ const getAgentTelemetryConfig = (
             promptUuid,
         },
     } as const);
+
+const getRepairToolCall =
+    (args: AiAgentArgs, tools: ToolSet): ToolCallRepairFunction<typeof tools> =>
+    async ({ messages: conversationHistory, error, toolCall, inputSchema }) => {
+        if (args.debugLoggingEnabled) {
+            Logger.debug(
+                `[AiAgent][Repair Tool Call] Attempting to repair tool call: ${toolCall.toolName}`,
+            );
+            Logger.debug(
+                `[AiAgent][Repair Tool Call] Original tool call arguments: ${JSON.stringify(
+                    toolCall.input,
+                )}`,
+            );
+            if (error) {
+                Logger.debug(
+                    `[AiAgent][Repair Tool Call] Error encountered: ${error.message}`,
+                );
+            }
+        }
+        if (NoSuchToolError.isInstance(error)) {
+            if (args.debugLoggingEnabled) {
+                Logger.debug(
+                    `[AiAgent][Repair Tool Call] No such tool error for ${toolCall.toolName}. Returning null.`,
+                );
+            }
+            return null;
+        }
+
+        const tool = tools[toolCall.toolName as keyof typeof tools];
+        if (!tool) {
+            if (args.debugLoggingEnabled) {
+                Logger.warn(
+                    `[AiAgent][Repair Tool Call] Tool ${toolCall.toolName} not found in available tools.`,
+                );
+            }
+            return null; // Should ideally not happen if NoSuchToolError is handled
+        }
+
+        // TODO: extract this as separate agent
+        if (args.debugLoggingEnabled) {
+            Logger.debug(
+                `[AiAgent][Repair Tool Call] Generating repaired object for tool: ${toolCall.toolName}`,
+            );
+        }
+        const { object: repairedArgs } = await generateObject({
+            model: args.model,
+            schema: tool.inputSchema,
+            messages: [
+                ...conversationHistory,
+                {
+                    role: 'system',
+                    content: [
+                        `The model tried to call the tool "${toolCall.toolName}"` +
+                            ` with the following arguments:`,
+                        JSON.stringify(toolCall.input),
+                        `The tool accepts the following schema:`,
+                        JSON.stringify(inputSchema(toolCall)),
+                        'Please fix the arguments.',
+                    ].join('\n'),
+                },
+            ],
+            experimental_telemetry: getAgentTelemetryConfig(
+                'generateAgentResponse/repairToolCall',
+                args,
+            ),
+        });
+
+        if (args.debugLoggingEnabled) {
+            Logger.debug(
+                `[AiAgent][Repair Tool Call] Repaired arguments: ${JSON.stringify(
+                    repairedArgs,
+                )}`,
+            );
+        }
+        return { ...toolCall, args: JSON.stringify(repairedArgs) };
+    };
 
 const getAgentTools = (
     args: AiAgentArgs,
@@ -220,7 +298,11 @@ export const generateAgentResponse = async ({
     try {
         if (args.debugLoggingEnabled) {
             Logger.debug(
-                `[AiAgent][Generate Agent Response] Calling generateText with model: ${args.model.modelId}`,
+                `[AiAgent][Generate Agent Response] Calling generateText with model: ${
+                    typeof args.model === 'string'
+                        ? args.model
+                        : args.model.modelId
+                }`,
             );
         }
         const result = await generateText({
@@ -229,89 +311,14 @@ export const generateAgentResponse = async ({
             model: args.model,
             tools,
             messages,
-            experimental_repairToolCall: async ({
-                messages: conversationHistory,
-                error,
-                toolCall,
-                parameterSchema,
-            }) => {
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][Repair Tool Call] Attempting to repair tool call: ${toolCall.toolName}`,
-                    );
-                    Logger.debug(
-                        `[AiAgent][Repair Tool Call] Original tool call arguments: ${JSON.stringify(
-                            toolCall.args,
-                        )}`,
-                    );
-                    if (error) {
-                        Logger.debug(
-                            `[AiAgent][Repair Tool Call] Error encountered: ${error.message}`,
-                        );
-                    }
-                }
-                if (NoSuchToolError.isInstance(error)) {
-                    if (args.debugLoggingEnabled) {
-                        Logger.debug(
-                            `[AiAgent][Repair Tool Call] No such tool error for ${toolCall.toolName}. Returning null.`,
-                        );
-                    }
-                    return null;
-                }
-
-                const tool = tools[toolCall.toolName as keyof typeof tools];
-                if (!tool) {
-                    if (args.debugLoggingEnabled) {
-                        Logger.warn(
-                            `[AiAgent][Repair Tool Call] Tool ${toolCall.toolName} not found in available tools.`,
-                        );
-                    }
-                    return null; // Should ideally not happen if NoSuchToolError is handled
-                }
-
-                // TODO: extract this as separate agent
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][Repair Tool Call] Generating repaired object for tool: ${toolCall.toolName}`,
-                    );
-                }
-                const { object: repairedArgs } = await generateObject({
-                    model: args.model,
-                    schema: tool.parameters as ZodType<AnyType>,
-                    messages: [
-                        ...conversationHistory,
-                        {
-                            role: 'system',
-                            content: [
-                                `The model tried to call the tool "${toolCall.toolName}"` +
-                                    ` with the following arguments:`,
-                                JSON.stringify(toolCall.args),
-                                `The tool accepts the following schema:`,
-                                JSON.stringify(parameterSchema(toolCall)),
-                                'Please fix the arguments.',
-                            ].join('\n'),
-                        },
-                    ],
-                    experimental_telemetry: getAgentTelemetryConfig(
-                        'generateAgentResponse/repairToolCall',
-                        args,
-                    ),
-                });
-
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][Repair Tool Call] Repaired arguments: ${JSON.stringify(
-                            repairedArgs,
-                        )}`,
-                    );
-                }
-                return { ...toolCall, args: JSON.stringify(repairedArgs) };
-            },
+            experimental_repairToolCall: getRepairToolCall(args, tools),
             onStepFinish: async (step) => {
                 if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][On Step Finish] Step finished. Type: ${step.stepType}`,
-                    );
+                    for (const toolCall of step.toolCalls) {
+                        Logger.debug(
+                            `[AiAgent][On Step Finish] Step finished. Tool call: ${toolCall.toolName}`,
+                        );
+                    }
                 }
                 if (step.toolCalls && step.toolCalls.length > 0) {
                     if (args.debugLoggingEnabled) {
@@ -329,7 +336,7 @@ export const generateAgentResponse = async ({
                                     }: ${toolCall.toolName} (ID: ${
                                         toolCall.toolCallId
                                     }) (ARGS: ${JSON.stringify(
-                                        toolCall.args,
+                                        toolCall.input,
                                     )})`,
                                 );
                             }
@@ -337,7 +344,7 @@ export const generateAgentResponse = async ({
                                 promptUuid: args.promptUuid,
                                 toolCallId: toolCall.toolCallId,
                                 toolName: toolCall.toolName,
-                                toolArgs: toolCall.args,
+                                toolArgs: toolCall.input,
                             });
                         }),
                     );
@@ -358,7 +365,7 @@ export const generateAgentResponse = async ({
                                     }: ${toolResult.toolName} (ID: ${
                                         toolResult.toolCallId
                                     }) (RESULT: ${JSON.stringify(
-                                        toolResult.result,
+                                        toolResult.output,
                                     )})`,
                                 );
                             }
@@ -366,7 +373,7 @@ export const generateAgentResponse = async ({
                                 promptUuid: args.promptUuid,
                                 toolCallId: toolResult.toolCallId,
                                 toolName: toolResult.toolName,
-                                result: toolResult.result,
+                                result: toolResult.output,
                             };
                         }),
                     );
@@ -418,7 +425,11 @@ export const streamAgentResponse = async ({
     try {
         if (args.debugLoggingEnabled) {
             Logger.debug(
-                `[AiAgent][Stream Agent Response] Calling streamText with model: ${args.model.modelId}`,
+                `[AiAgent][Stream Agent Response] Calling streamText with model: ${
+                    typeof args.model === 'string'
+                        ? args.model
+                        : args.model.modelId
+                }`,
             );
         }
         const result = streamText({
@@ -427,144 +438,81 @@ export const streamAgentResponse = async ({
             model: args.model,
             tools,
             messages,
-            experimental_repairToolCall: async ({
-                messages: conversationHistory,
-                error,
-                toolCall,
-                parameterSchema,
-            }) => {
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][Stream Repair Tool Call] Attempting to repair tool call: ${toolCall.toolName}`,
-                    );
-                    Logger.debug(
-                        `[AiAgent][Stream Repair Tool Call] Original tool call arguments: ${JSON.stringify(
-                            toolCall.args,
-                        )}`,
-                    );
-                    if (error) {
-                        Logger.debug(
-                            `[AiAgent][Stream Repair Tool Call] Error encountered: ${error.message}`,
-                        );
-                    }
-                }
-                if (NoSuchToolError.isInstance(error)) {
-                    if (args.debugLoggingEnabled) {
-                        Logger.debug(
-                            `[AiAgent][Stream Repair Tool Call] No such tool error for ${toolCall.toolName}. Returning null.`,
-                        );
-                    }
-                    return null;
-                }
-
-                const tool = tools[toolCall.toolName as keyof typeof tools];
-                if (!tool) {
-                    if (args.debugLoggingEnabled) {
-                        Logger.warn(
-                            `[AiAgent][Stream Repair Tool Call] Tool ${toolCall.toolName} not found in available tools.`,
-                        );
-                    }
-                    return null;
-                }
-
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][Stream Repair Tool Call] Generating repaired object for tool: ${toolCall.toolName}`,
-                    );
-                }
-
-                // TODO: extract this as separate agent
-                const { object: repairedArgs } = await generateObject({
-                    model: args.model,
-                    schema: tool.parameters as ZodType<AnyType>,
-                    messages: [
-                        ...conversationHistory,
-                        {
-                            role: 'system',
-                            content: [
-                                `The model tried to call the tool "${toolCall.toolName}"` +
-                                    ` with the following arguments:`,
-                                JSON.stringify(toolCall.args),
-                                `The tool accepts the following schema:`,
-                                JSON.stringify(parameterSchema(toolCall)),
-                                'Please fix the arguments.',
-                            ].join('\n'),
-                        },
-                    ],
-                    experimental_telemetry: getAgentTelemetryConfig(
-                        'streamAgentResponse/repairToolCall',
-                        args,
-                    ),
-                });
-
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][Stream Repair Tool Call] Repaired arguments: ${JSON.stringify(
-                            repairedArgs,
-                        )}`,
-                    );
-                }
-                return { ...toolCall, args: JSON.stringify(repairedArgs) };
-            },
+            experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
-                if (event.chunk.type === 'tool-call') {
-                    if (args.debugLoggingEnabled) {
-                        Logger.debug(
-                            `[AiAgent][Chunk Tool Call] Storing tool call for Prompt UUID ${
-                                args.promptUuid
-                            }: ${event.chunk.toolName} (ID: ${
-                                event.chunk.toolCallId
-                            }) (ARGS: ${JSON.stringify(event.chunk.args)})`,
-                        );
-                    }
-                    void dependencies
-                        .storeToolCall({
-                            promptUuid: args.promptUuid,
-                            toolCallId: event.chunk.toolCallId,
-                            toolName: event.chunk.toolName,
-                            toolArgs: event.chunk.args,
-                        })
-                        .catch((error) => {
-                            Logger.error(
-                                '[AiAgent][Chunk Tool Call] Failed to store tool call',
-                                error,
+                switch (event.chunk.type) {
+                    case 'tool-call':
+                        if (args.debugLoggingEnabled) {
+                            Logger.debug(
+                                `[AiAgent][Chunk Tool Call] Storing tool call for Prompt UUID ${
+                                    args.promptUuid
+                                }: ${event.chunk.toolName} (ID: ${
+                                    event.chunk.toolCallId
+                                }) (ARGS: ${JSON.stringify(
+                                    event.chunk.input,
+                                )})`,
                             );
-                            Sentry.captureException(error);
-                        });
-                }
-                if (event.chunk.type === 'tool-result') {
-                    if (args.debugLoggingEnabled) {
-                        Logger.debug(
-                            `[AiAgent][Chunk Tool Result] Storing tool result for Prompt UUID ${
-                                args.promptUuid
-                            }: ${event.chunk.toolName} (ID: ${
-                                event.chunk.toolCallId
-                            }) (RESULT: ${JSON.stringify(event.chunk.result)})`,
-                        );
-                    }
-                    void dependencies
-                        .storeToolResults([
-                            {
+                        }
+                        void dependencies
+                            .storeToolCall({
                                 promptUuid: args.promptUuid,
                                 toolCallId: event.chunk.toolCallId,
                                 toolName: event.chunk.toolName,
-                                result: event.chunk.result,
-                            },
-                        ])
-                        .catch((error) => {
-                            Logger.error(
-                                '[AiAgent][Chunk Tool Result] Failed to store tool result',
-                                error,
+                                toolArgs: event.chunk.input,
+                            })
+                            .catch((error) => {
+                                Logger.error(
+                                    '[AiAgent][Chunk Tool Call] Failed to store tool call',
+                                    error,
+                                );
+                                Sentry.captureException(error);
+                            });
+                        break;
+                    case 'tool-result':
+                        if (args.debugLoggingEnabled) {
+                            Logger.debug(
+                                `[AiAgent][Chunk Tool Result] Storing tool result for Prompt UUID ${
+                                    args.promptUuid
+                                }: ${event.chunk.toolName} (ID: ${
+                                    event.chunk.toolCallId
+                                }) (RESULT: ${JSON.stringify(
+                                    event.chunk.output,
+                                )})`,
                             );
-                            Sentry.captureException(error);
-                        });
-                }
-                if (event.chunk.type === 'text-delta') {
-                    if (args.debugLoggingEnabled) {
-                        Logger.debug(
-                            `[AiAgent][Chunk Text Delta] Received text chunk: ${event.chunk.textDelta}`,
-                        );
-                    }
+                        }
+                        void dependencies
+                            .storeToolResults([
+                                {
+                                    promptUuid: args.promptUuid,
+                                    toolCallId: event.chunk.toolCallId,
+                                    toolName: event.chunk.toolName,
+                                    result: event.chunk.output,
+                                },
+                            ])
+                            .catch((error) => {
+                                Logger.error(
+                                    '[AiAgent][Chunk Tool Result] Failed to store tool result',
+                                    error,
+                                );
+                                Sentry.captureException(error);
+                            });
+                        break;
+                    case 'text-delta':
+                        if (args.debugLoggingEnabled) {
+                            Logger.debug(
+                                `[AiAgent][Chunk Text Delta] Received text chunk: ${event.chunk.text}`,
+                            );
+                        }
+                        break;
+                    case 'raw':
+                    case 'reasoning-delta':
+                    case 'source':
+                    case 'tool-input-delta':
+                    case 'tool-input-start':
+                        // not implemented
+                        break;
+                    default:
+                        assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
             },
             onFinish: ({ text, usage, steps }) => {
@@ -591,9 +539,12 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
-                        usageTokensCount: usage.totalTokens,
+                        usageTokensCount: usage.totalTokens ?? 0,
                         stepsCount: steps.length,
-                        model: args.model.modelId,
+                        model:
+                            typeof args.model === 'string'
+                                ? args.model
+                                : args.model.modelId,
                     },
                 });
                 if (args.debugLoggingEnabled) {
@@ -606,7 +557,6 @@ export const streamAgentResponse = async ({
                 delayInMs: 20,
                 chunking: 'line',
             }),
-            toolCallStreaming: true,
             onError: (error) => {
                 Logger.error(
                     `[AiAgent][Stream Agent Response] Error during streaming: ${
