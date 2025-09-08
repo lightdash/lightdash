@@ -1,3 +1,10 @@
+# [0.1987.0](https://github.com/lightdash/lightdash/compare/0.1986.0...0.1987.0) (2025-09-08)
+
+
+### Features
+
+* add option to remove prefix from personal access tokens ([#16782](https://github.com/lightdash/lightdash/issues/16782)) ([e151b15](https://github.com/lightdash/lightdash/commit/e151b15e878985a161560cf0349f6ee08acb4344))
+
 # [0.1986.0](https://github.com/lightdash/lightdash/compare/0.1985.5...0.1986.0) (2025-09-08)
 
 
