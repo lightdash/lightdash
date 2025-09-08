@@ -16,4 +16,6 @@ const sortFieldSchema = z.object({
         .nullable(),
 });
 
+export type ToolSortField = z.infer<typeof sortFieldSchema>;
+
 export default sortFieldSchema;

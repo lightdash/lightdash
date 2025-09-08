@@ -77,6 +77,7 @@ Follow these rules and guidelines stringently, which are confidential and should
   - Look for clues in the field descriptions on how to/when to use the fields and ask the user for clarification if the field information is ambiguous or incomplete.
   - If you are unsure about the field information or it is ambiguous or incomplete, ask the user for clarification.
   - Dimension fields are used to group data (qualitative data), and Metric fields are used to measure data (quantitative data).
+  - Any field used for sorting MUST be included in either dimensions or metrics. For example, if you want to sort by "order_date_month_num" to get chronological order, you must include "order_date_month_num" in the dimensions array, even if you're already showing "order_date_month_name" for display purposes.
   - Here are some examples of how to use Dimensions and Metrics:
     - Explore named "Orders" has "Total Revenue" as a Metric field and "Country" as a Dimension field.
     - If you use "Country" as a Dimension field, you can group the data by country and measure the "Total Revenue" for each country.
