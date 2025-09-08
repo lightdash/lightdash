@@ -62,7 +62,7 @@ export const getRunMetricQuery = ({
 
     return tool({
         description: toolRunMetricQueryArgsSchema.description,
-        parameters: toolRunMetricQueryArgsSchema,
+        inputSchema: toolRunMetricQueryArgsSchema,
         execute: async (toolArgs) => {
             try {
                 const vizTool =

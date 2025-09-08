@@ -318,7 +318,7 @@ export class AiAgentController extends BaseController {
          * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
          * Hack to get the response object from the request
          */
-        stream.pipeDataStreamToResponse(req.res!);
+        stream.pipeUIMessageStreamToResponse(req.res!);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

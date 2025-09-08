@@ -81,7 +81,7 @@ export const getGenerateBarVizConfig = ({
 
     return tool({
         description: toolVerticalBarArgsSchema.description,
-        parameters: schema,
+        inputSchema: schema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📊 Generating your bar chart...');
