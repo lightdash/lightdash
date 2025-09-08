@@ -5,7 +5,9 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
+    CopyButton,
     Drawer,
     Group,
     Loader,
@@ -18,7 +20,9 @@ import {
 import {
     IconAlertTriangle,
     IconAlertTriangleFilled,
+    IconCheck,
     IconCircleCheckFilled,
+    IconCopy,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -46,6 +50,12 @@ const statusInfo = (status: string, theme: MantineTheme) => {
             return {
                 background: theme.colors.red['1'],
                 color: theme.colors.red['9'],
+            };
+        case 'SKIPPED':
+            return {
+                background: theme.colors.gray['1'],
+                color: theme.colors.gray['6'],
+                fontStyle: 'italic',
             };
         default:
             return {
@@ -179,6 +189,7 @@ const JobDetailsDrawer: FC = () => {
                         bg={statusInfo(step.stepStatus, theme).background}
                         p="sm"
                         spacing="xs"
+                        w="100%"
                         sx={{
                             borderRadius: 3,
                         }}
@@ -186,7 +197,7 @@ const JobDetailsDrawer: FC = () => {
                         <Box pt={2}>
                             <StepIcon step={step} />
                         </Box>
-                        <Stack spacing={1}>
+                        <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
                             <Text fw={600}>{step.stepLabel}</Text>
 
                             <Text fz="xs">
@@ -194,37 +205,105 @@ const JobDetailsDrawer: FC = () => {
                                     span
                                     fw={600}
                                     c={statusInfo(step.stepStatus, theme).color}
+                                    fs={
+                                        statusInfo(step.stepStatus, theme)
+                                            .fontStyle || 'normal'
+                                    }
                                 >
                                     {jobStepStatusLabel(step.stepStatus)}{' '}
                                 </Text>
                                 {jobStepDuration(step)}
                             </Text>
                             {step.stepError && (
-                                <Box
+                                <Stack
                                     mt="xs"
+                                    pt="xs"
                                     sx={{
-                                        wordWrap: 'break-word',
-                                        hyphens: 'auto',
+                                        backgroundColor: theme.colors.red[0],
+                                        border: `1px solid ${theme.colors.red[2]}`,
+                                        borderRadius: theme.radius.sm,
+                                        padding: theme.spacing.xs,
+                                        width: '100%',
+                                        flexShrink: 0,
                                     }}
+                                    pos="relative"
+                                    spacing="xs"
                                 >
-                                    <Text>{step.stepError}</Text>
-                                    {step.stepDbtLogs
-                                        ?.filter(
-                                            (log) => log.info.level === 'error',
-                                        )
-                                        .map((log) => (
-                                            <Text key={log.info.ts}>
-                                                {log.info.msg
-                                                    .split('\n')
-                                                    .map((line) => (
-                                                        <>
-                                                            {line}
-                                                            <br />
-                                                        </>
-                                                    ))}
-                                            </Text>
-                                        ))}
-                                </Box>
+                                    <CopyButton
+                                        value={
+                                            step.stepError +
+                                                step.stepDbtLogs
+                                                    ?.filter(
+                                                        (log) =>
+                                                            log.info.level ===
+                                                            'error',
+                                                    )
+                                                    .map((log) => log.info.msg)
+                                                    .join('\n') || ''
+                                        }
+                                    >
+                                        {({ copied, copy }) => (
+                                            <ActionIcon
+                                                onClick={copy}
+                                                pos="absolute"
+                                                top={6}
+                                                right={4}
+                                                size="xs"
+                                            >
+                                                {copied ? (
+                                                    <MantineIcon
+                                                        icon={IconCheck}
+                                                    />
+                                                ) : (
+                                                    <MantineIcon
+                                                        icon={IconCopy}
+                                                    />
+                                                )}
+                                            </ActionIcon>
+                                        )}
+                                    </CopyButton>
+                                    <Stack
+                                        spacing="xs"
+                                        sx={{
+                                            maxHeight: '200px',
+                                            overflow: 'auto',
+                                            whiteSpace: 'pre-wrap',
+                                            minWidth: '100%',
+                                            flexGrow: 1,
+                                        }}
+                                    >
+                                        <Text
+                                            size="xs"
+                                            color="red"
+                                            sx={{
+                                                width: '100%',
+                                                wordBreak: 'normal',
+                                                overflowWrap: 'break-word',
+                                            }}
+                                        >
+                                            {step.stepError}
+                                        </Text>
+                                        {step.stepDbtLogs
+                                            ?.filter(
+                                                (log) =>
+                                                    log.info.level === 'error',
+                                            )
+                                            .map((log) => (
+                                                <Text
+                                                    key={log.info.ts}
+                                                    size="xs"
+                                                    pt="xs"
+                                                    sx={{
+                                                        borderTop: `1px solid ${theme.colors.red[2]}`,
+                                                        overflowWrap:
+                                                            'break-word',
+                                                    }}
+                                                >
+                                                    {log.info.msg}
+                                                </Text>
+                                            ))}
+                                    </Stack>
+                                </Stack>
                             )}
                         </Stack>
                     </Group>
