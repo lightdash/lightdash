@@ -1,3 +1,10 @@
+# [0.1986.0](https://github.com/lightdash/lightdash/compare/0.1985.5...0.1986.0) (2025-09-08)
+
+
+### Features
+
+* auto-run explores from dashboards ([#16756](https://github.com/lightdash/lightdash/issues/16756)) ([a4603ea](https://github.com/lightdash/lightdash/commit/a4603ea6c57a4874d413edcc2efa59e0775e1f90))
+
 ## [0.1985.5](https://github.com/lightdash/lightdash/compare/0.1985.4...0.1985.5) (2025-09-08)
 
 
