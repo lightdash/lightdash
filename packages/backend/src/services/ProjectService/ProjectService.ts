@@ -677,9 +677,18 @@ export class ProjectService extends BaseService {
                 this.logger.error(
                     `Error refreshing snowflake token: ${JSON.stringify(e)}`,
                 );
-                throw new SnowflakeTokenError(
-                    `Error refreshing snowflake token`,
-                );
+
+                let errorMessage = '';
+                try {
+                    // Try to get detailed error message from snowflake refresh token error
+                    const errorDetails = JSON.parse(
+                        (e as { data: string }).data,
+                    ).message;
+                    errorMessage = `Error refreshing snowflake token: ${errorDetails}`;
+                } catch (e2: unknown) {
+                    errorMessage = 'Error refreshing snowflake token';
+                }
+                throw new SnowflakeTokenError(errorMessage);
             }
         }
         return args;
