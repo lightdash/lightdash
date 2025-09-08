@@ -15,6 +15,7 @@ import { AiAgentsRootLayout } from './pages/AiAgents/AiAgentsRootLayout';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import EmbedDashboard from './pages/EmbedDashboard';
 import EmbedExplore from './pages/EmbedExplore';
+import { QueryResultsDemoPage } from './pages/QueryResultsDemoPage';
 import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
 
 const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
@@ -130,6 +131,15 @@ export const CommercialWebAppRoutes = [
     ...COMMERCIAL_EMBED_ROUTES,
     ...COMMERCIAL_AI_AGENTS_ROUTES,
     ...COMMERCIAL_SLACK_AUTH_ROUTES,
+    {
+        path: '/projects/:projectUuid/query-results-demo',
+        element: (
+            <PrivateRoute>
+                <NavBar />
+                <QueryResultsDemoPage />
+            </PrivateRoute>
+        ),
+    },
 ];
 
 export const CommercialMobileRoutes = [

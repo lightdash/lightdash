@@ -104,7 +104,7 @@ export const downloadQuery = async (
         version: 'v2',
     });
 
-const executeAsyncQuery = (
+export const executeAsyncQuery = (
     data?: QueryResultsProps | null,
     signal?: AbortSignal,
 ) => {
