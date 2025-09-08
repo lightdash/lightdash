@@ -1,3 +1,10 @@
+## [0.1985.4](https://github.com/lightdash/lightdash/compare/0.1985.3...0.1985.4) (2025-09-08)
+
+
+### Bug Fixes
+
+* add user access with custom roles ([#16720](https://github.com/lightdash/lightdash/issues/16720)) ([45bb9ad](https://github.com/lightdash/lightdash/commit/45bb9adde0b936084d41ee8561948e9a63b80ad9))
+
 ## [0.1985.3](https://github.com/lightdash/lightdash/compare/0.1985.2...0.1985.3) (2025-09-08)
 
 
