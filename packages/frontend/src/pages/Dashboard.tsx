@@ -1,6 +1,5 @@
 import {
     ContentType,
-    type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
@@ -42,11 +41,10 @@ import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
     const navigate = useNavigate();
-    const { projectUuid, dashboardUuid, mode, tabUuid } = useParams<{
+    const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
         mode?: string;
-        tabUuid?: string;
     }>();
     const { data: spaces } = useSpaceSummaries(projectUuid, true);
 
@@ -80,6 +78,8 @@ const Dashboard: FC = () => {
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
+    const activeTab = useDashboardContext((c) => c.activeTab);
+    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -171,7 +171,6 @@ const Dashboard: FC = () => {
         useDisclosure();
 
     // tabs state
-    const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
     const [addingTab, setAddingTab] = useState<boolean>(false);
 
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
@@ -186,19 +185,12 @@ const Dashboard: FC = () => {
         setDashboardTiles(dashboard?.tiles ?? []);
         setDashboardTabs(dashboard?.tabs ?? []);
         setSavedParameters(dashboard?.parameters ?? {});
-        setActiveTab(
-            () =>
-                dashboard?.tabs.find((tab) => tab.uuid === tabUuid) ??
-                dashboard?.tabs[0],
-        );
     }, [
         isDashboardLoading,
         dashboard,
         dashboardTiles,
         setDashboardTiles,
         setDashboardTabs,
-        setActiveTab,
-        tabUuid,
         setSavedParameters,
     ]);
 
@@ -244,16 +236,6 @@ const Dashboard: FC = () => {
                 );
                 setDashboardTabs(unsavedDashboardTabs);
                 setHaveTabsChanged(!!unsavedDashboardTabs);
-                if (activeTab === undefined) {
-                    // set up the active tab to previously selected tab
-                    const activeTabUuid =
-                        sessionStorage.getItem('activeTabUuid');
-                    setActiveTab(
-                        unsavedDashboardTabs.find(
-                            (tab: DashboardTab) => tab.uuid === activeTabUuid,
-                        ) ?? unsavedDashboardTabs[0],
-                    );
-                }
             } catch {
                 showToastError({
                     title: 'Error parsing tabs',
