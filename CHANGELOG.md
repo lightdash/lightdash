@@ -1,3 +1,15 @@
+# [0.1988.0](https://github.com/lightdash/lightdash/compare/0.1987.3...0.1988.0) (2025-09-09)
+
+
+### Bug Fixes
+
+* automatic artifact switching logic between threads ([#16786](https://github.com/lightdash/lightdash/issues/16786)) ([c40d717](https://github.com/lightdash/lightdash/commit/c40d7174efac505ab0b395eae75bbc409239de56))
+
+
+### Features
+
+* add collapse/expand handlers to AI agent sidebar ([#16791](https://github.com/lightdash/lightdash/issues/16791)) ([a0d514e](https://github.com/lightdash/lightdash/commit/a0d514e0d0ad0db61fc49ff0cad3b0f202dcb5da))
+
 ## [0.1987.3](https://github.com/lightdash/lightdash/compare/0.1987.2...0.1987.3) (2025-09-09)
 
 
