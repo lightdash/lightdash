@@ -329,6 +329,10 @@ export const useInfiniteQueryResults = (
 
     const prevQueryUuidRef = useRef<string | undefined>(null);
     const prevProjectUuidRef = useRef<string | undefined>(null);
+    // Detect input changes during render to avoid exposing stale data
+    const dependenciesChanged =
+        projectUuid !== prevProjectUuidRef.current ||
+        queryUuid !== prevQueryUuidRef.current;
 
     const fetchMoreRows = useCallback(() => {
         const lastPage = fetchedPages[fetchedPages.length - 1];
@@ -359,9 +363,10 @@ export const useInfiniteQueryResults = (
         const isFetchingPage = fetchArgs.page > fetchedPages.length;
 
         return (
-            !!projectUuid &&
-            !!queryUuid &&
-            (isFetchingPage || (fetchAll && !hasFetchedAllRows))
+            (!!projectUuid &&
+                !!queryUuid &&
+                (isFetchingPage || (fetchAll && !hasFetchedAllRows))) ||
+            dependenciesChanged
         );
     }, [
         fetchedPages,
@@ -370,6 +375,7 @@ export const useInfiniteQueryResults = (
         queryUuid,
         fetchAll,
         hasFetchedAllRows,
+        dependenciesChanged,
     ]);
 
     const queryClient = useQueryClient();
@@ -527,7 +533,7 @@ export const useInfiniteQueryResults = (
         () => ({
             projectUuid,
             queryUuid,
-            queryStatus: nextPageData?.status, // show latest status
+            queryStatus: dependenciesChanged ? undefined : nextPageData?.status, // show latest status
             totalResults: fetchedPages[0]?.totalResults,
             initialQueryExecutionMs: fetchedPages[0]?.initialQueryExecutionMs,
             pivotDetails: fetchedPages[0]?.pivotDetails,
@@ -537,10 +543,11 @@ export const useInfiniteQueryResults = (
             fetchMoreRows,
             setFetchAll,
             totalClientFetchTimeMs,
-            isInitialLoading,
+            isInitialLoading: isInitialLoading || dependenciesChanged,
             isFetchingFirstPage:
                 !!queryUuid &&
-                (fetchedPages[0]?.totalResults === undefined ||
+                (dependenciesChanged ||
+                    fetchedPages[0]?.totalResults === undefined ||
                     (fetchedPages[0]?.totalResults > 0 &&
                         fetchedRows.length === 0)),
             isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
@@ -560,6 +567,7 @@ export const useInfiniteQueryResults = (
             fetchAll,
             nextPageData,
             nextPage.error,
+            dependenciesChanged,
         ],
     );
 };
