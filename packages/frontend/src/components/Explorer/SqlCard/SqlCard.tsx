@@ -43,7 +43,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
             headerElement={
-                hovered && data && isSuccess && !sqlIsOpen ? (
+                (hovered || sqlIsOpen) && data && isSuccess ? (
                     <CopyButton value={data.query} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
