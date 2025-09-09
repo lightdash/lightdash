@@ -1,12 +1,13 @@
-import { Button, Group, Menu, Stack, Title } from '@mantine/core';
-import { IconIdBadge2, IconPlus } from '@tabler/icons-react';
+import { Group, Stack, Title } from '@mantine/core';
+import { IconIdBadge2 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 
 import { type RoleWithScopes } from '@lightdash/common';
 import { EmptyState } from '../../../components/common/EmptyState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageSpinner from '../../../components/PageSpinner';
+import { AddRoleButton } from '../../features/customRoles/components/AddRoleButton';
 import { CustomRolesTable } from '../../features/customRoles/CustomRolesTable';
 import { DuplicateRoleModal } from '../../features/customRoles/DuplicateRoleModal';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
@@ -47,31 +48,12 @@ export const CustomRoles = () => {
                 <>
                     <Group position="apart">
                         <Title order={5}>Custom roles</Title>
-                        <Menu position="bottom-end">
-                            <Menu.Target>
-                                <Button
-                                    size="xs"
-                                    leftIcon={<MantineIcon icon={IconPlus} />}
-                                >
-                                    Add role
-                                </Button>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Item
-                                    component={Link}
-                                    to="/generalSettings/customRoles/create"
-                                >
-                                    Create new role
-                                </Menu.Item>
-                                <Menu.Item
-                                    onClick={() =>
-                                        setIsDuplicateModalOpen(true)
-                                    }
-                                >
-                                    Duplicate existing role
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
+                        <AddRoleButton
+                            onClickDuplicate={() =>
+                                setIsDuplicateModalOpen(true)
+                            }
+                            size="xs"
+                        />
                     </Group>
                     <CustomRolesTable
                         roles={listRoles?.data ?? []}
@@ -93,12 +75,10 @@ export const CustomRoles = () => {
                     title="No custom roles"
                     description="You haven't created any custom roles yet. Custom roles allow you to define specific permissions for your organization."
                 >
-                    <Button
-                        component={Link}
-                        to="/generalSettings/customRoles/create"
-                    >
-                        Create custom role
-                    </Button>
+                    <AddRoleButton
+                        onClickDuplicate={() => setIsDuplicateModalOpen(true)}
+                        size="md"
+                    />
                 </EmptyState>
             )}
 
