@@ -1,3 +1,11 @@
+## [0.1989.3](https://github.com/lightdash/lightdash/compare/0.1989.2...0.1989.3) (2025-09-09)
+
+
+### Bug Fixes
+
+* keep copy SQL button when card is open ([#16798](https://github.com/lightdash/lightdash/issues/16798)) ([538f1b3](https://github.com/lightdash/lightdash/commit/538f1b3a90314e2e0468943846c1101ed04d1978))
+* parameters only wait for active tab ([#16795](https://github.com/lightdash/lightdash/issues/16795)) ([241fa1d](https://github.com/lightdash/lightdash/commit/241fa1dbf787ce4cfe6f24357c8bed50978e525e))
+
 ## [0.1989.2](https://github.com/lightdash/lightdash/compare/0.1989.1...0.1989.2) (2025-09-09)
 
 
