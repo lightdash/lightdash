@@ -26,7 +26,8 @@ import { useOrganization } from '../../../../../hooks/organization/useOrganizati
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
+import { clearArtifact } from '../../store/aiArtifactSlice';
+import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
@@ -49,6 +50,7 @@ export const AiChartVisualization: FC<Props> = ({
     projectUuid,
     message,
 }) => {
+    const dispatch = useAiAgentStoreDispatch();
     const isMobile = useMediaQuery('(max-width: 768px)');
     const { data: health } = useHealth();
     const { data: organization } = useOrganization();
@@ -58,7 +60,6 @@ export const AiChartVisualization: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
-    const { clearArtifact } = useAiAgentPageLayout();
     const { data: compiledSql } = useCompiledSqlFromMetricQuery({
         tableName: metricQuery?.exploreName,
         projectUuid,
@@ -161,7 +162,7 @@ export const AiChartVisualization: FC<Props> = ({
                                 size="sm"
                                 variant="subtle"
                                 color="gray"
-                                onClick={clearArtifact}
+                                onClick={() => dispatch(clearArtifact())}
                             >
                                 <MantineIcon icon={IconX} color="gray" />
                             </ActionIcon>

@@ -6,12 +6,14 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
-import { useAiAgentPageLayout } from '../../providers/AiLayoutProvider';
+import { useAiAgentStoreSelector } from '../../store/hooks';
 import { AiChartVisualization } from './AiChartVisualization';
 import { ChatElementsUtils } from './utils';
 
 export const AiArtifactPanel: FC = memo(() => {
-    const { artifact } = useAiAgentPageLayout();
+    const artifact = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.artifact,
+    );
 
     if (!artifact) {
         throw new Error('Artifact is required');

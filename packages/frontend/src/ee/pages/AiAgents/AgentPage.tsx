@@ -33,7 +33,6 @@ import {
     useAiAgentThreads,
     useProjectAiAgents,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useAiAgentPageLayout } from '../../features/aiCopilot/providers/AiLayoutProvider';
 
 const INITIAL_MAX_THREADS = 10;
 const MAX_THREADS_INCREMENT = 10;
@@ -83,10 +82,10 @@ const AgentSidebar: FC<{
     agent: AiAgent;
     projectUuid: string;
     threadUuid?: string;
-}> = ({ agent, projectUuid, threadUuid }) => {
+    isAgentSidebarCollapsed: boolean;
+}> = ({ agent, projectUuid, threadUuid, isAgentSidebarCollapsed }) => {
     const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
-    const { isSidebarCollapsed } = useAiAgentPageLayout();
 
     return (
         <Stack gap="md">
@@ -97,17 +96,17 @@ const AgentSidebar: FC<{
                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
                     size="sm"
                     color="gray.9"
-                    {...(!isSidebarCollapsed && {
+                    {...(!isAgentSidebarCollapsed && {
                         fullWidth: true,
                         justify: 'flex-start',
                         w: 'calc(100% + 1rem)',
                     })}
                 >
-                    {isSidebarCollapsed ? '' : 'New thread'}
+                    {isAgentSidebarCollapsed ? '' : 'New thread'}
                 </SidebarButton>
             </Box>
 
-            {projectUuid && threads && !isSidebarCollapsed && (
+            {projectUuid && threads && !isAgentSidebarCollapsed && (
                 <Stack gap="xs">
                     <Group justify="space-between">
                         <Title order={6} c="dimmed" tt="uppercase" size="xs">
@@ -185,6 +184,9 @@ const AgentPage = () => {
         redirectOnUnauthorized: true,
     });
 
+    const [isAgentSidebarCollapsed, setIsAgentSidebarCollapsed] =
+        useState(false);
+
     const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
         projectUuid!,
         agentUuid!,
@@ -212,11 +214,14 @@ const AgentPage = () => {
 
     return (
         <AiAgentPageLayout
+            setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
+            isAgentSidebarCollapsed={isAgentSidebarCollapsed}
             Sidebar={
                 <AgentSidebar
                     agent={agent}
                     projectUuid={projectUuid!}
                     threadUuid={threadUuid}
+                    isAgentSidebarCollapsed={isAgentSidebarCollapsed}
                 />
             }
             Header={
