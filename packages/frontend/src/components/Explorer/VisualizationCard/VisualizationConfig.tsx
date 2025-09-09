@@ -3,21 +3,28 @@ import {
     ActionIcon,
     Divider,
     Group,
+    Loader,
     ScrollArea,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import { type FC, useMemo } from 'react';
+import { lazy, Suspense, useMemo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
-import { ConfigTabs as CustomVisConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/CustomVis/CustomVisConfig';
 import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/FunnelChartConfig/FunnelChartConfigTabs';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
+
+// Lazy load CustomVisConfig as it includes the heavy Monaco editor
+const CustomVisConfigTabsLazy = lazy(() =>
+    import(
+        '../../VisualizationConfigs/ChartConfigPanel/CustomVis/CustomVisConfig'
+    ).then((module) => ({ default: module.ConfigTabs })),
+);
 
 type Props = {
     chartType: ChartType;
@@ -40,7 +47,12 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
             case ChartType.TREEMAP:
                 return TreemapConfigTabs;
             case ChartType.CUSTOM:
-                return CustomVisConfigTabs;
+                // Return a wrapper component that handles lazy loading
+                return () => (
+                    <Suspense fallback={<Loader size="sm" />}>
+                        <CustomVisConfigTabsLazy />
+                    </Suspense>
+                );
             default:
                 return assertUnreachable(
                     chartType,

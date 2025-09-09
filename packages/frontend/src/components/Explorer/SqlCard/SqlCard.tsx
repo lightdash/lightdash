@@ -1,14 +1,13 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
+import { ActionIcon, CopyButton, Skeleton, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { lazy, memo, Suspense, type FC } from 'react';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
-import { RenderedSql } from '../../RenderedSql';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
@@ -16,6 +15,13 @@ import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 interface SqlCardProps {
     projectUuid: string;
 }
+
+// Lazy load because it imports heavy module "@monaco-editor/react"
+const LazyRenderedSql = lazy(() =>
+    import('../../RenderedSql').then((module) => ({
+        default: module.RenderedSql,
+    })),
+);
 
 const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { hovered, ref: headingRef } = useHover();
@@ -89,7 +95,9 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 )
             }
         >
-            <RenderedSql />
+            <Suspense fallback={<Skeleton height={60} radius="sm" />}>
+                <LazyRenderedSql />
+            </Suspense>
         </CollapsableCard>
     );
 });
