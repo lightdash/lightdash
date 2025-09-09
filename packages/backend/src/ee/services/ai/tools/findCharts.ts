@@ -7,13 +7,15 @@ import {
 import { tool } from 'ai';
 import moment from 'moment';
 import type { FindChartsFn } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     findCharts: FindChartsFn;
     pageSize: number;
     siteUrl?: string;
-};
+}>;
 
 const getChartText = (chart: AllChartsSearchResult, siteUrl?: string) => {
     const isSavedChart = isSavedChartSearchResult(chart);
@@ -90,10 +92,14 @@ export const getFindCharts = ({
     findCharts,
     pageSize,
     siteUrl,
+    schemaCompatLayers,
 }: Dependencies) =>
     tool({
         description: toolFindChartsArgsSchema.description,
-        inputSchema: toolFindChartsArgsSchema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolFindChartsArgsSchema,
+        ),
         execute: async (args) => {
             try {
                 const chartSearchQueryResults = await Promise.all(

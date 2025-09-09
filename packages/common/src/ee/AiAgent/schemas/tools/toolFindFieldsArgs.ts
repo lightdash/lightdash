@@ -15,7 +15,7 @@ Usage tips:
 - Results are paginated — use the next page token to get more results if needed.
 `;
 
-export const toolFindFieldsArgsSchema = createToolSchema(
+export const toolFindFieldsArgsSchemaBuilder = createToolSchema(
     'find_fields',
     TOOL_FIND_FIELDS_DESCRIPTION,
 )
@@ -27,8 +27,9 @@ export const toolFindFieldsArgsSchema = createToolSchema(
             }),
         ),
     })
-    .withPagination()
-    .build();
+    .withPagination();
+
+export const toolFindFieldsArgsSchema = toolFindFieldsArgsSchemaBuilder.schema;
 
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
 

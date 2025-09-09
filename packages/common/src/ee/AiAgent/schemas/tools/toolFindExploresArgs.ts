@@ -14,7 +14,7 @@ Usage Tips:
 - When using the exploreName parameter, all fields and full description are returned for that explore.
 `;
 
-export const toolFindExploresArgsSchema = createToolSchema(
+export const toolFindExploresArgsSchemaBuilder = createToolSchema(
     'find_explores',
     TOOL_FIND_EXPLORES_DESCRIPTION,
 )
@@ -26,8 +26,10 @@ export const toolFindExploresArgsSchema = createToolSchema(
                 'Name of the table to focus on. If omitted, all tables are returned. For a single table, all dimensions, metrics, and full descriptions are loaded',
             ),
     })
-    .withPagination()
-    .build();
+    .withPagination();
+
+export const toolFindExploresArgsSchema =
+    toolFindExploresArgsSchemaBuilder.schema;
 
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
 

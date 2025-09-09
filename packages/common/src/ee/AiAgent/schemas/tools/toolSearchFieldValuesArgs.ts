@@ -15,26 +15,27 @@ Usage Tips:
 - Results are returned as a list of unique field values (limited to 100)
 `;
 
-export const toolSearchFieldValuesArgsSchema = createToolSchema(
+export const toolSearchFieldValuesArgsSchemaBuilder = createToolSchema(
     'search_field_values',
     TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
-)
-    .extend({
-        table: z.string().describe('The table to search in.'),
-        fieldId: getFieldIdSchema({
-            additionalDescription: 'The ID of the field to search values for',
-        }),
-        query: z
-            .string()
-            .describe('Query string to filter field values')
-            .nullable(),
-        filters: filtersSchema
-            .nullable()
-            .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
-            ),
-    })
-    .build();
+).extend({
+    table: z.string().describe('The table to search in.'),
+    fieldId: getFieldIdSchema({
+        additionalDescription: 'The ID of the field to search values for',
+    }),
+    query: z
+        .string()
+        .describe('Query string to filter field values')
+        .nullable(),
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
+        ),
+});
+
+export const toolSearchFieldValuesArgsSchema =
+    toolSearchFieldValuesArgsSchemaBuilder.schema;
 
 export type ToolSearchFieldValuesArgs = z.infer<
     typeof toolSearchFieldValuesArgsSchema

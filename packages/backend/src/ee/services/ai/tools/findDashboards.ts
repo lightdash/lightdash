@@ -5,13 +5,15 @@ import {
 import { tool } from 'ai';
 import moment from 'moment';
 import type { FindDashboardsFn } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     findDashboards: FindDashboardsFn;
     pageSize: number;
     siteUrl?: string;
-};
+}>;
 
 const getDashboardText = (
     dashboard: DashboardSearchResult,
@@ -107,10 +109,14 @@ export const getFindDashboards = ({
     findDashboards,
     pageSize,
     siteUrl,
+    schemaCompatLayers,
 }: Dependencies) =>
     tool({
         description: toolFindDashboardsArgsSchema.description,
-        inputSchema: toolFindDashboardsArgsSchema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolFindDashboardsArgsSchema,
+        ),
         execute: async (args) => {
             try {
                 const dashboardSearchQueryResults = await Promise.all(

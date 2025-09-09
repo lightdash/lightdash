@@ -1,13 +1,12 @@
 import { z } from 'zod';
 
-type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
+export type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
     extend: <$Fields extends z.ZodRawShape>(
         fields: $Fields,
     ) => ToolSchemaBuilder<$Schema & $Fields>;
     withPagination: () => ToolSchemaBuilder<
         $Schema & { page: z.ZodNullable<z.ZodNumber> }
     >;
-    build: () => z.ZodObject<$Schema>;
     schema: z.ZodObject<$Schema>;
 };
 
@@ -36,11 +35,6 @@ const toolSchemaBuilder = <$Schema extends z.ZodRawShape>(
                     .describe('Use this to paginate through the results'),
             }),
         ) as ToolSchemaBuilder<$Schema & { page: z.ZodNullable<z.ZodNumber> }>,
-
-    /**
-     * Builds the schema
-     */
-    build: () => schema,
 
     /**
      * Returns the zod schema so far

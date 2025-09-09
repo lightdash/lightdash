@@ -16,6 +16,8 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
@@ -27,7 +29,7 @@ import {
 } from '../utils/validators';
 import { renderTableViz } from '../visualizations/vizTable';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
@@ -36,7 +38,8 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
-};
+}>;
+
 export const getGenerateTableVizConfig = ({
     getExplore,
     runMiniMetricQuery,
@@ -46,9 +49,8 @@ export const getGenerateTableVizConfig = ({
     updateProgress,
     createOrUpdateArtifact,
     maxLimit,
+    schemaCompatLayers,
 }: Dependencies) => {
-    const schema = toolTableVizArgsSchema;
-
     /**
      * This function is used to validate the viz tool.
      * @param vizTool - The complete viz tool with populated custom fields
@@ -86,7 +88,10 @@ export const getGenerateTableVizConfig = ({
 
     return tool({
         description: toolTableVizArgsSchema.description,
-        inputSchema: schema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolTableVizArgsSchema,
+        ),
         execute: async (toolArgs) => {
             let isOneRow = false;
             try {
