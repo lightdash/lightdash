@@ -333,7 +333,15 @@ export const AssistantBubble: FC<Props> = memo(
 
                 {isArtifactAvailable && projectUuid && agentUuid && (
                     <AiArtifactButton
-                        onClick={() =>
+                        onClick={() => {
+                            if (
+                                artifact?.artifactUuid ===
+                                    message.artifact?.uuid &&
+                                artifact?.versionUuid ===
+                                    message.artifact?.versionUuid
+                            ) {
+                                return;
+                            }
                             dispatch(
                                 setArtifact({
                                     artifactUuid: message.artifact!.uuid,
@@ -342,8 +350,8 @@ export const AssistantBubble: FC<Props> = memo(
                                     projectUuid: projectUuid,
                                     agentUuid: agentUuid,
                                 }),
-                            )
-                        }
+                            );
+                        }}
                         isArtifactOpen={
                             artifact?.artifactUuid === message.artifact?.uuid &&
                             artifact?.versionUuid ===
