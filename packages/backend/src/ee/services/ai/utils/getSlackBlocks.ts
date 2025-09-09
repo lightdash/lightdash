@@ -1,7 +1,6 @@
 import {
     followUpToolsSchema,
     followUpToolsText,
-    MetricQuery,
     parseVizConfig,
     SlackPrompt,
 } from '@lightdash/common';

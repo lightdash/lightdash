@@ -9,7 +9,6 @@ import type {
 export enum AiResultType {
     TIME_SERIES_RESULT = 'time_series_chart',
     VERTICAL_BAR_RESULT = 'vertical_bar_chart',
-    ONE_LINE_RESULT = 'one_line_result',
     TABLE_RESULT = 'table',
 }
 

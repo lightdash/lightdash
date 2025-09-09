@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { FollowUpTools } from '../../followUpTools';
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
@@ -25,8 +24,8 @@ export const toolTableVizArgsSchema = createToolSchema(
         followUpTools: z
             .array(
                 z.union([
-                    z.literal(FollowUpTools.GENERATE_BAR_VIZ),
-                    z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+                    z.literal(AiResultType.VERTICAL_BAR_RESULT),
+                    z.literal(AiResultType.TIME_SERIES_RESULT),
                 ]),
             )
             .describe(
