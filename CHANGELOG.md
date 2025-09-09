@@ -1,3 +1,10 @@
+## [0.1987.1](https://github.com/lightdash/lightdash/compare/0.1987.0...0.1987.1) (2025-09-09)
+
+
+### Bug Fixes
+
+* detect stale data when using useInfiniteQueryResults hook ([#16778](https://github.com/lightdash/lightdash/issues/16778)) ([6985c0a](https://github.com/lightdash/lightdash/commit/6985c0a3779e791562a6f35f0dccd23984752b72))
+
 # [0.1987.0](https://github.com/lightdash/lightdash/compare/0.1986.0...0.1987.0) (2025-09-08)
 
 
