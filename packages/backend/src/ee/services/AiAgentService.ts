@@ -32,6 +32,8 @@ import {
     parseVizConfig,
     QueryExecutionContext,
     SlackPrompt,
+    toolDashboardArgsSchema,
+    toolDashboardArgsSchemaTransformed,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     type SessionUser,
@@ -1269,6 +1271,132 @@ export class AiAgentService {
                 agentName: agent.name,
                 artifactId: artifactUuid,
                 artifactVersionId: versionUuid,
+                vizType: parsedVizConfig.type,
+            },
+        });
+
+        return {
+            type: parsedVizConfig.type,
+            query,
+            metadata,
+        };
+    }
+
+    async getDashboardArtifactChartVizQuery(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            chartIndex,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            chartIndex: number;
+        },
+    ): Promise<ApiAiAgentThreadMessageVizQuery> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        // Check if user has access to this agent
+        await this.getAgent(user, agentUuid, agent.projectUuid);
+
+        // Get the specific artifact version
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        if (!artifact) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
+
+        if (
+            artifact.artifactType !== 'dashboard' ||
+            !artifact.dashboardConfig
+        ) {
+            throw new ParameterError(
+                'Dashboard config not found for this artifact',
+            );
+        }
+
+        // We use base schema here because later we call `parseVizConfig` that uses transformed schem which takes base schema output as input
+        const dashboardConfigParsed = toolDashboardArgsSchema.safeParse(
+            artifact.dashboardConfig,
+        );
+        if (!dashboardConfigParsed.success) {
+            throw new ParameterError('Invalid dashboard config');
+        }
+        const dashboardConfig = dashboardConfigParsed.data;
+        const { visualizations } = dashboardConfig;
+
+        if (
+            !Array.isArray(visualizations) ||
+            chartIndex < 0 ||
+            chartIndex >= visualizations.length
+        ) {
+            throw new ParameterError(
+                `Invalid chart index: ${chartIndex}. Dashboard has ${
+                    visualizations?.length || 0
+                } charts.`,
+            );
+        }
+
+        const chartConfig = visualizations[chartIndex];
+        const parsedVizConfig = parseVizConfig(
+            chartConfig,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+        );
+        if (!parsedVizConfig) {
+            throw new ParameterError(
+                'Could not generate a visualization for this chart',
+            );
+        }
+
+        const query = await this.executeAsyncAiMetricQuery(
+            user,
+            projectUuid,
+            parsedVizConfig.metricQuery,
+        );
+
+        const metadata = {
+            title: chartConfig.title ?? parsedVizConfig.vizTool?.title ?? null,
+            description:
+                chartConfig.description ??
+                parsedVizConfig.vizTool?.description ??
+                null,
+        } satisfies AiVizMetadata;
+
+        this.analytics.track({
+            event: 'ai_agent.dashboard_chart_viz_query',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                agentId: agent.uuid,
+                agentName: agent.name,
+                artifactId: artifactUuid,
+                artifactVersionId: versionUuid,
+                chartIndex,
                 vizType: parsedVizConfig.type,
             },
         });

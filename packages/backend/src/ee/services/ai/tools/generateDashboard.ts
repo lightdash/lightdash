@@ -98,16 +98,16 @@ export const getGenerateDashboard = ({
 
                 await Promise.all(vizPromises);
 
-                // const prompt = await getPrompt();
-                // // Create dashboard-level artifact
-                // await createOrUpdateArtifact({
-                //     threadUuid: prompt.threadUuid,
-                //     promptUuid: prompt.promptUuid,
-                //     artifactType: 'chart',
-                //     title: toolArgs.title,
-                //     description: toolArgs.description,
-                //     vizConfig: toolArgs,
-                // });
+                const prompt = await getPrompt();
+                // Create dashboard-level artifact
+                await createOrUpdateArtifact({
+                    threadUuid: prompt.threadUuid,
+                    promptUuid: prompt.promptUuid,
+                    artifactType: 'dashboard',
+                    title: toolArgs.title,
+                    description: toolArgs.description,
+                    vizConfig: toolArgs,
+                });
 
                 // Return summary of generated dashboard
 

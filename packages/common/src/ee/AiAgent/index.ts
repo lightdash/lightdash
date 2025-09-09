@@ -313,7 +313,7 @@ export type AiArtifact = {
     artifactUuid: string;
     threadUuid: string;
     promptUuid: string | null;
-    artifactType: 'chart';
+    artifactType: 'chart' | 'dashboard';
     savedQueryUuid: string | null;
     createdAt: Date;
     versionNumber: number;
@@ -321,6 +321,7 @@ export type AiArtifact = {
     title: string | null;
     description: string | null;
     chartConfig: Record<string, unknown> | null;
+    dashboardConfig: Record<string, unknown> | null;
     versionCreatedAt: Date;
 };
 

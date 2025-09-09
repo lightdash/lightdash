@@ -551,6 +551,37 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/charts/{chartIndex}/viz-query',
+    )
+    @OperationId('getDashboardArtifactChartVizQuery')
+    async getDashboardArtifactChartVizQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Path() chartIndex: number,
+    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().getDashboardArtifactChartVizQuery(
+                    req.user!,
+                    {
+                        projectUuid,
+                        agentUuid,
+                        artifactUuid,
+                        versionUuid,
+                        chartIndex,
+                    },
+                ),
+        };
+    }
+
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
     }

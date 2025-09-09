@@ -2048,7 +2048,7 @@ export class AiAgentModel {
     async createArtifact(data: {
         threadUuid: string;
         promptUuid: string;
-        artifactType: 'chart';
+        artifactType: 'chart' | 'dashboard';
         title?: string;
         description?: string;
         vizConfig: Record<string, unknown>;
@@ -2076,7 +2076,12 @@ export class AiAgentModel {
                     version_number: 1,
                     title: data.title ?? null,
                     description: data.description ?? null,
-                    chart_config: data.vizConfig,
+                    chart_config:
+                        data.artifactType === 'chart' ? data.vizConfig : null,
+                    dashboard_config:
+                        data.artifactType === 'dashboard'
+                            ? data.vizConfig
+                            : null,
                     saved_query_uuid: null,
                 })
                 .returning('*');
@@ -2088,7 +2093,7 @@ export class AiAgentModel {
             return {
                 artifactUuid: artifact.ai_artifact_uuid,
                 threadUuid: artifact.ai_thread_uuid,
-                artifactType: artifact.artifact_type as 'chart',
+                artifactType: artifact.artifact_type as 'chart' | 'dashboard',
                 savedQueryUuid: version.saved_query_uuid,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
@@ -2096,6 +2101,7 @@ export class AiAgentModel {
                 title: version.title,
                 description: version.description,
                 chartConfig: version.chart_config,
+                dashboardConfig: version.dashboard_config,
                 promptUuid: version.ai_prompt_uuid,
                 versionCreatedAt: version.created_at,
             };
@@ -2110,6 +2116,16 @@ export class AiAgentModel {
         vizConfig: Record<string, unknown>;
     }): Promise<AiArtifact> {
         return this.database.transaction(async (trx) => {
+            // Get artifact to determine type
+            const artifact = await trx<AiArtifactsTable>(AiArtifactsTableName)
+                .select('*')
+                .where('ai_artifact_uuid', data.artifactUuid)
+                .first();
+
+            if (!artifact) {
+                throw new NotFoundError('Artifact not found');
+            }
+
             // Get next version number
             const result = await trx<AiArtifactVersionsTable>(
                 AiArtifactVersionsTableName,
@@ -2134,23 +2150,20 @@ export class AiAgentModel {
                     version_number: nextVersion,
                     title: data.title ?? null,
                     description: data.description ?? null,
-                    chart_config: data.vizConfig,
+                    chart_config:
+                        artifact.artifact_type === 'chart'
+                            ? data.vizConfig
+                            : null,
+                    dashboard_config:
+                        artifact.artifact_type === 'dashboard'
+                            ? data.vizConfig
+                            : null,
                     saved_query_uuid: null,
                 })
                 .returning('*');
 
             if (!version) {
                 throw new Error('Failed to create artifact version');
-            }
-
-            // Get artifact info to return complete object
-            const artifact = await trx<AiArtifactsTable>(AiArtifactsTableName)
-                .select('*')
-                .where('ai_artifact_uuid', data.artifactUuid)
-                .first();
-
-            if (!artifact) {
-                throw new NotFoundError('Artifact not found');
             }
 
             return {
@@ -2164,6 +2177,7 @@ export class AiAgentModel {
                 title: version.title,
                 description: version.description,
                 chartConfig: version.chart_config,
+                dashboardConfig: version.dashboard_config,
                 promptUuid: version.ai_prompt_uuid,
                 versionCreatedAt: version.created_at,
             };
@@ -2173,7 +2187,7 @@ export class AiAgentModel {
     async createOrUpdateArtifact(data: {
         threadUuid: string;
         promptUuid: string;
-        artifactType: 'chart';
+        artifactType: 'chart' | 'dashboard';
         title?: string;
         description?: string;
         vizConfig: Record<string, unknown>;
@@ -2214,6 +2228,7 @@ export class AiAgentModel {
                 title: `${AiArtifactVersionsTableName}.title`,
                 description: `${AiArtifactVersionsTableName}.description`,
                 chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
+                dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
                 promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
                 versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
             } satisfies Record<keyof AiArtifact, string>)
@@ -2273,6 +2288,7 @@ export class AiAgentModel {
                 title: `${AiArtifactVersionsTableName}.title`,
                 description: `${AiArtifactVersionsTableName}.description`,
                 chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
+                dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
                 promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
                 versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
             } satisfies Record<keyof AiArtifact, string>)
