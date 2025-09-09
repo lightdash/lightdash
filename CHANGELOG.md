@@ -1,3 +1,15 @@
+# [0.1989.0](https://github.com/lightdash/lightdash/compare/0.1988.0...0.1989.0) (2025-09-09)
+
+
+### Bug Fixes
+
+* validate pivot configuration and prevent invalid pivot dimensions ([#16765](https://github.com/lightdash/lightdash/issues/16765)) ([0567931](https://github.com/lightdash/lightdash/commit/0567931d737db3ede3fa94ab9c48c7f752f713c5))
+
+
+### Features
+
+* apply limit after pivoting/grouping ([#16762](https://github.com/lightdash/lightdash/issues/16762)) ([4a38d4a](https://github.com/lightdash/lightdash/commit/4a38d4a91a1d0e7932f9cdc2e818916146912996))
+
 # [0.1988.0](https://github.com/lightdash/lightdash/compare/0.1987.3...0.1988.0) (2025-09-09)
 
 
