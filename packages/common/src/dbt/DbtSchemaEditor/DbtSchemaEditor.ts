@@ -48,7 +48,10 @@ export default class DbtSchemaEditor {
 
     constructor(doc: string = '', filename: string = '') {
         this.doc = parseDocument(doc);
-        const ajvCompiler = new Ajv({ coerceTypes: true });
+        const ajvCompiler = new Ajv({
+            coerceTypes: true,
+            allowUnionTypes: true,
+        });
         const validate = ajvCompiler.compile<YamlSchema>(
             lightdashDbtYamlSchema,
         );
