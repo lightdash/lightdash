@@ -25,12 +25,12 @@ import {
     renderFilterRuleSqlFromField,
     stringFilterSchema,
     SupportedDbtAdapter,
+    ToolSortField,
     WeekDay,
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
-
 /**
  * Validate that all selected fields exist in the explore
  * @param explore
@@ -397,6 +397,56 @@ Remember:
 
         Logger.error(
             `[AiAgent][Validate Metric/Dimension Filter Placement] ${errorMessage}`,
+        );
+
+        throw new Error(errorMessage);
+    }
+}
+
+/**
+ * Validate that all sort fields are selected in either dimensions or metrics
+ * @param sorts - Array of sort field configurations
+ * @param selectedDimensions - Array of selected dimension field IDs
+ * @param selectedMetrics - Array of selected metric field IDs
+ * @param customMetrics - Custom metrics that may be used in sorts
+ */
+export function validateSortFieldsAreSelected(
+    sorts: ToolSortField[],
+    selectedDimensions: string[],
+    selectedMetrics: string[],
+    customMetrics?: CustomMetricBaseSchema[] | null,
+) {
+    if (!sorts || sorts.length === 0) {
+        return;
+    }
+
+    const customMetricIds = customMetrics?.map(getItemId) || [];
+    const allSelectedFieldIds = [
+        ...selectedDimensions,
+        ...selectedMetrics,
+        ...customMetricIds,
+    ];
+
+    const errors: string[] = [];
+
+    sorts.forEach((sort) => {
+        if (!allSelectedFieldIds.includes(sort.fieldId)) {
+            const isCustomMetric = customMetricIds.includes(sort.fieldId);
+            const fieldSource = isCustomMetric ? 'custom metric' : 'field';
+
+            errors.push(
+                `Error: Sort field "${sort.fieldId}" is not selected in the query. The ${fieldSource} must be included in either dimensions or metrics to be used for sorting.`,
+            );
+        }
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid sort configuration:
+
+${errors.join('\n\n')}`;
+
+        Logger.error(
+            `[AiAgent][Validate Sort Fields Are Selected] ${errorMessage}`,
         );
 
         throw new Error(errorMessage);
