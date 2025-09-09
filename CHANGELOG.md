@@ -1,3 +1,10 @@
+## [0.1989.1](https://github.com/lightdash/lightdash/compare/0.1989.0...0.1989.1) (2025-09-09)
+
+
+### Bug Fixes
+
+* allows union types when compiling dbt yaml schema ([#16794](https://github.com/lightdash/lightdash/issues/16794)) ([b431c46](https://github.com/lightdash/lightdash/commit/b431c46fddbb960930a7491e1001138ec22df957))
+
 # [0.1989.0](https://github.com/lightdash/lightdash/compare/0.1988.0...0.1989.0) (2025-09-09)
 
 
