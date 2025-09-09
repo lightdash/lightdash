@@ -1,19 +1,14 @@
 import { z } from 'zod';
-
-export enum FollowUpTools {
-    GENERATE_TABLE = 'generate_table',
-    GENERATE_BAR_VIZ = 'generate_bar_viz',
-    GENERATE_TIME_SERIES_VIZ = 'generate_time_series_viz',
-}
+import { AiResultType } from './types';
 
 export type FollowUpToolsText = {
-    [key in FollowUpTools]: string;
+    [key in AiResultType]: string;
 };
 
 export const followUpToolsText: FollowUpToolsText = {
-    [FollowUpTools.GENERATE_TABLE]: 'Generate a Table',
-    [FollowUpTools.GENERATE_BAR_VIZ]: 'Generate a Bar Chart',
-    [FollowUpTools.GENERATE_TIME_SERIES_VIZ]: 'Generate a Time Series Chart',
+    [AiResultType.TABLE_RESULT]: 'Generate a Table',
+    [AiResultType.VERTICAL_BAR_RESULT]: 'Generate a Bar Chart',
+    [AiResultType.TIME_SERIES_RESULT]: 'Generate a Time Series Chart',
 };
 
-export const followUpToolsSchema = z.nativeEnum(FollowUpTools).array();
+export const followUpToolsSchema = z.nativeEnum(AiResultType).array();

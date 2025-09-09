@@ -8,6 +8,7 @@ import {
     AiAgentUserPreferences,
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
+    AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
     ApiAiAgentThreadCreateRequest,
@@ -21,7 +22,6 @@ import {
     CatalogType,
     CommercialFeatureFlags,
     filterExploreByTags,
-    FollowUpTools,
     followUpToolsText,
     ForbiddenError,
     isSlackPrompt,
@@ -2488,7 +2488,7 @@ export class AiAgentService {
 
     // eslint-disable-next-line class-methods-use-this
     public handleExecuteFollowUpTool(app: App) {
-        Object.values(FollowUpTools).forEach((tool) => {
+        Object.values(AiResultType).forEach((tool) => {
             app.action(
                 `execute_follow_up_tool.${tool}`,
                 async ({ ack, body, context, say }) => {
