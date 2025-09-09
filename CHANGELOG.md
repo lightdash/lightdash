@@ -1,3 +1,62 @@
+## [0.1989.2](https://github.com/lightdash/lightdash/compare/0.1989.1...0.1989.2) (2025-09-09)
+
+
+### Bug Fixes
+
+* filter invalid columns in pivot configuration and validate values columns ([#16805](https://github.com/lightdash/lightdash/issues/16805)) ([cec34c9](https://github.com/lightdash/lightdash/commit/cec34c990c2bb96c71668212eabf2d8b01848b5e))
+
+## [0.1989.1](https://github.com/lightdash/lightdash/compare/0.1989.0...0.1989.1) (2025-09-09)
+
+
+### Bug Fixes
+
+* allows union types when compiling dbt yaml schema ([#16794](https://github.com/lightdash/lightdash/issues/16794)) ([b431c46](https://github.com/lightdash/lightdash/commit/b431c46fddbb960930a7491e1001138ec22df957))
+
+# [0.1989.0](https://github.com/lightdash/lightdash/compare/0.1988.0...0.1989.0) (2025-09-09)
+
+
+### Bug Fixes
+
+* validate pivot configuration and prevent invalid pivot dimensions ([#16765](https://github.com/lightdash/lightdash/issues/16765)) ([0567931](https://github.com/lightdash/lightdash/commit/0567931d737db3ede3fa94ab9c48c7f752f713c5))
+
+
+### Features
+
+* apply limit after pivoting/grouping ([#16762](https://github.com/lightdash/lightdash/issues/16762)) ([4a38d4a](https://github.com/lightdash/lightdash/commit/4a38d4a91a1d0e7932f9cdc2e818916146912996))
+
+# [0.1988.0](https://github.com/lightdash/lightdash/compare/0.1987.3...0.1988.0) (2025-09-09)
+
+
+### Bug Fixes
+
+* automatic artifact switching logic between threads ([#16786](https://github.com/lightdash/lightdash/issues/16786)) ([c40d717](https://github.com/lightdash/lightdash/commit/c40d7174efac505ab0b395eae75bbc409239de56))
+
+
+### Features
+
+* add collapse/expand handlers to AI agent sidebar ([#16791](https://github.com/lightdash/lightdash/issues/16791)) ([a0d514e](https://github.com/lightdash/lightdash/commit/a0d514e0d0ad0db61fc49ff0cad3b0f202dcb5da))
+
+## [0.1987.3](https://github.com/lightdash/lightdash/compare/0.1987.2...0.1987.3) (2025-09-09)
+
+
+### Bug Fixes
+
+* wrap index columns into quotes ([#16770](https://github.com/lightdash/lightdash/issues/16770)) ([34f5ecc](https://github.com/lightdash/lightdash/commit/34f5ecc50040812ed72b73e6c63979deb3e2871c))
+
+## [0.1987.2](https://github.com/lightdash/lightdash/compare/0.1987.1...0.1987.2) (2025-09-09)
+
+
+### Bug Fixes
+
+* validate sort fields in agent tool calls are selected in metrics/dimensions ([#16777](https://github.com/lightdash/lightdash/issues/16777)) ([cc0db63](https://github.com/lightdash/lightdash/commit/cc0db63402581f7bd3f41b06cc1e3ce28492fd61)), closes [#16684](https://github.com/lightdash/lightdash/issues/16684)
+
+## [0.1987.1](https://github.com/lightdash/lightdash/compare/0.1987.0...0.1987.1) (2025-09-09)
+
+
+### Bug Fixes
+
+* detect stale data when using useInfiniteQueryResults hook ([#16778](https://github.com/lightdash/lightdash/issues/16778)) ([6985c0a](https://github.com/lightdash/lightdash/commit/6985c0a3779e791562a6f35f0dccd23984752b72))
+
 # [0.1987.0](https://github.com/lightdash/lightdash/compare/0.1986.0...0.1987.0) (2025-09-08)
 
 

@@ -37,7 +37,7 @@ export const getPivotedData = (
                     field: key,
                     pivotValues: pivotKeys.map((pivotKey) => ({
                         field: pivotKey,
-                        value: row[pivotKey].value.raw,
+                        value: row[pivotKey]?.value.raw,
                     })),
                 };
                 const pivotedKeyHash: string =
@@ -47,8 +47,8 @@ export const getPivotedData = (
                         pivotValuesMap[pivotKey] = {};
                     }
 
-                    pivotValuesMap[pivotKey][`${row[pivotKey].value.raw}`] =
-                        row[pivotKey].value;
+                    pivotValuesMap[pivotKey][`${row[pivotKey]?.value.raw}`] =
+                        row[pivotKey]?.value;
                 });
                 pivotedRow[pivotedKeyHash] = value;
                 rowKeyMap[pivotedKeyHash] = pivotReference;
@@ -104,13 +104,21 @@ export const getPlottedData = (
 };
 
 export const getPivotedDataFromPivotDetails = (
-    resultsData: InfiniteQueryResults,
+    resultsData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
 ): {
     pivotValuesMap: PivotValueMap;
     rowKeyMap: RowKeyMap;
     rows: ApiQueryResults['rows'];
 } => {
+    if (!resultsData) {
+        return {
+            pivotValuesMap: {},
+            rowKeyMap: {},
+            rows: [],
+        };
+    }
+
     const { pivotDetails, rows } = resultsData;
 
     if (!pivotDetails) {

@@ -36,6 +36,10 @@ export type DashboardContextType = {
     setHaveTabsChanged: Dispatch<SetStateAction<boolean>>;
     dashboardTabs: Dashboard['tabs'];
     setDashboardTabs: Dispatch<SetStateAction<Dashboard['tabs']>>;
+    activeTab: Dashboard['tabs'][number] | undefined;
+    setActiveTab: Dispatch<
+        SetStateAction<Dashboard['tabs'][number] | undefined>
+    >;
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
     allFilters: DashboardFilters;

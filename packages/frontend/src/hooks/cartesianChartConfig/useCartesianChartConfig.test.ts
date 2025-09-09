@@ -1,6 +1,12 @@
 import { CartesianSeriesType, getItemMap } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('../useFeatureFlagEnabled', () => ({
+    useFeatureFlag: async () => ({ data: { enabled: false } }),
+    useFeatureFlagEnabled: async () => false,
+}));
+
 import useCartesianChartConfig from './useCartesianChartConfig';
 import {
     existingMixedSeries,

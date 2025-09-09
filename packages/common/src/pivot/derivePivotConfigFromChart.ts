@@ -122,15 +122,23 @@ function getTablePivotConfiguration(
         .filter((col): col is NonNullable<typeof col> => col !== undefined);
 
     // Create value columns for each metric
-    const valuesColumns = metricQuery.metrics.map((metric) => ({
-        reference: metric,
-        aggregation: VizAggregationOptions.ANY,
-    }));
+    const valuesColumns = metricQuery.metrics
+        .map((metric) => ({
+            reference: metric,
+            aggregation: VizAggregationOptions.ANY,
+        }))
+        .filter(
+            (col) =>
+                metricQuery.dimensions.includes(col.reference) ||
+                metricQuery.metrics.includes(col.reference),
+        );
 
     // Group by columns are the pivot dimensions
-    const groupByColumns = pivotColumns.map((col: string) => ({
-        reference: col,
-    }));
+    const groupByColumns = pivotColumns
+        .map((col: string) => ({
+            reference: col,
+        }))
+        .filter((col) => metricQuery.dimensions.includes(col.reference));
 
     const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
         indexColumn,
@@ -169,16 +177,24 @@ function getCartesianPivotConfiguration(
     } = chartConfig.config;
 
     if (pivotConfig?.columns && xField && yField) {
-        // Extract pivot columns
-        const groupByColumns = pivotConfig.columns.map((pv) => ({
-            reference: pv,
-        }));
+        // Extract and validate pivot columns
+        const groupByColumns = pivotConfig.columns
+            .map((pv) => ({
+                reference: pv,
+            }))
+            .filter((col) => metricQuery.dimensions.includes(col.reference));
 
         // Extract value columns
-        const valuesColumns = yField.map((yf) => ({
-            reference: yf,
-            aggregation: VizAggregationOptions.ANY,
-        }));
+        const valuesColumns = yField
+            .map((yf) => ({
+                reference: yf,
+                aggregation: VizAggregationOptions.ANY,
+            }))
+            .filter(
+                (col) =>
+                    metricQuery.dimensions.includes(col.reference) ||
+                    metricQuery.metrics.includes(col.reference),
+            );
 
         const xAxisDimension = fields[xField];
         let xAxisType: VizIndexType | undefined;
@@ -218,6 +234,34 @@ function getCartesianPivotConfiguration(
     return undefined;
 }
 
+function isValid(pivotConfiguration: PivotConfiguration): boolean {
+    const { groupByColumns, valuesColumns, indexColumn } = pivotConfiguration;
+
+    const indexColumns = normalizeIndexColumns(indexColumn);
+    if (indexColumns.length === 0) {
+        return false;
+    }
+
+    if (valuesColumns.length === 0) {
+        return false;
+    }
+
+    if (!groupByColumns || groupByColumns.length === 0) {
+        return false;
+    }
+
+    // Validate that no groupBy column is also part of the index columns
+    const indexRefs = new Set(indexColumns.map((c) => c.reference));
+    const overlapping = groupByColumns
+        .map((c) => c.reference)
+        .filter((ref) => indexRefs.has(ref));
+    if (overlapping.length > 0) {
+        return false;
+    }
+
+    return true;
+}
+
 export function derivePivotConfigurationFromChart(
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
     metricQuery: MetricQuery,
@@ -226,22 +270,37 @@ export function derivePivotConfigurationFromChart(
     const { chartConfig } = savedChart;
     const { type } = chartConfig;
 
+    let newConfig: PivotConfiguration | undefined;
     switch (type) {
         case ChartType.TABLE:
-            return getTablePivotConfiguration(savedChart, metricQuery, fields);
-        case ChartType.CARTESIAN:
-            return getCartesianPivotConfiguration(
+            newConfig = getTablePivotConfiguration(
                 savedChart,
                 metricQuery,
                 fields,
             );
+            break;
+        case ChartType.CARTESIAN:
+            newConfig = getCartesianPivotConfiguration(
+                savedChart,
+                metricQuery,
+                fields,
+            );
+            break;
         case ChartType.PIE:
         case ChartType.FUNNEL:
         case ChartType.TREEMAP:
         case ChartType.CUSTOM:
         case ChartType.BIG_NUMBER:
-            return undefined;
+            newConfig = undefined;
+            break;
         default:
             return assertUnreachable(type, `Unknown chart type ${type}`);
     }
+
+    // Validate pivot configuration
+    if (newConfig && isValid(newConfig)) {
+        return newConfig;
+    }
+
+    return undefined;
 }

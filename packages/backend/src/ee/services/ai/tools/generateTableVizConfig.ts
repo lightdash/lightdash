@@ -23,6 +23,7 @@ import {
     validateFilterRules,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
+    validateSortFieldsAreSelected,
 } from '../utils/validators';
 import { renderTableViz } from '../visualizations/vizTable';
 
@@ -73,6 +74,12 @@ export const getGenerateTableVizConfig = ({
         validateMetricDimensionFilterPlacement(
             explore,
             vizTool.filters,
+            vizTool.customMetrics,
+        );
+        validateSortFieldsAreSelected(
+            vizTool.vizConfig.sorts,
+            vizTool.vizConfig.dimensions,
+            vizTool.vizConfig.metrics,
             vizTool.customMetrics,
         );
     };

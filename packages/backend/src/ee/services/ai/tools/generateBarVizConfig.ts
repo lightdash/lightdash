@@ -23,6 +23,7 @@ import {
     validateFilterRules,
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
+    validateSortFieldsAreSelected,
 } from '../utils/validators';
 import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
 
@@ -75,6 +76,16 @@ export const getGenerateBarVizConfig = ({
         validateMetricDimensionFilterPlacement(
             explore,
             vizTool.filters,
+            vizTool.customMetrics,
+        );
+        const selectedDimensions = [
+            vizTool.vizConfig.xDimension,
+            vizTool.vizConfig.breakdownByDimension,
+        ].filter((x) => typeof x === 'string');
+        validateSortFieldsAreSelected(
+            vizTool.vizConfig.sorts,
+            selectedDimensions,
+            vizTool.vizConfig.yMetrics,
             vizTool.customMetrics,
         );
     };

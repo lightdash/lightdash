@@ -70,10 +70,12 @@ const DashboardProvider: React.FC<
     const { search, pathname } = useLocation();
     const navigate = useNavigate();
 
-    const { dashboardUuid } = useParams<{
+    const { dashboardUuid, tabUuid } = useParams<{
         dashboardUuid: string;
+        tabUuid?: string;
     }>() as {
         dashboardUuid: string;
+        tabUuid?: string;
     };
 
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
@@ -124,6 +126,9 @@ const DashboardProvider: React.FC<
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
     const [haveTabsChanged, setHaveTabsChanged] = useState<boolean>(false);
     const [dashboardTabs, setDashboardTabs] = useState<Dashboard['tabs']>([]);
+    const [activeTab, setActiveTab] = useState<
+        Dashboard['tabs'][number] | undefined
+    >();
     const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =
         useState<DashboardFilters>(emptyFilters);
     const [dashboardFilters, setDashboardFilters] =
@@ -200,6 +205,16 @@ const DashboardProvider: React.FC<
             setPinnedParametersState([]);
         }
     }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
+
+    // Set active tab when dashboard and tabs are loaded
+    useEffect(() => {
+        if (dashboard?.tabs) {
+            const matchedTab =
+                dashboard.tabs.find((tab) => tab.uuid === tabUuid) ??
+                dashboard.tabs[0];
+            setActiveTab(matchedTab);
+        }
+    }, [dashboard?.tabs, tabUuid]);
 
     // Apply scheduler parameters when provided (for scheduled deliveries)
     useEffect(() => {
@@ -333,12 +348,23 @@ const DashboardProvider: React.FC<
     const areAllChartsLoaded = useMemo(() => {
         if (!dashboardTiles) return false;
 
+        // If tabs exist, but no active tab is specified, tiles are not loaded
+        if (dashboard?.tabs && dashboard?.tabs.length > 0 && !activeTab)
+            return false;
+
         const chartTileUuids = dashboardTiles
             .filter(isDashboardChartTileType)
+            .filter((tile) => {
+                // If no active tab specified, include all tiles (backwards compatibility)
+                if (!activeTab) return true;
+
+                // If tabs exist, only include tiles from the active tab or no tabUuid
+                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
+            })
             .map((tile) => tile.uuid);
 
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
-    }, [dashboardTiles, loadedTiles]);
+    }, [dashboardTiles, loadedTiles, activeTab, dashboard?.tabs]);
 
     const missingRequiredParameters = useMemo(() => {
         // If no parameter references, return empty array
@@ -873,6 +899,8 @@ const DashboardProvider: React.FC<
         setHaveTabsChanged,
         dashboardTabs,
         setDashboardTabs,
+        activeTab,
+        setActiveTab,
         setDashboardTemporaryFilters,
         dashboardFilters,
         dashboardTemporaryFilters,

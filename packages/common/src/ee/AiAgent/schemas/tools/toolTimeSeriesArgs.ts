@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { FollowUpTools } from '../../followUpTools';
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
@@ -25,12 +24,12 @@ export const toolTimeSeriesArgsSchema = createToolSchema(
         followUpTools: z
             .array(
                 z.union([
-                    z.literal(FollowUpTools.GENERATE_BAR_VIZ),
-                    z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+                    z.literal(AiResultType.TABLE_RESULT),
+                    z.literal(AiResultType.VERTICAL_BAR_RESULT),
                 ]),
             )
             .describe(
-                `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
+                `The actions the User can ask for after the AI has generated the chart.`,
             ),
     })
     .build();

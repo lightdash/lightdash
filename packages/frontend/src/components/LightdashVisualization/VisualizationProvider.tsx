@@ -32,7 +32,10 @@ import {
     calculateSeriesLikeIdentifier,
     isGroupedSeries,
 } from '../../hooks/useChartColorConfig/utils';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
+import {
+    useFeatureFlag,
+    useFeatureFlagEnabled,
+} from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
@@ -50,6 +53,7 @@ export type VisualizationProviderProps = {
     minimal?: boolean;
     chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
+    unsavedMetricQuery?: MetricQuery;
     resultsData: InfiniteQueryResults & {
         metricQuery?: MetricQuery;
         fields?: ItemsMap;
@@ -99,6 +103,7 @@ const VisualizationProvider: FC<
     computedSeries,
     apiErrorDetail,
     parameters,
+    unsavedMetricQuery,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -113,9 +118,15 @@ const VisualizationProvider: FC<
         InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
     >();
 
+    const { data: useSqlPivotResults } = useFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
+    );
+
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
-        lastValidResultsData?.metricQuery,
+        useSqlPivotResults?.enabled
+            ? unsavedMetricQuery ?? lastValidResultsData?.metricQuery
+            : lastValidResultsData?.metricQuery,
     );
 
     const setChartType = useCallback(

@@ -15,6 +15,7 @@ import {
     Group,
     SegmentedControl,
     Stack,
+    TextInput,
     Tooltip,
 } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
@@ -309,6 +310,30 @@ export const Layout: FC<Props> = ({ items }) => {
                                 const inactiveItemIds = dirtyLayout?.xField
                                     ? [dirtyLayout.xField, ...pivotDimensions]
                                     : pivotDimensions;
+                                // check if is invalid reference
+                                if (!groupSelectedField) {
+                                    return (
+                                        <TextInput
+                                            key={pivotKey}
+                                            readOnly
+                                            value={pivotKey}
+                                            rightSection={
+                                                <CloseButton
+                                                    onClick={() => {
+                                                        setPivotDimensions(
+                                                            pivotDimensions.filter(
+                                                                (key) =>
+                                                                    key !==
+                                                                    pivotKey,
+                                                            ),
+                                                        );
+                                                    }}
+                                                />
+                                            }
+                                            error={'Invalid reference'}
+                                        />
+                                    );
+                                }
                                 return (
                                     <Group spacing="xs" key={pivotKey}>
                                         <FieldSelect

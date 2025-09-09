@@ -2,17 +2,16 @@ import { AgentToolCallArgsSchema, ToolNameSchema } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { processDataStream } from 'ai';
 import { useCallback } from 'react';
-import { useDispatch } from 'react-redux';
 import { lightdashApiStream } from '../../../../api';
-import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
 import {
     addToolCall,
-    type AiAgentThreadStreamDispatch,
     appendToMessage,
     setError,
     startStreaming,
     stopStreaming,
-} from './AiAgentThreadStreamStore';
+} from '../store/aiAgentThreadStreamSlice';
+import { useAiAgentStoreDispatch } from '../store/hooks';
+import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
 
 export interface AiAgentThreadStreamOptions {
     projectUuid: string;
@@ -37,7 +36,7 @@ const streamAgentThreadResponse = async (
     });
 
 export function useAiAgentThreadStreamMutation() {
-    const dispatch = useDispatch<AiAgentThreadStreamDispatch>();
+    const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
         useAiAgentThreadStreamAbortController();
 

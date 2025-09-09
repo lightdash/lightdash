@@ -7,6 +7,7 @@ import {
     SortByDirection,
     WarehouseSqlBuilder,
 } from '@lightdash/common';
+import { applyLimitToSqlQuery } from './utils';
 
 const DEFAULT_PIVOT_ROW_LIMIT = 500;
 
@@ -246,7 +247,7 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
         const selectReferences = [
-            ...indexColumns.map((col) => col.reference),
+            ...indexColumns.map((col) => `${q}${col.reference}${q}`),
             ...groupByColumns.map((col) => `${q}${col.reference}${q}`),
             ...(valuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
@@ -353,6 +354,14 @@ export class PivotQueryBuilder {
         ]);
     }
 
+    private getBaseSql(): string {
+        // Remove limit and trailing semicolon from base SQL
+        return applyLimitToSqlQuery({
+            sqlQuery: this.sql,
+            limit: null,
+        }).replace(/;\s*$/, '');
+    }
+
     /**
      * Generates the final pivot SQL query.
      * @returns Complete SQL query with CTEs for pivoting the data
@@ -386,7 +395,7 @@ export class PivotQueryBuilder {
             }
         }
 
-        const userSql = this.sql.replace(/;\s*$/, '');
+        const baseSql = this.getBaseSql();
         const groupByQuery = this.getGroupByQuerySQL(
             indexColumns,
             valuesColumns,
@@ -395,7 +404,7 @@ export class PivotQueryBuilder {
 
         if (groupByColumns && groupByColumns.length > 0) {
             return this.getFullPivotSQL(
-                userSql,
+                baseSql,
                 groupByQuery,
                 indexColumns,
                 valuesColumns,
@@ -404,6 +413,6 @@ export class PivotQueryBuilder {
             );
         }
 
-        return this.getSimpleQuerySQL(userSql, groupByQuery, sortBy);
+        return this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);
     }
 }

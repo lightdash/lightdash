@@ -479,7 +479,9 @@ export const removeCommentsAndOuterLimitOffset = (sql: string): string => {
     // remove either "LIMIT x OFFSET y" or "OFFSET y LIMIT x" at the end of the query
     const limitOffsetRegex =
         /(\b(?:(?:limit\s+\d+(?:\s+offset\s+\d+)?)|(?:offset\s+\d+\s+limit\s+\d+))\s*(?:;|\s*)?)$/i;
-    let sqlWithoutLimit = sqlWithoutStrings.replace(limitOffsetRegex, '');
+    let sqlWithoutLimit = sqlWithoutStrings
+        .trim()
+        .replace(limitOffsetRegex, '');
     // remove semicolon from the end of the query
     sqlWithoutLimit = sqlWithoutLimit.trim().replace(/;+$/g, '');
     // restore strings
@@ -500,7 +502,7 @@ export const applyLimitToSqlQuery = ({
     limit,
 }: {
     sqlQuery: string;
-    limit: number | undefined;
+    limit: number | null | undefined;
 }): string => {
     // do nothing if limit is undefined
     if (limit === undefined) {
@@ -508,6 +510,9 @@ export const applyLimitToSqlQuery = ({
         let sql = removeComments(sqlQuery);
         sql = sql.trim().replace(/;+$/g, '');
         return sql.trim();
+    }
+    if (limit === null) {
+        return removeCommentsAndOuterLimitOffset(sqlQuery);
     }
     // get any existing outer limit and offset from the SQL query
     const existingLimitOffset = extractOuterLimitOffsetFromSQL(sqlQuery);
