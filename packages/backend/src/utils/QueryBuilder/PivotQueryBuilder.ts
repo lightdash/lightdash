@@ -246,7 +246,7 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
         const selectReferences = [
-            ...indexColumns.map((col) => col.reference),
+            ...indexColumns.map((col) => `${q}${col.reference}${q}`),
             ...groupByColumns.map((col) => `${q}${col.reference}${q}`),
             ...(valuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
