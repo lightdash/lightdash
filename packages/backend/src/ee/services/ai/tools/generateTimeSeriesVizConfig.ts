@@ -18,13 +18,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    validateCustomMetricsDefinition,
-    validateFilterRules,
-    validateMetricDimensionFilterPlacement,
-    validateSelectedFieldsExistence,
-    validateSortFieldsAreSelected,
-} from '../utils/validators';
+import { validateTimeSeriesVizConfig } from '../utils/validateTimeSeriesVizConfig';
 import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
 
 type Dependencies = {
@@ -49,46 +43,6 @@ export const getGenerateTimeSeriesVizConfig = ({
 }: Dependencies) => {
     const schema = toolTimeSeriesArgsSchema;
 
-    /**
-     * This function is used to validate the viz tool.
-     * @param vizTool - The complete viz tool with populated custom fields
-     * @param explore - The explore
-     */
-    const validateVizTool = (
-        vizTool: ToolTimeSeriesArgsTransformed,
-        explore: Explore,
-    ) => {
-        const filterRules = getTotalFilterRules(vizTool.filters);
-        const fieldsToValidate = [
-            vizTool.vizConfig.xDimension,
-            vizTool.vizConfig.breakdownByDimension,
-            ...vizTool.vizConfig.yMetrics,
-            ...vizTool.vizConfig.sorts.map((sortField) => sortField.fieldId),
-        ].filter((x) => typeof x === 'string');
-        validateSelectedFieldsExistence(
-            explore,
-            fieldsToValidate,
-            vizTool.customMetrics,
-        );
-        validateCustomMetricsDefinition(explore, vizTool.customMetrics);
-        validateFilterRules(explore, filterRules, vizTool.customMetrics);
-        validateMetricDimensionFilterPlacement(
-            explore,
-            vizTool.filters,
-            vizTool.customMetrics,
-        );
-        const selectedDimensions = [
-            vizTool.vizConfig.xDimension,
-            vizTool.vizConfig.breakdownByDimension,
-        ].filter((x) => typeof x === 'string');
-        validateSortFieldsAreSelected(
-            vizTool.vizConfig.sorts,
-            selectedDimensions,
-            vizTool.vizConfig.yMetrics,
-            vizTool.customMetrics,
-        );
-    };
-
     return tool({
         description: toolTimeSeriesArgsSchema.description,
         parameters: schema,
@@ -102,7 +56,7 @@ export const getGenerateTimeSeriesVizConfig = ({
                 const explore = await getExplore({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
-                validateVizTool(vizTool, explore);
+                validateTimeSeriesVizConfig(vizTool, explore);
                 // end of TODO
 
                 const prompt = await getPrompt();

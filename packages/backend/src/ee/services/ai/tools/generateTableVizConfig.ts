@@ -18,13 +18,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    validateCustomMetricsDefinition,
-    validateFilterRules,
-    validateMetricDimensionFilterPlacement,
-    validateSelectedFieldsExistence,
-    validateSortFieldsAreSelected,
-} from '../utils/validators';
+import { validateTableVizConfig } from '../utils/validateTableVizConfig';
 import { renderTableViz } from '../visualizations/vizTable';
 
 type Dependencies = {
@@ -49,41 +43,6 @@ export const getGenerateTableVizConfig = ({
 }: Dependencies) => {
     const schema = toolTableVizArgsSchema;
 
-    /**
-     * This function is used to validate the viz tool.
-     * @param vizTool - The complete viz tool with populated custom fields
-     * @param explore - The explore
-     */
-    const validateVizTool = (
-        vizTool: ToolTableVizArgsTransformed,
-        explore: Explore,
-    ) => {
-        const filterRules = getTotalFilterRules(vizTool.filters);
-        const fieldsToValidate = [
-            ...vizTool.vizConfig.dimensions,
-            ...vizTool.vizConfig.metrics,
-            ...vizTool.vizConfig.sorts.map((sortField) => sortField.fieldId),
-        ].filter((x) => typeof x === 'string');
-        validateSelectedFieldsExistence(
-            explore,
-            fieldsToValidate,
-            vizTool.customMetrics,
-        );
-        validateCustomMetricsDefinition(explore, vizTool.customMetrics);
-        validateFilterRules(explore, filterRules, vizTool.customMetrics);
-        validateMetricDimensionFilterPlacement(
-            explore,
-            vizTool.filters,
-            vizTool.customMetrics,
-        );
-        validateSortFieldsAreSelected(
-            vizTool.vizConfig.sorts,
-            vizTool.vizConfig.dimensions,
-            vizTool.vizConfig.metrics,
-            vizTool.customMetrics,
-        );
-    };
-
     return tool({
         description: toolTableVizArgsSchema.description,
         parameters: schema,
@@ -100,7 +59,7 @@ export const getGenerateTableVizConfig = ({
                     exploreName: vizTool.vizConfig.exploreName,
                 });
 
-                validateVizTool(vizTool, explore);
+                validateTableVizConfig(vizTool, explore);
                 // end of TODO
 
                 const prompt = await getPrompt();
