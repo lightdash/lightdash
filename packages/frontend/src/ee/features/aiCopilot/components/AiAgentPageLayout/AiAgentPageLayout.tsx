@@ -95,6 +95,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             className={`${styles.sidebar} ${
                                 !isResizing ? styles.sidebarTransition : ''
                             }`}
+                            onCollapse={() =>
+                                setIsAgentSidebarCollapsed?.(true)
+                            }
+                            onExpand={() => setIsAgentSidebarCollapsed?.(false)}
                         >
                             <Flex
                                 w={isAgentSidebarCollapsed ? 'xs' : 'auto'}
