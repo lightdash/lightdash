@@ -10,6 +10,7 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -17,6 +18,8 @@ import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
 import { useCreateAgentThreadMutation } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { clearArtifact } from '../../features/aiCopilot/store/aiArtifactSlice';
+import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentNewThreadPage = () => {
@@ -24,6 +27,12 @@ const AiAgentNewThreadPage = () => {
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(agentUuid, projectUuid!);
     const { agent } = useOutletContext<AgentContext>();
+    const dispatch = useAiAgentStoreDispatch();
+
+    // Clear artifact drawer when navigating to new thread page
+    useEffect(() => {
+        dispatch(clearArtifact());
+    }, [dispatch]);
 
     const onSubmit = (prompt: string) => {
         void createAgentThread({ prompt });
