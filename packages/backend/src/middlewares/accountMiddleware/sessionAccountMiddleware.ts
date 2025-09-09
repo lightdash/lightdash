@@ -13,7 +13,7 @@ export function sessionAccountMiddleware(
     res: Response,
     next: NextFunction,
 ) {
-    // This means we already have a session user with an account, which should not happen.
+    // This means we already have a session user with an account. Usually when an admin previews an embedding.
     if (req.user && req.account) {
         Logger.warn(
             'User with Session Account is already authenticated',

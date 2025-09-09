@@ -12,7 +12,9 @@ import {
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
 import { forwardRef, useMemo, type FC, type HTMLAttributes } from 'react';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/constants';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -90,6 +92,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     ...wrapperProps
 }) => {
     const theme = useMantineTheme();
+    const ability = useAbilityContext();
+    const { embedToken } = useEmbed();
 
     const { resultsData, isLoading, visualizationConfig } =
         useVisualizationContext();
@@ -181,6 +185,10 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     if (isLoading) return <LoadingChart />;
 
+    const shouldHideContextMenu =
+        (minimal && !embedToken) ||
+        (embedToken && ability.cannot('view', 'UnderlyingData'));
+
     return validData ? (
         <Center
             w="100%"
@@ -194,7 +202,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             {...wrapperProps}
         >
             <Flex style={{ flexShrink: 1 }}>
-                {minimal ? (
+                {shouldHideContextMenu ? (
                     <BigNumberText fz={valueFontSize}>
                         {bigNumber}
                     </BigNumberText>

@@ -585,6 +585,40 @@ describe('Embedded dashboard abilities', () => {
             ).toBe(true);
         });
 
+        it('should not allow viewing Explore domains when canExplore is false', () => {
+            const embedUser = createEmbedJwt({
+                content: { canExplore: false },
+            });
+            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('should not allow viewing Explore domains when canExplore is undefined', () => {
+            const embedUser = createEmbedJwt({
+                content: { canExplore: undefined },
+            });
+            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
         it('should not allow viewing Explore domains for different projects', () => {
             const embedUser = createEmbedJwt({
                 content: { canExplore: true },

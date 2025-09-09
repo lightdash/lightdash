@@ -1,14 +1,13 @@
-import { mergeExisting } from '@lightdash/common';
+import { mergeExisting, QueryExecutionContext } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import { GenericDashboardChartTile } from '../../../../../components/DashboardTiles/DashboardChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
-import type { DashboardChartReadyQuery } from '../../../../../hooks/dashboard/useDashboardChartReadyQuery';
-import type { InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useDashboardChartReadyQuery } from '../../../../../hooks/dashboard/useDashboardChartReadyQuery';
+import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useEmbed from '../../../../providers/Embed/useEmbed';
-import { useEmbedChartAndResults } from '../hooks';
 
 type Props = ComponentProps<typeof DashboardChartTile> & {
     projectUuid: string;
@@ -31,10 +30,37 @@ const EmbedDashboardChartTile: FC<Props> = ({
 }) => {
     const { languageMap, onExplore } = useEmbed();
 
-    const { isLoading, data, error } = useEmbedChartAndResults(
-        projectUuid,
+    // Using the regular dashboard query flow with Embed context
+    const readyQuery = useDashboardChartReadyQuery(
         tile.uuid,
+        tile.properties?.savedChartUuid,
+        QueryExecutionContext.EMBED,
     );
+
+    const resultsData = useInfiniteQueryResults(
+        readyQuery.data?.chart.projectUuid,
+        readyQuery.data?.executeQueryResponse.queryUuid,
+        readyQuery.data?.chart.name,
+    );
+
+    const isLoading = useMemo(() => {
+        const isCreatingQuery = readyQuery.isFetching;
+        const isFetchingFirstPage = resultsData.isFetchingFirstPage;
+        const isFetchingAllRows =
+            resultsData.fetchAll && !resultsData.hasFetchedAllRows;
+        return (
+            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
+            !resultsData.error
+        );
+    }, [
+        readyQuery.isFetching,
+        resultsData.fetchAll,
+        resultsData.hasFetchedAllRows,
+        resultsData.isFetchingFirstPage,
+        resultsData.error,
+    ]);
+
+    const error = readyQuery.error ?? resultsData.error;
 
     const translatedTile = useMemo(() => {
         if (!languageMap) return tile;
@@ -52,62 +78,20 @@ const EmbedDashboardChartTile: FC<Props> = ({
     }, [dashboardSlug, languageMap, tile, tileIndex]);
 
     const translatedChartData = useMemo(() => {
-        if (!data) return undefined;
+        if (!readyQuery.data) return undefined;
 
-        const chartConfigLanguageMap = languageMap?.chart?.[data.chart.slug];
+        const chartConfigLanguageMap =
+            languageMap?.chart?.[readyQuery.data.chart.slug];
 
-        if (!chartConfigLanguageMap) return data;
+        if (!chartConfigLanguageMap) return readyQuery.data;
 
-        return produce(data, (draft) => {
+        return produce(readyQuery.data, (draft) => {
             draft.chart = mergeExisting(draft.chart, chartConfigLanguageMap);
         });
-    }, [data, languageMap?.chart]);
+    }, [readyQuery.data, languageMap?.chart]);
 
-    // Mimic the DashboardChartReadyQuery object
-    const query = useMemo<DashboardChartReadyQuery | undefined>(() => {
-        if (!translatedChartData) return undefined;
-
-        return {
-            executeQueryResponse: {
-                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
-                appliedDashboardFilters:
-                    translatedChartData.appliedDashboardFilters ?? {
-                        dimensions: [],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
-                cacheMetadata: translatedChartData.cacheMetadata,
-                metricQuery: translatedChartData?.metricQuery,
-                fields: translatedChartData?.fields,
-                parameterReferences: [],
-                usedParametersValues: {}, // This is never used in embed endpoints/results, it's calculated in the backend from the saved parameters of the charts
-            },
-            chart: translatedChartData.chart,
-            explore: translatedChartData.explore,
-        } satisfies DashboardChartReadyQuery;
-    }, [translatedChartData]);
-
-    const resultData = useMemo<InfiniteQueryResults>(
-        () =>
-            ({
-                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
-                rows: translatedChartData?.rows ?? [],
-                totalResults: translatedChartData?.rows.length,
-                initialQueryExecutionMs: 0,
-                isFetchingRows: false,
-                isFetchingAllPages: false,
-                fetchMoreRows: () => undefined,
-                setFetchAll: () => undefined,
-                fetchAll: true,
-                hasFetchedAllRows: true,
-                totalClientFetchTimeMs: 0,
-                isInitialLoading: false,
-                isFetchingFirstPage: false,
-                projectUuid: translatedChartData?.chart.projectUuid,
-                error: error,
-            } satisfies InfiniteQueryResults),
-        [translatedChartData, error],
-    );
+    // Apply language translations to the chart data if available
+    const dashboardChartReadyQuery = translatedChartData;
 
     if (locked) {
         return (
@@ -131,8 +115,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
             canExportImages={canExportImages}
             canExportPagePdf={canExportPagePdf}
             canDateZoom={canDateZoom}
-            resultsData={resultData}
-            dashboardChartReadyQuery={query}
+            resultsData={resultsData}
+            dashboardChartReadyQuery={dashboardChartReadyQuery}
             error={error}
             onExplore={onExplore}
         />
