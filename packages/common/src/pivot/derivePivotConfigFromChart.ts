@@ -122,10 +122,16 @@ function getTablePivotConfiguration(
         .filter((col): col is NonNullable<typeof col> => col !== undefined);
 
     // Create value columns for each metric
-    const valuesColumns = metricQuery.metrics.map((metric) => ({
-        reference: metric,
-        aggregation: VizAggregationOptions.ANY,
-    }));
+    const valuesColumns = metricQuery.metrics
+        .map((metric) => ({
+            reference: metric,
+            aggregation: VizAggregationOptions.ANY,
+        }))
+        .filter(
+            (col) =>
+                metricQuery.dimensions.includes(col.reference) ||
+                metricQuery.metrics.includes(col.reference),
+        );
 
     // Group by columns are the pivot dimensions
     const groupByColumns = pivotColumns
@@ -179,10 +185,16 @@ function getCartesianPivotConfiguration(
             .filter((col) => metricQuery.dimensions.includes(col.reference));
 
         // Extract value columns
-        const valuesColumns = yField.map((yf) => ({
-            reference: yf,
-            aggregation: VizAggregationOptions.ANY,
-        }));
+        const valuesColumns = yField
+            .map((yf) => ({
+                reference: yf,
+                aggregation: VizAggregationOptions.ANY,
+            }))
+            .filter(
+                (col) =>
+                    metricQuery.dimensions.includes(col.reference) ||
+                    metricQuery.metrics.includes(col.reference),
+            );
 
         const xAxisDimension = fields[xField];
         let xAxisType: VizIndexType | undefined;
@@ -223,10 +235,14 @@ function getCartesianPivotConfiguration(
 }
 
 function isValid(pivotConfiguration: PivotConfiguration): boolean {
-    const { groupByColumns, indexColumn } = pivotConfiguration;
+    const { groupByColumns, valuesColumns, indexColumn } = pivotConfiguration;
 
     const indexColumns = normalizeIndexColumns(indexColumn);
     if (indexColumns.length === 0) {
+        return false;
+    }
+
+    if (valuesColumns.length === 0) {
         return false;
     }
 
