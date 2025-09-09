@@ -48,6 +48,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             enabled: !!unsavedChartVersionTableName,
         });
 
+        const isSavedChart = useExplorerContext(
+            (context) => !!context.state.savedChart,
+        );
+
         const fromDashboard = useExplorerContext(
             (context) => context.state.fromDashboard,
         );
@@ -61,10 +65,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         );
 
         useEffect(() => {
-            if (!previouslyFetchedState && (fromDashboard || isEditMode)) {
+            if (!previouslyFetchedState && (fromDashboard || isSavedChart)) {
                 fetchResults();
             }
-        }, [previouslyFetchedState, fetchResults, fromDashboard, isEditMode]);
+        }, [previouslyFetchedState, fetchResults, fromDashboard, isSavedChart]);
 
         useEffect(() => {
             if (isError) {
