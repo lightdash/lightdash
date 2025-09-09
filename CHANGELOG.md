@@ -1,3 +1,10 @@
+## [0.1989.2](https://github.com/lightdash/lightdash/compare/0.1989.1...0.1989.2) (2025-09-09)
+
+
+### Bug Fixes
+
+* filter invalid columns in pivot configuration and validate values columns ([#16805](https://github.com/lightdash/lightdash/issues/16805)) ([cec34c9](https://github.com/lightdash/lightdash/commit/cec34c990c2bb96c71668212eabf2d8b01848b5e))
+
 ## [0.1989.1](https://github.com/lightdash/lightdash/compare/0.1989.0...0.1989.1) (2025-09-09)
 
 
