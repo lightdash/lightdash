@@ -1,65 +1,34 @@
-import { type AiAgentThread } from '@lightdash/common';
 import { Center, Loader } from '@mantine-8/core';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { setArtifact } from '../../features/aiCopilot/store/aiArtifactSlice';
-import {
-    useAiAgentStoreDispatch,
-    useAiAgentStoreSelector,
-} from '../../features/aiCopilot/store/hooks';
 import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
     const { user } = useApp();
-    const artifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
-    const dispatch = useAiAgentStoreDispatch();
 
     const { data: thread, isLoading: isLoadingThread } = useAiAgentThread(
         projectUuid!,
         agentUuid,
         threadUuid,
-        {
-            onSuccess: (threadData: AiAgentThread) => {
-                if (!threadData?.messages?.length) return;
-
-                const lastMessage = threadData.messages.at(-1);
-                if (!lastMessage || lastMessage.role !== 'assistant') return;
-
-                const messageArtifact = lastMessage.artifact;
-                if (!messageArtifact) return;
-
-                // Only auto-open if no artifact is currently set or it's different
-                if (
-                    (artifact?.artifactUuid !== messageArtifact.uuid ||
-                        artifact?.versionUuid !==
-                            messageArtifact.versionUuid) &&
-                    projectUuid &&
-                    agentUuid
-                ) {
-                    dispatch(
-                        setArtifact({
-                            artifactUuid: messageArtifact.uuid,
-                            versionUuid: messageArtifact.versionUuid,
-                            message: lastMessage,
-                            projectUuid: projectUuid,
-                            agentUuid: agentUuid,
-                        }),
-                    );
-                }
-            },
-        },
     );
+
+    // Handle artifact selection based on thread changes
+    useAiAgentThreadArtifact({
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        thread,
+    });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
