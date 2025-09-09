@@ -33,7 +33,7 @@ export const toolTimeSeriesArgsSchema = createToolSchema(
                 ]),
             )
             .describe(
-                `The actions the User can ask for after the AI has generated the chart.`,
+                `The actions the User can ask for after the AI has generated the chart`,
             ),
     })
     .build();
