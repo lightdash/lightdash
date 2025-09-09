@@ -2,6 +2,7 @@ import {
     ChartType,
     assertUnreachable,
     type ChartConfig,
+    type Series,
 } from '@lightdash/common';
 import omit from 'lodash/omit';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -112,11 +113,11 @@ export const getValidChartConfig = (
     }
 };
 
-// clean the config to remove isFilteredOut prop
-export const cleanConfig = (config: any) => {
+// Clean the config to remove runtime-only properties like isFilteredOut
+export const cleanConfig = (config: ChartConfig): ChartConfig => {
     if (
-        config?.type === ChartType.CARTESIAN &&
-        config?.config?.eChartsConfig?.series
+        config.type === ChartType.CARTESIAN &&
+        config.config?.eChartsConfig?.series
     ) {
         return {
             ...config,
@@ -124,8 +125,8 @@ export const cleanConfig = (config: any) => {
                 ...config.config,
                 eChartsConfig: {
                     ...config.config.eChartsConfig,
-                    series: config.config.eChartsConfig.series.map((s: any) =>
-                        omit(s, ['isFilteredOut']),
+                    series: config.config.eChartsConfig.series.map(
+                        (s: Series) => omit(s, ['isFilteredOut']),
                     ),
                 },
             },
