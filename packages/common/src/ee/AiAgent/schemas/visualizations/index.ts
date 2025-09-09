@@ -13,6 +13,7 @@ const VisualizationTools = [
 // define tool names
 export const ToolNameSchema = z.enum([
     ...VisualizationTools,
+    'generateDashboard',
     'findExplores',
     'findFields',
     'findDashboards',
@@ -34,6 +35,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     generateBarVizConfig: 'Generating a bar chart',
     generateTableVizConfig: 'Generating a table',
     generateTimeSeriesVizConfig: 'Generating a line chart',
+    generateDashboard: 'Generating a dashboard',
     findCharts: 'Finding relevant charts',
 });
 
@@ -46,6 +48,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         generateBarVizConfig: 'Generated a bar chart',
         generateTableVizConfig: 'Generated a table',
         generateTimeSeriesVizConfig: 'Generated a line chart',
+        generateDashboard: 'Generated a dashboard',
         findCharts: 'Found relevant charts',
     });
 
