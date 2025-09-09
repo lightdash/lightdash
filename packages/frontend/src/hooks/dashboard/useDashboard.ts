@@ -129,6 +129,53 @@ export const useDashboardQuery = (
     });
 };
 
+/**
+ * Checks if the dashboard version is up to date and returns the latest dashboard if it is not
+ * Helpful for refreshing the dashboard when the user wants to make changes to the dashboard
+ * This is to avoid one user or multiple users overwriting each other's changes
+ * @param dashboardUuid The dashboard uuid
+ * @returns The latest dashboard or null if the dashboard is up to date
+ */
+export const useDashboardVersionRefresh = (dashboardUuid: string) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<Dashboard | null, ApiError, Dashboard | undefined>({
+        mutationKey: ['dashboard_version_refresh', dashboardUuid],
+        mutationFn: async (currentDashboard) => {
+            try {
+                if (!currentDashboard) {
+                    throw new Error('Current dashboard is undefined');
+                }
+
+                const latestDashboard = await getDashboard(dashboardUuid);
+
+                const currentTime = new Date(
+                    currentDashboard.updatedAt,
+                ).getTime();
+                const latestTime = new Date(
+                    latestDashboard.updatedAt,
+                ).getTime();
+
+                const isUpToDate = latestTime <= currentTime;
+
+                if (isUpToDate) {
+                    return null;
+                }
+
+                queryClient.setQueryData(
+                    ['saved_dashboard_query', dashboardUuid],
+                    latestDashboard,
+                );
+
+                return latestDashboard;
+            } catch (error) {
+                console.warn('Failed to check dashboard timestamp:', error);
+                return null;
+            }
+        },
+    });
+};
+
 export const useExportDashboard = () => {
     const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
     return useMutation<

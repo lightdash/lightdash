@@ -94,6 +94,9 @@ const Dashboard: FC = () => {
     const missingRequiredParameters = useDashboardContext(
         (c) => c.missingRequiredParameters,
     );
+    const refreshDashboardVersion = useDashboardContext(
+        (c) => c.refreshDashboardVersion,
+    );
 
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
 
@@ -537,8 +540,11 @@ const Dashboard: FC = () => {
         return false; // allow navigation
     });
 
-    const handleEnterEditMode = useCallback(() => {
+    const handleEnterEditMode = useCallback(async () => {
         resetDashboardFilters();
+
+        await refreshDashboardVersion();
+
         // Defer the redirect
         void Promise.resolve().then(() => {
             return navigate(
@@ -556,6 +562,7 @@ const Dashboard: FC = () => {
         projectUuid,
         dashboardUuid,
         resetDashboardFilters,
+        refreshDashboardVersion,
         navigate,
         activeTab?.uuid,
         dashboardTabs.length,
