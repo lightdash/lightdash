@@ -1,3 +1,10 @@
+## [0.1987.3](https://github.com/lightdash/lightdash/compare/0.1987.2...0.1987.3) (2025-09-09)
+
+
+### Bug Fixes
+
+* wrap index columns into quotes ([#16770](https://github.com/lightdash/lightdash/issues/16770)) ([34f5ecc](https://github.com/lightdash/lightdash/commit/34f5ecc50040812ed72b73e6c63979deb3e2871c))
+
 ## [0.1987.2](https://github.com/lightdash/lightdash/compare/0.1987.1...0.1987.2) (2025-09-09)
 
 
