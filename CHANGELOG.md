@@ -1,3 +1,10 @@
+## [0.1987.2](https://github.com/lightdash/lightdash/compare/0.1987.1...0.1987.2) (2025-09-09)
+
+
+### Bug Fixes
+
+* validate sort fields in agent tool calls are selected in metrics/dimensions ([#16777](https://github.com/lightdash/lightdash/issues/16777)) ([cc0db63](https://github.com/lightdash/lightdash/commit/cc0db63402581f7bd3f41b06cc1e3ce28492fd61)), closes [#16684](https://github.com/lightdash/lightdash/issues/16684)
+
 ## [0.1987.1](https://github.com/lightdash/lightdash/compare/0.1987.0...0.1987.1) (2025-09-09)
 
 
