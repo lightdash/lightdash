@@ -17,8 +17,6 @@ export type FilterChangedPayload = {
     hasFilters: boolean;
     /** Total number of active filters */
     filterCount: number;
-    /** Timestamp when the filter change occurred */
-    timestamp: number;
 };
 
 /**
@@ -28,8 +26,6 @@ export type FilterChangedPayload = {
 export type TabChangedPayload = {
     /** Index of the newly active tab */
     tabIndex: number;
-    /** Timestamp when the tab change occurred */
-    timestamp: number;
 };
 
 /**
@@ -39,8 +35,6 @@ export type TabChangedPayload = {
 export type ErrorPayload = {
     /** High-level error type classification */
     errorType: string;
-    /** Timestamp when the error occurred */
-    timestamp: number;
 };
 
 /**
@@ -52,8 +46,6 @@ export type AllTilesLoadedPayload = {
     tilesCount: number;
     /** Time taken to load all tiles in milliseconds */
     loadTimeMs: number;
-    /** Timestamp when all tiles finished loading */
-    timestamp: number;
 };
 
 export type LightdashEventPayload =
@@ -65,11 +57,11 @@ export type LightdashEventPayload =
 /**
  * Generic event structure for all Lightdash events
  */
-export type LightdashEmbedEvent<T extends LightdashEventPayload> = {
+export type LightdashEmbedEvent<T extends LightdashEventPayload | undefined> = {
     /** Namespaced event type (e.g., 'lightdash:filterChanged') */
     type: string;
     /** Event-specific payload data */
-    payload: T;
+    payload?: T;
     /** Timestamp of event dispatch */
     timestamp: number;
 };

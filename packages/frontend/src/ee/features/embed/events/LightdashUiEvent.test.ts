@@ -132,7 +132,7 @@ describe('LightdashUiEvent', () => {
 
     describe('Security Tests', () => {
         it('should only send postMessage when explicit origin is provided', () => {
-            const payload = { tabIndex: 1, timestamp: Date.now() };
+            const payload = { tabIndex: 1 };
 
             // Without targetOrigin (use default eventSystem which has targetOrigin)
             const noTargetEventSystem = new LightdashUiEvent(mockConfig); // No targetOrigin
@@ -151,7 +151,6 @@ describe('LightdashUiEvent', () => {
             const payload = {
                 hasFilters: false,
                 filterCount: 0,
-                timestamp: Date.now(),
             };
 
             // Create event system with wildcard origin (should be rejected in constructor)
@@ -175,7 +174,6 @@ describe('LightdashUiEvent', () => {
             const payload = {
                 hasFilters: false,
                 filterCount: 0,
-                timestamp: Date.now(),
             };
             eventSystem.dispatch(LightdashEventType.FilterChanged, payload);
 
@@ -204,7 +202,6 @@ describe('LightdashUiEvent', () => {
 
             const payload = {
                 errorType: 'ValidationError',
-                timestamp: Date.now(),
             };
             invalidEventSystem.dispatch(LightdashEventType.Error, payload);
             expect(msgSpy).not.toHaveBeenCalled();
@@ -215,7 +212,6 @@ describe('LightdashUiEvent', () => {
         it('should dispatch DOM CustomEvent with namespaced event type', () => {
             const payload: TabChangedPayload = {
                 tabIndex: 2,
-                timestamp: Date.now(),
             };
 
             eventSystem.dispatch(LightdashEventType.TabChanged, payload);
@@ -225,7 +221,6 @@ describe('LightdashUiEvent', () => {
                     type: 'lightdash:tabChanged',
                     detail: expect.objectContaining({
                         tabIndex: 2,
-                        timestamp: expect.any(Number),
                     }),
                 }),
             );
@@ -235,7 +230,6 @@ describe('LightdashUiEvent', () => {
             const payload: AllTilesLoadedPayload = {
                 tilesCount: 4,
                 loadTimeMs: 800,
-                timestamp: Date.now(),
             };
 
             eventSystem.dispatch(LightdashEventType.AllTilesLoaded, payload);
@@ -254,7 +248,6 @@ describe('LightdashUiEvent', () => {
             const eventSystemNoTarget = new LightdashUiEvent(mockConfig);
             const payload = {
                 errorType: 'ChartLoadError',
-                timestamp: Date.now(),
             };
 
             // Without targetOrigin
@@ -277,7 +270,6 @@ describe('LightdashUiEvent', () => {
             const payload = {
                 hasFilters: false,
                 filterCount: 0,
-                timestamp: Date.now(),
             };
             eventSystem.dispatch(LightdashEventType.FilterChanged, payload);
 
@@ -295,7 +287,7 @@ describe('LightdashUiEvent', () => {
                 configurable: true,
             });
 
-            const payload = { tabIndex: 1, timestamp: Date.now() };
+            const payload = { tabIndex: 1 };
 
             eventSystem.dispatch(LightdashEventType.TabChanged, payload);
 
@@ -309,7 +301,6 @@ describe('LightdashUiEvent', () => {
             const payload: FilterChangedPayload = {
                 hasFilters: true,
                 filterCount: 2,
-                timestamp: Date.now(),
             };
 
             eventSystem.dispatch(LightdashEventType.FilterChanged, payload);
@@ -327,7 +318,6 @@ describe('LightdashUiEvent', () => {
 
             const payload: TabChangedPayload = {
                 tabIndex: 3,
-                timestamp: Date.now(),
             };
 
             testEventSystem.dispatch(LightdashEventType.TabChanged, payload);
@@ -338,7 +328,6 @@ describe('LightdashUiEvent', () => {
                     type: 'lightdash:tabChanged',
                     payload: {
                         tabIndex: 3,
-                        timestamp: expect.any(Number),
                     },
                 }),
                 'https://app.example.com',
@@ -349,7 +338,6 @@ describe('LightdashUiEvent', () => {
             const payload: AllTilesLoadedPayload = {
                 tilesCount: 6,
                 loadTimeMs: 1500,
-                timestamp: Date.now(),
             };
 
             eventSystem.dispatch(LightdashEventType.AllTilesLoaded, payload);
@@ -360,7 +348,6 @@ describe('LightdashUiEvent', () => {
                     detail: {
                         tilesCount: 6,
                         loadTimeMs: 1500,
-                        timestamp: expect.any(Number),
                     },
                 }),
             );
@@ -372,7 +359,6 @@ describe('LightdashUiEvent', () => {
             const payload = {
                 hasFilters: true,
                 filterCount: 1,
-                timestamp: Date.now(),
             };
 
             // Send 10 events (should all succeed)
@@ -390,9 +376,8 @@ describe('LightdashUiEvent', () => {
             const filterPayload = {
                 hasFilters: true,
                 filterCount: 1,
-                timestamp: Date.now(),
             };
-            const tabPayload = { tabIndex: 1, timestamp: Date.now() };
+            const tabPayload = { tabIndex: 1 };
 
             // Send 10 FilterChanged events
             for (let i = 0; i < 10; i++) {
@@ -419,7 +404,6 @@ describe('LightdashUiEvent', () => {
             const payload = {
                 hasFilters: true,
                 filterCount: 1,
-                timestamp: Date.now(),
             };
 
             // Fill up the rate limit
@@ -444,7 +428,6 @@ describe('LightdashUiEvent', () => {
             const payload = {
                 hasFilters: true,
                 filterCount: 1,
-                timestamp: Date.now(),
             };
 
             // Send 5 events at time 0
@@ -482,7 +465,6 @@ describe('LightdashUiEvent', () => {
             const filterPayload: FilterChangedPayload = {
                 hasFilters: true,
                 filterCount: 2,
-                timestamp: Date.now(),
             };
 
             testEventSystem.dispatch(
@@ -497,7 +479,6 @@ describe('LightdashUiEvent', () => {
                     detail: {
                         hasFilters: true,
                         filterCount: 2,
-                        timestamp: expect.any(Number),
                     },
                 }),
             );
@@ -508,7 +489,6 @@ describe('LightdashUiEvent', () => {
                     payload: {
                         hasFilters: true,
                         filterCount: 2,
-                        timestamp: expect.any(Number),
                     },
                     timestamp: expect.any(Number),
                 },
@@ -526,7 +506,6 @@ describe('LightdashUiEvent', () => {
 
             const tabPayload: TabChangedPayload = {
                 tabIndex: 1,
-                timestamp: Date.now(),
             };
 
             // Only DOM events should be dispatched, no postMessage
@@ -553,7 +532,6 @@ describe('LightdashUiEvent', () => {
             const payload = {
                 hasFilters: true,
                 filterCount: 1,
-                timestamp: Date.now(),
             };
 
             eventSystem.dispatch(LightdashEventType.FilterChanged, payload);
@@ -576,7 +554,7 @@ describe('LightdashUiEvent', () => {
         });
 
         it('should only dispatch DOM events when postMessage is disabled', () => {
-            const payload = { tabIndex: 1, timestamp: Date.now() };
+            const payload = { tabIndex: 1 };
 
             eventSystem.dispatch(LightdashEventType.TabChanged, payload);
 
