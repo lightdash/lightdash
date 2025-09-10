@@ -33,6 +33,7 @@ import { useParameters } from '../../features/parameters';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
+    useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
 import {
     hasSavedFiltersOverrides,
@@ -77,6 +78,11 @@ const DashboardProvider: React.FC<
         dashboardUuid: string;
         tabUuid?: string;
     };
+
+    const {
+        mutateAsync: versionRefresh,
+        isLoading: isRefreshingDashboardVersion,
+    } = useDashboardVersionRefresh(dashboardUuid);
 
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 
@@ -825,6 +831,29 @@ const DashboardProvider: React.FC<
         [],
     );
 
+    const refreshDashboardVersion = useCallback(async () => {
+        try {
+            const freshDashboard = await versionRefresh(dashboard);
+
+            // Only update local state if we got fresh data back
+            // (null means dashboard was already up-to-date)
+            if (freshDashboard) {
+                setDashboardTiles(freshDashboard.tiles);
+                setDashboardTabs(freshDashboard.tabs);
+                setSavedParameters(freshDashboard.parameters ?? {});
+            }
+        } catch (error) {
+            console.error('Failed to refresh dashboard:', error);
+            // Could optionally show a toast error here
+        }
+    }, [
+        versionRefresh,
+        dashboard,
+        setDashboardTiles,
+        setDashboardTabs,
+        setSavedParameters,
+    ]);
+
     const oldestCacheTime = useMemo(
         () => min(resultsCacheTimes),
         [resultsCacheTimes],
@@ -959,6 +988,8 @@ const DashboardProvider: React.FC<
         setHavePinnedParametersChanged,
         addParameterDefinitions,
         tileNamesById,
+        refreshDashboardVersion,
+        isRefreshingDashboardVersion,
     };
     return (
         <DashboardContext.Provider value={value}>
