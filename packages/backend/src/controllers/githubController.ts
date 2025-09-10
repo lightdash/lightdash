@@ -8,6 +8,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Path,
     Query,
     Request,
     Route,
@@ -33,7 +34,6 @@ export class GithubInstallController extends BaseController {
     /**
      * Install the Lightdash GitHub App and link to an organization
      *
-     * @param redirect The url to redirect to after installation
      * @param req express request
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
@@ -127,6 +127,33 @@ export class GithubInstallController extends BaseController {
             status: 'ok',
             results: undefined,
         };
+    }
+
+    /**
+     * Connect to an existing installation ID
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200')
+    @Get('/connect/{installationId}')
+    @OperationId('connectExistingInstallation')
+    async connectExistingInstallation(
+        @Request() req: express.Request,
+        @Path() installationId: string,
+    ): Promise<void> {
+        // Simulate OAuth callback with installation ID
+        await this.services
+            .getGithubAppService()
+            .installCallback(
+                req.user!,
+                { state: 'manual', inviteCode: req.user!.userUuid },
+                'manual_code',
+                'manual',
+                installationId,
+                'update',
+            );
+
+        this.setStatus(302);
+        this.setHeader('Location', '/generalSettings/integrations');
     }
 
     @Middlewares([isAuthenticated, unauthorisedInDemo])

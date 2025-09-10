@@ -91,6 +91,60 @@ export class GithubAppService extends BaseService {
                 throw new ParameterError('User uuid not provided');
             }
 
+            const redirectUrl = new URL(
+                oauth?.returnTo || '/generalSettings/integrations',
+                this.lightdashConfig.siteUrl,
+            );
+
+            if (setup_action === 'update') {
+                // Handle configure/update flow - no OAuth token needed for existing installations
+                this.logger.info('Handling GitHub app configure/update flow');
+                if (!installation_id) {
+                    throw new ParameterError(
+                        'Installation id required for update flow',
+                    );
+                }
+
+                // For update flow, we don't need to create OAuth tokens
+                // Just verify the installation exists and create record
+                try {
+                    const appOctokit = getOctokitRestForApp(installation_id);
+                    await appOctokit.apps.getInstallation({
+                        installation_id: parseInt(installation_id, 10),
+                    });
+                    this.logger.info('Installation verified:', installation_id);
+                } catch (error) {
+                    this.logger.error(
+                        'Installation verification failed:',
+                        error,
+                    );
+                    throw new ParameterError(
+                        'Invalid or inaccessible installation',
+                    );
+                }
+
+                // Create installation record without OAuth tokens
+                await this.upsertInstallation(
+                    userUuid,
+                    installation_id,
+                    '',
+                    '',
+                );
+
+                this.analytics.track({
+                    event: 'github_install.completed',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: user.organizationUuid!,
+                        byAdmin: false,
+                        isUpdate: true,
+                    },
+                });
+
+                return redirectUrl.href;
+            }
+
+            // For non-update flows, we need OAuth token
             if (!code) {
                 throw new ParameterError('Code not provided');
             }
@@ -101,8 +155,6 @@ export class GithubAppService extends BaseService {
             const { token, refreshToken } = userToServerToken.authentication;
             if (refreshToken === undefined)
                 throw new ForbiddenError('Invalid authentication token');
-
-            const redirectUrl = new URL(oauth?.returnTo || '/');
 
             if (setup_action === 'request') {
                 // User attempted to setup the app, didn't have permission in GitHub and sent a request to the admins
