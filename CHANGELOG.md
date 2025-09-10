@@ -1,3 +1,10 @@
+## [0.1992.2](https://github.com/lightdash/lightdash/compare/0.1992.1...0.1992.2) (2025-09-10)
+
+
+### Bug Fixes
+
+* better snowflake error message ([#16781](https://github.com/lightdash/lightdash/issues/16781)) ([d78ff62](https://github.com/lightdash/lightdash/commit/d78ff62a282f3cac5a67c22358529d3931646890))
+
 ## [0.1992.1](https://github.com/lightdash/lightdash/compare/0.1992.0...0.1992.1) (2025-09-10)
 
 
