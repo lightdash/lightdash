@@ -8,6 +8,7 @@ import {
     NotFoundError,
     ParameterError,
     SessionUser,
+    UnexpectedGitError,
 } from '@lightdash/common';
 import { Octokit as OctokitRest } from '@octokit/rest';
 import { SessionData } from 'express-session';
@@ -166,7 +167,7 @@ export class GithubAppService extends BaseService {
                 (i) => `${i.id}` === installation_id,
             );
             if (installation === undefined)
-                throw new Error('Invalid installation id');
+                throw new ParameterError('Invalid installation id');
 
             await this.upsertInstallation(
                 userUuid,
@@ -195,13 +196,14 @@ export class GithubAppService extends BaseService {
                     error: getErrorMessage(error),
                 },
             });
-            throw error;
+
+            throw new UnexpectedGitError(getErrorMessage(error));
         }
     }
 
     async getInstallationId(user: SessionUser) {
         if (!isUserWithOrg(user)) {
-            throw new Error('User is not part of an organization');
+            throw new ForbiddenError('User is not part of an organization');
         }
 
         // This endpoint is also used for developers on projects
@@ -231,7 +233,7 @@ export class GithubAppService extends BaseService {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
 
         if (!user || !isUserWithOrg(user)) {
-            throw new Error('User is not part of an organization');
+            throw new ForbiddenError('User is not part of an organization');
         }
         if (
             user.ability.cannot(
@@ -264,7 +266,7 @@ export class GithubAppService extends BaseService {
 
     async deleteAppInstallation(user: SessionUser) {
         if (!isUserWithOrg(user)) {
-            throw new Error('User is not part of an organization');
+            throw new ForbiddenError('User is not part of an organization');
         }
         // Permissions are checked on this.getInstallationId
         try {
