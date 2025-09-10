@@ -37,7 +37,12 @@ const SuboptimalState: FC<Props> = ({
                 <MantineIcon color="gray.5" size="xxl" icon={icon} />
             )}
             {title && (
-                <Text color="gray.7" fz={18} fw={600}>
+                <Text
+                    color="gray.7"
+                    fz={18}
+                    fw={600}
+                    style={{ whiteSpace: 'pre-wrap' }}
+                >
                     {title}
                 </Text>
             )}

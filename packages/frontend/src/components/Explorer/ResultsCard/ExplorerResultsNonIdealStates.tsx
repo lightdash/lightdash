@@ -228,8 +228,10 @@ export const ExploreErrorState = ({
         title="Error loading results"
         description={
             <Fragment>
-                {errorDetail?.message ||
-                    'There was an error loading the results'}
+                <Text style={{ whiteSpace: 'pre-wrap' }}>
+                    {errorDetail?.message ||
+                        'There was an error loading the results'}
+                </Text>
                 {errorDetail?.data.documentationUrl && (
                     <Fragment>
                         <br />
