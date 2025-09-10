@@ -172,70 +172,224 @@ export class PivotQueryBuilder {
 
     /**
      * Builds ORDER BY clause for groupBy columns with their sort directions.
+     * Respects sortBy order and uses column anchor values for value columns when available.
+     * Appends any missing group by columns at the end.
      * @param groupByColumns - Group by columns to order by
+     * @param valuesColumns - Value columns configuration
      * @param sortBy - Sort configuration for columns
+     * @param metricFirstValueQueries - Map of CTE names to their definitions
      * @param q - Quote character for field names
      * @returns ORDER BY clause string for groupBy columns
      */
     private static buildGroupByOrderBy(
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
         sortBy: PivotConfiguration['sortBy'],
+        metricFirstValueQueries: Record<
+            string,
+            { cteName: string; sql: string }
+        >,
         q: string,
     ): string {
-        // ! We always need all groupBy columns so that dense_rank() can be used to calculate column_index (calculate all unique combinations of groupBy columns)
-        return groupByColumns
-            .map((col) => {
-                const sortConfig = sortBy?.find(
-                    (s) => s.reference === col.reference,
+        const orderByParts: string[] = [];
+        const processedColumns = new Set<string>();
+
+        // Process sortBy in order to maintain the specified sort priority
+        if (sortBy) {
+            for (const sort of sortBy) {
+                const sortDirection =
+                    sort.direction === SortByDirection.DESC ? ' DESC' : ' ASC';
+
+                const isValueColumn = valuesColumns?.some(
+                    (valCol) => valCol.reference === sort.reference,
                 );
 
-                const sortDirection =
-                    sortConfig?.direction === SortByDirection.DESC
-                        ? ' DESC'
-                        : ' ASC';
+                const isGroupByColumn = groupByColumns.some(
+                    (groupCol) => groupCol.reference === sort.reference,
+                );
 
-                return `${q}${col.reference}${q}${sortDirection}`;
-            })
-            .join(', ');
+                if (isValueColumn) {
+                    // Use column anchor value for value columns
+                    const colAnchorCteName = `${sort.reference}_column_anchor`;
+
+                    if (metricFirstValueQueries[colAnchorCteName]) {
+                        orderByParts.push(
+                            `${colAnchorCteName}.${q}${colAnchorCteName}_value${q}${sortDirection}`,
+                        );
+                    }
+                } else if (isGroupByColumn) {
+                    // Use regular column reference for group by columns
+                    orderByParts.push(
+                        `g.${q}${sort.reference}${q}${sortDirection}`,
+                    );
+                    processedColumns.add(sort.reference);
+                }
+            }
+        }
+
+        // Add any missing groupBy columns at the end to ensure proper dense_rank calculation
+        groupByColumns.forEach((col) => {
+            if (!processedColumns.has(col.reference)) {
+                // Default to ASC for missing columns
+                orderByParts.push(`g.${q}${col.reference}${q} ASC`);
+            }
+        });
+
+        return orderByParts.join(', ');
     }
 
     /**
      * Builds ORDER BY clause for row_index calculation.
-     * Includes all index columns with sorting directions from sortBy or ASC if not specified.
+     * Maintains sort order from sortBy configuration and includes value columns.
+     * When a value column is referenced, uses the anchor value from metric first value CTEs.
      *
      * @param indexColumns - Normalized index columns
+     * @param valuesColumns - Value columns configuration
      * @param sortBy - Sort configuration for all columns
+     * @param metricFirstValueQueries - Map of value column references to their CTE info
      * @param q - Quote character for field names
      * @returns ORDER BY clause string for row index ordering
      */
     private static buildRowIndexOrderBy(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
         sortBy: PivotConfiguration['sortBy'],
+        metricFirstValueQueries: Record<
+            string,
+            { cteName: string; sql: string }
+        >,
         q: string,
     ): string {
-        // ! We always need all index columns so that dense_rank() can be used to calculate row_index (calculate all unique combinations of index columns)
-        return indexColumns
-            .map((col) => {
-                const indexColumnSort = sortBy?.find(
-                    (sort) => sort.reference === col.reference,
+        if (!sortBy?.length) {
+            // Default to all index columns with ASC direction
+            return indexColumns
+                .map((col) => `g.${q}${col.reference}${q} ASC`)
+                .join(', ');
+        }
+
+        const orderByParts: string[] = [];
+
+        // Process sortBy in order to maintain the specified sort priority
+        for (const sort of sortBy) {
+            const sortDirection =
+                sort.direction === SortByDirection.DESC ? ' DESC' : ' ASC';
+
+            // Check if this sort is for an index column
+            const isIndexColumn = indexColumns.some(
+                (indexCol) => indexCol.reference === sort.reference,
+            );
+
+            // Check if this is a value column
+            const isValueColumn = valuesColumns?.some(
+                (valCol) => valCol.reference === sort.reference,
+            );
+
+            if (isValueColumn) {
+                // Use the anchor value from the row anchor CTE
+                const rowAnchorCteName = `${sort.reference}_row_anchor`;
+                if (metricFirstValueQueries[rowAnchorCteName]) {
+                    orderByParts.push(
+                        `${rowAnchorCteName}.${q}${rowAnchorCteName}_value${q}${sortDirection}`,
+                    );
+                }
+            } else if (isIndexColumn) {
+                // Only include index columns in row ordering
+                orderByParts.push(
+                    `g.${q}${sort.reference}${q}${sortDirection}`,
                 );
+            }
+            // Skip other column types (like groupBy columns) as they shouldn't affect row ordering
+        }
 
-                const sortDirection =
-                    indexColumnSort?.direction === SortByDirection.DESC
-                        ? ' DESC'
-                        : ' ASC';
+        // Ensure all index columns are included for proper dense_rank calculation
+        // Add any missing index columns that weren't in sortBy
+        const sortedReferences = new Set(sortBy.map((s) => s.reference));
+        for (const indexCol of indexColumns) {
+            if (!sortedReferences.has(indexCol.reference)) {
+                orderByParts.push(`g.${q}${indexCol.reference}${q} ASC`);
+            }
+        }
 
-                return `${q}${col.reference}${q}${sortDirection}`;
-            })
-            .join(', ');
+        return orderByParts.join(', ');
+    }
+
+    /**
+     * Generates SQL CTEs for calculating anchor values for value columns that have sorts.
+     * Creates two CTEs per value column that appears in sortBy configuration:
+     * 1. Row anchor CTE - partitioned by index columns for row ordering
+     * 2. Column anchor CTE - partitioned by group columns for column ordering
+     *
+     * @param indexColumns - Normalized index columns for partitioning
+     * @param valuesColumns - Value columns configuration
+     * @param groupByColumns - Group by columns for partitioning
+     * @param sortBy - Sort configuration to identify which value columns need anchor values
+     * @returns Record mapping CTE names to their SQL definitions
+     */
+    private getMetricFirstValueSQL(
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        sortBy: PivotConfiguration['sortBy'],
+    ): Record<string, { cteName: string; sql: string }> {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const result: Record<string, { cteName: string; sql: string }> = {};
+
+        if (!valuesColumns || !sortBy) {
+            return result;
+        }
+
+        // Find value columns that have sorts defined
+        valuesColumns.forEach((valCol) => {
+            const sortConfig = sortBy.find(
+                (sort) => sort.reference === valCol.reference,
+            );
+            if (!sortConfig) return;
+
+            const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                valCol.reference,
+                valCol.aggregation,
+            );
+            const sortDirection =
+                sortConfig.direction === SortByDirection.DESC ? 'DESC' : 'ASC';
+
+            // Create row anchor CTE (partitioned by index columns)
+            const rowAnchorCteName = `${valCol.reference}_row_anchor`;
+            const indexColumnReferences = indexColumns
+                .map((col) => `${q}${col.reference}${q}`)
+                .join(', ');
+
+            const rowAnchorSql = `SELECT DISTINCT ${indexColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${indexColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query`;
+
+            result[rowAnchorCteName] = {
+                cteName: rowAnchorCteName,
+                sql: rowAnchorSql,
+            };
+
+            // Create column anchor CTE (partitioned by group columns)
+            const colAnchorCteName = `${valCol.reference}_column_anchor`;
+            const groupColumnReferences = groupByColumns
+                .map((col) => `${q}${col.reference}${q}`)
+                .join(', ');
+
+            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}) AS ${q}${colAnchorCteName}_value${q} FROM group_by_query`;
+
+            result[colAnchorCteName] = {
+                cteName: colAnchorCteName,
+                sql: colAnchorSql,
+            };
+        });
+
+        return result;
     }
 
     /**
      * Generates the pivot query CTE that adds row and column indexes.
+     * Joins with metric first value CTEs when value columns are used for sorting.
      * @param indexColumns - Columns used as row identifiers
      * @param valuesColumns - Aggregated value columns
      * @param groupByColumns - Columns to pivot into separate columns
      * @param sortBy - Sort configuration for row ordering
+     * @param metricFirstValueQueries - Map of value column references to their CTE info
      * @returns SQL for the pivot_query CTE with ranking columns
      */
     private getPivotQuerySQL(
@@ -243,37 +397,76 @@ export class PivotQueryBuilder {
         valuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
+        metricFirstValueQueries: Record<
+            string,
+            { cteName: string; sql: string }
+        >,
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
+        // Build base table and joins
+        let fromClause = 'group_by_query g';
+        const joins: string[] = [];
+
+        // Add joins for metric first value CTEs
+        Object.values(metricFirstValueQueries).forEach(({ cteName }) => {
+            if (cteName.endsWith('_row_anchor')) {
+                // Join on index columns for row anchor CTEs
+                const joinConditions = indexColumns
+                    .map(
+                        (col) =>
+                            `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                    )
+                    .join(' AND ');
+                joins.push(`JOIN ${cteName} ON ${joinConditions}`);
+            } else if (cteName.endsWith('_column_anchor')) {
+                // Join on group columns for column anchor CTEs
+                const joinConditions = groupByColumns
+                    .map(
+                        (col) =>
+                            `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                    )
+                    .join(' AND ');
+                joins.push(`JOIN ${cteName} ON ${joinConditions}`);
+            }
+        });
+
+        if (joins.length > 0) {
+            fromClause += ` ${joins.join(' ')}`;
+        }
+
         const selectReferences = [
-            ...indexColumns.map((col) => `${q}${col.reference}${q}`),
-            ...groupByColumns.map((col) => `${q}${col.reference}${q}`),
+            ...indexColumns.map((col) => `g.${q}${col.reference}${q}`),
+            ...groupByColumns.map((col) => `g.${q}${col.reference}${q}`),
             ...(valuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     col.reference,
                     col.aggregation,
                 );
-                return `${q}${fieldName}${q}`;
+                return `g.${q}${fieldName}${q}`;
             }),
         ];
 
         // Build ORDER BY for row_index - should only consider index columns, not groupBy columns
         const rowIndexOrderBy = PivotQueryBuilder.buildRowIndexOrderBy(
             indexColumns,
+            valuesColumns,
             sortBy,
+            metricFirstValueQueries,
             q,
         );
 
         const groupByOrderBy = PivotQueryBuilder.buildGroupByOrderBy(
             groupByColumns,
+            valuesColumns,
             sortBy,
+            metricFirstValueQueries,
             q,
         );
 
         return `SELECT ${selectReferences.join(
             ', ',
-        )}, dense_rank() over (order by ${rowIndexOrderBy}) as ${q}row_index${q}, dense_rank() over (order by ${groupByOrderBy}) as ${q}column_index${q} FROM group_by_query`;
+        )}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}column_index${q} FROM ${fromClause}`;
     }
 
     /**
@@ -297,11 +490,19 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
 
+        const metricFirstValueQueries = this.getMetricFirstValueSQL(
+            indexColumns,
+            valuesColumns,
+            groupByColumns,
+            sortBy,
+        );
+
         const pivotQuery = this.getPivotQuerySQL(
             indexColumns,
             valuesColumns,
             groupByColumns,
             sortBy,
+            metricFirstValueQueries,
         );
         const maxColumnsPerValueColumn =
             PivotQueryBuilder.calculateMaxColumnsPerValueColumn(valuesColumns);
@@ -315,6 +516,9 @@ export class PivotQueryBuilder {
         const ctes = [
             `original_query AS (${userSql})`,
             `group_by_query AS (${groupByQuery})`,
+            ...Object.values(metricFirstValueQueries).map(
+                ({ cteName, sql }) => `${cteName} AS (${sql})`,
+            ),
             `pivot_query AS (${pivotQuery})`,
             `filtered_rows AS (SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${rowLimit})`,
             `total_columns AS (${totalColumnsQuery})`,

@@ -60,6 +60,9 @@ export const useCustomRoles = () => {
             await queryClient.invalidateQueries({
                 queryKey: [CACHE_KEY, organization?.organizationUuid],
             });
+            await queryClient.invalidateQueries({
+                queryKey: [ALL_ROLES_CACHE_KEY, organization?.organizationUuid],
+            });
             showToastSuccess({
                 title: `Custom role created successfully`,
             });

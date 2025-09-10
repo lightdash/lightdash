@@ -1,3 +1,58 @@
+## [0.1992.2](https://github.com/lightdash/lightdash/compare/0.1992.1...0.1992.2) (2025-09-10)
+
+
+### Bug Fixes
+
+* better snowflake error message ([#16781](https://github.com/lightdash/lightdash/issues/16781)) ([d78ff62](https://github.com/lightdash/lightdash/commit/d78ff62a282f3cac5a67c22358529d3931646890))
+
+## [0.1992.1](https://github.com/lightdash/lightdash/compare/0.1992.0...0.1992.1) (2025-09-10)
+
+
+### Bug Fixes
+
+* invalidate dashboard chart on chart edit ([#16807](https://github.com/lightdash/lightdash/issues/16807)) ([4a71b5e](https://github.com/lightdash/lightdash/commit/4a71b5e94e4a856f6ad1de72e7d63349b8705a5c))
+* invalidate dashboard data on enter of edit mode ([#16811](https://github.com/lightdash/lightdash/issues/16811)) ([19851cb](https://github.com/lightdash/lightdash/commit/19851cbc7a951408c7e5b09996632b003db31f0b))
+
+# [0.1992.0](https://github.com/lightdash/lightdash/compare/0.1991.0...0.1992.0) (2025-09-10)
+
+
+### Bug Fixes
+
+* git project adapters not reading lightdash project config yaml file ([#16822](https://github.com/lightdash/lightdash/issues/16822)) ([778fc2f](https://github.com/lightdash/lightdash/commit/778fc2fdbe7a7f4ee6916fec55e45f9a720ae476))
+
+
+### Features
+
+* enable duplicating initial custom role ([#16796](https://github.com/lightdash/lightdash/issues/16796)) ([647a419](https://github.com/lightdash/lightdash/commit/647a419d2de555153f640c3074479ebebfc5f323)), closes [#16767](https://github.com/lightdash/lightdash/issues/16767)
+
+# [0.1991.0](https://github.com/lightdash/lightdash/compare/0.1990.0...0.1991.0) (2025-09-10)
+
+
+### Features
+
+* improve pivot query sorting with value column anchors ([#16785](https://github.com/lightdash/lightdash/issues/16785)) ([ac39307](https://github.com/lightdash/lightdash/commit/ac393075a12008e22c0a74ae238de6af301b73f3))
+
+# [0.1990.0](https://github.com/lightdash/lightdash/compare/0.1989.5...0.1990.0) (2025-09-10)
+
+
+### Features
+
+* add unused content dashboard to analytics ([#16757](https://github.com/lightdash/lightdash/issues/16757)) ([70288f5](https://github.com/lightdash/lightdash/commit/70288f5f44b9bc62869b310162ec12a8518b644e))
+
+## [0.1989.5](https://github.com/lightdash/lightdash/compare/0.1989.4...0.1989.5) (2025-09-10)
+
+
+### Bug Fixes
+
+* improve chart comparison by cleaning config and including parameters ([#16800](https://github.com/lightdash/lightdash/issues/16800)) ([0447bdd](https://github.com/lightdash/lightdash/commit/0447bdd386ab7f88e98da4f7286620cd6c136e16))
+
+## [0.1989.4](https://github.com/lightdash/lightdash/compare/0.1989.3...0.1989.4) (2025-09-10)
+
+
+### Bug Fixes
+
+* dont auto-run query on new chart ([#16810](https://github.com/lightdash/lightdash/issues/16810)) ([4819b17](https://github.com/lightdash/lightdash/commit/4819b170e66e66f8e745d34c62ae6efbb7aa53d9))
+
 ## [0.1989.3](https://github.com/lightdash/lightdash/compare/0.1989.2...0.1989.3) (2025-09-09)
 
 

@@ -70,7 +70,7 @@ import {
     type ExplorerReduceState,
 } from './types';
 import { useQueryManager } from './useExplorerQueryManager';
-import { getValidChartConfig } from './utils';
+import { cleanConfig, getValidChartConfig } from './utils';
 
 const calcColumnOrder = (
     columnOrder: FieldId[],
@@ -1297,12 +1297,20 @@ const ExplorerProvider: FC<
             return !deepEqual(
                 removeEmptyProperties({
                     tableName: savedChart.tableName,
-                    chartConfig: savedChart.chartConfig,
+                    chartConfig: cleanConfig(savedChart.chartConfig),
                     metricQuery: savedChart.metricQuery,
                     tableConfig: savedChart.tableConfig,
                     pivotConfig: savedChart.pivotConfig,
+                    parameters: savedChart.parameters,
                 }),
-                removeEmptyProperties(unsavedChartVersion),
+                removeEmptyProperties({
+                    tableName: unsavedChartVersion.tableName,
+                    chartConfig: cleanConfig(unsavedChartVersion.chartConfig),
+                    metricQuery: unsavedChartVersion.metricQuery,
+                    tableConfig: unsavedChartVersion.tableConfig,
+                    pivotConfig: unsavedChartVersion.pivotConfig,
+                    parameters: unsavedChartVersion.parameters,
+                }),
             );
         }
         return isValidQuery;

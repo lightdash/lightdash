@@ -254,3 +254,106 @@ SELECT
 FROM RankedResults
 WHERE rank = 1;
 `;
+
+/**
+ * Parameters: project_uuid
+ */
+export const unusedChartsSql = () => `
+SELECT 
+  sq.name as content_name,
+  sq.created_at,
+  sq.saved_query_uuid as content_uuid,
+  'chart' as content_type,
+  sq.last_version_updated_by_user_uuid as created_by_user_uuid,
+  COALESCE(cu.first_name || ' ' || cu.last_name, '') as created_by_user_name,
+  MAX(cv.timestamp) as last_viewed_at,
+  COUNT(cv.chart_uuid) as views_count,
+  (
+    SELECT acv.user_uuid 
+    FROM analytics_chart_views acv 
+    WHERE acv.chart_uuid = sq.saved_query_uuid
+    ORDER BY acv.timestamp DESC 
+    LIMIT 1
+  ) as last_viewed_by_user_uuid,
+  (
+    SELECT u.first_name || ' ' || u.last_name
+    FROM analytics_chart_views acv 
+    LEFT JOIN users u ON u.user_uuid = acv.user_uuid
+    WHERE acv.chart_uuid = sq.saved_query_uuid
+    ORDER BY acv.timestamp DESC 
+    LIMIT 1
+  ) as last_viewed_by_user_name
+FROM saved_queries sq
+LEFT JOIN users cu ON cu.user_uuid = sq.last_version_updated_by_user_uuid
+LEFT JOIN spaces s ON s.space_id = sq.space_id
+LEFT JOIN projects p ON p.project_id = s.project_id
+LEFT JOIN analytics_chart_views cv ON cv.chart_uuid = sq.saved_query_uuid
+WHERE p.project_uuid = ?
+GROUP BY 
+  sq.name, 
+  sq.created_at,
+  sq.saved_query_uuid, 
+  sq.last_version_updated_by_user_uuid,
+  cu.first_name,
+  cu.last_name
+ORDER BY 
+  MAX(cv.timestamp) ASC NULLS FIRST,
+  COUNT(cv.chart_uuid) ASC,
+  sq.created_at ASC
+LIMIT 10;
+`;
+
+/**
+ * Parameters: project_uuid
+ */
+export const unusedDashboardsSql = () => `
+SELECT 
+  d.name as content_name,
+  d.created_at,
+  d.dashboard_uuid as content_uuid,
+  'dashboard' as content_type,
+  first_version.updated_by_user_uuid as created_by_user_uuid,
+  COALESCE(cu.first_name || ' ' || cu.last_name, '') as created_by_user_name,
+  MAX(adv.timestamp) as last_viewed_at,
+  COUNT(adv.dashboard_uuid) as views_count,
+  (
+    SELECT adv2.user_uuid 
+    FROM analytics_dashboard_views adv2 
+    WHERE adv2.dashboard_uuid = d.dashboard_uuid
+    ORDER BY adv2.timestamp DESC 
+    LIMIT 1
+  ) as last_viewed_by_user_uuid,
+  (
+    SELECT u.first_name || ' ' || u.last_name
+    FROM analytics_dashboard_views adv2 
+    LEFT JOIN users u ON u.user_uuid = adv2.user_uuid
+    WHERE adv2.dashboard_uuid = d.dashboard_uuid
+    ORDER BY adv2.timestamp DESC 
+    LIMIT 1
+  ) as last_viewed_by_user_name
+FROM dashboards d
+LEFT JOIN (
+  SELECT DISTINCT ON (dashboard_id) 
+    dashboard_id, 
+    updated_by_user_uuid
+  FROM dashboard_versions 
+  ORDER BY dashboard_id, created_at ASC
+) first_version ON first_version.dashboard_id = d.dashboard_id
+LEFT JOIN users cu ON cu.user_uuid = first_version.updated_by_user_uuid
+LEFT JOIN spaces s ON s.space_id = d.space_id
+LEFT JOIN projects p ON p.project_id = s.project_id
+LEFT JOIN analytics_dashboard_views adv ON adv.dashboard_uuid = d.dashboard_uuid
+WHERE p.project_uuid = ?
+GROUP BY 
+  d.name, 
+  d.created_at,
+  d.dashboard_uuid, 
+  first_version.updated_by_user_uuid,
+  cu.first_name,
+  cu.last_name
+ORDER BY 
+  MAX(adv.timestamp) ASC NULLS FIRST,
+  COUNT(adv.dashboard_uuid) ASC,
+  d.created_at ASC
+LIMIT 10;
+`;

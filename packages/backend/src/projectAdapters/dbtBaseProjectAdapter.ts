@@ -33,7 +33,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
-import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
+import {
+    CachedWarehouse,
+    DbtClient,
+    ProjectAdapter,
+    type TrackingParams,
+} from '../types';
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
@@ -84,11 +89,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getLightdashProjectConfig(trackingParams?: {
-        projectUuid: string;
-        organizationUuid: string;
-        userUuid: string;
-    }): Promise<LightdashProjectConfig> {
+    public async getLightdashProjectConfig(
+        trackingParams?: TrackingParams,
+    ): Promise<LightdashProjectConfig> {
         if (!this.dbtProjectDir) {
             return {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -142,11 +145,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async compileAllExplores(
-        trackingParams?: {
-            userUuid: string;
-            organizationUuid: string;
-            projectUuid: string;
-        },
+        trackingParams?: TrackingParams,
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');

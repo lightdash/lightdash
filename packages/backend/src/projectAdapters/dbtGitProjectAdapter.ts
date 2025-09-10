@@ -19,7 +19,7 @@ import simpleGit, {
 } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
-import { CachedWarehouse, ProjectAdapter } from '../types';
+import { CachedWarehouse, ProjectAdapter, type TrackingParams } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {
@@ -216,11 +216,7 @@ export class DbtGitProjectAdapter
         }
     }
 
-    public async compileAllExplores(trackingParams?: {
-        userUuid: string;
-        organizationUuid: string;
-        projectUuid: string;
-    }) {
+    public async compileAllExplores(trackingParams?: TrackingParams) {
         await this._refreshRepo();
         return super.compileAllExplores(trackingParams);
     }

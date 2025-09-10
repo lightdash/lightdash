@@ -120,4 +120,6 @@ export type DashboardContextType = {
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
     tileNamesById: Record<string, string>;
+    refreshDashboardVersion: () => Promise<void>;
+    isRefreshingDashboardVersion: boolean;
 };

@@ -13,6 +13,11 @@ const useStyles = createStyles((theme) => ({
     scopeDescription: {
         color: theme.colors.dark[2],
     },
+    row: {
+        '& td': {
+            maxWidth: 400,
+        },
+    },
 }));
 
 const TableRow: FC<{
@@ -24,7 +29,7 @@ const TableRow: FC<{
     const { classes } = useStyles();
 
     return (
-        <tr>
+        <tr className={classes.row}>
             <td>{name}</td>
             <td className={classes.scopeDescription}>{description || ''}</td>
             <td>{createdAt ? formatDate(createdAt) : '-'}</td>

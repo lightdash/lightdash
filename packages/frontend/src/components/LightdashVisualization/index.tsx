@@ -1,5 +1,5 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { Anchor, Text } from '@mantine/core';
 import { IconChartBarOff } from '@tabler/icons-react';
 import { Fragment, memo, type FC } from 'react';
 import { EmptyState } from '../common/EmptyState';
@@ -53,7 +53,9 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     title="Unable to load visualization"
                     description={
                         <Fragment>
-                            {apiErrorDetail.message}
+                            <Text style={{ whiteSpace: 'pre-wrap' }}>
+                                {apiErrorDetail.message || ''}
+                            </Text>
                             {apiErrorDetail.data.documentationUrl && (
                                 <Fragment>
                                     <br />

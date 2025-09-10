@@ -2,6 +2,7 @@ import {
     AnyType,
     ApiErrorPayload,
     ApiJobScheduledResponse,
+    ApiUnusedContent,
     ApiUserActivity,
     ApiUserActivityDownloadCsv,
     ApiValidateResponse,
@@ -78,6 +79,32 @@ export class UserActivityController extends BaseController {
         return {
             status: 'ok',
             results: userActivity,
+        };
+    }
+
+    /**
+     * Get unused content for a project showing charts and dashboards with little to no usage
+     * @summary Get unused content
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectUuid}/unused-content')
+    @OperationId('getUnusedContent')
+    async getUnusedContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiUnusedContent> {
+        this.setStatus(200);
+        const unusedContent = await req.services
+            .getAnalyticsService()
+            .getUnusedContent(projectUuid, req.account!);
+        return {
+            status: 'ok',
+            results: unusedContent,
         };
     }
 }
