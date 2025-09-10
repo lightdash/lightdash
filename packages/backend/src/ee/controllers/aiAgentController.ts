@@ -561,6 +561,35 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedDashboard',
+    )
+    @OperationId('updateArtifactVersionSavedDashboard')
+    async updateArtifactVersionSavedDashboard(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Body() body: { savedDashboardUuid: string | null },
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateArtifactVersion(req.user!, {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            savedDashboardUuid: body.savedDashboardUuid,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
     }

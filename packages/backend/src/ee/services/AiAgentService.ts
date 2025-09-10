@@ -1385,6 +1385,75 @@ export class AiAgentService {
         });
     }
 
+    async updateArtifactVersion(
+        user: SessionUser,
+        {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            savedDashboardUuid,
+        }: {
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            savedDashboardUuid: string | null;
+        },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError(`Organization not found`);
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled)
+            throw new ForbiddenError(`Copilot is not enabled`);
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        // Verify the artifact exists and user has access
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        if (!artifact) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
+
+        // Check if the user has access to the thread that contains this artifact
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid: artifact.threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${artifact.threadUuid}`);
+        }
+
+        // Check if user has access to update this thread
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to update this artifact',
+            );
+        }
+
+        await this.aiAgentModel.updateArtifactVersion(versionUuid, {
+            savedDashboardUuid,
+        });
+    }
+
     private async updateSlackResponseWithProgress(
         slackPrompt: SlackPrompt,
         progress: string,

@@ -345,7 +345,8 @@ export const useUpdateMutation = (
 
 export const useCreateMutation = ({
     redirectOnSuccess = true,
-}: { redirectOnSuccess?: boolean } = {}) => {
+    showToastOnSuccess = true,
+}: { redirectOnSuccess?: boolean; showToastOnSuccess?: boolean } = {}) => {
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
@@ -360,16 +361,18 @@ export const useCreateMutation = ({
             onSuccess: (data) => {
                 const navigateUrl = `/projects/${projectUuid}/saved/${data.uuid}/view`;
                 queryClient.setQueryData(['saved_query', data.uuid], data);
-                showToastSuccess({
-                    title: `Success! Chart was saved.`,
-                    action: redirectOnSuccess
-                        ? undefined
-                        : {
-                              children: 'View chart',
-                              icon: IconArrowRight,
-                              onClick: () => navigate(navigateUrl),
-                          },
-                });
+                if (showToastOnSuccess) {
+                    showToastSuccess({
+                        title: `Success! Chart was saved.`,
+                        action: redirectOnSuccess
+                            ? undefined
+                            : {
+                                  children: 'View chart',
+                                  icon: IconArrowRight,
+                                  onClick: () => navigate(navigateUrl),
+                              },
+                    });
+                }
                 if (redirectOnSuccess) {
                     void navigate(navigateUrl, {
                         replace: true,

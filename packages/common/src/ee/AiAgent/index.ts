@@ -317,6 +317,7 @@ export type AiArtifact = {
     promptUuid: string | null;
     artifactType: 'chart' | 'dashboard';
     savedQueryUuid: string | null;
+    savedDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;

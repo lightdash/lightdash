@@ -385,9 +385,21 @@ export const useUpdateDashboard = (
     );
 };
 
+// Minimal patch hook to update a dashboard by id (no toasts/redirects)
+export const useUpdateMutation = () => {
+    return useMutation<
+        Dashboard,
+        ApiError,
+        { id: string; data: UpdateDashboard }
+    >(({ id, data }) => updateDashboard(id, data), {
+        mutationKey: ['dashboard_update_once'],
+    });
+};
+
 export const useCreateMutation = (
     projectUuid: string | undefined,
     showRedirectButton: boolean = false,
+    { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
 ) => {
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -406,19 +418,22 @@ export const useCreateMutation = (
                     'most-popular-and-recently-updated',
                 ]);
                 await queryClient.invalidateQueries(['content']);
-                showToastSuccess({
-                    title: `Success! Dashboard was created.`,
-                    action: showRedirectButton
-                        ? {
-                              children: 'Open dashboard',
-                              icon: IconArrowRight,
-                              onClick: () =>
-                                  navigate(
-                                      `/projects/${projectUuid}/dashboards/${result.uuid}`,
-                                  ),
-                          }
-                        : undefined,
-                });
+
+                if (showToastOnSuccess) {
+                    showToastSuccess({
+                        title: `Success! Dashboard was created.`,
+                        action: showRedirectButton
+                            ? {
+                                  children: 'Open dashboard',
+                                  icon: IconArrowRight,
+                                  onClick: () =>
+                                      navigate(
+                                          `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                      ),
+                              }
+                            : undefined,
+                    });
+                }
             },
             onError: ({ error }) => {
                 showToastApiError({

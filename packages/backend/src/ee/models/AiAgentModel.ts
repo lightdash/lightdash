@@ -71,6 +71,7 @@ import {
     AiArtifactsTableName,
     AiArtifactVersionsTable,
     AiArtifactVersionsTableName,
+    DbAiArtifactVersion,
 } from '../database/entities/aiArtifacts';
 
 type Dependencies = {
@@ -1737,6 +1738,19 @@ export class AiAgentModel {
             });
     }
 
+    async updateArtifactVersion(
+        artifactVersionUuid: string,
+        update: Pick<AiArtifact, 'savedDashboardUuid'>,
+    ): Promise<void> {
+        await this.database(AiArtifactVersionsTableName)
+            .update({
+                saved_dashboard_uuid: update.savedDashboardUuid,
+            } satisfies Partial<DbAiArtifactVersion>)
+            .where({
+                ai_artifact_version_uuid: artifactVersionUuid,
+            });
+    }
+
     async updateSlackResponseTs(data: UpdateSlackResponseTs) {
         await this.database(AiSlackPromptTableName)
             .update({
@@ -2078,6 +2092,7 @@ export class AiAgentModel {
                             ? data.vizConfig
                             : null,
                     saved_query_uuid: null,
+                    saved_dashboard_uuid: null,
                 })
                 .returning('*');
 
@@ -2155,6 +2170,7 @@ export class AiAgentModel {
                             ? data.vizConfig
                             : null,
                     saved_query_uuid: null,
+                    saved_dashboard_uuid: null,
                 })
                 .returning('*');
 
@@ -2220,6 +2236,7 @@ export class AiAgentModel {
                 threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                 artifactType: `${AiArtifactsTableName}.artifact_type`,
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -2283,6 +2300,7 @@ export class AiAgentModel {
                 threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
                 artifactType: `${AiArtifactsTableName}.artifact_type`,
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
