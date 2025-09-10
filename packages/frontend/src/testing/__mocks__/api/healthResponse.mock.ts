@@ -90,6 +90,10 @@ export default function mockHealthResponse(
         },
         isServiceAccountEnabled: false,
         isCustomRolesEnabled: false,
+        embedding: {
+            enabled: false,
+            events: undefined,
+        },
         ...overrides,
     };
 }

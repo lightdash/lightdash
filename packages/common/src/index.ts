@@ -1104,6 +1104,20 @@ export type HealthState = {
         overrideColorPaletteName: string | undefined;
     };
     isCustomRolesEnabled: boolean;
+    embedding: {
+        enabled: boolean;
+        events:
+            | {
+                  enabled: boolean;
+                  rateLimiting: {
+                      maxEventsPerWindow: number;
+                      windowDurationMs: number;
+                  };
+                  allowedOrigins: string[];
+                  enablePostMessage: boolean;
+              }
+            | undefined;
+    };
 };
 
 export enum DBFieldTypes {
