@@ -1,3 +1,10 @@
+# [0.1991.0](https://github.com/lightdash/lightdash/compare/0.1990.0...0.1991.0) (2025-09-10)
+
+
+### Features
+
+* improve pivot query sorting with value column anchors ([#16785](https://github.com/lightdash/lightdash/issues/16785)) ([ac39307](https://github.com/lightdash/lightdash/commit/ac393075a12008e22c0a74ae238de6af301b73f3))
+
 # [0.1990.0](https://github.com/lightdash/lightdash/compare/0.1989.5...0.1990.0) (2025-09-10)
 
 
