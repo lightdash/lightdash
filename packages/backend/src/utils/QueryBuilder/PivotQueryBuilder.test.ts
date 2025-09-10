@@ -146,11 +146,11 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('total_columns AS (');
 
             // Should include row_index and column_index metadata
-            expect(result).toContain(
-                'dense_rank() over (order by "date" ASC) as "row_index"',
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."date" asc) as "row_index"',
             );
-            expect(result).toContain(
-                'dense_rank() over (order by "event_type" ASC) as "column_index"',
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
 
             // Should apply limits and column constraints
@@ -223,6 +223,88 @@ describe('PivotQueryBuilder', () => {
 
             // With 3 value columns: (100-1)/3 = 33 max columns per value column
             expect(result).toContain('"column_index" <= 33');
+        });
+    });
+
+    describe('Metric sorting CTEs', () => {
+        test('Should include anchor CTEs and joins when sorting by a value column in pivot queries', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.AVERAGE,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Should add additional CTEs for metric first values
+            expect(result).toContain('revenue_row_anchor AS (');
+            expect(result).toContain('revenue_column_anchor AS (');
+
+            // Should join anchor CTEs on the correct keys
+            expect(replaceWhitespace(result)).toContain(
+                'JOIN revenue_row_anchor ON g."date" = revenue_row_anchor."date"',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'JOIN revenue_column_anchor ON g."category" = revenue_column_anchor."category"',
+            );
+
+            // Row index should order by the row anchor value then remaining index columns
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY revenue_row_anchor."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index"',
+            );
+
+            // Column index should order by the column anchor value then remaining groupBy columns
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY revenue_column_anchor."revenue_column_anchor_value" DESC, g."category" ASC) AS "column_index"',
+            );
+        });
+
+        test('Should respect sort order mixing value and index columns for row_index', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'date', type: VizIndexType.TIME },
+                    { reference: 'store_id', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.ASC },
+                    { reference: 'store_id', direction: SortByDirection.DESC },
+                    // date not specified -> should be appended ASC
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Row index order must follow: revenue anchor ASC, store_id DESC, then date ASC (appended)
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY revenue_row_anchor."revenue_row_anchor_value" ASC, g."store_id" DESC, g."date" ASC) AS "row_index"',
+            );
         });
     });
 
@@ -328,8 +410,8 @@ describe('PivotQueryBuilder', () => {
             const result = builder.toSql();
 
             // Should use DESC for row_index calculation
-            expect(result).toContain(
-                'dense_rank() over (order by "date" DESC) as "row_index"',
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."date" desc) as "row_index"',
             );
         });
     });
@@ -895,13 +977,13 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain('"date", "store_id", "product_category"');
 
             // Should include all index columns in the pivot query ORDER BY for row_index
-            expect(result).toContain(
-                'dense_rank() over (order by "date" ASC, "store_id" ASC, "product_category" ASC)',
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."date" asc, g."store_id" asc, g."product_category" asc)',
             );
 
             // Should include all columns in select references (all should be quoted now)
             expect(result).toContain(
-                '"date", "store_id", "product_category", "category", "region"',
+                'g."date", g."store_id", g."product_category", g."category", g."region"',
             );
         });
 
@@ -938,8 +1020,8 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
 
             // Should respect sort directions for specified columns only
-            expect(result).toContain(
-                'dense_rank() over (order by "date" DESC, "store_id" ASC, "product_category" ASC)',
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."date" desc, g."store_id" asc, g."product_category" asc)',
             );
         });
     });
