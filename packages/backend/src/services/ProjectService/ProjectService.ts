@@ -1190,20 +1190,30 @@ export class ProjectService extends BaseService {
                 async () => this.testProjectAdapter(createProject, user),
             );
 
-            const explores = await this.jobModel.tryJobStep(
-                jobUuid,
-                JobStepType.COMPILING,
-                async () => {
-                    try {
-                        // There's no project yet, so we don't track
-                        const trackingParams = undefined;
-                        return await adapter.compileAllExplores(trackingParams);
-                    } finally {
-                        await adapter.destroy();
-                        await sshTunnel.disconnect();
-                    }
-                },
-            );
+            const { explores, lightdashProjectConfig } =
+                await this.jobModel.tryJobStep(
+                    jobUuid,
+                    JobStepType.COMPILING,
+                    async () => {
+                        try {
+                            // There's no project yet, so we don't track
+                            const trackingParams = undefined;
+
+                            return {
+                                explores: await adapter.compileAllExplores(
+                                    trackingParams,
+                                ),
+                                lightdashProjectConfig:
+                                    await adapter.getLightdashProjectConfig(
+                                        trackingParams,
+                                    ),
+                            };
+                        } finally {
+                            await adapter.destroy();
+                            await sshTunnel.disconnect();
+                        }
+                    },
+                );
 
             const projectUuid = await this.jobModel.tryJobStep(
                 jobUuid,
@@ -1222,15 +1232,6 @@ export class ProjectService extends BaseService {
                             ProjectMemberRole.ADMIN,
                         );
                     }
-
-                    const trackingParams = {
-                        projectUuid: newProjectUuid,
-                        organizationUuid: user.organizationUuid,
-                        userUuid: user.userUuid,
-                    };
-
-                    const lightdashProjectConfig =
-                        await adapter.getLightdashProjectConfig(trackingParams);
 
                     await this.replaceYamlTags(
                         user,
@@ -3431,13 +3432,13 @@ export class ProjectService extends BaseService {
         };
     }
 
-    private async refreshAllTables(
+    private async refreshTablesAndProjectConfig(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         requestMethod: RequestMethod,
     ): Promise<{
         explores: (Explore | ExploreError)[];
-        adapter: ProjectAdapter;
+        lightdashProjectConfig: LightdashProjectConfig;
     }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -3584,7 +3585,10 @@ export class ProjectService extends BaseService {
                 },
             });
 
-            return { explores, adapter };
+            const lightdashProjectConfig =
+                await adapter.getLightdashProjectConfig(trackingParams);
+
+            return { explores, lightdashProjectConfig };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -3744,20 +3748,11 @@ export class ProjectService extends BaseService {
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        const { explores, adapter } =
-                            await this.refreshAllTables(
+                        const { explores, lightdashProjectConfig } =
+                            await this.refreshTablesAndProjectConfig(
                                 user,
                                 projectUuid,
                                 requestMethod,
-                            );
-                        const trackingParams = {
-                            projectUuid,
-                            organizationUuid,
-                            userUuid: user.userUuid,
-                        };
-                        const lightdashProjectConfig =
-                            await adapter.getLightdashProjectConfig(
-                                trackingParams,
                             );
 
                         await this.replaceYamlTags(
