@@ -45,3 +45,4 @@ export const legacyFollowUpToolsTransform = (
 // this is used only for slack at the moment, so no backwards compatibility is needed
 // TODO :: reuse this schema across the tools
 export const followUpToolsSchema = z.nativeEnum(AiResultType).array();
+export type FollowUpTools = z.infer<typeof followUpToolsSchema>;

@@ -74,12 +74,6 @@ export const getGenerateTableVizConfig = ({
                     vizConfig: toolArgs,
                 });
 
-                // TODO :: keeping this for now, until the front-end is under feature-flag
-                await updatePrompt({
-                    promptUuid: prompt.promptUuid,
-                    vizConfigOutput: toolArgs,
-                });
-
                 const { csv, results } = await renderTableViz({
                     runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
                     vizTool,

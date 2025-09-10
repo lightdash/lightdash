@@ -1214,9 +1214,6 @@ export class AiAgentModel {
                     threadUuid: row.ai_thread_uuid,
                     message: row.response,
                     createdAt: row.responded_at.toISOString(),
-                    vizConfigOutput: row.viz_config_output,
-                    filtersOutput: row.filters_output,
-                    metricQuery: row.metric_query,
                     humanScore: row.human_score,
                     artifact: row.ai_artifact_uuid
                         ? {
@@ -1410,9 +1407,6 @@ export class AiAgentModel {
                     message: row.response ?? '',
                     createdAt: row.responded_at?.toString() ?? '',
 
-                    vizConfigOutput: row.viz_config_output,
-                    filtersOutput: row.filters_output,
-                    metricQuery: row.metric_query,
                     humanScore: row.human_score,
                     artifact: row.ai_artifact_uuid
                         ? {
@@ -1626,10 +1620,7 @@ export class AiAgentModel {
                 slackChannelId: `${AiSlackPromptTableName}.slack_channel_id`,
                 promptSlackTs: `${AiSlackPromptTableName}.prompt_slack_ts`,
                 slackThreadTs: `${AiSlackThreadTableName}.slack_thread_ts`,
-                filtersOutput: `${AiPromptTableName}.filters_output`,
-                vizConfigOutput: `${AiPromptTableName}.viz_config_output`,
                 humanScore: `${AiPromptTableName}.human_score`,
-                metricQuery: `${AiPromptTableName}.metric_query`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
@@ -1702,9 +1693,6 @@ export class AiAgentModel {
             .update({
                 responded_at: this.database.fn.now(),
                 ...(data.response ? { response: data.response } : {}),
-                ...(data.vizConfigOutput
-                    ? { viz_config_output: data.vizConfigOutput }
-                    : {}),
                 ...(data.humanScore ? { human_score: data.humanScore } : {}),
             })
             .where({
@@ -1779,10 +1767,7 @@ export class AiAgentModel {
                 prompt: `${AiPromptTableName}.prompt`,
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
-                filtersOutput: `${AiPromptTableName}.filters_output`,
-                vizConfigOutput: `${AiPromptTableName}.viz_config_output`,
                 humanScore: `${AiPromptTableName}.human_score`,
-                metricQuery: `${AiPromptTableName}.metric_query`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();

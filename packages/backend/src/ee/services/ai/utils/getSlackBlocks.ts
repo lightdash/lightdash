@@ -1,17 +1,38 @@
 import {
-    followUpToolsSchema,
+    AiArtifact,
+    FollowUpTools,
     followUpToolsText,
     parseVizConfig,
     SlackPrompt,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 
-export function getFollowUpToolBlocks(slackPrompt: SlackPrompt): KnownBlock[] {
-    const { vizConfigOutput } = slackPrompt;
-    const savedFollowUpTools =
-        vizConfigOutput && 'followUpTools' in vizConfigOutput
-            ? followUpToolsSchema.safeParse(vizConfigOutput.followUpTools).data
-            : [];
+export function getFollowUpToolBlocks(
+    slackPrompt: SlackPrompt,
+    artifacts?: AiArtifact[],
+): KnownBlock[] {
+    // TODO: Assuming each thread has just one artifact for now
+    // TODO: Handle multiple artifacts per thread in the future
+
+    if (!artifacts || artifacts.length === 0) {
+        return [];
+    }
+
+    // Find the first chart artifact (assuming one artifact per thread for now)
+    const chartArtifact = artifacts.find((artifact) => artifact.chartConfig);
+    if (!chartArtifact || !chartArtifact.chartConfig) {
+        return [];
+    }
+
+    // Extract follow-up tools from the chart config if they exist
+    let savedFollowUpTools: FollowUpTools = [];
+    if (
+        'followUpTools' in chartArtifact.chartConfig &&
+        Array.isArray(chartArtifact.chartConfig.followUpTools)
+    ) {
+        savedFollowUpTools = chartArtifact.chartConfig
+            .followUpTools as FollowUpTools;
+    }
 
     if (!savedFollowUpTools?.length) {
         return [];
@@ -47,8 +68,20 @@ export function getFollowUpToolBlocks(slackPrompt: SlackPrompt): KnownBlock[] {
 
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
+    artifacts?: AiArtifact[],
 ): (Block | KnownBlock)[] {
-    if (!slackPrompt.vizConfigOutput) {
+    // TODO: Assuming each thread has just one artifact for now
+    // Show feedback blocks if we have artifacts with visualizations
+    if (!artifacts || artifacts.length === 0) {
+        return [];
+    }
+
+    // Check if any artifacts have chart or dashboard configs
+    const hasVisualization = artifacts.some(
+        (artifact) => artifact.chartConfig || artifact.dashboardConfig,
+    );
+
+    if (!hasVisualization) {
         return [];
     }
 
@@ -98,13 +131,20 @@ export function getExploreBlocks(
     slackPrompt: SlackPrompt,
     siteUrl: string,
     maxQueryLimit: number,
+    artifacts?: AiArtifact[],
 ): (Block | KnownBlock)[] {
-    const { vizConfigOutput } = slackPrompt;
-    if (!vizConfigOutput) {
+    // TODO: Assuming each thread has just one artifact for now
+    if (!artifacts || artifacts.length === 0) {
         return [];
     }
 
-    const vizConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
+    // Find the first chart artifact (assuming one artifact per thread for now)
+    const chartArtifact = artifacts.find((artifact) => artifact.chartConfig);
+    if (!chartArtifact || !chartArtifact.chartConfig) {
+        return [];
+    }
+
+    const vizConfig = parseVizConfig(chartArtifact.chartConfig, maxQueryLimit);
     if (!vizConfig) {
         throw new Error('Failed to parse viz config');
     }
@@ -165,8 +205,11 @@ export function getDeepLinkBlocks(
     agentUuid: string,
     slackPrompt: SlackPrompt,
     siteUrl: string,
+    artifacts?: AiArtifact[],
 ): (Block | KnownBlock)[] {
-    if (!slackPrompt.vizConfigOutput) {
+    // TODO: Assuming each thread has just one artifact for now
+    // Show debug link when there are artifacts to inspect
+    if (!artifacts || artifacts.length === 0) {
         return [];
     }
 

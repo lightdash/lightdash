@@ -1076,117 +1076,6 @@ export class AiAgentService {
         }
     }
 
-    async getAgentThreadMessageVizQuery(
-        user: SessionUser,
-        {
-            agentUuid,
-            threadUuid,
-            messageUuid,
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            messageUuid: string;
-        },
-    ): Promise<ApiAiAgentThreadMessageVizQuery> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        if (!isCopilotEnabled) {
-            throw new ForbiddenError('Copilot is not enabled');
-        }
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
-
-        const thread = await this.aiAgentModel.getThread({
-            organizationUuid,
-            agentUuid,
-            threadUuid,
-        });
-
-        if (!thread) {
-            throw new NotFoundError(`Thread not found: ${threadUuid}`);
-        }
-
-        // Check if user has access to this agent/thread
-        const hasAccess = await this.checkAgentThreadAccess(
-            user,
-            agent,
-            thread.user.uuid,
-        );
-        if (!hasAccess) {
-            throw new ForbiddenError(
-                'Insufficient permissions to access this thread',
-            );
-        }
-
-        const { projectUuid } = agent;
-
-        const message = await this.aiAgentModel.findThreadMessage('assistant', {
-            organizationUuid,
-            threadUuid,
-            messageUuid,
-        });
-
-        // @ts-ignore we can keep this runtime check just in case
-        if (message.role === 'user') {
-            throw new ForbiddenError(
-                'User messages are not supported for this endpoint',
-            );
-        }
-
-        if (!message.vizConfigOutput) {
-            throw new ForbiddenError('Viz config not found for this message');
-        }
-
-        const parsedVizConfig = parseVizConfig(
-            message.vizConfigOutput,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
-        );
-
-        if (!parsedVizConfig) {
-            throw new ForbiddenError('Could not generate a visualization');
-        }
-
-        const query = await this.executeAsyncAiMetricQuery(
-            user,
-            projectUuid,
-            parsedVizConfig.metricQuery,
-        );
-
-        const metadata = {
-            title: parsedVizConfig.vizTool?.title ?? null,
-            description: parsedVizConfig.vizTool?.description ?? null,
-        } satisfies AiVizMetadata;
-
-        this.analytics.track({
-            event: 'ai_agent.web_viz_query',
-            userId: user.userUuid,
-            properties: {
-                projectId: agent.projectUuid,
-                organizationId: organizationUuid,
-                agentId: agent.uuid,
-                agentName: agent.name,
-                vizType: parsedVizConfig.type,
-            },
-        });
-
-        return {
-            type: parsedVizConfig.type,
-            query,
-            metadata,
-        };
-    }
-
     async getArtifactVizQuery(
         user: SessionUser,
         {
@@ -2306,18 +2195,29 @@ export class AiAgentService {
             messageTs: slackPrompt.response_slack_ts,
         });
 
-        const feedbackBlocks = getFeedbackBlocks(slackPrompt);
-        const followUpToolBlocks = getFollowUpToolBlocks(slackPrompt);
+        // Get artifacts for the thread to populate Slack blocks
+        const threadArtifacts =
+            await this.aiAgentModel.findArtifactsByThreadUuid(
+                slackPrompt.threadUuid,
+            );
+
+        const feedbackBlocks = getFeedbackBlocks(slackPrompt, threadArtifacts);
+        const followUpToolBlocks = getFollowUpToolBlocks(
+            slackPrompt,
+            threadArtifacts,
+        );
         const exploreBlocks = getExploreBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
+            threadArtifacts,
         );
         const historyBlocks = agent
             ? getDeepLinkBlocks(
                   agent.uuid,
                   slackPrompt,
                   this.lightdashConfig.siteUrl,
+                  threadArtifacts,
               )
             : undefined;
 

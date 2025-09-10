@@ -115,9 +115,6 @@ export type AiAgentMessageAssistant = {
     // we check for null before creating the agent message
     createdAt: string;
 
-    vizConfigOutput: object | null;
-    filtersOutput: object | null;
-    metricQuery: object | null;
     humanScore: number | null;
 
     toolCalls: AiAgentToolCall[];
