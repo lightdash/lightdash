@@ -1,3 +1,11 @@
+## [0.1992.1](https://github.com/lightdash/lightdash/compare/0.1992.0...0.1992.1) (2025-09-10)
+
+
+### Bug Fixes
+
+* invalidate dashboard chart on chart edit ([#16807](https://github.com/lightdash/lightdash/issues/16807)) ([4a71b5e](https://github.com/lightdash/lightdash/commit/4a71b5e94e4a856f6ad1de72e7d63349b8705a5c))
+* invalidate dashboard data on enter of edit mode ([#16811](https://github.com/lightdash/lightdash/issues/16811)) ([19851cb](https://github.com/lightdash/lightdash/commit/19851cbc7a951408c7e5b09996632b003db31f0b))
+
 # [0.1992.0](https://github.com/lightdash/lightdash/compare/0.1991.0...0.1992.0) (2025-09-10)
 
 
