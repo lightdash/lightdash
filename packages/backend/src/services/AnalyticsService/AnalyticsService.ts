@@ -1,10 +1,12 @@
 import {
+    Account,
     AnyType,
     ApiDownloadCsv,
     ForbiddenError,
     isUserWithOrg,
     SchedulerJobStatus,
     SessionUser,
+    UnusedContent,
     UserActivity,
 } from '@lightdash/common';
 
@@ -128,5 +130,36 @@ export class AnalyticsService extends BaseService {
             projectUuid,
         });
         return upload.path;
+    }
+
+    async getUnusedContent(
+        projectUuid: string,
+        account: Account,
+    ): Promise<UnusedContent> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Analytics', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        this.analytics.track({
+            event: 'usage_analytics.dashboard_viewed',
+            userId: account.user.id,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid!,
+                dashboardType: 'user_activity',
+            },
+        });
+
+        return this.analyticsModel.getUnusedContent(projectUuid);
     }
 }
