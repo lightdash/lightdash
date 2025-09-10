@@ -8,6 +8,7 @@ import {
     CreateSchedulerTarget,
     DashboardFilterRule,
     DashboardParameterValue,
+    type DownloadAsyncQueryResultsPayload,
     DownloadCsvPayload,
     DownloadFileType,
     EmailNotificationPayload,
@@ -3199,6 +3200,35 @@ export default class SchedulerTask {
                         payload,
                     );
                 return { results };
+            },
+        );
+    }
+
+    protected async downloadAsyncQueryResults(
+        jobId: string,
+        scheduledTime: Date,
+        payload: DownloadAsyncQueryResultsPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                const sessionUser = await this.userService.getSessionByUserUuid(
+                    payload.userUuid,
+                );
+                const account = Account.fromSession(sessionUser);
+                return this.asyncQueryService.download({
+                    account,
+                    ...payload,
+                });
             },
         );
     }

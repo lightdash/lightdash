@@ -6457,18 +6457,6 @@
                     },
                     {
                         "properties": {
-                            "slackThreadTs": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "slackChannelId": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "promptCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "feedbackSummary": {
                                 "$ref": "#/components/schemas/AiAgentAdminFeedbackSummary"
                             },
@@ -6488,14 +6476,7 @@
                                 "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-imageUrl_"
                             }
                         },
-                        "required": [
-                            "slackThreadTs",
-                            "slackChannelId",
-                            "promptCount",
-                            "feedbackSummary",
-                            "project",
-                            "agent"
-                        ],
+                        "required": ["feedbackSummary", "project", "agent"],
                         "type": "object"
                     }
                 ]
@@ -10398,7 +10379,8 @@
                     "generateDailyJobs",
                     "exportCsvDashboard",
                     "renameResources",
-                    "cleanQueryHistory"
+                    "cleanQueryHistory",
+                    "downloadAsyncQueryResults"
                 ]
             },
             "SchedulerJobStatus": {
@@ -18942,7 +18924,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1992.4",
+        "version": "0.1994.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -30113,6 +30095,66 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv-or-ApiDownloadAsyncQueryResultsAsXlsx_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Downloads query results in various formats with custom formatting options",
+                "summary": "Download results",
+                "tags": ["Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The UUID of the completed async query to download",
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download": {
+            "post": {
+                "operationId": "scheduleDownloadResults",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJobScheduledResponse"
                                 }
                             }
                         }

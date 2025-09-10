@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
+import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
@@ -523,4 +524,16 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
     dateZoomGranularity?: DateGranularity;
+};
+
+export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
+    queryUuid: string;
+    type?: DownloadFileType;
+    onlyRaw?: boolean;
+    showTableNames?: boolean;
+    customLabels?: Record<string, string>;
+    columnOrder?: string[];
+    hiddenFields?: string[];
+    pivotConfig?: PivotConfig;
+    attachmentDownloadName?: string;
 };
