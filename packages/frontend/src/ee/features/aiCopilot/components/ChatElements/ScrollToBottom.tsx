@@ -83,7 +83,7 @@ const ThreadScrollToBottom = ({
     // Scroll to bottom when the last message gets a chart visualization
     const lastMessage = thread.data?.messages?.at(-1);
     const lastMessageViz =
-        lastMessage?.role === 'assistant' && lastMessage?.vizConfigOutput;
+        lastMessage?.role === 'assistant' && lastMessage?.artifact;
 
     useLayoutEffect(() => {
         if (!lastMessageViz) return;

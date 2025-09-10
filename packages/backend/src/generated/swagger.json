@@ -5750,6 +5750,10 @@
                 "properties": {
                     "artifact": {
                         "properties": {
+                            "artifactType": {
+                                "type": "string",
+                                "enum": ["chart", "dashboard"]
+                            },
                             "description": {
                                 "type": "string",
                                 "nullable": true
@@ -5770,6 +5774,7 @@
                             }
                         },
                         "required": [
+                            "artifactType",
                             "description",
                             "title",
                             "versionUuid",

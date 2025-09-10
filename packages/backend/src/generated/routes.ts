@@ -5145,6 +5145,17 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                artifactType: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'enum', enums: ['chart'] },
+                                        {
+                                            dataType: 'enum',
+                                            enums: ['dashboard'],
+                                        },
+                                    ],
+                                    required: true,
+                                },
                                 description: {
                                     dataType: 'union',
                                     subSchemas: [

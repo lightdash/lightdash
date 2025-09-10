@@ -1,7 +1,14 @@
-import { type AiAgentMessageAssistant } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type AiAgentMessageAssistant,
+} from '@lightdash/common';
 import { Box, Loader, Text, UnstyledButton } from '@mantine-8/core';
-import { IconArtboard } from '@tabler/icons-react';
-import { type FC } from 'react';
+import {
+    IconArtboard,
+    IconChartBar,
+    IconLayoutDashboard,
+} from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import styles from './AiArtifactButton.module.css';
 
@@ -20,6 +27,22 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
 }) => {
     const displayTitle = artifact?.title;
 
+    const ArtifactIcon = useMemo(() => {
+        if (!artifact) return IconArtboard;
+
+        switch (artifact.artifactType) {
+            case 'chart':
+                return IconChartBar;
+            case 'dashboard':
+                return IconLayoutDashboard;
+            default:
+                return assertUnreachable(
+                    artifact.artifactType,
+                    `invalid artifact type ${artifact.artifactType}`,
+                );
+        }
+    }, [artifact]);
+
     return (
         <UnstyledButton
             className={styles.artifactButton}
@@ -33,7 +56,7 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
                     <Loader size={14} color="gray.5" />
                 ) : (
                     <MantineIcon
-                        icon={IconArtboard}
+                        icon={ArtifactIcon}
                         size={14}
                         className={styles.icon}
                     />

@@ -130,6 +130,7 @@ export type AiAgentMessageAssistant = {
         versionUuid: string;
         title: string | null;
         description: string | null;
+        artifactType: 'chart' | 'dashboard';
     } | null;
 };
 
