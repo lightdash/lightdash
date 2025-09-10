@@ -2,7 +2,9 @@ import {
     ChartType,
     assertUnreachable,
     type ChartConfig,
+    type Series,
 } from '@lightdash/common';
+import omit from 'lodash/omit';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type ConfigCacheMap } from './types';
 
@@ -109,4 +111,26 @@ export const getValidChartConfig = (
                 `Invalid chart type ${chartType}`,
             );
     }
+};
+
+// Clean the config to remove runtime-only properties like isFilteredOut
+export const cleanConfig = (config: ChartConfig): ChartConfig => {
+    if (
+        config.type === ChartType.CARTESIAN &&
+        config.config?.eChartsConfig?.series
+    ) {
+        return {
+            ...config,
+            config: {
+                ...config.config,
+                eChartsConfig: {
+                    ...config.config.eChartsConfig,
+                    series: config.config.eChartsConfig.series.map(
+                        (s: Series) => omit(s, ['isFilteredOut']),
+                    ),
+                },
+            },
+        };
+    }
+    return config;
 };
