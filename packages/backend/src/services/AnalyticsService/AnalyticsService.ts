@@ -1,4 +1,5 @@
 import {
+    Account,
     AnyType,
     ApiDownloadCsv,
     ForbiddenError,
@@ -133,15 +134,12 @@ export class AnalyticsService extends BaseService {
 
     async getUnusedContent(
         projectUuid: string,
-        user: SessionUser,
+        account: Account,
     ): Promise<UnusedContent> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
@@ -154,10 +152,10 @@ export class AnalyticsService extends BaseService {
 
         this.analytics.track({
             event: 'usage_analytics.dashboard_viewed',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: {
                 projectId: projectUuid,
-                organizationId: user.organizationUuid,
+                organizationId: organizationUuid!,
                 dashboardType: 'user_activity',
             },
         });

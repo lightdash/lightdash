@@ -101,7 +101,7 @@ export class UserActivityController extends BaseController {
         this.setStatus(200);
         const unusedContent = await req.services
             .getAnalyticsService()
-            .getUnusedContent(projectUuid, req.user!);
+            .getUnusedContent(projectUuid, req.account!);
         return {
             status: 'ok',
             results: unusedContent,

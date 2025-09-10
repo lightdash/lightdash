@@ -2,8 +2,10 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
 import {
+    type ApiUnusedContent,
     type ApiUserActivityDownloadCsv,
     type UnusedContent,
+    type UnusedContentItem,
     type UserActivity,
     type ViewStatistics,
 } from './types/analytics';
@@ -867,6 +869,8 @@ type ApiResults =
     | ApiSlackChannelsResponse['results']
     | UserActivity
     | UnusedContent
+    | UnusedContentItem
+    | ApiUnusedContent
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult

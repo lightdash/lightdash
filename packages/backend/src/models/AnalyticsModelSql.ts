@@ -255,7 +255,10 @@ FROM RankedResults
 WHERE rank = 1;
 `;
 
-export const unusedChartsSql = (projectUuid: string) => `
+/**
+ * Parameters: project_uuid
+ */
+export const unusedChartsSql = () => `
 SELECT 
   sq.name as content_name,
   sq.created_at,
@@ -285,7 +288,7 @@ LEFT JOIN users cu ON cu.user_uuid = sq.last_version_updated_by_user_uuid
 LEFT JOIN spaces s ON s.space_id = sq.space_id
 LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_chart_views cv ON cv.chart_uuid = sq.saved_query_uuid
-WHERE p.project_uuid = '${projectUuid}'
+WHERE p.project_uuid = ?
 GROUP BY 
   sq.name, 
   sq.created_at,
@@ -300,7 +303,10 @@ ORDER BY
 LIMIT 10;
 `;
 
-export const unusedDashboardsSql = (projectUuid: string) => `
+/**
+ * Parameters: project_uuid
+ */
+export const unusedDashboardsSql = () => `
 SELECT 
   d.name as content_name,
   d.created_at,
@@ -337,7 +343,7 @@ LEFT JOIN users cu ON cu.user_uuid = first_version.updated_by_user_uuid
 LEFT JOIN spaces s ON s.space_id = d.space_id
 LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_dashboard_views adv ON adv.dashboard_uuid = d.dashboard_uuid
-WHERE p.project_uuid = '${projectUuid}'
+WHERE p.project_uuid = ?
 GROUP BY 
   d.name, 
   d.created_at,

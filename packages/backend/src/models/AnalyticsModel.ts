@@ -363,9 +363,12 @@ export class AnalyticsModel {
                 name: 'AnalyticsModel.getUnusedContent',
             },
             async () => {
+                const chartsQuery = unusedChartsSql();
+                const dashboardsQuery = unusedDashboardsSql();
+
                 const [chartsResults, dashboardsResults] = await Promise.all([
-                    this.database.raw(unusedChartsSql(projectUuid)),
-                    this.database.raw(unusedDashboardsSql(projectUuid)),
+                    this.database.raw(chartsQuery, [projectUuid]),
+                    this.database.raw(dashboardsQuery, [projectUuid]),
                 ]);
 
                 const charts: UnusedContentItem[] = chartsResults.rows.map(
