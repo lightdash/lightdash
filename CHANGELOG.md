@@ -1,3 +1,10 @@
+# [0.1990.0](https://github.com/lightdash/lightdash/compare/0.1989.5...0.1990.0) (2025-09-10)
+
+
+### Features
+
+* add unused content dashboard to analytics ([#16757](https://github.com/lightdash/lightdash/issues/16757)) ([70288f5](https://github.com/lightdash/lightdash/commit/70288f5f44b9bc62869b310162ec12a8518b644e))
+
 ## [0.1989.5](https://github.com/lightdash/lightdash/compare/0.1989.4...0.1989.5) (2025-09-10)
 
 
