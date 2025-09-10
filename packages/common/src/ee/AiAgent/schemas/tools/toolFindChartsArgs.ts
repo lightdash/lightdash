@@ -14,7 +14,7 @@ Usage tips:
 - Returns chart URLs when available
 `;
 
-export const toolFindChartsArgsSchema = createToolSchema(
+export const toolFindChartsArgsSchemaBuilder = createToolSchema(
     'find_charts',
     TOOL_FIND_CHARTS_DESCRIPTION,
 )
@@ -29,8 +29,9 @@ export const toolFindChartsArgsSchema = createToolSchema(
             }),
         ),
     })
-    .withPagination()
-    .build();
+    .withPagination();
+
+export const toolFindChartsArgsSchema = toolFindChartsArgsSchemaBuilder.schema;
 
 export type ToolFindChartsArgs = z.infer<typeof toolFindChartsArgsSchema>;
 

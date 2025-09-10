@@ -17,7 +17,6 @@
     },
     "dependencies": {
         "@casl/ability": "^5.4.3",
-        "@mastra/schema-compat": "^0.10.7",
         "@types/lodash": "^4.14.202",
         "ajv": "^8.3.0",
         "ajv-errors": "^3.0.0",

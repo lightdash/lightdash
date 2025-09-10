@@ -16,20 +16,21 @@ Usage Tips:
 - The query respects the same limits and permissions as other visualization tools
 `;
 
-export const toolRunMetricQueryArgsSchema = createToolSchema(
+export const toolRunMetricQueryArgsSchemaBuilder = createToolSchema(
     'run_metric_query',
     TOOL_RUN_METRIC_QUERY_DESCRIPTION,
-)
-    .extend({
-        vizConfig: tableVizConfigSchema,
-        customMetrics: customMetricsSchema,
-        filters: filtersSchema
-            .nullable()
-            .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
-            ),
-    })
-    .build();
+).extend({
+    vizConfig: tableVizConfigSchema,
+    customMetrics: customMetricsSchema,
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
+        ),
+});
+
+export const toolRunMetricQueryArgsSchema =
+    toolRunMetricQueryArgsSchemaBuilder.schema;
 
 export type ToolRunMetricQueryArgs = z.infer<
     typeof toolRunMetricQueryArgsSchema

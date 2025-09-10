@@ -8,31 +8,32 @@ import { verticalBarMetricVizConfigSchema } from '../visualizations';
 
 export const TOOL_VERTICAL_BAR_VIZ_DESCRIPTION = `Use this tool to generate a Bar Chart Visualization.`;
 
-export const toolVerticalBarArgsSchema = createToolSchema(
+export const toolVerticalBarArgsSchemaBuilder = createToolSchema(
     AiResultType.VERTICAL_BAR_RESULT,
     TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
-)
-    .extend({
-        ...visualizationMetadataSchema.shape,
-        customMetrics: customMetricsSchema,
-        vizConfig: verticalBarMetricVizConfigSchema,
-        filters: filtersSchema
-            .nullable()
-            .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
-            ),
-        followUpTools: z
-            .array(
-                z.union([
-                    z.literal(AiResultType.TABLE_RESULT),
-                    z.literal(AiResultType.TIME_SERIES_RESULT),
-                ]),
-            )
-            .describe(
-                `The actions the User can ask for after the AI has generated the chart.`,
-            ),
-    })
-    .build();
+).extend({
+    ...visualizationMetadataSchema.shape,
+    customMetrics: customMetricsSchema,
+    vizConfig: verticalBarMetricVizConfigSchema,
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(AiResultType.TABLE_RESULT),
+                z.literal(AiResultType.TIME_SERIES_RESULT),
+            ]),
+        )
+        .describe(
+            `The actions the User can ask for after the AI has generated the chart`,
+        ),
+});
+
+export const toolVerticalBarArgsSchema =
+    toolVerticalBarArgsSchemaBuilder.schema;
 
 export type ToolVerticalBarArgs = z.infer<typeof toolVerticalBarArgsSchema>;
 

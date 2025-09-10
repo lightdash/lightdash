@@ -10,12 +10,14 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { FindFieldFn } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     findFields: FindFieldFn;
     pageSize: number;
-};
+}>;
 
 const fieldKindLabel = (fieldType: FieldType) => {
     switch (fieldType) {
@@ -91,10 +93,17 @@ const getFieldsText = (
 </SearchResult>
 `.trim();
 
-export const getFindFields = ({ findFields, pageSize }: Dependencies) =>
+export const getFindFields = ({
+    findFields,
+    pageSize,
+    schemaCompatLayers,
+}: Dependencies) =>
     tool({
         description: toolFindFieldsArgsSchema.description,
-        inputSchema: toolFindFieldsArgsSchema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolFindFieldsArgsSchema,
+        ),
         execute: async (args) => {
             try {
                 const fieldSearchQueryResults = await Promise.all(

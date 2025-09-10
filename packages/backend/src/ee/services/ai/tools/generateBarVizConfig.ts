@@ -16,6 +16,8 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
@@ -27,7 +29,7 @@ import {
 } from '../utils/validators';
 import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
@@ -36,7 +38,7 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
-};
+}>;
 
 export const getGenerateBarVizConfig = ({
     getExplore,
@@ -47,9 +49,8 @@ export const getGenerateBarVizConfig = ({
     updatePrompt,
     createOrUpdateArtifact,
     maxLimit,
+    schemaCompatLayers,
 }: Dependencies) => {
-    const schema = toolVerticalBarArgsSchema;
-
     /**
      * This function is used to validate the viz tool.
      * @param vizTool - The complete viz tool with populated custom fields
@@ -92,7 +93,10 @@ export const getGenerateBarVizConfig = ({
 
     return tool({
         description: toolVerticalBarArgsSchema.description,
-        inputSchema: schema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolVerticalBarArgsSchema,
+        ),
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📊 Generating your bar chart...');

@@ -16,6 +16,8 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
@@ -27,7 +29,7 @@ import {
 } from '../utils/validators';
 import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
@@ -36,7 +38,8 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
-};
+}>;
+
 export const getGenerateTimeSeriesVizConfig = ({
     getExplore,
     updateProgress,
@@ -46,9 +49,8 @@ export const getGenerateTimeSeriesVizConfig = ({
     updatePrompt,
     createOrUpdateArtifact,
     maxLimit,
+    schemaCompatLayers,
 }: Dependencies) => {
-    const schema = toolTimeSeriesArgsSchema;
-
     /**
      * This function is used to validate the viz tool.
      * @param vizTool - The complete viz tool with populated custom fields
@@ -91,7 +93,10 @@ export const getGenerateTimeSeriesVizConfig = ({
 
     return tool({
         description: toolTimeSeriesArgsSchema.description,
-        inputSchema: schema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolTimeSeriesArgsSchema,
+        ),
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📈 Generating your line chart...');

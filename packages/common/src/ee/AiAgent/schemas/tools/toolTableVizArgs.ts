@@ -8,31 +8,31 @@ import { tableVizConfigSchema } from '../visualizations';
 
 export const TOOL_TABLE_VIZ_DESCRIPTION = `Use this tool to query data to display in a table or summarized if limit is set to 1.`;
 
-export const toolTableVizArgsSchema = createToolSchema(
+export const toolTableVizArgsSchemaBuilder = createToolSchema(
     AiResultType.TABLE_RESULT,
     TOOL_TABLE_VIZ_DESCRIPTION,
-)
-    .extend({
-        ...visualizationMetadataSchema.shape,
-        customMetrics: customMetricsSchema,
-        vizConfig: tableVizConfigSchema,
-        filters: filtersSchema
-            .nullable()
-            .describe(
-                'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
-            ),
-        followUpTools: z
-            .array(
-                z.union([
-                    z.literal(AiResultType.VERTICAL_BAR_RESULT),
-                    z.literal(AiResultType.TIME_SERIES_RESULT),
-                ]),
-            )
-            .describe(
-                'The actions the User can ask for after the AI has generated the table.',
-            ),
-    })
-    .build();
+).extend({
+    ...visualizationMetadataSchema.shape,
+    customMetrics: customMetricsSchema,
+    vizConfig: tableVizConfigSchema,
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore or should be referenced from the custom metrics.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(AiResultType.VERTICAL_BAR_RESULT),
+                z.literal(AiResultType.TIME_SERIES_RESULT),
+            ]),
+        )
+        .describe(
+            'The actions the User can ask for after the AI has generated the table.',
+        ),
+});
+
+export const toolTableVizArgsSchema = toolTableVizArgsSchemaBuilder.schema;
 
 export type ToolTableVizArgs = z.infer<typeof toolTableVizArgsSchema>;
 

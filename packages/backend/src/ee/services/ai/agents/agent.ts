@@ -148,23 +148,27 @@ const getAgentTools = (
         fieldSearchSize: args.findExploresFieldSearchSize,
         fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
         findExplores: dependencies.findExplores,
+        schemaCompatLayers: args.schemaCompatibilityLayers,
     });
 
     const findFields = getFindFields({
         findFields: dependencies.findFields,
         pageSize: args.findFieldsPageSize,
+        schemaCompatLayers: args.schemaCompatibilityLayers,
     });
 
     const findDashboards = getFindDashboards({
         findDashboards: dependencies.findDashboards,
         pageSize: args.findDashboardsPageSize,
         siteUrl: args.siteUrl,
+        schemaCompatLayers: args.schemaCompatibilityLayers,
     });
 
     const findCharts = getFindCharts({
         findCharts: dependencies.findCharts,
         pageSize: args.findChartsPageSize,
         siteUrl: args.siteUrl,
+        schemaCompatLayers: args.schemaCompatibilityLayers,
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
@@ -176,6 +180,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        schemaCompatLayers: args.schemaCompatibilityLayers,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -187,6 +192,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        schemaCompatLayers: args.schemaCompatibilityLayers,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
@@ -198,6 +204,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        schemaCompatLayers: args.schemaCompatibilityLayers,
     });
 
     const tools = {
@@ -308,6 +315,7 @@ export const generateAgentResponse = async ({
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
+            providerOptions: args.providerOptions,
             model: args.model,
             tools,
             messages,
@@ -435,6 +443,7 @@ export const streamAgentResponse = async ({
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
+            providerOptions: args.providerOptions,
             model: args.model,
             tools,
             messages,
@@ -558,6 +567,7 @@ export const streamAgentResponse = async ({
                 chunking: 'line',
             }),
             onError: (error) => {
+                console.error(error);
                 Logger.error(
                     `[AiAgent][Stream Agent Response] Error during streaming: ${
                         error instanceof Error ? error.message : 'Unknown error'

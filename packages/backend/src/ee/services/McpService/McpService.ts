@@ -249,6 +249,7 @@ export class McpService extends BaseService {
                     maxDescriptionLength: 100,
                     fieldSearchSize: 200,
                     fieldOverviewSearchSize: 5,
+                    schemaCompatLayers: null,
                 });
                 const result = await findExploresTool.execute!(
                     argsWithProject,
@@ -300,6 +301,7 @@ export class McpService extends BaseService {
                 const findFieldsTool = getFindFields({
                     findFields,
                     pageSize: 15,
+                    schemaCompatLayers: null,
                 });
                 const result = await findFieldsTool.execute!(argsWithProject, {
                     toolCallId: '',
@@ -349,6 +351,7 @@ export class McpService extends BaseService {
                     findDashboards,
                     pageSize: 10,
                     siteUrl: this.lightdashConfig.siteUrl,
+                    schemaCompatLayers: null,
                 });
                 const result = await findDashboardsTool.execute!(
                     argsWithProject,
@@ -401,6 +404,7 @@ export class McpService extends BaseService {
                     findCharts,
                     pageSize: 10,
                     siteUrl: this.lightdashConfig.siteUrl,
+                    schemaCompatLayers: null,
                 });
                 const result = await findChartsTool.execute!(argsWithProject, {
                     toolCallId: '',
@@ -626,6 +630,7 @@ export class McpService extends BaseService {
                     getExplore,
                     runMiniMetricQuery,
                     maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    schemaCompatLayers: null,
                 });
 
                 const result = await runMetricQueryTool.execute!(
@@ -677,6 +682,7 @@ export class McpService extends BaseService {
 
                 const searchFieldValuesTool = getSearchFieldValues({
                     searchFieldValues,
+                    schemaCompatLayers: null,
                 });
                 const result = await searchFieldValuesTool.execute!(
                     argsWithProject,

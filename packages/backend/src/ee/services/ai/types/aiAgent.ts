@@ -1,5 +1,7 @@
 import { AiAgent } from '@lightdash/common';
+import { SchemaCompatLayer } from '@mastra/schema-compat';
 import { LanguageModel, ModelMessage } from 'ai';
+import { AiModel } from '../models/types';
 import {
     CreateOrUpdateArtifactFn,
     FindChartsFn,
@@ -17,8 +19,7 @@ import {
     UpdatePromptFn,
 } from './aiAgentDependencies';
 
-export type AiAgentArgs = {
-    model: LanguageModel;
+export type AiAgentArgs<P extends string = string> = AiModel<P> & {
     agentSettings: AiAgent;
     messageHistory: ModelMessage[];
     promptUuid: string;
@@ -27,7 +28,6 @@ export type AiAgentArgs = {
     userId: string;
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
-    callOptions: { temperature: number };
 
     availableExploresPageSize: number;
     findExploresPageSize: number;

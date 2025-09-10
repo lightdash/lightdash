@@ -2,16 +2,18 @@ import { getItemId, toolFindExploresArgsSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import { truncate } from 'lodash';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     pageSize: number;
     fieldSearchSize: number;
     fieldOverviewSearchSize: number;
     maxDescriptionLength: number;
     findExplores: FindExploresFn;
-};
+}>;
 
 const generateExploreResponse = ({
     table,
@@ -118,10 +120,14 @@ export const getFindExplores = ({
     maxDescriptionLength,
     fieldSearchSize,
     fieldOverviewSearchSize,
+    schemaCompatLayers,
 }: Dependencies) =>
     tool({
         description: toolFindExploresArgsSchema.description,
-        inputSchema: toolFindExploresArgsSchema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolFindExploresArgsSchema,
+        ),
         execute: async (args) => {
             try {
                 if (args.page && args.page < 1) {

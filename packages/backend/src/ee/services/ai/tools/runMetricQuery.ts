@@ -14,6 +14,8 @@ import type {
     GetExploreFn,
     RunMiniMetricQueryFn,
 } from '../types/aiAgentDependencies';
+import { AiToolDependencies } from '../types/aiTools';
+import { applyCompatLayer } from '../utils/applyCompatibilityLayer';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -25,16 +27,17 @@ import {
     validateSortFieldsAreSelected,
 } from '../utils/validators';
 
-type Dependencies = {
+type Dependencies = AiToolDependencies<{
     getExplore: GetExploreFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     maxLimit: number;
-};
+}>;
 
 export const getRunMetricQuery = ({
     getExplore,
     runMiniMetricQuery,
     maxLimit,
+    schemaCompatLayers,
 }: Dependencies) => {
     const validateVizTool = (
         vizTool: ToolRunMetricQueryArgsTransformed,
@@ -69,7 +72,10 @@ export const getRunMetricQuery = ({
 
     return tool({
         description: toolRunMetricQueryArgsSchema.description,
-        inputSchema: toolRunMetricQueryArgsSchema,
+        inputSchema: applyCompatLayer(
+            schemaCompatLayers,
+            toolRunMetricQueryArgsSchema,
+        ),
         execute: async (toolArgs) => {
             try {
                 const vizTool =
