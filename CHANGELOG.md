@@ -1,3 +1,10 @@
+## [0.1989.5](https://github.com/lightdash/lightdash/compare/0.1989.4...0.1989.5) (2025-09-10)
+
+
+### Bug Fixes
+
+* improve chart comparison by cleaning config and including parameters ([#16800](https://github.com/lightdash/lightdash/issues/16800)) ([0447bdd](https://github.com/lightdash/lightdash/commit/0447bdd386ab7f88e98da4f7286620cd6c136e16))
+
 ## [0.1989.4](https://github.com/lightdash/lightdash/compare/0.1989.3...0.1989.4) (2025-09-10)
 
 
