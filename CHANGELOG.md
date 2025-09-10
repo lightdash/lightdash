@@ -1,3 +1,10 @@
+## [0.1989.4](https://github.com/lightdash/lightdash/compare/0.1989.3...0.1989.4) (2025-09-10)
+
+
+### Bug Fixes
+
+* dont auto-run query on new chart ([#16810](https://github.com/lightdash/lightdash/issues/16810)) ([4819b17](https://github.com/lightdash/lightdash/commit/4819b170e66e66f8e745d34c62ae6efbb7aa53d9))
+
 ## [0.1989.3](https://github.com/lightdash/lightdash/compare/0.1989.2...0.1989.3) (2025-09-09)
 
 
