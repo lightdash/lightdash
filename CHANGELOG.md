@@ -1,3 +1,15 @@
+# [0.1992.0](https://github.com/lightdash/lightdash/compare/0.1991.0...0.1992.0) (2025-09-10)
+
+
+### Bug Fixes
+
+* git project adapters not reading lightdash project config yaml file ([#16822](https://github.com/lightdash/lightdash/issues/16822)) ([778fc2f](https://github.com/lightdash/lightdash/commit/778fc2fdbe7a7f4ee6916fec55e45f9a720ae476))
+
+
+### Features
+
+* enable duplicating initial custom role ([#16796](https://github.com/lightdash/lightdash/issues/16796)) ([647a419](https://github.com/lightdash/lightdash/commit/647a419d2de555153f640c3074479ebebfc5f323)), closes [#16767](https://github.com/lightdash/lightdash/issues/16767)
+
 # [0.1991.0](https://github.com/lightdash/lightdash/compare/0.1990.0...0.1991.0) (2025-09-10)
 
 
