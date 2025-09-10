@@ -7,6 +7,12 @@ import {
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
+export type TrackingParams = {
+    userUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+};
+
 export interface ProjectAdapter {
     /**
      * Compile all explores
@@ -14,13 +20,7 @@ export interface ProjectAdapter {
      * @returns A promise that resolves to an array of explores or explore errors
      */
     compileAllExplores(
-        trackingParams:
-            | {
-                  userUuid: string;
-                  organizationUuid: string;
-                  projectUuid: string;
-              }
-            | undefined,
+        trackingParams: TrackingParams | undefined,
     ): Promise<(Explore | ExploreError)[]>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
@@ -29,11 +29,9 @@ export interface ProjectAdapter {
 
     destroy(): Promise<void>;
 
-    getLightdashProjectConfig(trackingParams: {
-        projectUuid: string;
-        organizationUuid: string;
-        userUuid: string;
-    }): Promise<LightdashProjectConfig>;
+    getLightdashProjectConfig(
+        trackingParams: TrackingParams | undefined,
+    ): Promise<LightdashProjectConfig>;
 }
 
 export interface DbtClient {
