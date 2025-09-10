@@ -5415,93 +5415,118 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiArtifact: {
+    'Pick_AiArtifact.Exclude_keyofAiArtifact.chartConfig-or-dashboardConfig__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    createdAt: { dataType: 'datetime', required: true },
+                    artifactUuid: { dataType: 'string', required: true },
+                    threadUuid: { dataType: 'string', required: true },
+                    promptUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    artifactType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['chart'] },
+                            { dataType: 'enum', enums: ['dashboard'] },
+                        ],
+                        required: true,
+                    },
+                    savedQueryUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    versionNumber: { dataType: 'double', required: true },
+                    versionUuid: { dataType: 'string', required: true },
+                    title: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    versionCreatedAt: { dataType: 'datetime', required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_AiArtifact.chartConfig-or-dashboardConfig_': {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                versionCreatedAt: { dataType: 'datetime', required: true },
-                dashboardConfig: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'Record_string.unknown_' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                chartConfig: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'Record_string.unknown_' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                description: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                title: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                versionUuid: { dataType: 'string', required: true },
-                versionNumber: { dataType: 'double', required: true },
-                createdAt: { dataType: 'datetime', required: true },
-                savedQueryUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                artifactType: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['chart'] },
-                        { dataType: 'enum', enums: ['dashboard'] },
-                    ],
-                    required: true,
-                },
-                promptUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                threadUuid: { dataType: 'string', required: true },
-                artifactUuid: { dataType: 'string', required: true },
-            },
+            ref: 'Pick_AiArtifact.Exclude_keyofAiArtifact.chartConfig-or-dashboardConfig__',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_AiArtifact_: {
+    AiArtifactTSOACompat: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_AiArtifact.chartConfig-or-dashboardConfig_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'Record_string.unknown_' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        chartConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'Record_string.unknown_' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_AiArtifactTSOACompat_: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'AiArtifact', required: true },
+                results: { ref: 'AiArtifactTSOACompat', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAiAgentArtifactResponse: {
+    ApiAiAgentArtifactResponseTSOACompat: {
         dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_AiArtifact_', validators: {} },
+        type: { ref: 'ApiSuccess_AiArtifactTSOACompat_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiResultType: {
@@ -5804,7 +5829,6 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     uuid: { dataType: 'string', required: true },
-                    createdFrom: { dataType: 'string', required: true },
                     title: {
                         dataType: 'union',
                         subSchemas: [
@@ -5813,6 +5837,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    createdFrom: { dataType: 'string', required: true },
                 },
                 validators: {},
             },
@@ -10017,8 +10042,8 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 createdAt: { dataType: 'datetime', required: true },
-                chartUuid: { dataType: 'string', required: true },
                 versionUuid: { dataType: 'string', required: true },
+                chartUuid: { dataType: 'string', required: true },
                 createdBy: {
                     dataType: 'union',
                     subSchemas: [
@@ -10122,6 +10147,7 @@ const models: TsoaRoute.Models = {
                 organizationUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
+                chartConfig: { ref: 'ChartConfig', required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 pinnedListUuid: {
                     dataType: 'union',
@@ -10182,7 +10208,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                chartConfig: { ref: 'ChartConfig', required: true },
                 tableConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -12206,6 +12231,7 @@ const models: TsoaRoute.Models = {
                     },
                     name: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
+                    chartConfig: { ref: 'ChartConfig', required: true },
                     slug: { dataType: 'string', required: true },
                     tableName: { dataType: 'string', required: true },
                     metricQuery: { ref: 'MetricQuery', required: true },
@@ -12225,7 +12251,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    chartConfig: { ref: 'ChartConfig', required: true },
                     tableConfig: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
