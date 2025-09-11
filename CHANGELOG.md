@@ -1,3 +1,10 @@
+## [0.1995.1](https://github.com/lightdash/lightdash/compare/0.1995.0...0.1995.1) (2025-09-11)
+
+
+### Bug Fixes
+
+* mobile layout calculating incorrectly ([#16853](https://github.com/lightdash/lightdash/issues/16853)) ([5f6ef03](https://github.com/lightdash/lightdash/commit/5f6ef0312a29200b7a667e73128b4786a27804fb))
+
 # [0.1995.0](https://github.com/lightdash/lightdash/compare/0.1994.1...0.1995.0) (2025-09-11)
 
 
