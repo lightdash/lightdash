@@ -1,8 +1,16 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
-import { Box, Stack, Text, Title, useMantineTheme } from '@mantine-8/core';
-import { IconGripVertical, IconLock } from '@tabler/icons-react';
+import {
+    Box,
+    Group,
+    Stack,
+    Text,
+    Title,
+    useMantineTheme,
+} from '@mantine-8/core';
+import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -59,12 +67,21 @@ export const AiAgentsAdminLayout = () => {
                     minSize={50}
                     className={styles.threadsTable}
                 >
-                    <Box my="lg">
-                        <Title order={2}>AI Agents Admin Panel</Title>
-                        <Text c="gray.6" size="sm" fw={400}>
-                            View and manage AI Agents threads
-                        </Text>
-                    </Box>
+                    <Group justify="space-between" my="lg">
+                        <Box>
+                            <Title order={2}>AI Agents Admin Panel</Title>
+                            <Text c="gray.6" size="sm" fw={400}>
+                                View and manage AI Agents threads
+                            </Text>
+                        </Box>
+                        <LinkButton
+                            href="/ai-agents"
+                            leftIcon={IconPlus}
+                            variant="filled"
+                        >
+                            New Thread
+                        </LinkButton>
+                    </Group>
 
                     <AiAgentAdminThreadsTable
                         onThreadSelect={handleThreadSelect}

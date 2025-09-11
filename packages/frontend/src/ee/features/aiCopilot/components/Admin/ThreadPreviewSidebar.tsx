@@ -10,7 +10,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { IconExternalLink, IconX } from '@tabler/icons-react';
+import { IconExternalLink, IconSettings, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -73,15 +73,32 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                         </ActionIcon>
                     </Tooltip>
                 </Group>
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    p={4}
-                    onClick={onClose}
-                    color="gray"
-                >
-                    <MantineIcon icon={IconX} size="sm" />
-                </Button>
+                <Group gap="xs">
+                    <Tooltip
+                        label="Open Agent Settings"
+                        variant="xs"
+                        position="right"
+                    >
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            component={Link}
+                            target="_blank"
+                            to={`/projects/${thread.project.uuid}/ai-agents/${thread.agent.uuid}/edit`}
+                        >
+                            <MantineIcon icon={IconSettings} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Button
+                        variant="subtle"
+                        size="xs"
+                        p={4}
+                        onClick={onClose}
+                        color="gray"
+                    >
+                        <MantineIcon icon={IconX} size="sm" />
+                    </Button>
+                </Group>
             </Group>
 
             <Divider />
