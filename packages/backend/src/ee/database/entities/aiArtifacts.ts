@@ -6,7 +6,7 @@ export type DbAiArtifact = {
     ai_artifact_uuid: string;
     created_at: Date;
     ai_thread_uuid: string;
-    artifact_type: 'chart';
+    artifact_type: 'chart' | 'dashboard';
 };
 
 export type AiArtifactsTable = Knex.CompositeTableType<
@@ -26,6 +26,7 @@ export type DbAiArtifactVersion = {
     description: string | null;
     saved_query_uuid: string | null;
     chart_config: Record<string, unknown> | null;
+    dashboard_config: Record<string, unknown> | null;
 };
 
 export type AiArtifactVersionsTable = Knex.CompositeTableType<
@@ -39,5 +40,6 @@ export type AiArtifactVersionsTable = Knex.CompositeTableType<
         | 'description'
         | 'saved_query_uuid'
         | 'chart_config'
+        | 'dashboard_config'
     >
 >;

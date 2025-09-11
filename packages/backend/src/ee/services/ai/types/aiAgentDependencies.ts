@@ -124,7 +124,7 @@ export type SearchFieldValuesFn = (args: {
 export type CreateOrUpdateArtifactFn = (data: {
     threadUuid: string;
     promptUuid: string;
-    artifactType: 'chart';
+    artifactType: 'chart' | 'dashboard';
     title?: string;
     description?: string;
     vizConfig: Record<string, unknown>;
