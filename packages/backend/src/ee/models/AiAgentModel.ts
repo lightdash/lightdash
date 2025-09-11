@@ -784,10 +784,10 @@ export class AiAgentModel {
             .select([
                 'ai_thread_uuid',
                 this.database.raw(`
-                     COUNT(CASE WHEN human_score = 1 THEN 1 END) as upvotes,
-                     COUNT(CASE WHEN human_score = -1 THEN 1 END) as downvotes,
-                     COUNT(CASE WHEN human_score = 0 THEN 1 END) as neutral,
-                     COUNT(*) as total_feedback
+                     COUNT(CASE WHEN human_score = 1 THEN 1 END)::integer as upvotes,
+                     COUNT(CASE WHEN human_score = -1 THEN 1 END)::integer as downvotes,
+                     COUNT(CASE WHEN human_score = 0 THEN 1 END)::integer as neutral,
+                     COUNT(*)::integer as total_feedback
                  `),
             ])
             .from(AiPromptTableName)
@@ -823,13 +823,13 @@ export class AiAgentModel {
                     project_uuid: DbAiThread['project_uuid'];
 
                     // Feedback aggregation from CTE
-                    upvotes: number;
-                    downvotes: number;
-                    neutral: number;
-                    total_feedback: number;
+                    upvotes: number | null;
+                    downvotes: number | null;
+                    neutral: number | null;
+                    total_feedback: number | null;
 
                     // Prompt count from CTE
-                    prompt_count: number;
+                    prompt_count: number | null;
                 }[]
             >([
                 // Original thread fields
@@ -1034,10 +1034,10 @@ export class AiAgentModel {
                     name: row.project_name,
                 },
                 feedbackSummary: {
-                    upvotes: row.upvotes,
-                    downvotes: row.downvotes,
-                    neutral: row.neutral,
-                    total: row.total_feedback,
+                    upvotes: row.upvotes || 0,
+                    downvotes: row.downvotes || 0,
+                    neutral: row.neutral || 0,
+                    total: row.total_feedback || 0,
                 },
                 promptCount: row.prompt_count || 0,
             }),
