@@ -1,3 +1,10 @@
+# [0.1998.0](https://github.com/lightdash/lightdash/compare/0.1997.0...0.1998.0) (2025-09-11)
+
+
+### Features
+
+* re-add underylying data for embeds ([#16792](https://github.com/lightdash/lightdash/issues/16792)) ([ec6ad8f](https://github.com/lightdash/lightdash/commit/ec6ad8f30a1b3c7fec5ca39f4af33534bb5de528))
+
 # [0.1997.0](https://github.com/lightdash/lightdash/compare/0.1996.0...0.1997.0) (2025-09-11)
 
 
