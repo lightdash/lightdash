@@ -15,6 +15,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
+import { AiDashboardQuickOptions } from './AiDashboardQuickOptions';
 import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
 
 type Props = {
@@ -51,7 +52,12 @@ export const AiDashboardVisualization: FC<Props> = memo(
                             )}
                         </Stack>
                         <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
-                            {/* TODO: Add more quick actions here (Save Dashboard, Export, etc.) */}
+                            <AiDashboardQuickOptions
+                                artifactData={artifactData}
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                dashboardConfig={dashboardConfig}
+                            />
                             <ActionIcon
                                 size="sm"
                                 variant="subtle"
