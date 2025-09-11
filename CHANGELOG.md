@@ -1,3 +1,10 @@
+# [0.1996.0](https://github.com/lightdash/lightdash/compare/0.1995.1...0.1996.0) (2025-09-11)
+
+
+### Features
+
+* download async query results from scheduler ([#16837](https://github.com/lightdash/lightdash/issues/16837)) ([66de3fc](https://github.com/lightdash/lightdash/commit/66de3fc44692667fc2eb599d3952b1d041f26c63))
+
 ## [0.1995.1](https://github.com/lightdash/lightdash/compare/0.1995.0...0.1995.1) (2025-09-11)
 
 
