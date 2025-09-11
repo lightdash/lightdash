@@ -6012,48 +6012,23 @@
             "ApiAiAgentExploreAccessSummaryResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentExploreAccessSummary-Array_"
             },
-            "AiArtifact": {
+            "Pick_AiArtifact.Exclude_keyofAiArtifact.chartConfig-or-dashboardConfig__": {
                 "properties": {
-                    "versionCreatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "dashboardConfig": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.unknown_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "chartConfig": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.unknown_"
-                            }
-                        ],
-                        "nullable": true
-                    },
                     "description": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "versionNumber": {
-                        "type": "number",
-                        "format": "double"
                     },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
                     },
-                    "savedQueryUuid": {
+                    "artifactUuid": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
                         "type": "string",
                         "nullable": true
                     },
@@ -6061,38 +6036,79 @@
                         "type": "string",
                         "enum": ["chart", "dashboard"]
                     },
-                    "promptUuid": {
+                    "savedQueryUuid": {
                         "type": "string",
                         "nullable": true
                     },
-                    "threadUuid": {
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "versionUuid": {
                         "type": "string"
                     },
-                    "artifactUuid": {
-                        "type": "string"
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "versionCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
                 "required": [
-                    "versionCreatedAt",
-                    "dashboardConfig",
-                    "chartConfig",
                     "description",
-                    "title",
-                    "versionUuid",
-                    "versionNumber",
                     "createdAt",
-                    "savedQueryUuid",
-                    "artifactType",
-                    "promptUuid",
+                    "artifactUuid",
                     "threadUuid",
-                    "artifactUuid"
+                    "promptUuid",
+                    "artifactType",
+                    "savedQueryUuid",
+                    "versionNumber",
+                    "versionUuid",
+                    "title",
+                    "versionCreatedAt"
                 ],
-                "type": "object"
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ApiSuccess_AiArtifact_": {
+            "Omit_AiArtifact.chartConfig-or-dashboardConfig_": {
+                "$ref": "#/components/schemas/Pick_AiArtifact.Exclude_keyofAiArtifact.chartConfig-or-dashboardConfig__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "AiArtifactTSOACompat": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_AiArtifact.chartConfig-or-dashboardConfig_"
+                    },
+                    {
+                        "properties": {
+                            "dashboardConfig": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Record_string.unknown_"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "chartConfig": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Record_string.unknown_"
+                                    }
+                                ],
+                                "nullable": true
+                            }
+                        },
+                        "required": ["dashboardConfig", "chartConfig"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_AiArtifactTSOACompat_": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/AiArtifact"
+                        "$ref": "#/components/schemas/AiArtifactTSOACompat"
                     },
                     "status": {
                         "type": "string",
@@ -6103,8 +6119,8 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiAiAgentArtifactResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiArtifact_"
+            "ApiAiAgentArtifactResponseTSOACompat": {
+                "$ref": "#/components/schemas/ApiSuccess_AiArtifactTSOACompat_"
             },
             "AiResultType": {
                 "enum": [
@@ -6385,20 +6401,20 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "createdFrom": {
-                        "type": "string"
-                    },
                     "title": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "createdFrom": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "createdAt",
                     "user",
                     "uuid",
-                    "createdFrom",
-                    "title"
+                    "title",
+                    "createdFrom"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -10819,10 +10835,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "chartUuid": {
+                    "versionUuid": {
                         "type": "string"
                     },
-                    "versionUuid": {
+                    "chartUuid": {
                         "type": "string"
                     },
                     "createdBy": {
@@ -10836,8 +10852,8 @@
                 },
                 "required": [
                     "createdAt",
-                    "chartUuid",
                     "versionUuid",
+                    "chartUuid",
                     "createdBy"
                 ],
                 "type": "object",
@@ -10940,6 +10956,9 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -10987,9 +11006,6 @@
                         "required": ["columns"],
                         "type": "object"
                     },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
                     "tableConfig": {
                         "properties": {
                             "columnOrder": {
@@ -11018,6 +11034,7 @@
                     "organizationUuid",
                     "uuid",
                     "updatedAt",
+                    "chartConfig",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -11027,7 +11044,6 @@
                     "dashboardName",
                     "tableName",
                     "metricQuery",
-                    "chartConfig",
                     "tableConfig",
                     "colorPalette"
                 ],
@@ -13045,6 +13061,9 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -13066,9 +13085,6 @@
                         "required": ["columns"],
                         "type": "object"
                     },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
                     "tableConfig": {
                         "properties": {
                             "columnOrder": {
@@ -13085,10 +13101,10 @@
                 "required": [
                     "name",
                     "updatedAt",
+                    "chartConfig",
                     "slug",
                     "tableName",
                     "metricQuery",
-                    "chartConfig",
                     "tableConfig"
                 ],
                 "type": "object",

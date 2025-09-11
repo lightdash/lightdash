@@ -2085,11 +2085,12 @@ export class AiAgentModel {
                 versionUuid: version.ai_artifact_version_uuid,
                 title: version.title,
                 description: version.description,
-                chartConfig: version.chart_config,
-                dashboardConfig: version.dashboard_config,
+                chartConfig: version.chart_config as AiArtifact['chartConfig'],
+                dashboardConfig:
+                    version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
                 versionCreatedAt: version.created_at,
-            };
+            } as AiArtifact;
         });
     }
 
@@ -2161,11 +2162,12 @@ export class AiAgentModel {
                 versionUuid: version.ai_artifact_version_uuid,
                 title: version.title,
                 description: version.description,
-                chartConfig: version.chart_config,
-                dashboardConfig: version.dashboard_config,
+                chartConfig: version.chart_config as AiArtifact['chartConfig'],
+                dashboardConfig:
+                    version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
                 versionCreatedAt: version.created_at,
-            };
+            } as AiArtifact;
         });
     }
 

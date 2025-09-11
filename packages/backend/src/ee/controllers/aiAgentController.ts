@@ -1,5 +1,7 @@
 import {
+    AiArtifactTSOACompat,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
@@ -461,15 +463,16 @@ export class AiAgentController extends BaseController {
         @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
-    ): Promise<ApiAiAgentArtifactResponse> {
+    ): Promise<ApiAiAgentArtifactResponseTSOACompat> {
         this.setStatus(200);
+
         return {
             status: 'ok',
-            results: await this.getAiAgentService().getArtifact(
+            results: (await this.getAiAgentService().getArtifact(
                 req.user!,
                 agentUuid,
                 artifactUuid,
-            ),
+            )) as unknown as AiArtifactTSOACompat,
         };
     }
 
@@ -483,16 +486,19 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
         @Path() versionUuid: string,
-    ): Promise<ApiAiAgentArtifactResponse> {
+    ): Promise<ApiAiAgentArtifactResponseTSOACompat> {
         this.setStatus(200);
+
         return {
             status: 'ok',
-            results: await this.getAiAgentService().getArtifact(
+            // Use simplified type for TSOA Compat
+
+            results: (await this.getAiAgentService().getArtifact(
                 req.user!,
                 agentUuid,
                 artifactUuid,
                 versionUuid,
-            ),
+            )) as unknown as AiArtifactTSOACompat,
         };
     }
 
