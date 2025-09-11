@@ -14,6 +14,9 @@ node_modules/
 /packages/e2e/cypress/screenshots/**/*
 /packages/e2e/cypress/videos/**/*
 /packages/e2e/cypress/downloads/**/*
+# Playwright artifacts
+/packages/e2e/test-results/
+/packages/e2e/playwright-report/
 
 # eval reports
 /packages/backend/eval-reports/**/*
