@@ -138,9 +138,6 @@ const MinimalDashboard: FC = () => {
             md: tiles.map<Layout>((tile) =>
                 getReactGridLayoutConfig(tile, false, gridProps.cols.md),
             ),
-            sm: tiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, false, gridProps.cols.sm),
-            ),
         };
     }, [dashboard?.tiles, schedulerTabsSelected, activeTab, gridProps.cols]);
 
