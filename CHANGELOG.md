@@ -1,3 +1,16 @@
+# [0.1994.0](https://github.com/lightdash/lightdash/compare/0.1993.0...0.1994.0) (2025-09-11)
+
+
+### Bug Fixes
+
+* handle null values in AI thread feedback counts and improve feedback display ([#16845](https://github.com/lightdash/lightdash/issues/16845)) ([f427a79](https://github.com/lightdash/lightdash/commit/f427a791774776bb3037534b67adb47d9002c767))
+
+
+### Features
+
+* add prompt count to AI agent admin threads table ([#16844](https://github.com/lightdash/lightdash/issues/16844)) ([3f0a7cc](https://github.com/lightdash/lightdash/commit/3f0a7cc7e8bae9f9cb2ef7eb0f676c82b23d0c0b))
+* add Slack thread link in AI agent admin interface ([#16847](https://github.com/lightdash/lightdash/issues/16847)) ([beef856](https://github.com/lightdash/lightdash/commit/beef8568ea18c4d86bb2296c332353943b7a3e57))
+
 # [0.1993.0](https://github.com/lightdash/lightdash/compare/0.1992.4...0.1993.0) (2025-09-11)
 
 
