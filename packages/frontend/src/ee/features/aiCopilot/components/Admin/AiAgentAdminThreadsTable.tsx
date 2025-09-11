@@ -16,6 +16,7 @@ import {
     IconArrowsSort,
     IconArrowUp,
     IconBox,
+    IconCircleDotted,
     IconClick,
     IconClock,
     IconMessageCircleStar,
@@ -23,6 +24,9 @@ import {
     IconRadar,
     IconRobotFace,
     IconTextCaption,
+    IconThumbDown,
+    IconThumbUp,
+    IconTilde,
     IconUser,
 } from '@tabler/icons-react';
 import {
@@ -371,20 +375,49 @@ const AiAgentAdminThreadsTable = ({
                 const { feedbackSummary } = row.original;
                 return (
                     <Group gap="xs">
-                        {feedbackSummary.neutral > 0 && (
-                            <Text fz="xs" c="gray.6">
-                                ~{feedbackSummary.neutral}
-                            </Text>
-                        )}
-                        {feedbackSummary.upvotes > 0 && (
-                            <Text fz="xs" c="green.6">
-                                ↑{feedbackSummary.upvotes}
-                            </Text>
-                        )}
-                        {feedbackSummary.downvotes > 0 && (
-                            <Text fz="xs" c="red.6">
-                                ↓{feedbackSummary.downvotes}
-                            </Text>
+                        {feedbackSummary.neutral === 0 &&
+                        feedbackSummary.upvotes === 0 &&
+                        feedbackSummary.downvotes === 0 ? (
+                            <MantineIcon
+                                icon={IconCircleDotted}
+                                color="gray.6"
+                            />
+                        ) : (
+                            <Group gap="sm">
+                                {feedbackSummary.neutral > 0 && (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconTilde}
+                                            color="yellow.8"
+                                        />
+                                        <Text fz="xs" c="yellow.8" fw={500}>
+                                            {String(feedbackSummary.neutral)}
+                                        </Text>
+                                    </Group>
+                                )}
+                                {feedbackSummary.upvotes > 0 && (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconThumbUp}
+                                            color="green.9"
+                                        />
+                                        <Text fz="xs" c="green.9" fw={500}>
+                                            {String(feedbackSummary.upvotes)}
+                                        </Text>
+                                    </Group>
+                                )}
+                                {feedbackSummary.downvotes > 0 && (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconThumbDown}
+                                            color="red.9"
+                                        />
+                                        <Text fz="xs" c="red.9" fw={500}>
+                                            {String(feedbackSummary.downvotes)}
+                                        </Text>
+                                    </Group>
+                                )}
+                            </Group>
                         )}
                     </Group>
                 );
