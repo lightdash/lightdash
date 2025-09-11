@@ -1,3 +1,10 @@
+## [0.1992.3](https://github.com/lightdash/lightdash/compare/0.1992.2...0.1992.3) (2025-09-11)
+
+
+### Bug Fixes
+
+* add legacy follow-up tools compatibility mapping ([#16833](https://github.com/lightdash/lightdash/issues/16833)) ([b0a07d0](https://github.com/lightdash/lightdash/commit/b0a07d03d33ea6674ac04918ea5eabd7b2a2b5c3))
+
 ## [0.1992.2](https://github.com/lightdash/lightdash/compare/0.1992.1...0.1992.2) (2025-09-10)
 
 
