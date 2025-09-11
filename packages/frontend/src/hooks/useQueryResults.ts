@@ -1,8 +1,8 @@
 import {
-    type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
+    type ApiJobScheduledResponse,
     type ApiSuccessEmpty,
     assertUnreachable,
     type DateGranularity,
@@ -83,13 +83,13 @@ const executeAsyncSavedChartQuery = async (
     });
 };
 
-export const downloadQuery = async (
+export const scheduleDownloadQuery = async (
     projectUuid: string,
     queryUuid: string,
     options: DownloadOptions = {},
-) =>
-    lightdashApi<ApiDownloadAsyncQueryResultsAsCsv>({
-        url: `/projects/${projectUuid}/query/${queryUuid}/download`,
+) => {
+    return lightdashApi<ApiJobScheduledResponse['results']>({
+        url: `/projects/${projectUuid}/query/${queryUuid}/schedule-download`,
         method: 'POST',
         body: JSON.stringify({
             type: options.fileType || DownloadFileType.CSV,
@@ -103,6 +103,7 @@ export const downloadQuery = async (
         }),
         version: 'v2',
     });
+};
 
 const executeAsyncQuery = (
     data?: QueryResultsProps | null,

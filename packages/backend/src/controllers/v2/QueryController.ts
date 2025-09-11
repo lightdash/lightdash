@@ -16,6 +16,7 @@ import {
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiJobScheduledResponse,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
@@ -481,6 +482,47 @@ export class QueryController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Downloads query results in various formats with custom formatting options
+     * @summary Download results
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{queryUuid}/schedule-download')
+    @OperationId('scheduleDownloadResults')
+    async scheduleDownloadResults(
+        @Path() projectUuid: string,
+        /** The UUID of the completed async query to download */
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+        @Body() body: Omit<DownloadAsyncQueryResultsRequestParams, 'queryUuid'>,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+
+        const jobId = await this.services
+            .getAsyncQueryService()
+            .scheduleDownloadAsyncQueryResults({
+                account: req.account!,
+                projectUuid,
+                queryUuid,
+                type: body.type,
+                onlyRaw: body.onlyRaw,
+                showTableNames: body.showTableNames,
+                customLabels: body.customLabels,
+                columnOrder: body.columnOrder,
+                hiddenFields: body.hiddenFields,
+                pivotConfig: body.pivotConfig,
+                attachmentDownloadName: body.attachmentDownloadName,
+            });
+
+        return {
+            status: 'ok',
+            results: {
+                jobId,
+            },
         };
     }
 }

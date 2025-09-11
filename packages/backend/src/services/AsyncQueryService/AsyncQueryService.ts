@@ -19,7 +19,6 @@ import {
     CreateWarehouseCredentials,
     type CustomDimension,
     CustomSqlQueryForbiddenError,
-    type DashboardDAO,
     DashboardFilters,
     DEFAULT_RESULTS_PAGE_SIZE,
     derivePivotConfigurationFromChart,
@@ -68,6 +67,7 @@ import {
     ResultRow,
     type RunQueryTags,
     S3Error,
+    SCHEDULER_TASKS,
     SchedulerFormat,
     sleep,
     type SpaceShare,
@@ -90,6 +90,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import PrometheusMetrics from '../../prometheus';
+import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
@@ -129,6 +130,7 @@ import {
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
     type RunAsyncWarehouseQueryArgs,
+    type ScheduleDownloadAsyncQueryResultsArgs,
 } from './types';
 
 const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
@@ -141,6 +143,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     storageClient: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
+    schedulerClient: SchedulerClient;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -158,6 +161,8 @@ export class AsyncQueryService extends ProjectService {
 
     prometheusMetrics?: PrometheusMetrics;
 
+    schedulerClient: SchedulerClient;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.queryHistoryModel = args.queryHistoryModel;
@@ -167,6 +172,7 @@ export class AsyncQueryService extends ProjectService {
         this.storageClient = args.storageClient;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
+        this.schedulerClient = args.schedulerClient;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -729,6 +735,35 @@ export class AsyncQueryService extends ProjectService {
             });
             throw error;
         }
+    }
+
+    async scheduleDownloadAsyncQueryResults(
+        args: ScheduleDownloadAsyncQueryResultsArgs,
+    ) {
+        const { account, ...payload } = args;
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } = account.organization;
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: payload.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userUuid = account.user.id;
+
+        return this.schedulerClient.downloadAsyncQueryResults({
+            ...payload,
+            organizationUuid,
+            userUuid,
+        });
     }
 
     private async downloadAsyncQueryResults({

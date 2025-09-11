@@ -32,6 +32,7 @@ import {
     isCreateScheduler,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
+    type DownloadAsyncQueryResultsPayload,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
@@ -950,5 +951,32 @@ export class SchedulerClient {
             return rows;
         });
         return stats;
+    }
+
+    async downloadAsyncQueryResults(payload: DownloadAsyncQueryResultsPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS,
+            payload,
+            now,
+            JobPriority.MEDIUM,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+            },
+        });
+
+        return jobId;
     }
 }
