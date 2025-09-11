@@ -54,7 +54,10 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     // this initialization in a useEffect, we will not have the hash token in the URL by the time
     // the effect runs.
     if (!isInitialized) {
-        setToInMemoryStorage(EMBED_KEY, { projectUuid, token: embedToken });
+        setToInMemoryStorage(EMBED_KEY, {
+            projectUuid,
+            token: embedToken,
+        });
         setIsInitialized(true);
     }
 

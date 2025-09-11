@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { type OssEmbed } from '../../types/auth';
+import type { OssEmbed } from '../../types/auth';
 import assertUnreachable from '../../utils/assertUnreachable';
 
+/** @deprecated Use OssEmbed instead */
 export type Embed = OssEmbed;
 
 export type DecodedEmbed = Omit<Embed, 'encodedSecret'> & {

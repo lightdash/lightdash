@@ -55,7 +55,7 @@ describe('Embedded dashboard', () => {
                         'Lightdash is an open source analytics for your dbt project.',
                     ); // markdown
 
-                    cy.contains('855'); // big number
+                    cy.contains('Payments total revenue'); // big number tile
 
                     cy.contains(`What's the average spend per customer?`); // bar chart
                     cy.contains('Average order size'); // bar chart
@@ -98,7 +98,6 @@ describe('Embedded dashboard', () => {
                     content: {
                         type: 'dashboard',
                         dashboardUuid,
-                        projectUuid: SEED_PROJECT.project_uuid,
                         dashboardFiltersInteractivity: {
                             enabled: FilterInteractivityValues.all,
                         },
