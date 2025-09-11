@@ -1,3 +1,18 @@
+# [0.1999.0](https://github.com/lightdash/lightdash/compare/0.1998.0...0.1999.0) (2025-09-11)
+
+
+### Bug Fixes
+
+* improve typing for artifact ([#16824](https://github.com/lightdash/lightdash/issues/16824)) ([bbfed72](https://github.com/lightdash/lightdash/commit/bbfed723174e4dc08233b992dd66b3e0f7f7ef9f))
+
+
+### Features
+
+* add dashboard save functionality to AI Agents ([#16835](https://github.com/lightdash/lightdash/issues/16835)) ([3d91e1e](https://github.com/lightdash/lightdash/commit/3d91e1e73559efc0d8f45d997469a94b48419f6d))
+* add dashboard support to AI artifacts ([#16806](https://github.com/lightdash/lightdash/issues/16806)) ([84963f2](https://github.com/lightdash/lightdash/commit/84963f2f6398810d53f5190f2543e1fb20060705))
+* add dashboard visualization support to AI Agent ([#16827](https://github.com/lightdash/lightdash/issues/16827)) ([b1cc59b](https://github.com/lightdash/lightdash/commit/b1cc59b0183df87293b1da8fd26fe62c0c336211))
+* add generateDashboard tool for creating multi-visualization dashboards ([#16802](https://github.com/lightdash/lightdash/issues/16802)) ([85738c3](https://github.com/lightdash/lightdash/commit/85738c3cd0600e42ed8f82e6dbcc99c99f4bf6f2))
+
 # [0.1998.0](https://github.com/lightdash/lightdash/compare/0.1997.0...0.1998.0) (2025-09-11)
 
 
