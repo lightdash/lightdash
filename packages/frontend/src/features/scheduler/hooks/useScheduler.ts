@@ -200,11 +200,11 @@ export const useSendNowScheduler = () => {
                         throw e;
                     });
             },
-            onError: ({ error }: ApiError) => {
-                showToastError({
+            onError: (apiError: ApiError) => {
+                showToastApiError({
                     key: 'toast-info-job-status',
                     title: 'Failed to send scheduled delivery',
-                    subtitle: error.message,
+                    apiError: apiError.error,
                 });
             },
         },
