@@ -754,6 +754,42 @@ export class SchedulerWorker extends SchedulerTask {
                     throw error;
                 }
             },
+            [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.downloadAsyncQueryResults(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                            },
+                        });
+                    },
+                );
+            },
         };
     }
 }

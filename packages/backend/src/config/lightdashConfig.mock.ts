@@ -211,6 +211,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     embedding: {
         enabled: false,
+        events: undefined,
     },
     scim: {
         enabled: false,

@@ -16,6 +16,7 @@ import { getFindDashboards } from '../tools/findDashboards';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
+import { getGenerateDashboard } from '../tools/generateDashboard';
 import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import type {
@@ -122,12 +123,24 @@ const getAgentTools = (
         maxLimit: args.maxQueryLimit,
     });
 
+    const generateDashboard = getGenerateDashboard({
+        getExplore: dependencies.getExplore,
+        updateProgress: dependencies.updateProgress,
+        runMiniMetricQuery: dependencies.runMiniMetricQuery,
+        getPrompt: dependencies.getPrompt,
+        updatePrompt: dependencies.updatePrompt,
+        sendFile: dependencies.sendFile,
+        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+        maxLimit: args.maxQueryLimit,
+    });
+
     const tools = {
         findCharts,
         findDashboards,
         findExplores,
         findFields,
         generateBarVizConfig,
+        generateDashboard,
         generateTimeSeriesVizConfig,
         generateTableVizConfig,
     };

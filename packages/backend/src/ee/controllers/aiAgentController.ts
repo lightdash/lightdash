@@ -1,5 +1,7 @@
 import {
+    AiArtifactTSOACompat,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
@@ -380,33 +382,6 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/threads/{threadUuid}/message/{messageUuid}/viz-query')
-    @OperationId('getAgentThreadMessageVizQuery')
-    async getAgentThreadMessageVizQuery(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() threadUuid: string,
-        @Path() messageUuid: string,
-    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results:
-                await this.getAiAgentService().getAgentThreadMessageVizQuery(
-                    req.user!,
-                    {
-                        agentUuid,
-                        threadUuid,
-                        messageUuid,
-                    },
-                ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/savedQuery',
     )
@@ -488,15 +463,16 @@ export class AiAgentController extends BaseController {
         @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
-    ): Promise<ApiAiAgentArtifactResponse> {
+    ): Promise<ApiAiAgentArtifactResponseTSOACompat> {
         this.setStatus(200);
+
         return {
             status: 'ok',
-            results: await this.getAiAgentService().getArtifact(
+            results: (await this.getAiAgentService().getArtifact(
                 req.user!,
                 agentUuid,
                 artifactUuid,
-            ),
+            )) as unknown as AiArtifactTSOACompat,
         };
     }
 
@@ -510,16 +486,19 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
         @Path() versionUuid: string,
-    ): Promise<ApiAiAgentArtifactResponse> {
+    ): Promise<ApiAiAgentArtifactResponseTSOACompat> {
         this.setStatus(200);
+
         return {
             status: 'ok',
-            results: await this.getAiAgentService().getArtifact(
+            // Use simplified type for TSOA Compat
+
+            results: (await this.getAiAgentService().getArtifact(
                 req.user!,
                 agentUuid,
                 artifactUuid,
                 versionUuid,
-            ),
+            )) as unknown as AiArtifactTSOACompat,
         };
     }
 
@@ -548,6 +527,66 @@ export class AiAgentController extends BaseController {
                     versionUuid,
                 },
             ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/charts/{chartIndex}/viz-query',
+    )
+    @OperationId('getDashboardArtifactChartVizQuery')
+    async getDashboardArtifactChartVizQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Path() chartIndex: number,
+    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().getDashboardArtifactChartVizQuery(
+                    req.user!,
+                    {
+                        projectUuid,
+                        agentUuid,
+                        artifactUuid,
+                        versionUuid,
+                        chartIndex,
+                    },
+                ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedDashboard',
+    )
+    @OperationId('updateArtifactVersionSavedDashboard')
+    async updateArtifactVersionSavedDashboard(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Body() body: { savedDashboardUuid: string | null },
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateArtifactVersion(req.user!, {
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            savedDashboardUuid: body.savedDashboardUuid,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

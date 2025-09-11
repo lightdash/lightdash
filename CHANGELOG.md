@@ -1,3 +1,99 @@
+# [0.1999.0](https://github.com/lightdash/lightdash/compare/0.1998.0...0.1999.0) (2025-09-11)
+
+
+### Bug Fixes
+
+* improve typing for artifact ([#16824](https://github.com/lightdash/lightdash/issues/16824)) ([bbfed72](https://github.com/lightdash/lightdash/commit/bbfed723174e4dc08233b992dd66b3e0f7f7ef9f))
+
+
+### Features
+
+* add dashboard save functionality to AI Agents ([#16835](https://github.com/lightdash/lightdash/issues/16835)) ([3d91e1e](https://github.com/lightdash/lightdash/commit/3d91e1e73559efc0d8f45d997469a94b48419f6d))
+* add dashboard support to AI artifacts ([#16806](https://github.com/lightdash/lightdash/issues/16806)) ([84963f2](https://github.com/lightdash/lightdash/commit/84963f2f6398810d53f5190f2543e1fb20060705))
+* add dashboard visualization support to AI Agent ([#16827](https://github.com/lightdash/lightdash/issues/16827)) ([b1cc59b](https://github.com/lightdash/lightdash/commit/b1cc59b0183df87293b1da8fd26fe62c0c336211))
+* add generateDashboard tool for creating multi-visualization dashboards ([#16802](https://github.com/lightdash/lightdash/issues/16802)) ([85738c3](https://github.com/lightdash/lightdash/commit/85738c3cd0600e42ed8f82e6dbcc99c99f4bf6f2))
+
+# [0.1998.0](https://github.com/lightdash/lightdash/compare/0.1997.0...0.1998.0) (2025-09-11)
+
+
+### Features
+
+* re-add underylying data for embeds ([#16792](https://github.com/lightdash/lightdash/issues/16792)) ([ec6ad8f](https://github.com/lightdash/lightdash/commit/ec6ad8f30a1b3c7fec5ca39f4af33534bb5de528))
+
+# [0.1997.0](https://github.com/lightdash/lightdash/compare/0.1996.0...0.1997.0) (2025-09-11)
+
+
+### Features
+
+* add UI event emitter for embeds ([#16828](https://github.com/lightdash/lightdash/issues/16828)) ([62cd199](https://github.com/lightdash/lightdash/commit/62cd199e8a6a36415fbf7eedddf706440f596709))
+
+# [0.1996.0](https://github.com/lightdash/lightdash/compare/0.1995.1...0.1996.0) (2025-09-11)
+
+
+### Features
+
+* download async query results from scheduler ([#16837](https://github.com/lightdash/lightdash/issues/16837)) ([66de3fc](https://github.com/lightdash/lightdash/commit/66de3fc44692667fc2eb599d3952b1d041f26c63))
+
+## [0.1995.1](https://github.com/lightdash/lightdash/compare/0.1995.0...0.1995.1) (2025-09-11)
+
+
+### Bug Fixes
+
+* mobile layout calculating incorrectly ([#16853](https://github.com/lightdash/lightdash/issues/16853)) ([5f6ef03](https://github.com/lightdash/lightdash/commit/5f6ef0312a29200b7a667e73128b4786a27804fb))
+
+# [0.1995.0](https://github.com/lightdash/lightdash/compare/0.1994.1...0.1995.0) (2025-09-11)
+
+
+### Features
+
+* loosen channels:join slack scope requirement ([#16846](https://github.com/lightdash/lightdash/issues/16846)) ([1dd2f01](https://github.com/lightdash/lightdash/commit/1dd2f0154df8db7c9fbb47cc0a8d75cfc902d421))
+
+## [0.1994.1](https://github.com/lightdash/lightdash/compare/0.1994.0...0.1994.1) (2025-09-11)
+
+
+### Bug Fixes
+
+* relogin on snowflake on query errors ([#16849](https://github.com/lightdash/lightdash/issues/16849)) ([10dd725](https://github.com/lightdash/lightdash/commit/10dd725d3b147febc40fe116478f8917148495fe))
+
+# [0.1994.0](https://github.com/lightdash/lightdash/compare/0.1993.0...0.1994.0) (2025-09-11)
+
+
+### Bug Fixes
+
+* handle null values in AI thread feedback counts and improve feedback display ([#16845](https://github.com/lightdash/lightdash/issues/16845)) ([f427a79](https://github.com/lightdash/lightdash/commit/f427a791774776bb3037534b67adb47d9002c767))
+
+
+### Features
+
+* add prompt count to AI agent admin threads table ([#16844](https://github.com/lightdash/lightdash/issues/16844)) ([3f0a7cc](https://github.com/lightdash/lightdash/commit/3f0a7cc7e8bae9f9cb2ef7eb0f676c82b23d0c0b))
+* add Slack thread link in AI agent admin interface ([#16847](https://github.com/lightdash/lightdash/issues/16847)) ([beef856](https://github.com/lightdash/lightdash/commit/beef8568ea18c4d86bb2296c332353943b7a3e57))
+
+# [0.1993.0](https://github.com/lightdash/lightdash/compare/0.1992.4...0.1993.0) (2025-09-11)
+
+
+### Bug Fixes
+
+* handle breakdownByDimension for time series charts in AI Agents ([#16841](https://github.com/lightdash/lightdash/issues/16841)) ([084bd7c](https://github.com/lightdash/lightdash/commit/084bd7c80e2e4117d75d13107a45244b9398237b)), closes [#16075](https://github.com/lightdash/lightdash/issues/16075)
+
+
+### Features
+
+* add user-friendly labels to AI chart visualizations ([#16842](https://github.com/lightdash/lightdash/issues/16842)) ([0a6a006](https://github.com/lightdash/lightdash/commit/0a6a006bf561268bafed71f445c7d83ae1cbdcf4))
+
+## [0.1992.4](https://github.com/lightdash/lightdash/compare/0.1992.3...0.1992.4) (2025-09-11)
+
+
+### Bug Fixes
+
+* improve github error messages ([#16830](https://github.com/lightdash/lightdash/issues/16830)) ([6abb197](https://github.com/lightdash/lightdash/commit/6abb1976a6221cadf356aeff77ff9ab57e373402))
+
+## [0.1992.3](https://github.com/lightdash/lightdash/compare/0.1992.2...0.1992.3) (2025-09-11)
+
+
+### Bug Fixes
+
+* add legacy follow-up tools compatibility mapping ([#16833](https://github.com/lightdash/lightdash/issues/16833)) ([b0a07d0](https://github.com/lightdash/lightdash/commit/b0a07d03d33ea6674ac04918ea5eabd7b2a2b5c3))
+
 ## [0.1992.2](https://github.com/lightdash/lightdash/compare/0.1992.1...0.1992.2) (2025-09-10)
 
 

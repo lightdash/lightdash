@@ -18,9 +18,10 @@ import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
 
+import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
-import { downloadQuery } from '../../hooks/useQueryResults';
+import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
@@ -94,7 +95,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             ? totalResults ?? 0
                             : null,
                     );
-                    return downloadQuery(projectUuid, queryUuid, {
+                    return scheduleDownloadQuery(projectUuid, queryUuid, {
                         fileType,
                         onlyRaw: format === Values.RAW,
                         columnOrder,
@@ -119,26 +120,35 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     },
                     onSuccess: (response) => {
                         // Download file
-                        const link = document.createElement('a');
-                        link.href = response.fileUrl;
-                        link.setAttribute(
-                            'download',
-                            `${chartName || 'results'}_${formatDate(
-                                new Date(),
-                            )}.${fileType}`,
-                        );
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove(); // Remove the link from the DOM
-                        // Hide toast
-                        notifications.hide(TOAST_KEY);
+                        pollJobStatus(response.jobId)
+                            .then(async (details) => {
+                                const link = document.createElement('a');
+                                link.href = details?.fileUrl;
+                                link.setAttribute(
+                                    'download',
+                                    `${chartName || 'results'}_${formatDate(
+                                        new Date(),
+                                    )}.${fileType}`,
+                                );
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove(); // Remove the link from the DOM
+                                // Hide toast
+                                notifications.hide(TOAST_KEY);
 
-                        if (response.truncated) {
-                            showToastWarning({
-                                title: `The results in this export have been limited.`,
-                                subtitle: `The export was truncated due to size constraints.`,
+                                if (details?.truncated) {
+                                    showToastWarning({
+                                        title: `The results in this export have been limited.`,
+                                        subtitle: `The export was truncated due to size constraints.`,
+                                    });
+                                }
+                            })
+                            .catch((error: Error) => {
+                                showToastError({
+                                    title: `Unable to download results`,
+                                    subtitle: error.message,
+                                });
                             });
-                        }
                     },
                     onError: (error: { error: Error }) => {
                         notifications.hide(TOAST_KEY);

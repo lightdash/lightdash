@@ -171,6 +171,14 @@ export class HealthService extends BaseService {
             isCustomRolesEnabled:
                 this.isEnterpriseEnabled() &&
                 this.lightdashConfig.customRoles.enabled,
+            embedding: {
+                enabled:
+                    this.isEnterpriseEnabled() &&
+                    this.lightdashConfig.embedding.enabled,
+                events: this.isEnterpriseEnabled()
+                    ? this.lightdashConfig.embedding.events
+                    : undefined,
+            },
         };
     }
 

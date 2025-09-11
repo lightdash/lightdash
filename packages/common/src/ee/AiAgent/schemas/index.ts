@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    toolDashboardArgsSchema,
     toolFindChartsArgsSchema,
     toolFindDashboardsArgsSchema,
     toolFindExploresArgsSchema,
@@ -16,6 +17,7 @@ export * from './tools';
 export * from './visualizations';
 
 export const AgentToolCallArgsSchema = z.discriminatedUnion('type', [
+    toolDashboardArgsSchema,
     toolFindChartsArgsSchema,
     toolFindDashboardsArgsSchema,
     toolFindFieldsArgsSchema,

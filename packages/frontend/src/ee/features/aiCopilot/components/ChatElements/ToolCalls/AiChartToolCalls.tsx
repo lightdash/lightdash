@@ -45,6 +45,7 @@ const getToolIcon = (toolName: ToolName) => {
             generateBarVizConfig: IconChartHistogram,
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
+            generateDashboard: IconDashboard,
             findDashboards: IconDashboard,
             findCharts: IconChartDots3,
         };
@@ -225,6 +226,15 @@ const ToolCallDescription: FC<{
                             {query.label}
                         </Badge>
                     ))}
+                </Text>
+            );
+        case AiResultType.DASHBOARD_RESULT:
+            const dashboardToolArgs = toolArgs;
+            return (
+                <Text c="dimmed" size="xs">
+                    Generated dashboard: "{dashboardToolArgs.title}" with{' '}
+                    {dashboardToolArgs.visualizations.length} visualization
+                    {dashboardToolArgs.visualizations.length !== 1 ? 's' : ''}
                 </Text>
             );
         default:

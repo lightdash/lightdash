@@ -3,6 +3,8 @@ import {
     type AiAgentAdminThreadSummary,
 } from '@lightdash/common';
 import {
+    Anchor,
+    Badge,
     Box,
     Group,
     Paper,
@@ -15,12 +17,17 @@ import {
     IconArrowsSort,
     IconArrowUp,
     IconBox,
+    IconCircleDotted,
     IconClick,
     IconClock,
     IconMessageCircleStar,
+    IconMessages,
     IconRadar,
     IconRobotFace,
     IconTextCaption,
+    IconThumbDown,
+    IconThumbUp,
+    IconTilde,
     IconUser,
 } from '@tabler/icons-react';
 import {
@@ -42,6 +49,7 @@ import {
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useGetSlack } from '../../../../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useInfiniteAiAgentAdminThreads } from '../../hooks/useAiAgentAdmin';
@@ -60,6 +68,8 @@ const AiAgentAdminThreadsTable = ({
 }: AiAgentAdminThreadsTableProps) => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
+    const slack = useGetSlack();
+
     const [sorting, setSorting] = useState<MRT_SortingState>([
         { id: 'createdAt', desc: true },
     ]);
@@ -212,7 +222,7 @@ const AiAgentAdminThreadsTable = ({
             header: 'Agent',
             enableSorting: false,
             enableEditing: false,
-            size: 220,
+            size: 170,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconRobotFace} color="gray.6" />
@@ -312,6 +322,17 @@ const AiAgentAdminThreadsTable = ({
                     label = 'App';
                 }
 
+                const slackUrl =
+                    thread.slackChannelId &&
+                    thread.slackThreadTs &&
+                    slack.data?.slackTeamName
+                        ? `https://${
+                              slack.data.slackTeamName
+                          }.slack.com/archives/${
+                              thread.slackChannelId
+                          }/p${thread.slackThreadTs.replace('.', '')}`
+                        : null;
+
                 return (
                     <Group gap="two">
                         {label === 'Slack' ? (
@@ -329,11 +350,41 @@ const AiAgentAdminThreadsTable = ({
                                 stroke={1.6}
                             />
                         )}
-                        <Text fz="xs" c="gray.7" fw={500}>
-                            {label}
-                        </Text>
+                        {slackUrl ? (
+                            <Anchor
+                                href={slackUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                fz="xs"
+                                c="blue.7"
+                                fw={500}
+                            >
+                                {label}
+                            </Anchor>
+                        ) : (
+                            <Text fz="xs" c="gray.7" fw={500}>
+                                {label}
+                            </Text>
+                        )}
                     </Group>
                 );
+            },
+        },
+        {
+            accessorKey: 'promptCount',
+            header: 'Prompts',
+            enableSorting: false,
+            enableEditing: false,
+            size: 120,
+            Header: ({ column }) => (
+                <Group gap="two">
+                    <MantineIcon icon={IconMessages} color="gray.6" />
+                    {column.columnDef.header}
+                </Group>
+            ),
+            Cell: ({ row }) => {
+                const thread = row.original;
+                return <Badge variant="default">{thread.promptCount}</Badge>;
             },
         },
         {
@@ -352,20 +403,49 @@ const AiAgentAdminThreadsTable = ({
                 const { feedbackSummary } = row.original;
                 return (
                     <Group gap="xs">
-                        {feedbackSummary.neutral > 0 && (
-                            <Text fz="xs" c="gray.6">
-                                ~{feedbackSummary.neutral}
-                            </Text>
-                        )}
-                        {feedbackSummary.upvotes > 0 && (
-                            <Text fz="xs" c="green.6">
-                                ↑{feedbackSummary.upvotes}
-                            </Text>
-                        )}
-                        {feedbackSummary.downvotes > 0 && (
-                            <Text fz="xs" c="red.6">
-                                ↓{feedbackSummary.downvotes}
-                            </Text>
+                        {feedbackSummary.neutral === 0 &&
+                        feedbackSummary.upvotes === 0 &&
+                        feedbackSummary.downvotes === 0 ? (
+                            <MantineIcon
+                                icon={IconCircleDotted}
+                                color="gray.6"
+                            />
+                        ) : (
+                            <Group gap="sm">
+                                {feedbackSummary.neutral > 0 && (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconTilde}
+                                            color="yellow.8"
+                                        />
+                                        <Text fz="xs" c="yellow.8" fw={500}>
+                                            {String(feedbackSummary.neutral)}
+                                        </Text>
+                                    </Group>
+                                )}
+                                {feedbackSummary.upvotes > 0 && (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconThumbUp}
+                                            color="green.9"
+                                        />
+                                        <Text fz="xs" c="green.9" fw={500}>
+                                            {String(feedbackSummary.upvotes)}
+                                        </Text>
+                                    </Group>
+                                )}
+                                {feedbackSummary.downvotes > 0 && (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconThumbDown}
+                                            color="red.9"
+                                        />
+                                        <Text fz="xs" c="red.9" fw={500}>
+                                            {String(feedbackSummary.downvotes)}
+                                        </Text>
+                                    </Group>
+                                )}
+                            </Group>
                         )}
                     </Group>
                 );

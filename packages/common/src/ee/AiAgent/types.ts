@@ -10,6 +10,7 @@ export enum AiResultType {
     TIME_SERIES_RESULT = 'time_series_chart',
     VERTICAL_BAR_RESULT = 'vertical_bar_chart',
     TABLE_RESULT = 'table',
+    DASHBOARD_RESULT = 'dashboard',
 }
 
 export type AiMetricQuery = Pick<

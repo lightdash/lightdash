@@ -6,6 +6,10 @@ import type {
     ApiSuccessEmpty,
     CacheMetadata,
     ItemsMap,
+    ToolDashboardArgs,
+    ToolTableVizArgs,
+    ToolTimeSeriesArgs,
+    ToolVerticalBarArgs,
 } from '../..';
 import { type AiMetricQuery, type AiResultType } from './types';
 
@@ -115,9 +119,6 @@ export type AiAgentMessageAssistant = {
     // we check for null before creating the agent message
     createdAt: string;
 
-    vizConfigOutput: object | null;
-    filtersOutput: object | null;
-    metricQuery: object | null;
     humanScore: number | null;
 
     toolCalls: AiAgentToolCall[];
@@ -129,6 +130,7 @@ export type AiAgentMessageAssistant = {
         versionUuid: string;
         title: string | null;
         description: string | null;
+        artifactType: 'chart' | 'dashboard';
     } | null;
 };
 
@@ -313,15 +315,32 @@ export type AiArtifact = {
     artifactUuid: string;
     threadUuid: string;
     promptUuid: string | null;
-    artifactType: 'chart';
+    artifactType: 'chart' | 'dashboard';
     savedQueryUuid: string | null;
+    savedDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;
     title: string | null;
     description: string | null;
-    chartConfig: Record<string, unknown> | null;
+    // We store raw tool calls
+    chartConfig:
+        | ToolTableVizArgs
+        | ToolTimeSeriesArgs
+        | ToolVerticalBarArgs
+        | null;
+    dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
 };
 
+export type AiArtifactTSOACompat = Omit<
+    AiArtifact,
+    'chartConfig' | 'dashboardConfig'
+> & {
+    chartConfig: Record<string, unknown> | null;
+    dashboardConfig: Record<string, unknown> | null;
+};
+
 export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;
+export type ApiAiAgentArtifactResponseTSOACompat =
+    ApiSuccess<AiArtifactTSOACompat>;

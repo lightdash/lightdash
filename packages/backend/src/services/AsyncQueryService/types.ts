@@ -7,6 +7,7 @@ import {
     type CacheMetadata,
     type DashboardFilters,
     type DateZoom,
+    type DownloadAsyncQueryResultsPayload,
     type Filters,
     type ItemsMap,
     type ParametersValuesMap,
@@ -47,6 +48,12 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     pivotConfig?: PivotConfig;
     attachmentDownloadName?: string;
 };
+
+export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
+    CommonAsyncQueryArgs,
+    'invalidateCache' | 'context' | 'parameters'
+> &
+    Omit<DownloadAsyncQueryResultsPayload, 'userUuid' | 'organizationUuid'>;
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;

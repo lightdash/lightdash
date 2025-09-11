@@ -1,8 +1,10 @@
 import {
+    AnyType,
     friendlyName,
     MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
+    SlackError,
     SlackInstallationNotFoundError,
     SlackSettings,
     UnexpectedServerError,
@@ -110,12 +112,12 @@ export class SlackClient {
             'chat:write',
             'chat:write.customize',
             'channels:read',
-            'channels:join',
             'groups:read',
             'users:read',
             'app_mentions:read',
             'files:write',
             'files:read',
+            // 'channels:join', - Made optional since users can manually add the app to channels
         ];
     }
 
@@ -313,7 +315,16 @@ export class SlackClient {
                 });
             });
             await Promise.all(joinPromises);
-        } catch (e) {
+        } catch (e: AnyType) {
+            // If the channels:join scope is missing, log a warning but don't throw
+            if (e?.data?.error === 'missing_scope') {
+                Logger.warn(
+                    `Unable to join channels ${channels} on organization ${organizationUuid}: missing channels:join scope. The app can still be added to channels manually.`,
+                );
+                throw new SlackError(
+                    `Unable to join channel(s): missing channels:join scope. Add the app to the channel(s) manually.`,
+                );
+            }
             slackErrorHandler(
                 e,
                 `Unable to join channels ${channels} on organization ${organizationUuid}`,

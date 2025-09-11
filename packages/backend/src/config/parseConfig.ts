@@ -743,6 +743,15 @@ export type LightdashConfig = {
     };
     embedding: {
         enabled: boolean;
+        events?: {
+            enabled: boolean;
+            rateLimiting: {
+                maxEventsPerWindow: number;
+                windowDurationMs: number;
+            };
+            allowedOrigins: string[];
+            enablePostMessage: boolean;
+        };
     };
     scim: {
         enabled: boolean;
@@ -1526,6 +1535,23 @@ export const parseConfig = (): LightdashConfig => {
         },
         embedding: {
             enabled: process.env.EMBEDDING_ENABLED === 'true',
+            events: {
+                enabled: process.env.EMBED_EVENT_SYSTEM_ENABLED === 'true',
+                rateLimiting: {
+                    maxEventsPerWindow:
+                        getIntegerFromEnvironmentVariable(
+                            'EMBED_EVENT_RATE_LIMIT_MAX_EVENTS',
+                        ) || 10,
+                    windowDurationMs:
+                        getIntegerFromEnvironmentVariable(
+                            'EMBED_EVENT_RATE_LIMIT_WINDOW_MS',
+                        ) || 1000,
+                },
+                allowedOrigins: iframeAllowedDomains,
+                enablePostMessage:
+                    process.env.EMBED_EVENT_SYSTEM_POST_MESSAGE_ENABLED ===
+                    'true',
+            },
         },
         scim: {
             enabled: process.env.SCIM_ENABLED === 'true',

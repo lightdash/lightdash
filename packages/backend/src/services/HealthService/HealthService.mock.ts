@@ -92,6 +92,7 @@ export const BaseResponse: HealthState = {
     },
     isServiceAccountEnabled: false,
     isCustomRolesEnabled: false,
+    embedding: { enabled: false, events: undefined },
 };
 
 export const userMock = {

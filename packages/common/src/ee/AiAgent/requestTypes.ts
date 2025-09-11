@@ -37,11 +37,7 @@ export type AiPrompt = {
     prompt: string;
     createdAt: Date;
     response: string | null;
-    vizConfigOutput: object | null;
     humanScore: number | null;
-    // TODO: removed, leaving here for now as a reminder that we need to remove these fields from the prompt
-    // filtersOutput: object | null;
-    // metricQuery: object | null;
 };
 
 export type SlackPrompt = AiPrompt & {
@@ -77,14 +73,12 @@ export type CreateWebAppPrompt = {
 export type UpdateSlackResponse = {
     promptUuid: string;
     response?: string;
-    vizConfigOutput?: object | null;
     humanScore?: number | null;
 };
 
 export type UpdateWebAppResponse = {
     promptUuid: string;
     response: string;
-    vizConfigOutput?: object | null;
     humanScore?: number | null;
 };
 

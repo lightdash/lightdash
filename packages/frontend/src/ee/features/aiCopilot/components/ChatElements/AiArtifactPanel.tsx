@@ -1,13 +1,11 @@
-import { parseVizConfig } from '@lightdash/common';
 import { Box, Center, Loader, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { memo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
-import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { useAiAgentStoreSelector } from '../../store/hooks';
 import { AiChartVisualization } from './AiChartVisualization';
+import { AiDashboardVisualization } from './AiDashboardVisualization';
 import { ChatElementsUtils } from './utils';
 
 export const AiArtifactPanel: FC = memo(() => {
@@ -19,7 +17,6 @@ export const AiArtifactPanel: FC = memo(() => {
         throw new Error('Artifact is required');
     }
 
-    // Always call hooks, even if artifact is null
     const {
         data: artifactData,
         isLoading: isArtifactLoading,
@@ -30,30 +27,6 @@ export const AiArtifactPanel: FC = memo(() => {
         artifactUuid: artifact.artifactUuid,
         versionUuid: artifact.versionUuid,
     });
-
-    const vizConfig = useMemo(() => {
-        if (!artifactData?.chartConfig) return null;
-        return parseVizConfig(artifactData.chartConfig);
-    }, [artifactData?.chartConfig]);
-
-    const queryExecutionHandle = useAiAgentArtifactVizQuery(
-        {
-            projectUuid: artifact.projectUuid,
-            agentUuid: artifact.agentUuid,
-            artifactUuid: artifact.artifactUuid,
-            versionUuid: artifact.versionUuid,
-        },
-        { enabled: !!vizConfig && !!artifact },
-    );
-
-    const queryResults = useInfiniteQueryResults(
-        artifact.projectUuid,
-        queryExecutionHandle?.data?.query.queryUuid,
-    );
-
-    const isQueryLoading =
-        queryExecutionHandle.isLoading || queryResults.isFetchingRows;
-    const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
     if (isArtifactLoading) {
         return (
@@ -69,7 +42,13 @@ export const AiArtifactPanel: FC = memo(() => {
         );
     }
 
-    if (artifactError || !artifactData) {
+    if (
+        artifactError ||
+        !artifactData ||
+        (artifactData.artifactType === 'dashboard' &&
+            !artifactData.dashboardConfig) ||
+        (artifactData.artifactType === 'chart' && !artifactData.chartConfig)
+    ) {
         return (
             <Box {...ChatElementsUtils.centeredElementProps} p="md">
                 <Stack gap="xs" align="center" justify="center">
@@ -82,34 +61,34 @@ export const AiArtifactPanel: FC = memo(() => {
         );
     }
 
+    if (artifactData.artifactType === 'dashboard') {
+        return (
+            <Box {...ChatElementsUtils.centeredElementProps} p="md">
+                <Stack gap="md" h="100%">
+                    <AiDashboardVisualization
+                        artifactData={artifactData}
+                        projectUuid={artifact.projectUuid}
+                        agentUuid={artifact.agentUuid}
+                        dashboardConfig={artifactData.dashboardConfig!}
+                    />
+                </Stack>
+            </Box>
+        );
+    }
+
+    // Handle chart artifacts (existing logic)
     return (
         <Box {...ChatElementsUtils.centeredElementProps} p="md">
-            {isQueryLoading ? (
-                <Center>
-                    <Loader
-                        type="dots"
-                        color="gray"
-                        delayedMessage="Loading visualization..."
-                    />
-                </Center>
-            ) : isQueryError ? (
-                <Stack gap="xs" align="center" justify="center">
-                    <MantineIcon icon={IconExclamationCircle} color="gray" />
-                    <Text size="xs" c="dimmed" ta="center">
-                        Something went wrong loading the visualization data.
-                        Please try again.
-                    </Text>
-                </Stack>
-            ) : (
-                <Stack gap="md" h="100%">
-                    <AiChartVisualization
-                        results={queryResults}
-                        message={artifact.message}
-                        queryExecutionHandle={queryExecutionHandle}
-                        projectUuid={artifact.projectUuid}
-                    />
-                </Stack>
-            )}
+            <Stack gap="md" h="100%">
+                <AiChartVisualization
+                    artifactData={artifactData}
+                    projectUuid={artifact.projectUuid}
+                    agentUuid={artifact.agentUuid}
+                    artifactUuid={artifact.artifactUuid}
+                    versionUuid={artifact.versionUuid}
+                    message={artifact.message}
+                />
+            </Stack>
         </Box>
     );
 });

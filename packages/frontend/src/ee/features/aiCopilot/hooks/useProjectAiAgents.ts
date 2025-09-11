@@ -827,6 +827,77 @@ export const useSavePromptQuery = (
     });
 };
 
+const updateArtifactVersion = async ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+    savedDashboardUuid,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    savedDashboardUuid: string | null;
+}) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedDashboard`,
+        method: `PATCH`,
+        body: JSON.stringify({
+            savedDashboardUuid,
+        }),
+    });
+
+export const useUpdateArtifactVersion = (
+    projectUuid: string,
+    agentUuid: string,
+    artifactUuid: string,
+    versionUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { savedDashboardUuid: string | null }
+    >({
+        mutationFn: ({ savedDashboardUuid }) => {
+            return updateArtifactVersion({
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                savedDashboardUuid,
+            });
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENTS_KEY,
+                    projectUuid,
+                    agentUuid,
+                    'artifacts',
+                    artifactUuid,
+                ],
+            });
+        },
+        onError: ({ error }) => {
+            if (error?.statusCode === 403) {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                );
+            } else {
+                showToastApiError({
+                    title: 'Failed to save artifact dashboard',
+                    apiError: error,
+                });
+            }
+        },
+    });
+};
+
 // Artifact functionality
 const getAiAgentArtifactVizQuery = async (args: {
     projectUuid: string;
@@ -891,6 +962,99 @@ export const useAiAgentArtifactVizQuery = (
             } else {
                 showToastApiError({
                     title: 'Failed to fetch artifact visualization',
+                    apiError: error.error,
+                });
+            }
+            useQueryOptions?.onError?.(error);
+        },
+        enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
+    });
+};
+
+// Dashboard chart visualization query functionality
+const getAiAgentDashboardChartVizQuery = async (args: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    chartIndex: number;
+}) =>
+    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
+        url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/artifacts/${args.artifactUuid}/versions/${args.versionUuid}/charts/${args.chartIndex}/viz-query`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const getAiAgentDashboardChartVizQueryKey = (args: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    chartIndex: number;
+}) => [
+    AI_AGENTS_KEY,
+    'dashboard-chart-viz-query',
+    args.projectUuid,
+    args.agentUuid,
+    'artifacts',
+    args.artifactUuid,
+    'versions',
+    args.versionUuid,
+    'charts',
+    args.chartIndex,
+];
+
+export const useAiAgentDashboardChartVizQuery = (
+    {
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        versionUuid,
+        chartIndex,
+    }: {
+        projectUuid: string;
+        agentUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
+        chartIndex: number;
+    },
+    useQueryOptions?: UseQueryOptions<
+        ApiAiAgentThreadMessageVizQuery,
+        ApiError
+    >,
+) => {
+    const navigate = useNavigate();
+    const { data: activeProjectUuid } = useActiveProject();
+    const health = useHealth();
+    const org = useOrganization();
+    const { showToastApiError } = useToaster();
+
+    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
+        queryKey: getAiAgentDashboardChartVizQueryKey({
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            chartIndex,
+        }),
+        ...useQueryOptions,
+        queryFn: () => {
+            return getAiAgentDashboardChartVizQuery({
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                chartIndex,
+            });
+        },
+        onError: (error: ApiError) => {
+            if (error.error?.statusCode === 403) {
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
+            } else {
+                showToastApiError({
+                    title: 'Failed to fetch dashboard chart visualization',
                     apiError: error.error,
                 });
             }
