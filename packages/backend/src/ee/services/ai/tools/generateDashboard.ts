@@ -1,16 +1,10 @@
 import {
     AiResultType,
     assertUnreachable,
-    DashboardVisualization,
     Explore,
-    isSlackPrompt,
-    ToolDashboardArgs,
     toolDashboardArgsSchema,
     toolDashboardArgsSchemaTransformed,
     ToolDashboardArgsTransformed,
-    toolTableVizArgsSchemaTransformed,
-    toolTimeSeriesArgsSchemaTransformed,
-    toolVerticalBarArgsSchemaTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {

@@ -1131,6 +1131,7 @@ export class AiAgentModel {
                         ai_artifact_version_uuid: string | null;
                         title: string | null;
                         description: string | null;
+                        artifact_type: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -1152,6 +1153,7 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
                 `${AiArtifactVersionsTableName}.title`,
                 `${AiArtifactVersionsTableName}.description`,
+                `${AiArtifactsTableName}.artifact_type`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -1222,6 +1224,9 @@ export class AiAgentModel {
                               versionUuid: row.ai_artifact_version_uuid!,
                               title: row.title,
                               description: row.description,
+                              artifactType: row.artifact_type as
+                                  | 'chart'
+                                  | 'dashboard',
                           }
                         : null,
                     toolCalls: toolCalls
@@ -1311,6 +1316,7 @@ export class AiAgentModel {
                         ai_artifact_version_uuid: string | null;
                         title: string | null;
                         description: string | null;
+                        artifact_type: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -1332,6 +1338,7 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
                 `${AiArtifactVersionsTableName}.title`,
                 `${AiArtifactVersionsTableName}.description`,
+                `${AiArtifactsTableName}.artifact_type`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -1415,6 +1422,9 @@ export class AiAgentModel {
                               versionUuid: row.ai_artifact_version_uuid!,
                               title: row.title,
                               description: row.description,
+                              artifactType: row.artifact_type as
+                                  | 'chart'
+                                  | 'dashboard',
                           }
                         : null,
                     toolCalls: toolCalls
@@ -2181,10 +2191,11 @@ export class AiAgentModel {
     }): Promise<AiArtifact> {
         const existingArtifacts = await this.findArtifactsByThreadUuid(
             data.threadUuid,
+            data.artifactType,
         );
 
         if (existingArtifacts.length > 0) {
-            // TODO: Currently assuming first artifact in array since we only support one artifact per thread
+            // TODO: Currently assuming first artifact in array since we only support one artifact per thread per artifact type
             // In the future, we may support multiple artifacts per thread
             const existingArtifact = existingArtifacts[0];
             return this.createArtifactVersion({
@@ -2262,7 +2273,10 @@ export class AiAgentModel {
         return result;
     }
 
-    async findArtifactsByThreadUuid(threadUuid: string): Promise<AiArtifact[]> {
+    async findArtifactsByThreadUuid(
+        threadUuid: string,
+        artifactType?: AiArtifact['artifactType'],
+    ): Promise<AiArtifact[]> {
         const results = await this.database
             .select({
                 artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
@@ -2286,6 +2300,10 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
             )
             .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
+            .andWhere(
+                `${AiArtifactsTableName}.artifact_type`,
+                artifactType ?? `${AiArtifactsTableName}.artifact_type`,
+            )
             .andWhere(
                 `${AiArtifactVersionsTableName}.version_number`,
                 this.database

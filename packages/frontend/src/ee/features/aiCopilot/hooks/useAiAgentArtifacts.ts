@@ -1,4 +1,4 @@
-import type { ApiAiAgentArtifactResponse, ApiError } from '@lightdash/common';
+import type { AiArtifact, ApiError } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
@@ -10,33 +10,35 @@ const getAiAgentArtifact = async (
     projectUuid: string,
     agentUuid: string,
     artifactUuid: string,
-): Promise<ApiAiAgentArtifactResponse['results']> =>
-    lightdashApi<ApiAiAgentArtifactResponse['results']>({
+): Promise<AiArtifact> => {
+    return lightdashApi<AiArtifact>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 const getAiAgentArtifactVersion = async (
     projectUuid: string,
     agentUuid: string,
     artifactUuid: string,
     versionUuid: string,
-): Promise<ApiAiAgentArtifactResponse['results']> =>
-    lightdashApi<ApiAiAgentArtifactResponse['results']>({
+): Promise<AiArtifact> => {
+    return lightdashApi<AiArtifact>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 type UseAiAgentArtifactProps = {
     projectUuid: string;
     agentUuid: string;
     artifactUuid: string;
     versionUuid?: string;
-    options?: UseQueryOptions<ApiAiAgentArtifactResponse['results'], ApiError>;
+    options?: UseQueryOptions<AiArtifact, ApiError>;
 };
 
 export const useAiAgentArtifact = ({
@@ -70,7 +72,7 @@ export const useAiAgentArtifact = ({
               )
         : () => getAiAgentArtifact(projectUuid, agentUuid, artifactUuid);
 
-    return useQuery<ApiAiAgentArtifactResponse['results'], ApiError>({
+    return useQuery<AiArtifact, ApiError>({
         queryKey,
         queryFn,
         ...options,

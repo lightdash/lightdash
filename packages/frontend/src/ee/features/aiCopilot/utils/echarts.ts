@@ -15,6 +15,9 @@ import {
     type PivotReference,
     type ResultRow,
     type TimeSeriesMetricVizConfigSchemaType,
+    type ToolTableVizArgs,
+    type ToolTimeSeriesArgs,
+    type ToolVerticalBarArgs,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
 import { type Axis } from 'echarts';
@@ -235,19 +238,19 @@ const getTableMetricEchartsConfig = (): ChartConfig => ({
 });
 
 export const getChartConfigFromAiAgentVizConfig = ({
-    vizConfigOutput,
+    vizConfig,
     metricQuery,
     rows,
     maxQueryLimit,
     fieldsMap,
 }: {
-    vizConfigOutput: object | null;
+    vizConfig: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
     metricQuery: MetricQuery;
     rows: Record<string, unknown>[];
     maxQueryLimit?: number;
     fieldsMap: ItemsMap;
 }) => {
-    const parsedConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
+    const parsedConfig = parseVizConfig(vizConfig, maxQueryLimit);
     if (!parsedConfig) {
         throw new Error('Invalid viz config');
     }

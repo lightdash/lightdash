@@ -899,3 +899,82 @@ export const useAiAgentArtifactVizQuery = (
         enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
     });
 };
+
+// Dashboard chart visualization query functionality
+const getAiAgentDashboardChartVizQuery = async (args: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    chartIndex: number;
+}) =>
+    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
+        url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/artifacts/${args.artifactUuid}/versions/${args.versionUuid}/charts/${args.chartIndex}/viz-query`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAgentDashboardChartVizQuery = (
+    {
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        versionUuid,
+        chartIndex,
+    }: {
+        projectUuid: string;
+        agentUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
+        chartIndex: number;
+    },
+    useQueryOptions?: UseQueryOptions<
+        ApiAiAgentThreadMessageVizQuery,
+        ApiError
+    >,
+) => {
+    const navigate = useNavigate();
+    const { data: activeProjectUuid } = useActiveProject();
+    const health = useHealth();
+    const org = useOrganization();
+    const { showToastApiError } = useToaster();
+
+    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
+        queryKey: [
+            AI_AGENTS_KEY,
+            'dashboard-chart-viz-query',
+            projectUuid,
+            agentUuid,
+            'artifacts',
+            artifactUuid,
+            'versions',
+            versionUuid,
+            'charts',
+            chartIndex,
+        ],
+        ...useQueryOptions,
+        queryFn: () => {
+            return getAiAgentDashboardChartVizQuery({
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                chartIndex,
+            });
+        },
+        onError: (error: ApiError) => {
+            if (error.error?.statusCode === 403) {
+                void navigate(
+                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                );
+            } else {
+                showToastApiError({
+                    title: 'Failed to fetch dashboard chart visualization',
+                    apiError: error.error,
+                });
+            }
+            useQueryOptions?.onError?.(error);
+        },
+        enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
+    });
+};
