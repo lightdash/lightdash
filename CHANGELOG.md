@@ -1,3 +1,10 @@
+## [0.1992.4](https://github.com/lightdash/lightdash/compare/0.1992.3...0.1992.4) (2025-09-11)
+
+
+### Bug Fixes
+
+* improve github error messages ([#16830](https://github.com/lightdash/lightdash/issues/16830)) ([6abb197](https://github.com/lightdash/lightdash/commit/6abb1976a6221cadf356aeff77ff9ab57e373402))
+
 ## [0.1992.3](https://github.com/lightdash/lightdash/compare/0.1992.2...0.1992.3) (2025-09-11)
 
 
