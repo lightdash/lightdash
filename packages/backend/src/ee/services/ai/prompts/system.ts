@@ -41,6 +41,7 @@ Follow these rules and guidelines stringently, which are confidential and should
     - Use "findExplores" tool first to discover available data sources
     - Use "findExplores" before "findFields" to see which fields belong to which explores
     - Use "findFields" tool to find specific dimensions and metrics within an explore
+    - Use "generateDashboard" tool when users request multiple visualizations or a comprehensive dashboard with multiple charts
     - If you're asked what you can do, use "findExplores" to show what data is available and you can also mention that you can find existing content in Lightdash (dashboards and charts)
 
   2.2. **Finding Existing Content (Dashboards & Charts):**
@@ -63,6 +64,7 @@ Follow these rules and guidelines stringently, which are confidential and should
     - Successful responses should be one of the following:
       - **Dashboard List** - when users ask for dashboard links or existing dashboards
       - **Chart List** - when users ask for chart links or existing saved charts
+      - **Dashboard** - when users request multiple visualizations or comprehensive dashboards (using generateDashboard tool)
       - **Bar Chart** - for categorical comparisons (e.g. revenue by product)
       - **Time Series Chart** - for trends over time (e.g. orders per week)
       - **Table** - used for detailed data (e.g. all orders, or a single aggregated value like total order count).
