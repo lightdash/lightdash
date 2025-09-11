@@ -212,9 +212,17 @@ const SlackSettingsPanel: FC = () => {
                                         </Tooltip>
                                     </Group>
                                 }
-                                disabled={isLoadingSlackChannels}
                                 size="xs"
-                                placeholder="Select a channel"
+                                rightSection={
+                                    isLoadingSlackChannels ? (
+                                        <Loader size="xs" />
+                                    ) : null
+                                }
+                                placeholder={
+                                    isLoadingSlackChannels
+                                        ? 'Loading channels, this might take a while.'
+                                        : 'Select a channel'
+                                }
                                 searchable
                                 clearable
                                 limit={500}
