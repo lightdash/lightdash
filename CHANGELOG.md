@@ -1,3 +1,10 @@
+# [0.1995.0](https://github.com/lightdash/lightdash/compare/0.1994.1...0.1995.0) (2025-09-11)
+
+
+### Features
+
+* loosen channels:join slack scope requirement ([#16846](https://github.com/lightdash/lightdash/issues/16846)) ([1dd2f01](https://github.com/lightdash/lightdash/commit/1dd2f0154df8db7c9fbb47cc0a8d75cfc902d421))
+
 ## [0.1994.1](https://github.com/lightdash/lightdash/compare/0.1994.0...0.1994.1) (2025-09-11)
 
 
