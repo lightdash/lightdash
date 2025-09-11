@@ -10,20 +10,22 @@ export type ResponsiveGridLayoutProps = {
     rowHeight: number;
 };
 
+const DEFAULT_COLS = 36;
+
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,
     isEditMode = false,
     cols = 36,
 ): Layout => {
     // Scale factor based on the number of columns (36 is the default for lg)
-    const scaleFactor = cols / 36;
+    const scaleFactor = cols / DEFAULT_COLS;
 
     return {
         minH: 1,
-        minW: Math.max(1, Math.round(6 * scaleFactor)),
-        x: Math.round(tile.x * scaleFactor),
+        minW: 6,
+        x: tile.x * scaleFactor,
         y: tile.y,
-        w: Math.round(tile.w * scaleFactor),
+        w: tile.w * scaleFactor,
         h: tile.h,
         i: tile.uuid,
         isDraggable: isEditMode,
@@ -48,6 +50,10 @@ export const getResponsiveGridLayoutProps = ({
     useCSSTransforms: enableAnimation,
     measureBeforeMount: !enableAnimation,
     breakpoints: { lg: 1200, md: 996, sm: 768 },
-    cols: { lg: 36, md: 30, sm: stackVerticallyOnSmallestBreakpoint ? 1 : 18 },
+    cols: {
+        lg: DEFAULT_COLS,
+        md: 30,
+        sm: stackVerticallyOnSmallestBreakpoint ? 1 : 18,
+    },
     rowHeight: 50,
 });
