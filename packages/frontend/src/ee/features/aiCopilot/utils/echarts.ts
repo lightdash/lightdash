@@ -108,22 +108,30 @@ const getVerticalBarMetricEchartsConfig = (
 const getTimeSeriesMetricEchartsConfig = (
     config: TimeSeriesMetricVizConfigSchemaType,
     metricQuery: MetricQuery,
-    _rows: Record<string, unknown>[],
+    rows: Record<string, unknown>[],
     metadata: AiVizMetadata,
 ): ChartConfig => {
-    // TODO :: pivot for time series
-    // if (config.breakdownByDimension) {
-    //     // Sort the pivoted data
-    //     const pivoted = await getPivotedResults(
-    //         rows,
-    //         fieldsMap,
-    //         config.breakdownByDimension,
-    //         config.yMetrics,
-    //         sorts,
-    //     );
-    //     chartData = pivoted.results;
-    //     metrics = pivoted.metrics;
-    // }
+    let metrics: (string | PivotReference)[] = config.yMetrics;
+    const dimensions = [
+        config.xDimension,
+        ...(config.breakdownByDimension ? [config.breakdownByDimension] : []),
+    ];
+
+    if (config.breakdownByDimension) {
+        // Sort the pivoted data
+        const pivoted = getPivotedData(
+            rows as ResultRow[],
+            [config.breakdownByDimension],
+            config.yMetrics.filter(
+                (metric: string) => !dimensions.includes(metric),
+            ),
+            config.yMetrics.filter((metric: string) =>
+                dimensions.includes(metric),
+            ),
+        );
+        rows = pivoted.rows;
+        metrics = Object.values(pivoted.rowKeyMap);
+    }
 
     return {
         type: ChartType.CARTESIAN,
@@ -155,16 +163,33 @@ const getTimeSeriesMetricEchartsConfig = (
                             : {}),
                     },
                 ] as Axis[],
-                series: config.yMetrics.map((metric) => {
-                    return {
+                series: metrics.map((metric) => {
+                    const defaultProperties = {
                         type: CartesianSeriesType.LINE,
-                        name: metric,
+                        yAxisIndex: 0,
+                        ...(config.lineType === 'area' && { areaStyle: {} }),
+                    };
+
+                    if (typeof metric === 'string') {
+                        return {
+                            ...defaultProperties,
+                            // TODO we can use fieldMap to get the user-friendly label
+                            name: metric,
+                            encode: {
+                                xRef: { field: config.xDimension },
+                                yRef: { field: metric },
+                            },
+                        };
+                    }
+
+                    return {
+                        ...defaultProperties,
+                        // TODO we can use fieldMap to get the label for the pivot value
+                        // name: String(metric.pivotValues?.[0]?.value),
                         encode: {
                             xRef: { field: config.xDimension },
-                            yRef: { field: metric },
+                            yRef: metric,
                         },
-                        ...(config.lineType === 'area' && { areaStyle: {} }),
-                        yAxisIndex: 0,
                     };
                 }),
             },
