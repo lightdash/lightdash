@@ -380,33 +380,6 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/threads/{threadUuid}/message/{messageUuid}/viz-query')
-    @OperationId('getAgentThreadMessageVizQuery')
-    async getAgentThreadMessageVizQuery(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() threadUuid: string,
-        @Path() messageUuid: string,
-    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results:
-                await this.getAiAgentService().getAgentThreadMessageVizQuery(
-                    req.user!,
-                    {
-                        agentUuid,
-                        threadUuid,
-                        messageUuid,
-                    },
-                ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/savedQuery',
     )

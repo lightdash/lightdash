@@ -71,12 +71,6 @@ export const getGenerateTimeSeriesVizConfig = ({
                     vizConfig: toolArgs,
                 });
 
-                // TODO :: keeping this for now, until the front-end is under feature-flag
-                await updatePrompt({
-                    promptUuid: prompt.promptUuid,
-                    vizConfigOutput: toolArgs,
-                });
-
                 if (isSlackPrompt(prompt)) {
                     const { chartOptions } = await renderTimeSeriesViz({
                         runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
