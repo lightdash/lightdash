@@ -3,6 +3,7 @@ import {
     type AiAgentAdminThreadSummary,
 } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Group,
     Paper,
@@ -18,6 +19,7 @@ import {
     IconClick,
     IconClock,
     IconMessageCircleStar,
+    IconMessages,
     IconRadar,
     IconRobotFace,
     IconTextCaption,
@@ -212,7 +214,7 @@ const AiAgentAdminThreadsTable = ({
             header: 'Agent',
             enableSorting: false,
             enableEditing: false,
-            size: 220,
+            size: 170,
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconRobotFace} color="gray.6" />
@@ -334,6 +336,23 @@ const AiAgentAdminThreadsTable = ({
                         </Text>
                     </Group>
                 );
+            },
+        },
+        {
+            accessorKey: 'promptCount',
+            header: 'Prompts',
+            enableSorting: false,
+            enableEditing: false,
+            size: 120,
+            Header: ({ column }) => (
+                <Group gap="two">
+                    <MantineIcon icon={IconMessages} color="gray.6" />
+                    {column.columnDef.header}
+                </Group>
+            ),
+            Cell: ({ row }) => {
+                const thread = row.original;
+                return <Badge variant="default">{thread.promptCount}</Badge>;
             },
         },
         {

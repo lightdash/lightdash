@@ -47,6 +47,7 @@ export type AiAgentAdminThreadSummary = ThreadSummary & {
         name: string;
     };
     feedbackSummary: AiAgentAdminFeedbackSummary;
+    promptCount: number;
 };
 
 export type AiAgentAdminConversationsSummary = {

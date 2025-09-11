@@ -169,7 +169,7 @@ export class AiAgentModel {
                 `),
                 userAccess: this.database.raw(`
                     COALESCE(
-                        (SELECT json_agg(user_uuid) 
+                        (SELECT json_agg(user_uuid)
                          FROM user_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
@@ -275,7 +275,7 @@ export class AiAgentModel {
                 `),
                 userAccess: this.database.raw(`
                     COALESCE(
-                        (SELECT json_agg(user_uuid) 
+                        (SELECT json_agg(user_uuid)
                          FROM user_access
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
@@ -793,8 +793,16 @@ export class AiAgentModel {
             .from(AiPromptTableName)
             .whereNotNull('human_score')
             .groupBy('ai_thread_uuid');
+
+        const threadPromptCountQuery = this.database(AiPromptTableName)
+            .select([
+                'ai_thread_uuid',
+                this.database.raw('COUNT(*)::integer as prompt_count'),
+            ])
+            .groupBy('ai_thread_uuid');
         const threadsWithFeedbackQuery = this.database
             .with('thread_feedback', threadFeedbackQuery)
+            .with('thread_prompt_count', threadPromptCountQuery)
             .select<
                 {
                     ai_thread_uuid: DbAiThread['ai_thread_uuid'];
@@ -819,6 +827,9 @@ export class AiAgentModel {
                     downvotes: number;
                     neutral: number;
                     total_feedback: number;
+
+                    // Prompt count from CTE
+                    prompt_count: number;
                 }[]
             >([
                 // Original thread fields
@@ -845,6 +856,9 @@ export class AiAgentModel {
                 'thread_feedback.downvotes',
                 'thread_feedback.neutral',
                 'thread_feedback.total_feedback',
+
+                // Prompt count from CTE
+                'thread_prompt_count.prompt_count',
             ])
             .from(AiThreadTableName)
             .join(
@@ -883,6 +897,11 @@ export class AiAgentModel {
                 'thread_feedback',
                 `${AiThreadTableName}.ai_thread_uuid`,
                 'thread_feedback.ai_thread_uuid',
+            )
+            .leftJoin(
+                'thread_prompt_count',
+                `${AiThreadTableName}.ai_thread_uuid`,
+                'thread_prompt_count.ai_thread_uuid',
             )
             .where(
                 `${AiPromptTableName}.created_at`,
@@ -1020,6 +1039,7 @@ export class AiAgentModel {
                     neutral: row.neutral,
                     total: row.total_feedback,
                 },
+                promptCount: row.prompt_count || 0,
             }),
         );
 
