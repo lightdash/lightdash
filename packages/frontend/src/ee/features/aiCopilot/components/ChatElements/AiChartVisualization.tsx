@@ -81,12 +81,14 @@ export const AiChartVisualization: FC<Props> = ({
             metricQuery,
             rows: results.rows,
             maxQueryLimit: health?.query.maxLimit,
+            fieldsMap: fields,
         });
     }, [
         message.vizConfigOutput,
         metricQuery,
         results.rows,
         health?.query.maxLimit,
+        fields,
     ]);
 
     if (!chartConfig) return null;

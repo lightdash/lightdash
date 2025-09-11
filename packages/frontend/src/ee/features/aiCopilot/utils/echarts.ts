@@ -3,9 +3,14 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
+    formatItemValue,
+    friendlyName,
+    getItemLabelWithoutTableName,
+    isField,
     parseVizConfig,
     type AiVizMetadata,
     type ChartConfig,
+    type ItemsMap,
     type MetricQuery,
     type PivotReference,
     type ResultRow,
@@ -15,11 +20,39 @@ import {
 import { type Axis } from 'echarts';
 import { getPivotedData } from '../../../../hooks/plottedData/getPlottedData';
 
+const formatFieldLabel = (fieldId: string, fieldsMap: ItemsMap): string => {
+    const field = fieldsMap[fieldId];
+    if (field && isField(field)) {
+        return getItemLabelWithoutTableName(field);
+    }
+    return friendlyName(fieldId);
+};
+
+const formatPivotValueLabel = (
+    pivotReference: PivotReference,
+    fieldsMap: ItemsMap,
+): string => {
+    if (!pivotReference.pivotValues?.[0]) {
+        return '';
+    }
+
+    const pivotFieldId = pivotReference.pivotValues[0].field;
+    const pivotField = fieldsMap[pivotFieldId];
+    const pivotValue = pivotReference.pivotValues[0].value;
+
+    if (pivotField && isField(pivotField)) {
+        return formatItemValue(pivotField, pivotValue);
+    }
+
+    return friendlyName(String(pivotValue));
+};
+
 const getVerticalBarMetricEchartsConfig = (
     config: VerticalBarMetricVizConfigSchemaType,
     metricQuery: MetricQuery,
     rows: Record<string, unknown>[],
     metadata: AiVizMetadata,
+    fieldsMap: ItemsMap,
 ): ChartConfig => {
     let metrics: (string | PivotReference)[] = config.yMetrics;
     const dimensions = [
@@ -81,7 +114,7 @@ const getVerticalBarMetricEchartsConfig = (
                     if (typeof metric === 'string') {
                         return {
                             ...defaultProperties,
-                            name: metric,
+                            name: formatFieldLabel(metric, fieldsMap),
                             encode: {
                                 xRef: { field: config.xDimension },
                                 yRef: {
@@ -92,6 +125,7 @@ const getVerticalBarMetricEchartsConfig = (
                     } else {
                         return {
                             ...defaultProperties,
+                            name: formatPivotValueLabel(metric, fieldsMap),
                             encode: {
                                 xRef: { field: config.xDimension },
                                 yRef: metric,
@@ -110,6 +144,7 @@ const getTimeSeriesMetricEchartsConfig = (
     metricQuery: MetricQuery,
     rows: Record<string, unknown>[],
     metadata: AiVizMetadata,
+    fieldsMap: ItemsMap,
 ): ChartConfig => {
     let metrics: (string | PivotReference)[] = config.yMetrics;
     const dimensions = [
@@ -173,8 +208,7 @@ const getTimeSeriesMetricEchartsConfig = (
                     if (typeof metric === 'string') {
                         return {
                             ...defaultProperties,
-                            // TODO we can use fieldMap to get the user-friendly label
-                            name: metric,
+                            name: formatFieldLabel(metric, fieldsMap),
                             encode: {
                                 xRef: { field: config.xDimension },
                                 yRef: { field: metric },
@@ -184,8 +218,7 @@ const getTimeSeriesMetricEchartsConfig = (
 
                     return {
                         ...defaultProperties,
-                        // TODO we can use fieldMap to get the label for the pivot value
-                        // name: String(metric.pivotValues?.[0]?.value),
+                        name: formatPivotValueLabel(metric, fieldsMap),
                         encode: {
                             xRef: { field: config.xDimension },
                             yRef: metric,
@@ -206,11 +239,13 @@ export const getChartConfigFromAiAgentVizConfig = ({
     metricQuery,
     rows,
     maxQueryLimit,
+    fieldsMap,
 }: {
     vizConfigOutput: object | null;
     metricQuery: MetricQuery;
     rows: Record<string, unknown>[];
     maxQueryLimit?: number;
+    fieldsMap: ItemsMap;
 }) => {
     const parsedConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
     if (!parsedConfig) {
@@ -229,6 +264,7 @@ export const getChartConfigFromAiAgentVizConfig = ({
                         title: parsedConfig.vizTool.title,
                         description: parsedConfig.vizTool.description,
                     },
+                    fieldsMap,
                 ),
             };
         case AiResultType.TIME_SERIES_RESULT:
@@ -242,6 +278,7 @@ export const getChartConfigFromAiAgentVizConfig = ({
                         title: parsedConfig.vizTool.title,
                         description: parsedConfig.vizTool.description,
                     },
+                    fieldsMap,
                 ),
             };
         case AiResultType.TABLE_RESULT:
