@@ -495,7 +495,16 @@ export class SchedulerService extends BaseService {
     async getJobStatus(
         user: SessionUser,
         jobId: string,
-    ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
+    ): Promise<
+        Pick<
+            SchedulerLogDb,
+            | 'status'
+            | 'details'
+            | 'scheduler_uuid'
+            | 'target_type'
+            | 'created_at'
+        >
+    > {
         const job = await this.schedulerModel.getJobStatus(jobId);
         if (
             user.ability.cannot(
