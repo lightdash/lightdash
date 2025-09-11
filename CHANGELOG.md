@@ -1,3 +1,10 @@
+## [0.1994.1](https://github.com/lightdash/lightdash/compare/0.1994.0...0.1994.1) (2025-09-11)
+
+
+### Bug Fixes
+
+* relogin on snowflake on query errors ([#16849](https://github.com/lightdash/lightdash/issues/16849)) ([10dd725](https://github.com/lightdash/lightdash/commit/10dd725d3b147febc40fe116478f8917148495fe))
+
 # [0.1994.0](https://github.com/lightdash/lightdash/compare/0.1993.0...0.1994.0) (2025-09-11)
 
 
