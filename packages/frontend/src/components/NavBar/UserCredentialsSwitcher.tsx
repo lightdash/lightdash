@@ -1,5 +1,6 @@
 import { ActionIcon, MantineProvider, Menu, Text, Title } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { matchRoutes, useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -35,6 +36,8 @@ const UserCredentialsSwitcher = () => {
         isInitialLoading: isLoadingCredentials,
         data: userWarehouseCredentials,
     } = useUserWarehouseCredentials();
+    const queryClient = useQueryClient();
+
     const { isInitialLoading: isLoadingProjects, data: projects } =
         useProjects();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
@@ -49,7 +52,6 @@ const UserCredentialsSwitcher = () => {
             }
         },
     });
-
     const activeProject = useMemo(() => {
         return projects?.find((p) => p.projectUuid === activeProjectUuid);
     }, [projects, activeProjectUuid]);
@@ -60,6 +62,36 @@ const UserCredentialsSwitcher = () => {
                 credentials.type === activeProject?.warehouseType,
         );
     }, [userWarehouseCredentials, activeProject]);
+
+    // Listen for SnowflakeTokenError in query client
+    useEffect(() => {
+        const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+            if (event.type === 'updated') {
+                const query = event.query;
+
+                if (query.state.error) {
+                    const error = query.state.error as any;
+                    // Check if this is a SnowflakeTokenError and we have a Snowflake project
+                    if (
+                        error?.error?.name === 'SnowflakeTokenError' &&
+                        activeProject?.warehouseType === 'snowflake' &&
+                        activeProject?.requireUserCredentials
+                    ) {
+                        console.info('Triggering reauth modal for Snowflake');
+                        // Trigger the reauth modal
+                        setShowCreateModalOnPageLoad(true);
+                        setIsCreatingCredentials(true);
+                    }
+                }
+            }
+        });
+
+        return unsubscribe;
+    }, [
+        queryClient,
+        activeProject?.warehouseType,
+        activeProject?.requireUserCredentials,
+    ]);
 
     useEffect(() => {
         // reset state when page changes
