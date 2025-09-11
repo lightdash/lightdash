@@ -3,6 +3,7 @@ import {
     type AiAgentAdminThreadSummary,
 } from '@lightdash/common';
 import {
+    Anchor,
     Badge,
     Box,
     Group,
@@ -48,6 +49,7 @@ import {
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useGetSlack } from '../../../../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useInfiniteAiAgentAdminThreads } from '../../hooks/useAiAgentAdmin';
@@ -66,6 +68,8 @@ const AiAgentAdminThreadsTable = ({
 }: AiAgentAdminThreadsTableProps) => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
+    const slack = useGetSlack();
+
     const [sorting, setSorting] = useState<MRT_SortingState>([
         { id: 'createdAt', desc: true },
     ]);
@@ -318,6 +322,17 @@ const AiAgentAdminThreadsTable = ({
                     label = 'App';
                 }
 
+                const slackUrl =
+                    thread.slackChannelId &&
+                    thread.slackThreadTs &&
+                    slack.data?.slackTeamName
+                        ? `https://${
+                              slack.data.slackTeamName
+                          }.slack.com/archives/${
+                              thread.slackChannelId
+                          }/p${thread.slackThreadTs.replace('.', '')}`
+                        : null;
+
                 return (
                     <Group gap="two">
                         {label === 'Slack' ? (
@@ -335,9 +350,22 @@ const AiAgentAdminThreadsTable = ({
                                 stroke={1.6}
                             />
                         )}
-                        <Text fz="xs" c="gray.7" fw={500}>
-                            {label}
-                        </Text>
+                        {slackUrl ? (
+                            <Anchor
+                                href={slackUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                fz="xs"
+                                c="blue.7"
+                                fw={500}
+                            >
+                                {label}
+                            </Anchor>
+                        ) : (
+                            <Text fz="xs" c="gray.7" fw={500}>
+                                {label}
+                            </Text>
+                        )}
                     </Group>
                 );
             },
