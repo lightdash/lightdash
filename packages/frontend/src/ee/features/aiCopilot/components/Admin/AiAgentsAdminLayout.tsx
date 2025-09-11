@@ -76,7 +76,7 @@ export const AiAgentsAdminLayout = () => {
                         </Box>
                         <LinkButton
                             href="/ai-agents"
-                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            leftIcon={IconPlus}
                             variant="filled"
                         >
                             New Thread
