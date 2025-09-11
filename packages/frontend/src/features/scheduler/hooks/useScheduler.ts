@@ -189,11 +189,22 @@ export const useSendNowScheduler = () => {
         },
         {
             mutationKey: ['sendNowScheduler'],
-            onSuccess: () => {},
-            onError: ({ error }) => {
+            onSuccess: (res) => {
+                pollJobStatus(res.jobId || '')
+                    .then((data) => {
+                        if (data?.status === SchedulerJobStatus.ERROR) {
+                            throw new Error(data?.details?.error);
+                        }
+                    })
+                    .catch((e) => {
+                        throw e;
+                    });
+            },
+            onError: (apiError: ApiError) => {
                 showToastApiError({
-                    title: 'Failed to process job',
-                    apiError: error,
+                    key: 'toast-info-job-status',
+                    title: 'Failed to send scheduled delivery',
+                    apiError: apiError.error,
                 });
             },
         },
