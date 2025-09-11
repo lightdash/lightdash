@@ -518,7 +518,13 @@ export class SchedulerService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return { status: job.status, details: job.details };
+        return {
+            status: job.status,
+            details: job.details,
+            scheduler_uuid: job.scheduler_uuid,
+            target_type: job.target_type,
+            created_at: job.created_at,
+        };
     }
 
     async setJobStatus(
