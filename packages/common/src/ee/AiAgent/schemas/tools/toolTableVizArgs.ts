@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+    LegacyFollowUpTools,
+    legacyFollowUpToolsTransform,
+} from '../../followUpTools';
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
@@ -40,10 +44,19 @@ export const toolTableVizArgsSchemaTransformed = toolTableVizArgsSchema
     .extend({
         // backwards compatibility for old viz configs without customMetrics
         customMetrics: customMetricsSchema.default(null),
+        followUpTools: z.array(
+            z.union([
+                z.literal(AiResultType.VERTICAL_BAR_RESULT),
+                z.literal(AiResultType.TIME_SERIES_RESULT),
+                z.literal(LegacyFollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(LegacyFollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        ),
     })
     .transform((data) => ({
         ...data,
         filters: filtersSchemaTransformed.parse(data.filters),
+        followUpTools: legacyFollowUpToolsTransform(data.followUpTools),
     }));
 
 export type ToolTableVizArgsTransformed = z.infer<
