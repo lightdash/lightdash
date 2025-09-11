@@ -1,3 +1,10 @@
+# [0.1997.0](https://github.com/lightdash/lightdash/compare/0.1996.0...0.1997.0) (2025-09-11)
+
+
+### Features
+
+* add UI event emitter for embeds ([#16828](https://github.com/lightdash/lightdash/issues/16828)) ([62cd199](https://github.com/lightdash/lightdash/commit/62cd199e8a6a36415fbf7eedddf706440f596709))
+
 # [0.1996.0](https://github.com/lightdash/lightdash/compare/0.1995.1...0.1996.0) (2025-09-11)
 
 
