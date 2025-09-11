@@ -1,3 +1,15 @@
+# [0.1993.0](https://github.com/lightdash/lightdash/compare/0.1992.4...0.1993.0) (2025-09-11)
+
+
+### Bug Fixes
+
+* handle breakdownByDimension for time series charts in AI Agents ([#16841](https://github.com/lightdash/lightdash/issues/16841)) ([084bd7c](https://github.com/lightdash/lightdash/commit/084bd7c80e2e4117d75d13107a45244b9398237b)), closes [#16075](https://github.com/lightdash/lightdash/issues/16075)
+
+
+### Features
+
+* add user-friendly labels to AI chart visualizations ([#16842](https://github.com/lightdash/lightdash/issues/16842)) ([0a6a006](https://github.com/lightdash/lightdash/commit/0a6a006bf561268bafed71f445c7d83ae1cbdcf4))
+
 ## [0.1992.4](https://github.com/lightdash/lightdash/compare/0.1992.3...0.1992.4) (2025-09-11)
 
 
