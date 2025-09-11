@@ -817,6 +817,8 @@ export class AiAgentModel {
                     user_name: string;
                     user_email: DbEmail['email'];
                     slack_user_id: DbAiSlackThread['slack_user_id'];
+                    slack_channel_id: DbAiSlackThread['slack_channel_id'];
+                    slack_thread_ts: DbAiSlackThread['slack_thread_ts'];
                     agent_name: AiAgent['name'];
                     project_name: DbProject['name'];
                     organization_uuid: DbAiThread['organization_uuid'];
@@ -846,6 +848,8 @@ export class AiAgentModel {
                 ),
                 `${EmailTableName}.email as user_email`,
                 `${AiSlackThreadTableName}.slack_user_id`,
+                `${AiSlackThreadTableName}.slack_channel_id`,
+                `${AiSlackThreadTableName}.slack_thread_ts`,
                 `${AiAgentTableName}.name as agent_name`,
                 `${AiAgentTableName}.image_url as agent_image_url`,
                 `${ProjectTableName}.name as project_name`,
@@ -1040,6 +1044,8 @@ export class AiAgentModel {
                     total: row.total_feedback || 0,
                 },
                 promptCount: row.prompt_count || 0,
+                slackChannelId: row.slack_channel_id || null,
+                slackThreadTs: row.slack_thread_ts || null,
             }),
         );
 

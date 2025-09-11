@@ -48,6 +48,8 @@ export type AiAgentAdminThreadSummary = ThreadSummary & {
     };
     feedbackSummary: AiAgentAdminFeedbackSummary;
     promptCount: number;
+    slackChannelId: string | null;
+    slackThreadTs: string | null;
 };
 
 export type AiAgentAdminConversationsSummary = {
