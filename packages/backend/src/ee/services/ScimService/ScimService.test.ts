@@ -450,4 +450,177 @@ describe('ScimService', () => {
             ).toThrow();
         });
     });
+
+    describe('Discovery Endpoints', () => {
+        describe('getServiceProviderConfig', () => {
+            test('should return correct service provider config', async () => {
+                const config = ScimService.getServiceProviderConfig();
+
+                expect(config).toEqual({
+                    schemas: [ScimSchemaType.SERVICE_PROVIDER_CONFIG],
+                    documentationUri: 'https://docs.lightdash.com/guides/scim',
+                    patch: { supported: true },
+                    bulk: { supported: false },
+                    filter: { supported: true, maxResults: 200 },
+                    changePassword: { supported: false },
+                    sort: { supported: false },
+                    etag: { supported: false },
+                    authenticationSchemes: [
+                        {
+                            type: 'oauthbearertoken',
+                            name: 'OAuth Bearer Token',
+                            description:
+                                'Authentication scheme using the OAuth 2.0 Bearer Token standard',
+                            primary: true,
+                        },
+                    ],
+                });
+            });
+        });
+
+        describe('getSchemas', () => {
+            test('should return correct schemas array', async () => {
+                const schemas = ScimService.getSchemas();
+
+                expect(schemas).toHaveLength(5);
+                expect(schemas.map((s) => s.id)).toEqual([
+                    ScimSchemaType.USER,
+                    ScimSchemaType.GROUP,
+                    ScimSchemaType.LIGHTDASH_USER_EXTENSION,
+                    ScimSchemaType.SERVICE_PROVIDER_CONFIG,
+                    ScimSchemaType.RESOURCE_TYPE,
+                ]);
+
+                // Test User schema
+                const userSchema = schemas.find(
+                    (s) => s.id === ScimSchemaType.USER,
+                );
+                expect(userSchema).toBeDefined();
+                expect(userSchema!.name).toBe('User');
+                expect(userSchema!.attributes).toContainEqual(
+                    expect.objectContaining({
+                        name: 'userName',
+                        type: 'string',
+                        required: true,
+                        uniqueness: 'server',
+                    }),
+                );
+
+                // Test Group schema
+                const groupSchema = schemas.find(
+                    (s) => s.id === ScimSchemaType.GROUP,
+                );
+                expect(groupSchema).toBeDefined();
+                expect(groupSchema!.name).toBe('Group');
+                expect(groupSchema!.attributes).toContainEqual(
+                    expect.objectContaining({
+                        name: 'displayName',
+                        type: 'string',
+                        required: true,
+                    }),
+                );
+
+                // Test Lightdash extension schema
+                const extensionSchema = schemas.find(
+                    (s) => s.id === ScimSchemaType.LIGHTDASH_USER_EXTENSION,
+                );
+                expect(extensionSchema).toBeDefined();
+                expect(extensionSchema!.name).toBe('Lightdash User Extension');
+                expect(extensionSchema!.attributes).toContainEqual(
+                    expect.objectContaining({
+                        name: 'role',
+                        type: 'string',
+                        canonicalValues: [
+                            'admin',
+                            'editor',
+                            'interactive_viewer',
+                            'viewer',
+                        ],
+                    }),
+                );
+
+                // Test ServiceProviderConfig schema
+                const serviceProviderConfigSchema = schemas.find(
+                    (s) => s.id === ScimSchemaType.SERVICE_PROVIDER_CONFIG,
+                );
+                expect(serviceProviderConfigSchema).toBeDefined();
+                expect(serviceProviderConfigSchema!.name).toBe(
+                    'Service Provider Configuration',
+                );
+                expect(serviceProviderConfigSchema!.attributes).toContainEqual(
+                    expect.objectContaining({
+                        name: 'documentationUri',
+                        type: 'reference',
+                        required: false,
+                    }),
+                );
+
+                // Test ResourceType schema
+                const resourceTypeSchema = schemas.find(
+                    (s) => s.id === ScimSchemaType.RESOURCE_TYPE,
+                );
+                expect(resourceTypeSchema).toBeDefined();
+                expect(resourceTypeSchema!.name).toBe('Resource Type');
+                expect(resourceTypeSchema!.attributes).toContainEqual(
+                    expect.objectContaining({
+                        name: 'name',
+                        type: 'string',
+                        required: true,
+                    }),
+                );
+            });
+        });
+
+        describe('getResourceTypes', () => {
+            test('should return correct resource types as array', async () => {
+                const resourceTypes = ScimService.getResourceTypes();
+
+                expect(resourceTypes).toHaveLength(2);
+
+                // Test User resource type
+                const userResourceType = resourceTypes.find(
+                    (rt) => rt.name === 'User',
+                );
+                expect(userResourceType).toEqual({
+                    schemas: [ScimSchemaType.RESOURCE_TYPE],
+                    id: 'User',
+                    name: 'User',
+                    description: 'User Account',
+                    endpoint: '/Users',
+                    schema: ScimSchemaType.USER,
+                    schemaExtensions: [
+                        {
+                            schema: ScimSchemaType.LIGHTDASH_USER_EXTENSION,
+                            required: false,
+                        },
+                    ],
+                    meta: {
+                        resourceType: 'ResourceType',
+                        location: expect.stringContaining(
+                            '/api/v1/scim/v2/ResourceTypes/User',
+                        ),
+                    },
+                });
+
+                // Test Group resource type
+                const groupResourceType = resourceTypes.find(
+                    (rt) => rt.name === 'Group',
+                );
+                expect(groupResourceType).toEqual({
+                    schemas: [ScimSchemaType.RESOURCE_TYPE],
+                    id: 'Group',
+                    name: 'Group',
+                    description: 'Group',
+                    endpoint: '/Groups',
+                    schema: ScimSchemaType.GROUP,
+                    meta: {
+                        resourceType: 'ResourceType',
+                        location: expect.stringContaining(
+                            '/api/v1/scim/v2/ResourceTypes/Group',
+                        ),
+                    },
+                });
+            });
+        });
+    });
 });

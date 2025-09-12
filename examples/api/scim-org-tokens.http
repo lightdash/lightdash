@@ -37,3 +37,21 @@ GET http://localhost:8080/api/v1/logout
 ### Make a request using the scim token
 GET http://localhost:8080/api/v1/scim/v2/Groups
 Authorization: Bearer scim_1b593fb911bbe92cbabd67b6f6234957
+
+### SCIM Discovery Endpoints
+
+### Get SCIM Service Provider Configuration
+GET http://localhost:8080/api/v1/scim/v2/ServiceProviderConfig
+Authorization: Bearer scim_1b593fb911bbe92cbabd67b6f6234957
+
+### Get SCIM Schemas
+GET http://localhost:8080/api/v1/scim/v2/Schemas
+Authorization: Bearer scim_1b593fb911bbe92cbabd67b6f6234957
+
+### Get SCIM Resource Types
+GET http://localhost:8080/api/v1/scim/v2/ResourceTypes
+Authorization: Bearer scim_1b593fb911bbe92cbabd67b6f6234957
+
+### Test SCIM Root Endpoint (for connectivity)
+GET http://localhost:8080/api/v1/scim/v2/
+Authorization: Bearer scim_1b593fb911bbe92cbabd67b6f6234957
