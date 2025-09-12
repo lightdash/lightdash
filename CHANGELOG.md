@@ -1,3 +1,10 @@
+## [0.2000.2](https://github.com/lightdash/lightdash/compare/0.2000.1...0.2000.2) (2025-09-12)
+
+
+### Bug Fixes
+
+* enhance AI dashboard generation prompt, workflow and error handling ([#16861](https://github.com/lightdash/lightdash/issues/16861)) ([b04c59e](https://github.com/lightdash/lightdash/commit/b04c59e4046b4b7c282d2837150ec7af2edf0401))
+
 ## [0.2000.1](https://github.com/lightdash/lightdash/compare/0.2000.0...0.2000.1) (2025-09-12)
 
 
