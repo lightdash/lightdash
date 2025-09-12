@@ -1,8 +1,9 @@
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Button, Group, Stack } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
@@ -32,8 +33,8 @@ const SavedQueries: FC = () => {
             withXLargePaddedContent
             withLargeContent
         >
-            <Stack spacing="xxl" w="100%">
-                <Group position="apart">
+            <Stack gap="xxl" w="100%">
+                <Group justify="space-between">
                     <PageBreadcrumbs
                         items={[
                             { title: 'Home', to: '/home' },
@@ -42,7 +43,9 @@ const SavedQueries: FC = () => {
                     />
                     {!isDemo && userCanCreateCharts ? (
                         <Button
-                            leftIcon={<IconPlus size={18} />}
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size={18} />
+                            }
                             onClick={handleCreateChart}
                         >
                             Create chart
