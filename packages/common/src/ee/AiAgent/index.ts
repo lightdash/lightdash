@@ -124,14 +124,16 @@ export type AiAgentMessageAssistant = {
     toolCalls: AiAgentToolCall[];
     savedQueryUuid: string | null;
 
-    artifact: {
-        uuid: string;
-        versionNumber: number;
-        versionUuid: string;
-        title: string | null;
-        description: string | null;
-        artifactType: 'chart' | 'dashboard';
-    } | null;
+    artifacts:
+        | {
+              uuid: string;
+              versionNumber: number;
+              versionUuid: string;
+              title: string | null;
+              description: string | null;
+              artifactType: 'chart' | 'dashboard';
+          }[]
+        | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

@@ -5748,40 +5748,43 @@
             },
             "AiAgentMessageAssistant": {
                 "properties": {
-                    "artifact": {
-                        "properties": {
-                            "artifactType": {
-                                "type": "string",
-                                "enum": ["chart", "dashboard"]
+                    "artifacts": {
+                        "items": {
+                            "properties": {
+                                "artifactType": {
+                                    "type": "string",
+                                    "enum": ["chart", "dashboard"]
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "title": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "versionUuid": {
+                                    "type": "string"
+                                },
+                                "versionNumber": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
                             },
-                            "description": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "title": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "versionUuid": {
-                                "type": "string"
-                            },
-                            "versionNumber": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
+                            "required": [
+                                "artifactType",
+                                "description",
+                                "title",
+                                "versionUuid",
+                                "versionNumber",
+                                "uuid"
+                            ],
+                            "type": "object"
                         },
-                        "required": [
-                            "artifactType",
-                            "description",
-                            "title",
-                            "versionUuid",
-                            "versionNumber",
-                            "uuid"
-                        ],
-                        "type": "object",
+                        "type": "array",
                         "nullable": true
                     },
                     "savedQueryUuid": {
@@ -5819,7 +5822,7 @@
                     }
                 },
                 "required": [
-                    "artifact",
+                    "artifacts",
                     "savedQueryUuid",
                     "toolCalls",
                     "humanScore",
@@ -6478,6 +6481,18 @@
                     },
                     {
                         "properties": {
+                            "slackThreadTs": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "slackChannelId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "promptCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "feedbackSummary": {
                                 "$ref": "#/components/schemas/AiAgentAdminFeedbackSummary"
                             },
@@ -6497,7 +6512,14 @@
                                 "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-imageUrl_"
                             }
                         },
-                        "required": ["feedbackSummary", "project", "agent"],
+                        "required": [
+                            "slackThreadTs",
+                            "slackChannelId",
+                            "promptCount",
+                            "feedbackSummary",
+                            "project",
+                            "agent"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -18945,7 +18967,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1995.0",
+        "version": "0.2000.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

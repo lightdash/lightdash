@@ -15,7 +15,7 @@ import styles from './AiArtifactButton.module.css';
 interface AiArtifactButtonProps {
     onClick: () => void;
     isArtifactOpen: boolean;
-    artifact: AiAgentMessageAssistant['artifact'];
+    artifact: NonNullable<AiAgentMessageAssistant['artifacts']>[0] | null;
     isLoading?: boolean;
 }
 

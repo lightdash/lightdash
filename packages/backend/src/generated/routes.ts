@@ -5139,48 +5139,57 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                artifact: {
+                artifacts: {
                     dataType: 'union',
                     subSchemas: [
                         {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                artifactType: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'enum', enums: ['chart'] },
-                                        {
-                                            dataType: 'enum',
-                                            enums: ['dashboard'],
-                                        },
-                                    ],
-                                    required: true,
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    artifactType: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['chart'],
+                                            },
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['dashboard'],
+                                            },
+                                        ],
+                                        required: true,
+                                    },
+                                    description: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            { dataType: 'string' },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                        required: true,
+                                    },
+                                    title: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            { dataType: 'string' },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                        required: true,
+                                    },
+                                    versionUuid: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    versionNumber: {
+                                        dataType: 'double',
+                                        required: true,
+                                    },
+                                    uuid: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
                                 },
-                                description: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                    required: true,
-                                },
-                                title: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                    required: true,
-                                },
-                                versionUuid: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                versionNumber: {
-                                    dataType: 'double',
-                                    required: true,
-                                },
-                                uuid: { dataType: 'string', required: true },
                             },
                         },
                         { dataType: 'enum', enums: [null] },
@@ -5913,6 +5922,23 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        slackThreadTs: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        slackChannelId: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        promptCount: { dataType: 'double', required: true },
                         feedbackSummary: {
                             ref: 'AiAgentAdminFeedbackSummary',
                             required: true,
