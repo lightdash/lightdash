@@ -64,11 +64,27 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             (context) => context.actions.fetchResults,
         );
 
+        const pivotConfig = useExplorerContext(
+            (context) => context.state.unsavedChartVersion.pivotConfig,
+        );
+
+        const hasPivotConfig = !!pivotConfig;
+
         useEffect(() => {
-            if (!previouslyFetchedState && (fromDashboard || isSavedChart)) {
+            const shouldAutoFetch =
+                !previouslyFetchedState &&
+                (!!fromDashboard || isSavedChart || hasPivotConfig);
+
+            if (shouldAutoFetch) {
                 fetchResults();
             }
-        }, [previouslyFetchedState, fetchResults, fromDashboard, isSavedChart]);
+        }, [
+            previouslyFetchedState,
+            fetchResults,
+            fromDashboard,
+            isSavedChart,
+            hasPivotConfig,
+        ]);
 
         useEffect(() => {
             if (isError) {
