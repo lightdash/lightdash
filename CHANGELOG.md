@@ -1,3 +1,15 @@
+# [0.2000.0](https://github.com/lightdash/lightdash/compare/0.1999.0...0.2000.0) (2025-09-12)
+
+
+### Bug Fixes
+
+* replace ConversationsList with redirect to AI agents admin page ([#16852](https://github.com/lightdash/lightdash/issues/16852)) ([c27f6b4](https://github.com/lightdash/lightdash/commit/c27f6b496f51daf57170e31434882ea3b2e791c1))
+
+
+### Features
+
+* add "New Thread" button and agent settings link to AI Admin Panel ([#16851](https://github.com/lightdash/lightdash/issues/16851)) ([9132919](https://github.com/lightdash/lightdash/commit/9132919f0946d228b5a4f630c10233e5443eb15d))
+
 # [0.1999.0](https://github.com/lightdash/lightdash/compare/0.1998.0...0.1999.0) (2025-09-11)
 
 
