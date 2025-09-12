@@ -5,7 +5,7 @@ import {
     wrapResource,
     type MostPopularAndRecentlyUpdated,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -94,7 +94,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                           action: (
                               <MantineLinkButton
                                   color="gray.6"
-                                  compact
+                                  size="compact-sm"
                                   variant="subtle"
                                   target="_blank"
                                   href="https://docs.lightdash.com/get-started/exploring-data/intro"
@@ -116,7 +116,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                 action:
                     !isDemo && userCanCreateCharts ? (
                         <Button
-                            leftIcon={<MantineIcon icon={IconPlus} size={18} />}
+                            leftSection={<MantineIcon icon={IconPlus} size={18} />}
                             onClick={handleCreateChart}
                         >
                             Create chart

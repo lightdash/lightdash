@@ -1,5 +1,5 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Text } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
 import React, { useMemo, type ComponentProps, type FC } from 'react';
@@ -25,7 +25,7 @@ const ErrorState: FC<{
                     <Text maw={400}>{error.message}</Text>
                     {(error.sentryEventId || error.sentryTraceId) && (
                         <>
-                            <Text maw={400} weight="bold">
+                            <Text maw={400} fw="bold">
                                 Contact support with the following information:
                             </Text>
                             <Prism ta="left" language="yaml" pr="lg">
@@ -69,7 +69,7 @@ const ErrorState: FC<{
 
     return (
         <SuboptimalState
-            sx={{ marginTop: hasMarginTop ? '20px' : undefined }}
+            mt={hasMarginTop ? '20px' : undefined}
             {...props}
         />
     );

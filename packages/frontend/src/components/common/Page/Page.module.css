@@ -1,0 +1,84 @@
+.root {
+    overflow-y: auto;
+}
+
+.rootFullHeight {
+    overflow-y: initial;
+}
+
+.rootWithSidebar {
+    display: flex;
+    flex-direction: row;
+}
+
+.rootResizing {
+    user-select: none;
+}
+
+.rootCentered {
+    display: flex;
+    justify-content: center;
+}
+
+.content {
+    width: 100%;
+    min-width: 992px;
+    padding-top: var(--mantine-spacing-lg);
+    padding-bottom: var(--mantine-spacing-lg);
+}
+
+.contentFlex {
+    display: flex;
+}
+
+.contentNoPadding {
+    padding: 0;
+}
+
+.contentWithSidebar {
+    min-width: 600px;
+}
+
+.contentFullHeight {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+.contentFit {
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.contentLarge {
+    max-width: 1400px;
+}
+
+.contentPadded {
+    padding-left: var(--mantine-spacing-lg);
+    padding-right: var(--mantine-spacing-lg);
+}
+
+.contentXLargePadded {
+    padding: var(--mantine-spacing-xxl);
+}
+
+.contentCentered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.contentWithBorder {
+    border-left: 1px solid var(--mantine-color-gray-3);
+}
+
+.fixedContainer {
+    margin-left: auto;
+    margin-right: auto;
+    width: 992px;
+    flex-shrink: 0;
+}

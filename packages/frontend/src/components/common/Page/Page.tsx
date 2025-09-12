@@ -1,6 +1,7 @@
 import { ProjectType } from '@lightdash/common';
-import { Box, createStyles } from '@mantine/core';
-import { useDisclosure, useElementSize } from '@mantine/hooks';
+import { Box } from '@mantine-8/core';
+import { useDisclosure, useElementSize } from '@mantine-8/hooks';
+import clsx from 'clsx';
 import { type FC } from 'react';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
@@ -19,6 +20,7 @@ import {
     PAGE_HEADER_HEIGHT,
     PAGE_MIN_CONTENT_WIDTH,
 } from './constants';
+import classes from './Page.module.css';
 import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type StyleProps = {
@@ -45,147 +47,19 @@ type StyleProps = {
     backgroundColor?: string;
 };
 
-const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
+const getContainerHeight = (withNavbar: boolean, withHeader: boolean, hasBanner: boolean) => {
     let containerHeight = '100vh';
-
-    if (params.withNavbar) {
+    if (withNavbar) {
         containerHeight = `calc(${containerHeight} - ${NAVBAR_HEIGHT}px)`;
     }
-    if (params.withHeader) {
+    if (withHeader) {
         containerHeight = `calc(${containerHeight} - ${PAGE_HEADER_HEIGHT}px)`;
     }
-    if (params.hasBanner) {
+    if (hasBanner) {
         containerHeight = `calc(${containerHeight} - ${BANNER_HEIGHT}px)`;
     }
-    return {
-        root: {
-            ...(params.withFullHeight
-                ? {
-                      height: containerHeight,
-                      maxHeight: containerHeight,
-                  }
-                : {
-                      height: containerHeight,
-
-                      overflowY: 'auto',
-                  }),
-
-            ...(params.withSidebar || params.withRightSidebar
-                ? {
-                      display: 'flex',
-                      flexDirection: 'row',
-                  }
-                : {}),
-
-            ...(params.isSidebarResizing
-                ? {
-                      userSelect: 'none',
-                  }
-                : {}),
-
-            ...(params.withCenteredRoot
-                ? {
-                      display: 'flex',
-                      justifyContent: 'center',
-                  }
-                : {}),
-
-            ...(params.backgroundColor
-                ? {
-                      backgroundColor: params.backgroundColor,
-                  }
-                : {}),
-        },
-
-        content: {
-            width: '100%',
-            minWidth: PAGE_CONTENT_WIDTH,
-
-            ...(params.flexContent ? { display: 'flex' } : {}),
-            ...(params.noContentPadding
-                ? {
-                      padding: 0,
-                  }
-                : {
-                      paddingTop: theme.spacing.lg,
-                      paddingBottom: theme.spacing.lg,
-                  }),
-
-            ...(params.withSidebar || params.withRightSidebar
-                ? {
-                      minWidth: PAGE_MIN_CONTENT_WIDTH,
-                  }
-                : {}),
-
-            ...(params.withFooter
-                ? {
-                      minHeight: `calc(100% - ${FOOTER_HEIGHT}px - ${theme.spacing[FOOTER_MARGIN]} - 1px)`,
-                  }
-                : {}),
-
-            ...(params.withFullHeight
-                ? {
-                      display: 'flex',
-                      flexDirection: 'column',
-
-                      height: '100%',
-                      maxHeight: '100%',
-
-                      overflowY: 'auto',
-                  }
-                : {}),
-
-            ...(params.withFitContent
-                ? {
-                      width: 'fit-content',
-                      marginLeft: 'auto',
-                      marginRight: 'auto',
-                  }
-                : {}),
-
-            ...(params.withLargeContent
-                ? {
-                      maxWidth: PAGE_CONTENT_MAX_WIDTH_LARGE,
-                  }
-                : {}),
-
-            ...(params.withPaddedContent
-                ? {
-                      paddingLeft: theme.spacing.lg,
-                      paddingRight: theme.spacing.lg,
-                  }
-                : {}),
-
-            ...(params.withXLargePaddedContent
-                ? {
-                      padding: theme.spacing.xxl,
-                  }
-                : {}),
-
-            ...(params.withCenteredContent
-                ? {
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                  }
-                : {}),
-
-            ...(params.withSidebarBorder
-                ? {
-                      borderLeft: `1px solid ${theme.colors.gray[3]}`,
-                  }
-                : {}),
-        },
-
-        fixedContainer: {
-            marginLeft: 'auto',
-            marginRight: 'auto',
-
-            width: PAGE_CONTENT_WIDTH,
-            flexShrink: 0,
-        },
-    };
-});
+    return containerHeight;
+};
 
 type Props = {
     title?: string;
@@ -239,31 +113,43 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             project.type === ProjectType.PREVIEW,
     );
 
-    const { classes } = usePageStyles(
-        {
-            withCenteredContent,
-            withCenteredRoot,
-            withFitContent,
-            withFixedContent,
-            withLargeContent,
-            withXLargePaddedContent,
-            withFooter,
-            withFullHeight,
-            withHeader: !!header,
-            withNavbar,
-            withPaddedContent,
-            withSidebar: !!sidebar,
-            withSidebarFooter,
-            withSidebarBorder,
-            withRightSidebar: !!rightSidebar,
-            hasBanner: isCurrentProjectPreview,
-            noContentPadding,
-            flexContent,
-            isSidebarResizing,
-            backgroundColor,
-        },
-        { name: 'Page' },
+    const containerHeight = getContainerHeight(
+        withNavbar,
+        !!header,
+        isCurrentProjectPreview
     );
+
+    const rootClassName = clsx(
+        classes.root,
+        withFullHeight ? classes.rootFullHeight : null,
+        (sidebar || rightSidebar) ? classes.rootWithSidebar : null,
+        isSidebarResizing ? classes.rootResizing : null,
+        withCenteredRoot ? classes.rootCentered : null
+    );
+
+    const contentClassName = clsx(
+        classes.content,
+        flexContent ? classes.contentFlex : null,
+        noContentPadding ? classes.contentNoPadding : null,
+        (sidebar || rightSidebar) ? classes.contentWithSidebar : null,
+        withFullHeight ? classes.contentFullHeight : null,
+        withFitContent ? classes.contentFit : null,
+        withLargeContent ? classes.contentLarge : null,
+        withPaddedContent ? classes.contentPadded : null,
+        withXLargePaddedContent ? classes.contentXLargePadded : null,
+        withCenteredContent ? classes.contentCentered : null,
+        withSidebarBorder ? classes.contentWithBorder : null
+    );
+
+    const rootStyle = {
+        height: containerHeight,
+        maxHeight: withFullHeight ? containerHeight : undefined,
+        backgroundColor: backgroundColor || undefined
+    };
+
+    const contentStyle = withFooter ? {
+        minHeight: `calc(100% - ${FOOTER_HEIGHT}px - var(--mantine-spacing-${FOOTER_MARGIN}) - 1px)`
+    } : {};
 
     return (
         <>
@@ -271,7 +157,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
             {header}
 
-            <Box id="page-root" className={classes.root}>
+            <Box id="page-root" className={rootClassName} style={rootStyle}>
                 {sidebar ? (
                     <Sidebar
                         noSidebarPadding={noSidebarPadding}
@@ -286,7 +172,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </Sidebar>
                 ) : null}
 
-                <main className={classes.content} ref={mainRef}>
+                <main className={contentClassName} style={contentStyle} ref={mainRef}>
                     <TrackSection name={SectionName.PAGE_CONTENT}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {withFixedContent ? (
