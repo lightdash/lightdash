@@ -6065,42 +6065,52 @@
                 ],
                 "type": "object"
             },
+            "Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactUuid": {
+                        "type": "string"
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    }
+                },
+                "required": [
+                    "description",
+                    "artifactUuid",
+                    "versionNumber",
+                    "versionUuid",
+                    "title",
+                    "artifactType"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentMessageAssistantArtifact": {
+                "$ref": "#/components/schemas/Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
-                    "artifact": {
-                        "properties": {
-                            "artifactType": {
-                                "type": "string",
-                                "enum": ["chart", "dashboard"]
-                            },
-                            "description": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "title": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "versionUuid": {
-                                "type": "string"
-                            },
-                            "versionNumber": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
+                    "artifacts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
                         },
-                        "required": [
-                            "artifactType",
-                            "description",
-                            "title",
-                            "versionUuid",
-                            "versionNumber",
-                            "uuid"
-                        ],
-                        "type": "object",
+                        "type": "array",
                         "nullable": true
                     },
                     "savedQueryUuid": {
@@ -6138,7 +6148,7 @@
                     }
                 },
                 "required": [
-                    "artifact",
+                    "artifacts",
                     "savedQueryUuid",
                     "toolCalls",
                     "humanScore",
@@ -6349,25 +6359,6 @@
                     "artifactUuid": {
                         "type": "string"
                     },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "artifactType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
-                    },
-                    "savedQueryUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedDashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "versionNumber": {
                         "type": "number",
                         "format": "double"
@@ -6376,6 +6367,25 @@
                         "type": "string"
                     },
                     "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedQueryUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedDashboardUuid": {
                         "type": "string",
                         "nullable": true
                     },
@@ -6388,14 +6398,14 @@
                     "description",
                     "createdAt",
                     "artifactUuid",
-                    "threadUuid",
-                    "promptUuid",
-                    "artifactType",
-                    "savedQueryUuid",
-                    "savedDashboardUuid",
                     "versionNumber",
                     "versionUuid",
                     "title",
+                    "artifactType",
+                    "threadUuid",
+                    "promptUuid",
+                    "savedQueryUuid",
+                    "savedDashboardUuid",
                     "versionCreatedAt"
                 ],
                 "type": "object",
@@ -19283,7 +19293,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2005.0",
+        "version": "0.2006.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

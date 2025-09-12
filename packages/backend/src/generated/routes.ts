@@ -5359,53 +5359,65 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    artifactUuid: { dataType: 'string', required: true },
+                    versionNumber: { dataType: 'double', required: true },
+                    versionUuid: { dataType: 'string', required: true },
+                    title: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    artifactType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['chart'] },
+                            { dataType: 'enum', enums: ['dashboard'] },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentMessageAssistantArtifact: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentMessageAssistant: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                artifact: {
+                artifacts: {
                     dataType: 'union',
                     subSchemas: [
                         {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                artifactType: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'enum', enums: ['chart'] },
-                                        {
-                                            dataType: 'enum',
-                                            enums: ['dashboard'],
-                                        },
-                                    ],
-                                    required: true,
-                                },
-                                description: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                    required: true,
-                                },
-                                title: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                    required: true,
-                                },
-                                versionUuid: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                versionNumber: {
-                                    dataType: 'double',
-                                    required: true,
-                                },
-                                uuid: { dataType: 'string', required: true },
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'AiAgentMessageAssistantArtifact',
                             },
                         },
                         { dataType: 'enum', enums: [null] },
@@ -5667,8 +5679,9 @@ const models: TsoaRoute.Models = {
                     },
                     createdAt: { dataType: 'datetime', required: true },
                     artifactUuid: { dataType: 'string', required: true },
-                    threadUuid: { dataType: 'string', required: true },
-                    promptUuid: {
+                    versionNumber: { dataType: 'double', required: true },
+                    versionUuid: { dataType: 'string', required: true },
+                    title: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
@@ -5684,6 +5697,15 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    threadUuid: { dataType: 'string', required: true },
+                    promptUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     savedQueryUuid: {
                         dataType: 'union',
                         subSchemas: [
@@ -5693,16 +5715,6 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     savedDashboardUuid: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    versionNumber: { dataType: 'double', required: true },
-                    versionUuid: { dataType: 'string', required: true },
-                    title: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
