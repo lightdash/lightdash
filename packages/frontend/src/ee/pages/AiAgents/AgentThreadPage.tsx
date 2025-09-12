@@ -75,6 +75,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 loading={isCreatingMessage || isStreaming}
                 onSubmit={handleSubmit}
                 placeholder={`Ask ${agent.name} anything about your data...`}
+                messageCount={thread.messages?.length || 0}
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
             />
         </AgentChatDisplay>
     );
