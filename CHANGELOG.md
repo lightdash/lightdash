@@ -1,3 +1,10 @@
+# [0.2001.0](https://github.com/lightdash/lightdash/compare/0.2000.3...0.2001.0) (2025-09-12)
+
+
+### Features
+
+* emit embed filter changes ([#16836](https://github.com/lightdash/lightdash/issues/16836)) ([1051069](https://github.com/lightdash/lightdash/commit/10510692371b4e836c9be36aa82498a721a36391))
+
 ## [0.2000.3](https://github.com/lightdash/lightdash/compare/0.2000.2...0.2000.3) (2025-09-12)
 
 
