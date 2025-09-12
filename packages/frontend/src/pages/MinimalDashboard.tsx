@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     isDashboardScheduler,
+    SessionStorageKeys,
 } from '@lightdash/common';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -35,9 +36,11 @@ const MinimalDashboard: FC = () => {
     }>();
 
     const schedulerUuid = useSearchParams('schedulerUuid');
-    const sendNowSchedulerFilters = useSearchParams('sendNowSchedulerFilters');
-    const sendNowSchedulerParameters = useSearchParams(
-        'sendNowSchedulerParameters',
+    const sendNowSchedulerFilters = sessionStorage.getItem(
+        SessionStorageKeys.SEND_NOW_SCHEDULER_FILTERS,
+    );
+    const sendNowSchedulerParameters = sessionStorage.getItem(
+        SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS,
     );
     const schedulerTabs = useSearchParams('selectedTabs');
     const dateZoom = useDateZoomGranularitySearch();
