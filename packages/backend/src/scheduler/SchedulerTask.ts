@@ -226,8 +226,6 @@ export default class SchedulerTask {
         chartUuid: string | null,
         dashboardUuid: string | null,
         schedulerUuid: string | undefined,
-        sendNowSchedulerFilters: DashboardFilterRule[] | undefined,
-        sendNowSchedulerParameters: ParametersValuesMap | undefined,
         context: DownloadCsv['properties']['context'],
         selectedTabs: string[] | null,
     ) {
@@ -257,16 +255,6 @@ export default class SchedulerTask {
 
             const queryParams = new URLSearchParams();
             if (schedulerUuid) queryParams.set('schedulerUuid', schedulerUuid);
-            if (sendNowSchedulerFilters)
-                queryParams.set(
-                    'sendNowSchedulerFilters',
-                    JSON.stringify(sendNowSchedulerFilters),
-                );
-            if (sendNowSchedulerParameters)
-                queryParams.set(
-                    'sendNowSchedulerParameters',
-                    JSON.stringify(sendNowSchedulerParameters),
-                );
             if (selectedTabs)
                 queryParams.set('selectedTabs', JSON.stringify(selectedTabs));
             if (context) queryParams.set('context', context);
@@ -347,8 +335,6 @@ export default class SchedulerTask {
             savedChartUuid,
             dashboardUuid,
             schedulerUuid,
-            sendNowSchedulerFilters,
-            sendNowSchedulerParameters,
             context,
             selectedTabs,
         );
@@ -383,6 +369,8 @@ export default class SchedulerTask {
                         context: ScreenshotContext.SCHEDULED_DELIVERY,
                         contextId: jobId,
                         selectedTabs,
+                        sendNowSchedulerFilters,
+                        sendNowSchedulerParameters,
                     });
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');

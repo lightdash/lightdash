@@ -16,10 +16,13 @@ import {
     QueryHistoryStatus,
     RequestMethod,
     ScreenshotError,
+    SessionStorageKeys,
     SessionUser,
     SlackInstallationNotFoundError,
     snakeCaseName,
     validateSelectedTabs,
+    type DashboardFilterRule,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -438,6 +441,8 @@ export class UnfurlService extends BaseService {
         context,
         contextId,
         selectedTabs,
+        sendNowSchedulerFilters,
+        sendNowSchedulerParameters,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -449,6 +454,8 @@ export class UnfurlService extends BaseService {
         context: ScreenshotContext;
         contextId?: unknown;
         selectedTabs: string[] | null;
+        sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
+        sendNowSchedulerParameters?: ParametersValuesMap | undefined;
     }): Promise<{
         imageUrl?: string;
         pdfFile?: { source: string; fileName: string };
@@ -473,6 +480,8 @@ export class UnfurlService extends BaseService {
             context,
             contextId,
             selectedTabs,
+            sendNowSchedulerFilters,
+            sendNowSchedulerParameters,
         });
 
         let imageUrl;
@@ -619,6 +628,8 @@ export class UnfurlService extends BaseService {
         context,
         contextId,
         selectedTabs,
+        sendNowSchedulerFilters,
+        sendNowSchedulerParameters,
     }: {
         imageId: string;
         cookie: string;
@@ -637,6 +648,8 @@ export class UnfurlService extends BaseService {
         context: ScreenshotContext;
         contextId?: unknown;
         selectedTabs: string[] | null;
+        sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
+        sendNowSchedulerParameters?: ParametersValuesMap | undefined;
     }): Promise<Buffer | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
@@ -725,6 +738,29 @@ export class UnfurlService extends BaseService {
                                 : 'undefined',
                         },
                     });
+
+                    // Add sendNowSchedulerFilters and sendNowSchedulerParameters to the page session storage
+                    await page.addInitScript(
+                        (storage) => {
+                            for (const [key, value] of Object.entries(
+                                storage,
+                            )) {
+                                if (value) {
+                                    window.sessionStorage.setItem(
+                                        key,
+                                        JSON.stringify(value),
+                                    );
+                                }
+                            }
+                        },
+                        {
+                            [SessionStorageKeys.SEND_NOW_SCHEDULER_FILTERS]:
+                                sendNowSchedulerFilters,
+                            [SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS]:
+                                sendNowSchedulerParameters,
+                        },
+                    );
+
                     const parsedUrl = new URL(url);
 
                     const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
@@ -1081,6 +1117,8 @@ export class UnfurlService extends BaseService {
                             context,
                             contextId,
                             selectedTabs,
+                            sendNowSchedulerFilters,
+                            sendNowSchedulerParameters,
                         });
                     }
 
