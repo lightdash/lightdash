@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Group, Stack, Text, Title } from '@mantine/core';
+import { Group, Stack, Text, Title } from '@mantine-8/core';
 import { type FC } from 'react';
 
 import { Can } from '../../../providers/Ability';
@@ -15,13 +15,13 @@ interface Props {
 const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
     const { user } = useApp();
     return (
-        <Group position="apart" my="xl">
-            <Stack justify="flex-start" spacing="xs">
+        <Group justify="space-between" my="xl">
+            <Stack justify="flex-start" gap="xs">
                 <Title order={3}>
                     {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
                     ⚡️
                 </Title>
-                <Text color="gray.7">
+                <Text c="gray.7">
                     Run a query to ask a business question or browse your data
                     below:
                 </Text>

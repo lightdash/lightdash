@@ -1,4 +1,4 @@
-import { Card, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { Card, Group, Paper, Stack, Text, Title } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import Step1 from '../../../svgs/onboarding1.svg';
 import Step2 from '../../../svgs/onboarding2.svg';
@@ -31,16 +31,16 @@ const onboardingSteps = [
 
 const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
     return (
-        <Stack justify="flex-start" spacing="xs" mt="4xl">
+        <Stack justify="flex-start" gap="xs" mt="4xl">
             <Title order={3}>
                 {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
             </Title>
-            <Text color="gray.7">
+            <Text c="gray.7">
                 You&apos;re ready to start exploring. Here&apos;s what you can
                 do with Lightdash:
             </Text>
             <Paper withBorder p="xl" mt="lg">
-                <Group position="center">
+                <Group justify="center">
                     {onboardingSteps.map((step) => (
                         <Card key={step.title} mx="xl">
                             <Card.Section mx="lg" p="md">
@@ -49,7 +49,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                             <Title order={5} fw={500} ta="center">
                                 {step.title}
                             </Title>
-                            <Text size="sm" color="gray.6" ta="center">
+                            <Text size="sm" c="gray.6" ta="center">
                                 {step.description}
                             </Text>
                         </Card>

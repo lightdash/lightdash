@@ -1,8 +1,9 @@
 import {
+    parseThemeColor,
     useMantineTheme,
     type MantineColor,
-    type MantineNumberSize,
-} from '@mantine/core';
+    type MantineSize,
+} from '@mantine-8/core';
 import {
     type Icon as TablerIconType,
     type TablerIconsProps,
@@ -11,8 +12,8 @@ import { forwardRef } from 'react';
 
 export interface MantineIconProps extends Omit<TablerIconsProps, 'ref'> {
     icon: TablerIconType;
-    size?: MantineNumberSize;
-    stroke?: MantineNumberSize;
+    size?: MantineSize | number | string;
+    stroke?: number;
     color?: MantineColor;
     fill?: MantineColor;
 }
@@ -21,11 +22,24 @@ const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
     ({ icon: TablerIcon, size = 'md', stroke, color, fill, ...rest }, ref) => {
         const theme = useMantineTheme();
 
+        const getSize = () => {
+            if (typeof size === 'number') return size;
+            const sizeMap: Record<string, number> = {
+                xs: 12,
+                sm: 14,
+                md: 18,
+                lg: 26,
+                xl: 32,
+                xxl: 40,
+            };
+            return sizeMap[size as string] || 18;
+        };
+
         const mantineOverridedProps: TablerIconsProps = {
-            size: typeof size === 'string' ? theme.spacing[size] : size,
-            stroke: typeof stroke === 'string' ? theme.spacing[stroke] : stroke,
-            color: color ? theme.fn.themeColor(color, undefined, false) : color,
-            fill: fill ? theme.fn.themeColor(fill, undefined, false) : 'none',
+            size: getSize(),
+            stroke: stroke || undefined,
+            color: color ? parseThemeColor({ color, theme }).value : undefined,
+            fill: fill ? parseThemeColor({ color: fill, theme }).value : 'none',
             display: 'block',
         };
 

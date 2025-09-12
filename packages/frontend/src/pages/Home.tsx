@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
 import { useUnmount } from 'react-use';
@@ -65,7 +65,7 @@ const Home: FC = () => {
 
     return (
         <Page withFixedContent withPaddedContent withFooter>
-            <Stack spacing="xl">
+            <Stack gap="xl">
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel
                         projectUuid={project.data.projectUuid}

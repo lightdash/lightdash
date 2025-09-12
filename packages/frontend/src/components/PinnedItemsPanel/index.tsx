@@ -1,5 +1,5 @@
 import { ResourceViewItemType, type PinnedItems } from '@lightdash/common';
-import { Card, Group, Text } from '@mantine/core';
+import { Card, Group, Text } from '@mantine-8/core';
 import { IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
 import usePinnedItemsContext from '../../providers/PinnedItems/usePinnedItemsContext';
@@ -42,22 +42,20 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
         // FIXME: update width with Mantine widths
         <Card
             withBorder
-            sx={(theme) => ({
-                backgroundColor: theme.colors.gray[1],
-            })}
+            bg="gray.1"
         >
-            <Group position="apart">
-                <Group position="center" spacing="xxs" my="xs" ml="xs">
+            <Group justify="space-between">
+                <Group justify="center" gap="xxs" my="xs" ml="xs">
                     <MantineIcon
                         icon={IconPin}
                         size="lg"
                         color="gray.7"
                         fill="gray.1"
                     />
-                    <Text fw={600} color="gray.7">
+                    <Text fw={600} c="gray.7">
                         No Pinned items.
                     </Text>
-                    <Text color="gray.7">
+                    <Text c="gray.7">
                         Pin items to the top of the homepage to guide users to
                         relevant content!
                     </Text>
@@ -66,7 +64,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     href="https://docs.lightdash.com/guides/pinning/"
                     target="_blank"
                     variant="subtle"
-                    compact
+                    size="compact-sm"
                     color="gray.6"
                 >
                     View docs
