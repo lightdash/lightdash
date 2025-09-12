@@ -1,0 +1,114 @@
+@import '../variables.css';
+
+.eventsPanel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-white);
+    border-radius: var(--radius-base);
+    border: 1px solid var(--color-border);
+    min-width: 400px;
+}
+
+.eventsHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.eventsHeader h3 {
+    margin: 0;
+    color: var(--color-text);
+}
+
+.eventsControls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.eventFilter {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--color-border-input);
+    border-radius: var(--radius-base);
+    font-size: var(--font-size-xs);
+}
+
+.clearButton {
+    background: var(--color-danger);
+    color: var(--color-white);
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-base);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+}
+
+.clearButton:hover {
+    background: var(--color-danger-hover);
+}
+
+.eventsLog {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+.noEvents {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-text-placeholder);
+    font-style: italic;
+}
+
+.eventEntry {
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-base);
+    background: var(--color-gray-light);
+}
+
+.eventHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background: var(--color-gray-lighter);
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.eventType {
+    font-family: 'Courier New', monospace;
+    font-size: var(--font-size-sm);
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.eventTime {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.eventPayload {
+    padding: var(--spacing-sm);
+}
+
+.eventPayload pre {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    background: var(--color-white);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-base);
+    padding: var(--spacing-sm);
+    overflow-x: auto;
+}
+
+@media (max-width: 1024px) {
+    .eventsPanel {
+        min-width: auto;
+        height: 300px;
+    }
+}

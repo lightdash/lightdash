@@ -20,11 +20,19 @@ import {
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import min from 'lodash/min';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
 import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
 import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
+import { LightdashEventType } from '../../ee/features/embed/events/types';
+import { useEmbedEventEmitter } from '../../ee/features/embed/hooks/useEmbedEventEmitter';
 import {
     useGetComments,
     type useDashboardCommentsCheck,
@@ -147,6 +155,10 @@ const DashboardProvider: React.FC<
     const [invalidateCache, setInvalidateCache] = useState<boolean>(
         defaultInvalidateCache === true,
     );
+
+    // Event system for filter change tracking
+    const { dispatchEmbedEvent } = useEmbedEventEmitter();
+    const previousFiltersRef = useRef<DashboardFilters | null>(null);
 
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
 
@@ -652,6 +664,30 @@ const DashboardProvider: React.FC<
             ],
         };
     }, [dashboardFilters, dashboardTemporaryFilters]);
+
+    // Watch for filter changes and emit events (skip initial render)
+    useEffect(() => {
+        const previousFilters = previousFiltersRef.current;
+        const hasPreviousFilters =
+            previousFilters &&
+            previousFilters.dimensions.length +
+                previousFilters.metrics.length +
+                previousFilters.tableCalculations.length;
+
+        if (hasPreviousFilters && !isEqual(previousFilters, allFilters)) {
+            const filterCount =
+                allFilters.dimensions.length +
+                allFilters.metrics.length +
+                allFilters.tableCalculations.length;
+
+            dispatchEmbedEvent(LightdashEventType.FilterChanged, {
+                hasFilters: filterCount > 0,
+                filterCount,
+            });
+        }
+
+        previousFiltersRef.current = allFilters;
+    }, [allFilters, dispatchEmbedEvent]);
 
     // Resets all dashboard filters. There's a bit of a race condition
     // here because we store filters in memory in two places:

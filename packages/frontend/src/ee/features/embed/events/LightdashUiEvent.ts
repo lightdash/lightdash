@@ -98,9 +98,9 @@ export class LightdashUiEvent {
      * @param eventType - The type of event to dispatch
      * @param payload - The event payload (will be sanitized)
      */
-    dispatch<T extends Exact<LightdashEventPayload, T>>(
+    dispatch<T extends Exact<LightdashEventPayload, T> | undefined>(
         eventType: LightdashEventType,
-        payload: T,
+        payload?: T,
     ): void {
         if (!this.config.enabled) {
             return;
@@ -173,7 +173,7 @@ export class LightdashUiEvent {
      */
     private sendSecurePostMessage(
         eventName: string,
-        payload: LightdashEventPayload,
+        payload?: LightdashEventPayload,
     ): void {
         if (!this.targetOrigin) {
             captureException(new Error('No target origin configured'), {
@@ -195,7 +195,9 @@ export class LightdashUiEvent {
             // Validate origin is a proper URL
             new URL(this.targetOrigin);
 
-            const message: LightdashEmbedEvent<LightdashEventPayload> = {
+            const message: LightdashEmbedEvent<
+                LightdashEventPayload | undefined
+            > = {
                 type: eventName,
                 payload,
                 timestamp: Date.now(),
