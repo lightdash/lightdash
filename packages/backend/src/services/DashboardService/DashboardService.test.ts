@@ -19,6 +19,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -83,6 +84,7 @@ describe('DashboardService', () => {
         pinnedListModel: {} as PinnedListModel,
         schedulerModel: {} as SchedulerModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedChartService: {} as SavedChartService, // Mock for test
         projectModel: {} as ProjectModel,
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
