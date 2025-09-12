@@ -135,7 +135,7 @@ export const getAxisTypeFromField = (
             case TableCalculationType.TIMESTAMP:
                 // Use categorical axis for weeks only. Echarts handles the
                 // other time frames well with a time axis
-                // Reference lines can only be used on time/value axes
+                // For week intervals, only switch to time axis if there's a reference line on this specific axis
                 if (
                     'timeInterval' in item &&
                     item.timeInterval === TimeFrames.WEEK &&
@@ -169,30 +169,47 @@ const getAxisType = ({
     rightAxisYId,
     leftAxisYId,
 }: GetAxisTypeArg) => {
-    const hasReferenceLine = (axisId: string | undefined) => {
+    const hasReferenceLine = (
+        axisId: string | undefined,
+        isXAxis: boolean = false,
+    ) => {
         if (axisId === undefined) return false;
-        return validCartesianConfig.eChartsConfig.series?.some(
-            (serie) =>
-                serie.markLine !== undefined &&
-                (serie.encode.xRef.field === axisId ||
-                    serie.encode.yRef.field === axisId),
-        );
+        return validCartesianConfig.eChartsConfig.series?.some((serie) => {
+            if (
+                serie.markLine === undefined ||
+                serie.markLine.data === undefined ||
+                serie.markLine.data.length === 0
+            ) {
+                return false;
+            }
+
+            // Check if any reference line data affects the specified axis
+            return serie.markLine.data.some((markData) => {
+                if (isXAxis) {
+                    // X-axis reference lines are vertical lines (have xAxis value)
+                    return markData.xAxis !== undefined;
+                } else {
+                    // Y-axis reference lines are horizontal lines (have yAxis value)
+                    return markData.yAxis !== undefined;
+                }
+            });
+        });
     };
     const topAxisType = getAxisTypeFromField(
         topAxisXId ? itemsMap[topAxisXId] : undefined,
-        hasReferenceLine(topAxisXId),
+        hasReferenceLine(topAxisXId, true), // X-axis reference lines
     );
     const bottomAxisType =
         bottomAxisXId === EMPTY_X_AXIS
             ? 'category'
             : getAxisTypeFromField(
                   bottomAxisXId ? itemsMap[bottomAxisXId] : undefined,
-                  hasReferenceLine(bottomAxisXId),
+                  hasReferenceLine(bottomAxisXId, true), // X-axis reference lines
               );
     // horizontal bar chart needs the type 'category' in the left/right axis
     const defaultRightAxisType = getAxisTypeFromField(
         rightAxisYId ? itemsMap[rightAxisYId] : undefined,
-        hasReferenceLine(rightAxisYId),
+        hasReferenceLine(rightAxisYId, false), // Y-axis reference lines
     );
     const rightAxisType =
         validCartesianConfig.layout.flipAxes &&
@@ -206,7 +223,7 @@ const getAxisType = ({
             : defaultRightAxisType;
     const defaultLeftAxisType = getAxisTypeFromField(
         leftAxisYId ? itemsMap[leftAxisYId] : undefined,
-        hasReferenceLine(leftAxisYId),
+        hasReferenceLine(leftAxisYId, false), // Y-axis reference lines
     );
     const leftAxisType =
         validCartesianConfig.layout.flipAxes &&
@@ -990,11 +1007,13 @@ const getWeekAxisConfig = (
     axisId?: string,
     axisField?: Field | TableCalculation | CustomDimension,
     rows?: ResultRow[],
+    axisType?: string,
 ) => {
     if (!axisId || !rows || !axisField) return {};
     if (
         'timeInterval' in axisField &&
-        axisField.timeInterval === TimeFrames.WEEK
+        axisField.timeInterval === TimeFrames.WEEK &&
+        axisType === 'category' // Only apply week config for category axes
     ) {
         const [minX, maxX] = getMinAndMaxValues([axisId], rows || []);
         const continuousWeekRange = [];
@@ -1295,21 +1314,25 @@ const getEchartAxes = ({
         bottomAxisXId,
         bottomAxisXField,
         resultsData?.rows,
+        bottomAxisType,
     );
     const topAxisExtraConfig = getWeekAxisConfig(
         topAxisXId,
         topAxisXField,
         resultsData?.rows,
+        topAxisType,
     );
     const rightAxisExtraConfig = getWeekAxisConfig(
         rightAxisYId,
         rightAxisYField,
         resultsData?.rows,
+        rightAxisType,
     );
     const leftAxisExtraConfig = getWeekAxisConfig(
         leftAxisYId,
         leftAxisYField,
         resultsData?.rows,
+        leftAxisType,
     );
 
     const bottomAxisOffset = {
