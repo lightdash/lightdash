@@ -1,3 +1,10 @@
+## [0.2000.1](https://github.com/lightdash/lightdash/compare/0.2000.0...0.2000.1) (2025-09-12)
+
+
+### Bug Fixes
+
+* additional_dimensions in meta config ([#16857](https://github.com/lightdash/lightdash/issues/16857)) ([5e65599](https://github.com/lightdash/lightdash/commit/5e65599b8fe47da9f0b73134b213a15ef036dfd1))
+
 # [0.2000.0](https://github.com/lightdash/lightdash/compare/0.1999.0...0.2000.0) (2025-09-12)
 
 
