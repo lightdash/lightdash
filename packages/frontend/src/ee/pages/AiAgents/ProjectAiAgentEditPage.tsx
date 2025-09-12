@@ -13,11 +13,13 @@ import {
     Box,
     Button,
     Card,
+    Center,
     Code,
     Collapse,
     Container,
     Group,
     HoverCard,
+    Loader,
     LoadingOverlay,
     MultiSelect,
     Paper,
@@ -48,7 +50,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -60,7 +62,6 @@ import { useProject } from '../../../hooks/useProject';
 import { useProjectUsersWithRoles } from '../../../hooks/useProjectUsersWithRoles';
 import useApp from '../../../providers/App/useApp';
 import { AiAgentEditPageLayout } from '../../features/aiCopilot/components/AiAgentEditPageLayout/AiAgentEditPageLayout';
-import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import {
     InstructionsGuidelines,
     InstructionsTemplates,
@@ -479,7 +480,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             }
         >
             <Stack gap="xs">
-                <Tabs defaultValue="setup">
+                <Tabs defaultValue="setup" keepMounted={false}>
                     {!isCreateMode && (
                         <Tabs.List>
                             <Tabs.Tab value="setup">Setup</Tabs.Tab>
@@ -1139,10 +1140,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     </Tabs.Panel>
 
                     <Tabs.Panel value="conversations" pt="lg">
-                        <ConversationsList
-                            agentUuid={actualAgentUuid!}
-                            allUsers={canManageAgents}
-                        />
+                        {/* TODO when admin page supports query string we should pass current agent uuid */}
+                        <Navigate to={`/ai-agents/admin`} />
+                        <Center h="100%">
+                            <Loader />
+                        </Center>
                     </Tabs.Panel>
                 </Tabs>
 
