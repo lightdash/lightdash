@@ -1,3 +1,10 @@
+## [0.2001.1](https://github.com/lightdash/lightdash/compare/0.2001.0...0.2001.1) (2025-09-12)
+
+
+### Bug Fixes
+
+* add discovery endpoints to SCIM ([#16862](https://github.com/lightdash/lightdash/issues/16862)) ([36c907c](https://github.com/lightdash/lightdash/commit/36c907c10d29dcc5a0fe41dde4ee6bfe88dbe339))
+
 # [0.2001.0](https://github.com/lightdash/lightdash/compare/0.2000.3...0.2001.0) (2025-09-12)
 
 
