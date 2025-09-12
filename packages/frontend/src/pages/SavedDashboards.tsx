@@ -1,9 +1,10 @@
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Button, Group, Stack } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import LoadingState from '../components/common/LoadingState';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
@@ -52,8 +53,8 @@ const SavedDashboards = () => {
             withXLargePaddedContent
             withLargeContent
         >
-            <Stack spacing="xxl" w="100%">
-                <Group position="apart">
+            <Stack gap="xxl" w="100%">
+                <Group justify="space-between">
                     <PageBreadcrumbs
                         items={[
                             { title: 'Home', to: '/home' },
@@ -65,7 +66,9 @@ const SavedDashboards = () => {
                         userCanCreateDashboards &&
                         !isDemo && (
                             <Button
-                                leftIcon={<IconPlus size={18} />}
+                                leftSection={
+                                    <MantineIcon icon={IconPlus} size={18} />
+                                }
                                 onClick={handleCreateDashboard}
                                 disabled={hasNoSpaces}
                             >
