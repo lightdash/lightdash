@@ -1,3 +1,10 @@
+## [0.2000.3](https://github.com/lightdash/lightdash/compare/0.2000.2...0.2000.3) (2025-09-12)
+
+
+### Bug Fixes
+
+* reference line on week x axis grouping issue ([#16864](https://github.com/lightdash/lightdash/issues/16864)) ([58a5def](https://github.com/lightdash/lightdash/commit/58a5def087cf39af8c4b5ebff86a9161a71bcac2))
+
 ## [0.2000.2](https://github.com/lightdash/lightdash/compare/0.2000.1...0.2000.2) (2025-09-12)
 
 
