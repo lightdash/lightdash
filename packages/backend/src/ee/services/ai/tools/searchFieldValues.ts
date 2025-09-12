@@ -14,7 +14,7 @@ type Dependencies = {
 export const getSearchFieldValues = ({ searchFieldValues }: Dependencies) =>
     tool({
         description: toolSearchFieldValuesArgsSchema.description,
-        parameters: toolSearchFieldValuesArgsSchema,
+        inputSchema: toolSearchFieldValuesArgsSchema,
         execute: async (toolArgs) => {
             try {
                 const args =

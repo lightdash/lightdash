@@ -93,7 +93,7 @@ export const getFindCharts = ({
 }: Dependencies) =>
     tool({
         description: toolFindChartsArgsSchema.description,
-        parameters: toolFindChartsArgsSchema,
+        inputSchema: toolFindChartsArgsSchema,
         execute: async (args) => {
             try {
                 const chartSearchQueryResults = await Promise.all(

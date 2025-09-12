@@ -10,7 +10,7 @@ import {
     isUnion,
     SchemaCompatLayer,
 } from '@mastra/schema-compat';
-import { z, ZodDefault, ZodNullable, type ZodTypeAny } from 'zod';
+import { z, ZodDefault, ZodNullable, ZodType, type ZodTypeAny } from 'zod';
 
 const isNullable = (v: ZodTypeAny): v is ZodNullable<AnyType> =>
     v._def.typeName === 'ZodNullable';
@@ -34,7 +34,7 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
         return true;
     }
 
-    processZodType(value: ZodTypeAny): ZodTypeAny {
+    processZodType(value: AnyType): AnyType {
         // Handle nullable types (e.g., z.string().nullable()) map them to optional but default to null
         if (isNullable(value)) {
             let innerType = this.processZodType(value._def.innerType);

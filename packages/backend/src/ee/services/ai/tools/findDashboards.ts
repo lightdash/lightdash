@@ -110,7 +110,7 @@ export const getFindDashboards = ({
 }: Dependencies) =>
     tool({
         description: toolFindDashboardsArgsSchema.description,
-        parameters: toolFindDashboardsArgsSchema,
+        inputSchema: toolFindDashboardsArgsSchema,
         execute: async (args) => {
             try {
                 const dashboardSearchQueryResults = await Promise.all(

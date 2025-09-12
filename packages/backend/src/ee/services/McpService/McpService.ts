@@ -172,8 +172,21 @@ export class McpService extends BaseService {
         }
     }
 
+    static async streamToolResult(
+        result: string | AsyncIterable<string>,
+    ): Promise<string> {
+        if (typeof result === 'string') {
+            return result;
+        }
+
+        let out = '';
+        for await (const chunk of result) {
+            out += chunk;
+        }
+        return out;
+    }
+
     private getMcpCompatibleSchema(schema: z.ZodSchema<unknown>): ZodRawShape {
-        // @ts-expect-error - shape is not a property of ZodTypeAny
         return this.mcpCompatLayer.processZodType(schema).shape;
     }
 
@@ -237,16 +250,19 @@ export class McpService extends BaseService {
                     fieldSearchSize: 200,
                     fieldOverviewSearchSize: 5,
                 });
-                const result = await findExploresTool.execute(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                const result = await findExploresTool.execute!(
+                    argsWithProject,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
 
                 return {
                     content: [
                         {
                             type: 'text',
-                            text: result,
+                            text: await McpService.streamToolResult(result),
                         },
                     ],
                 };
@@ -285,7 +301,7 @@ export class McpService extends BaseService {
                     findFields,
                     pageSize: 15,
                 });
-                const result = await findFieldsTool.execute(argsWithProject, {
+                const result = await findFieldsTool.execute!(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -294,7 +310,7 @@ export class McpService extends BaseService {
                     content: [
                         {
                             type: 'text',
-                            text: result,
+                            text: await McpService.streamToolResult(result),
                         },
                     ],
                 };
@@ -334,7 +350,7 @@ export class McpService extends BaseService {
                     pageSize: 10,
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
-                const result = await findDashboardsTool.execute(
+                const result = await findDashboardsTool.execute!(
                     argsWithProject,
                     {
                         toolCallId: '',
@@ -346,7 +362,7 @@ export class McpService extends BaseService {
                     content: [
                         {
                             type: 'text',
-                            text: result,
+                            text: await McpService.streamToolResult(result),
                         },
                     ],
                 };
@@ -386,7 +402,7 @@ export class McpService extends BaseService {
                     pageSize: 10,
                     siteUrl: this.lightdashConfig.siteUrl,
                 });
-                const result = await findChartsTool.execute(argsWithProject, {
+                const result = await findChartsTool.execute!(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });
@@ -395,7 +411,7 @@ export class McpService extends BaseService {
                     content: [
                         {
                             type: 'text',
-                            text: result,
+                            text: await McpService.streamToolResult(result),
                         },
                     ],
                 };
@@ -612,7 +628,7 @@ export class McpService extends BaseService {
                     maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
 
-                const result = await runMetricQueryTool.execute(
+                const result = await runMetricQueryTool.execute!(
                     argsWithProject,
                     {
                         toolCallId: '',
@@ -624,7 +640,7 @@ export class McpService extends BaseService {
                     content: [
                         {
                             type: 'text',
-                            text: result,
+                            text: await McpService.streamToolResult(result),
                         },
                     ],
                 };
@@ -662,7 +678,7 @@ export class McpService extends BaseService {
                 const searchFieldValuesTool = getSearchFieldValues({
                     searchFieldValues,
                 });
-                const result = await searchFieldValuesTool.execute(
+                const result = await searchFieldValuesTool.execute!(
                     argsWithProject,
                     {
                         toolCallId: '',
@@ -674,7 +690,7 @@ export class McpService extends BaseService {
                     content: [
                         {
                             type: 'text',
-                            text: result,
+                            text: await McpService.streamToolResult(result),
                         },
                     ],
                 };

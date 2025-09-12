@@ -1,4 +1,4 @@
-import { CoreMessage, generateObject, LanguageModelV1 } from 'ai';
+import { generateObject, LanguageModel, ModelMessage } from 'ai';
 import { z } from 'zod';
 
 const TITLE_MAX_LENGTH_CHARS = 60;
@@ -16,8 +16,8 @@ const TitleSchema = z.object({
 export type GeneratedTitle = z.infer<typeof TitleSchema>;
 
 export async function generateThreadTitle(
-    model: LanguageModelV1,
-    messages: CoreMessage[],
+    model: LanguageModel,
+    messages: ModelMessage[],
 ): Promise<string> {
     const result = await generateObject({
         model,
@@ -31,7 +31,7 @@ Generate a concise title (maximum ${TITLE_MAX_LENGTH_CHARS} characters) that sum
 
 Good examples:
 - "Order data analysis for last 30 days"
-- "Revenue over last 12 months" 
+- "Revenue over last 12 months"
 - "Avg shipping cost by center for promo express orders"
 - "Top 5 shipping methods by order percentage"
 
