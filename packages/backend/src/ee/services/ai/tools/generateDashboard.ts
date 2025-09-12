@@ -108,7 +108,9 @@ export const getGenerateDashboard = ({
                 if (errors.length > 0) {
                     return `Generated dashboard with errors:\n${errors.join(
                         '\n',
-                    )}`;
+                    )}
+                    Try again if you believe the error(s) can be resolved, if not, try again with the visualizations that did not fail.
+                    `;
                 }
 
                 return `Success`;

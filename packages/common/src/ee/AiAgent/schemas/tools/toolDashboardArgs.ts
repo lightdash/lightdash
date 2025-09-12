@@ -16,11 +16,23 @@ import { toolVerticalBarArgsSchemaTransformed } from './toolVerticalBarArgs';
 
 export const TOOL_DASHBOARD_DESCRIPTION = `Use this tool to generate multiple visualizations for a dashboard based on a specific theme. Instead of making multiple parallel tool calls for individual visualizations, this tool takes an array of visualization configurations and generates them all at once, ensuring thematic consistency and better performance.
 
+Dashboard Design Philosophy:
+Create "summary" or "executive" level dashboards that provide high-level overviews of specific topics (e.g., Support Dashboard, Revenue Performance, Sales Operations). These dashboards should be designed to monitor trends and key metric performance at a glance.
+
+Recommended Dashboard Structure:
+1. **Summary Metrics at the Top**: Start with key performance indicators (KPIs) as tables showing overall summary metrics
+2. **Time-Series Analysis**: Include time-series charts with appropriate granularities to show how metrics trend over time:
+   - Use line charts for smaller granularities (daily, weekly) 
+   - Use bar charts for more grouped data (monthly, quarterly)
+3. **Detailed Breakdowns**: Add tables with more detail and specific line items that have the biggest impact on metrics
+   - Show problematic areas that need attention (e.g., longest response times, highest churn segments)
+   - Highlight actionable insights and outliers
+
 Usage tips:
 - Use this when you need to create 2 or more related visualizations for a dashboard
-- Ensure all visualizations follow the same theme (e.g., "Revenue KPI", "Sales Performance")
+- Ensure all visualizations follow the same theme and tell a cohesive story
 - Each visualization in the array should have a clear title and description
-- Mix different visualization types (bar charts, time series, tables – in the order of preference) for comprehensive insights
+- Mix different visualization types strategically: tables for KPIs → time-series for trends → tables for detailed breakdowns
 - Make use of the breakdownByDimension to show more dense visualizations instead of having multiple different charts for the same metric:
     - "metric A over time, broken down by dimension B"
     - "dimension A broken down by dimension B, with Y axis of important metric"
