@@ -1,3 +1,50 @@
+## [0.2001.1](https://github.com/lightdash/lightdash/compare/0.2001.0...0.2001.1) (2025-09-12)
+
+
+### Bug Fixes
+
+* add discovery endpoints to SCIM ([#16862](https://github.com/lightdash/lightdash/issues/16862)) ([36c907c](https://github.com/lightdash/lightdash/commit/36c907c10d29dcc5a0fe41dde4ee6bfe88dbe339))
+
+# [0.2001.0](https://github.com/lightdash/lightdash/compare/0.2000.3...0.2001.0) (2025-09-12)
+
+
+### Features
+
+* emit embed filter changes ([#16836](https://github.com/lightdash/lightdash/issues/16836)) ([1051069](https://github.com/lightdash/lightdash/commit/10510692371b4e836c9be36aa82498a721a36391))
+
+## [0.2000.3](https://github.com/lightdash/lightdash/compare/0.2000.2...0.2000.3) (2025-09-12)
+
+
+### Bug Fixes
+
+* reference line on week x axis grouping issue ([#16864](https://github.com/lightdash/lightdash/issues/16864)) ([58a5def](https://github.com/lightdash/lightdash/commit/58a5def087cf39af8c4b5ebff86a9161a71bcac2))
+
+## [0.2000.2](https://github.com/lightdash/lightdash/compare/0.2000.1...0.2000.2) (2025-09-12)
+
+
+### Bug Fixes
+
+* enhance AI dashboard generation prompt, workflow and error handling ([#16861](https://github.com/lightdash/lightdash/issues/16861)) ([b04c59e](https://github.com/lightdash/lightdash/commit/b04c59e4046b4b7c282d2837150ec7af2edf0401))
+
+## [0.2000.1](https://github.com/lightdash/lightdash/compare/0.2000.0...0.2000.1) (2025-09-12)
+
+
+### Bug Fixes
+
+* additional_dimensions in meta config ([#16857](https://github.com/lightdash/lightdash/issues/16857)) ([5e65599](https://github.com/lightdash/lightdash/commit/5e65599b8fe47da9f0b73134b213a15ef036dfd1))
+
+# [0.2000.0](https://github.com/lightdash/lightdash/compare/0.1999.0...0.2000.0) (2025-09-12)
+
+
+### Bug Fixes
+
+* replace ConversationsList with redirect to AI agents admin page ([#16852](https://github.com/lightdash/lightdash/issues/16852)) ([c27f6b4](https://github.com/lightdash/lightdash/commit/c27f6b496f51daf57170e31434882ea3b2e791c1))
+
+
+### Features
+
+* add "New Thread" button and agent settings link to AI Admin Panel ([#16851](https://github.com/lightdash/lightdash/issues/16851)) ([9132919](https://github.com/lightdash/lightdash/commit/9132919f0946d228b5a4f630c10233e5443eb15d))
+
 # [0.1999.0](https://github.com/lightdash/lightdash/compare/0.1998.0...0.1999.0) (2025-09-11)
 
 

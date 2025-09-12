@@ -1,0 +1,50 @@
+@import '../variables.css';
+
+.documentation {
+    background: var(--color-white);
+    border-top: 1px solid var(--color-border);
+}
+
+.documentation details {
+    padding: var(--spacing-md);
+}
+
+.documentation summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--color-primary);
+    padding: var(--spacing-sm) 0;
+}
+
+.envDocs h4 {
+    margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+    color: var(--color-text);
+}
+
+.envCode {
+    background: var(--color-code-bg);
+    border: 1px solid var(--color-border-code);
+    color: var(--color-white);
+    border-radius: var(--radius-base);
+    padding: var(--spacing-md);
+    font-size: var(--font-size-sm);
+    overflow-x: auto;
+    margin: var(--spacing-sm) 0;
+}
+
+.envDocs ul {
+    margin: var(--spacing-sm) 0;
+    padding-left: var(--spacing-lg);
+}
+
+.envDocs li {
+    margin-bottom: var(--spacing-sm);
+}
+
+.envDocs code {
+    background: var(--color-gray-lightest);
+    border: 1px solid var(--color-border-code);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs) var(--spacing-xs);
+    font-size: var(--font-size-sm);
+}

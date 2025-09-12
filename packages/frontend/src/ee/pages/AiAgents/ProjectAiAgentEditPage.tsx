@@ -13,11 +13,13 @@ import {
     Box,
     Button,
     Card,
+    Center,
     Code,
     Collapse,
     Container,
     Group,
     HoverCard,
+    Loader,
     LoadingOverlay,
     MultiSelect,
     Paper,
@@ -48,7 +50,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -60,7 +62,6 @@ import { useProject } from '../../../hooks/useProject';
 import { useProjectUsersWithRoles } from '../../../hooks/useProjectUsersWithRoles';
 import useApp from '../../../providers/App/useApp';
 import { AiAgentEditPageLayout } from '../../features/aiCopilot/components/AiAgentEditPageLayout/AiAgentEditPageLayout';
-import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import {
     InstructionsGuidelines,
     InstructionsTemplates,
@@ -170,6 +171,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         data: slackChannels,
         refresh: refreshChannels,
         isRefreshing,
+        isLoading: isLoadingSlackChannels,
     } = useSlackChannels(
         '',
         {
@@ -479,7 +481,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             }
         >
             <Stack gap="xs">
-                <Tabs defaultValue="setup">
+                <Tabs defaultValue="setup" keepMounted={false}>
                     {!isCreateMode && (
                         <Tabs.List>
                             <Tabs.Tab value="setup">Setup</Tabs.Tab>
@@ -998,7 +1000,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 <Stack gap="xs">
                                                     <MultiSelect
                                                         variant="subtle"
-                                                        disabled={isRefreshing}
+                                                        readOnly={
+                                                            isLoadingSlackChannels ||
+                                                            isRefreshing
+                                                        }
                                                         description={
                                                             <>
                                                                 Select the
@@ -1028,8 +1033,13 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                                 width: '100%',
                                                             },
                                                         }}
-                                                        label="Channels"
-                                                        placeholder="Pick a channel"
+                                                        label={'Channels'}
+                                                        placeholder={
+                                                            isLoadingSlackChannels ||
+                                                            isRefreshing
+                                                                ? 'Loading channels, this might take a while if you have a lot of channels in your workspace'
+                                                                : 'Pick a channel'
+                                                        }
                                                         data={
                                                             slackChannelOptions
                                                         }
@@ -1039,24 +1049,29 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                         searchable
                                                         rightSectionPointerEvents="all"
                                                         rightSection={
-                                                            <Tooltip
-                                                                withArrow
-                                                                withinPortal
-                                                                label="Refresh Slack Channels"
-                                                            >
-                                                                <ActionIcon
-                                                                    variant="transparent"
-                                                                    onClick={
-                                                                        refreshChannels
-                                                                    }
+                                                            isLoadingSlackChannels ||
+                                                            isRefreshing ? (
+                                                                <Loader size="xs" />
+                                                            ) : (
+                                                                <Tooltip
+                                                                    withArrow
+                                                                    withinPortal
+                                                                    label="Refresh Slack Channels"
                                                                 >
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconRefresh
+                                                                    <ActionIcon
+                                                                        variant="transparent"
+                                                                        onClick={
+                                                                            refreshChannels
                                                                         }
-                                                                    />
-                                                                </ActionIcon>
-                                                            </Tooltip>
+                                                                    >
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconRefresh
+                                                                            }
+                                                                        />
+                                                                    </ActionIcon>
+                                                                </Tooltip>
+                                                            )
                                                         }
                                                         onChange={(value) => {
                                                             form.setFieldValue(
@@ -1139,10 +1154,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     </Tabs.Panel>
 
                     <Tabs.Panel value="conversations" pt="lg">
-                        <ConversationsList
-                            agentUuid={actualAgentUuid!}
-                            allUsers={canManageAgents}
-                        />
+                        {/* TODO when admin page supports query string we should pass current agent uuid */}
+                        <Navigate to={`/ai-agents/admin`} />
+                        <Center h="100%">
+                            <Loader />
+                        </Center>
                     </Tabs.Panel>
                 </Tabs>
 

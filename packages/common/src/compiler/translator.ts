@@ -450,6 +450,11 @@ export const convertTable = (
                         meta: {
                             dimension: subDimension,
                         },
+                        config: {
+                            meta: {
+                                dimension: subDimension,
+                            },
+                        },
                     },
                     undefined,
                     undefined,
