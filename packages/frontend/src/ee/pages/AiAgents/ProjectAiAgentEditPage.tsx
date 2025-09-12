@@ -171,6 +171,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         data: slackChannels,
         refresh: refreshChannels,
         isRefreshing,
+        isLoading: isLoadingSlackChannels,
     } = useSlackChannels(
         '',
         {
@@ -999,7 +1000,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 <Stack gap="xs">
                                                     <MultiSelect
                                                         variant="subtle"
-                                                        disabled={isRefreshing}
+                                                        readOnly={
+                                                            isLoadingSlackChannels ||
+                                                            isRefreshing
+                                                        }
                                                         description={
                                                             <>
                                                                 Select the
@@ -1029,8 +1033,13 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                                 width: '100%',
                                                             },
                                                         }}
-                                                        label="Channels"
-                                                        placeholder="Pick a channel"
+                                                        label={'Channels'}
+                                                        placeholder={
+                                                            isLoadingSlackChannels ||
+                                                            isRefreshing
+                                                                ? 'Loading channels, this might take a while if you have a lot of channels in your workspace'
+                                                                : 'Pick a channel'
+                                                        }
                                                         data={
                                                             slackChannelOptions
                                                         }
@@ -1040,24 +1049,29 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                         searchable
                                                         rightSectionPointerEvents="all"
                                                         rightSection={
-                                                            <Tooltip
-                                                                withArrow
-                                                                withinPortal
-                                                                label="Refresh Slack Channels"
-                                                            >
-                                                                <ActionIcon
-                                                                    variant="transparent"
-                                                                    onClick={
-                                                                        refreshChannels
-                                                                    }
+                                                            isLoadingSlackChannels ||
+                                                            isRefreshing ? (
+                                                                <Loader size="xs" />
+                                                            ) : (
+                                                                <Tooltip
+                                                                    withArrow
+                                                                    withinPortal
+                                                                    label="Refresh Slack Channels"
                                                                 >
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconRefresh
+                                                                    <ActionIcon
+                                                                        variant="transparent"
+                                                                        onClick={
+                                                                            refreshChannels
                                                                         }
-                                                                    />
-                                                                </ActionIcon>
-                                                            </Tooltip>
+                                                                    >
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconRefresh
+                                                                            }
+                                                                        />
+                                                                    </ActionIcon>
+                                                                </Tooltip>
+                                                            )
                                                         }
                                                         onChange={(value) => {
                                                             form.setFieldValue(
