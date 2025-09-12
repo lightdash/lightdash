@@ -32,6 +32,7 @@ import {
     isDuplicateDashboardParams,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
+    type ApiCreateDashboardWithChartsResponse,
     type ApiCreatePreviewResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
@@ -40,6 +41,7 @@ import {
     type ApiUpdateDashboardsResponse,
     type CalculateSubtotalsFromQuery,
     type CreateDashboard,
+    type CreateDashboardWithCharts,
     type DuplicateDashboardParams,
     type Tag,
     type UpdateMultipleDashboards,
@@ -589,6 +591,34 @@ export class ProjectController extends BaseController {
                 body,
             );
         }
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('{projectUuid}/dashboards/with-charts')
+    @OperationId('createDashboardWithCharts')
+    async createDashboardWithCharts(
+        @Path() projectUuid: string,
+        @Body() body: CreateDashboardWithCharts,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateDashboardWithChartsResponse> {
+        const dashboardService = this.services.getDashboardService();
+        this.setStatus(201);
+
+        const results = await dashboardService.createDashboardWithCharts(
+            req.user!,
+            projectUuid,
+            body,
+        );
 
         return {
             status: 'ok',

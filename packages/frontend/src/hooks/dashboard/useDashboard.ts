@@ -3,6 +3,7 @@ import {
     type ApiError,
     type ApiJobScheduledResponse,
     type CreateDashboard,
+    type CreateDashboardWithCharts,
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardFilters,
@@ -35,6 +36,16 @@ const getDashboard = async (id: string) =>
 const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
     lightdashApi<Dashboard>({
         url: `/projects/${projectUuid}/dashboards`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+const createDashboardWithCharts = async (
+    projectUuid: string,
+    data: CreateDashboardWithCharts,
+) =>
+    lightdashApi<Dashboard>({
+        url: `/projects/${projectUuid}/dashboards/with-charts`,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -385,17 +396,6 @@ export const useUpdateDashboard = (
     );
 };
 
-// Minimal patch hook to update a dashboard by id (no toasts/redirects)
-export const useUpdateMutation = () => {
-    return useMutation<
-        Dashboard,
-        ApiError,
-        { id: string; data: UpdateDashboard }
-    >(({ id, data }) => updateDashboard(id, data), {
-        mutationKey: ['dashboard_update_once'],
-    });
-};
-
 export const useCreateMutation = (
     projectUuid: string | undefined,
     showRedirectButton: boolean = false,
@@ -438,6 +438,53 @@ export const useCreateMutation = (
             onError: ({ error }) => {
                 showToastApiError({
                     title: `Failed to create dashboard`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useCreateDashboardWithChartsMutation = (
+    projectUuid: string | undefined,
+    { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
+) => {
+    const navigate = useNavigate();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<Dashboard, ApiError, CreateDashboardWithCharts>(
+        (data) =>
+            projectUuid
+                ? createDashboardWithCharts(projectUuid, data)
+                : Promise.reject(),
+        {
+            mutationKey: ['dashboard_create_with_charts', projectUuid],
+            onSuccess: async (result) => {
+                await queryClient.invalidateQueries(['dashboards']);
+                await queryClient.invalidateQueries([
+                    'dashboards-containing-chart',
+                ]);
+                await queryClient.invalidateQueries([
+                    'most-popular-and-recently-updated',
+                ]);
+                await queryClient.invalidateQueries(['content']);
+
+                if (showToastOnSuccess) {
+                    showToastSuccess({
+                        title: 'Dashboard created successfully!',
+                        action: {
+                            children: 'Open dashboard',
+                            onClick: () =>
+                                navigate(
+                                    `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                ),
+                        },
+                    });
+                }
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to create dashboard',
                     apiError: error,
                 });
             },
