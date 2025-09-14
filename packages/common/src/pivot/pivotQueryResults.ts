@@ -595,6 +595,17 @@ export const pivotQueryResults = ({
 
     const rowIndices = {};
     const columnIndices = {};
+    const safeGetFieldValue = (
+        row: ResultRow,
+        fieldId: string,
+    ): ResultValue => {
+        const field = row[fieldId];
+        if (field && field.value) {
+            return field.value;
+        }
+        return { raw: null, formatted: '' };
+    };
+
     let rowCount = 0;
     let columnCount = 0;
     for (let nRow = 0; nRow < N_ROWS; nRow += 1) {
@@ -605,7 +616,7 @@ export const pivotQueryResults = ({
                 .map<PivotData['indexValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
-                    value: getObjectValue(row, fieldId).value,
+                    value: safeGetFieldValue(row, fieldId),
                     colSpan: 1,
                 }))
                 .concat(
@@ -624,7 +635,7 @@ export const pivotQueryResults = ({
                 .map<PivotData['headerValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId,
-                    value: getObjectValue(row, fieldId).value,
+                    value: safeGetFieldValue(row, fieldId),
                     colSpan: 1,
                 }))
                 .concat(
