@@ -89,7 +89,12 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                             uuid: lineId,
                             lineStyle: { color: lineColor },
                             label: {
-                                position: labelPosition || 'end',
+                                position:
+                                    labelPosition === 'start'
+                                        ? 'insideStart'
+                                        : labelPosition === 'end'
+                                        ? 'insideEnd'
+                                        : labelPosition || 'end',
                                 formatter: label
                                     ? `${label}${useAverage ? ': {c}' : ''}`
                                     : undefined,
