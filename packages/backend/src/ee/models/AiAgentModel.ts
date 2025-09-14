@@ -3,6 +3,11 @@ import {
     AiAgentAdminFilters,
     AiAgentAdminSort,
     AiAgentAdminThreadSummary,
+    AiAgentEvaluation,
+    AiAgentEvaluationRun,
+    AiAgentEvaluationRunResult,
+    AiAgentEvaluationRunSummary,
+    AiAgentEvaluationSummary,
     AiAgentMessage,
     AiAgentMessageAssistant,
     AiAgentMessageAssistantArtifact,
@@ -16,7 +21,9 @@ import {
     AiThread,
     AiWebAppPrompt,
     ApiCreateAiAgent,
+    ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
+    ApiUpdateEvaluationRequest,
     assertUnreachable,
     CreateSlackPrompt,
     CreateSlackThread,
@@ -74,6 +81,16 @@ import {
     AiArtifactVersionsTableName,
     DbAiArtifactVersion,
 } from '../database/entities/aiArtifacts';
+import {
+    AiEvalPromptTableName,
+    AiEvalRunResultTableName,
+    AiEvalRunTableName,
+    AiEvalTableName,
+    DbAiEval,
+    DbAiEvalPrompt,
+    DbAiEvalRun,
+    DbAiEvalRunResult,
+} from '../database/entities/aiEvals';
 
 type Dependencies = {
     database: Knex;
@@ -678,11 +695,13 @@ export class AiAgentModel {
         agentUuid,
         threadUuid,
         userUuid,
+        createdFrom,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
+        createdFrom?: ('web_app' | 'slack' | 'evals')[];
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -746,6 +765,14 @@ export class AiAgentModel {
                 `${AiSlackThreadTableName}.slack_user_id`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
+
+        if (createdFrom) {
+            void query.andWhere(
+                `${AiThreadTableName}.created_from`,
+                'in',
+                createdFrom,
+            );
+        }
 
         if (threadUuid) {
             void query.andWhere(
@@ -929,7 +956,9 @@ export class AiAgentModel {
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
                 organizationUuid,
-            );
+            )
+            // Exclude eval threads by default - only show web_app and slack threads
+            .whereIn(`${AiThreadTableName}.created_from`, ['web_app', 'slack']);
 
         const finalQuery = threadsWithFeedbackQuery;
 
@@ -1087,7 +1116,7 @@ export class AiAgentModel {
 
         if (rows.length !== 1) {
             throw new AiAgentNotFoundError(
-                `AI agent thread not found for uuid: ${threadUuid}`,
+                `AI agent thread not found for uuid: ${agentUuid}/${threadUuid}`,
             );
         }
 
@@ -2407,5 +2436,395 @@ export class AiAgentModel {
         });
 
         return updatedInstruction;
+    }
+
+    async createEval(
+        agentUuid: string,
+        data: ApiCreateEvaluationRequest,
+        createdByUserUuid: string,
+    ): Promise<AiAgentEvaluation> {
+        return this.database.transaction(async (trx) => {
+            const [evalRecord] = await trx(AiEvalTableName)
+                .insert({
+                    agent_uuid: agentUuid,
+                    title: data.title,
+                    description: data.description ?? null,
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning('*');
+
+            // Create prompts - handle both string and object format
+            const promptInserts = data.prompts.map((promptData) => {
+                if (typeof promptData === 'string') {
+                    // Legacy string format
+                    return {
+                        ai_eval_uuid: evalRecord.ai_eval_uuid,
+                        prompt: promptData,
+                        ai_prompt_uuid: null,
+                        ai_thread_uuid: null,
+                    };
+                }
+                // New object format with referenced prompt/thread
+                return {
+                    ai_eval_uuid: evalRecord.ai_eval_uuid,
+                    prompt: null,
+                    ai_prompt_uuid: promptData.promptUuid,
+                    ai_thread_uuid: promptData.threadUuid,
+                };
+            });
+
+            const promptRecords = await trx(AiEvalPromptTableName)
+                .insert(promptInserts)
+                .returning('*');
+
+            return {
+                evalUuid: evalRecord.ai_eval_uuid,
+                agentUuid: evalRecord.agent_uuid,
+                title: evalRecord.title,
+                description: evalRecord.description,
+                createdAt: evalRecord.created_at,
+                updatedAt: evalRecord.updated_at,
+                prompts: promptRecords.map((p) => ({
+                    promptUuid: p.ai_eval_prompt_uuid,
+                    prompt: p.prompt,
+                    aiPromptUuid: p.ai_prompt_uuid,
+                    aiThreadUuid: p.ai_thread_uuid,
+                    createdAt: p.created_at,
+                })),
+            };
+        });
+    }
+
+    async getEval({
+        evalUuid,
+        agentUuid,
+    }: {
+        evalUuid: string;
+        agentUuid?: string;
+    }): Promise<AiAgentEvaluation> {
+        const evalQuery = this.database(AiEvalTableName).where(
+            'ai_eval_uuid',
+            evalUuid,
+        );
+
+        if (agentUuid) {
+            void evalQuery.andWhere('agent_uuid', agentUuid);
+        }
+
+        const [evalRecord, prompts] = await Promise.all([
+            evalQuery.first(),
+            this.database(AiEvalPromptTableName)
+                .where('ai_eval_uuid', evalUuid)
+                .orderBy('created_at', 'asc'),
+        ]);
+
+        if (!evalRecord)
+            throw new NotFoundError(
+                `Evaluation not found for uuid: ${evalUuid}`,
+            );
+
+        return {
+            evalUuid: evalRecord.ai_eval_uuid,
+            agentUuid: evalRecord.agent_uuid,
+            title: evalRecord.title,
+            description: evalRecord.description,
+            createdAt: evalRecord.created_at,
+            updatedAt: evalRecord.updated_at,
+            prompts: prompts.map((p) => ({
+                promptUuid: p.ai_eval_prompt_uuid,
+                prompt: p.prompt,
+                aiPromptUuid: p.ai_prompt_uuid,
+                aiThreadUuid: p.ai_thread_uuid,
+                createdAt: p.created_at,
+            })),
+        };
+    }
+
+    async getEvalsByAgent(
+        agentUuid: string,
+    ): Promise<AiAgentEvaluationSummary[]> {
+        const evals = await this.database(AiEvalTableName)
+            .where('agent_uuid', agentUuid)
+            .orderBy('created_at', 'desc');
+
+        return evals.map((evalRecord) => ({
+            evalUuid: evalRecord.ai_eval_uuid,
+            agentUuid: evalRecord.agent_uuid,
+            title: evalRecord.title,
+            description: evalRecord.description,
+            createdAt: evalRecord.created_at,
+            updatedAt: evalRecord.updated_at,
+        }));
+    }
+
+    async updateEval(
+        evalUuid: string,
+        data: ApiUpdateEvaluationRequest,
+    ): Promise<AiAgentEvaluation> {
+        const trx = await this.database.transaction();
+
+        console.dir({ data });
+        if (data.title !== undefined || data.description !== undefined) {
+            await trx(AiEvalTableName)
+                .where('ai_eval_uuid', evalUuid)
+                .update({
+                    ...(data.title !== undefined ? { title: data.title } : {}),
+                    ...(data.description !== undefined
+                        ? { description: data.description }
+                        : {}),
+                    updated_at: trx.fn.now(),
+                });
+        }
+
+        if (data.prompts !== undefined) {
+            // Delete existing prompts
+            await trx(AiEvalPromptTableName)
+                .where('ai_eval_uuid', evalUuid)
+                .delete();
+
+            // Insert new prompts - handle both string and object format
+            if (data.prompts.length > 0) {
+                const promptRecords = data.prompts.map((promptData) => {
+                    if (typeof promptData === 'string') {
+                        // Legacy string format
+                        return {
+                            ai_eval_uuid: evalUuid,
+                            prompt: promptData,
+                            ai_prompt_uuid: null,
+                            ai_thread_uuid: null,
+                        };
+                    }
+                    // New object format with referenced prompt/thread
+                    return {
+                        ai_eval_uuid: evalUuid,
+                        prompt: null,
+                        ai_prompt_uuid: promptData.promptUuid,
+                        ai_thread_uuid: promptData.threadUuid,
+                    };
+                });
+                await trx(AiEvalPromptTableName).insert(promptRecords);
+            }
+        }
+
+        await trx.commit();
+
+        return this.getEval({ evalUuid });
+    }
+
+    async deleteEval(evalUuid: string): Promise<void> {
+        await this.database(AiEvalTableName)
+            .where('ai_eval_uuid', evalUuid)
+            .delete();
+    }
+
+    async createEvalRun(
+        evalUuid: string,
+    ): Promise<AiAgentEvaluationRunSummary> {
+        const [runRecord] = await this.database(AiEvalRunTableName)
+            .insert({ ai_eval_uuid: evalUuid })
+            .returning('*');
+
+        return {
+            runUuid: runRecord.ai_eval_run_uuid,
+            evalUuid: runRecord.ai_eval_uuid,
+            status: runRecord.status,
+            completedAt: runRecord.completed_at,
+            createdAt: runRecord.created_at,
+        };
+    }
+
+    async updateEvalRunStatus(
+        runUuid: string,
+        status: DbAiEvalRun['status'],
+        completedAt?: Date,
+    ): Promise<void> {
+        const update: Partial<DbAiEvalRun> = { status };
+        if (completedAt) update.completed_at = completedAt;
+
+        await this.database(AiEvalRunTableName)
+            .where('ai_eval_run_uuid', runUuid)
+            .update(update);
+    }
+
+    async createEvalRunResult(
+        runUuid: string,
+        promptUuid: string,
+        threadUuid: string,
+    ): Promise<string> {
+        const [evalRunResult] = await this.database(AiEvalRunResultTableName)
+            .insert({
+                ai_eval_run_uuid: runUuid,
+                ai_eval_prompt_uuid: promptUuid,
+                ai_thread_uuid: threadUuid,
+            })
+            .returning(['ai_eval_run_result_uuid']);
+
+        if (!evalRunResult) {
+            throw new Error('Failed to create evaluation run result');
+        }
+
+        return evalRunResult.ai_eval_run_result_uuid;
+    }
+
+    async updateEvalRunResult(
+        resultUuid: string,
+        data: {
+            status?: DbAiEvalRunResult['status'];
+            threadUuid?: string;
+            errorMessage?: string;
+            completedAt?: Date;
+        },
+    ): Promise<void> {
+        const update: Partial<DbAiEvalRunResult> = {};
+
+        if (data.status !== undefined) update.status = data.status;
+        if (data.threadUuid !== undefined)
+            update.ai_thread_uuid = data.threadUuid;
+        if (data.errorMessage !== undefined)
+            update.error_message = data.errorMessage;
+        if (data.completedAt !== undefined)
+            update.completed_at = data.completedAt;
+
+        await this.database(AiEvalRunResultTableName)
+            .where('ai_eval_run_result_uuid', resultUuid)
+            .update(update);
+    }
+
+    async getEvalRunResult(
+        resultUuid: string,
+    ): Promise<AiAgentEvaluationRunResult> {
+        const result = await this.database(AiEvalRunResultTableName)
+            .where('ai_eval_run_result_uuid', resultUuid)
+            .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Evaluation run result not found for uuid: ${resultUuid}`,
+            );
+        }
+
+        return {
+            resultUuid: result.ai_eval_run_result_uuid,
+            evalPromptUuid: result.ai_eval_prompt_uuid,
+            threadUuid: result.ai_thread_uuid,
+            status: result.status,
+            errorMessage: result.error_message,
+            completedAt: result.completed_at,
+            createdAt: result.created_at,
+        };
+    }
+
+    async getEvalRuns(
+        evalUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<{ runs: AiAgentEvaluationRunSummary[] }>> {
+        const query = this.database(AiEvalRunTableName)
+            .select<DbAiEvalRun[]>('*')
+            .where('ai_eval_uuid', evalUuid)
+            .orderBy('created_at', 'desc');
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        const runs: AiAgentEvaluationRunSummary[] = data.map(
+            (run: DbAiEvalRun) => ({
+                runUuid: run.ai_eval_run_uuid,
+                evalUuid: run.ai_eval_uuid,
+                status: run.status,
+                completedAt: run.completed_at,
+                createdAt: run.created_at,
+            }),
+        );
+
+        return {
+            data: {
+                runs,
+            },
+            pagination,
+        };
+    }
+
+    async getEvalRunWithResults(
+        runUuid: string,
+    ): Promise<AiAgentEvaluationRun> {
+        const run = await this.database(AiEvalRunTableName)
+            .where('ai_eval_run_uuid', runUuid)
+            .first();
+
+        if (!run)
+            throw new NotFoundError(
+                `Evaluation run not found for uuid: ${runUuid}`,
+            );
+
+        const results = await this.database(AiEvalRunResultTableName)
+            .leftJoin(
+                AiEvalPromptTableName,
+                `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .where(`${AiEvalRunResultTableName}.ai_eval_run_uuid`, runUuid)
+            .select<
+                (Pick<
+                    DbAiEvalRunResult,
+                    | 'ai_eval_run_result_uuid'
+                    | 'error_message'
+                    | 'completed_at'
+                    | 'created_at'
+                    | 'status'
+                    | 'ai_thread_uuid'
+                > &
+                    Pick<DbAiEvalPrompt, 'ai_eval_prompt_uuid'>)[]
+            >(
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultTableName}.error_message`,
+                `${AiEvalRunResultTableName}.completed_at`,
+                `${AiEvalRunResultTableName}.created_at`,
+                `${AiEvalRunResultTableName}.status`,
+                `${AiEvalRunResultTableName}.ai_thread_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .orderBy(`${AiEvalRunResultTableName}.created_at`, 'asc');
+
+        return {
+            runUuid: run.ai_eval_run_uuid,
+            evalUuid: run.ai_eval_uuid,
+            status: run.status,
+            completedAt: run.completed_at,
+            createdAt: run.created_at,
+            results: results.map((result) => ({
+                resultUuid: result.ai_eval_run_result_uuid,
+                evalPromptUuid: result.ai_eval_prompt_uuid,
+                threadUuid: result.ai_thread_uuid,
+                status: result.status,
+                errorMessage: result.error_message,
+                completedAt: result.completed_at,
+                createdAt: result.created_at,
+            })),
+        };
+    }
+
+    async checkAndUpdateEvalRunCompletion(evalRunUuid: string): Promise<void> {
+        return this.database.transaction(async (trx) => {
+            const runData = await this.getEvalRunWithResults(evalRunUuid);
+            if (!runData) return;
+
+            const allCompleted = runData.results.every(
+                (r) => r.status === 'completed' || r.status === 'failed',
+            );
+
+            if (allCompleted) {
+                const hasFailures = runData.results.some(
+                    (r) => r.status === 'failed',
+                );
+                await trx(AiEvalRunTableName)
+                    .where('ai_eval_run_uuid', evalRunUuid)
+                    .update({
+                        status: hasFailures ? 'failed' : 'completed',
+                        completed_at: new Date(),
+                    });
+            }
+        });
     }
 }

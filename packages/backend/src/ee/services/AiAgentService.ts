@@ -2,6 +2,11 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AiAgent,
+    AiAgentEvalRunJobPayload,
+    AiAgentEvaluation,
+    AiAgentEvaluationRun,
+    AiAgentEvaluationRunResult,
+    AiAgentEvaluationSummary,
     AiAgentNotFoundError,
     AiAgentThread,
     AiAgentThreadSummary,
@@ -16,7 +21,9 @@ import {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiCreateAiAgent,
+    ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
+    ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     CatalogFilter,
     CatalogType,
@@ -25,8 +32,10 @@ import {
     followUpToolsText,
     ForbiddenError,
     isSlackPrompt,
+    KnexPaginateArgs,
     LightdashUser,
     NotFoundError,
+    NotImplementedError,
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
@@ -470,6 +479,7 @@ export class AiAgentService {
             agentUuid,
             // Only filter by userUuid if not requesting all users or if user lacks admin permissions
             userUuid: canViewAllThreads ? undefined : user.userUuid,
+            createdFrom: ['web_app', 'slack'],
         });
 
         const slackUserIds = _.uniq(
@@ -604,6 +614,7 @@ export class AiAgentService {
         user: SessionUser,
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
+        createdFrom: 'web_app' | 'evals' = 'web_app',
     ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -635,7 +646,7 @@ export class AiAgentService {
             organizationUuid,
             projectUuid: agent.projectUuid,
             userUuid: user.userUuid,
-            createdFrom: 'web_app',
+            createdFrom,
             agentUuid,
         });
 
@@ -1051,8 +1062,11 @@ export class AiAgentService {
             );
             return response;
         } catch (e) {
+            console.error(e);
             Logger.error('Failed to generate agent thread response:', e);
-            throw new Error('Failed to generate agent thread response');
+            throw new Error('Failed to generate agent thread response', {
+                cause: e,
+            });
         }
     }
 
@@ -3094,6 +3108,243 @@ export class AiAgentService {
         }));
 
         return exploreAccessSummary;
+    }
+
+    // Evaluation methods
+
+    async createEval(
+        user: SessionUser,
+        agentUuid: string,
+        data: ApiCreateEvaluationRequest,
+    ) {
+        // Reuse existing access control
+        await this.getAgent(user, agentUuid);
+
+        return this.aiAgentModel.createEval(
+            agentUuid,
+            {
+                title: data.title,
+                description: data.description,
+                prompts: data.prompts,
+            },
+            user.userUuid,
+        );
+    }
+
+    async getEval(user: SessionUser, agentUuid: string, evalUuid: string) {
+        await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        return evaluation;
+    }
+
+    async getEvalsByAgent(
+        user: SessionUser,
+        agentUuid: string,
+    ): Promise<AiAgentEvaluationSummary[]> {
+        await this.getAgent(user, agentUuid);
+        return this.aiAgentModel.getEvalsByAgent(agentUuid);
+    }
+
+    async runEval(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+    ): Promise<AiAgentEvaluationRun> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('User does not have an organization');
+        }
+        const { organizationUuid } = user;
+
+        const agent = await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        const evalRun = await this.aiAgentModel.createEvalRun(evalUuid);
+
+        // Create threads, prompts, and schedule jobs for each eval prompt
+        const promises = evaluation.prompts.map(async (evalPrompt) => {
+            // Check if this prompt references existing thread/prompt (new feature)
+            if (
+                evalPrompt.aiPromptUuid !== null ||
+                evalPrompt.aiThreadUuid !== null
+            ) {
+                throw new NotImplementedError(
+                    'Evaluation prompts that reference existing threads or prompts are not yet implemented',
+                );
+            }
+
+            // Ensure we have a string prompt for the current implementation
+            if (!evalPrompt.prompt) {
+                throw new Error('Evaluation prompt must have a prompt text');
+            }
+
+            const thread = await this.createAgentThread(
+                user,
+                agentUuid,
+                {
+                    prompt: evalPrompt.prompt,
+                },
+                'evals',
+            );
+
+            const resultUuid = await this.aiAgentModel.createEvalRunResult(
+                evalRun.runUuid,
+                evalPrompt.promptUuid,
+                thread.uuid,
+            );
+
+            // Schedule a job for this specific result
+            await this.schedulerClient.aiAgentEvalResult({
+                evalRunResultUuid: resultUuid,
+                evalRunUuid: evalRun.runUuid,
+                userUuid: user.userUuid,
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                agentUuid,
+                threadUuid: thread.uuid,
+            });
+        });
+
+        await Promise.all(promises);
+
+        return this.aiAgentModel.getEvalRunWithResults(evalRun.runUuid)!;
+    }
+
+    async getEvalRuns(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ) {
+        await this.getAgent(user, agentUuid);
+
+        const evalData = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        return this.aiAgentModel.getEvalRuns(evalUuid, paginateArgs);
+    }
+
+    async getEvalRunWithResults(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        runUuid: string,
+    ) {
+        await this.getAgent(user, agentUuid);
+
+        const evalData = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        const runData = await this.aiAgentModel.getEvalRunWithResults(runUuid);
+        if (!runData || runData.evalUuid !== evalUuid) {
+            throw new NotFoundError('Evaluation run not found');
+        }
+
+        return runData;
+    }
+
+    async updateEval(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        data: ApiUpdateEvaluationRequest,
+    ) {
+        // Check access to agent
+        await this.getAgent(user, agentUuid);
+
+        await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        return this.aiAgentModel.updateEval(evalUuid, data);
+    }
+
+    async deleteEval(user: SessionUser, agentUuid: string, evalUuid: string) {
+        // Check access to agent
+        await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        await this.aiAgentModel.deleteEval(evalUuid);
+    }
+
+    async executeEvalResult({
+        evalRunResultUuid,
+        evalRunUuid,
+        userUuid,
+        organizationUuid,
+        agentUuid,
+        threadUuid,
+    }: AiAgentEvalRunJobPayload): Promise<void> {
+        const result = await this.aiAgentModel.getEvalRunResult(
+            evalRunResultUuid,
+        );
+
+        try {
+            await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
+                status: 'running',
+            });
+
+            if (!result.threadUuid) {
+                throw new NotFoundError(
+                    `Thread UUID ${result.threadUuid} not found for evaluation result ${result.resultUuid}`,
+                );
+            }
+
+            const sessionUser =
+                await this.userModel.findSessionUserAndOrgByUuid(
+                    userUuid,
+                    organizationUuid,
+                );
+
+            // Generate the agent response
+            await this.generateAgentThreadResponse(sessionUser, {
+                agentUuid,
+                threadUuid,
+            });
+
+            // Mark as completed
+            await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
+                status: 'completed',
+                completedAt: new Date(),
+            });
+
+            // Check if all results for this run are complete
+            await this.aiAgentModel.checkAndUpdateEvalRunCompletion(
+                evalRunUuid,
+            );
+        } catch (error) {
+            // Update result as failed
+            await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
+                status: 'failed',
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
+                completedAt: new Date(),
+            });
+
+            // Check run completion status even on failure
+            await this.aiAgentModel.checkAndUpdateEvalRunCompletion(
+                evalRunUuid,
+            );
+
+            throw error;
+        }
     }
 
     async getArtifact(
