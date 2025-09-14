@@ -1,4 +1,8 @@
-import { ChartKind, type AiAgentMessageAssistant } from '@lightdash/common';
+import {
+    ChartKind,
+    parseVizConfig,
+    type AiAgentMessageAssistant,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -27,10 +31,15 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
-import { useUpdatePromptFeedbackMutation } from '../../hooks/useProjectAiAgents';
+import useHealth from '../../../../../hooks/health/useHealth';
+import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import {
+    useAiAgentArtifactVizQuery,
+    useUpdatePromptFeedbackMutation,
+} from '../../hooks/useProjectAiAgents';
 import { setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
@@ -41,6 +50,7 @@ import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
+import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
@@ -314,6 +324,59 @@ export const AssistantBubble: FC<Props> = memo(
             message.uuid,
         );
 
+        const { data: artifactData } = useAiAgentArtifact({
+            projectUuid,
+            agentUuid,
+            artifactUuid: message.artifact?.uuid,
+            versionUuid: message.artifact?.versionUuid,
+            options: {
+                enabled: !!message.artifact?.uuid,
+            },
+        });
+
+        const { data: vizQueryData } = useAiAgentArtifactVizQuery(
+            {
+                projectUuid,
+                agentUuid,
+                artifactUuid: message.artifact?.uuid ?? '',
+                versionUuid: message.artifact?.versionUuid ?? '',
+            },
+            {
+                enabled:
+                    !!message.artifact?.uuid && !!artifactData?.chartConfig,
+            },
+        );
+
+        const { data: health } = useHealth();
+
+        const echartsConfig = useMemo(() => {
+            if (!artifactData?.chartConfig || !vizQueryData?.query) return null;
+
+            try {
+                const parsedVizConfig = parseVizConfig(
+                    artifactData.chartConfig,
+                );
+                if (!parsedVizConfig) return null;
+
+                const { echartsConfig: config } =
+                    getChartConfigFromAiAgentVizConfig({
+                        vizConfig: parsedVizConfig,
+                        metricQuery: vizQueryData.query.metricQuery,
+                        rows: [],
+                        maxQueryLimit: health?.query.maxLimit,
+                        fieldsMap: vizQueryData.query.fields,
+                    });
+
+                return config;
+            } catch (error) {
+                console.error(
+                    'Error generating ECharts config for debug panel:',
+                    error,
+                );
+                return null;
+            }
+        }, [artifactData?.chartConfig, vizQueryData, health?.query.maxLimit]);
+
         return (
             <Stack
                 pos="relative"
@@ -441,8 +504,9 @@ export const AssistantBubble: FC<Props> = memo(
                     isDrawerOpen={isDrawerOpen}
                     closeDrawer={closeDrawer}
                     toolCalls={message.toolCalls}
-                    vizConfig={null}
-                    metricQuery={null}
+                    _artifactData={artifactData ?? null}
+                    vizQueryData={vizQueryData ?? null}
+                    echartsConfig={echartsConfig}
                 />
             </Stack>
         );
