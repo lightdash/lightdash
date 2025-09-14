@@ -4,6 +4,8 @@ import {
     type ChartVersion,
     type CreateSavedChart,
     type CreateSavedChartVersion,
+    type CustomChartJsonHistory,
+    type CustomChartJsonVersion,
     type SavedChart,
     type UpdateMultipleSavedChart,
     type UpdateSavedChart,
@@ -519,4 +521,85 @@ export const useAddVersionMutation = () => {
             });
         },
     });
+};
+
+// Custom Chart JSON History Hooks
+const getCustomChartJsonHistoryQuery = async (
+    chartUuid: string,
+): Promise<CustomChartJsonHistory> =>
+    lightdashApi<CustomChartJsonHistory>({
+        url: `/saved/${chartUuid}/custom-json-history`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useCustomChartJsonHistory = (chartUuid: string | undefined) =>
+    useQuery<CustomChartJsonHistory, ApiError>({
+        queryKey: ['custom_chart_json_history', chartUuid],
+        queryFn: () => getCustomChartJsonHistoryQuery(chartUuid!),
+        enabled: chartUuid !== undefined,
+        retry: false,
+    });
+
+const getCustomChartJsonVersionQuery = async (
+    chartUuid: string,
+    versionUuid: string,
+): Promise<CustomChartJsonVersion> =>
+    lightdashApi<CustomChartJsonVersion>({
+        url: `/saved/${chartUuid}/custom-json-version/${versionUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useCustomChartJsonVersion = (
+    chartUuid: string | undefined,
+    versionUuid?: string,
+) =>
+    useQuery<CustomChartJsonVersion, ApiError>({
+        queryKey: ['custom_chart_json_version', chartUuid, versionUuid],
+        queryFn: () => getCustomChartJsonVersionQuery(chartUuid!, versionUuid!),
+        enabled: versionUuid !== undefined && chartUuid !== undefined,
+        retry: false,
+    });
+
+const restoreCustomChartJsonQuery = async (
+    chartUuid: string,
+    versionUuid: string,
+): Promise<null> =>
+    lightdashApi<null>({
+        url: `/saved/${chartUuid}/restore-custom-json/${versionUuid}`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useCustomChartJsonRestoreMutation = (
+    chartUuid: string | undefined,
+    useMutationOptions?: Omit<
+        UseMutationOptions<null, ApiError, string, unknown>,
+        'mutationFn'
+    >,
+) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<null, ApiError, string>(
+        (versionUuid: string) =>
+            chartUuid && versionUuid
+                ? restoreCustomChartJsonQuery(chartUuid, versionUuid)
+                : Promise.reject(),
+        {
+            mutationKey: ['custom_chart_json_restore'],
+            ...useMutationOptions,
+            onSuccess: async (...args) => {
+                showToastSuccess({
+                    title: `Success! Custom chart JSON was restored.`,
+                });
+                useMutationOptions?.onSuccess?.(...args);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to restore custom chart JSON`,
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
