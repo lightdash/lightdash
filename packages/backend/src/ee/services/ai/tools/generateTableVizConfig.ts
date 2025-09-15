@@ -1,10 +1,7 @@
 import {
-    Explore,
-    getTotalFilterRules,
     isSlackPrompt,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
-    ToolTableVizArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -14,7 +11,6 @@ import type {
     RunMiniMetricQueryFn,
     SendFileFn,
     UpdateProgressFn,
-    UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -26,26 +22,23 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
-    updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
 };
+
 export const getGenerateTableVizConfig = ({
     getExplore,
     runMiniMetricQuery,
     getPrompt,
     sendFile,
-    updatePrompt,
     updateProgress,
     createOrUpdateArtifact,
     maxLimit,
-}: Dependencies) => {
-    const schema = toolTableVizArgsSchema;
-
-    return tool({
+}: Dependencies) =>
+    tool({
         description: toolTableVizArgsSchema.description,
-        parameters: schema,
+        inputSchema: toolTableVizArgsSchema,
         execute: async (toolArgs) => {
             let isOneRow = false;
             try {
@@ -112,4 +105,3 @@ export const getGenerateTableVizConfig = ({
             }
         },
     });
-};

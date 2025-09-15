@@ -12,7 +12,7 @@ Usage tips:
 - If results aren't relevant, retry with the full user query or more specific terms
 - Results are paginated — use the page parameter to get more results if needed
 - Dashboards with validation errors will be deprioritized
-- Returns dashboard URLs when available 
+- Returns dashboard URLs when available
 - It doesn't provide a dashboard summary yet, so don't suggest this capability
 `;
 

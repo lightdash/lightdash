@@ -174,8 +174,15 @@ export class SlackClient {
             excludeGroups: false,
         },
     ): Promise<SlackChannel[] | undefined> {
+        // Create cache key that includes filters that affect API calls
+        const cacheKey = `${organizationUuid}:${JSON.stringify({
+            excludeArchived: filter.excludeArchived,
+            excludeDms: filter.excludeDms,
+            excludeGroups: filter.excludeGroups,
+        })}`;
+
         const getCachedChannels = () => {
-            const cached = this.channelsCache.get(organizationUuid);
+            const cached = this.channelsCache.get(cacheKey);
             if (!cached) return undefined;
 
             let finalResults = cached.channels;
@@ -184,24 +191,12 @@ export class SlackClient {
                     channel.name.includes(search),
                 );
             }
-            if (filter.excludeDms) {
-                finalResults = finalResults.filter(
-                    (channel) =>
-                        !channel.id.startsWith('D') &&
-                        !channel.id.startsWith('U'),
-                );
-            }
-            if (filter.excludeGroups) {
-                finalResults = finalResults.filter(
-                    (channel) => !channel.id.startsWith('G'),
-                );
-            }
             return finalResults.slice(0, MAX_CHANNELS_LIMIT);
         };
 
         const isCacheValid = () => {
             if (filter.forceRefresh) return false;
-            const cached = this.channelsCache.get(organizationUuid);
+            const cached = this.channelsCache.get(cacheKey);
             if (!cached) return false;
 
             const cacheAge = new Date().getTime() - cached.lastCached.getTime();
@@ -255,30 +250,35 @@ export class SlackClient {
         } while (nextCursor);
         Logger.debug(`Total slack channels ${allChannels.length}`);
 
-        nextCursor = undefined;
         let allUsers: UsersListResponse['members'] = [];
-        do {
-            try {
-                Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
+        if (!filter.excludeDms) {
+            nextCursor = undefined;
+            do {
+                try {
+                    Logger.debug(
+                        `Fetching slack users with cursor ${nextCursor}`,
+                    );
 
-                const users: UsersListResponse =
-                    // eslint-disable-next-line no-await-in-loop
-                    await webClient.users.list({
-                        limit: 900,
-                        cursor: nextCursor,
-                    });
-                nextCursor = users.response_metadata?.next_cursor;
-                allUsers = users.members
-                    ? [...allUsers, ...users.members]
-                    : allUsers;
-            } catch (e) {
-                slackErrorHandler(e, 'Unable to fetch slack users');
-            }
-        } while (nextCursor);
-        Logger.debug(`Total slack users ${allUsers.length}`);
+                    const users: UsersListResponse =
+                        // eslint-disable-next-line no-await-in-loop
+                        await webClient.users.list({
+                            limit: 900,
+                            cursor: nextCursor,
+                        });
+                    nextCursor = users.response_metadata?.next_cursor;
+                    allUsers = users.members
+                        ? [...allUsers, ...users.members]
+                        : allUsers;
+                } catch (e) {
+                    slackErrorHandler(e, 'Unable to fetch slack users');
+                }
+            } while (nextCursor);
+            Logger.debug(`Total slack users ${allUsers.length}`);
+        }
 
         const sortedChannels = allChannels
             .filter(({ id, name }) => id && name)
+            .filter(({ id }) => !filter.excludeGroups || !id!.startsWith('G'))
             .map<SlackChannel>(({ id, name }) => ({
                 id: id!,
                 name: `#${name!}`,
@@ -294,7 +294,7 @@ export class SlackClient {
             .sort((a, b) => a.name.localeCompare(b.name));
 
         const channels = [...sortedChannels, ...sortedUsers];
-        this.channelsCache.set(organizationUuid, {
+        this.channelsCache.set(cacheKey, {
             lastCached: new Date(),
             channels,
         });

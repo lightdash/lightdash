@@ -1,3 +1,65 @@
+## [0.2006.2](https://github.com/lightdash/lightdash/compare/0.2006.1...0.2006.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* filter invalid users from AI agent userAccess list ([#16908](https://github.com/lightdash/lightdash/issues/16908)) ([9faaacd](https://github.com/lightdash/lightdash/commit/9faaacde48a7d8e7dca817b5394a8576b6aeede6))
+
+## [0.2006.1](https://github.com/lightdash/lightdash/compare/0.2006.0...0.2006.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* improve Slack channel caching with filter-specific cache keys ([#16904](https://github.com/lightdash/lightdash/issues/16904)) ([fe41dcd](https://github.com/lightdash/lightdash/commit/fe41dcdf5610495e316b16844d90f0c21fd8b342))
+
+# [0.2006.0](https://github.com/lightdash/lightdash/compare/0.2005.0...0.2006.0) (2025-09-15)
+
+
+### Bug Fixes
+
+* improve pivot query sorting with grouped values and multiple columns ([#16880](https://github.com/lightdash/lightdash/issues/16880)) ([2274de7](https://github.com/lightdash/lightdash/commit/2274de76072d611d53159ab86b5d99aa4621189f))
+
+
+### Features
+
+* add OpenAI responses API support option ([#16897](https://github.com/lightdash/lightdash/issues/16897)) ([aadc215](https://github.com/lightdash/lightdash/commit/aadc215fb64d30ee703c88799d3275fb34ad2910))
+* add provider-specific options to AI agent models ([#16895](https://github.com/lightdash/lightdash/issues/16895)) ([115881c](https://github.com/lightdash/lightdash/commit/115881c7bfdae6b09a63dc26b7325776e4ea0c9c))
+
+# [0.2005.0](https://github.com/lightdash/lightdash/compare/0.2004.0...0.2005.0) (2025-09-15)
+
+
+### Features
+
+* upgrade to ai sdk 5 ([#16771](https://github.com/lightdash/lightdash/issues/16771)) ([b2d7695](https://github.com/lightdash/lightdash/commit/b2d7695ffcab7414fadc031a90d199c71584a17a))
+
+# [0.2004.0](https://github.com/lightdash/lightdash/compare/0.2003.0...0.2004.0) (2025-09-15)
+
+
+### Features
+
+* gitlab integration ([#16633](https://github.com/lightdash/lightdash/issues/16633)) ([43c4b82](https://github.com/lightdash/lightdash/commit/43c4b8235221b328b14ce79b3b1dd21e14fe8998))
+
+# [0.2003.0](https://github.com/lightdash/lightdash/compare/0.2002.0...0.2003.0) (2025-09-15)
+
+
+### Features
+
+* go to ai agent conversations to filtered admin panel ([#16893](https://github.com/lightdash/lightdash/issues/16893)) ([bab6681](https://github.com/lightdash/lightdash/commit/bab6681dc16c77fb0e2285419d624c870c16aca0))
+
+# [0.2002.0](https://github.com/lightdash/lightdash/compare/0.2001.2...0.2002.0) (2025-09-15)
+
+
+### Features
+
+* set filters in url when interacting with ai admin threads ([#16738](https://github.com/lightdash/lightdash/issues/16738)) ([8596ff2](https://github.com/lightdash/lightdash/commit/8596ff27d54456a947a6938fe9336a0a22256b72))
+
+## [0.2001.2](https://github.com/lightdash/lightdash/compare/0.2001.1...0.2001.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* remove unique project uuid name constraint from tags ([#16879](https://github.com/lightdash/lightdash/issues/16879)) ([df994cc](https://github.com/lightdash/lightdash/commit/df994cccd990881f4a6fb7f34a2de54bbaf0441d))
+
 ## [0.2001.1](https://github.com/lightdash/lightdash/compare/0.2001.0...0.2001.1) (2025-09-12)
 
 

@@ -4,7 +4,6 @@ import {
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     ProjectRoleOrder,
-    type BaseAiAgent,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -13,7 +12,6 @@ import {
     Box,
     Button,
     Card,
-    Center,
     Code,
     Collapse,
     Container,
@@ -42,6 +40,7 @@ import {
     IconArrowLeft,
     IconBook2,
     IconCheck,
+    IconExternalLink,
     IconInfoCircle,
     IconLock,
     IconPlug,
@@ -50,9 +49,10 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import { LightdashUserAvatar } from '../../../components/Avatar';
+import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
@@ -77,18 +77,7 @@ import {
 import { useGetAgentExploreAccessSummary } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 import AiExploreAccessTree from './AiExploreAccessTree';
 
-const formSchema: z.ZodType<
-    Pick<
-        BaseAiAgent,
-        | 'name'
-        | 'integrations'
-        | 'tags'
-        | 'instruction'
-        | 'imageUrl'
-        | 'groupAccess'
-        | 'userAccess'
-    >
-> = z.object({
+const formSchema = z.object({
     name: z.string().min(1),
     integrations: z.array(
         z.object({
@@ -448,12 +437,26 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 size={48}
                             />
                             <Stack gap={0}>
-                                <Title order={2} lineClamp={1} w="100%">
-                                    {isCreateMode
-                                        ? 'New Agent'
-                                        : agent?.name || 'Agent'}
-                                </Title>
-                                <Text size="sm" c="dimmed">
+                                <Group gap="xs" wrap="nowrap">
+                                    <Title order={2} lineClamp={1} w="100%">
+                                        {isCreateMode
+                                            ? 'New Agent'
+                                            : agent?.name || 'Agent'}
+                                    </Title>
+
+                                    {!isCreateMode && agent && (
+                                        <LinkButton
+                                            href={`/ai-agents/admin?agents=${agent?.uuid}&projects=${projectUuid}`}
+                                            target="_blank"
+                                            variant="light"
+                                            size="sm"
+                                            leftIcon={IconExternalLink}
+                                        >
+                                            Conversations
+                                        </LinkButton>
+                                    )}
+                                </Group>
+                                <Text size="xs" c="dimmed">
                                     Last modified:{' '}
                                     {new Date(
                                         agent?.updatedAt ?? new Date(),
@@ -485,9 +488,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     {!isCreateMode && (
                         <Tabs.List>
                             <Tabs.Tab value="setup">Setup</Tabs.Tab>
-                            <Tabs.Tab value="conversations">
-                                Conversations
-                            </Tabs.Tab>
                         </Tabs.List>
                     )}
 
@@ -614,10 +614,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                             {...form.getInputProps(
                                                 'userAccess',
                                             )}
-                                            value={
-                                                form.getInputProps('userAccess')
-                                                    .value ?? []
-                                            }
+                                            value={form.values.userAccess.filter(
+                                                (userUuid: string) =>
+                                                    userOptions.some(
+                                                        (u) =>
+                                                            u.value ===
+                                                            userUuid,
+                                                    ),
+                                            )}
                                             onChange={(value) => {
                                                 form.setFieldValue(
                                                     'userAccess',
@@ -1152,16 +1156,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             </Stack>
                         </form>
                     </Tabs.Panel>
-
-                    <Tabs.Panel value="conversations" pt="lg">
-                        {/* TODO when admin page supports query string we should pass current agent uuid */}
-                        <Navigate to={`/ai-agents/admin`} />
-                        <Center h="100%">
-                            <Loader />
-                        </Center>
-                    </Tabs.Panel>
                 </Tabs>
-
                 <MantineModal
                     opened={deleteModalOpen}
                     onClose={handleCancelDelete}

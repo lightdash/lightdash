@@ -205,6 +205,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     apiKey: 'mock_api_key',
                     modelName: 'mock_model_name',
                     temperature: 0.2,
+                    responsesApi: false,
                 },
             },
         },
@@ -229,6 +230,11 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     github: {
         appName: 'lightdash-app-dev',
+        redirectDomain: 'test',
+    },
+    gitlab: {
+        clientId: undefined,
+        clientSecret: undefined,
         redirectDomain: 'test',
     },
     headlessBrowser: {

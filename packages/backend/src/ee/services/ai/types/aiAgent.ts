@@ -1,5 +1,6 @@
 import { AiAgent } from '@lightdash/common';
-import { CoreMessage, LanguageModelV1 } from 'ai';
+import { ModelMessage } from 'ai';
+import { AiModel } from '../models/types';
 import {
     CreateOrUpdateArtifactFn,
     FindChartsFn,
@@ -17,17 +18,15 @@ import {
     UpdatePromptFn,
 } from './aiAgentDependencies';
 
-export type AiAgentArgs = {
-    model: LanguageModelV1;
+export type AiAgentArgs<P extends string = string> = AiModel<P> & {
     agentSettings: AiAgent;
-    messageHistory: CoreMessage[];
+    messageHistory: ModelMessage[];
     promptUuid: string;
     threadUuid: string;
     organizationId: string;
     userId: string;
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
-    callOptions: { temperature: number };
 
     availableExploresPageSize: number;
     findExploresPageSize: number;

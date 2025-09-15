@@ -1,10 +1,7 @@
 import {
-    Explore,
-    getTotalFilterRules,
     isSlackPrompt,
     toolTimeSeriesArgsSchema,
     toolTimeSeriesArgsSchemaTransformed,
-    ToolTimeSeriesArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -14,7 +11,6 @@ import type {
     RunMiniMetricQueryFn,
     SendFileFn,
     UpdateProgressFn,
-    UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -26,26 +22,23 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
-    updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
 };
+
 export const getGenerateTimeSeriesVizConfig = ({
     getExplore,
     updateProgress,
     runMiniMetricQuery,
     getPrompt,
     sendFile,
-    updatePrompt,
     createOrUpdateArtifact,
     maxLimit,
-}: Dependencies) => {
-    const schema = toolTimeSeriesArgsSchema;
-
-    return tool({
+}: Dependencies) =>
+    tool({
         description: toolTimeSeriesArgsSchema.description,
-        parameters: schema,
+        inputSchema: toolTimeSeriesArgsSchema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📈 Generating your line chart...');
@@ -99,4 +92,3 @@ export const getGenerateTimeSeriesVizConfig = ({
             }
         },
     });
-};

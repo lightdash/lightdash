@@ -42,12 +42,12 @@ import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
-    CoreAssistantMessage,
-    CoreMessage,
-    CoreToolMessage,
-    CoreUserMessage,
+    AssistantModelMessage,
+    ModelMessage,
     ToolCallPart,
+    ToolModelMessage,
     ToolResultPart,
+    UserModelMessage,
 } from 'ai';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
@@ -1494,14 +1494,14 @@ export class AiAgentService {
         threadMessages: Awaited<
             ReturnType<typeof AiAgentModel.prototype.getThreadMessages>
         >,
-    ): Promise<CoreMessage[]> {
+    ): Promise<ModelMessage[]> {
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message) => {
-                const messages: CoreMessage[] = [
+                const messages: ModelMessage[] = [
                     {
                         role: 'user',
                         content: message.prompt,
-                    } satisfies CoreUserMessage,
+                    } satisfies UserModelMessage,
                 ];
 
                 const toolCallsAndResults =
@@ -1518,10 +1518,10 @@ export class AiAgentService {
                                     type: 'tool-call',
                                     toolCallId: toolCallAndResult.tool_call_id,
                                     toolName: toolCallAndResult.tool_name,
-                                    args: toolCallAndResult.tool_args,
+                                    input: toolCallAndResult.tool_args,
                                 } satisfies ToolCallPart),
                         ),
-                    } satisfies CoreAssistantMessage);
+                    } satisfies AssistantModelMessage);
 
                     messages.push({
                         role: 'tool',
@@ -1531,17 +1531,20 @@ export class AiAgentService {
                                     type: 'tool-result',
                                     toolCallId: toolCallAndResult.tool_call_id,
                                     toolName: toolCallAndResult.tool_name,
-                                    result: toolCallAndResult.result,
+                                    output: {
+                                        type: 'json',
+                                        value: toolCallAndResult.result,
+                                    },
                                 } satisfies ToolResultPart),
                         ),
-                    } satisfies CoreToolMessage);
+                    } satisfies ToolModelMessage);
                 }
 
                 if (message.response) {
                     messages.push({
                         role: 'assistant',
                         content: message.response,
-                    } satisfies CoreAssistantMessage);
+                    } satisfies AssistantModelMessage);
                 }
 
                 if (message.human_score) {
@@ -1552,7 +1555,7 @@ export class AiAgentService {
                             message.human_score > 0
                                 ? 'I liked this response'
                                 : 'I did not like this response',
-                    } satisfies CoreUserMessage);
+                    } satisfies UserModelMessage);
                 }
 
                 return messages;
@@ -1891,7 +1894,7 @@ export class AiAgentService {
 
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+        messageHistory: ModelMessage[],
         options: {
             prompt: AiWebAppPrompt;
             stream: true;
@@ -1899,7 +1902,7 @@ export class AiAgentService {
     ): Promise<ReturnType<typeof streamAgentResponse>>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+        messageHistory: ModelMessage[],
         options: {
             prompt: AiWebAppPrompt;
             stream: false;
@@ -1907,7 +1910,7 @@ export class AiAgentService {
     ): Promise<string>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+        messageHistory: ModelMessage[],
         options: {
             prompt: SlackPrompt;
             stream: false;
@@ -1915,7 +1918,7 @@ export class AiAgentService {
     ): Promise<string>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+        messageHistory: ModelMessage[],
         options:
             | {
                   prompt: AiWebAppPrompt;
@@ -1954,22 +1957,20 @@ export class AiAgentService {
             storeToolResults,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const { model, callOptions } = getModel(
-            this.lightdashConfig.ai.copilot,
-        );
+        const modelProperties = getModel(this.lightdashConfig.ai.copilot);
         const agentSettings = await this.getAgentSettings(user, prompt);
 
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
 
-            threadUuid: prompt.threadUuid,
-            promptUuid: prompt.promptUuid,
+            ...modelProperties,
 
             agentSettings,
-            model,
-            callOptions,
+
             messageHistory,
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,

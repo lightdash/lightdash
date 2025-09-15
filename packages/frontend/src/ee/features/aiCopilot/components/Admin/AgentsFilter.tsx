@@ -16,13 +16,13 @@ import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../hooks/useProjects';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
+import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import classes from './AgentsFilter.module.css';
 
-type AgentsFilterProps = {
-    selectedAgentUuids: string[];
-    setSelectedAgentUuids: (agentUuids: string[]) => void;
-    selectedProjectUuids: string[];
-};
+type AgentsFilterProps = Pick<
+    ReturnType<typeof useAiAgentAdminFilters>,
+    'selectedAgentUuids' | 'setSelectedAgentUuids' | 'selectedProjectUuids'
+>;
 
 const AgentsFilter: FC<AgentsFilterProps> = ({
     selectedAgentUuids,

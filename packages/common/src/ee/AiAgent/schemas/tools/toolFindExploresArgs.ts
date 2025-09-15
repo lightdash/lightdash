@@ -32,4 +32,5 @@ export const toolFindExploresArgsSchema = createToolSchema(
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
 
 export const toolFindExploresArgsSchemaTransformed = toolFindExploresArgsSchema;
+
 export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
