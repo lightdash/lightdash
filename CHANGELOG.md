@@ -1,3 +1,10 @@
+# [0.2003.0](https://github.com/lightdash/lightdash/compare/0.2002.0...0.2003.0) (2025-09-15)
+
+
+### Features
+
+* go to ai agent conversations to filtered admin panel ([#16893](https://github.com/lightdash/lightdash/issues/16893)) ([bab6681](https://github.com/lightdash/lightdash/commit/bab6681dc16c77fb0e2285419d624c870c16aca0))
+
 # [0.2002.0](https://github.com/lightdash/lightdash/compare/0.2001.2...0.2002.0) (2025-09-15)
 
 
