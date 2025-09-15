@@ -1321,7 +1321,6 @@ export class AiAgentModel {
             messageUuid: string;
         },
     ): Promise<AiAgentMessage> {
-        // First query: Get the prompt without artifacts to avoid duplicates
         const row = await this.database(AiPromptTableName)
             .select<
                 (Pick<
