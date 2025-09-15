@@ -121,7 +121,7 @@ export const getFindExplores = ({
 }: Dependencies) =>
     tool({
         description: toolFindExploresArgsSchema.description,
-        parameters: toolFindExploresArgsSchema,
+        inputSchema: toolFindExploresArgsSchema,
         execute: async (args) => {
             try {
                 if (args.page && args.page < 1) {

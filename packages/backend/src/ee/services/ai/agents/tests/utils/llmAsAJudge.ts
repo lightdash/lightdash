@@ -1,6 +1,6 @@
 import { assertUnreachable } from '@lightdash/common';
 import { ContextRelevancyMetric } from '@mastra/evals/llm';
-import { generateObject } from 'ai';
+import { generateObject, LanguageModel } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
 import { getOpenaiGptmodel } from '../../../models/openai-gpt';
@@ -54,7 +54,7 @@ type BaseLlmAsJudgeParams = {
     response: string;
     expectedAnswer?: string;
     context?: string[];
-    model: ReturnType<typeof getOpenaiGptmodel>['model'];
+    model: Exclude<LanguageModel, string>;
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'];
 };
 

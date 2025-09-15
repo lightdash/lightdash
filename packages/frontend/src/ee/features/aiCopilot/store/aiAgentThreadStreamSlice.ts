@@ -44,7 +44,7 @@ export const aiAgentThreadStreamSlice = createSlice({
                 ...initialThread,
             };
         },
-        appendToMessage: (
+        setMessage: (
             state,
             action: PayloadAction<{
                 threadUuid: string;
@@ -55,7 +55,7 @@ export const aiAgentThreadStreamSlice = createSlice({
 
             const streamingThread = state[threadUuid];
             if (streamingThread) {
-                streamingThread.content += content;
+                streamingThread.content = content;
             } else {
                 console.warn('Streaming thread or message not found:', {
                     threadUuid,
@@ -117,7 +117,7 @@ export const aiAgentThreadStreamSlice = createSlice({
 
 export const {
     startStreaming,
-    appendToMessage,
+    setMessage,
     stopStreaming,
     setError,
     addToolCall,

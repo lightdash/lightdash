@@ -1,5 +1,5 @@
 import { AiAgent } from '@lightdash/common';
-import { CoreMessage, LanguageModelV1 } from 'ai';
+import { LanguageModel, ModelMessage } from 'ai';
 import {
     CreateOrUpdateArtifactFn,
     FindChartsFn,
@@ -18,9 +18,9 @@ import {
 } from './aiAgentDependencies';
 
 export type AiAgentArgs = {
-    model: LanguageModelV1;
+    model: LanguageModel;
     agentSettings: AiAgent;
-    messageHistory: CoreMessage[];
+    messageHistory: ModelMessage[];
     promptUuid: string;
     threadUuid: string;
     organizationId: string;
