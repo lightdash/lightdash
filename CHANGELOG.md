@@ -1,3 +1,10 @@
+## [0.2006.2](https://github.com/lightdash/lightdash/compare/0.2006.1...0.2006.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* filter invalid users from AI agent userAccess list ([#16908](https://github.com/lightdash/lightdash/issues/16908)) ([9faaacd](https://github.com/lightdash/lightdash/commit/9faaacde48a7d8e7dca817b5394a8576b6aeede6))
+
 ## [0.2006.1](https://github.com/lightdash/lightdash/compare/0.2006.0...0.2006.1) (2025-09-15)
 
 
