@@ -83,6 +83,16 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
             {
                 path: ':agentUuid/edit',
                 element: <ProjectAiAgentEditPage />,
+                children: [
+                    {
+                        path: 'evals/:evalUuid',
+                        element: <ProjectAiAgentEditPage />,
+                    },
+                    {
+                        path: 'evals/:evalUuid/run/:runUuid',
+                        element: <ProjectAiAgentEditPage />,
+                    },
+                ],
             },
             {
                 path: ':agentUuid',
