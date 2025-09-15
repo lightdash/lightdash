@@ -109,6 +109,24 @@ export class AiAgentAdminController extends BaseController {
         };
     }
 
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/embed-token')
+    @OperationId('getEmbedToken')
+    async getEmbedToken(
+        @Request() req: express.Request,
+    ): Promise<{ status: string; results: { token: string; url: string } }> {
+        const results = await this.getAiAgentAdminService().generateEmbedToken(
+            req.user!,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
     protected getAiAgentAdminService() {
         return this.services.getAiAgentAdminService<AiAgentAdminService>();
     }

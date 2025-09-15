@@ -1,12 +1,15 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
 import {
     Box,
+    Button,
     Group,
+    Modal,
     Stack,
     Text,
     Title,
     useMantineTheme,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
@@ -17,6 +20,7 @@ import SuboptimalState from '../../../../../components/common/SuboptimalState/Su
 import useApp from '../../../../../providers/App/useApp';
 import AiAgentAdminThreadsTable from './AiAgentAdminThreadsTable';
 import styles from './AiAgentsAdminLayout.module.css';
+import { AnalyticsEmbedDashboard } from './AnalyticsEmbedDashboard';
 import { ThreadPreviewSidebar } from './ThreadPreviewSidebar';
 
 export const AiAgentsAdminLayout = () => {
@@ -25,6 +29,8 @@ export const AiAgentsAdminLayout = () => {
     const [selectedThread, setSelectedThread] =
         useState<AiAgentAdminThreadSummary | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isAnalyticsEmbedOpen, { toggle: toggleAnalyticsEmbed }] =
+        useDisclosure(false);
 
     const canManageOrganization = user.data?.ability.can(
         'manage',
@@ -34,6 +40,9 @@ export const AiAgentsAdminLayout = () => {
     const handleThreadSelect = (thread: AiAgentAdminThreadSummary): void => {
         setSelectedThread(thread);
         setIsSidebarOpen(true);
+        if (isAnalyticsEmbedOpen) {
+            toggleAnalyticsEmbed();
+        }
     };
 
     const handleCloseSidebar = () => {
@@ -69,7 +78,19 @@ export const AiAgentsAdminLayout = () => {
                 >
                     <Group justify="space-between" my="lg">
                         <Box>
-                            <Title order={2}>AI Agents Admin Panel</Title>
+                            <Group>
+                                <Title order={2}>AI Agents Admin Panel</Title>
+                                <Group justify="space-between" my="lg">
+                                    <Button
+                                        onClick={toggleAnalyticsEmbed}
+                                        variant="filled"
+                                        size="compact-sm"
+                                        color="indigo"
+                                    >
+                                        View Insights
+                                    </Button>
+                                </Group>
+                            </Group>
                             <Text c="gray.6" size="sm" fw={400}>
                                 View and manage AI Agents threads
                             </Text>
@@ -126,6 +147,22 @@ export const AiAgentsAdminLayout = () => {
                     </>
                 )}
             </PanelGroup>
+            <Modal
+                opened={isAnalyticsEmbedOpen}
+                size="xl"
+                onClose={toggleAnalyticsEmbed}
+                title={<Text fw={700}>AI Agents Insights</Text>}
+                padding="0"
+                centered
+                styles={{
+                    header: {
+                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        padding: theme.spacing.md,
+                    },
+                }}
+            >
+                <AnalyticsEmbedDashboard />
+            </Modal>
         </Stack>
     );
 };
