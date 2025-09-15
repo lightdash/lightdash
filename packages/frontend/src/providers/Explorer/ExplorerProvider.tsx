@@ -1532,7 +1532,7 @@ const ExplorerProvider: FC<
             const metricQuery = unsavedChartVersion.metricQuery;
             let pivotConfiguration: PivotConfiguration | undefined;
 
-            if (!useSqlPivotResults?.enabled || !explore) {
+            if (!explore) {
                 return;
             }
 
