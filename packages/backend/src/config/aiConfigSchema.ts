@@ -17,6 +17,7 @@ export const aiCopilotConfigSchema = z
                     modelName: z.string().default(DEFAULT_OPENAI_MODEL_NAME),
                     baseUrl: z.string().optional(),
                     temperature: z.number().min(0).max(2).default(0.2),
+                    responsesApi: z.boolean().default(false),
                 })
                 .optional(),
             azure: z
