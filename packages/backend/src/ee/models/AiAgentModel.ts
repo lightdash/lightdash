@@ -161,6 +161,7 @@ export class AiAgentModel {
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -267,6 +268,7 @@ export class AiAgentModel {
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -346,6 +348,7 @@ export class AiAgentModel {
             | 'instruction'
             | 'groupAccess'
             | 'userAccess'
+            | 'enableDataAccess'
         > & {
             organizationUuid: string;
         },
@@ -359,6 +362,7 @@ export class AiAgentModel {
                     tags: args.tags,
                     description: null,
                     image_url: null,
+                    enable_data_access: args.enableDataAccess,
                 })
                 .returning('*');
 
@@ -428,6 +432,7 @@ export class AiAgentModel {
                 imageUrl: agent.image_url,
                 groupAccess,
                 userAccess,
+                enableDataAccess: agent.enable_data_access,
             };
         });
     }
@@ -453,6 +458,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.projectUuid !== undefined
                         ? { project_uuid: args.projectUuid }
+                        : {}),
+                    ...(args.enableDataAccess !== undefined
+                        ? { enable_data_access: args.enableDataAccess }
                         : {}),
                 })
                 .returning('*');
@@ -538,6 +546,7 @@ export class AiAgentModel {
                 imageUrl: agent.image_url,
                 groupAccess,
                 userAccess,
+                enableDataAccess: agent.enable_data_access,
             };
         });
     }

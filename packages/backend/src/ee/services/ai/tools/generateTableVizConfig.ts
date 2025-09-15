@@ -1,5 +1,6 @@
 import {
     isSlackPrompt,
+    metricQueryTableViz,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
 } from '@lightdash/common';
@@ -12,10 +13,11 @@ import type {
     SendFileFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
+import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateTableVizConfig } from '../utils/validateTableVizConfig';
-import { renderTableViz } from '../visualizations/vizTable';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -25,6 +27,7 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
+    enableDataAccess: boolean;
 };
 
 export const getGenerateTableVizConfig = ({
@@ -35,6 +38,7 @@ export const getGenerateTableVizConfig = ({
     updateProgress,
     createOrUpdateArtifact,
     maxLimit,
+    enableDataAccess,
 }: Dependencies) =>
     tool({
         description: toolTableVizArgsSchema.description,
@@ -67,14 +71,21 @@ export const getGenerateTableVizConfig = ({
                     vizConfig: toolArgs,
                 });
 
-                const { csv, results } = await renderTableViz({
-                    runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
-                    vizTool,
+                const metricQuery = metricQueryTableViz({
+                    vizConfig: vizTool.vizConfig,
+                    filters: vizTool.filters,
                     maxLimit,
+                    customMetrics: vizTool.customMetrics ?? null,
                 });
+                const queryResults = await runMiniMetricQuery(
+                    metricQuery,
+                    maxLimit,
+                    populateCustomMetricsSQL(vizTool.customMetrics, explore),
+                );
                 await updateProgress('✅ Done.');
 
-                isOneRow = results.rows.length === 1;
+                isOneRow = queryResults.rows.length === 1;
+                const csv = convertQueryResultsToCsv(queryResults);
 
                 // Always send CSV file to Slack if it's a Slack prompt, regardless of row count
                 if (isSlackPrompt(prompt)) {
@@ -89,12 +100,18 @@ export const getGenerateTableVizConfig = ({
                     });
                 }
 
-                if (isOneRow) {
-                    return `Here's the result:
-                    ${serializeData(csv, 'csv')}`;
+                if (!enableDataAccess) {
+                    if (isOneRow) {
+                        return `Here's the result:\n${serializeData(
+                            csv,
+                            'csv',
+                        )}`;
+                    }
+
+                    return `Success`;
                 }
 
-                return `Success.`;
+                return serializeData(csv, 'csv');
             } catch (e) {
                 return toolErrorHandler(
                     e,

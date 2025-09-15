@@ -27,6 +27,7 @@ export type AiAgentArgs<P extends string = string> = AiModel<P> & {
     userId: string;
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
+    enableDataAccess: boolean;
 
     availableExploresPageSize: number;
     findExploresPageSize: number;
