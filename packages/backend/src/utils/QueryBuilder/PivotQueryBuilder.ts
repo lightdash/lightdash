@@ -5,6 +5,7 @@ import {
     ParameterError,
     type PivotConfiguration,
     SortByDirection,
+    VizSortBy,
     WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { applyLimitToSqlQuery } from './utils';
@@ -192,48 +193,70 @@ export class PivotQueryBuilder {
         q: string,
     ): string {
         const orderByParts: string[] = [];
-        const processedColumns = new Set<string>();
 
-        // Process sortBy in order to maintain the specified sort priority
         if (sortBy) {
-            for (const sort of sortBy) {
-                const sortDirection =
-                    sort.direction === SortByDirection.DESC ? ' DESC' : ' ASC';
-
-                const isValueColumn = valuesColumns?.some(
-                    (valCol) => valCol.reference === sort.reference,
+            const isValueColumn = (sort: VizSortBy | undefined) =>
+                valuesColumns?.some(
+                    (valCol) => valCol.reference === sort?.reference,
                 );
 
-                const isGroupByColumn = groupByColumns.some(
-                    (groupCol) => groupCol.reference === sort.reference,
+            const isGroupByColumn = ({ reference }: VizSortBy) =>
+                groupByColumns.some(
+                    (groupCol) => groupCol.reference === reference,
                 );
 
-                if (isValueColumn) {
+            // Create values order parts
+            const valuesOrderByParts = sortBy
+                .filter(isValueColumn)
+                .reduce<string[]>((acc, sort) => {
+                    const sortDirection =
+                        sort.direction === SortByDirection.DESC
+                            ? ' DESC'
+                            : ' ASC';
                     // Use column anchor value for value columns
                     const colAnchorCteName = `${sort.reference}_column_anchor`;
 
-                    if (metricFirstValueQueries[colAnchorCteName]) {
-                        orderByParts.push(
+                    // todo: current SQL does not work with value sorting and multiple group columns
+                    if (
+                        groupByColumns.length === 1 &&
+                        metricFirstValueQueries[colAnchorCteName]
+                    ) {
+                        acc.push(
                             `${colAnchorCteName}.${q}${colAnchorCteName}_value${q}${sortDirection}`,
                         );
                     }
-                } else if (isGroupByColumn) {
-                    // Use regular column reference for group by columns
-                    orderByParts.push(
-                        `g.${q}${sort.reference}${q}${sortDirection}`,
-                    );
-                    processedColumns.add(sort.reference);
-                }
-            }
-        }
+                    return acc;
+                }, []);
 
-        // Add any missing groupBy columns at the end to ensure proper dense_rank calculation
-        groupByColumns.forEach((col) => {
-            if (!processedColumns.has(col.reference)) {
-                // Default to ASC for missing columns
-                orderByParts.push(`g.${q}${col.reference}${q} ASC`);
+            // Create groups order parts. Note that groups parts should follow the groupsByColumns order rather than sortBy order.
+            const groupsOrderByParts = groupByColumns.map((col) => {
+                const sort = sortBy.find((s) => s.reference === col.reference);
+                if (sort) {
+                    const sortDirection =
+                        sort.direction === SortByDirection.DESC
+                            ? ' DESC'
+                            : ' ASC';
+                    return `g.${q}${col.reference}${q}${sortDirection}`;
+                }
+
+                return `g.${q}${col.reference}${q} ASC`;
+            });
+
+            // Order parts cannot have values and groups interleaved. We have to ensure they are together by type
+            const sortByValuesFirst = isValueColumn(
+                sortBy.find((s) => isValueColumn(s) || isGroupByColumn(s)),
+            );
+            if (sortByValuesFirst) {
+                orderByParts.push(...valuesOrderByParts, ...groupsOrderByParts);
+            } else {
+                orderByParts.push(...groupsOrderByParts, ...valuesOrderByParts);
             }
-        });
+        } else {
+            // Default to all groupBy columns with ASC direction
+            groupByColumns.forEach((col) => {
+                orderByParts.push(`g.${q}${col.reference}${q} ASC`);
+            });
+        }
 
         return orderByParts.join(', ');
     }
