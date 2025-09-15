@@ -14,7 +14,9 @@ export const getOpenaiGptmodel = (
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });
 
-    const model = openai(config.modelName);
+    const model = config.responsesApi
+        ? openai.responses(config.modelName)
+        : openai(config.modelName);
 
     return {
         model,

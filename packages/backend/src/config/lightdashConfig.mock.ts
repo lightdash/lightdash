@@ -205,6 +205,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     apiKey: 'mock_api_key',
                     modelName: 'mock_model_name',
                     temperature: 0.2,
+                    responsesApi: false,
                 },
             },
         },

@@ -1089,6 +1089,7 @@ export const parseConfig = (): LightdashConfig => {
                       baseUrl: process.env.OPENAI_BASE_URL,
                       temperature:
                           getFloatFromEnvironmentVariable('OPENAI_TEMPERATURE'),
+                      responsesApi: process.env.OPENAI_RESPONSES_API === 'true',
                   }
                 : undefined,
             anthropic: process.env.ANTHROPIC_API_KEY
