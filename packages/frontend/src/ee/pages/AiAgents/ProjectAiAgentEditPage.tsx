@@ -4,7 +4,6 @@ import {
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     ProjectRoleOrder,
-    type BaseAiAgent,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -78,18 +77,7 @@ import {
 import { useGetAgentExploreAccessSummary } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 import AiExploreAccessTree from './AiExploreAccessTree';
 
-const formSchema: z.ZodType<
-    Pick<
-        BaseAiAgent,
-        | 'name'
-        | 'integrations'
-        | 'tags'
-        | 'instruction'
-        | 'imageUrl'
-        | 'groupAccess'
-        | 'userAccess'
-    >
-> = z.object({
+const formSchema = z.object({
     name: z.string().min(1),
     integrations: z.array(
         z.object({
@@ -626,10 +614,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                             {...form.getInputProps(
                                                 'userAccess',
                                             )}
-                                            value={
-                                                form.getInputProps('userAccess')
-                                                    .value ?? []
-                                            }
+                                            value={form.values.userAccess.filter(
+                                                (userUuid: string) =>
+                                                    userOptions.some(
+                                                        (u) =>
+                                                            u.value ===
+                                                            userUuid,
+                                                    ),
+                                            )}
                                             onChange={(value) => {
                                                 form.setFieldValue(
                                                     'userAccess',
