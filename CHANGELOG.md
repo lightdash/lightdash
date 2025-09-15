@@ -1,3 +1,10 @@
+## [0.2001.2](https://github.com/lightdash/lightdash/compare/0.2001.1...0.2001.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* remove unique project uuid name constraint from tags ([#16879](https://github.com/lightdash/lightdash/issues/16879)) ([df994cc](https://github.com/lightdash/lightdash/commit/df994cccd990881f4a6fb7f34a2de54bbaf0441d))
+
 ## [0.2001.1](https://github.com/lightdash/lightdash/compare/0.2001.0...0.2001.1) (2025-09-12)
 
 
