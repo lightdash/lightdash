@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
+export type ToolSchemaBuilder<$Schema extends z.ZodRawShape = z.ZodRawShape> = {
     extend: <$Fields extends z.ZodRawShape>(
         fields: $Fields,
     ) => ToolSchemaBuilder<$Schema & $Fields>;

@@ -1,10 +1,7 @@
 import {
-    Explore,
-    getTotalFilterRules,
     isSlackPrompt,
     toolVerticalBarArgsSchema,
     toolVerticalBarArgsSchemaTransformed,
-    ToolVerticalBarArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -14,7 +11,6 @@ import type {
     RunMiniMetricQueryFn,
     SendFileFn,
     UpdateProgressFn,
-    UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -26,7 +22,6 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
-    updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
@@ -38,15 +33,12 @@ export const getGenerateBarVizConfig = ({
     runMiniMetricQuery,
     getPrompt,
     sendFile,
-    updatePrompt,
     createOrUpdateArtifact,
     maxLimit,
-}: Dependencies) => {
-    const schema = toolVerticalBarArgsSchema;
-
-    return tool({
+}: Dependencies) =>
+    tool({
         description: toolVerticalBarArgsSchema.description,
-        inputSchema: schema,
+        inputSchema: toolVerticalBarArgsSchema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📊 Generating your bar chart...');
@@ -99,4 +91,3 @@ export const getGenerateBarVizConfig = ({
             }
         },
     });
-};

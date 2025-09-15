@@ -1957,22 +1957,20 @@ export class AiAgentService {
             storeToolResults,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const { model, callOptions } = getModel(
-            this.lightdashConfig.ai.copilot,
-        );
+        const modelProperties = getModel(this.lightdashConfig.ai.copilot);
         const agentSettings = await this.getAgentSettings(user, prompt);
 
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
 
-            threadUuid: prompt.threadUuid,
-            promptUuid: prompt.promptUuid,
+            ...modelProperties,
 
             agentSettings,
-            model,
-            callOptions,
+
             messageHistory,
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
