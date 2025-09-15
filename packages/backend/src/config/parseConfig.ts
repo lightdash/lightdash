@@ -763,6 +763,11 @@ export type LightdashConfig = {
         appName: string;
         redirectDomain: string;
     };
+    gitlab: {
+        clientId: string | undefined;
+        clientSecret: string | undefined;
+        redirectDomain: string;
+    };
     contentAsCode: {
         maxDownloads: number;
     };
@@ -1563,6 +1568,13 @@ export const parseConfig = (): LightdashConfig => {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
             redirectDomain:
                 process.env.GITHUB_REDIRECT_DOMAIN ||
+                siteUrl.split('.')[0].split('//')[1],
+        },
+        gitlab: {
+            clientId: process.env.GITLAB_CLIENT_ID,
+            clientSecret: process.env.GITLAB_CLIENT_SECRET,
+            redirectDomain:
+                process.env.GITLAB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
         },
         contentAsCode: {
