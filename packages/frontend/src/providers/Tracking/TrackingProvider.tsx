@@ -43,7 +43,7 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
                 name: LIGHTDASH_APP_NAME,
                 version,
                 build: version,
-            } as any as rudderSDK.apiObject),
+            }) as any as rudderSDK.apiObject,
         [version],
     );
 
@@ -104,7 +104,7 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
         ({ name, properties = {} }: EventData): void => {
             rudderAnalytics?.track(
                 `${LIGHTDASH_APP_NAME}.${name}`,
-                properties,
+                properties as Record<string, any>,
                 {
                     ...lightdashContext,
                     section: sectionContext,

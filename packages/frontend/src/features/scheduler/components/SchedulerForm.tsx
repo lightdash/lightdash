@@ -82,12 +82,7 @@ import SchedulerParameters from './SchedulerParameters';
 import { SchedulerPreview } from './SchedulerPreview';
 import { Limit, Values } from './types';
 
-enum SlackStates {
-    LOADING,
-    SUCCESS,
-    NO_SLACK,
-    MISSING_SCOPES,
-}
+enum SlackStates
 
 const DEFAULT_VALUES = {
     name: '',
@@ -166,8 +161,8 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
             options.limit === Limit.TABLE
                 ? Limit.TABLE
                 : options.limit === Limit.ALL
-                ? Limit.ALL
-                : Limit.CUSTOM;
+                  ? Limit.ALL
+                  : Limit.CUSTOM;
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
@@ -361,18 +356,18 @@ const SchedulerForm: FC<Props> = ({
                       ),
                   })
                 : isThresholdAlert
-                ? DEFAULT_VALUES_ALERT
-                : {
-                      ...DEFAULT_VALUES,
-                      selectedTabs: isDashboardTabsAvailable
-                          ? dashboard?.tabs.map((tab) => tab.uuid)
-                          : null,
-                      parameters:
-                          isDashboard &&
-                          Object.keys(dashboardParameterValues).length > 0
-                              ? dashboardParameterValues
-                              : undefined,
-                  },
+                  ? DEFAULT_VALUES_ALERT
+                  : {
+                        ...DEFAULT_VALUES,
+                        selectedTabs: isDashboardTabsAvailable
+                            ? dashboard?.tabs.map((tab) => tab.uuid)
+                            : null,
+                        parameters:
+                            isDashboard &&
+                            Object.keys(dashboardParameterValues).length > 0
+                                ? dashboardParameterValues
+                                : undefined,
+                    },
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
@@ -546,8 +541,8 @@ const SchedulerForm: FC<Props> = ({
                         channelPrefix === '#'
                             ? 'Channels'
                             : channelPrefix === '@'
-                            ? 'Users'
-                            : 'Private channels',
+                              ? 'Users'
+                              : 'Private channels',
                 };
             })
             .concat(privateChannels);

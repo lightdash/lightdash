@@ -243,9 +243,11 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             placeholder="Sheet1"
                             error={
                                 methods.formState.errors.options &&
-                                `tabName` in methods.formState.errors.options &&
-                                methods.formState.errors.options?.tabName
-                                    ?.message
+                                typeof methods.formState.errors.options ===
+                                    'object' &&
+                                'tabName' in methods.formState.errors.options &&
+                                (methods.formState.errors.options as any)
+                                    ?.tabName?.message
                             }
                             {...methods.register('options.tabName', {
                                 validate: (value) => {

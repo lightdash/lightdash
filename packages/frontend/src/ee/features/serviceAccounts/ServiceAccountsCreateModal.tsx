@@ -86,7 +86,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             };
         },
         validate: {
-            scopes: (value) => {
+            scopes: (value: ServiceAccountScope[]) => {
                 if (value.length === 0) {
                     return 'At least one scope is required';
                 }

@@ -11,7 +11,7 @@
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "linter": "eslint -c .eslintrc.js",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",
         "fix-lint": "pnpm run linter ./src --fix",
