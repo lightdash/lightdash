@@ -1,3 +1,10 @@
+# [0.2004.0](https://github.com/lightdash/lightdash/compare/0.2003.0...0.2004.0) (2025-09-15)
+
+
+### Features
+
+* gitlab integration ([#16633](https://github.com/lightdash/lightdash/issues/16633)) ([43c4b82](https://github.com/lightdash/lightdash/commit/43c4b8235221b328b14ce79b3b1dd21e14fe8998))
+
 # [0.2003.0](https://github.com/lightdash/lightdash/compare/0.2002.0...0.2003.0) (2025-09-15)
 
 
