@@ -982,12 +982,17 @@ export const convertSqlPivotedRowsToPivotData = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const columnOrder = pivotConfig.columnOrder || [];
 
     // Extract information from pivot details metadata
     let indexColumns: string[];
     if (pivotDetails.indexColumn) {
         if (Array.isArray(pivotDetails.indexColumn)) {
-            indexColumns = pivotDetails.indexColumn.map((col) => col.reference);
+            indexColumns = pivotDetails.indexColumn
+                .map((col) => col.reference)
+                .sort(
+                    (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
+                );
         } else {
             indexColumns = [pivotDetails.indexColumn.reference];
         }
@@ -1093,10 +1098,20 @@ export const convertSqlPivotedRowsToPivotData = ({
     // Add metric labels for columns if not metrics as rows
     if (!pivotConfig.metricsAsRows && baseMetricsArray.length > 0) {
         headerValues.push(
-            pivotDetails.valuesColumns.map(({ referenceField }) => ({
-                type: 'label' as const,
-                fieldId: referenceField,
-            })),
+            pivotDetails.valuesColumns
+                .sort((a, b) => {
+                    const columnIndexSort =
+                        Number(a.columnIndex) - Number(b.columnIndex);
+                    const columnOrderSort =
+                        columnOrder.indexOf(a.referenceField) -
+                        columnOrder.indexOf(b.referenceField);
+
+                    return columnIndexSort || columnOrderSort;
+                })
+                .map(({ referenceField }) => ({
+                    type: 'label' as const,
+                    fieldId: referenceField,
+                })),
         );
     }
 
