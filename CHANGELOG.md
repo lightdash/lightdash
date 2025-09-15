@@ -1,3 +1,16 @@
+# [0.2006.0](https://github.com/lightdash/lightdash/compare/0.2005.0...0.2006.0) (2025-09-15)
+
+
+### Bug Fixes
+
+* improve pivot query sorting with grouped values and multiple columns ([#16880](https://github.com/lightdash/lightdash/issues/16880)) ([2274de7](https://github.com/lightdash/lightdash/commit/2274de76072d611d53159ab86b5d99aa4621189f))
+
+
+### Features
+
+* add OpenAI responses API support option ([#16897](https://github.com/lightdash/lightdash/issues/16897)) ([aadc215](https://github.com/lightdash/lightdash/commit/aadc215fb64d30ee703c88799d3275fb34ad2910))
+* add provider-specific options to AI agent models ([#16895](https://github.com/lightdash/lightdash/issues/16895)) ([115881c](https://github.com/lightdash/lightdash/commit/115881c7bfdae6b09a63dc26b7325776e4ea0c9c))
+
 # [0.2005.0](https://github.com/lightdash/lightdash/compare/0.2004.0...0.2005.0) (2025-09-15)
 
 
