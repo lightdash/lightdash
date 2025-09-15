@@ -7,13 +7,13 @@ jobs:
   build-and-push-lightdash-image:
     executor:
       name: infra/default
-      resource_class: "large"
+      resource_class: "arm.large"
     steps:
       - checkout
       - infra/init
       - infra/build-push:
           multi_arch: false
-          resource_class: large
+          resource_class: arm.large
           build_args: ""
           registry: "europe-west4-docker.pkg.dev/core-infra-onesignal"
           repository: "onesignal"
