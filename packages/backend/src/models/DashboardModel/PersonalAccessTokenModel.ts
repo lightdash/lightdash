@@ -7,6 +7,7 @@ import {
     SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
+import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import {
@@ -21,8 +22,33 @@ export class PersonalAccessTokenModel {
         this.database = database;
     }
 
-    static _hash(s: string): string {
+    // Legacy SHA-256 hash (insecure, kept for backwards compatibility)
+    static _legacyHash(s: string): string {
         return crypto.createHash('sha256').update(s).digest('hex');
+    }
+
+    // New secure bcrypt hash
+    static async _hash(s: string): Promise<string> {
+        const saltRounds = 12;
+        return bcrypt.hash(s, saltRounds);
+    }
+
+    // Verify token against both hash methods for backwards compatibility
+    static async _verifyToken(
+        token: string,
+        storedHash: string,
+    ): Promise<boolean> {
+        // Try bcrypt first (new method)
+        try {
+            const isBcryptMatch = await bcrypt.compare(token, storedHash);
+            if (isBcryptMatch) return true;
+        } catch {
+            // If bcrypt fails, it's likely a legacy hash
+        }
+
+        // Fallback to legacy SHA-256 hash
+        const legacyHash = PersonalAccessTokenModel._legacyHash(token);
+        return legacyHash === storedHash;
     }
 
     static mapDbObjectToPersonalAccessToken(
@@ -89,7 +115,7 @@ export class PersonalAccessTokenModel {
         expiresAt: Date;
     }): Promise<PersonalAccessTokenWithToken> {
         const token = crypto.randomBytes(16).toString('hex');
-        const tokenHash = PersonalAccessTokenModel._hash(token);
+        const tokenHash = await PersonalAccessTokenModel._hash(token);
         const [row] = await this.database(PersonalAccessTokenTableName)
             .update({
                 rotated_at: new Date(),
@@ -120,7 +146,7 @@ export class PersonalAccessTokenModel {
         });
     }
 
-    /* 
+    /*
     Save an already generated token
     it might be provided by the user, or generated automatically on this.create
     */
@@ -128,7 +154,7 @@ export class PersonalAccessTokenModel {
         user: Pick<SessionUser, 'userId'>,
         data: CreatePersonalAccessToken & { token: string },
     ): Promise<PersonalAccessTokenWithToken> {
-        const tokenHash = PersonalAccessTokenModel._hash(data.token);
+        const tokenHash = await PersonalAccessTokenModel._hash(data.token);
         const [row] = await this.database(PersonalAccessTokenTableName)
             .insert({
                 created_by_user_id: user.userId,

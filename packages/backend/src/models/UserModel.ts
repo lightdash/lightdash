@@ -877,18 +877,51 @@ export class UserModel {
         | { user: SessionUser; personalAccessToken: PersonalAccessToken }
         | undefined
     > {
-        const tokenHash = PersonalAccessTokenModel._hash(token);
-        const [row] = await userDetailsQueryBuilder(this.database)
+        // First try the legacy hash for a quick lookup
+        const legacyTokenHash = PersonalAccessTokenModel._legacyHash(token);
+        let row = await userDetailsQueryBuilder(this.database)
             .innerJoin(
                 'personal_access_tokens',
                 'personal_access_tokens.created_by_user_id',
                 'users.user_id',
             )
-            .where('token_hash', tokenHash)
+            .where('token_hash', legacyTokenHash)
             .select<(DbUserDetails & DbPersonalAccessToken)[]>(
                 '*',
                 'organizations.created_at as organization_created_at',
+            )
+            .first();
+
+        // If no legacy hash match, check bcrypt hashes
+        // Limit to bcrypt-style hashes (they start with $2b$, $2a$, or $2y$)
+        if (!row) {
+            const bcryptRows = await userDetailsQueryBuilder(this.database)
+                .innerJoin(
+                    'personal_access_tokens',
+                    'personal_access_tokens.created_by_user_id',
+                    'users.user_id',
+                )
+                .where('token_hash', 'like', '$2%') // Bcrypt hashes start with $2
+                .select<(DbUserDetails & DbPersonalAccessToken)[]>(
+                    '*',
+                    'organizations.created_at as organization_created_at',
+                );
+
+            // Find matching token using bcrypt verification
+            const verificationPromises = bcryptRows.map(
+                async (potentialRow) => {
+                    const isValid = await PersonalAccessTokenModel._verifyToken(
+                        token,
+                        potentialRow.token_hash,
+                    );
+                    return isValid ? potentialRow : null;
+                },
             );
+
+            const results = await Promise.all(verificationPromises);
+            row = results.find((result) => result !== null) || undefined;
+        }
+
         if (row === undefined) {
             return undefined;
         }

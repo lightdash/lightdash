@@ -7,6 +7,7 @@ import {
     SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
+import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import {
@@ -21,8 +22,33 @@ export class ServiceAccountModel {
         this.database = database;
     }
 
-    static _hash(s: string): string {
+    // Legacy SHA-256 hash (insecure, kept for backwards compatibility)
+    static _legacyHash(s: string): string {
         return crypto.createHash('sha256').update(s).digest('hex');
+    }
+
+    // New secure bcrypt hash
+    static async _hash(s: string): Promise<string> {
+        const saltRounds = 12;
+        return bcrypt.hash(s, saltRounds);
+    }
+
+    // Verify token against both hash methods for backwards compatibility
+    static async _verifyToken(
+        token: string,
+        storedHash: string,
+    ): Promise<boolean> {
+        // Try bcrypt first (new method)
+        try {
+            const isBcryptMatch = await bcrypt.compare(token, storedHash);
+            if (isBcryptMatch) return true;
+        } catch {
+            // If bcrypt fails, it's likely a legacy hash
+        }
+
+        // Fallback to legacy SHA-256 hash
+        const legacyHash = ServiceAccountModel._legacyHash(token);
+        return legacyHash === storedHash;
     }
 
     static mapDbObjectToServiceAccount(
@@ -63,7 +89,7 @@ export class ServiceAccountModel {
         data: CreateServiceAccount,
         token: string,
     ): Promise<ServiceAccountWithToken> {
-        const tokenHash = ServiceAccountModel._hash(token);
+        const tokenHash = await ServiceAccountModel._hash(token);
         const [row] = await this.database('service_accounts')
             .insert({
                 created_by_user_uuid: user?.userUuid || null,
@@ -111,7 +137,7 @@ export class ServiceAccountModel {
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
         const token = ServiceAccountModel.generateToken(prefix);
-        const tokenHash = ServiceAccountModel._hash(token);
+        const tokenHash = await ServiceAccountModel._hash(token);
 
         const [row] = await this.database(ServiceAccountsTableName)
             .update({
@@ -153,10 +179,38 @@ export class ServiceAccountModel {
     }
 
     async getByToken(token: string): Promise<ServiceAccount> {
-        const hashedToken = ServiceAccountModel._hash(token);
-        const [row] = await this.database('service_accounts')
+        // First try the legacy hash for a quick lookup
+        const legacyTokenHash = ServiceAccountModel._legacyHash(token);
+        let row = await this.database('service_accounts')
             .select('*')
-            .where('token_hash', hashedToken);
+            .where('token_hash', legacyTokenHash)
+            .first();
+
+        // If no legacy hash match, check bcrypt hashes
+        if (!row) {
+            const bcryptRows = await this.database('service_accounts')
+                .select('*')
+                .where('token_hash', 'like', '$2%'); // Bcrypt hashes start with $2
+
+            // Find matching token using bcrypt verification
+            const verificationPromises = bcryptRows.map(
+                async (potentialRow) => {
+                    const isValid = await ServiceAccountModel._verifyToken(
+                        token,
+                        potentialRow.token_hash,
+                    );
+                    return isValid ? potentialRow : null;
+                },
+            );
+
+            const results = await Promise.all(verificationPromises);
+            row = results.find((result) => result !== null) || undefined;
+        }
+
+        if (!row) {
+            throw new Error('Service account not found');
+        }
+
         const mappedRow = ServiceAccountModel.mapDbObjectToServiceAccount(row);
         return mappedRow;
     }

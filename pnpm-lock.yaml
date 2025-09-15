@@ -212,6 +212,9 @@ importers:
       '@types/async':
         specifier: ^3.2.16
         version: 3.2.16
+      '@types/bcrypt':
+        specifier: ^5.0.2
+        version: 5.0.2
       '@types/sshpk':
         specifier: ^1.17.1
         version: 1.17.1
@@ -453,9 +456,6 @@ importers:
       '@types/archiver':
         specifier: ^6.0.2
         version: 6.0.2
-      '@types/bcrypt':
-        specifier: ^5.0.0
-        version: 5.0.0
       '@types/connect-flash':
         specifier: ^0.0.37
         version: 0.0.37
@@ -7253,8 +7253,8 @@ packages:
   '@types/babel__traverse@7.20.7':
     resolution: {integrity: sha512-dkO5fhS7+/oos4ciWxyEyjWe48zmG6wbCheo/G2ZnHx4fs3EU6YC6UM8rk56gAjNJ9P3MTH2jo5jb92/K6wbng==}
 
-  '@types/bcrypt@5.0.0':
-    resolution: {integrity: sha512-agtcFKaruL8TmcvqbndlqHPSJgsolhf/qPWchFlgnW1gECTN/nKbFcoFnvKAQRFfKbh+BO6A3SWdJu9t+xF3Lw==}
+  '@types/bcrypt@5.0.2':
+    resolution: {integrity: sha512-6atioO8Y75fNcbmj0G7UjI9lXN2pQ/IGJ2FWT4a/btd0Lk9lQalHLKhkgKVZ3r+spnmWUKfbMi1GEe9wyHQfNQ==}
 
   '@types/body-parser@1.19.0':
     resolution: {integrity: sha512-W98JrE0j2K78swW4ukqMleo8R7h/pFETjM2DQ90MF6XK2i4LO4W3gQ71Lt4w3bfm2EvVSyWHplECvB5sK22yFQ==}
@@ -8283,7 +8283,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -25509,9 +25508,9 @@ snapshots:
     dependencies:
       '@babel/types': 7.27.0
 
-  '@types/bcrypt@5.0.0':
+  '@types/bcrypt@5.0.2':
     dependencies:
-      '@types/node': 22.13.1
+      '@types/node': 22.15.3
 
   '@types/body-parser@1.19.0':
     dependencies:
