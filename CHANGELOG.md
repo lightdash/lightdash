@@ -1,3 +1,10 @@
+## [0.2006.1](https://github.com/lightdash/lightdash/compare/0.2006.0...0.2006.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* improve Slack channel caching with filter-specific cache keys ([#16904](https://github.com/lightdash/lightdash/issues/16904)) ([fe41dcd](https://github.com/lightdash/lightdash/commit/fe41dcdf5610495e316b16844d90f0c21fd8b342))
+
 # [0.2006.0](https://github.com/lightdash/lightdash/compare/0.2005.0...0.2006.0) (2025-09-15)
 
 
