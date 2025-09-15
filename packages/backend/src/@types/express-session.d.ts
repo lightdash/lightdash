@@ -15,5 +15,6 @@ declare module 'express-session' {
             messageTs?: string | undefined;
             threadTs?: string | undefined;
         };
+        csrfSecret?: string;
     }
 }

@@ -30,6 +30,7 @@ import path from 'path';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
 import cors from 'cors';
+import Csrf from 'csrf';
 import { produce } from 'immer';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
@@ -510,6 +511,93 @@ export default class App {
         expressApp.use(passport.initialize());
         expressApp.use(passport.session());
 
+        // Initialize CSRF protection
+        const csrfTokens = new Csrf();
+
+        // CSRF middleware for state-changing operations
+        const csrfMiddleware = (
+            req: express.Request,
+            res: express.Response,
+            next: express.NextFunction,
+        ) => {
+            // Skip CSRF for API key authentication (stateless)
+            if (req.headers.authorization) {
+                return next();
+            }
+
+            // Skip CSRF for GET, HEAD, OPTIONS requests (safe methods)
+            if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+                return next();
+            }
+
+            // Skip CSRF for specific endpoints that handle their own CSRF
+            if (req.path.startsWith('/api/v1/csrf-token')) {
+                return next();
+            }
+
+            try {
+                // Get CSRF token from header or body
+                const token =
+                    (req.headers['x-csrf-token'] as string) ||
+                    ((req.body && req.body._csrf) as string);
+
+                if (!token) {
+                    return res.status(403).json({
+                        status: 'error',
+                        error: {
+                            name: 'CSRFError',
+                            statusCode: 403,
+                            message: 'CSRF token missing',
+                            data: {},
+                        },
+                    });
+                }
+
+                // Get secret from session
+                const secret = req.session.csrfSecret;
+                if (!secret) {
+                    return res.status(403).json({
+                        status: 'error',
+                        error: {
+                            name: 'CSRFError',
+                            statusCode: 403,
+                            message: 'CSRF secret not found in session',
+                            data: {},
+                        },
+                    });
+                }
+
+                // Verify the token
+                if (!csrfTokens.verify(secret, token)) {
+                    return res.status(403).json({
+                        status: 'error',
+                        error: {
+                            name: 'CSRFError',
+                            statusCode: 403,
+                            message: 'Invalid CSRF token',
+                            data: {},
+                        },
+                    });
+                }
+
+                next();
+            } catch (err) {
+                const error = err as Error;
+                return res.status(403).json({
+                    status: 'error',
+                    error: {
+                        name: 'CSRFError',
+                        statusCode: 403,
+                        message: 'CSRF validation failed',
+                        data: { message: error.message },
+                    },
+                });
+            }
+            return undefined;
+        };
+
+        expressApp.use(csrfMiddleware);
+
         expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
         expressApp.use(expressWinstonMiddleware); // log request + response
 
@@ -549,6 +637,26 @@ export default class App {
             }
             next();
         });
+
+        // CSRF token endpoint
+        expressApp.get(
+            '/api/v1/csrf-token',
+            (req: express.Request, res: express.Response) => {
+                // Generate a secret if one doesn't exist in the session
+                if (!req.session.csrfSecret) {
+                    req.session.csrfSecret = csrfTokens.secretSync();
+                }
+
+                const token = csrfTokens.create(req.session.csrfSecret);
+
+                res.json({
+                    status: 'ok',
+                    results: {
+                        csrfToken: token,
+                    },
+                });
+            },
+        );
 
         // api router
         expressApp.use('/api/v1', apiV1Router);
