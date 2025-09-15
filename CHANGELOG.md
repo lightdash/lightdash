@@ -1,3 +1,10 @@
+# [0.2005.0](https://github.com/lightdash/lightdash/compare/0.2004.0...0.2005.0) (2025-09-15)
+
+
+### Features
+
+* upgrade to ai sdk 5 ([#16771](https://github.com/lightdash/lightdash/issues/16771)) ([b2d7695](https://github.com/lightdash/lightdash/commit/b2d7695ffcab7414fadc031a90d199c71584a17a))
+
 # [0.2004.0](https://github.com/lightdash/lightdash/compare/0.2003.0...0.2004.0) (2025-09-15)
 
 
