@@ -1,3 +1,10 @@
+# [0.2002.0](https://github.com/lightdash/lightdash/compare/0.2001.2...0.2002.0) (2025-09-15)
+
+
+### Features
+
+* set filters in url when interacting with ai admin threads ([#16738](https://github.com/lightdash/lightdash/issues/16738)) ([8596ff2](https://github.com/lightdash/lightdash/commit/8596ff27d54456a947a6938fe9336a0a22256b72))
+
 ## [0.2001.2](https://github.com/lightdash/lightdash/compare/0.2001.1...0.2001.2) (2025-09-15)
 
 
