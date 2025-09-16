@@ -11,6 +11,8 @@ import {
     Box,
     Button,
     Checkbox,
+    Flex,
+    Group,
     Select,
     Stack,
     Switch,
@@ -19,7 +21,7 @@ import {
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
-import { IconHelpCircle } from '@tabler/icons-react';
+import { IconHelpCircle, IconRotate2 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../common/Filters/FilterInputs/utils';
@@ -34,6 +36,11 @@ interface FilterSettingsProps {
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
+    showApplyButton?: boolean;
+    isApplyDisabled?: boolean;
+    onApply?: () => void;
+    showRevertButton?: boolean;
+    onRevert?: () => void;
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
@@ -44,6 +51,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     filterRule,
     popoverProps,
     onChangeFilterRule,
+    showApplyButton = false,
+    isApplyDisabled = false,
+    onApply,
+    showRevertButton = false,
+    onRevert,
 }) => {
     const [filterLabel, setFilterLabel] = useState<string>();
 
@@ -183,17 +195,56 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 {(showValueInput || filterRule.required) && (
-                    <FilterInputComponent
-                        popoverProps={popoverProps}
-                        filterType={filterType}
-                        field={field}
-                        rule={filterRule}
-                        onChange={(newFilterRule) =>
-                            onChangeFilterRule(
-                                newFilterRule as DashboardFilterRule,
-                            )
-                        }
-                    />
+                    <Flex gap="sm" align="flex-start">
+                        <Box sx={{ flexGrow: 1 }}>
+                            <FilterInputComponent
+                                popoverProps={popoverProps}
+                                filterType={filterType}
+                                field={field}
+                                rule={filterRule}
+                                onChange={(newFilterRule) =>
+                                    onChangeFilterRule(
+                                        newFilterRule as DashboardFilterRule,
+                                    )
+                                }
+                            />
+                        </Box>
+                        {showApplyButton && (
+                            <Group spacing="sm">
+                                {showRevertButton && (
+                                    <Tooltip
+                                        label="Reset to original value"
+                                        position="left"
+                                    >
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            color="gray"
+                                            onClick={onRevert}
+                                        >
+                                            <MantineIcon icon={IconRotate2} />
+                                        </Button>
+                                    </Tooltip>
+                                )}
+
+                                <Tooltip
+                                    label="Filter field and value required"
+                                    disabled={!isApplyDisabled}
+                                >
+                                    <Box>
+                                        <Button
+                                            size="xs"
+                                            variant="filled"
+                                            disabled={isApplyDisabled}
+                                            onClick={onApply}
+                                        >
+                                            Apply
+                                        </Button>
+                                    </Box>
+                                </Tooltip>
+                            </Group>
+                        )}
+                    </Flex>
                 )}
 
                 {isEditMode && (
