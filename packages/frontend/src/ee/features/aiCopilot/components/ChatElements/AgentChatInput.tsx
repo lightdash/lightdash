@@ -1,6 +1,7 @@
 import {
     ActionIcon,
     alpha,
+    Anchor,
     Box,
     Paper,
     rem,
@@ -9,8 +10,11 @@ import {
 } from '@mantine-8/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { useLayoutEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import styles from './AgentChatInput.module.css';
+
+const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
 
 interface AgentChatInputProps {
     onSubmit: (message: string) => void;
@@ -18,6 +22,9 @@ interface AgentChatInputProps {
     disabled?: boolean;
     disabledReason?: string;
     placeholder?: string;
+    messageCount?: number;
+    projectUuid?: string;
+    agentUuid?: string;
 }
 
 export const AgentChatInput = ({
@@ -26,6 +33,9 @@ export const AgentChatInput = ({
     disabled = false,
     disabledReason,
     placeholder = 'Ask anything about your data...',
+    messageCount = 0,
+    projectUuid,
+    agentUuid,
 }: AgentChatInputProps) => {
     // this is a workaround to prevent the enter key from being pressed when
     // the user is composing a character
@@ -33,6 +43,7 @@ export const AgentChatInput = ({
     const [isComposing, setIsComposing] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [value, setValue] = useState('');
+    const navigate = useNavigate();
 
     useLayoutEffect(() => {
         if (!inputRef.current) return;
@@ -85,6 +96,39 @@ export const AgentChatInput = ({
 
     return (
         <Box pos="relative" pb="lg" className={styles.backdropBackground}>
+            {messageCount > MAX_RECOMMENDED_THREAD_MESSAGE_COUNT && (
+                <Paper
+                    px="sm"
+                    py={rem(4)}
+                    bg={alpha('var(--mantine-color-gray-1)', 0.5)}
+                    mx="md"
+                    style={{
+                        borderTopLeftRadius: rem(12),
+                        borderTopRightRadius: rem(12),
+                        borderBottomLeftRadius: 0,
+                        borderBottomRightRadius: 0,
+                    }}
+                >
+                    <Text size="xs" c="dimmed" style={{ flex: 1 }} ta="center">
+                        Agent performance degrades if a thread is too long.
+                        Please start a{' '}
+                        <Anchor
+                            size="xs"
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (projectUuid && agentUuid) {
+                                    void navigate(
+                                        `/projects/${projectUuid}/ai-agents/${agentUuid}/threads`,
+                                    );
+                                }
+                            }}
+                        >
+                            new thread
+                        </Anchor>
+                    </Text>
+                </Paper>
+            )}
             <Textarea
                 autoFocus
                 classNames={{ input: styles.input }}
