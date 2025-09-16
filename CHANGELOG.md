@@ -1,3 +1,10 @@
+## [0.2007.5](https://github.com/lightdash/lightdash/compare/0.2007.4...0.2007.5) (2025-09-16)
+
+
+### Bug Fixes
+
+* support multiple artifacts per AI agent message ([#16877](https://github.com/lightdash/lightdash/issues/16877)) ([2084a01](https://github.com/lightdash/lightdash/commit/2084a0106dfe9ba7d89369c986f66f81eea02c58))
+
 ## [0.2007.4](https://github.com/lightdash/lightdash/compare/0.2007.3...0.2007.4) (2025-09-16)
 
 
