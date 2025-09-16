@@ -3,11 +3,14 @@ import {
     AbilityAction,
     BulkActionable,
     CreateDashboard,
+    CreateDashboardWithCharts,
+    CreateSavedChart,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardDAO,
     DashboardTab,
     DashboardTileTypes,
+    DashboardVersionedFields,
     ExploreType,
     ForbiddenError,
     ParameterError,
@@ -57,6 +60,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
@@ -69,6 +73,7 @@ type DashboardServiceArguments = {
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
     savedChartModel: SavedChartModel;
+    savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     projectModel: ProjectModel;
@@ -93,6 +98,8 @@ export class DashboardService
 
     savedChartModel: SavedChartModel;
 
+    savedChartService: SavedChartService;
+
     catalogModel: CatalogModel;
 
     projectModel: ProjectModel;
@@ -109,6 +116,7 @@ export class DashboardService
         pinnedListModel,
         schedulerModel,
         savedChartModel,
+        savedChartService,
         schedulerClient,
         slackClient,
         projectModel,
@@ -122,6 +130,7 @@ export class DashboardService
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
         this.savedChartModel = savedChartModel;
+        this.savedChartService = savedChartService;
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
         this.schedulerClient = schedulerClient;
@@ -1194,6 +1203,73 @@ export class DashboardService
                     targetSpaceId: targetSpaceUuid,
                 },
             });
+        }
+    }
+
+    async createDashboardWithCharts(
+        user: SessionUser,
+        projectUuid: string,
+        data: CreateDashboardWithCharts,
+    ): Promise<Dashboard> {
+        // 1. Create empty dashboard
+        const emptyDashboard: CreateDashboard = {
+            name: data.name,
+            description: data.description,
+            spaceUuid: data.spaceUuid,
+            tiles: [],
+            tabs: [],
+        };
+
+        // Permissions are checked in the create method
+        const dashboard = await this.create(user, projectUuid, emptyDashboard);
+
+        try {
+            const chartPromises = data.charts.map(
+                (chartData: CreateSavedChart) => {
+                    const chartDataWithDashboard: CreateSavedChart = {
+                        ...chartData,
+                        dashboardUuid: dashboard.uuid,
+                        spaceUuid: undefined,
+                    };
+
+                    return this.savedChartService.create(
+                        user,
+                        projectUuid,
+                        chartDataWithDashboard,
+                    );
+                },
+            );
+
+            const savedCharts = await Promise.all(chartPromises);
+
+            const tiles = createTwoColumnTiles(
+                savedCharts,
+                dashboard.tabs?.[0]?.uuid,
+            );
+
+            const updateFields: DashboardVersionedFields = {
+                filters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                tiles,
+                tabs: dashboard.tabs || [],
+            };
+
+            await this.update(user, dashboard.uuid, updateFields);
+
+            return await this.getById(user, dashboard.uuid);
+        } catch (error) {
+            try {
+                await this.delete(user, dashboard.uuid);
+            } catch (deleteError) {
+                this.logger.error(
+                    'Failed to cleanup dashboard after creation error',
+                    deleteError,
+                );
+            }
+            throw error;
         }
     }
 }
