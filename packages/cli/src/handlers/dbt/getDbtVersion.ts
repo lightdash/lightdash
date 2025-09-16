@@ -44,8 +44,6 @@ const getSupportedDbtVersionOption = (
     if (version.match(DBT_CLOUD_CLI_REGEX))
         return DbtVersionOptionLatest.LATEST;
     if (version.startsWith('1.4.')) return SupportedDbtVersions.V1_4;
-    if (version.startsWith('1.5.')) return SupportedDbtVersions.V1_5;
-    if (version.startsWith('1.6.')) return SupportedDbtVersions.V1_6;
     if (version.startsWith('1.7.')) return SupportedDbtVersions.V1_7;
     if (version.startsWith('1.8.')) return SupportedDbtVersions.V1_8;
     if (version.startsWith('1.9.')) return SupportedDbtVersions.V1_9;
@@ -57,6 +55,7 @@ const getSupportedDbtVersionOption = (
 
 const getFallbackDbtVersionOption = (version: string): DbtVersionOption => {
     if (version.startsWith('1.3.')) return SupportedDbtVersions.V1_4; // legacy|deprecated support for dbt 1.3
+    // No fallback version for 1.5 and 1.6
     return getLatestSupportDbtVersion();
 };
 

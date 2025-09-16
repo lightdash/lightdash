@@ -1,19 +1,11 @@
 FROM gitpod/workspace-full
 
-# Installing multiple versions of dbt
-# dbt 1.4 is the default
+# Installing dbt 1.4 (default version)
 RUN python3 -m venv /home/gitpod/dbt1.4
 RUN /home/gitpod/dbt1.4/bin/pip install \
-    "dbt-postgres~=1.4.0" 
+    "dbt-postgres~=1.4.0"
 
-
-RUN python3 -m venv /home/gitpod/dbt1.5
-RUN /home/gitpod/dbt1.5/bin/pip install \
-    "dbt-postgres~=1.5.0"
-
-RUN ln -s /home/gitpod/dbt1.5/bin/dbt /home/gitpod/dbt1.5/bin/dbt1.5
-
-ENV PATH="${PATH}:/home/gitpod/dbt1.4/bin:/home/gitpod/dbt1.5/bin"
+ENV PATH="${PATH}:/home/gitpod/dbt1.4/bin"
 
 
 # Install postgres

@@ -160,7 +160,7 @@ describe('convert tables from dbt models', () => {
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_METRICS);
-        // dbt 1.5 metrics
+
         expect(
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,

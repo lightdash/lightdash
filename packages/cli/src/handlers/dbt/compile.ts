@@ -126,7 +126,7 @@ async function dbtList(options: DbtCompileOptions): Promise<string[]> {
             'unique_id',
         ];
         const version = await getDbtVersion();
-        // only dbt 1.5 and above support --quiet flag
+        // only dbt 1.7 and above support --quiet flag
         if (version.versionOption !== SupportedDbtVersions.V1_4) {
             args.push('--quiet');
         }
