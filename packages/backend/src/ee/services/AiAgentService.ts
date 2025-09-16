@@ -769,6 +769,7 @@ export class AiAgentService {
             instruction: body.instruction,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            enableDataAccess: body.enableDataAccess,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -824,6 +825,7 @@ export class AiAgentService {
             imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            enableDataAccess: body.enableDataAccess,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -1975,6 +1977,7 @@ export class AiAgentService {
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
+            enableDataAccess: agentSettings.enableDataAccess,
 
             availableExploresPageSize: 100,
             findExploresPageSize: 15,

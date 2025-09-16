@@ -57,6 +57,7 @@ export const baseAgentSchema = z.object({
     model: z.string(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    enableDataAccess: z.boolean(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -75,6 +76,7 @@ export type AiAgent = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'enableDataAccess'
 >;
 
 export type AiAgentSummary = Pick<
@@ -91,6 +93,7 @@ export type AiAgentSummary = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'enableDataAccess'
 >;
 
 export type AiAgentUser = {
@@ -180,6 +183,7 @@ export type ApiCreateAiAgent = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'enableDataAccess'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -193,6 +197,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'imageUrl'
         | 'groupAccess'
         | 'userAccess'
+        | 'enableDataAccess'
     >
 > & {
     uuid: string;
