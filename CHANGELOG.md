@@ -1,3 +1,10 @@
+## [0.2009.2](https://github.com/lightdash/lightdash/compare/0.2009.1...0.2009.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* change validation columns from string to text ([#16936](https://github.com/lightdash/lightdash/issues/16936)) ([5ab8c3f](https://github.com/lightdash/lightdash/commit/5ab8c3f948ef767b4728b4ce12cc54a8362bc35d))
+
 ## [0.2009.1](https://github.com/lightdash/lightdash/compare/0.2009.0...0.2009.1) (2025-09-16)
 
 
