@@ -33,6 +33,7 @@ import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
+import { markFieldClickStart } from '../../../../../perf/userTiming';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
@@ -164,10 +165,10 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         },
         [isFiltered, addFilter, item, track],
     );
-    const handleClick = useCallback(
-        () => onItemClick(node.key, item),
-        [onItemClick, node.key, item],
-    );
+    const handleClick = useCallback(() => {
+        markFieldClickStart();
+        onItemClick(node.key, item);
+    }, [onItemClick, node.key, item]);
     const handleMouseEnter = useCallback(
         () => toggleHover(true),
         [toggleHover],

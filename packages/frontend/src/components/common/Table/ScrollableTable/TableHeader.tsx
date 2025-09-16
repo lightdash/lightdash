@@ -4,6 +4,7 @@ import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
+import { markResultsTableRender } from '../../../../perf/userTiming';
 import {
     TABLE_HEADER_BG,
     Th,
@@ -58,6 +59,12 @@ const TableHeader: FC<TableHeaderProps> = ({
             }
         }
     }, [showSubtotals, columns, headerContextMenu, table]);
+
+    useEffect(() => {
+        if (columns.length > 0) {
+            markResultsTableRender();
+        }
+    }, [columns]);
 
     if (columns.length <= 0) {
         return null;
