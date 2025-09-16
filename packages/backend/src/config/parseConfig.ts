@@ -740,6 +740,8 @@ export type LightdashConfig = {
     logging: LoggingConfig;
     ai: {
         copilot: AiCopilotConfigSchemaType;
+        analyticsProjectUuid?: string;
+        analyticsDashboardUuid?: string;
     };
     embedding: {
         enabled: boolean;
@@ -833,6 +835,7 @@ export type LightdashConfig = {
     customRoles: {
         enabled: boolean;
     };
+    analyticsEmbedSecret?: string;
 };
 
 export type SlackConfig = {
@@ -1538,6 +1541,8 @@ export const parseConfig = (): LightdashConfig => {
         },
         ai: {
             copilot: copilotConfig,
+            analyticsProjectUuid: process.env.AI_ANALYTICS_PROJECT_UUID,
+            analyticsDashboardUuid: process.env.AI_ANALYTICS_DASHBOARD_UUID,
         },
         embedding: {
             enabled: process.env.EMBEDDING_ENABLED === 'true',
@@ -1604,5 +1609,6 @@ export const parseConfig = (): LightdashConfig => {
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
+        analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
     };
 };
