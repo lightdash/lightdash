@@ -1,3 +1,10 @@
+## [0.2007.6](https://github.com/lightdash/lightdash/compare/0.2007.5...0.2007.6) (2025-09-16)
+
+
+### Bug Fixes
+
+* increase validations error column size from string to text ([#16925](https://github.com/lightdash/lightdash/issues/16925)) ([506b553](https://github.com/lightdash/lightdash/commit/506b553b0dfd8adb1e5a4261355485195d337159))
+
 ## [0.2007.5](https://github.com/lightdash/lightdash/compare/0.2007.4...0.2007.5) (2025-09-16)
 
 
