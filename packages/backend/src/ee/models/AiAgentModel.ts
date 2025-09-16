@@ -5,6 +5,7 @@ import {
     AiAgentAdminThreadSummary,
     AiAgentMessage,
     AiAgentMessageAssistant,
+    AiAgentMessageAssistantArtifact,
     AiAgentMessageUser,
     AiAgentNotFoundError,
     AiAgentSummary,
@@ -1097,7 +1098,7 @@ export class AiAgentModel {
             slackUserId: string | null;
         }>[]
     > {
-        const rows = await this.database(AiPromptTableName)
+        const promptRows = await this.database(AiPromptTableName)
             .join(
                 UserTableName,
                 `${AiPromptTableName}.created_by_user_uuid`,
@@ -1127,12 +1128,6 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
-                        ai_artifact_uuid: string | null;
-                        version_number: number | null;
-                        ai_artifact_version_uuid: string | null;
-                        title: string | null;
-                        description: string | null;
-                        artifact_type: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -1149,12 +1144,6 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-                `${AiArtifactVersionsTableName}.version_number`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.title`,
-                `${AiArtifactVersionsTableName}.description`,
-                `${AiArtifactsTableName}.artifact_type`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -1169,16 +1158,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
             )
-            .leftJoin(
-                AiArtifactVersionsTableName,
-                `${AiPromptTableName}.ai_prompt_uuid`,
-                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-            )
-            .leftJoin(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
@@ -1186,7 +1165,11 @@ export class AiAgentModel {
             )
             .orderBy(`${AiPromptTableName}.created_at`, 'asc');
 
-        const messagesPromises = rows.map(async (row) => {
+        const promptUuids = promptRows.map((row) => row.ai_prompt_uuid);
+
+        const artifactsMap = await this.findThreadArtifacts({ promptUuids });
+
+        const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
                 uuid: string;
                 name: string;
@@ -1211,6 +1194,8 @@ export class AiAgentModel {
             );
 
             if (row.responded_at != null) {
+                const artifacts = artifactsMap.get(row.ai_prompt_uuid) || [];
+
                 messages.push({
                     role: 'assistant',
                     uuid: row.ai_prompt_uuid,
@@ -1218,18 +1203,7 @@ export class AiAgentModel {
                     message: row.response,
                     createdAt: row.responded_at.toISOString(),
                     humanScore: row.human_score,
-                    artifact: row.ai_artifact_uuid
-                        ? {
-                              uuid: row.ai_artifact_uuid,
-                              versionNumber: row.version_number ?? 1,
-                              versionUuid: row.ai_artifact_version_uuid!,
-                              title: row.title,
-                              description: row.description,
-                              artifactType: row.artifact_type as
-                                  | 'chart'
-                                  | 'dashboard',
-                          }
-                        : null,
+                    artifacts: artifacts.length > 0 ? artifacts : null,
                     toolCalls: toolCalls
                         .filter(
                             (
@@ -1254,6 +1228,61 @@ export class AiAgentModel {
         });
 
         return (await Promise.all(messagesPromises)).flat();
+    }
+
+    async findThreadArtifacts({
+        promptUuids,
+    }: {
+        promptUuids: string[];
+    }): Promise<Map<string, AiAgentMessageAssistantArtifact[]>> {
+        const artifactsMap = new Map<
+            string,
+            AiAgentMessageAssistantArtifact[]
+        >();
+
+        if (promptUuids.length > 0) {
+            const artifactRows = await this.database(
+                AiArtifactVersionsTableName,
+            )
+                .join(
+                    AiArtifactsTableName,
+                    `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                    `${AiArtifactsTableName}.ai_artifact_uuid`,
+                )
+                .select(
+                    `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                    `${AiArtifactsTableName}.ai_artifact_uuid`,
+                    `${AiArtifactVersionsTableName}.version_number`,
+                    `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                    `${AiArtifactVersionsTableName}.title`,
+                    `${AiArtifactVersionsTableName}.description`,
+                    `${AiArtifactsTableName}.artifact_type`,
+                )
+                .whereIn(
+                    `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                    promptUuids,
+                )
+                .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
+
+            for (const artifactRow of artifactRows) {
+                const promptUuid = artifactRow.ai_prompt_uuid;
+                if (!artifactsMap.has(promptUuid)) {
+                    artifactsMap.set(promptUuid, []);
+                }
+                artifactsMap.get(promptUuid)!.push({
+                    artifactUuid: artifactRow.ai_artifact_uuid,
+                    versionNumber: artifactRow.version_number ?? 1,
+                    versionUuid: artifactRow.ai_artifact_version_uuid,
+                    title: artifactRow.title,
+                    description: artifactRow.description,
+                    artifactType: artifactRow.artifact_type as
+                        | 'chart'
+                        | 'dashboard',
+                });
+            }
+        }
+
+        return artifactsMap;
     }
 
     async findThreadMessage(
@@ -1312,12 +1341,6 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
-                        ai_artifact_uuid: string | null;
-                        version_number: number | null;
-                        ai_artifact_version_uuid: string | null;
-                        title: string | null;
-                        description: string | null;
-                        artifact_type: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -1334,12 +1357,6 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-                `${AiArtifactVersionsTableName}.version_number`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.title`,
-                `${AiArtifactVersionsTableName}.description`,
-                `${AiArtifactsTableName}.artifact_type`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -1364,16 +1381,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
             )
-            .leftJoin(
-                AiArtifactVersionsTableName,
-                `${AiPromptTableName}.ai_prompt_uuid`,
-                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-            )
-            .leftJoin(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
@@ -1388,6 +1395,36 @@ export class AiAgentModel {
                 `AI agent message not found for uuid: ${messageUuid}`,
             );
         }
+
+        const artifactRows = await this.database(AiArtifactVersionsTableName)
+            .select<
+                (DbAiArtifactVersion & {
+                    artifact_type: 'chart' | 'dashboard';
+                })[]
+            >(
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+                `${AiArtifactVersionsTableName}.version_number`,
+                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                `${AiArtifactVersionsTableName}.title`,
+                `${AiArtifactVersionsTableName}.description`,
+                `${AiArtifactsTableName}.artifact_type`,
+            )
+            .join(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, messageUuid)
+            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
+
+        const artifacts = artifactRows.map((artifactRow) => ({
+            artifactUuid: artifactRow.ai_artifact_uuid,
+            versionNumber: artifactRow.version_number,
+            versionUuid: artifactRow.ai_artifact_version_uuid,
+            title: artifactRow.title,
+            description: artifactRow.description,
+            artifactType: artifactRow.artifact_type as 'chart' | 'dashboard',
+        }));
 
         switch (role) {
             case 'user':
@@ -1416,18 +1453,7 @@ export class AiAgentModel {
                     createdAt: row.responded_at?.toString() ?? '',
 
                     humanScore: row.human_score,
-                    artifact: row.ai_artifact_uuid
-                        ? {
-                              uuid: row.ai_artifact_uuid,
-                              versionNumber: row.version_number ?? 1,
-                              versionUuid: row.ai_artifact_version_uuid!,
-                              title: row.title,
-                              description: row.description,
-                              artifactType: row.artifact_type as
-                                  | 'chart'
-                                  | 'dashboard',
-                          }
-                        : null,
+                    artifacts: artifacts.length > 0 ? artifacts : null,
                     toolCalls: toolCalls
                         .filter(
                             (

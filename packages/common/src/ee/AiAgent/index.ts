@@ -108,6 +108,16 @@ export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
     user: TUser;
 };
 
+export type AiAgentMessageAssistantArtifact = Pick<
+    AiArtifact,
+    | 'artifactUuid'
+    | 'versionNumber'
+    | 'versionUuid'
+    | 'title'
+    | 'description'
+    | 'artifactType'
+>;
+
 export type AiAgentMessageAssistant = {
     role: 'assistant';
     uuid: string;
@@ -124,14 +134,7 @@ export type AiAgentMessageAssistant = {
     toolCalls: AiAgentToolCall[];
     savedQueryUuid: string | null;
 
-    artifact: {
-        uuid: string;
-        versionNumber: number;
-        versionUuid: string;
-        title: string | null;
-        description: string | null;
-        artifactType: 'chart' | 'dashboard';
-    } | null;
+    artifacts: AiAgentMessageAssistantArtifact[] | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
