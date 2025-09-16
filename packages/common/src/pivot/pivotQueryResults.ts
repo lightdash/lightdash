@@ -868,88 +868,6 @@ export const pivotQueryResults = ({
     return combinedRetrofit(pivotData, getField, getFieldLabel);
 };
 
-export const pivotResultsAsCsv = ({
-    pivotConfig,
-    rows,
-    itemMap,
-    metricQuery,
-    customLabels,
-    onlyRaw,
-    maxColumnLimit,
-    undefinedCharacter = '',
-}: {
-    pivotConfig: PivotConfig;
-    rows: ResultRow[];
-    itemMap: ItemsMap;
-    metricQuery: MetricQuery;
-    customLabels: Record<string, string> | undefined;
-    onlyRaw: boolean;
-    maxColumnLimit: number;
-    undefinedCharacter?: string;
-}) => {
-    const getFieldLabel = (fieldId: string) => {
-        const customLabel = customLabels?.[fieldId];
-        if (customLabel !== undefined) return customLabel;
-        const field = itemMap[fieldId];
-        return (field && isField(field) && field?.label) || fieldId;
-    };
-    const pivotedResults = pivotQueryResults({
-        pivotConfig,
-        metricQuery,
-        rows,
-        options: {
-            maxColumns: maxColumnLimit,
-        },
-        getField: (fieldId: string) => itemMap && itemMap[fieldId], // itemsMap && itemsMap[fieldId],
-        getFieldLabel,
-    });
-    const formatField = onlyRaw ? 'raw' : 'formatted';
-    const headers = pivotedResults.headerValues.reduce<string[][]>(
-        (acc, row, i) => {
-            const values = row.map((header) =>
-                'value' in header
-                    ? (header.value[formatField] as string)
-                    : getFieldLabel(header.fieldId),
-            );
-            const fields = pivotedResults.titleFields[i];
-            const fieldLabels = fields.map((field) =>
-                field ? getFieldLabel(field.fieldId) : undefinedCharacter,
-            );
-
-            // Row totals
-            const rowTotalLabels =
-                pivotedResults.rowTotalFields?.[i]?.map((totalField) =>
-                    totalField?.fieldId
-                        ? `Total ${getFieldLabel(totalField.fieldId)}`
-                        : 'Total',
-                ) || [];
-
-            acc[i] = [...fieldLabels, ...values, ...rowTotalLabels];
-            return acc;
-        },
-        [[]],
-    );
-    const fieldIds = Object.values(
-        pivotedResults.retrofitData.pivotColumnInfo,
-    ).map((field) => field.fieldId);
-
-    const hasIndex = pivotedResults.indexValues.length > 0;
-    const pivotedRows: string[][] =
-        pivotedResults.retrofitData.allCombinedData.map((row) => {
-            // Fields that return `null` don't appear in the pivot table
-            // If there are no index fields, we need to add an empty string to the beginning of the row
-            const noIndexPrefix = hasIndex ? [] : [''];
-            const formattedRows = fieldIds.map(
-                (fieldId) =>
-                    (row[fieldId]?.value?.[formatField] as string) ||
-                    undefinedCharacter,
-            );
-            return [...noIndexPrefix, ...formattedRows];
-        });
-
-    return [...headers, ...pivotedRows];
-};
-
 /**
  * Converts SQL-pivoted results to PivotData format
  * This handles results that are already pivoted at the SQL level (e.g., payments_total_revenue_any_bank_transfer)
@@ -1532,4 +1450,97 @@ export const convertSqlPivotedRowsToPivotData = ({
     };
 
     return combinedRetrofit(pivotData, getField, getFieldLabel);
+};
+
+export const pivotResultsAsCsv = ({
+    pivotConfig,
+    rows,
+    itemMap,
+    metricQuery,
+    customLabels,
+    onlyRaw,
+    maxColumnLimit,
+    undefinedCharacter = '',
+    pivotDetails,
+}: {
+    pivotConfig: PivotConfig;
+    pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    rows: ResultRow[];
+    itemMap: ItemsMap;
+    metricQuery: MetricQuery;
+    customLabels: Record<string, string> | undefined;
+    onlyRaw: boolean;
+    maxColumnLimit: number;
+    undefinedCharacter?: string;
+}) => {
+    const getFieldLabel = (fieldId: string) => {
+        const customLabel = customLabels?.[fieldId];
+        if (customLabel !== undefined) return customLabel;
+        const field = itemMap[fieldId];
+        return (field && isField(field) && field?.label) || fieldId;
+    };
+    const pivotedResults = pivotDetails
+        ? convertSqlPivotedRowsToPivotData({
+              getField: (fieldId: string) => itemMap && itemMap[fieldId],
+              getFieldLabel,
+              rows,
+              pivotDetails,
+              pivotConfig,
+              groupedSubtotals: undefined, // TODO: is this something that we have?
+          })
+        : pivotQueryResults({
+              pivotConfig,
+              metricQuery,
+              rows,
+              options: {
+                  maxColumns: maxColumnLimit,
+              },
+              getField: (fieldId: string) => itemMap && itemMap[fieldId], // itemsMap && itemsMap[fieldId],
+              getFieldLabel,
+          });
+    const formatField = onlyRaw ? 'raw' : 'formatted';
+    const headers = pivotedResults.headerValues.reduce<string[][]>(
+        (acc, row, i) => {
+            const values = row.map((header) =>
+                'value' in header
+                    ? (header.value[formatField] as string)
+                    : getFieldLabel(header.fieldId),
+            );
+            const fields = pivotedResults.titleFields[i];
+            const fieldLabels = fields.map((field) =>
+                field ? getFieldLabel(field.fieldId) : undefinedCharacter,
+            );
+
+            // Row totals
+            const rowTotalLabels =
+                pivotedResults.rowTotalFields?.[i]?.map((totalField) =>
+                    totalField?.fieldId
+                        ? `Total ${getFieldLabel(totalField.fieldId)}`
+                        : 'Total',
+                ) || [];
+
+            acc[i] = [...fieldLabels, ...values, ...rowTotalLabels];
+            return acc;
+        },
+        [[]],
+    );
+    const fieldIds = Object.values(
+        pivotedResults.retrofitData.pivotColumnInfo,
+    ).map((field) => field.fieldId);
+
+    const hasIndex = pivotedResults.indexValues.length > 0;
+    const pivotedRows: string[][] =
+        pivotedResults.retrofitData.allCombinedData.map((row) => {
+            // Fields that return `null` don't appear in the pivot table
+            // If there are no index fields, we need to add an empty string to the beginning of the row
+            const noIndexPrefix = hasIndex ? [] : [''];
+            const formattedRows = fieldIds.map(
+                (fieldId) =>
+                    (row[fieldId]?.value?.[formatField] as string) ||
+                    undefinedCharacter,
+            );
+            return [...noIndexPrefix, ...formattedRows];
+        });
+
+    return [...headers, ...pivotedRows];
 };

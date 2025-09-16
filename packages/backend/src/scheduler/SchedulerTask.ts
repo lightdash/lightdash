@@ -1942,6 +1942,7 @@ export default class SchedulerTask {
                     onlyRaw: true,
                     maxColumnLimit:
                         this.lightdashConfig.pivotTable.maxColumnLimit,
+                    pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
                 });
 
                 await this.googleDriveClient.appendCsvToSheet(
@@ -2487,6 +2488,7 @@ export default class SchedulerTask {
                         onlyRaw: true,
                         maxColumnLimit:
                             this.lightdashConfig.pivotTable.maxColumnLimit,
+                        pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
                     });
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
@@ -2629,6 +2631,7 @@ export default class SchedulerTask {
                                 maxColumnLimit:
                                     this.lightdashConfig.pivotTable
                                         .maxColumnLimit,
+                                pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
                             });
 
                             await this.googleDriveClient.appendCsvToSheet(
