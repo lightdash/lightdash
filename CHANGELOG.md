@@ -1,3 +1,11 @@
+# [0.2009.0](https://github.com/lightdash/lightdash/compare/0.2008.0...0.2009.0) (2025-09-16)
+
+
+### Features
+
+* add analytics dashboard embed to AI agent admin page ([#16894](https://github.com/lightdash/lightdash/issues/16894)) ([b61b55b](https://github.com/lightdash/lightdash/commit/b61b55b4d62497cb6afb0f864a987e018dd3f3ac))
+* add console log for jsonLine in AI agent thread stream processing ([#16931](https://github.com/lightdash/lightdash/issues/16931)) ([188f49c](https://github.com/lightdash/lightdash/commit/188f49caa082d71c3bcf42ad40e6e7d0af734cf8))
+
 # [0.2008.0](https://github.com/lightdash/lightdash/compare/0.2007.6...0.2008.0) (2025-09-16)
 
 
