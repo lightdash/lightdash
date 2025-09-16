@@ -14,6 +14,7 @@ function convertAiVisualizationToCreateSavedChartVersion(
         dashboardUuid?: string;
         dashboardName?: string;
         userId?: string;
+        maxQueryLimit?: number;
     },
 ): CreateSavedChartVersion {
     const { query, metadata } = aiVizData;
@@ -23,7 +24,7 @@ function convertAiVisualizationToCreateSavedChartVersion(
         vizConfig: dashboardVisualization,
         metricQuery,
         rows: [], // Empty rows array - charts will load data dynamically
-        maxQueryLimit: 500, // TODO :: useHealth health.query.maxLimit
+        maxQueryLimit: options.maxQueryLimit,
         fieldsMap: aiVizData.query.fields,
     });
 
@@ -60,6 +61,7 @@ export function convertDashboardVisualizationsToChartData(
         dashboardUuid?: string;
         dashboardName?: string;
         userId?: string;
+        maxQueryLimit?: number;
     },
 ): CreateSavedChartVersion[] {
     if (dashboardConfig.visualizations.length !== vizQueryResults.length) {
@@ -80,6 +82,7 @@ export function convertDashboardVisualizationsToChartData(
                 dashboardUuid: options.dashboardUuid,
                 dashboardName: options.dashboardName,
                 userId: options.userId,
+                maxQueryLimit: options.maxQueryLimit,
             },
         );
     });

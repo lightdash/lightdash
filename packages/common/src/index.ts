@@ -201,6 +201,7 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/parameters';
 export * from './compiler/translator';
 export * from './constants/pivot';
+export * from './constants/sessionStorageKeys';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/validation';
