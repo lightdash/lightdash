@@ -336,6 +336,7 @@ const EmbedDashboard: FC<{
 
             <LockedDashboardModal
                 opened={hasRequiredDashboardFiltersToSet && !!hasChartTiles}
+                customMessage={dashboard?.config?.requiredFiltersMessage}
             />
 
             {tabsEnabled ? (
