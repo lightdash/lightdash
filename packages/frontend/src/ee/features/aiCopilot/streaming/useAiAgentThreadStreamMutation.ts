@@ -57,6 +57,7 @@ const processResponseStream = (
                         controller.terminate();
                     } else {
                         try {
+                            console.log('jsonLine', jsonLine);
                             const json = JSON.parse(jsonLine);
                             const uiMessageChunk: UIMessageChunk = json;
                             controller.enqueue(uiMessageChunk);
