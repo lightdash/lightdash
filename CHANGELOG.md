@@ -1,3 +1,11 @@
+## [0.2007.2](https://github.com/lightdash/lightdash/compare/0.2007.1...0.2007.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* scheduled deliveries send now URL too long error ([#16875](https://github.com/lightdash/lightdash/issues/16875)) ([0232db3](https://github.com/lightdash/lightdash/commit/0232db3c51dbaf86c20b0fad08eb6bf8d94ec364))
+* subtotals column orders not being respected ([#16898](https://github.com/lightdash/lightdash/issues/16898)) ([e8ef3fe](https://github.com/lightdash/lightdash/commit/e8ef3fef26e2846a2c1ad8d24e5c03ac867d00e9))
+
 ## [0.2007.1](https://github.com/lightdash/lightdash/compare/0.2007.0...0.2007.1) (2025-09-16)
 
 
