@@ -19,6 +19,7 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import {
+    Column,
     configure,
     Connection,
     ConnectionOptions,
@@ -338,7 +339,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private getFieldsFromStatement(
         stmt: RowStatement | FileAndStageBindStatement,
     ) {
-        const columns = stmt.getColumns();
+        // There is a bug/mistype in snowflake-sdk since this method can return undefined
+        const columns = stmt.getColumns() as Column[] | undefined;
         return columns
             ? columns.reduce(
                   (acc, column) => ({
@@ -663,18 +665,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(err);
                     }
                     if (data) {
-                        const fields = stmt.getColumns().reduce(
-                            (acc, column) => ({
-                                ...acc,
-                                [column.getName()]: {
-                                    type: mapFieldType(
-                                        column.getType().toUpperCase(),
-                                    ),
-                                },
-                            }),
-                            {},
-                        );
-                        resolve({ fields, rows: parseRows(data) });
+                        resolve({
+                            fields: this.getFieldsFromStatement(stmt),
+                            rows: parseRows(data),
+                        });
                     } else {
                         reject(
                             new WarehouseQueryError(
