@@ -1,3 +1,11 @@
+## [0.2009.1](https://github.com/lightdash/lightdash/compare/0.2009.0...0.2009.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* add thread length warning with new thread link in agent chat ([#16874](https://github.com/lightdash/lightdash/issues/16874)) ([392df5a](https://github.com/lightdash/lightdash/commit/392df5a6dd8f36fbffc1ee0f475d6035afe82630))
+* address incomplete chunks of text when streaming ai response ([#16933](https://github.com/lightdash/lightdash/issues/16933)) ([5c024de](https://github.com/lightdash/lightdash/commit/5c024de4f1de4ab7880d8ce9c0d74d1422ab9cf5))
+
 # [0.2009.0](https://github.com/lightdash/lightdash/compare/0.2008.0...0.2009.0) (2025-09-16)
 
 
