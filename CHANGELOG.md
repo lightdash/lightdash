@@ -1,3 +1,95 @@
+## [0.2009.2](https://github.com/lightdash/lightdash/compare/0.2009.1...0.2009.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* change validation columns from string to text ([#16936](https://github.com/lightdash/lightdash/issues/16936)) ([5ab8c3f](https://github.com/lightdash/lightdash/commit/5ab8c3f948ef767b4728b4ce12cc54a8362bc35d))
+
+## [0.2009.1](https://github.com/lightdash/lightdash/compare/0.2009.0...0.2009.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* add thread length warning with new thread link in agent chat ([#16874](https://github.com/lightdash/lightdash/issues/16874)) ([392df5a](https://github.com/lightdash/lightdash/commit/392df5a6dd8f36fbffc1ee0f475d6035afe82630))
+* address incomplete chunks of text when streaming ai response ([#16933](https://github.com/lightdash/lightdash/issues/16933)) ([5c024de](https://github.com/lightdash/lightdash/commit/5c024de4f1de4ab7880d8ce9c0d74d1422ab9cf5))
+
+# [0.2009.0](https://github.com/lightdash/lightdash/compare/0.2008.0...0.2009.0) (2025-09-16)
+
+
+### Features
+
+* add analytics dashboard embed to AI agent admin page ([#16894](https://github.com/lightdash/lightdash/issues/16894)) ([b61b55b](https://github.com/lightdash/lightdash/commit/b61b55b4d62497cb6afb0f864a987e018dd3f3ac))
+* add console log for jsonLine in AI agent thread stream processing ([#16931](https://github.com/lightdash/lightdash/issues/16931)) ([188f49c](https://github.com/lightdash/lightdash/commit/188f49caa082d71c3bcf42ad40e6e7d0af734cf8))
+
+# [0.2008.0](https://github.com/lightdash/lightdash/compare/0.2007.6...0.2008.0) (2025-09-16)
+
+
+### Bug Fixes
+
+* downloading pivoted tables ([#16928](https://github.com/lightdash/lightdash/issues/16928)) ([ff6fafd](https://github.com/lightdash/lightdash/commit/ff6fafd3a9dc7960919d1b73a19569e70f939ff1))
+
+
+### Features
+
+* add (optional) query data access for AI agents ([#16910](https://github.com/lightdash/lightdash/issues/16910)) ([b6e70a8](https://github.com/lightdash/lightdash/commit/b6e70a84a437e0eb4550e17163a14a9d0f5af075)), closes [#16582](https://github.com/lightdash/lightdash/issues/16582)
+
+## [0.2007.6](https://github.com/lightdash/lightdash/compare/0.2007.5...0.2007.6) (2025-09-16)
+
+
+### Bug Fixes
+
+* increase validations error column size from string to text ([#16925](https://github.com/lightdash/lightdash/issues/16925)) ([506b553](https://github.com/lightdash/lightdash/commit/506b553b0dfd8adb1e5a4261355485195d337159))
+
+## [0.2007.5](https://github.com/lightdash/lightdash/compare/0.2007.4...0.2007.5) (2025-09-16)
+
+
+### Bug Fixes
+
+* support multiple artifacts per AI agent message ([#16877](https://github.com/lightdash/lightdash/issues/16877)) ([2084a01](https://github.com/lightdash/lightdash/commit/2084a0106dfe9ba7d89369c986f66f81eea02c58))
+
+## [0.2007.4](https://github.com/lightdash/lightdash/compare/0.2007.3...0.2007.4) (2025-09-16)
+
+
+### Bug Fixes
+
+* handle undefined columns in Snowflake SDK getColumns method ([#16919](https://github.com/lightdash/lightdash/issues/16919)) ([e0e3cba](https://github.com/lightdash/lightdash/commit/e0e3cbac71a65f7296843f7db91ac9d836202638))
+
+## [0.2007.3](https://github.com/lightdash/lightdash/compare/0.2007.2...0.2007.3) (2025-09-16)
+
+
+### Bug Fixes
+
+* hidding values columns ([#16899](https://github.com/lightdash/lightdash/issues/16899)) ([374530c](https://github.com/lightdash/lightdash/commit/374530ce0b872de4e2a6478a5d230921581089cb))
+
+## [0.2007.2](https://github.com/lightdash/lightdash/compare/0.2007.1...0.2007.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* scheduled deliveries send now URL too long error ([#16875](https://github.com/lightdash/lightdash/issues/16875)) ([0232db3](https://github.com/lightdash/lightdash/commit/0232db3c51dbaf86c20b0fad08eb6bf8d94ec364))
+* subtotals column orders not being respected ([#16898](https://github.com/lightdash/lightdash/issues/16898)) ([e8ef3fe](https://github.com/lightdash/lightdash/commit/e8ef3fef26e2846a2c1ad8d24e5c03ac867d00e9))
+
+## [0.2007.1](https://github.com/lightdash/lightdash/compare/0.2007.0...0.2007.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* explore from here consistency ([#16876](https://github.com/lightdash/lightdash/issues/16876)) ([834131f](https://github.com/lightdash/lightdash/commit/834131f604013ffa55788ae8356fe24e79724006))
+
+# [0.2007.0](https://github.com/lightdash/lightdash/compare/0.2006.3...0.2007.0) (2025-09-16)
+
+
+### Features
+
+* add API endpoint to create dashboard with charts in one operation ([#16865](https://github.com/lightdash/lightdash/issues/16865)) ([0888dad](https://github.com/lightdash/lightdash/commit/0888dadf831c8025c17758f5049ed0bb2a112544))
+
+## [0.2006.3](https://github.com/lightdash/lightdash/compare/0.2006.2...0.2006.3) (2025-09-16)
+
+
+### Bug Fixes
+
+* free up disk space on build-docker.yml ([#16915](https://github.com/lightdash/lightdash/issues/16915)) ([62487a1](https://github.com/lightdash/lightdash/commit/62487a1fffb5c80dc77f18e3f2ae5fdc56cd56d4))
+
 ## [0.2006.2](https://github.com/lightdash/lightdash/compare/0.2006.1...0.2006.2) (2025-09-15)
 
 

@@ -730,7 +730,7 @@ export class CsvService extends BaseService {
                 rows,
                 itemMap,
                 metricQuery,
-
+                pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
                 exploreId,
                 onlyRaw,
                 truncated,
@@ -1218,6 +1218,7 @@ export class CsvService extends BaseService {
                         onlyRaw,
                         truncated,
                         customLabels,
+                        pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
                     });
 
                 this.analytics.track({

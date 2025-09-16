@@ -37,7 +37,13 @@ export const useAiAgentThreadArtifact = ({
 
     const latestAssistantMessage = useMemo(() => {
         const msg = thread?.messages?.at(-1);
-        if (!msg || msg.role !== 'assistant' || !msg.artifact) return null;
+        if (
+            !msg ||
+            msg.role !== 'assistant' ||
+            !msg.artifacts ||
+            msg.artifacts.length === 0
+        )
+            return null;
         return msg;
     }, [thread]);
 
@@ -61,10 +67,12 @@ export const useAiAgentThreadArtifact = ({
             return;
         if (artifact?.message.uuid === latestAssistantMessage.uuid) return;
 
+        const latestArtifact = latestAssistantMessage.artifacts?.at(-1);
+        if (!latestArtifact) return;
         dispatch(
             setArtifact({
-                artifactUuid: latestAssistantMessage.artifact!.uuid,
-                versionUuid: latestAssistantMessage.artifact!.versionUuid,
+                artifactUuid: latestArtifact.artifactUuid,
+                versionUuid: latestArtifact.versionUuid,
                 message: latestAssistantMessage,
                 projectUuid,
                 agentUuid,

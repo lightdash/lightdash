@@ -278,7 +278,9 @@ export const AssistantBubble: FC<Props> = memo(
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
-        const isArtifactAvailable = !!message.artifact;
+        const isArtifactAvailable = !!(
+            message.artifacts && message.artifacts.length > 0
+        );
 
         const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
             useDisclosure(debug);
@@ -332,33 +334,41 @@ export const AssistantBubble: FC<Props> = memo(
                 />
 
                 {isArtifactAvailable && projectUuid && agentUuid && (
-                    <AiArtifactButton
-                        onClick={() => {
-                            if (
-                                artifact?.artifactUuid ===
-                                    message.artifact?.uuid &&
-                                artifact?.versionUuid ===
-                                    message.artifact?.versionUuid
-                            ) {
-                                return;
-                            }
-                            dispatch(
-                                setArtifact({
-                                    artifactUuid: message.artifact!.uuid,
-                                    versionUuid: message.artifact!.versionUuid,
-                                    message: message,
-                                    projectUuid: projectUuid,
-                                    agentUuid: agentUuid,
-                                }),
-                            );
-                        }}
-                        isArtifactOpen={
-                            artifact?.artifactUuid === message.artifact?.uuid &&
-                            artifact?.versionUuid ===
-                                message.artifact?.versionUuid
-                        }
-                        artifact={message.artifact}
-                    />
+                    <Stack gap="xs">
+                        {message.artifacts!.map((messageArtifact) => (
+                            <AiArtifactButton
+                                key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
+                                onClick={() => {
+                                    if (
+                                        artifact?.artifactUuid ===
+                                            messageArtifact.artifactUuid &&
+                                        artifact?.versionUuid ===
+                                            messageArtifact.versionUuid
+                                    ) {
+                                        return;
+                                    }
+                                    dispatch(
+                                        setArtifact({
+                                            artifactUuid:
+                                                messageArtifact.artifactUuid,
+                                            versionUuid:
+                                                messageArtifact.versionUuid,
+                                            message: message,
+                                            projectUuid: projectUuid,
+                                            agentUuid: agentUuid,
+                                        }),
+                                    );
+                                }}
+                                isArtifactOpen={
+                                    artifact?.artifactUuid ===
+                                        messageArtifact.artifactUuid &&
+                                    artifact?.versionUuid ===
+                                        messageArtifact.versionUuid
+                                }
+                                artifact={messageArtifact}
+                            />
+                        ))}
+                    </Stack>
                 )}
                 <Group gap={0}>
                     <CopyButton value={message.message ?? ''}>

@@ -22,6 +22,7 @@ import {
     MultiSelect,
     Paper,
     Stack,
+    Switch,
     Tabs,
     TagsInput,
     Text,
@@ -90,6 +91,7 @@ const formSchema = z.object({
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    enableDataAccess: z.boolean(),
 });
 
 type Props = {
@@ -285,6 +287,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             imageUrl: null,
             groupAccess: [],
             userAccess: [],
+            enableDataAccess: false,
         },
         validate: zodResolver(formSchema),
     });
@@ -303,6 +306,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 imageUrl: agent.imageUrl,
                 groupAccess: agent.groupAccess ?? [],
                 userAccess: agent.userAccess ?? [],
+                enableDataAccess: agent.enableDataAccess ?? false,
             };
             form.setValues(values);
             form.resetDirty(values);
@@ -842,7 +846,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 Knowledge & expertise
                                             </Title>
                                         </Group>
-
                                         <Stack gap="xs">
                                             <Textarea
                                                 variant="subtle"
@@ -863,7 +866,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 characters
                                             </Text>
                                         </Stack>
-
+                                        \
                                         <Stack gap="sm">
                                             <Title
                                                 order={6}
@@ -887,7 +890,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 }}
                                             />
                                         </Stack>
-
                                         <Stack gap="sm">
                                             <Box>
                                                 <Title
@@ -919,6 +921,52 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 and how they work.
                                             </Text>
                                         </Stack>
+                                        <Switch
+                                            variant="subtle"
+                                            label={
+                                                <Group gap="xs">
+                                                    <Text fz="sm" fw={500}>
+                                                        Enable Data Access
+                                                    </Text>
+                                                    <Tooltip
+                                                        label="When enabled, the AI agent can analyze chart data and provide insights. When disabled, the agent only creates visualizations without accessing the underlying data."
+                                                        withArrow
+                                                        withinPortal
+                                                        multiline
+                                                        position="right"
+                                                        maw="300px"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                </Group>
+                                            }
+                                            description={
+                                                <>
+                                                    Allows the agent to access
+                                                    and analyze the actual data
+                                                    behind charts to provide
+                                                    detailed insights and answer
+                                                    questions about the data.{' '}
+                                                    <Anchor
+                                                        href="https://docs.lightdash.com/guides/ai-agents#data-access-control"
+                                                        target="_blank"
+                                                        size="xs"
+                                                    >
+                                                        Learn more
+                                                    </Anchor>
+                                                </>
+                                            }
+                                            {...form.getInputProps(
+                                                'enableDataAccess',
+                                                {
+                                                    type: 'checkbox',
+                                                },
+                                            )}
+                                        />
                                     </Stack>
                                 </Paper>
 

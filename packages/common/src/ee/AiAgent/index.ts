@@ -57,6 +57,7 @@ export const baseAgentSchema = z.object({
     model: z.string(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    enableDataAccess: z.boolean(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -75,6 +76,7 @@ export type AiAgent = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'enableDataAccess'
 >;
 
 export type AiAgentSummary = Pick<
@@ -91,6 +93,7 @@ export type AiAgentSummary = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'enableDataAccess'
 >;
 
 export type AiAgentUser = {
@@ -108,6 +111,16 @@ export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
     user: TUser;
 };
 
+export type AiAgentMessageAssistantArtifact = Pick<
+    AiArtifact,
+    | 'artifactUuid'
+    | 'versionNumber'
+    | 'versionUuid'
+    | 'title'
+    | 'description'
+    | 'artifactType'
+>;
+
 export type AiAgentMessageAssistant = {
     role: 'assistant';
     uuid: string;
@@ -124,14 +137,7 @@ export type AiAgentMessageAssistant = {
     toolCalls: AiAgentToolCall[];
     savedQueryUuid: string | null;
 
-    artifact: {
-        uuid: string;
-        versionNumber: number;
-        versionUuid: string;
-        title: string | null;
-        description: string | null;
-        artifactType: 'chart' | 'dashboard';
-    } | null;
+    artifacts: AiAgentMessageAssistantArtifact[] | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -177,6 +183,7 @@ export type ApiCreateAiAgent = Pick<
     | 'imageUrl'
     | 'groupAccess'
     | 'userAccess'
+    | 'enableDataAccess'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -190,6 +197,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'imageUrl'
         | 'groupAccess'
         | 'userAccess'
+        | 'enableDataAccess'
     >
 > & {
     uuid: string;

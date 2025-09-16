@@ -103,3 +103,22 @@ export const useAiAgentAdminAgents = () => {
         keepPreviousData: true,
     });
 };
+
+const getAiAgentAdminEmbedToken = async () => {
+    return lightdashApi<{ token: string; url: string }>({
+        version: 'v1',
+        url: `/aiAgents/admin/embed-token`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentAdminEmbedToken = () => {
+    return useQuery<{ token: string; url: string }, ApiError>({
+        queryKey: ['ai-agent-admin-embed-token'],
+        queryFn: getAiAgentAdminEmbedToken,
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        staleTime: 30 * 60 * 1000, // 30 minutes (token expires in 1 hour)
+    });
+};

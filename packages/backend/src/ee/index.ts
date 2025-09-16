@@ -108,9 +108,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
                 }),
-            aiAgentAdminService: ({ models }) =>
+            aiAgentAdminService: ({ models, context }) =>
                 new AiAgentAdminService({
                     aiAgentModel: models.getAiAgentModel(),
+                    lightdashConfig: context.lightdashConfig,
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

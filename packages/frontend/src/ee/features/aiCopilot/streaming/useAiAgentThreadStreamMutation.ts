@@ -44,27 +44,37 @@ const getAgentThreadReadableStream = async (
 const processResponseStream = (
     stream: ReadableStream<Uint8Array>,
 ): ReadableStream<UIMessageChunk> => {
+    let buffer = '';
+
     const transformStream = new TransformStream({
         transform(chunk, controller) {
             const decoder = new TextDecoder();
-            const text = decoder.decode(chunk);
-            const lines = text.split('\n').filter((line) => line.trim());
+            const text = decoder.decode(chunk, { stream: true });
+            buffer += text;
+
+            const lines = buffer.split('\n');
+            // Keep the last line in the buffer as it might be incomplete
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const jsonLine = line.substring(6);
+                const trimmedLine = line.trim();
+                if (trimmedLine && trimmedLine.startsWith('data: ')) {
+                    const jsonLine = trimmedLine.substring(6);
                     if (jsonLine === '[DONE]') {
                         controller.terminate();
                     } else {
                         try {
+                            console.log('jsonLine', jsonLine);
                             const json = JSON.parse(jsonLine);
                             const uiMessageChunk: UIMessageChunk = json;
                             controller.enqueue(uiMessageChunk);
                         } catch (error) {
-                            console.error(error);
-                            throw new Error(
-                                'Error parsing response stream line',
+                            console.error(
+                                'Failed to parse JSON line:',
+                                jsonLine,
+                                error,
                             );
+                            // Don't throw here - just skip the malformed line and continue
                         }
                     }
                 }
