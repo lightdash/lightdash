@@ -1,3 +1,10 @@
+# [0.2007.0](https://github.com/lightdash/lightdash/compare/0.2006.3...0.2007.0) (2025-09-16)
+
+
+### Features
+
+* add API endpoint to create dashboard with charts in one operation ([#16865](https://github.com/lightdash/lightdash/issues/16865)) ([0888dad](https://github.com/lightdash/lightdash/commit/0888dadf831c8025c17758f5049ed0bb2a112544))
+
 ## [0.2006.3](https://github.com/lightdash/lightdash/compare/0.2006.2...0.2006.3) (2025-09-16)
 
 
