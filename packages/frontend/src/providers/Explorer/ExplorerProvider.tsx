@@ -1532,6 +1532,10 @@ const ExplorerProvider: FC<
             const metricQuery = unsavedChartVersion.metricQuery;
             let pivotConfiguration: PivotConfiguration | undefined;
 
+            if (!explore) {
+                return;
+            }
+
             if (useSqlPivotResults?.enabled && explore) {
                 const items = getFieldsFromMetricQuery(metricQuery, explore);
                 pivotConfiguration = derivePivotConfigurationFromChart(
