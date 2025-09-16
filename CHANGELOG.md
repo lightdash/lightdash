@@ -1,3 +1,10 @@
+## [0.2006.3](https://github.com/lightdash/lightdash/compare/0.2006.2...0.2006.3) (2025-09-16)
+
+
+### Bug Fixes
+
+* free up disk space on build-docker.yml ([#16915](https://github.com/lightdash/lightdash/issues/16915)) ([62487a1](https://github.com/lightdash/lightdash/commit/62487a1fffb5c80dc77f18e3f2ae5fdc56cd56d4))
+
 ## [0.2006.2](https://github.com/lightdash/lightdash/compare/0.2006.1...0.2006.2) (2025-09-15)
 
 
