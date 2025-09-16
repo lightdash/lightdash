@@ -266,6 +266,24 @@ export class SchedulerService extends BaseService {
         });
     }
 
+    async getSchedulersByUser(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        return this.schedulerModel.getSchedulersByUser(
+            user.userUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+        );
+    }
+
     async getScheduler(
         user: SessionUser,
         schedulerUuid: string,
