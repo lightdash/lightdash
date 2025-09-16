@@ -1,3 +1,10 @@
+## [0.2007.4](https://github.com/lightdash/lightdash/compare/0.2007.3...0.2007.4) (2025-09-16)
+
+
+### Bug Fixes
+
+* handle undefined columns in Snowflake SDK getColumns method ([#16919](https://github.com/lightdash/lightdash/issues/16919)) ([e0e3cba](https://github.com/lightdash/lightdash/commit/e0e3cbac71a65f7296843f7db91ac9d836202638))
+
 ## [0.2007.3](https://github.com/lightdash/lightdash/compare/0.2007.2...0.2007.3) (2025-09-16)
 
 
