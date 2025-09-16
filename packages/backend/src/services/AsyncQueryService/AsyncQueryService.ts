@@ -64,6 +64,7 @@ import {
     QueryExecutionContext,
     type QueryHistory,
     QueryHistoryStatus,
+    type ReadyQueryResultsPage,
     type ResultColumns,
     ResultRow,
     type RunQueryTags,
@@ -384,6 +385,46 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    /**
+     * Get the pivot details from the query history, this is a utility function to get the pivot details from the query history
+     * @param queryHistory Query history
+     * @returns Pivot details
+     */
+    private static getPivotDetailsFromQueryHistory(
+        queryHistory: QueryHistory,
+    ): ReadyQueryResultsPage['pivotDetails'] {
+        const {
+            pivotConfiguration,
+            pivotValuesColumns,
+            pivotTotalColumnCount,
+            originalColumns,
+        } = queryHistory;
+
+        const isPivoted = pivotConfiguration && pivotValuesColumns;
+
+        if (!isPivoted) {
+            return null;
+        }
+
+        const sortedValuesColumns = Object.values(pivotValuesColumns).sort(
+            (a, b) => {
+                if (a.columnIndex && b.columnIndex) {
+                    return a.columnIndex - b.columnIndex;
+                }
+                return 0;
+            },
+        );
+
+        return {
+            valuesColumns: sortedValuesColumns,
+            totalColumnCount: pivotTotalColumnCount,
+            indexColumn: pivotConfiguration.indexColumn,
+            groupByColumns: pivotConfiguration.groupByColumns,
+            sortBy: pivotConfiguration.sortBy,
+            originalColumns: originalColumns || {},
+        };
+    }
+
     async getAsyncQueryResults({
         account,
         projectUuid,
@@ -557,19 +598,13 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const {
-            pivotConfiguration,
-            pivotValuesColumns,
-            pivotTotalColumnCount,
-        } = queryHistory;
-
         if (!columns) {
             throw new UnexpectedServerError(
                 `No columns found for query ${queryUuid}`,
             );
         }
 
-        const returnObject = {
+        return {
             rows,
             columns,
             totalPageCount: pageCount,
@@ -583,34 +618,8 @@ export class AsyncQueryService extends ProjectService {
                 queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
             resultsPageExecutionMs: roundedDurationMs,
             status,
-            pivotDetails: null,
-        };
-
-        const isPivoted = pivotConfiguration && pivotValuesColumns;
-
-        if (!isPivoted) {
-            return returnObject;
-        }
-
-        const sortedValuesColumns = Object.values(pivotValuesColumns).sort(
-            (a, b) => {
-                if (a.columnIndex && b.columnIndex) {
-                    return a.columnIndex - b.columnIndex;
-                }
-                return 0;
-            },
-        );
-
-        return {
-            ...returnObject,
-            pivotDetails: {
-                totalColumnCount: pivotTotalColumnCount,
-                valuesColumns: sortedValuesColumns,
-                indexColumn: pivotConfiguration.indexColumn,
-                groupByColumns: pivotConfiguration.groupByColumns,
-                sortBy: pivotConfiguration.sortBy,
-                originalColumns: originalColumns || {},
-            },
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
         };
     }
 
@@ -869,6 +878,10 @@ export class AsyncQueryService extends ProjectService {
                         metricQuery: queryHistory.metricQuery,
                         projectUuid,
                         storageClient: this.storageClient,
+                        pivotDetails:
+                            AsyncQueryService.getPivotDetailsFromQueryHistory(
+                                queryHistory,
+                            ),
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -906,6 +919,10 @@ export class AsyncQueryService extends ProjectService {
                         metricQuery: queryHistory.metricQuery,
                         storageClient: this.storageClient,
                         lightdashConfig: this.lightdashConfig,
+                        pivotDetails:
+                            AsyncQueryService.getPivotDetailsFromQueryHistory(
+                                queryHistory,
+                            ),
                         options: {
                             onlyRaw,
                             showTableNames,
