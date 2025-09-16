@@ -1,3 +1,15 @@
+# [0.2008.0](https://github.com/lightdash/lightdash/compare/0.2007.6...0.2008.0) (2025-09-16)
+
+
+### Bug Fixes
+
+* downloading pivoted tables ([#16928](https://github.com/lightdash/lightdash/issues/16928)) ([ff6fafd](https://github.com/lightdash/lightdash/commit/ff6fafd3a9dc7960919d1b73a19569e70f939ff1))
+
+
+### Features
+
+* add (optional) query data access for AI agents ([#16910](https://github.com/lightdash/lightdash/issues/16910)) ([b6e70a8](https://github.com/lightdash/lightdash/commit/b6e70a84a437e0eb4550e17163a14a9d0f5af075)), closes [#16582](https://github.com/lightdash/lightdash/issues/16582)
+
 ## [0.2007.6](https://github.com/lightdash/lightdash/compare/0.2007.5...0.2007.6) (2025-09-16)
 
 
