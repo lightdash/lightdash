@@ -49,23 +49,23 @@ export class ValidationModel {
                 ValidationTableName,
                 validations.map((validation) => ({
                     project_uuid: validation.projectUuid,
-                    error: validation.error,
+                    error: validation.error.slice(0, 255),
                     job_id: jobId ?? null,
                     error_type: validation.errorType,
                     source: validation.source ?? null,
                     ...(isTableValidationError(validation) && {
-                        model_name: validation.modelName,
+                        model_name: validation.modelName.slice(0, 255),
                     }),
                     ...(isChartValidationError(validation) && {
                         saved_chart_uuid: validation.chartUuid,
-                        field_name: validation.fieldName,
-                        chart_name: validation.chartName ?? null,
+                        field_name: validation.fieldName?.slice(0, 255),
+                        chart_name: validation.chartName?.slice(0, 255) ?? null,
                     }),
                     ...(isDashboardValidationError(validation) && {
                         dashboard_uuid: validation.dashboardUuid,
-                        field_name: validation.fieldName ?? null,
-                        chart_name: validation.chartName ?? null,
-                        model_name: validation.name,
+                        field_name: validation.fieldName?.slice(0, 255) ?? null,
+                        chart_name: validation.chartName?.slice(0, 255) ?? null,
+                        model_name: validation.name.slice(0, 255),
                     }),
                 })),
             );
