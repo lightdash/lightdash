@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router';
 
 import styles from './AgentChatInput.module.css';
 
+const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
+
 interface AgentChatInputProps {
     onSubmit: (message: string) => void;
     loading?: boolean;
@@ -94,7 +96,7 @@ export const AgentChatInput = ({
 
     return (
         <Box pos="relative" pb="lg" className={styles.backdropBackground}>
-            {messageCount > 15 && (
+            {messageCount > MAX_RECOMMENDED_THREAD_MESSAGE_COUNT && (
                 <Paper
                     px="sm"
                     py={rem(4)}
