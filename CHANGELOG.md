@@ -1,3 +1,10 @@
+## [0.2007.3](https://github.com/lightdash/lightdash/compare/0.2007.2...0.2007.3) (2025-09-16)
+
+
+### Bug Fixes
+
+* hidding values columns ([#16899](https://github.com/lightdash/lightdash/issues/16899)) ([374530c](https://github.com/lightdash/lightdash/commit/374530ce0b872de4e2a6478a5d230921581089cb))
+
 ## [0.2007.2](https://github.com/lightdash/lightdash/compare/0.2007.1...0.2007.2) (2025-09-16)
 
 
