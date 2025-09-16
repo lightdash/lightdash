@@ -1000,9 +1000,13 @@ export const convertSqlPivotedRowsToPivotData = ({
         indexColumns = [];
     }
 
+    const filteredValuesColumns = pivotDetails.valuesColumns.filter(
+        ({ referenceField }) => !hiddenMetricFieldIds.includes(referenceField),
+    );
+
     // Get unique base metrics from valuesColumns
     const baseMetricsArray = Array.from(
-        new Set(pivotDetails.valuesColumns.map((col) => col.referenceField)),
+        new Set(filteredValuesColumns.map((col) => col.referenceField)),
     );
 
     const headerValueTypes = getHeaderValueTypes({
@@ -1030,7 +1034,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     const headerValues: PivotData['headerValues'] = [];
     pivotDetails.groupByColumns?.forEach(({ reference }, index) => {
         headerValues.push([]);
-        let columns = pivotDetails.valuesColumns;
+        let columns = filteredValuesColumns;
         if (pivotConfig.metricsAsRows) {
             // For metrics as rows, we only need unique combinations of pivot values, excluding per metric duplicates
             columns = Array.from(
@@ -1098,7 +1102,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     // Add metric labels for columns if not metrics as rows
     if (!pivotConfig.metricsAsRows && baseMetricsArray.length > 0) {
         headerValues.push(
-            pivotDetails.valuesColumns
+            filteredValuesColumns
                 .sort((a, b) => {
                     const columnIndexSort =
                         Number(a.columnIndex) - Number(b.columnIndex);
@@ -1159,7 +1163,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     const uniqueColumns = pivotConfig.metricsAsRows
         ? Array.from(
               new Map(
-                  pivotDetails.valuesColumns.map((col) => [
+                  filteredValuesColumns.map((col) => [
                       col.pivotValues
                           .map(
                               ({ referenceField, value }) =>
@@ -1170,7 +1174,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                   ]),
               ).values(),
           )
-        : pivotDetails.valuesColumns;
+        : filteredValuesColumns;
 
     if (pivotConfig.metricsAsRows) {
         // multiply rows per metric
@@ -1187,7 +1191,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                 // For each unique column combination, find the corresponding value for this metric
                 const rowData = uniqueColumns.map((uniqueCol) => {
                     // Find the actual column in sortedValuesColumns that matches this unique combination and metric
-                    const matchingColumn = pivotDetails.valuesColumns.find(
+                    const matchingColumn = filteredValuesColumns.find(
                         (col) =>
                             col.referenceField === metric &&
                             col.pivotValues.every((pv) =>
@@ -1218,7 +1222,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             );
             setIndexByKey(rowIndices, indexRowValues, rowIndex);
 
-            return pivotDetails.valuesColumns.map((valueCol) =>
+            return filteredValuesColumns.map((valueCol) =>
                 row[valueCol.pivotColumnName]
                     ? row[valueCol.pivotColumnName].value
                     : null,
@@ -1400,7 +1404,7 @@ export const convertSqlPivotedRowsToPivotData = ({
             }
 
             // Add data columns with generated field IDs using metadata
-            pivotDetails.valuesColumns.forEach((valueCol, colIndex) => {
+            filteredValuesColumns.forEach((valueCol, colIndex) => {
                 const pivotDimensions = (pivotDetails.groupByColumns || []).map(
                     (col) => col.reference,
                 );
@@ -1458,7 +1462,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                   },
               ]
             : []),
-        ...pivotDetails.valuesColumns.map((valueCol, colIndex) => {
+        ...filteredValuesColumns.map((valueCol, colIndex) => {
             const pivotDimensions = (pivotDetails.groupByColumns || []).map(
                 (col) => col.reference,
             );
