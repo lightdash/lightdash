@@ -1,9 +1,15 @@
-import type { DashboardTab } from '@lightdash/common';
+import type {
+    DashboardFilterRule,
+    DashboardTab,
+    ParametersValuesMap,
+} from '@lightdash/common';
 import {
     assertUnreachable,
     DashboardTileTypes,
     isDashboardScheduler,
+    SessionStorageKeys,
 } from '@lightdash/common';
+import { useSessionStorage } from '@mantine/hooks';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -35,10 +41,19 @@ const MinimalDashboard: FC = () => {
     }>();
 
     const schedulerUuid = useSearchParams('schedulerUuid');
-    const sendNowSchedulerFilters = useSearchParams('sendNowSchedulerFilters');
-    const sendNowSchedulerParameters = useSearchParams(
-        'sendNowSchedulerParameters',
-    );
+
+    const [sendNowSchedulerFilters] = useSessionStorage<
+        DashboardFilterRule[] | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_FILTERS,
+    });
+
+    const [sendNowSchedulerParameters] = useSessionStorage<
+        ParametersValuesMap | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS,
+    });
+
     const schedulerTabs = useSearchParams('selectedTabs');
     const dateZoom = useDateZoomGranularitySearch();
 
@@ -69,20 +84,16 @@ const MinimalDashboard: FC = () => {
         if (schedulerUuid && scheduler && isDashboardScheduler(scheduler)) {
             return scheduler.filters;
         }
-        if (sendNowSchedulerFilters) {
-            return JSON.parse(sendNowSchedulerFilters);
-        }
-        return undefined;
+
+        return sendNowSchedulerFilters;
     }, [scheduler, schedulerUuid, sendNowSchedulerFilters]);
 
     const schedulerParameters = useMemo(() => {
         if (schedulerUuid && scheduler && isDashboardScheduler(scheduler)) {
             return scheduler.parameters;
         }
-        if (sendNowSchedulerParameters) {
-            return JSON.parse(sendNowSchedulerParameters);
-        }
-        return undefined;
+
+        return sendNowSchedulerParameters;
     }, [scheduler, schedulerUuid, sendNowSchedulerParameters]);
 
     const schedulerTabsSelected = useMemo(() => {
