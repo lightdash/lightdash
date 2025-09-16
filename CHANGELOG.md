@@ -1,3 +1,10 @@
+## [0.2007.1](https://github.com/lightdash/lightdash/compare/0.2007.0...0.2007.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* explore from here consistency ([#16876](https://github.com/lightdash/lightdash/issues/16876)) ([834131f](https://github.com/lightdash/lightdash/commit/834131f604013ffa55788ae8356fe24e79724006))
+
 # [0.2007.0](https://github.com/lightdash/lightdash/compare/0.2006.3...0.2007.0) (2025-09-16)
 
 
