@@ -6,6 +6,7 @@ import {
     getHighestProjectRole,
     isGroupWithMembers,
     type InheritedRoles,
+    type KnexPaginateArgs,
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from '@lightdash/common';
@@ -23,12 +24,24 @@ export type ProjectUserWithRole = Omit<OrganizationMemberProfile, 'role'> & {
     role: ProjectMemberRole;
 };
 
-export const useProjectUsersWithRoles = (projectUuid: string) => {
+export const useProjectUsersWithRoles = (
+    projectUuid: string,
+    params?: {
+        searchInput?: string;
+        enabled?: boolean;
+        paginateArgs?: KnexPaginateArgs;
+    },
+) => {
     const userGroupsFeatureFlagQuery = useFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 
-    const organizationUsersQuery = useOrganizationUsers();
+    const organizationUsersQuery = useOrganizationUsers({
+        searchInput: params?.searchInput,
+        projectUuid,
+        enabled: params?.enabled,
+        paginateArgs: params?.paginateArgs,
+    });
 
     const groupsQuery = useOrganizationGroups(
         { includeMembers: 5 },
@@ -165,21 +178,8 @@ export const useProjectUsersWithRoles = (projectUuid: string) => {
         });
     }, [organizationUsersQuery, projectRoles, inheritedRoles, projectUuid]);
 
-    const usersDictionary = useMemo(() => {
-        if (!usersWithProjectRole) return {};
-
-        return usersWithProjectRole.reduce<Record<string, ProjectUserWithRole>>(
-            (acc, user) => ({
-                ...acc,
-                [user.userUuid]: user,
-            }),
-            {},
-        );
-    }, [usersWithProjectRole]);
-
     return {
         usersWithProjectRole,
-        usersDictionary,
         isLoading:
             projectAccessQuery.isInitialLoading ||
             organizationUsersQuery.isInitialLoading,
