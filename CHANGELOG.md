@@ -1,3 +1,10 @@
+# [0.2011.0](https://github.com/lightdash/lightdash/compare/0.2010.0...0.2011.0) (2025-09-17)
+
+
+### Features
+
+* apply user attributes to sql runner queries ([#16903](https://github.com/lightdash/lightdash/issues/16903)) ([c0dd2aa](https://github.com/lightdash/lightdash/commit/c0dd2aa06299e65f181a881583139ccb74638ef6))
+
 # [0.2010.0](https://github.com/lightdash/lightdash/compare/0.2009.6...0.2010.0) (2025-09-17)
 
 
