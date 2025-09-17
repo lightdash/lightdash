@@ -1,3 +1,10 @@
+## [0.2012.1](https://github.com/lightdash/lightdash/compare/0.2012.0...0.2012.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* truncate large job payloads in scheduler worker logs ([#16950](https://github.com/lightdash/lightdash/issues/16950)) ([80ddb4a](https://github.com/lightdash/lightdash/commit/80ddb4a5d60e42ca432bd289772efd54e35f5fa9))
+
 # [0.2012.0](https://github.com/lightdash/lightdash/compare/0.2011.1...0.2012.0) (2025-09-17)
 
 
