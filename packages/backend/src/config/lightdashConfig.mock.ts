@@ -7,6 +7,7 @@ import { LightdashConfig } from './parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
+    useRedux: false,
     auth: {
         pat: {
             enabled: false,
