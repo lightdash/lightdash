@@ -44,7 +44,6 @@ export const getGenerateTableVizConfig = ({
         description: toolTableVizArgsSchema.description,
         inputSchema: toolTableVizArgsSchema,
         execute: async (toolArgs) => {
-            let isOneRow = false;
             try {
                 await updateProgress('🔢 Querying the data...');
 
@@ -84,11 +83,11 @@ export const getGenerateTableVizConfig = ({
                 );
                 await updateProgress('✅ Done.');
 
-                isOneRow = queryResults.rows.length === 1;
+                const rowCount = queryResults.rows.length;
                 const csv = convertQueryResultsToCsv(queryResults);
 
-                // Always send CSV file to Slack if it's a Slack prompt, regardless of row count
-                if (isSlackPrompt(prompt)) {
+                // Always send CSV file to Slack if it's a Slack prompt, unless there are no results
+                if (isSlackPrompt(prompt) && rowCount > 0) {
                     await sendFile({
                         channelId: prompt.slackChannelId,
                         threadTs: prompt.slackThreadTs,
@@ -100,8 +99,12 @@ export const getGenerateTableVizConfig = ({
                     });
                 }
 
+                if (rowCount === 0) {
+                    return `The query returned no results`;
+                }
+
                 if (!enableDataAccess) {
-                    if (isOneRow) {
+                    if (rowCount === 1) {
                         return `Here's the result:\n${serializeData(
                             csv,
                             'csv',
@@ -115,9 +118,7 @@ export const getGenerateTableVizConfig = ({
             } catch (e) {
                 return toolErrorHandler(
                     e,
-                    `Error generating ${
-                        isOneRow ? 'one row' : 'table'
-                    } result.`,
+                    `Error generating table visualization`,
                 );
             }
         },
