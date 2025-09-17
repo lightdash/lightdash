@@ -866,7 +866,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 characters
                                             </Text>
                                         </Stack>
-                                        \
                                         <Stack gap="sm">
                                             <Title
                                                 order={6}
