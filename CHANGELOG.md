@@ -1,3 +1,10 @@
+## [0.2011.1](https://github.com/lightdash/lightdash/compare/0.2011.0...0.2011.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* improve table visualization handling for empty results in AI tools ([#16960](https://github.com/lightdash/lightdash/issues/16960)) ([7041472](https://github.com/lightdash/lightdash/commit/7041472c570434e1ef795d469bfbbe7e3e3ed8f7))
+
 # [0.2011.0](https://github.com/lightdash/lightdash/compare/0.2010.0...0.2011.0) (2025-09-17)
 
 
