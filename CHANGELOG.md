@@ -1,3 +1,11 @@
+## [0.2009.6](https://github.com/lightdash/lightdash/compare/0.2009.5...0.2009.6) (2025-09-17)
+
+
+### Bug Fixes
+
+* update form-data dependencies ([#16916](https://github.com/lightdash/lightdash/issues/16916)) ([7527462](https://github.com/lightdash/lightdash/commit/7527462fa0f561bb88c3044a29276460d657b54b))
+* upgrade axios dependencies ([#16917](https://github.com/lightdash/lightdash/issues/16917)) ([bf18a14](https://github.com/lightdash/lightdash/commit/bf18a140e78b74e18091c5f6763f1b6c1553b95d))
+
 ## [0.2009.5](https://github.com/lightdash/lightdash/compare/0.2009.4...0.2009.5) (2025-09-17)
 
 
