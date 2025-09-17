@@ -69,6 +69,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                     }),
                     projectService: repository.getProjectService(),
+                    asyncQueryService: repository.getAsyncQueryService(),
                     dashboardModel: models.getDashboardModel(),
                     embedModel: models.getEmbedModel(),
                     projectModel: models.getProjectModel(),

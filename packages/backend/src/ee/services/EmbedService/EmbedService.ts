@@ -3,6 +3,7 @@ import {
     addDashboardFiltersToMetricQuery,
     AndFilterGroup,
     AnonymousAccount,
+    ApiExecuteAsyncDashboardChartQueryResults,
     CommercialFeatureFlags,
     CompiledDimension,
     CreateEmbedJwt,
@@ -15,6 +16,7 @@ import {
     DecodedEmbed,
     Embed,
     EmbedUrl,
+    ExecuteAsyncDashboardChartRequestParams,
     Explore,
     ExploreError,
     FieldValueSearchResult,
@@ -38,6 +40,7 @@ import {
     NotFoundError,
     NotSupportedError,
     ParameterError,
+    PivotConfiguration,
     QueryExecutionContext,
     RunQueryTags,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -60,6 +63,7 @@ import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import {
     getAvailableParameterDefinitions,
@@ -82,6 +86,7 @@ type Dependencies = {
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
+    asyncQueryService: AsyncQueryService;
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
 };
@@ -109,8 +114,11 @@ export class EmbedService extends BaseService {
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly asyncQueryService: AsyncQueryService;
+
     constructor(dependencies: Dependencies) {
         super();
+        this.asyncQueryService = dependencies.asyncQueryService;
         this.analytics = dependencies.analytics;
         this.embedModel = dependencies.embedModel;
         this.dashboardModel = dependencies.dashboardModel;
@@ -765,6 +773,96 @@ export class EmbedService extends BaseService {
         }
 
         return appliedDashboardFilters;
+    }
+
+    async executeAsyncDashboardTileQuery({
+        account,
+        projectUuid,
+        tileUuid,
+        dashboardFilters,
+        dateZoom,
+        invalidateCache,
+        dashboardSorts,
+        pivotResults,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        tileUuid: string;
+    } & Pick<
+        ExecuteAsyncDashboardChartRequestParams,
+        | 'dashboardFilters'
+        | 'dashboardSorts'
+        | 'pivotResults'
+        | 'invalidateCache'
+        | 'dateZoom'
+    >): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
+        const { dashboardUuids, allowAllDashboards, user } =
+            await this.embedModel.get(projectUuid);
+
+        const dashboardUuid = account.access.dashboardId;
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const chart = await this._getChartFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        const { organizationUuid } = chart;
+        await this.isFeatureEnabled({
+            userUuid: user.userUuid,
+            organizationUuid,
+        });
+
+        await this._permissionsGetChartAndResults(
+            { allowAllDashboards, dashboardUuids },
+            projectUuid,
+            chart.uuid,
+            dashboardUuid,
+        );
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            chart.tableName,
+        );
+        if (isExploreError(explore)) {
+            throw new ForbiddenError(
+                `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
+            );
+        }
+
+        const appliedDashboardFilters = await this._getAppliedDashboardFilters(
+            account,
+            explore,
+            dashboard,
+            tileUuid,
+            dashboardFilters,
+        );
+
+        // Record analytics event
+        this.analytics.trackAccount<EmbedQueryViewed>(account, {
+            event: 'embed_query.executed',
+            properties: {
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                chartId: chart.uuid,
+            },
+        });
+
+        // Execute using AsyncQueryService method with embed context
+        return this.asyncQueryService.executeAsyncDashboardChartQuery({
+            account,
+            projectUuid,
+            chartUuid: chart.uuid,
+            dashboardSorts: dashboardSorts ?? [],
+            dashboardUuid,
+            dashboardFilters: appliedDashboardFilters,
+            dateZoom,
+            invalidateCache,
+            limit: undefined,
+            context: QueryExecutionContext.EMBED,
+            parameters: undefined,
+            pivotResults,
+        });
     }
 
     async getChartAndResults(

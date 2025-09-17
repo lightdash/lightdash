@@ -33,6 +33,26 @@ const executeAsyncDashboardChartQuery = async (
         body: JSON.stringify(data),
     });
 
+// Embed-only endpoint for executing a dashboard tile query
+const postEmbedDashboardTileQuery = async (
+    projectUuid: string,
+    data: {
+        tileUuid: string;
+    } & Pick<
+        ExecuteAsyncDashboardChartRequestParams,
+        | 'dashboardFilters'
+        | 'dashboardSorts'
+        | 'pivotResults'
+        | 'invalidateCache'
+        | 'dateZoom'
+    >,
+): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
+    lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
+        url: `/embed/${projectUuid}/query/dashboard-tile`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
 export type DashboardChartReadyQuery = {
     executeQueryResponse: ApiExecuteAsyncDashboardChartQueryResults;
     chart: SavedChart;
@@ -179,26 +199,45 @@ export const useDashboardChartReadyQuery = (
                 throw new Error('Chart or explore is undefined');
             }
 
-            const executeQueryResponse = await executeAsyncDashboardChartQuery(
-                chartQuery.data.projectUuid,
-                {
-                    context: autoRefresh
-                        ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                        : contextOverride ||
-                          context ||
-                          QueryExecutionContext.DASHBOARD,
-                    chartUuid: chartUuid!,
-                    dashboardUuid: dashboardUuid!,
-                    dashboardFilters: timezoneFixFilters,
-                    dashboardSorts,
-                    dateZoom: {
-                        granularity,
-                    },
-                    invalidateCache,
-                    parameters: parameterValues,
-                    pivotResults: useSqlPivotResults?.enabled,
-                },
-            );
+            const requestedContext =
+                contextOverride || context || QueryExecutionContext.DASHBOARD;
+            const effectiveContext = autoRefresh
+                ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                : requestedContext;
+
+            const isEmbedContext =
+                requestedContext === QueryExecutionContext.EMBED;
+
+            const executeQueryResponse = isEmbedContext
+                ? await postEmbedDashboardTileQuery(
+                      chartQuery.data.projectUuid,
+                      {
+                          tileUuid,
+                          dashboardFilters: timezoneFixFilters,
+                          dashboardSorts,
+                          dateZoom: {
+                              granularity,
+                          },
+                          invalidateCache,
+                          pivotResults: useSqlPivotResults?.enabled,
+                      },
+                  )
+                : await executeAsyncDashboardChartQuery(
+                      chartQuery.data.projectUuid,
+                      {
+                          context: effectiveContext,
+                          chartUuid: chartUuid!,
+                          dashboardUuid: dashboardUuid!,
+                          dashboardFilters: timezoneFixFilters,
+                          dashboardSorts,
+                          dateZoom: {
+                              granularity,
+                          },
+                          invalidateCache,
+                          parameters: parameterValues,
+                          pivotResults: useSqlPivotResults?.enabled,
+                      },
+                  );
 
             return {
                 chart: chartQuery.data,
