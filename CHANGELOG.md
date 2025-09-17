@@ -1,3 +1,16 @@
+# [0.2012.0](https://github.com/lightdash/lightdash/compare/0.2011.1...0.2012.0) (2025-09-17)
+
+
+### Bug Fixes
+
+* upgrade form-data dependency 2 ([#16952](https://github.com/lightdash/lightdash/issues/16952)) ([041fb66](https://github.com/lightdash/lightdash/commit/041fb663a17adfb10f6b76623451d43dcd70e095))
+
+
+### Features
+
+* add async query endpoint for embedded dashboard tiles ([#16896](https://github.com/lightdash/lightdash/issues/16896)) ([5f50139](https://github.com/lightdash/lightdash/commit/5f50139110998a0498ea27d9a49dc2f04e199e64))
+* enable sentry&mcp monitoring ([#16963](https://github.com/lightdash/lightdash/issues/16963)) ([117eed9](https://github.com/lightdash/lightdash/commit/117eed97cfb4adb48ccc18a56b5eafd83f702fc9))
+
 ## [0.2011.1](https://github.com/lightdash/lightdash/compare/0.2011.0...0.2011.1) (2025-09-17)
 
 
