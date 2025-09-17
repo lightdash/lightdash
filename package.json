@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2009.3",
+    "version": "0.2009.4",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -16,7 +16,8 @@
     },
     "overrides": {
         "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
-        "axios": "^1.12.0"
+        "axios": "^1.12.0",
+        "linkifyjs": "^4.3.2"
     },
     "pnpm": {
         "overrides": {

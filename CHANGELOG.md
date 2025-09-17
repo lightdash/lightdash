@@ -1,3 +1,10 @@
+## [0.2009.4](https://github.com/lightdash/lightdash/compare/0.2009.3...0.2009.4) (2025-09-17)
+
+
+### Bug Fixes
+
+* remove backslash agent settings ([#16946](https://github.com/lightdash/lightdash/issues/16946)) ([111623d](https://github.com/lightdash/lightdash/commit/111623dff2a0102d8b6e1a8d8acc15308b38a0e2))
+
 ## [0.2009.3](https://github.com/lightdash/lightdash/compare/0.2009.2...0.2009.3) (2025-09-17)
 
 
