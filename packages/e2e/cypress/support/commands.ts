@@ -768,3 +768,188 @@ Cypress.Commands.add('getMonacoEditorText', () => {
         cy.wrap(normalizedText);
     });
 });
+
+// --- Flow timing helpers (Cypress-only, no app instrumentation) ---
+declare global {
+    namespace Cypress {
+        interface Chainable {
+            flowBegin(id: string, firstStep?: string): Chainable<void>;
+            flowStep(id: string, step: string): Chainable<void>;
+            flowStepWhenVisible(
+                id: string,
+                step: string,
+                selector: string,
+                timeoutMs?: number,
+            ): Chainable<void>;
+            flowEnd(id: string, lastStep?: string): Chainable<void>;
+            flowEndWhenVisible(
+                id: string,
+                lastStep: string,
+                selector: string,
+                timeoutMs?: number,
+            ): Chainable<void>;
+            flowCollect(id: string): Chainable<{
+                total: PerformanceMeasure[];
+                steps: PerformanceMeasure[];
+            }>;
+            flowCollectMultiple(ids: string[]): Chainable<{
+                [flowId: string]: {
+                    total: PerformanceMeasure[];
+                    steps: PerformanceMeasure[];
+                };
+            }>;
+        }
+    }
+}
+
+function markAfterPaint(win: Window, cb: () => void) {
+    win.requestAnimationFrame(() => win.requestAnimationFrame(cb));
+}
+
+Cypress.Commands.add('flowBegin', (id: string, firstStep = 'start') => {
+    cy.window({ log: false }).then((win) => {
+        const flowWindow = win as Window & {
+            flow?: Record<string, { last: string | null }>;
+        };
+        flowWindow.flow = flowWindow.flow || {};
+        flowWindow.flow[id] = { last: null as string | null };
+
+        win.performance.mark(`flow:${id}:start`);
+        win.performance.mark(`flow:${id}:step:${firstStep}`);
+        flowWindow.flow[id].last = firstStep;
+    });
+});
+
+Cypress.Commands.add('flowStep', (id: string, step: string) =>
+    cy.window({ log: false }).then(
+        (win) =>
+            new Cypress.Promise<void>((resolve) => {
+                markAfterPaint(win, () => {
+                    const flowWindow = win as Window & {
+                        flow?: Record<string, { last: string | null }>;
+                    };
+                    const last = flowWindow.flow?.[id]?.last as string | null;
+                    const markName = `flow:${id}:step:${step}`;
+                    win.performance.mark(markName);
+                    if (last) {
+                        try {
+                            win.performance.measure(
+                                `flow:${id}:${last}->${step}`,
+                                `flow:${id}:step:${last}`,
+                                markName,
+                            );
+                        } catch {
+                            // Ignore performance measurement errors
+                        }
+                    }
+                    if (flowWindow.flow) {
+                        flowWindow.flow[id].last = step;
+                    }
+                    resolve();
+                });
+            }),
+    ),
+);
+
+Cypress.Commands.add(
+    'flowStepWhenVisible',
+    (id: string, step: string, selector: string, timeoutMs = 60000) =>
+        cy
+            .get(selector, { timeout: timeoutMs })
+            .should('be.visible')
+            .then(() => cy.flowStep(id, step)),
+);
+
+Cypress.Commands.add('flowEnd', (id: string, lastStep?: string) =>
+    cy.window({ log: false }).then(
+        (win) =>
+            new Cypress.Promise<void>((resolve) => {
+                markAfterPaint(win, () => {
+                    const flowWindow = win as Window & {
+                        flow?: Record<string, { last: string | null }>;
+                    };
+                    const last = flowWindow.flow?.[id]?.last as string | null;
+
+                    if (lastStep) {
+                        const markName = `flow:${id}:step:${lastStep}`;
+                        win.performance.mark(markName);
+                        if (last) {
+                            try {
+                                win.performance.measure(
+                                    `flow:${id}:${last}->${lastStep}`,
+                                    `flow:${id}:step:${last}`,
+                                    markName,
+                                );
+                            } catch {
+                                // Ignore performance measurement errors
+                            }
+                        }
+                    }
+
+                    win.performance.mark(`flow:${id}:end`);
+                    try {
+                        win.performance.measure(
+                            `flow:${id}:total`,
+                            `flow:${id}:start`,
+                            `flow:${id}:end`,
+                        );
+                    } catch {
+                        // Ignore performance measurement errors
+                    }
+
+                    resolve();
+                });
+            }),
+    ),
+);
+
+Cypress.Commands.add(
+    'flowEndWhenVisible',
+    (id: string, lastStep: string, selector: string, timeoutMs = 60000) =>
+        cy
+            .get(selector, { timeout: timeoutMs })
+            .should('be.visible')
+            .then(() => cy.flowEnd(id, lastStep)),
+);
+
+Cypress.Commands.add('flowCollect', (id: string) =>
+    cy.window({ log: false }).then((win) => {
+        const total = win.performance.getEntriesByName(
+            `flow:${id}:total`,
+        ) as PerformanceMeasure[];
+        const steps = (
+            win.performance.getEntriesByType('measure') as PerformanceMeasure[]
+        ).filter(
+            (m) => m.name.startsWith(`flow:${id}:`) && m.name.includes('->'),
+        );
+        return { total, steps };
+    }),
+);
+
+Cypress.Commands.add('flowCollectMultiple', (ids: string[]) =>
+    cy.window({ log: false }).then((win) => {
+        const result: {
+            [flowId: string]: {
+                total: PerformanceMeasure[];
+                steps: PerformanceMeasure[];
+            };
+        } = {};
+
+        ids.forEach((id) => {
+            const total = win.performance.getEntriesByName(
+                `flow:${id}:total`,
+            ) as PerformanceMeasure[];
+            const steps = (
+                win.performance.getEntriesByType(
+                    'measure',
+                ) as PerformanceMeasure[]
+            ).filter(
+                (m) =>
+                    m.name.startsWith(`flow:${id}:`) && m.name.includes('->'),
+            );
+            result[id] = { total, steps };
+        });
+
+        return result;
+    }),
+);

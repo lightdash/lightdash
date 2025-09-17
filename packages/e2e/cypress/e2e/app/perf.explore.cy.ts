@@ -14,6 +14,12 @@ type Artifact = {
         measures: { name: string; duration: number; startTime: number }[];
         marks: { name: string; startTime: number }[];
     };
+    flows: {
+        [flowId: string]: {
+            total: { duration: number; startTime: number } | null;
+            steps: { name: string; duration: number; startTime: number }[];
+        };
+    };
     nav: {
         durationMs: number;
         transferSize?: number;
@@ -27,6 +33,8 @@ describe('Explore perf', () => {
         cy.login();
     });
     it('load explore', () => {
+        const FLOWS: string[] = [];
+
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         cy.findByTestId('page-spinner').should('not.exist');
 
@@ -34,8 +42,48 @@ describe('Explore perf', () => {
         cy.findByText('Dimensions').should('exist');
         cy.findByText('Customers').click();
 
+        let flowId = 'field-select:unique_order_count';
+        FLOWS.push(flowId);
+        // Start flow timing before first field click
+        cy.flowBegin(flowId, 'clickField');
         cy.findByText('Unique order count').click();
+        cy.flowEndWhenVisible(
+            flowId,
+            'tableHeaderRender',
+            '[data-testid="table-header"]:has(th:contains("Unique order count"))',
+        );
+
+        flowId = 'field-select:first_name';
+        FLOWS.push(flowId);
+        cy.flowBegin(flowId, 'clickField');
         cy.findByText('First name').click();
+        cy.flowEndWhenVisible(
+            flowId,
+            'finalResults',
+            '[data-testid="table-header"]:has(th:contains("First name"))',
+        );
+
+        flowId = 'add-filter';
+        FLOWS.push(flowId);
+        cy.flowBegin(flowId, 'open_filters');
+        cy.findByTestId('Filters-card-expand').click();
+        cy.flowStepWhenVisible(
+            flowId,
+            'add_filter',
+            '[data-testid="FiltersForm/add-filter-button"]',
+        );
+        cy.contains('Add filter').click();
+        cy.findByRole('option', { name: /^Currency$/ }).click();
+        cy.flowStepWhenVisible(
+            flowId,
+            'add_filter',
+            '[data-testid="FiltersForm/add-filter-button"]',
+        );
+        cy.flowEndWhenVisible(
+            flowId,
+            'finalResults',
+            '[data-testid="FilterRuleForm/filter-rule"]',
+        );
 
         cy.window().then((win) => {
             // eslint-disable-next-line @typescript-eslint/dot-notation
@@ -63,42 +111,74 @@ describe('Explore perf', () => {
                   }
                 : { durationMs: NaN };
 
-            const artifact: Artifact = {
-                meta: {
-                    runId: RUN_ID,
-                    build,
-                    url: win.location.pathname + win.location.search,
-                    ts: win.performance.now(),
-                },
-                webVitals,
-                profiler,
-                userTiming: {
-                    measures: measures.map((m) => ({
-                        name: m.name,
-                        duration: m.duration,
-                        startTime: m.startTime,
-                    })),
-                    marks: marks.map((m) => ({
-                        name: m.name,
-                        startTime: m.startTime,
-                    })),
-                },
-                nav,
-            };
+            // Collect flow timing data for all flows
+            cy.flowCollectMultiple(FLOWS).then((allFlowData) => {
+                const flows: {
+                    [flowId: string]: {
+                        total: { duration: number; startTime: number } | null;
+                        steps: {
+                            name: string;
+                            duration: number;
+                            startTime: number;
+                        }[];
+                    };
+                } = {};
 
-            const commitDurations = artifact.profiler.map(
-                (p: AnyType) => p.actualDuration,
-            );
-            if (commitDurations.length) {
-                const median = commitDurations.sort(
-                    (a: number, b: number) => a - b,
-                )[Math.floor(commitDurations.length / 2)];
-                expect(median, 'median actualDuration').to.be.lessThan(80);
-            }
+                // Process each flow's data
+                Object.entries(allFlowData).forEach(([id, flowData]) => {
+                    flows[id] = {
+                        total: flowData.total[0]
+                            ? {
+                                  duration: flowData.total[0].duration,
+                                  startTime: flowData.total[0].startTime,
+                              }
+                            : null,
+                        steps: flowData.steps.map((s) => ({
+                            name: s.name,
+                            duration: s.duration,
+                            startTime: s.startTime,
+                        })),
+                    };
+                });
 
-            // Persist JSON
-            const filename = `perf-${artifact.meta.build}-${artifact.meta.runId}.json`;
-            cy.task('writeArtifact', { filename, data: artifact });
+                const artifact: Artifact = {
+                    meta: {
+                        runId: RUN_ID,
+                        build,
+                        url: win.location.pathname + win.location.search,
+                        ts: win.performance.now(),
+                    },
+                    webVitals,
+                    profiler,
+                    userTiming: {
+                        measures: measures.map((m) => ({
+                            name: m.name,
+                            duration: m.duration,
+                            startTime: m.startTime,
+                        })),
+                        marks: marks.map((m) => ({
+                            name: m.name,
+                            startTime: m.startTime,
+                        })),
+                    },
+                    flows,
+                    nav,
+                };
+
+                const commitDurations = artifact.profiler.map(
+                    (p: AnyType) => p.actualDuration,
+                );
+                if (commitDurations.length) {
+                    const median = commitDurations.sort(
+                        (a: number, b: number) => a - b,
+                    )[Math.floor(commitDurations.length / 2)];
+                    expect(median, 'median actualDuration').to.be.lessThan(80);
+                }
+
+                // Persist JSON
+                const filename = `perf-${artifact.meta.build}-${artifact.meta.runId}.json`;
+                cy.task('writeArtifact', { filename, data: artifact });
+            });
         });
     });
 });

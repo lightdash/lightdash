@@ -4,7 +4,6 @@ import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
-import { markResultsTableRender } from '../../../../perf/userTiming';
 import {
     TABLE_HEADER_BG,
     Th,
@@ -62,7 +61,6 @@ const TableHeader: FC<TableHeaderProps> = ({
 
     useEffect(() => {
         if (columns.length > 0) {
-            markResultsTableRender();
         }
     }, [columns]);
 
@@ -71,7 +69,7 @@ const TableHeader: FC<TableHeaderProps> = ({
     }
 
     return (
-        <thead>
+        <thead data-testid="table-header">
             {table.getHeaderGroups().map((headerGroup) => (
                 <HeaderDndContext
                     key={headerGroup.id}
