@@ -1,3 +1,10 @@
+# [0.2013.0](https://github.com/lightdash/lightdash/compare/0.2012.1...0.2013.0) (2025-09-17)
+
+
+### Features
+
+* add ability for agent to learn from context provided ([#16951](https://github.com/lightdash/lightdash/issues/16951)) ([b430942](https://github.com/lightdash/lightdash/commit/b430942c3c49f914961da41e80ca78f2125645fa))
+
 ## [0.2012.1](https://github.com/lightdash/lightdash/compare/0.2012.0...0.2012.1) (2025-09-17)
 
 
