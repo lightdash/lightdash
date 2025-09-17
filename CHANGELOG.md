@@ -1,3 +1,10 @@
+## [0.2009.3](https://github.com/lightdash/lightdash/compare/0.2009.2...0.2009.3) (2025-09-17)
+
+
+### Bug Fixes
+
+* replace custom stream processing with ChatStreamParser in AI agent thread ([#16938](https://github.com/lightdash/lightdash/issues/16938)) ([634aace](https://github.com/lightdash/lightdash/commit/634aaced3764e76336f18da46757c2a5386591e4))
+
 ## [0.2009.2](https://github.com/lightdash/lightdash/compare/0.2009.1...0.2009.2) (2025-09-16)
 
 
