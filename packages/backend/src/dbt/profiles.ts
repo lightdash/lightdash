@@ -206,6 +206,23 @@ const credentialsTarget = (
                     [envVar('token')]: credentials.personalAccessToken,
                 },
             };
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                target: {
+                    type: WarehouseTypes.CLICKHOUSE,
+                    host: credentials.host,
+                    port: credentials.port,
+                    user: envVarReference('user'),
+                    password: envVarReference('password'),
+                    dbname: credentials.dbname,
+                    schema: credentials.schema,
+                    secure: credentials.secure,
+                },
+                environment: {
+                    [envVar('user')]: credentials.user,
+                    [envVar('password')]: credentials.password,
+                },
+            };
         default:
             const { type } = credentials;
             return assertUnreachable(

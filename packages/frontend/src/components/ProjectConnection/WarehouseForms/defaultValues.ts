@@ -2,6 +2,7 @@ import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
 
 import type {
     CreateBigqueryCredentials,
+    CreateClickhouseCredentials,
     CreateDatabricksCredentials,
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
@@ -121,6 +122,20 @@ export const TrinoDefaultValues: CreateTrinoCredentials = {
     http_scheme: 'https',
 };
 
+export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
+    type: WarehouseTypes.CLICKHOUSE,
+    schema: '',
+    host: '',
+    user: '',
+    password: '',
+    requireUserCredentials: false,
+    port: 8123,
+    dbname: '',
+    secure: false,
+    startOfWeek: undefined,
+    timeoutSeconds: 300,
+};
+
 export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
@@ -128,4 +143,5 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.SNOWFLAKE]: SnowflakeDefaultValues,
     [WarehouseTypes.DATABRICKS]: DatabricksDefaultValues,
     [WarehouseTypes.TRINO]: TrinoDefaultValues,
+    [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
 };

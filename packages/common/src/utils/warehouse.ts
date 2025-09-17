@@ -20,6 +20,7 @@ export const getFieldQuoteChar = (
             case WarehouseTypes.REDSHIFT:
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
                 return '"';
             default:
                 return assertUnreachable(
@@ -54,6 +55,12 @@ export const getAggregatedField = (
             if (aggregation === VizAggregationOptions.ANY) {
                 // ANY_VALUE on Postgres is only available from version v16+
                 return `(ARRAY_AGG(${q}${reference}${q}))[1]`;
+            }
+            break;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            if (aggregation === VizAggregationOptions.ANY) {
+                // ClickHouse uses any() function for ANY_VALUE equivalent
+                return `any(${q}${reference}${q})`;
             }
             break;
         default:
