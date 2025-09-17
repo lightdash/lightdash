@@ -55,4 +55,10 @@ export const warehouseValueValidators: Record<
         user: hasNoWhiteSpaces('User'),
         dbname: hasNoWhiteSpaces('Database name'),
     },
+    [WarehouseTypes.CLICKHOUSE]: {
+        schema: hasNoWhiteSpaces('Schema'),
+        host: hasNoWhiteSpaces('Host'),
+        user: hasNoWhiteSpaces('User'),
+        dbname: hasNoWhiteSpaces('Database name'),
+    },
 } as const;

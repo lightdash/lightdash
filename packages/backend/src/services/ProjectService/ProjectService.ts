@@ -917,6 +917,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -4087,6 +4088,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.REDSHIFT:
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
                 return credentials.dbname;
             case WarehouseTypes.SNOWFLAKE:
                 return credentials.database.toLowerCase();

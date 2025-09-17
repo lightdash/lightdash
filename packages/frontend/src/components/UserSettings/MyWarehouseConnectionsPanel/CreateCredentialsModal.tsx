@@ -59,6 +59,11 @@ const defaultCredentials: Record<
         type: WarehouseTypes.DATABRICKS,
         personalAccessToken: '',
     },
+    [WarehouseTypes.CLICKHOUSE]: {
+        type: WarehouseTypes.CLICKHOUSE,
+        user: '',
+        password: '',
+    },
 };
 
 export const CreateCredentialsModal: FC<Props> = ({

@@ -1,5 +1,6 @@
 import {
     type CreateBigqueryCredentials,
+    type CreateClickhouseCredentials,
     type CreateDatabricksCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
@@ -18,7 +19,8 @@ export type UserWarehouseCredentials = {
               | CreateRedshiftCredentials
               | CreatePostgresCredentials
               | CreateSnowflakeCredentials
-              | CreateTrinoCredentials,
+              | CreateTrinoCredentials
+              | CreateClickhouseCredentials,
               'type' | 'user'
           >
         | Pick<CreateBigqueryCredentials, 'type'>
@@ -37,6 +39,7 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               'type' | 'user' | 'password' | 'authenticationType' | 'token'
           >
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
+        | Pick<CreateClickhouseCredentials, 'type' | 'user' | 'password'>
         | Pick<
               CreateBigqueryCredentials,
               'type' | 'keyfileContents' | 'authenticationType'
