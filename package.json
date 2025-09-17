@@ -15,12 +15,8 @@
         "typescript": "5.5.4"
     },
     "overrides": {
-        "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks"
-    },
-    "pnpm": {
-        "overrides": {
-            "hono": "^4.9.6"
-        }
+        "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
+        "hono": "^4.9.6"
     },
     "dependencies": {
         "tslib": "^2.8.1"
