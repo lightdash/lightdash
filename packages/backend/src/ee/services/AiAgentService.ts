@@ -988,12 +988,21 @@ export class AiAgentService {
                 threadUuid,
             });
 
+            const canManageAgent = user.ability.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                }),
+            );
+
             const response = await this.generateOrStreamAgentResponse(
                 validatedUser,
                 chatHistoryMessages,
                 {
                     prompt,
                     stream: true,
+                    canManageAgent,
                 },
             );
             return response;
@@ -1022,6 +1031,13 @@ export class AiAgentService {
                 agentUuid,
                 threadUuid,
             });
+            const canManageAgent = user.ability.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                }),
+            );
 
             const response = await this.generateOrStreamAgentResponse(
                 validatedUser,
@@ -1029,6 +1045,7 @@ export class AiAgentService {
                 {
                     prompt,
                     stream: false,
+                    canManageAgent,
                 },
             );
             return response;
@@ -1900,6 +1917,7 @@ export class AiAgentService {
         options: {
             prompt: AiWebAppPrompt;
             stream: true;
+            canManageAgent: boolean;
         },
     ): Promise<ReturnType<typeof streamAgentResponse>>;
     async generateOrStreamAgentResponse(
@@ -1908,6 +1926,7 @@ export class AiAgentService {
         options: {
             prompt: AiWebAppPrompt;
             stream: false;
+            canManageAgent: boolean;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -1916,24 +1935,28 @@ export class AiAgentService {
         options: {
             prompt: SlackPrompt;
             stream: false;
+            canManageAgent: boolean;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
+
         messageHistory: ModelMessage[],
         options:
-            | {
-                  prompt: AiWebAppPrompt;
-                  stream: true;
-              }
-            | {
-                  prompt: SlackPrompt;
-                  stream: false;
-              }
-            | {
-                  prompt: AiWebAppPrompt;
-                  stream: false;
-              },
+            | { canManageAgent: boolean } & (
+                  | {
+                        prompt: AiWebAppPrompt;
+                        stream: true;
+                    }
+                  | {
+                        prompt: SlackPrompt;
+                        stream: false;
+                    }
+                  | {
+                        prompt: AiWebAppPrompt;
+                        stream: false;
+                    }
+              ),
     ): Promise<string | ReturnType<typeof streamAgentResponse>> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
@@ -1989,6 +2012,7 @@ export class AiAgentService {
             findChartsPageSize: 5,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
+            canManageAgent: options.canManageAgent,
         };
 
         const dependencies: AiAgentDependencies = {
@@ -2011,6 +2035,12 @@ export class AiAgentService {
 
             createOrUpdateArtifact: (data) =>
                 this.aiAgentModel.createOrUpdateArtifact(data),
+
+            appendInstruction: (data) =>
+                this.aiAgentModel.appendInstruction({
+                    agentUuid: data.agentUuid,
+                    instruction: data.instruction,
+                }),
         };
 
         return stream
@@ -2207,6 +2237,14 @@ export class AiAgentService {
             slackPrompt.organizationUuid,
         );
 
+        const canManageAgent = user.ability.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid: slackPrompt.organizationUuid,
+                projectUuid: slackPrompt.projectUuid,
+            }),
+        );
+
         const threadMessages = await this.aiAgentModel.getThreadMessages(
             slackPrompt.organizationUuid,
             slackPrompt.projectUuid,
@@ -2236,6 +2274,7 @@ export class AiAgentService {
                 {
                     prompt: slackPrompt,
                     stream: false,
+                    canManageAgent,
                 },
             );
         } catch (e) {
