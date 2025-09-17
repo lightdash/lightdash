@@ -8,6 +8,7 @@ import * as yaml from 'js-yaml';
 import { homedir } from 'os';
 import * as path from 'path';
 import { convertBigquerySchema } from './targets/Bigquery';
+import { convertClickhouseSchema } from './targets/clickhouse';
 import { convertDatabricksSchema } from './targets/databricks';
 import { convertPostgresSchema } from './targets/postgres';
 import { convertRedshiftSchema } from './targets/redshift';
@@ -68,6 +69,8 @@ export const warehouseCredentialsFromDbtTarget = async (
             return convertDatabricksSchema(target);
         case 'trino':
             return convertTrinoSchema(target);
+        case 'clickhouse':
+            return convertClickhouseSchema(target);
         default:
             throw new ParseError(
                 `Sorry! Lightdash doesn't yet support ${target.type} dbt targets`,
