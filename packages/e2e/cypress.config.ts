@@ -60,7 +60,6 @@ export default defineConfig({
                 }
             });
 
-            // NEW: writeArtifact task
             on('task', {
                 writeArtifact({
                     filename,
@@ -88,7 +87,6 @@ export default defineConfig({
                     writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8');
                     // Log so it shows in CI output
                     console.log('[perf] wrote', file);
-                    // Tasks must return something (null is fine)
                     return null;
                 },
             });

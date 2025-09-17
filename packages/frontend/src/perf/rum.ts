@@ -1,3 +1,4 @@
+import { type AnyType } from '@lightdash/common';
 import { onCLS, onINP, onLCP } from 'web-vitals';
 
 type V = {
@@ -9,12 +10,13 @@ type V = {
 };
 
 const push = (metric: V) => {
-    (window as any).__webVitals = (window as any).__webVitals || [];
-    (window as any).__webVitals.push({
+    (window as AnyType).__webVitals = (window as AnyType).__webVitals || [];
+    (window as AnyType).__webVitals.push({
         ...metric,
         ts: performance.now(),
         url: window.location.pathname + window.location.search,
-        build: (window as any).__BUILD_SHA || process.env.BUILD_SHA || 'dev',
+        build:
+            (window as AnyType).__BUILD_SHA || process.env.BUILD_SHA || 'dev',
     });
 };
 

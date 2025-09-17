@@ -59,11 +59,6 @@ const TableHeader: FC<TableHeaderProps> = ({
         }
     }, [showSubtotals, columns, headerContextMenu, table]);
 
-    useEffect(() => {
-        if (columns.length > 0) {
-        }
-    }, [columns]);
-
     if (columns.length <= 0) {
         return null;
     }

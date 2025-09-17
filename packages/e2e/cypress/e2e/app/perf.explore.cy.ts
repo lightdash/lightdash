@@ -1,4 +1,3 @@
-// cypress/e2e/perf.explore.cy.ts
 import { AnyType, SEED_PROJECT } from '@lightdash/common';
 
 type Artifact = {
