@@ -16,6 +16,7 @@
     },
     "overrides": {
         "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
+        "hono": "^4.9.6",
         "axios": "^1.12.0",
         "linkifyjs": "^4.3.2"
     },
