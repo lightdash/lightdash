@@ -1,3 +1,10 @@
+# [0.2010.0](https://github.com/lightdash/lightdash/compare/0.2009.6...0.2010.0) (2025-09-17)
+
+
+### Features
+
+* change user attribute value to text ([#16947](https://github.com/lightdash/lightdash/issues/16947)) ([73d4f50](https://github.com/lightdash/lightdash/commit/73d4f504aa8250666adfccecf930b51b5f40e7f1))
+
 ## [0.2009.6](https://github.com/lightdash/lightdash/compare/0.2009.5...0.2009.6) (2025-09-17)
 
 
