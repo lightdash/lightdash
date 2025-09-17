@@ -768,12 +768,3 @@ Cypress.Commands.add('getMonacoEditorText', () => {
         cy.wrap(normalizedText);
     });
 });
-
-Cypress.Commands.add('getWindow', () => cy.window({ log: false }));
-declare global {
-    namespace Cypress {
-        interface Chainable {
-            getWindow(): Chainable<Window>;
-        }
-    }
-}

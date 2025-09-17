@@ -13,7 +13,7 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
-import { RumProfilerWrapper } from '../perf/RumProfilerWrapper';
+import { ProfilerWrapper } from '../perf/ProfilerWrapper';
 import useApp from '../providers/App/useApp';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
@@ -37,9 +37,9 @@ const ExplorerWithUrlParams = memo(() => {
             withFullHeight
             withPaddedContent
         >
-            <RumProfilerWrapper id="Explorer">
+            <ProfilerWrapper id="Explorer">
                 <Explorer />
-            </RumProfilerWrapper>
+            </ProfilerWrapper>
         </Page>
     );
 });

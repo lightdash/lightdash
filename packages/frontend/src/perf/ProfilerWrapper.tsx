@@ -1,6 +1,6 @@
 import React, { Profiler, type PropsWithChildren } from 'react';
 
-export function RumProfilerWrapper({
+export function ProfilerWrapper({
     id,
     children,
 }: PropsWithChildren<{ id: string }>) {
