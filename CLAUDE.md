@@ -54,6 +54,19 @@ Generate OpenAPI specs from TSOA controllers, needs to be run when controllers c
 pnpm generate-api
 ```
 
+**Database Migrations:**
+
+```bash
+# Create new migration
+pnpm -F backend create-migration migration_name_with_underscores
+
+# Run migrations
+pnpm -F backend migrate
+
+# Rollback last migration
+pnpm -F backend rollback-last
+```
+
 ## Development Workflow
 
 1. **Package Management**: Use `pnpm` (v9.15.5+) - never use npm or yarn

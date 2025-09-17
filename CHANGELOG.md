@@ -1,3 +1,73 @@
+## [0.2012.1](https://github.com/lightdash/lightdash/compare/0.2012.0...0.2012.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* truncate large job payloads in scheduler worker logs ([#16950](https://github.com/lightdash/lightdash/issues/16950)) ([80ddb4a](https://github.com/lightdash/lightdash/commit/80ddb4a5d60e42ca432bd289772efd54e35f5fa9))
+
+# [0.2012.0](https://github.com/lightdash/lightdash/compare/0.2011.1...0.2012.0) (2025-09-17)
+
+
+### Bug Fixes
+
+* upgrade form-data dependency 2 ([#16952](https://github.com/lightdash/lightdash/issues/16952)) ([041fb66](https://github.com/lightdash/lightdash/commit/041fb663a17adfb10f6b76623451d43dcd70e095))
+
+
+### Features
+
+* add async query endpoint for embedded dashboard tiles ([#16896](https://github.com/lightdash/lightdash/issues/16896)) ([5f50139](https://github.com/lightdash/lightdash/commit/5f50139110998a0498ea27d9a49dc2f04e199e64))
+* enable sentry&mcp monitoring ([#16963](https://github.com/lightdash/lightdash/issues/16963)) ([117eed9](https://github.com/lightdash/lightdash/commit/117eed97cfb4adb48ccc18a56b5eafd83f702fc9))
+
+## [0.2011.1](https://github.com/lightdash/lightdash/compare/0.2011.0...0.2011.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* improve table visualization handling for empty results in AI tools ([#16960](https://github.com/lightdash/lightdash/issues/16960)) ([7041472](https://github.com/lightdash/lightdash/commit/7041472c570434e1ef795d469bfbbe7e3e3ed8f7))
+
+# [0.2011.0](https://github.com/lightdash/lightdash/compare/0.2010.0...0.2011.0) (2025-09-17)
+
+
+### Features
+
+* apply user attributes to sql runner queries ([#16903](https://github.com/lightdash/lightdash/issues/16903)) ([c0dd2aa](https://github.com/lightdash/lightdash/commit/c0dd2aa06299e65f181a881583139ccb74638ef6))
+
+# [0.2010.0](https://github.com/lightdash/lightdash/compare/0.2009.6...0.2010.0) (2025-09-17)
+
+
+### Features
+
+* change user attribute value to text ([#16947](https://github.com/lightdash/lightdash/issues/16947)) ([73d4f50](https://github.com/lightdash/lightdash/commit/73d4f504aa8250666adfccecf930b51b5f40e7f1))
+
+## [0.2009.6](https://github.com/lightdash/lightdash/compare/0.2009.5...0.2009.6) (2025-09-17)
+
+
+### Bug Fixes
+
+* update form-data dependencies ([#16916](https://github.com/lightdash/lightdash/issues/16916)) ([7527462](https://github.com/lightdash/lightdash/commit/7527462fa0f561bb88c3044a29276460d657b54b))
+* upgrade axios dependencies ([#16917](https://github.com/lightdash/lightdash/issues/16917)) ([bf18a14](https://github.com/lightdash/lightdash/commit/bf18a140e78b74e18091c5f6763f1b6c1553b95d))
+
+## [0.2009.5](https://github.com/lightdash/lightdash/compare/0.2009.4...0.2009.5) (2025-09-17)
+
+
+### Bug Fixes
+
+* update linkifyjs to version 4.3.2 ([#16944](https://github.com/lightdash/lightdash/issues/16944)) ([6b2aab6](https://github.com/lightdash/lightdash/commit/6b2aab68d08079bf2262cf81b9496bb25c1e2b10))
+
+## [0.2009.4](https://github.com/lightdash/lightdash/compare/0.2009.3...0.2009.4) (2025-09-17)
+
+
+### Bug Fixes
+
+* remove backslash agent settings ([#16946](https://github.com/lightdash/lightdash/issues/16946)) ([111623d](https://github.com/lightdash/lightdash/commit/111623dff2a0102d8b6e1a8d8acc15308b38a0e2))
+
+## [0.2009.3](https://github.com/lightdash/lightdash/compare/0.2009.2...0.2009.3) (2025-09-17)
+
+
+### Bug Fixes
+
+* replace custom stream processing with ChatStreamParser in AI agent thread ([#16938](https://github.com/lightdash/lightdash/issues/16938)) ([634aace](https://github.com/lightdash/lightdash/commit/634aaced3764e76336f18da46757c2a5386591e4))
+
 ## [0.2009.2](https://github.com/lightdash/lightdash/compare/0.2009.1...0.2009.2) (2025-09-16)
 
 

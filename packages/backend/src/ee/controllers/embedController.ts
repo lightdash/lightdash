@@ -5,6 +5,7 @@ import {
     ApiCalculateSubtotalsResponse,
     ApiCalculateTotalResponse,
     ApiErrorPayload,
+    ApiExecuteAsyncDashboardChartQueryResults,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
     CacheMetadata,
@@ -16,6 +17,7 @@ import {
     DateGranularity,
     DecodedEmbed,
     EmbedUrl,
+    ExecuteAsyncDashboardChartRequestParams,
     Explore,
     FieldValueSearchResult,
     Item,
@@ -27,6 +29,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Hidden,
     Middlewares,
@@ -211,6 +214,7 @@ export class EmbedController extends BaseController {
         };
     }
 
+    @Deprecated()
     @SuccessResponse('200', 'Success')
     @Post('/chart-and-results')
     @OperationId('getEmbedChartResults')
@@ -239,6 +243,48 @@ export class EmbedController extends BaseController {
                 body.dateZoomGranularity,
                 body.dashboardSorts,
             ),
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/query/dashboard-tile')
+    @OperationId('executeAsyncDashboardTileQuery')
+    async executeAsyncDashboardTileQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            tileUuid: string;
+        } & Pick<
+            ExecuteAsyncDashboardChartRequestParams,
+            | 'dashboardFilters'
+            | 'dashboardSorts'
+            | 'pivotResults'
+            | 'invalidateCache'
+            | 'dateZoom'
+        >,
+    ): Promise<{
+        status: 'ok';
+        results: ApiExecuteAsyncDashboardChartQueryResults;
+    }> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        const results =
+            await this.getEmbedService().executeAsyncDashboardTileQuery({
+                account: req.account!,
+                projectUuid,
+                tileUuid: body.tileUuid,
+                dashboardFilters: body.dashboardFilters,
+                dateZoom: body.dateZoom,
+                invalidateCache: body.invalidateCache,
+                dashboardSorts: body.dashboardSorts,
+            });
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 

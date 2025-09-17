@@ -62,6 +62,11 @@ export enum FeatureFlags {
      * Enable the unused content dashboard showing least viewed charts and dashboards
      */
     UnusedContentDashboard = 'unused-content-dashboard',
+
+    /**
+     * Enable Redux state management for Explorer (gradual migration from Context API)
+     */
+    UseRedux = 'use-redux',
 }
 
 export type FeatureFlag = {

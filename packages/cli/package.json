@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.2009.2",
+    "version": "0.2012.1",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
@@ -40,7 +40,7 @@
         "@types/inquirer": "^8.2.1",
         "@types/js-yaml": "^4.0.9",
         "@types/lodash": "^4.14.185",
-        "@types/node-fetch": "2.x",
+        "@types/node-fetch": "^2.6.13",
         "@types/nunjucks": "^3.2.1",
         "@types/parse-node-version": "^1.0.0",
         "@types/uuid": "^10.0.0",
