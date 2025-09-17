@@ -176,6 +176,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        enableDataAccess: args.enableDataAccess,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -186,6 +187,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        enableDataAccess: args.enableDataAccess,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
@@ -196,6 +198,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
+        enableDataAccess: args.enableDataAccess,
     });
 
     const generateDashboard = getGenerateDashboard({
@@ -252,6 +255,7 @@ const getAgentMessages = async (
             availableExplores: availableExplores.tablesWithFields.map(
                 (table) => table.table.name,
             ),
+            enableDataAccess: args.enableDataAccess,
         }),
         ...args.messageHistory,
     ];

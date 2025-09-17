@@ -1,6 +1,6 @@
 import { AgentToolCallArgsSchema, ToolNameSchema } from '@lightdash/common';
 import { captureException } from '@sentry/react';
-import { readUIMessageStream, type UIMessageChunk } from 'ai';
+import { DefaultChatTransport, readUIMessageStream, type UIMessage } from 'ai';
 import { useCallback } from 'react';
 import { lightdashApiStream } from '../../../../api';
 import {
@@ -41,39 +41,12 @@ const getAgentThreadReadableStream = async (
     return body;
 };
 
-const processResponseStream = (
-    stream: ReadableStream<Uint8Array>,
-): ReadableStream<UIMessageChunk> => {
-    const transformStream = new TransformStream({
-        transform(chunk, controller) {
-            const decoder = new TextDecoder();
-            const text = decoder.decode(chunk);
-            const lines = text.split('\n').filter((line) => line.trim());
+class ChatStreamParser extends DefaultChatTransport<UIMessage> {
+    public parseStream(stream: ReadableStream<Uint8Array>) {
+        return this.processResponseStream(stream);
+    }
+}
 
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const jsonLine = line.substring(6);
-                    if (jsonLine === '[DONE]') {
-                        controller.terminate();
-                    } else {
-                        try {
-                            const json = JSON.parse(jsonLine);
-                            const uiMessageChunk: UIMessageChunk = json;
-                            controller.enqueue(uiMessageChunk);
-                        } catch (error) {
-                            console.error(error);
-                            throw new Error(
-                                'Error parsing response stream line',
-                            );
-                        }
-                    }
-                }
-            }
-        },
-    });
-
-    return stream.pipeThrough(transformStream);
-};
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -103,10 +76,13 @@ export function useAiAgentThreadStreamMutation() {
                     },
                 );
 
+                const parser = new ChatStreamParser();
+                const chunkStream = parser.parseStream(response);
+                const stream = readUIMessageStream({
+                    stream: chunkStream,
+                });
                 try {
-                    for await (const uiMessage of readUIMessageStream({
-                        stream: processResponseStream(response),
-                    })) {
+                    for await (const uiMessage of stream) {
                         for (const part of uiMessage.parts) {
                             if (abortController.signal.aborted) return;
 

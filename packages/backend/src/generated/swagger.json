@@ -5471,7 +5471,7 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
-            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
+            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5536,6 +5536,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "enableDataAccess": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -5550,13 +5553,14 @@
                     "instruction",
                     "imageUrl",
                     "groupAccess",
-                    "userAccess"
+                    "userAccess",
+                    "enableDataAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -5614,7 +5618,7 @@
             "ApiUpdateUserAgentPreferences": {
                 "$ref": "#/components/schemas/AiAgentUserPreferences"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5679,6 +5683,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "enableDataAccess": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -5693,13 +5700,14 @@
                     "instruction",
                     "imageUrl",
                     "groupAccess",
-                    "userAccess"
+                    "userAccess",
+                    "enableDataAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -5729,7 +5737,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5780,6 +5788,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "enableDataAccess": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -5790,15 +5801,16 @@
                     "instruction",
                     "imageUrl",
                     "groupAccess",
-                    "userAccess"
+                    "userAccess",
+                    "enableDataAccess"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess_"
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -5849,6 +5861,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "enableDataAccess": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object",
@@ -5857,7 +5872,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-enableDataAccess__"
                     },
                     {
                         "properties": {
@@ -6065,42 +6080,52 @@
                 ],
                 "type": "object"
             },
+            "Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactUuid": {
+                        "type": "string"
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    }
+                },
+                "required": [
+                    "description",
+                    "artifactUuid",
+                    "versionNumber",
+                    "versionUuid",
+                    "title",
+                    "artifactType"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentMessageAssistantArtifact": {
+                "$ref": "#/components/schemas/Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
-                    "artifact": {
-                        "properties": {
-                            "artifactType": {
-                                "type": "string",
-                                "enum": ["chart", "dashboard"]
-                            },
-                            "description": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "title": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "versionUuid": {
-                                "type": "string"
-                            },
-                            "versionNumber": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
+                    "artifacts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
                         },
-                        "required": [
-                            "artifactType",
-                            "description",
-                            "title",
-                            "versionUuid",
-                            "versionNumber",
-                            "uuid"
-                        ],
-                        "type": "object",
+                        "type": "array",
                         "nullable": true
                     },
                     "savedQueryUuid": {
@@ -6138,7 +6163,7 @@
                     }
                 },
                 "required": [
-                    "artifact",
+                    "artifacts",
                     "savedQueryUuid",
                     "toolCalls",
                     "humanScore",
@@ -6349,25 +6374,6 @@
                     "artifactUuid": {
                         "type": "string"
                     },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "artifactType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
-                    },
-                    "savedQueryUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedDashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "versionNumber": {
                         "type": "number",
                         "format": "double"
@@ -6376,6 +6382,25 @@
                         "type": "string"
                     },
                     "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "artifactType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedQueryUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedDashboardUuid": {
                         "type": "string",
                         "nullable": true
                     },
@@ -6388,14 +6413,14 @@
                     "description",
                     "createdAt",
                     "artifactUuid",
-                    "threadUuid",
-                    "promptUuid",
-                    "artifactType",
-                    "savedQueryUuid",
-                    "savedDashboardUuid",
                     "versionNumber",
                     "versionUuid",
                     "title",
+                    "artifactType",
+                    "threadUuid",
+                    "promptUuid",
+                    "savedQueryUuid",
+                    "savedDashboardUuid",
                     "versionCreatedAt"
                 ],
                 "type": "object",
@@ -13983,22 +14008,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -19427,7 +19452,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2006.2",
+        "version": "0.2007.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

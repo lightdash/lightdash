@@ -1,5 +1,6 @@
 import {
     isSlackPrompt,
+    metricQueryVerticalBarViz,
     toolVerticalBarArgsSchema,
     toolVerticalBarArgsSchemaTransformed,
 } from '@lightdash/common';
@@ -12,7 +13,10 @@ import type {
     SendFileFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
+import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
+import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateBarVizConfig } from '../utils/validateBarVizConfig';
 import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
@@ -25,6 +29,7 @@ type Dependencies = {
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
+    enableDataAccess: boolean;
 };
 
 export const getGenerateBarVizConfig = ({
@@ -35,6 +40,7 @@ export const getGenerateBarVizConfig = ({
     sendFile,
     createOrUpdateArtifact,
     maxLimit,
+    enableDataAccess,
 }: Dependencies) =>
     tool({
         description: toolVerticalBarArgsSchema.description,
@@ -63,11 +69,27 @@ export const getGenerateBarVizConfig = ({
                     vizConfig: toolArgs,
                 });
 
+                if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                    return `Success`;
+                }
+
+                const metricQuery = metricQueryVerticalBarViz({
+                    vizConfig: vizTool.vizConfig,
+                    filters: vizTool.filters,
+                    maxLimit,
+                    customMetrics: vizTool.customMetrics ?? null,
+                });
+                const queryResults = await runMiniMetricQuery(
+                    metricQuery,
+                    maxLimit,
+                    populateCustomMetricsSQL(vizTool.customMetrics, explore),
+                );
+
                 if (isSlackPrompt(prompt)) {
                     const { chartOptions } = await renderVerticalBarViz({
-                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        queryResults,
                         vizTool,
-                        maxLimit,
+                        metricQuery,
                     });
 
                     const file = await renderEcharts(chartOptions);
@@ -85,7 +107,13 @@ export const getGenerateBarVizConfig = ({
                     await sendFile(sentfileArgs);
                 }
 
-                return `Success`;
+                if (!enableDataAccess) {
+                    return `Success`;
+                }
+
+                const csv = convertQueryResultsToCsv(queryResults);
+
+                return serializeData(csv, 'csv');
             } catch (e) {
                 return toolErrorHandler(e, `Error generating bar chart.`);
             }
