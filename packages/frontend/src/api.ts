@@ -113,6 +113,39 @@ type LightdashApiProps = LightdashApiPropsGetOrDelete | LightdashApiPropsWrite;
 const MAX_NETWORK_HISTORY = 10;
 export let networkHistory: AnyType[] = [];
 
+// CSRF token cache
+let csrfToken: string | null = null;
+
+// Fetch CSRF token from the server
+const fetchCsrfToken = async (): Promise<string> => {
+    if (csrfToken) {
+        return csrfToken;
+    }
+
+    try {
+        const response = await fetch(`${BASE_API_URL}api/v1/csrf-token`, {
+            method: 'GET',
+            credentials: 'include', // Important: include cookies for session
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch CSRF token');
+        }
+
+        const data = await response.json();
+        csrfToken = data.results.csrfToken;
+        return csrfToken!;
+    } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+        throw error;
+    }
+};
+
+// Clear CSRF token cache (useful when token expires)
+export const clearCsrfToken = () => {
+    csrfToken = null;
+};
+
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
@@ -146,11 +179,35 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     );
 
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+
+    // Add CSRF token for state-changing requests
+    let finalHeaders = finalizeHeaders(headers, embed, sentryTrace);
+
+    // Check if this is a state-changing request and needs CSRF protection
+    const needsCsrfToken =
+        ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+        !url.includes('csrf-token') &&
+        !finalHeaders.authorization; // Skip for API key requests
+
+    if (needsCsrfToken) {
+        try {
+            const token = await fetchCsrfToken();
+            finalHeaders = {
+                ...finalHeaders,
+                'x-csrf-token': token,
+            };
+        } catch (error) {
+            console.error('Failed to get CSRF token:', error);
+            // Continue without CSRF token - let the server handle the error
+        }
+    }
+
     return fetch(finalizeUrl(`${apiPrefix}${url}`, embed), {
         method,
-        headers: finalizeHeaders(headers, embed, sentryTrace),
+        headers: finalHeaders,
         body,
         signal,
+        credentials: 'include', // Important: include cookies for session-based auth
     })
         .then((r) => {
             if (!r.ok) {
@@ -184,6 +241,11 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             }
         })
         .catch((err) => {
+            // Clear CSRF token cache if we get a CSRF error
+            if (err.error?.name === 'CSRFError') {
+                clearCsrfToken();
+            }
+
             // TODO do not capture some requests, like passwords or sensitive data
             networkHistory.push({
                 method,
