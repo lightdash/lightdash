@@ -17,7 +17,13 @@
     "overrides": {
         "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
         "hono": "^4.9.6",
+        "axios": "^1.12.0",
         "linkifyjs": "^4.3.2"
+    },
+    "pnpm": {
+        "overrides": {
+            "trino-client>axios": "^1.12.0"
+        }
     },
     "dependencies": {
         "tslib": "^2.8.1"
@@ -29,7 +35,7 @@
         "@typescript-eslint/eslint-plugin": "^5.45.0",
         "@typescript-eslint/parser": "^5.45.0",
         "confusing-browser-globals": "^1.0.11",
-        "danger": "^11.3.1",
+        "danger": "^12.2.1",
         "dotenv": "^16.0.2",
         "dotenv-cli": "^6.0.0",
         "eslint": "^8.40.0",
