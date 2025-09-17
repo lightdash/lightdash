@@ -18,6 +18,7 @@ export const ToolNameSchema = z.enum([
     'findFields',
     'findDashboards',
     'findCharts',
+    'improveContext',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -37,6 +38,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     generateTimeSeriesVizConfig: 'Generating a line chart',
     generateDashboard: 'Generating a dashboard',
     findCharts: 'Finding relevant charts',
+    improveContext: 'Improving context',
 });
 
 // after-tool-call messages
@@ -50,6 +52,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         generateTimeSeriesVizConfig: 'Generated a line chart',
         generateDashboard: 'Generated a dashboard',
         findCharts: 'Found relevant charts',
+        improveContext: 'Improved context',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

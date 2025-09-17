@@ -7,6 +7,7 @@ import {
     smoothStream,
     stepCountIs,
     streamText,
+    Tool,
     ToolCallRepairFunction,
     ToolSet,
 } from 'ai';
@@ -21,6 +22,7 @@ import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
 import { getGenerateDashboard } from '../tools/generateDashboard';
 import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
+import { getImproveContext } from '../tools/improveContext';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -212,6 +214,14 @@ const getAgentTools = (
         maxLimit: args.maxQueryLimit,
     });
 
+    const improveContext = getImproveContext({
+        appendInstruction: dependencies.appendInstruction,
+        projectUuid: args.agentSettings.projectUuid,
+        agentUuid: args.agentSettings.uuid,
+        userId: args.userId,
+        organizationId: args.organizationId,
+    });
+
     const tools = {
         findCharts,
         findDashboards,
@@ -221,6 +231,7 @@ const getAgentTools = (
         generateDashboard,
         generateTimeSeriesVizConfig,
         generateTableVizConfig,
+        ...(args.canManageAgent ? { improveContext } : {}),
     };
 
     if (args.debugLoggingEnabled) {
@@ -330,9 +341,11 @@ export const generateAgentResponse = async ({
             onStepFinish: async (step) => {
                 if (args.debugLoggingEnabled) {
                     for (const toolCall of step.toolCalls) {
-                        Logger.debug(
-                            `[AiAgent][On Step Finish] Step finished. Tool call: ${toolCall.toolName}`,
-                        );
+                        if (toolCall) {
+                            Logger.debug(
+                                `[AiAgent][On Step Finish] Step finished. Tool call: ${toolCall.toolName}`,
+                            );
+                        }
                     }
                 }
                 if (step.toolCalls && step.toolCalls.length > 0) {
@@ -344,7 +357,7 @@ export const generateAgentResponse = async ({
                     await Promise.all(
                         step.toolCalls.map(async (toolCall) => {
                             // Store immediately when tool call happens
-                            if (args.debugLoggingEnabled) {
+                            if (args.debugLoggingEnabled && toolCall) {
                                 Logger.debug(
                                     `[AiAgent][On Step Finish] Storing tool call for Prompt UUID ${
                                         args.promptUuid
@@ -355,12 +368,14 @@ export const generateAgentResponse = async ({
                                     )})`,
                                 );
                             }
-                            await dependencies.storeToolCall({
-                                promptUuid: args.promptUuid,
-                                toolCallId: toolCall.toolCallId,
-                                toolName: toolCall.toolName,
-                                toolArgs: toolCall.input,
-                            });
+                            if (toolCall) {
+                                await dependencies.storeToolCall({
+                                    promptUuid: args.promptUuid,
+                                    toolCallId: toolCall.toolCallId,
+                                    toolName: toolCall.toolName,
+                                    toolArgs: toolCall.input,
+                                });
+                            }
                         }),
                     );
                 }
@@ -370,27 +385,35 @@ export const generateAgentResponse = async ({
                             `[AiAgent][On Step Finish] Storing ${step.toolResults.length} tool results.`,
                         );
                     }
-                    // Batch store all tool results in a single operation
+
                     await dependencies.storeToolResults(
-                        step.toolResults.map((toolResult) => {
-                            if (args.debugLoggingEnabled) {
-                                Logger.debug(
-                                    `[AiAgent][On Step Finish] Storing tool result for Prompt UUID ${
-                                        args.promptUuid
-                                    }: ${toolResult.toolName} (ID: ${
-                                        toolResult.toolCallId
-                                    }) (RESULT: ${JSON.stringify(
-                                        toolResult.output,
-                                    )})`,
-                                );
-                            }
-                            return {
-                                promptUuid: args.promptUuid,
-                                toolCallId: toolResult.toolCallId,
-                                toolName: toolResult.toolName,
-                                result: toolResult.output,
-                            };
-                        }),
+                        step.toolResults
+                            .filter(
+                                (
+                                    toolResult,
+                                ): toolResult is NonNullable<
+                                    typeof toolResult
+                                > => toolResult !== null,
+                            )
+                            .map((toolResult) => {
+                                if (args.debugLoggingEnabled) {
+                                    Logger.debug(
+                                        `[AiAgent][On Step Finish] Storing tool result for Prompt UUID ${
+                                            args.promptUuid
+                                        }: ${toolResult.toolName} (ID: ${
+                                            toolResult.toolCallId
+                                        }) (RESULT: ${JSON.stringify(
+                                            toolResult.output,
+                                        )})`,
+                                    );
+                                }
+                                return {
+                                    promptUuid: args.promptUuid,
+                                    toolCallId: toolResult.toolCallId,
+                                    toolName: toolResult.toolName,
+                                    result: toolResult.output,
+                                };
+                            }),
                     );
                 }
             },

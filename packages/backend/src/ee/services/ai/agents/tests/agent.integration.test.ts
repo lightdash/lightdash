@@ -113,6 +113,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 {
                     prompt: promptData!,
                     stream: false,
+                    canManageAgent: true,
                 },
             );
 
