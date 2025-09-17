@@ -5716,6 +5716,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCloneWebAppThreadResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_AiAgentThreadSummary_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentExploreAccessSummary: {
         dataType: 'refAlias',
         type: {
@@ -6183,35 +6188,50 @@ const models: TsoaRoute.Models = {
     AiAgentEvaluationPrompt: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                createdAt: { dataType: 'datetime', required: true },
-                aiThreadUuid: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        createdAt: { dataType: 'datetime', required: true },
+                        evalPromptUuid: { dataType: 'string', required: true },
+                    },
+                },
+                {
                     dataType: 'union',
                     subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                prompt: { dataType: 'string', required: true },
+                                type: {
+                                    dataType: 'enum',
+                                    enums: ['string'],
+                                    required: true,
+                                },
+                            },
+                        },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                threadUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                promptUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                type: {
+                                    dataType: 'enum',
+                                    enums: ['thread'],
+                                    required: true,
+                                },
+                            },
+                        },
                     ],
-                    required: true,
                 },
-                aiPromptUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                prompt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                promptUuid: { dataType: 'string', required: true },
-            },
+            ],
             validators: {},
         },
     },
@@ -22626,6 +22646,93 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'generateAgentThreadTitle',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_cloneAgentThread: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            dataType: 'string',
+        },
+        threadUuid: {
+            in: 'path',
+            name: 'threadUuid',
+            required: true,
+            dataType: 'string',
+        },
+        promptUuid: {
+            in: 'path',
+            name: 'promptUuid',
+            required: true,
+            dataType: 'string',
+        },
+        createdFrom: {
+            in: 'query',
+            name: 'createdFrom',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['web_app'] },
+                { dataType: 'enum', enums: ['evals'] },
+            ],
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/clone/:promptUuid',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.cloneAgentThread,
+        ),
+
+        async function AiAgentController_cloneAgentThread(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_cloneAgentThread,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<AiAgentController>(
+                    AiAgentController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'cloneAgentThread',
                     controller,
                     response,
                     next,

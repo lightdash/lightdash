@@ -19,6 +19,7 @@ import {
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiCloneWebAppThreadResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiCreateEvaluationRequest,
@@ -386,6 +387,34 @@ export class AiAgentController extends BaseController {
             results: {
                 title,
             },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/clone/{promptUuid}')
+    @OperationId('cloneAgentThread')
+    async cloneAgentThread(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() promptUuid: string,
+        @Query() createdFrom?: 'web_app' | 'evals',
+    ): Promise<ApiCloneWebAppThreadResponse> {
+        this.setStatus(200);
+
+        const clonedThread = await this.getAiAgentService().cloneWebAppThread(
+            req.user!,
+            agentUuid,
+            threadUuid,
+            promptUuid,
+            { createdFrom },
+        );
+
+        return {
+            status: 'ok',
+            results: clonedThread,
         };
     }
 

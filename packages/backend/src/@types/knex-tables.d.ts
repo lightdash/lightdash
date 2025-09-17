@@ -237,6 +237,7 @@ import {
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
 import {
+    AiAgentToolCallTable,
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
