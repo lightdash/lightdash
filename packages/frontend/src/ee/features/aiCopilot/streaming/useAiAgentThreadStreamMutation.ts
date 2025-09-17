@@ -1,6 +1,6 @@
 import { AgentToolCallArgsSchema, ToolNameSchema } from '@lightdash/common';
 import { captureException } from '@sentry/react';
-import { readUIMessageStream, type UIMessageChunk } from 'ai';
+import { DefaultChatTransport, readUIMessageStream, type UIMessage } from 'ai';
 import { useCallback } from 'react';
 import { lightdashApiStream } from '../../../../api';
 import {
@@ -41,49 +41,12 @@ const getAgentThreadReadableStream = async (
     return body;
 };
 
-const processResponseStream = (
-    stream: ReadableStream<Uint8Array>,
-): ReadableStream<UIMessageChunk> => {
-    let buffer = '';
+class ChatStreamParser extends DefaultChatTransport<UIMessage> {
+    public parseStream(stream: ReadableStream<Uint8Array>) {
+        return this.processResponseStream(stream);
+    }
+}
 
-    const transformStream = new TransformStream({
-        transform(chunk, controller) {
-            const decoder = new TextDecoder();
-            const text = decoder.decode(chunk, { stream: true });
-            buffer += text;
-
-            const lines = buffer.split('\n');
-            // Keep the last line in the buffer as it might be incomplete
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (trimmedLine && trimmedLine.startsWith('data: ')) {
-                    const jsonLine = trimmedLine.substring(6);
-                    if (jsonLine === '[DONE]') {
-                        controller.terminate();
-                    } else {
-                        try {
-                            console.log('jsonLine', jsonLine);
-                            const json = JSON.parse(jsonLine);
-                            const uiMessageChunk: UIMessageChunk = json;
-                            controller.enqueue(uiMessageChunk);
-                        } catch (error) {
-                            console.error(
-                                'Failed to parse JSON line:',
-                                jsonLine,
-                                error,
-                            );
-                            // Don't throw here - just skip the malformed line and continue
-                        }
-                    }
-                }
-            }
-        },
-    });
-
-    return stream.pipeThrough(transformStream);
-};
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -113,10 +76,13 @@ export function useAiAgentThreadStreamMutation() {
                     },
                 );
 
+                const parser = new ChatStreamParser();
+                const chunkStream = parser.parseStream(response);
+                const stream = readUIMessageStream({
+                    stream: chunkStream,
+                });
                 try {
-                    for await (const uiMessage of readUIMessageStream({
-                        stream: processResponseStream(response),
-                    })) {
+                    for await (const uiMessage of stream) {
                         for (const part of uiMessage.parts) {
                             if (abortController.signal.aborted) return;
 

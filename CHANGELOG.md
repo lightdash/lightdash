@@ -1,3 +1,24 @@
+## [0.2009.5](https://github.com/lightdash/lightdash/compare/0.2009.4...0.2009.5) (2025-09-17)
+
+
+### Bug Fixes
+
+* update linkifyjs to version 4.3.2 ([#16944](https://github.com/lightdash/lightdash/issues/16944)) ([6b2aab6](https://github.com/lightdash/lightdash/commit/6b2aab68d08079bf2262cf81b9496bb25c1e2b10))
+
+## [0.2009.4](https://github.com/lightdash/lightdash/compare/0.2009.3...0.2009.4) (2025-09-17)
+
+
+### Bug Fixes
+
+* remove backslash agent settings ([#16946](https://github.com/lightdash/lightdash/issues/16946)) ([111623d](https://github.com/lightdash/lightdash/commit/111623dff2a0102d8b6e1a8d8acc15308b38a0e2))
+
+## [0.2009.3](https://github.com/lightdash/lightdash/compare/0.2009.2...0.2009.3) (2025-09-17)
+
+
+### Bug Fixes
+
+* replace custom stream processing with ChatStreamParser in AI agent thread ([#16938](https://github.com/lightdash/lightdash/issues/16938)) ([634aace](https://github.com/lightdash/lightdash/commit/634aaced3764e76336f18da46757c2a5386591e4))
+
 ## [0.2009.2](https://github.com/lightdash/lightdash/compare/0.2009.1...0.2009.2) (2025-09-16)
 
 
