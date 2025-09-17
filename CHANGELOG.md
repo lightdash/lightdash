@@ -1,3 +1,10 @@
+## [0.2009.5](https://github.com/lightdash/lightdash/compare/0.2009.4...0.2009.5) (2025-09-17)
+
+
+### Bug Fixes
+
+* update linkifyjs to version 4.3.2 ([#16944](https://github.com/lightdash/lightdash/issues/16944)) ([6b2aab6](https://github.com/lightdash/lightdash/commit/6b2aab68d08079bf2262cf81b9496bb25c1e2b10))
+
 ## [0.2009.4](https://github.com/lightdash/lightdash/compare/0.2009.3...0.2009.4) (2025-09-17)
 
 
