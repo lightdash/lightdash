@@ -43,6 +43,7 @@ const getToolIcon = (toolName: ToolName) => {
         {
             findExplores: IconDatabase,
             findFields: IconSearch,
+            searchFieldValues: IconSelector,
             generateBarVizConfig: IconChartHistogram,
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
@@ -188,6 +189,45 @@ const ToolCallDescription: FC<{
                             {query.label}
                         </Badge>
                     ))}
+                </Text>
+            );
+        case 'search_field_values':
+            const searchFieldValuesArgs = toolArgs as any;
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for values in field{' '}
+                    <Badge
+                        color="gray"
+                        variant="light"
+                        size="xs"
+                        mx={rem(2)}
+                        radius="sm"
+                        style={{
+                            textTransform: 'none',
+                            fontWeight: 400,
+                        }}
+                    >
+                        {searchFieldValuesArgs.fieldId}
+                    </Badge>
+                    {searchFieldValuesArgs.query && (
+                        <>
+                            {' '}
+                            matching{' '}
+                            <Badge
+                                color="gray"
+                                variant="light"
+                                size="xs"
+                                mx={rem(2)}
+                                radius="sm"
+                                style={{
+                                    textTransform: 'none',
+                                    fontWeight: 400,
+                                }}
+                            >
+                                "{searchFieldValuesArgs.query}"
+                            </Badge>
+                        </>
+                    )}
                 </Text>
             );
         case AiResultType.VERTICAL_BAR_RESULT:
