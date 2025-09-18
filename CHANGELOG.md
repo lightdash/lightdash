@@ -1,3 +1,10 @@
+## [0.2013.1](https://github.com/lightdash/lightdash/compare/0.2013.0...0.2013.1) (2025-09-18)
+
+
+### Bug Fixes
+
+* fix regular expression ([#16955](https://github.com/lightdash/lightdash/issues/16955)) ([43a0657](https://github.com/lightdash/lightdash/commit/43a06570107bb0d62187f66ab0e375d7e63d3797))
+
 # [0.2013.0](https://github.com/lightdash/lightdash/compare/0.2012.1...0.2013.0) (2025-09-17)
 
 
