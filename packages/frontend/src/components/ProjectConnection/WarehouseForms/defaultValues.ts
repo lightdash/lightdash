@@ -129,9 +129,9 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     user: '',
     password: '',
     requireUserCredentials: false,
-    port: 8123,
+    port: 8443,
     dbname: '',
-    secure: false,
+    secure: true,
     startOfWeek: undefined,
     timeoutSeconds: 300,
 };
