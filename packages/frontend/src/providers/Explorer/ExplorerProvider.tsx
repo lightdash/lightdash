@@ -50,6 +50,13 @@ import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
 } from '../../components/RunQuerySettings/defaults';
+import {
+    explorerActions,
+    selectFilters,
+    useExplorerDispatch,
+    useExplorerInitialization,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
@@ -906,6 +913,23 @@ const ExplorerProvider: FC<
     );
     const { unsavedChartVersion } = reducerState;
 
+    useExplorerInitialization(
+        initialState || defaultStateWithConfig,
+        savedChart,
+    );
+
+    const reduxFilters = useExplorerSelector(selectFilters);
+
+    const reduxDispatch = useExplorerDispatch();
+
+    const computedMetricQuery = useMemo(
+        () => ({
+            ...unsavedChartVersion.metricQuery,
+            filters: reduxFilters,
+        }),
+        [unsavedChartVersion.metricQuery, reduxFilters],
+    );
+
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
     >(() => {
@@ -934,12 +958,16 @@ const ExplorerProvider: FC<
         });
     }, [defaultStateWithConfig, initialState]);
 
-    const setTableName = useCallback((tableName: string) => {
-        dispatch({
-            type: ActionType.SET_TABLE_NAME,
-            payload: tableName,
-        });
-    }, []);
+    const setTableName = useCallback(
+        (tableName: string) => {
+            dispatch({
+                type: ActionType.SET_TABLE_NAME,
+                payload: tableName,
+            });
+            reduxDispatch(explorerActions.setTableName(tableName));
+        },
+        [reduxDispatch],
+    );
 
     const toggleExpandedSection = useCallback((payload: ExplorerSection) => {
         dispatch({
@@ -1521,15 +1549,13 @@ const ExplorerProvider: FC<
     // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {
         const fields = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ),
+            ...computedMetricQuery.dimensions,
+            ...computedMetricQuery.metrics,
+            ...computedMetricQuery.tableCalculations.map(({ name }) => name),
         ]);
         const hasFields = fields.size > 0;
         if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
-            const metricQuery = unsavedChartVersion.metricQuery;
+            const metricQuery = computedMetricQuery; // Use computed metricQuery with Redux filters
             let pivotConfiguration: PivotConfiguration | undefined;
 
             if (!explore) {
@@ -1576,6 +1602,7 @@ const ExplorerProvider: FC<
             );
         }
     }, [
+        computedMetricQuery, // Use computed metricQuery instead of context metricQuery
         unsavedChartVersion.metricQuery,
         unsavedChartVersion.tableName,
         unsavedChartVersion.parameters,
@@ -1629,6 +1656,7 @@ const ExplorerProvider: FC<
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
+        reduxDispatch(explorerActions.reset(defaultStateWithConfig));
         resetQueryResults();
     }, [
         queryClient,
@@ -1636,6 +1664,7 @@ const ExplorerProvider: FC<
         defaultStateWithConfig,
         mainSetQueryUuidHistory,
         unpivotedSetQueryUuidHistory,
+        reduxDispatch,
     ]);
 
     const navigate = useNavigate();

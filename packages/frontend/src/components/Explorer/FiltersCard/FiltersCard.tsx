@@ -14,6 +14,16 @@ import {
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    explorerActions,
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectExpandedSections,
+    selectFilters,
+    selectTableCalculations,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -28,9 +38,15 @@ import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 const FiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
-    const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
-    );
+
+    // Redux selectors - gradually migrating from context
+    const reduxExpandedSections = useExplorerSelector(selectExpandedSections);
+    const reduxAdditionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const reduxCustomDimensions = useExplorerSelector(selectCustomDimensions);
+    const reduxTableCalculations = useExplorerSelector(selectTableCalculations);
+    const reduxFilters = useExplorerSelector(selectFilters);
+    const dispatch = useExplorerDispatch();
+
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
@@ -123,9 +139,9 @@ const FiltersCard: FC = memo(() => {
         return unsavedQueryFilters;
     };
 
-    const filters = useExplorerContext((context) => {
-        let unsavedQueryFilters =
-            context.state.unsavedChartVersion.metricQuery.filters;
+    // Use Redux filters with the same complex logic applied
+    const filters = useMemo(() => {
+        let unsavedQueryFilters = reduxFilters;
 
         // Refresh the required filters property as the required filters can change when the table dbt metadata changes
         unsavedQueryFilters =
@@ -139,30 +155,40 @@ const FiltersCard: FC = memo(() => {
             resetDimensionFiltersIfNoModelSelected(unsavedQueryFilters);
 
         return unsavedQueryFilters;
-    });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        reduxFilters,
+        data,
+        tableName,
+        hasDefaultFiltersApplied,
+        refreshRequiredFiltersProperty,
+        updateDimensionFiltersWithRequiredFilters,
+        resetDimensionFiltersIfNoModelSelected,
+    ]);
 
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
+    // Use Redux selectors instead of context for these values
+    const additionalMetrics = reduxAdditionalMetrics;
+    const customDimensions = reduxCustomDimensions;
+    const tableCalculations = reduxTableCalculations;
     const rows = useExplorerContext((context) => context.queryResults.rows);
-    const setFilters = useExplorerContext(
-        (context) => context.actions.setFilters,
+
+    // Use Redux action instead of context for setFilters
+    const setFilters = useCallback(
+        (newFilters: Filters) => {
+            dispatch(explorerActions.setFilters(newFilters));
+        },
+        [dispatch],
     );
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
+    // Use Redux action instead of context
+    const toggleExpandedSection = useCallback(
+        (section: ExplorerSection) => {
+            dispatch(explorerActions.toggleExpandedSection(section));
+        },
+        [dispatch],
     );
     const filterIsOpen = useMemo(
-        () => expandedSections.includes(ExplorerSection.FILTERS),
-        [expandedSections],
+        () => reduxExpandedSections.includes(ExplorerSection.FILTERS),
+        [reduxExpandedSections],
     );
     const totalActiveFilters: number = useMemo(
         () => countTotalFilterRules(filters),
