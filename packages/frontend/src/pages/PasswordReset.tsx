@@ -65,12 +65,19 @@ const PasswordReset: FC = () => {
                                     <form
                                         name="password-reset"
                                         onSubmit={form.onSubmit(
-                                            ({ password }) =>
-                                                code &&
-                                                passwordResetMutation.mutate({
-                                                    code,
-                                                    newPassword: password,
-                                                }),
+                                            // @ts-ignore
+                                            ({ password }) => {
+                                                return (
+                                                    code &&
+                                                    passwordResetMutation.mutate(
+                                                        {
+                                                            code,
+                                                            newPassword:
+                                                                password,
+                                                        },
+                                                    )
+                                                );
+                                            },
                                         )}
                                     >
                                         <Stack spacing="lg">

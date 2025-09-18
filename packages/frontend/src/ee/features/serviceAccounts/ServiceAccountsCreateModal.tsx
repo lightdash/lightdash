@@ -86,6 +86,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             };
         },
         validate: {
+            // @ts-ignore
             scopes: (value) => {
                 if (value.length === 0) {
                     return 'At least one scope is required';

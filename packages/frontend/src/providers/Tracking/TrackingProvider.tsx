@@ -104,6 +104,7 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
         ({ name, properties = {} }: EventData): void => {
             rudderAnalytics?.track(
                 `${LIGHTDASH_APP_NAME}.${name}`,
+                // @ts-ignore
                 properties,
                 {
                     ...lightdashContext,

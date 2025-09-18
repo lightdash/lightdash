@@ -376,10 +376,12 @@ const SchedulerForm: FC<Props> = ({
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
+            // @ts-ignore
             name: (value) => {
                 return value.length > 0 ? null : 'Name is required';
             },
             options: {
+                // @ts-ignore
                 customLimit: (value, values) => {
                     return values.options.limit === Limit.CUSTOM &&
                         !Number.isInteger(value)
@@ -403,6 +405,7 @@ const SchedulerForm: FC<Props> = ({
                 }
                 return null;
             },
+            // @ts-ignore
             cron: (cronExpression) => {
                 return isInvalidCronExpression('Cron expression')(
                     cronExpression,

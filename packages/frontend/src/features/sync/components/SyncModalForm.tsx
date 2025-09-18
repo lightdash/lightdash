@@ -244,7 +244,9 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             error={
                                 methods.formState.errors.options &&
                                 `tabName` in methods.formState.errors.options &&
-                                methods.formState.errors.options?.tabName
+                                methods.formState.errors.options?.tabName &&
+                                // @ts-ignore
+                                methods.formState.errors.options.tabName
                                     ?.message
                             }
                             {...methods.register('options.tabName', {
