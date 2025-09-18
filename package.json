@@ -18,15 +18,9 @@
         "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
         "hono": "^4.9.6",
         "linkifyjs": "^4.3.2",
-        "form-data": "^2.5.5"
+        "form-data": "^3.0.4"
     },
-    "pnpm": {
-        "overrides": {
-            "@slack/web-api>form-data": "^2.5.5",
-            "@types/request>form-data": "^2.5.5",
-            "graphql-request>form-data": "^2.5.5"
-        }
-    },
+
     "dependencies": {
         "tslib": "^2.8.1"
     },
