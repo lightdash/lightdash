@@ -149,10 +149,10 @@ function getMockCredentials(
                 host: '',
                 user: '',
                 password: '',
-                port: 8123,
+                port: 8443,
                 dbname: '',
                 schema: '',
-                secure: false,
+                secure: true,
                 timeoutSeconds: 300,
             };
             break;
