@@ -1085,11 +1085,12 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                             },
                                                         }}
                                                         label={'Channels'}
+                                                        limit={30}
                                                         placeholder={
                                                             isLoadingSlackChannels ||
                                                             isRefreshing
                                                                 ? 'Loading channels, this might take a while if you have a lot of channels in your workspace'
-                                                                : 'Pick a channel'
+                                                                : 'Search channel(s)'
                                                         }
                                                         data={
                                                             slackChannelOptions
