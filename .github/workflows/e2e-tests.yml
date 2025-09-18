@@ -14,6 +14,7 @@ jobs:
             frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
             backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
             timezone: ${{ steps.changes.outputs.timezone == 'true' || steps.overrides.outputs.timezone == 'true' }}
+            perf: ${{ steps.changes.outputs.perf == 'true' || steps.overrides.outputs.perf == 'true' }}
         steps:
             - uses: actions/checkout@v4
             - name: Check for files changes
@@ -189,10 +190,10 @@ jobs:
                   if-no-files-found: ignore
 
     perf-tests:
-        if: needs.files-changed.outputs.perf == 'true' || needs.overrides.outputs.perf == 'true'
+        if: needs.files-changed.outputs.perf == 'true'
         timeout-minutes: 30
         runs-on: ubuntu-latest
-        needs: [files-changed, overrides, prepare-preview]
+        needs: [files-changed, prepare-preview]
         container:
             image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
             options: --user 1001
