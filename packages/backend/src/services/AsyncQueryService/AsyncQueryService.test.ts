@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    ForbiddenError,
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -1249,6 +1250,174 @@ describe('AsyncQueryService', () => {
                 }),
                 expect.any(Object), // session account
             );
+        });
+    });
+
+    describe('executeAsyncSqlQuery', () => {
+        describe('user attributes replacement', () => {
+            it('should replace user attributes in SQL queries', async () => {
+                // GIVEN: Service with mocked user attributes
+                const mockUserModel = {
+                    findSessionUserByUUID: jest.fn(async () => ({
+                        email: 'test@example.com',
+                    })),
+                };
+
+                const mockUserAttributesModel = {
+                    getAttributeValuesForOrgMember: jest.fn(async () => ({
+                        department: ['engineering'],
+                        region: ['us-west'],
+                    })),
+                };
+
+                const mockEmailModel = {
+                    getPrimaryEmailStatus: jest.fn(async () => ({
+                        isVerified: true,
+                    })),
+                };
+
+                const mockProjectParametersModel = {
+                    find: jest.fn(async () => []),
+                };
+
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        userModel: mockUserModel as unknown as UserModel,
+                        userAttributesModel:
+                            mockUserAttributesModel as unknown as UserAttributesModel,
+                        emailModel: mockEmailModel as unknown as EmailModel,
+                        projectParametersModel:
+                            mockProjectParametersModel as unknown as ProjectParametersModel,
+                    },
+                );
+
+                // Mock getUserAttributes method to return the expected attributes
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {
+                        department: ['engineering'],
+                        region: ['us-west'],
+                    },
+                    intrinsicUserAttributes: {
+                        email: 'test@example.com',
+                    },
+                }));
+
+                // Mock the warehouse client to capture the executed SQL
+                let capturedSql = '';
+                const mockWarehouseClient = {
+                    ...warehouseClientMock,
+                    streamQuery: jest.fn(async (sql, callback) => {
+                        capturedSql = sql;
+                        // Simulate empty results for column discovery
+                        await callback({
+                            fields: {
+                                test_col: { type: DimensionType.STRING },
+                            },
+                            rows: [],
+                        });
+                    }),
+                };
+
+                // Override the _getWarehouseClient method to return our mock
+                service._getWarehouseClient = jest.fn(async () => ({
+                    warehouseClient: mockWarehouseClient,
+                    sshTunnel: mockSshTunnel,
+                }));
+
+                // WHEN: executeAsyncSqlQuery is called with SQL containing user attributes
+                const sqlWithUserAttributes =
+                    'SELECT * FROM users WHERE email = ${lightdash.user.email} AND department IN (${lightdash.attribute.department})';
+
+                await service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: sqlWithUserAttributes,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    invalidateCache: false,
+                });
+
+                // THEN: User attributes should be replaced in the executed SQL
+                expect(capturedSql).toContain("email = 'test@example.com'");
+                expect(capturedSql).toContain("department IN ('engineering')");
+
+                // THEN: getUserAttributes should be called with the account
+                expect(service.getUserAttributes).toHaveBeenCalledWith({
+                    account: sessionAccount,
+                });
+            });
+
+            it('should handle missing user attributes gracefully', async () => {
+                // GIVEN: Service with no user attributes
+                const mockProjectParametersModel = {
+                    find: jest.fn(async () => []),
+                };
+
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        projectParametersModel:
+                            mockProjectParametersModel as unknown as ProjectParametersModel,
+                    },
+                );
+
+                // Mock getUserAttributes to return empty attributes
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: { email: 'test@example.com' },
+                }));
+
+                // WHEN: executeAsyncSqlQuery is called with SQL containing missing user attributes
+                const sqlWithMissingAttributes =
+                    'SELECT * FROM users WHERE department = ${lightdash.attribute.missing_attribute}';
+
+                // THEN: Should throw ForbiddenError for missing attributes
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: sqlWithMissingAttributes,
+                        context: QueryExecutionContext.SQL_RUNNER,
+                        invalidateCache: false,
+                    }),
+                ).rejects.toThrow();
+            });
+
+            it('should handle unverified email by not replacing intrinsic attributes', async () => {
+                // GIVEN: Service with unverified email (empty intrinsic attributes)
+                const mockProjectParametersModel = {
+                    find: jest.fn(async () => []),
+                };
+
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        projectParametersModel:
+                            mockProjectParametersModel as unknown as ProjectParametersModel,
+                    },
+                );
+
+                // Mock getUserAttributes to return empty intrinsic attributes (unverified email)
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: {}, // Empty because email is not verified
+                }));
+
+                // WHEN: executeAsyncSqlQuery is called with SQL containing user email
+                const sqlWithUserEmail =
+                    'SELECT * FROM users WHERE email = ${lightdash.user.email}';
+
+                // THEN: Should throw ForbiddenError for unverified email
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: sqlWithUserEmail,
+                        context: QueryExecutionContext.SQL_RUNNER,
+                        invalidateCache: false,
+                    }),
+                ).rejects.toThrow();
+            });
         });
     });
 });

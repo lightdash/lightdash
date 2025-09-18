@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2009.6",
+    "version": "0.2013.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -16,8 +16,10 @@
     },
     "overrides": {
         "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
+        "hono": "^4.9.6",
         "axios": "^1.12.0",
-        "linkifyjs": "^4.3.2"
+        "linkifyjs": "^4.3.2",
+        "form-data": "^2.5.4"
     },
     "pnpm": {
         "overrides": {
@@ -25,7 +27,10 @@
             "@rudderstack/rudder-sdk-node>axios": "^1.12.0",
             "@slack/bolt>axios": "^1.12.0",
             "posthog-node>axios": "^1.12.0",
-            "openai>axios": "^1.12.0"
+            "openai>axios": "^1.12.0",
+            "snowflake-sdk>axios": "^1.12.0",
+            "@slack/web-api>form-data": "^2.5.4",
+            "@types/request>form-data": "^2.5.4"
         }
     },
     "dependencies": {

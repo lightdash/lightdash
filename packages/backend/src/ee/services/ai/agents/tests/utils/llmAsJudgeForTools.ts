@@ -20,6 +20,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
     generateDashboard: 'generate_dashboard',
+    improveContext: 'improve_context',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {

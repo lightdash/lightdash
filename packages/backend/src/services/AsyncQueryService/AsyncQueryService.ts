@@ -39,6 +39,7 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
+    getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
     isCartesianChartConfig,
@@ -101,7 +102,10 @@ import {
     ReferenceMap,
     SqlQueryBuilder,
 } from '../../utils/QueryBuilder/SqlQueryBuilder';
-import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
+import {
+    applyLimitToSqlQuery,
+    replaceUserAttributesAsStrings,
+} from '../../utils/QueryBuilder/utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
@@ -2632,10 +2636,22 @@ export class AsyncQueryService extends ProjectService {
         // Get one row to get the column definitions
         const columns: { name: string; type: DimensionType }[] = [];
 
-        // Replace parameters in SQL before running column discovery query
+        // Get user attributes for replacement
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes({ account });
+
+        // Replace user attributes first
+        const sqlWithUserAttributes = replaceUserAttributesAsStrings(
+            sql,
+            intrinsicUserAttributes,
+            userAttributes,
+            warehouseConnection.warehouseClient,
+        );
+
+        // Then replace parameters in SQL before running column discovery query
         const { replacedSql: columnDiscoverySql } =
             safeReplaceParametersWithSqlBuilder(
-                sql,
+                sqlWithUserAttributes,
                 parameters ?? {},
                 warehouseConnection.warehouseClient,
             );
@@ -2676,7 +2692,7 @@ export class AsyncQueryService extends ProjectService {
 
         const virtualView = createVirtualViewObject(
             SQL_QUERY_MOCK_EXPLORER_NAME,
-            sql,
+            sqlWithUserAttributes,
             vizColumns,
             warehouseConnection.warehouseClient,
         );
@@ -2758,7 +2774,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 referenceMap,
                 select: selectColumns,
-                from: { name: 'sql_query', sql },
+                from: { name: 'sql_query', sql: sqlWithUserAttributes },
                 filters: appliedDashboardFilters
                     ? {
                           id: uuidv4(),

@@ -4,9 +4,7 @@ import {
     CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
-    filterExploreByTags,
     ForbiddenError,
-    getItemId,
     MissingConfigError,
     OauthAccount,
     ParameterError,
@@ -25,6 +23,7 @@ import {
     ToolSearchFieldValuesArgs,
     toolSearchFieldValuesArgsSchema,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 // eslint-disable-next-line import/extensions
 import { subject } from '@casl/ability';
 // eslint-disable-next-line import/extensions
@@ -36,13 +35,9 @@ import {
     LightdashAnalytics,
     McpToolCallEvent,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
-import {
-    McpContextModel,
-    McpContext as ProjectContext,
-} from '../../../models/McpContextModel';
+import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
@@ -50,7 +45,6 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
-import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
@@ -161,10 +155,12 @@ export class McpService extends BaseService {
         this.featureFlagService = featureFlagService;
         this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
-            this.mcpServer = new McpServer({
-                name: 'Lightdash MCP Server',
-                version: VERSION,
-            });
+            this.mcpServer = Sentry.wrapMcpServerWithSentry(
+                new McpServer({
+                    name: 'Lightdash MCP Server',
+                    version: VERSION,
+                }),
+            );
             this.setupHandlers();
         } catch (error) {
             this.logger.error('Error initializing MCP server:', error);

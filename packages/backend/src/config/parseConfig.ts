@@ -683,6 +683,7 @@ export type LightdashConfig = {
         minConnections: number | undefined;
     };
     allowMultiOrgs: boolean;
+    useRedux: boolean;
     maxPayloadSize: string;
     query: {
         maxLimit: number;
@@ -1394,6 +1395,7 @@ export const parseConfig = (): LightdashConfig => {
             ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
+        useRedux: process.env.USE_REDUX === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
         query: {
             maxLimit:

@@ -2,6 +2,7 @@ import { AiAgent } from '@lightdash/common';
 import { ModelMessage } from 'ai';
 import { AiModel } from '../models/types';
 import {
+    AppendInstructionFn,
     CreateOrUpdateArtifactFn,
     FindChartsFn,
     FindDashboardsFn,
@@ -39,6 +40,7 @@ export type AiAgentArgs<P extends string = string> = AiModel<P> & {
     findChartsPageSize: number;
     maxQueryLimit: number;
     siteUrl?: string;
+    canManageAgent: boolean;
 };
 
 export type AiAgentDependencies = {
@@ -56,6 +58,7 @@ export type AiAgentDependencies = {
     storeToolResults: StoreToolResultsFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    appendInstruction: AppendInstructionFn;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;

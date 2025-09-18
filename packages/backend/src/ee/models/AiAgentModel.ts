@@ -2388,4 +2388,24 @@ export class AiAgentModel {
                 title_generated_at: new Date(),
             });
     }
+
+    async appendInstruction(data: {
+        agentUuid: string;
+        instruction: string;
+    }): Promise<string> {
+        const currentInstruction = await this.getAgentLastInstruction({
+            agentUuid: data.agentUuid,
+        });
+
+        const updatedInstruction = currentInstruction
+            ? `${currentInstruction}\n\n${data.instruction}`
+            : data.instruction;
+
+        await this.database(AiAgentInstructionVersionsTableName).insert({
+            ai_agent_uuid: data.agentUuid,
+            instruction: updatedInstruction,
+        });
+
+        return updatedInstruction;
+    }
 }
