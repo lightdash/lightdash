@@ -560,8 +560,14 @@ export const streamAgentResponse = async ({
                         '[AiAgent][On Finish] Stream finished. Updating prompt with response.',
                     );
                 }
+
+                // Extract complete response from all steps instead of just the last text
+                const completeResponse = steps
+                    .flatMap((step) => step.text || [])
+                    .join('\n');
+
                 void dependencies.updatePrompt({
-                    response: text,
+                    response: completeResponse,
                     promptUuid: args.promptUuid,
                 });
 
