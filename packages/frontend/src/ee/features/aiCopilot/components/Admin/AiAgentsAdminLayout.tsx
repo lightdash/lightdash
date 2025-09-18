@@ -10,13 +10,19 @@ import {
     useMantineTheme,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
+import {
+    IconChartDots,
+    IconGripVertical,
+    IconLock,
+    IconMessageCircleShare,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
+import useHealth from '../../../../../hooks/health/useHealth';
 import useApp from '../../../../../providers/App/useApp';
 import AiAgentAdminThreadsTable from './AiAgentAdminThreadsTable';
 import styles from './AiAgentsAdminLayout.module.css';
@@ -25,6 +31,7 @@ import { ThreadPreviewSidebar } from './ThreadPreviewSidebar';
 
 export const AiAgentsAdminLayout = () => {
     const { user } = useApp();
+    const { data: health } = useHealth();
     const theme = useMantineTheme();
     const [selectedThread, setSelectedThread] =
         useState<AiAgentAdminThreadSummary | null>(null);
@@ -49,6 +56,9 @@ export const AiAgentsAdminLayout = () => {
         setIsSidebarOpen(false);
         setSelectedThread(null);
     };
+
+    const isAnalyticsEmbedEnabled =
+        health?.ai.analyticsProjectUuid && health?.ai.analyticsDashboardUuid;
 
     if (!canManageOrganization) {
         return (
@@ -76,20 +86,23 @@ export const AiAgentsAdminLayout = () => {
                     minSize={50}
                     className={styles.threadsTable}
                 >
-                    <Group justify="space-between" my="lg">
+                    <Group justify="space-between" my="md">
                         <Box>
                             <Group>
                                 <Title order={2}>AI Agents Admin Panel</Title>
-                                <Group justify="space-between" my="lg">
+                                {isAnalyticsEmbedEnabled && (
                                     <Button
                                         onClick={toggleAnalyticsEmbed}
                                         variant="filled"
                                         size="compact-sm"
                                         color="indigo"
+                                        leftSection={
+                                            <MantineIcon icon={IconChartDots} />
+                                        }
                                     >
-                                        View Insights
+                                        Insights
                                     </Button>
-                                </Group>
+                                )}
                             </Group>
                             <Text c="gray.6" size="sm" fw={400}>
                                 View and manage AI Agents threads
@@ -97,8 +110,9 @@ export const AiAgentsAdminLayout = () => {
                         </Box>
                         <LinkButton
                             href="/ai-agents"
-                            leftIcon={IconPlus}
-                            variant="filled"
+                            leftIcon={IconMessageCircleShare}
+                            variant="default"
+                            radius="md"
                         >
                             New Thread
                         </LinkButton>

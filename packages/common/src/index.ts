@@ -1138,6 +1138,10 @@ export type HealthState = {
               }
             | undefined;
     };
+    ai: {
+        analyticsProjectUuid?: string;
+        analyticsDashboardUuid?: string;
+    };
 };
 
 export enum DBFieldTypes {
