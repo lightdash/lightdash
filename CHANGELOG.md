@@ -1,3 +1,10 @@
+## [0.2013.2](https://github.com/lightdash/lightdash/compare/0.2013.1...0.2013.2) (2025-09-18)
+
+
+### Bug Fixes
+
+* limit number of ai agent slack channels on dropdown ([#16969](https://github.com/lightdash/lightdash/issues/16969)) ([a617c4f](https://github.com/lightdash/lightdash/commit/a617c4f00d2b8cf27ccb0d3b1653e3e156492fb8))
+
 ## [0.2013.1](https://github.com/lightdash/lightdash/compare/0.2013.0...0.2013.1) (2025-09-18)
 
 
