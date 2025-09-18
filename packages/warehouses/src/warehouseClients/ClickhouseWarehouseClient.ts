@@ -1,6 +1,5 @@
-import { createClient, type ClickHouseClient } from '@clickhouse/client';
+import { createClient, Row, type ClickHouseClient } from '@clickhouse/client';
 import {
-    AnyType,
     CreateClickhouseCredentials,
     DimensionType,
     Metric,
@@ -135,19 +134,6 @@ const catalogToSchema = (results: unknown[][]): WarehouseCatalog => {
     return warehouseCatalog;
 };
 
-const normalizeColumnName = (columnName: string) => columnName.toLowerCase();
-
-const resultHandler = (
-    data: Record<string, unknown>[],
-): Record<string, AnyType>[] =>
-    data.map((row) => {
-        const item: Record<string, AnyType> = {};
-        Object.keys(row).forEach((key) => {
-            item[normalizeColumnName(key)] = row[key];
-        });
-        return item;
-    });
-
 export class ClickhouseSqlBuilder extends WarehouseBaseSqlBuilder {
     readonly type = WarehouseTypes.CLICKHOUSE;
 
@@ -224,81 +210,76 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 )}`;
             }
 
-            if (options?.timezone) {
-                console.debug(
-                    `Setting ClickHouse timezone to ${options?.timezone}`,
-                );
-                await this.client.command({
-                    query: `SET timezone = '${options?.timezone}'`,
-                });
-            }
-
             const resultSet = await this.client.query({
                 query: alteredQuery,
-                format: 'JSONEachRow',
+                format: 'JSONCompactEachRowWithNamesAndTypes',
+                clickhouse_settings: options?.timezone
+                    ? { timezone: options.timezone }
+                    : undefined,
             });
 
-            const data = await resultSet.json();
+            const columnNames: string[] = [];
+            const fields: Record<string, { type: DimensionType }> = {};
 
-            if (!Array.isArray(data)) {
-                throw new WarehouseQueryError(
-                    'Expected array result from ClickHouse',
-                );
-            }
-
-            if (data.length === 0) {
-                streamCallback({
-                    fields: {},
-                    rows: [],
-                });
-                return;
-            }
-
-            // Infer fields from first row
-            const firstRow = data[0] as Record<string, unknown>;
-            const fields = Object.keys(firstRow).reduce(
-                (acc, key) => ({
-                    ...acc,
-                    [normalizeColumnName(key)]: {
-                        type: this.inferTypeFromValue(firstRow[key]),
-                    },
-                }),
-                {},
+            const stream = resultSet.stream();
+            stream.on(
+                'data',
+                (
+                    rows: Row<unknown, 'JSONCompactEachRowWithNamesAndTypes'>[],
+                ) => {
+                    // handle the rest of the rows with results
+                    rows.forEach((r: Row) => {
+                        const row: unknown[] = r.json();
+                        console.log(row);
+                        // handle first row with column names
+                        if (columnNames.length === 0) {
+                            row.map((c) => {
+                                if (typeof c === 'string') {
+                                    return columnNames.push(c);
+                                }
+                                return columnNames.push(String(c));
+                            });
+                        } else if (Object.keys(fields).length === 0) {
+                            // handle second row with column types
+                            columnNames.forEach((c, index) => {
+                                fields[c] = {
+                                    type: convertDataTypeToDimensionType(
+                                        String(row[index]),
+                                    ),
+                                };
+                            });
+                            streamCallback({
+                                fields,
+                                rows: [],
+                            });
+                        } else {
+                            streamCallback({
+                                fields,
+                                rows: [
+                                    // convert value array to object
+                                    columnNames.reduce<Record<string, unknown>>(
+                                        (acc, c, index) => {
+                                            acc[c] = row[index];
+                                            return acc;
+                                        },
+                                        {},
+                                    ),
+                                ],
+                            });
+                        }
+                    });
+                },
             );
-
-            streamCallback({
-                fields,
-                rows: resultHandler(data as Record<string, unknown>[]),
+            await new Promise((resolve, reject) => {
+                stream.on('end', () => {
+                    console.log('Completed!');
+                    resolve(0);
+                });
+                stream.on('error', reject);
             });
         } catch (e: unknown) {
             throw new WarehouseQueryError(getErrorMessage(e as Error));
         }
-    }
-
-    private inferTypeFromValue(value: unknown): DimensionType {
-        if (value === null || value === undefined) {
-            return DimensionType.STRING;
-        }
-
-        if (typeof value === 'boolean') {
-            return DimensionType.BOOLEAN;
-        }
-
-        if (typeof value === 'number') {
-            return DimensionType.NUMBER;
-        }
-
-        if (typeof value === 'string') {
-            // Try to detect dates
-            if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                return DimensionType.DATE;
-            }
-            if (value.match(/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/)) {
-                return DimensionType.TIMESTAMP;
-            }
-        }
-
-        return DimensionType.STRING;
     }
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
