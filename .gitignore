@@ -82,8 +82,6 @@ logs/
 flake.nix
 flake.lock
 
-# dangerfile
-dangerfile.development.ts
 
 # Charts as code
 lightdash
