@@ -3,6 +3,7 @@ import {
     formatMinutesOffset,
     getTzMinutesOffset,
     isSchedulerGsheetsOptions,
+    type AnyType,
     type CreateSchedulerAndTargetsWithoutIds,
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -244,8 +245,11 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             error={
                                 methods.formState.errors.options &&
                                 `tabName` in methods.formState.errors.options &&
-                                methods.formState.errors.options?.tabName
-                                    ?.message
+                                methods.formState.errors.options?.tabName &&
+                                (
+                                    methods.formState.errors.options
+                                        .tabName as AnyType
+                                )?.message
                             }
                             {...methods.register('options.tabName', {
                                 validate: (value) => {

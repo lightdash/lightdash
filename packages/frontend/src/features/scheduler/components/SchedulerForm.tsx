@@ -14,6 +14,7 @@ import {
     isSchedulerImageOptions,
     isSlackTarget,
     validateEmail,
+    type AnyType,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
@@ -376,11 +377,11 @@ const SchedulerForm: FC<Props> = ({
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
-            name: (value) => {
+            name: (value: string) => {
                 return value.length > 0 ? null : 'Name is required';
             },
             options: {
-                customLimit: (value, values) => {
+                customLimit: (value: AnyType, values: AnyType) => {
                     return values.options.limit === Limit.CUSTOM &&
                         !Number.isInteger(value)
                         ? 'Custom limit must be an integer'
@@ -403,7 +404,7 @@ const SchedulerForm: FC<Props> = ({
                 }
                 return null;
             },
-            cron: (cronExpression) => {
+            cron: (cronExpression: string) => {
                 return isInvalidCronExpression('Cron expression')(
                     cronExpression,
                 );

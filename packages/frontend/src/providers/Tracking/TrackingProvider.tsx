@@ -8,6 +8,7 @@ import {
     type FC,
 } from 'react';
 import * as rudderSDK from 'rudder-sdk-js';
+import { type apiObject } from 'rudder-sdk-js';
 import { PageType } from '../../types/Events';
 import useApp from '../App/useApp';
 import { LIGHTDASH_APP_NAME } from './constants';
@@ -104,7 +105,7 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
         ({ name, properties = {} }: EventData): void => {
             rudderAnalytics?.track(
                 `${LIGHTDASH_APP_NAME}.${name}`,
-                properties,
+                properties as apiObject,
                 {
                     ...lightdashContext,
                     section: sectionContext,
