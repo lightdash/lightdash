@@ -5,6 +5,7 @@ import {
     Anchor,
     Button,
     CopyButton,
+    Divider,
     Group,
     Loader,
     Paper,
@@ -154,6 +155,7 @@ const AssistantBubbleContent: FC<{
                     style={{ padding: `0.5rem 0`, fontSize: '0.875rem' }}
                     rehypePlugins={[rehypeAiAgentContentLinks]}
                     components={{
+                        hr: () => <Divider color="gray.4" my="sm" />,
                         a: ({ node, children, ...props }) => {
                             const contentType =
                                 'data-content-type' in props &&

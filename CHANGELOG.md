@@ -1,3 +1,31 @@
+## [0.2013.4](https://github.com/lightdash/lightdash/compare/0.2013.3...0.2013.4) (2025-09-18)
+
+
+### Bug Fixes
+
+* increase AI agent step count limit from 10 to 20 ([#16997](https://github.com/lightdash/lightdash/issues/16997)) ([62b6032](https://github.com/lightdash/lightdash/commit/62b6032e88093fe78184368e24f73a4acafe1370))
+
+## [0.2013.3](https://github.com/lightdash/lightdash/compare/0.2013.2...0.2013.3) (2025-09-18)
+
+
+### Bug Fixes
+
+* normalize date formats for subtotal comparison ([#16967](https://github.com/lightdash/lightdash/issues/16967)) ([806ca29](https://github.com/lightdash/lightdash/commit/806ca2936507b061062a7caff329031f56094d37))
+
+## [0.2013.2](https://github.com/lightdash/lightdash/compare/0.2013.1...0.2013.2) (2025-09-18)
+
+
+### Bug Fixes
+
+* limit number of ai agent slack channels on dropdown ([#16969](https://github.com/lightdash/lightdash/issues/16969)) ([a617c4f](https://github.com/lightdash/lightdash/commit/a617c4f00d2b8cf27ccb0d3b1653e3e156492fb8))
+
+## [0.2013.1](https://github.com/lightdash/lightdash/compare/0.2013.0...0.2013.1) (2025-09-18)
+
+
+### Bug Fixes
+
+* fix regular expression ([#16955](https://github.com/lightdash/lightdash/issues/16955)) ([43a0657](https://github.com/lightdash/lightdash/commit/43a06570107bb0d62187f66ab0e375d7e63d3797))
+
 # [0.2013.0](https://github.com/lightdash/lightdash/compare/0.2012.1...0.2013.0) (2025-09-17)
 
 
