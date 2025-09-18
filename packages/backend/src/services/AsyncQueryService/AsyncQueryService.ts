@@ -34,6 +34,7 @@ import {
     Explore,
     FieldType,
     ForbiddenError,
+    formatRawValue,
     formatRow,
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
@@ -1055,12 +1056,14 @@ export class AsyncQueryService extends ProjectService {
         queryTags,
         write,
         pivotConfiguration,
+        itemsMap,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
         queryTags: RunQueryTags;
         write?: (rows: Record<string, unknown>[]) => void;
         pivotConfiguration?: PivotConfiguration;
+        itemsMap: ItemsMap;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1168,7 +1171,11 @@ export class AsyncQueryService extends ProjectService {
                               aggregation: col.aggregation,
                               pivotValues: groupByColumns?.map((c) => ({
                                   referenceField: c.reference,
-                                  value: row[c.reference],
+                                  // value needs to be raw formatted so that dates match the subtotals and the formatted rows which always use `formatRawValue`
+                                  value: formatRawValue(
+                                      itemsMap[c.reference],
+                                      row[c.reference],
+                                  ),
                               })),
                               columnIndex: row.column_index,
                           });
@@ -1331,6 +1338,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 write: stream?.write,
                 pivotConfiguration,
+                itemsMap: fieldsMap,
             });
 
             this.analytics.track({
