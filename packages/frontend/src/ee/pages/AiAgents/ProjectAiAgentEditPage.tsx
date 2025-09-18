@@ -65,6 +65,7 @@ import useApp from '../../../providers/App/useApp';
 import { AiAgentEditPageLayout } from '../../features/aiCopilot/components/AiAgentEditPageLayout/AiAgentEditPageLayout';
 import { EvalDetail } from '../../features/aiCopilot/components/Evals/EvalDetail';
 import { EvalRunDetails } from '../../features/aiCopilot/components/Evals/EvalRunDetails';
+import { EvalTabLayout } from '../../features/aiCopilot/components/Evals/EvalTabLayout';
 import {
     InstructionsGuidelines,
     InstructionsTemplates,
@@ -1215,25 +1216,27 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     </Tabs.Panel>
 
                     <Tabs.Panel value="evals" pt="lg">
-                        {runUuid ? (
-                            <EvalRunDetails
-                                projectUuid={projectUuid!}
-                                agentUuid={actualAgentUuid!}
-                                evalUuid={evalUuid!}
-                                runUuid={runUuid}
-                            />
-                        ) : evalUuid ? (
-                            <EvalDetail
-                                projectUuid={projectUuid!}
-                                agentUuid={actualAgentUuid!}
-                                evalUuid={evalUuid}
-                            />
-                        ) : (
-                            <EvalsTab
-                                projectUuid={projectUuid!}
-                                agentUuid={actualAgentUuid!}
-                            />
-                        )}
+                        <EvalTabLayout>
+                            {runUuid ? (
+                                <EvalRunDetails
+                                    projectUuid={projectUuid!}
+                                    agentUuid={actualAgentUuid!}
+                                    evalUuid={evalUuid!}
+                                    runUuid={runUuid}
+                                />
+                            ) : evalUuid ? (
+                                <EvalDetail
+                                    projectUuid={projectUuid!}
+                                    agentUuid={actualAgentUuid!}
+                                    evalUuid={evalUuid}
+                                />
+                            ) : (
+                                <EvalsTab
+                                    projectUuid={projectUuid!}
+                                    agentUuid={actualAgentUuid!}
+                                />
+                            )}
+                        </EvalTabLayout>
                     </Tabs.Panel>
                 </Tabs>
                 <MantineModal

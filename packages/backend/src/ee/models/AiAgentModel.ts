@@ -20,6 +20,7 @@ import {
     AiArtifact,
     AiThread,
     AiWebAppPrompt,
+    ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
@@ -2637,6 +2638,39 @@ export class AiAgentModel {
                     await trx(AiEvalPromptTableName).insert(promptRecords);
                 }
             }
+        });
+
+        return this.getEval({ evalUuid });
+    }
+
+    async appendToEval(
+        evalUuid: string,
+        data: ApiAppendEvaluationRequest,
+    ): Promise<AiAgentEvaluation> {
+        await AiAgentModel.withTrx(this.database, async (trx) => {
+            if (data.prompts.length === 0) return;
+
+            await trx(AiEvalTableName).where('ai_eval_uuid', evalUuid).update({
+                updated_at: trx.fn.now(),
+            });
+
+            const promptRecords = data.prompts.map((promptData) => {
+                if (typeof promptData === 'string') {
+                    return {
+                        ai_eval_uuid: evalUuid,
+                        prompt: promptData,
+                        ai_prompt_uuid: null,
+                        ai_thread_uuid: null,
+                    };
+                }
+                return {
+                    ai_eval_uuid: evalUuid,
+                    prompt: null,
+                    ai_prompt_uuid: promptData.promptUuid,
+                    ai_thread_uuid: promptData.threadUuid,
+                };
+            });
+            await trx(AiEvalPromptTableName).insert(promptRecords);
         });
 
         return this.getEval({ evalUuid });

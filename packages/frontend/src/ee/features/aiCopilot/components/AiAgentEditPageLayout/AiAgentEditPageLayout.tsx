@@ -46,7 +46,7 @@ export const AiAgentEditPageLayout: FC<Props> = ({ header, children }) => {
     const headerElement = useElementSize();
 
     return (
-        <Container pb="xxl">
+        <Container pb="xxl" maw="75%">
             {header && (
                 <AiAgentHeader ref={headerElement.ref}>{header}</AiAgentHeader>
             )}

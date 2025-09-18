@@ -20,6 +20,7 @@ import {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
+    ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
@@ -3341,6 +3342,23 @@ export class AiAgentService {
         });
 
         return this.aiAgentModel.updateEval(evalUuid, data);
+    }
+
+    async appendToEval(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        data: ApiAppendEvaluationRequest,
+    ) {
+        // Check access to agent
+        await this.getAgent(user, agentUuid);
+
+        await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        return this.aiAgentModel.appendToEval(evalUuid, data);
     }
 
     async deleteEval(user: SessionUser, agentUuid: string, evalUuid: string) {
