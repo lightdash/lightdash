@@ -115,7 +115,9 @@ describe('Explore perf', () => {
             '[data-testid="FiltersForm/add-filter-button"]',
         );
         cy.contains('Add filter').click();
-        cy.findByTestId('FieldSelect').type('Currency{downArrow}{enter}');
+        cy.findByPlaceholderText('Search field...').type(
+            'Currency{downArrow}{enter}',
+        );
         cy.flowEndWhenVisible(
             flowId,
             'filterRuleRender',
