@@ -124,7 +124,6 @@
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
         "vega-lite": "^5.16.1",
-        "web-vitals": "^5.1.0",
         "zod": "^3.25.55"
     },
     "devDependencies": {
