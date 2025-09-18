@@ -63,7 +63,7 @@ describe('Explore perf', () => {
         cy.findByText('Join 10').click();
 
         cy.log('Select address and measure table header render');
-        flowId = 'field-select:addresfs';
+        flowId = 'field-select:address';
         validateFlowId(flowId);
         FLOWS.push(flowId);
         cy.flowBegin(flowId, 'clickField');
