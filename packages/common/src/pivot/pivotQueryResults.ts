@@ -4,7 +4,6 @@ import { type Entries } from 'type-fest';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import {
-    DimensionType,
     FieldType,
     isDimension,
     isField,
@@ -1003,35 +1002,11 @@ export const convertSqlPivotedRowsToPivotData = ({
                 const isFirstInGroup =
                     allColumnsWithSamePivotValues[0].pivotColumnName ===
                     pivotColumnName;
-
-                // Normalize date values to match subtotal format (without milliseconds)
-                let normalizedRawValue = pivotValue.value;
-                const pivotField = getField(reference);
-                if (
-                    pivotField &&
-                    isField(pivotField) &&
-                    (pivotField.type === DimensionType.DATE ||
-                        pivotField.type === DimensionType.TIMESTAMP) &&
-                    pivotValue.value !== null &&
-                    pivotValue.value !== undefined
-                ) {
-                    try {
-                        const date = new Date(
-                            pivotValue.value as string | number,
-                        );
-                        normalizedRawValue = date
-                            .toISOString()
-                            .replace(/\.\d{3}Z$/, 'Z');
-                    } catch (e) {
-                        // Keep original value if date parsing fails
-                    }
-                }
-
                 headerValues[index].push({
                     type: 'value' as const,
                     fieldId: reference,
                     value: {
-                        raw: normalizedRawValue,
+                        raw: pivotValue.value,
                         formatted: formattedValue,
                     },
                     colSpan: isFirstInGroup
