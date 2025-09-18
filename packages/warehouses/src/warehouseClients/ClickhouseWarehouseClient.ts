@@ -64,11 +64,11 @@ interface TableInfo {
 const getErrorMessage = (e: Error) => originalGetErrorMessage(e);
 
 const queryTableSchema = ({ database, table }: TableInfo) => `SELECT 
-    database,
-    '' as table_schema,
-    table,
-    name as column_name,
-    type as data_type
+    database as "table_catalog",
+    database as "table_schema",
+    table as "table_name",
+    name as "column_name",
+    type as "data_type"
 FROM system.columns
 WHERE database = '${database}'
   AND table = '${table}'
@@ -189,7 +189,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             url,
             username: credentials.user,
             password: credentials.password,
-            database: credentials.dbname,
+            database: credentials.schema, // In clickhouse schema = database
             request_timeout: (credentials.timeoutSeconds || 30) * 1000,
         });
     }
@@ -230,7 +230,6 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                     // handle the rest of the rows with results
                     rows.forEach((r: Row) => {
                         const row: unknown[] = r.json();
-                        console.log(row);
                         // handle first row with column names
                         if (columnNames.length === 0) {
                             row.map((c) => {
@@ -321,12 +320,12 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         schema?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const databaseName = this.credentials.dbname;
+        const databaseName = schema || this.credentials.schema; // In clickhouse schema = database
         const query = `
             SELECT 
-                database,
-                '' as table_schema,
-                name as table_name
+                database as "table_catalog",
+                database as "table_schema",
+                name as "table_name"
             FROM system.tables
             WHERE database = '${this.sanitizeInput(databaseName)}'
             ORDER BY database, name
@@ -338,17 +337,17 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     async getFields(
         tableName: string,
         schema?: string,
-        database?: string,
+        database?: string, // always empty string in clickhouse
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const dbName = database || this.credentials.dbname;
+        const dbName = schema || this.credentials.schema; // In clickhouse schema = database
         const query = `
             SELECT 
-                database,
-                '' as table_schema,
-                table,
-                name as column_name,
-                type as data_type
+                database as "table_catalog",
+                database as "table_schema",
+                table as "table_name",
+                name as "column_name",
+                type as "data_type"
             FROM system.columns
             WHERE database = '${this.sanitizeInput(dbName)}'
               AND table = '${this.sanitizeInput(tableName)}'
@@ -359,19 +358,19 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     }
 
     async getAllTables() {
-        const databaseName = this.credentials.dbname;
+        const databaseName = this.credentials.schema; // In clickhouse schema = database
         const query = `
             SELECT 
-                database,
-                '' as table_schema,
-                name as table_name
+                database as "table_catalog",
+                database as "table_schema",
+                name as "table_name"
             FROM system.tables
             WHERE database = '${this.sanitizeInput(databaseName)}'
             ORDER BY database, name
         `;
         const { rows } = await this.runQuery(query, {}, undefined);
         return rows.map((row) => ({
-            database: row.database,
+            database: row.table_catalog,
             schema: row.table_schema || 'default',
             table: row.table_name,
         }));
@@ -381,7 +380,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         try {
             await this.client.query({
                 query: 'SELECT 1 as test',
-                format: 'JSONEachRow',
+                format: 'JSON',
             });
         } catch (e: unknown) {
             throw new WarehouseConnectionError(getErrorMessage(e as Error));

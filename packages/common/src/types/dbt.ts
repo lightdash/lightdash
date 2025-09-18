@@ -210,6 +210,7 @@ export const normaliseModelDatabase = (
             }
             return { ...model, database: model.database as string };
         case SupportedDbtAdapter.CLICKHOUSE:
+            return { ...model, database: '' }; // Clickhouse doesn't have a database field
         case SupportedDbtAdapter.DATABRICKS:
             return { ...model, database: model.database || 'DEFAULT' };
         default:

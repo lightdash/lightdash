@@ -130,7 +130,6 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     password: '',
     requireUserCredentials: false,
     port: 8443,
-    dbname: '',
     secure: true,
     startOfWeek: undefined,
     timeoutSeconds: 300,

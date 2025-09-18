@@ -84,14 +84,6 @@ const ClickhouseForm: FC<{
                     {...form.getInputProps('warehouse.password')}
                     disabled={disabled}
                 />
-                <TextInput
-                    name="warehouse.dbname"
-                    label="DB name"
-                    description="This is the database name."
-                    required
-                    {...form.getInputProps('warehouse.dbname')}
-                    disabled={disabled}
-                />
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
