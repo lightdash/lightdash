@@ -243,6 +243,7 @@ export const CustomSqlDimensionModal: FC<{
                                     {...form.getInputProps(
                                         'customDimensionLabel',
                                     )}
+                                    data-testid="CustomSqlDimensionModal/LabelInput"
                                 />
                                 <Select
                                     sx={{
