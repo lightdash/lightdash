@@ -1,5 +1,6 @@
 import { createClient, Row, type ClickHouseClient } from '@clickhouse/client';
 import {
+    AnyType,
     CreateClickhouseCredentials,
     DimensionType,
     Metric,
@@ -63,17 +64,6 @@ interface TableInfo {
 
 const getErrorMessage = (e: Error) => originalGetErrorMessage(e);
 
-const queryTableSchema = ({ database, table }: TableInfo) => `SELECT 
-    database as "table_catalog",
-    database as "table_schema",
-    table as "table_name",
-    name as "column_name",
-    type as "data_type"
-FROM system.columns
-WHERE database = '${database}'
-  AND table = '${table}'
-ORDER BY position`;
-
 const convertDataTypeToDimensionType = (
     type: ClickhouseTypes | string,
 ): DimensionType => {
@@ -113,12 +103,22 @@ const convertDataTypeToDimensionType = (
     }
 };
 
-const catalogToSchema = (results: unknown[][]): WarehouseCatalog => {
+const catalogToSchema = (
+    results: Record<string, unknown>[][],
+): WarehouseCatalog => {
     const warehouseCatalog: WarehouseCatalog = {};
     results.forEach((result) => {
         result.forEach((row) => {
-            const [database, tableSchema, tableName, columnName, dataType] =
-                row as [string, string, string, string, string];
+            // Map column names from snake_case to camelCase
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            const {
+                table_catalog: database,
+                table_schema: tableSchema,
+                table_name: tableName,
+                column_name: columnName,
+                data_type: dataType,
+            } = row as Record<string, string>;
+
             warehouseCatalog[database] = warehouseCatalog[database] || {};
             warehouseCatalog[database][tableSchema || 'default'] =
                 warehouseCatalog[database][tableSchema || 'default'] || {};
@@ -198,6 +198,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -213,6 +214,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             const resultSet = await this.client.query({
                 query: alteredQuery,
                 format: 'JSONCompactEachRowWithNamesAndTypes',
+                query_params: options?.queryParams,
                 clickhouse_settings: options?.timezone
                     ? { timezone: options.timezone }
                     : undefined,
@@ -282,23 +284,33 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     }
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
-        let results: unknown[][];
-
+        let results: Record<string, unknown>[][];
+        const query = `SELECT 
+                            '' as "table_catalog",
+                            database as "table_schema",
+                            table as "table_name",
+                            name as "column_name",
+                            type as "data_type"
+                        FROM system.columns
+                        WHERE database = {databaseName: String}
+                          AND table = {tableName: String}
+                        ORDER BY position`;
         try {
             results = await processPromisesInBatches(
                 requests,
                 DEFAULT_BATCH_SIZE,
                 async (request) => {
-                    const resultSet = await this.client.query({
-                        query: queryTableSchema(request),
-                        format: 'JSONEachRow',
-                    });
-                    const data = await resultSet.json();
-                    return Array.isArray(data)
-                        ? data.map((row) =>
-                              Object.values(row as Record<string, unknown>),
-                          )
-                        : [];
+                    const { rows } = await this.runQuery(
+                        query,
+                        {},
+                        undefined,
+                        undefined,
+                        {
+                            databaseName: request.schema,
+                            tableName: request.table,
+                        },
+                    );
+                    return rows;
                 },
             );
         } catch (e: unknown) {
@@ -308,14 +320,6 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         return catalogToSchema(results);
     }
 
-    private sanitizeInput(sql: string) {
-        return sql.replaceAll(
-            this.sqlBuilder.getStringQuoteChar(),
-            this.sqlBuilder.getEscapeStringQuoteChar() +
-                this.sqlBuilder.getStringQuoteChar(),
-        );
-    }
-
     async getTables(
         schema?: string,
         tags?: Record<string, string>,
@@ -323,14 +327,22 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         const databaseName = schema || this.credentials.schema; // In clickhouse schema = database
         const query = `
             SELECT 
-                database as "table_catalog",
+                '' as "table_catalog",
                 database as "table_schema",
                 name as "table_name"
             FROM system.tables
-            WHERE database = '${this.sanitizeInput(databaseName)}'
+            WHERE database = {databaseName: String}
             ORDER BY database, name
         `;
-        const { rows } = await this.runQuery(query, tags || {});
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            undefined,
+            {
+                databaseName,
+            },
+        );
         return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
     }
 
@@ -343,17 +355,26 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         const dbName = schema || this.credentials.schema; // In clickhouse schema = database
         const query = `
             SELECT 
-                database as "table_catalog",
+                '' as "table_catalog",
                 database as "table_schema",
                 table as "table_name",
                 name as "column_name",
                 type as "data_type"
             FROM system.columns
-            WHERE database = '${this.sanitizeInput(dbName)}'
-              AND table = '${this.sanitizeInput(tableName)}'
+            WHERE database = {databaseName: String}
+              AND table = {tableName: String}
             ORDER BY position
         `;
-        const { rows } = await this.runQuery(query, tags || {});
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            undefined,
+            {
+                databaseName: dbName,
+                tableName,
+            },
+        );
         return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
     }
 
@@ -361,14 +382,16 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         const databaseName = this.credentials.schema; // In clickhouse schema = database
         const query = `
             SELECT 
-                database as "table_catalog",
+                '' as "table_catalog",
                 database as "table_schema",
                 name as "table_name"
             FROM system.tables
-            WHERE database = '${this.sanitizeInput(databaseName)}'
+            WHERE database = {databaseName: String}
             ORDER BY database, name
         `;
-        const { rows } = await this.runQuery(query, {}, undefined);
+        const { rows } = await this.runQuery(query, {}, undefined, undefined, {
+            databaseName,
+        });
         return rows.map((row) => ({
             database: row.table_catalog,
             schema: row.table_schema || 'default',
