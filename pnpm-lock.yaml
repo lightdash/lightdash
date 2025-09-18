@@ -10,9 +10,13 @@ overrides:
   '@types/react-dom': 19.0.2
   typescript: 5.5.4
   trino-client>axios: ^1.12.0
+  '@slack/web-api>axios': ^1.12.0
   '@slack/web-api>form-data': ^2.5.4
   '@types/request>form-data': ^2.5.4
   posthog-node>axios: ^1.12.0
+  axios-retry>axios: ^1.12.0
+  '@rudderstack/rudder-sdk-node>axios': ^1.12.0
+  cypress>axios: ^1.12.0
 
 pnpmfileChecksum: p23nxduvlqdbqsdejaxzk56may
 
@@ -332,7 +336,7 @@ importers:
         version: 2.5.1(pg@8.13.1)
       langchain:
         specifier: ^0.3.13
-        version: 0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.7.7)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
+        version: 0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -8516,7 +8520,7 @@ packages:
   axios-retry@4.5.0:
     resolution: {integrity: sha512-aR99oXhpEDGo0UuAlYcn2iGRds30k366Zfa05XWScR9QaQD4JYiP3/1Qt1u7YlefUOK+cn0CcwoL1oefavQUlQ==}
     peerDependencies:
-      axios: 0.x || 1.x
+      axios: ^1.12.0
 
   axios@1.12.2:
     resolution: {integrity: sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==}
@@ -23261,8 +23265,8 @@ snapshots:
 
   '@rudderstack/rudder-sdk-node@2.1.1(tslib@2.8.1)':
     dependencies:
-      axios: 1.7.7
-      axios-retry: 4.5.0(axios@1.7.7)
+      axios: 1.12.2
+      axios-retry: 4.5.0(axios@1.12.2)
       component-type: 2.0.0
       join-component: 1.1.0
       lodash.clonedeep: 4.5.0
@@ -23689,7 +23693,7 @@ snapshots:
       '@slack/types': 2.13.1
       '@types/is-stream': 1.1.0
       '@types/node': 22.15.3
-      axios: 1.9.0
+      axios: 1.12.2
       eventemitter3: 3.1.2
       form-data: 2.5.5
       is-electron: 2.2.2
@@ -27000,9 +27004,9 @@ snapshots:
 
   axe-core@4.4.3: {}
 
-  axios-retry@4.5.0(axios@1.7.7):
+  axios-retry@4.5.0(axios@1.12.2):
     dependencies:
-      axios: 1.7.7
+      axios: 1.12.2
       is-retry-allowed: 2.2.0
 
   axios@1.12.2:
@@ -31849,7 +31853,7 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.7.7)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
+  langchain@0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
     dependencies:
       '@langchain/core': 0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))
       '@langchain/openai': 0.4.2(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(encoding@0.1.13)(ws@8.18.0)
@@ -31865,7 +31869,7 @@ snapshots:
       zod: 3.25.55
       zod-to-json-schema: 3.24.6(zod@3.25.55)
     optionalDependencies:
-      axios: 1.7.7
+      axios: 1.12.2
       handlebars: 4.7.8
     transitivePeerDependencies:
       - encoding

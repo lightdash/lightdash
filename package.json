@@ -24,9 +24,13 @@
     "pnpm": {
         "overrides": {
             "trino-client>axios": "^1.12.0",
+            "@slack/web-api>axios": "^1.12.0",
             "@slack/web-api>form-data": "^2.5.4",
             "@types/request>form-data": "^2.5.4",
-            "posthog-node>axios": "^1.12.0"
+            "posthog-node>axios": "^1.12.0",
+            "axios-retry>axios": "^1.12.0",
+            "@rudderstack/rudder-sdk-node>axios": "^1.12.0",
+            "cypress>axios": "^1.12.0"
         }
     },
     "dependencies": {
