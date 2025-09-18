@@ -1,3 +1,10 @@
+## [0.2013.4](https://github.com/lightdash/lightdash/compare/0.2013.3...0.2013.4) (2025-09-18)
+
+
+### Bug Fixes
+
+* increase AI agent step count limit from 10 to 20 ([#16997](https://github.com/lightdash/lightdash/issues/16997)) ([62b6032](https://github.com/lightdash/lightdash/commit/62b6032e88093fe78184368e24f73a4acafe1370))
+
 ## [0.2013.3](https://github.com/lightdash/lightdash/compare/0.2013.2...0.2013.3) (2025-09-18)
 
 
