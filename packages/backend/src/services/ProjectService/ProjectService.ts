@@ -4088,8 +4088,9 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.REDSHIFT:
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
-            case WarehouseTypes.CLICKHOUSE:
                 return credentials.dbname;
+            case WarehouseTypes.CLICKHOUSE:
+                return credentials.schema;
             case WarehouseTypes.SNOWFLAKE:
                 return credentials.database.toLowerCase();
 
