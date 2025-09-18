@@ -202,6 +202,12 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.REDSHIFT:
+            if (model.database === null) {
+                throw new ParseError(
+                    `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,
+                    {},
+                );
+            }
             return { ...model, database: model.database as string };
         case SupportedDbtAdapter.CLICKHOUSE:
         case SupportedDbtAdapter.DATABRICKS:
