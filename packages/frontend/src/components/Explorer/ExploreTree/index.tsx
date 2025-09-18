@@ -130,7 +130,10 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 icon={<MantineIcon icon={IconSearch} />}
                 rightSection={
                     isPending ? (
-                        <Loader size="xs" />
+                        <Loader
+                            size="xs"
+                            data-testid="ExploreTree/SearchInput-Loader"
+                        />
                     ) : search ? (
                         <ActionIcon onClick={handleClearSearch}>
                             <MantineIcon icon={IconX} />
@@ -140,6 +143,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 placeholder="Search metrics + dimensions"
                 value={search}
                 onChange={handleSearchChange}
+                data-testid="ExploreTree/SearchInput"
             />
 
             <ScrollArea

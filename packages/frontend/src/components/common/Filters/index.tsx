@@ -254,6 +254,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 leftIcon={<MantineIcon icon={IconPlus} />}
                                 disabled={fields.length <= 0}
                                 onClick={toggleFieldInput}
+                                data-testid="FiltersForm/add-filter-button"
                             >
                                 Add filter
                             </Button>

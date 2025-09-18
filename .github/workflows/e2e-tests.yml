@@ -14,6 +14,7 @@ jobs:
             frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
             backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
             timezone: ${{ steps.changes.outputs.timezone == 'true' || steps.overrides.outputs.timezone == 'true' }}
+            perf: ${{ steps.changes.outputs.perf == 'true' || steps.overrides.outputs.perf == 'true' }}
         steps:
             - uses: actions/checkout@v4
             - name: Check for files changes
@@ -31,9 +32,11 @@ jobs:
                   echo "Frontend override: ${{contains(steps.PR.outputs.pr_body, 'test-frontend')}}"
                   echo "Backend override: ${{contains(steps.PR.outputs.pr_body, 'test-backend')}}"
                   echo "Timezone override: ${{contains(steps.PR.outputs.pr_body, 'test-timezone')}}"
+                  echo "Perf override: ${{contains(steps.PR.outputs.pr_body, 'test-perf')}}"
                   echo "frontend=${{ contains(steps.PR.outputs.pr_body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
                   echo "backend=${{ contains(steps.PR.outputs.pr_body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
                   echo "timezone=${{ contains(steps.PR.outputs.pr_body, 'test-timezone') }}" >> "$GITHUB_OUTPUT"
+                  echo "perf=${{ contains(steps.PR.outputs.pr_body, 'test-perf') }}" >> "$GITHUB_OUTPUT"
     prepare-preview:
         # Only trigger for correct environment and status
         runs-on: ubuntu-latest
@@ -184,6 +187,64 @@ jobs:
                   path: |
                       packages/e2e/cypress/screenshots
                       packages/e2e/cypress/videos
+                  if-no-files-found: ignore
+
+    perf-tests:
+        if: needs.files-changed.outputs.perf == 'true'
+        timeout-minutes: 30
+        runs-on: ubuntu-latest
+        needs: [files-changed, prepare-preview]
+        container:
+            image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
+            options: --user 1001
+        name: Performance Tests
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Setup Node, PNPM, and Cypress
+              uses: ./.github/workflows/_setup_node_pnpm_cypress
+            # Build packages
+            - name: Build packages/common module
+              run: pnpm common-build
+            # Prepare bigquery credentials for Cypress
+            - name: create-json
+              id: create-json
+              uses: jsdaniell/create-json@v1.2.2
+              with:
+                  name: 'credentials.json'
+                  json: ${{ secrets.GCP_CREDENTIALS }}
+                  dir: './packages/e2e/cypress/fixtures/'
+            - name: Run Cypress Performance Tests
+              uses: cypress-io/github-action@v6
+              with:
+                  install: false
+                  browser: firefox
+                  working-directory: packages/e2e
+                  # Set the PR deployment url and target only perf tests
+                  config: 'baseUrl=${{needs.prepare-preview.outputs.url}},specPattern=cypress/e2e/perf/**/*.cy.{js,jsx,ts,tsx},video=false'
+              env:
+                  CYPRESS_PGHOST: ${{secrets.PGHOST}}
+                  CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+                  CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+                  CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
+                  CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+                  CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
+                  CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
+                  CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
+                  CYPRESS_TRINO_HOST: ${{secrets.TRINO_HOST}}
+                  CYPRESS_TRINO_PORT: ${{secrets.TRINO_PORT}}
+                  CYPRESS_TRINO_USER: ${{secrets.TRINO_USER}}
+                  CYPRESS_TRINO_PASSWORD: ${{secrets.TRINO_PASSWORD}}
+                  TZ: 'UTC'
+                  CYPRESS_TZ: 'UTC'
+
+            # After the test run completes
+            # store performance artifacts (different from regular screenshots/videos)
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: cypress-performance-artifacts
+                  path: packages/e2e/cypress/artifacts
                   if-no-files-found: ignore
 
     timezone-tests:
