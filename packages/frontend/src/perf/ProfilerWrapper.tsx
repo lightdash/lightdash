@@ -1,3 +1,4 @@
+import { type AnyType } from '@lightdash/common';
 import React, { Profiler, type PropsWithChildren } from 'react';
 
 export function ProfilerWrapper({
@@ -12,8 +13,8 @@ export function ProfilerWrapper({
         startTime,
         commitTime,
     ) => {
-        (window as any).__profiling = (window as any).__profiling || [];
-        (window as any).__profiling.push({
+        (window as AnyType).__profiling = (window as AnyType).__profiling || [];
+        (window as AnyType).__profiling.push({
             id: profId,
             phase, // "mount" | "update"
             actualDuration, // time spent rendering this update
