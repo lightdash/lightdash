@@ -31,7 +31,7 @@ import type {
 
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(20),
     maxRetries: 3,
 };
 
