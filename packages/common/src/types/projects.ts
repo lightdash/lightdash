@@ -149,8 +149,7 @@ export type CreateClickhouseCredentials = {
     password: string;
     requireUserCredentials?: boolean;
     port: number;
-    dbname: string;
-    schema?: string;
+    schema: string;
     secure?: boolean;
     startOfWeek?: WeekDay | null;
     timeoutSeconds?: number;

@@ -106,7 +106,6 @@ export const convertClickhouseSchema = (
             password: target.password,
             port: target.port,
             schema: target.schema,
-            dbname: target.schema, // ClickHouse uses schema as database name
             secure: target.secure ?? true,
             timeoutSeconds: target.send_receive_timeout,
         };
