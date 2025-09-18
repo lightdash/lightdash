@@ -12,6 +12,7 @@ overrides:
   trino-client>axios: ^1.12.0
   '@slack/web-api>form-data': ^2.5.4
   '@types/request>form-data': ^2.5.4
+  posthog-node>axios: ^1.12.0
 
 pnpmfileChecksum: p23nxduvlqdbqsdejaxzk56may
 
@@ -33896,13 +33897,13 @@ snapshots:
 
   posthog-node@4.18.0:
     dependencies:
-      axios: 1.9.0
+      axios: 1.12.2
     transitivePeerDependencies:
       - debug
 
   posthog-node@4.2.0:
     dependencies:
-      axios: 1.7.7
+      axios: 1.12.2
       rusha: 0.8.14
     transitivePeerDependencies:
       - debug

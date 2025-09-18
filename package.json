@@ -25,7 +25,8 @@
         "overrides": {
             "trino-client>axios": "^1.12.0",
             "@slack/web-api>form-data": "^2.5.4",
-            "@types/request>form-data": "^2.5.4"
+            "@types/request>form-data": "^2.5.4",
+            "posthog-node>axios": "^1.12.0"
         }
     },
     "dependencies": {
