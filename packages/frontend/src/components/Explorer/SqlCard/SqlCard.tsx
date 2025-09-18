@@ -2,7 +2,13 @@ import { subject } from '@casl/ability';
 import { ActionIcon, CopyButton, Skeleton, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
-import { lazy, memo, Suspense, type FC } from 'react';
+import { lazy, memo, Suspense, useCallback, type FC } from 'react';
+import {
+    explorerActions,
+    selectIsSqlExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -25,18 +31,22 @@ const LazyRenderedSql = lazy(() =>
 
 const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { hovered, ref: headingRef } = useHover();
-    const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
-    );
+
+    const sqlIsOpen = useExplorerSelector(selectIsSqlExpanded);
+    const dispatch = useExplorerDispatch();
+
     const unsavedChartVersionTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
+
+    const toggleExpandedSection = useCallback(
+        (section: ExplorerSection) => {
+            dispatch(explorerActions.toggleExpandedSection(section));
+        },
+        [dispatch],
     );
     const { user } = useApp();
 
-    const sqlIsOpen = expandedSections.includes(ExplorerSection.SQL);
     const { data, isSuccess } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName,
     });

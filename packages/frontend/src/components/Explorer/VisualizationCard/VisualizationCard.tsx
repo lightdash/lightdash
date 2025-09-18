@@ -21,6 +21,14 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
+import {
+    explorerActions,
+    selectIsEditMode,
+    selectIsVisualizationConfigOpen,
+    selectIsVisualizationExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -84,14 +92,19 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const setChartConfig = useExplorerContext(
         (context) => context.actions.setChartConfig,
     );
-    const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
+
+    const isOpen = useExplorerSelector(selectIsVisualizationExpanded);
+    const isEditMode = useExplorerSelector(selectIsEditMode);
+    const isVisualizationConfigOpen = useExplorerSelector(
+        selectIsVisualizationConfigOpen,
     );
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
+    const dispatch = useExplorerDispatch();
+
+    const toggleExpandedSection = useCallback(
+        (section: ExplorerSection) => {
+            dispatch(explorerActions.toggleExpandedSection(section));
+        },
+        [dispatch],
     );
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
@@ -101,11 +114,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     );
     const getDownloadQueryUuid = useExplorerContext(
         (context) => context.actions.getDownloadQueryUuid,
-    );
-
-    const isOpen = useMemo(
-        () => expandedSections.includes(ExplorerSection.VISUALIZATION),
-        [expandedSections],
     );
 
     const toggleSection = useCallback(
@@ -121,14 +129,13 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
 
-    const isVisualizationConfigOpen = useExplorerContext(
-        (context) => context.state.isVisualizationConfigOpen,
+    const openVisualizationConfig = useCallback(
+        () => dispatch(explorerActions.openVisualizationConfig()),
+        [dispatch],
     );
-    const openVisualizationConfig = useExplorerContext(
-        (context) => context.actions.openVisualizationConfig,
-    );
-    const closeVisualizationConfig = useExplorerContext(
-        (context) => context.actions.closeVisualizationConfig,
+    const closeVisualizationConfig = useCallback(
+        () => dispatch(explorerActions.closeVisualizationConfig()),
+        [dispatch],
     );
 
     const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);

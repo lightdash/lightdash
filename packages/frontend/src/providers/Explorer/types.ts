@@ -83,8 +83,6 @@ export enum ActionType {
     TOGGLE_FORMAT_MODAL,
     UPDATE_METRIC_FORMAT,
     REPLACE_FIELDS,
-    OPEN_VISUALIZATION_CONFIG,
-    CLOSE_VISUALIZATION_CONFIG,
     SET_PARAMETER_REFERENCES,
 }
 
@@ -251,12 +249,6 @@ export type Action =
           };
       }
     | {
-          type: ActionType.OPEN_VISUALIZATION_CONFIG;
-      }
-    | {
-          type: ActionType.CLOSE_VISUALIZATION_CONFIG;
-      }
-    | {
           type: ActionType.SET_PARAMETER_REFERENCES;
           payload: string[] | null;
       };
@@ -268,6 +260,7 @@ export interface ExplorerReduceState {
         tableCalculations?: TableCalculationMetadata[];
     };
     isVisualizationConfigOpen?: boolean;
+    isEditMode?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
     /**
@@ -366,7 +359,6 @@ export interface ExplorerContextType {
         setChartConfig: (chartConfig: ChartConfig) => void;
         fetchResults: () => void;
         cancelQuery: () => void;
-        toggleExpandedSection: (section: ExplorerSection) => void;
         addCustomDimension: (customDimension: CustomDimension) => void;
         editCustomDimension: (
             customDimension: CustomDimension,

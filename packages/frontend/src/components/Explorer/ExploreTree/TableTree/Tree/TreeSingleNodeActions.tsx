@@ -29,7 +29,7 @@ import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
-import { useFilters } from '../../../../../hooks/useFilters';
+import { useFilteredFields } from '../../../../../hooks/useFilters';
 import useApp from '../../../../../providers/App/useApp';
 import useExplorerContext from '../../../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -58,7 +58,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
-    const { addFilter } = useFilters();
+    const { addFilter } = useFilteredFields();
     const { track } = useTracking();
 
     const removeAdditionalMetric = useExplorerContext(
