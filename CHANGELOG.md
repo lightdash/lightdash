@@ -1,3 +1,10 @@
+## [0.2013.3](https://github.com/lightdash/lightdash/compare/0.2013.2...0.2013.3) (2025-09-18)
+
+
+### Bug Fixes
+
+* normalize date formats for subtotal comparison ([#16967](https://github.com/lightdash/lightdash/issues/16967)) ([806ca29](https://github.com/lightdash/lightdash/commit/806ca2936507b061062a7caff329031f56094d37))
+
 ## [0.2013.2](https://github.com/lightdash/lightdash/compare/0.2013.1...0.2013.2) (2025-09-18)
 
 
