@@ -273,7 +273,6 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             );
             await new Promise((resolve, reject) => {
                 stream.on('end', () => {
-                    console.log('Completed!');
                     resolve(0);
                 });
                 stream.on('error', reject);
