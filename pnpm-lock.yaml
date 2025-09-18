@@ -306,8 +306,8 @@ importers:
         specifier: ^16.8.1
         version: 16.11.0
       graphql-request:
-        specifier: ^5.2.0
-        version: 5.2.0(encoding@0.1.13)(graphql@16.11.0)
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.11.0)
       helmet:
         specifier: ^7.1.0
         version: 7.2.0
@@ -6721,6 +6721,7 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
+    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -8807,10 +8808,6 @@ packages:
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
 
-  extract-files@9.0.0:
-    resolution: {integrity: sha512-CvdFfHkC95B4bBBk36hcEmvdR2awOdhhVUYH6S/zrVj3477zven/fJMYg7121h4T1xHZC+tetUpubpAhxwI7hQ==}
-    engines: {node: ^10.17.0 || ^12.0.0 || >= 13.7.0}
-
   extract-zip@2.0.1:
     resolution: {integrity: sha512-GDhU9ntwuKyGXdZBUgTIe+vXnWj0fppUEtMDL0+idd5Sta8TGpHssn/eusA9mrPr9qNDym6SxAYZjNvCn/9RBg==}
     engines: {node: '>= 10.17.0'}
@@ -9066,10 +9063,6 @@ packages:
   form-data@2.5.5:
     resolution: {integrity: sha512-jqdObeR2rxZZbPSGL+3VckHMYtu+f9//KXBsVny6JSX/pa38Fy+bGjuG8eW/H6USNQWhLi8Num++cU2yOCNz4A==}
     engines: {node: '>= 0.12'}
-
-  form-data@3.0.4:
-    resolution: {integrity: sha512-f0cRzm6dkyVYV3nPoooP8XlccPQukegwhAnpoLcXy+X+A8KfpGOoXwDr9FLZd3wzgLaBGQBE3lY93Zm/i1JvIQ==}
-    engines: {node: '>= 6'}
 
   form-data@4.0.4:
     resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
@@ -9384,8 +9377,8 @@ packages:
     engines: {node: '>=10.0.0'}
     hasBin: true
 
-  graphql-request@5.2.0:
-    resolution: {integrity: sha512-pLhKIvnMyBERL0dtFI3medKqWOz/RhHdcgbZ+hMMIb32mEPa5MJSzS4AuXxfI4sRAu6JVVk5tvXuGfCWl9JYWQ==}
+  graphql-request@6.1.0:
+    resolution: {integrity: sha512-p+XPfS4q7aIpKVcgmnZKhMNqhltk20hfXtkaIkTfjjmiKMJ5xrt5c743cL03y/K7y1rg3WrIC49xGiEQ4mxdNw==}
     peerDependencies:
       graphql: 14 - 16
 
@@ -24885,8 +24878,6 @@ snapshots:
 
   extend@3.0.2: {}
 
-  extract-files@9.0.0: {}
-
   extract-zip@2.0.1(supports-color@8.1.1):
     dependencies:
       debug: 4.4.3(supports-color@8.1.1)
@@ -25182,14 +25173,6 @@ snapshots:
       hasown: 2.0.2
       mime-types: 2.1.35
       safe-buffer: 5.2.1
-
-  form-data@3.0.4:
-    dependencies:
-      asynckit: 0.4.0
-      combined-stream: 1.0.8
-      es-set-tostringtag: 2.1.0
-      hasown: 2.0.2
-      mime-types: 2.1.35
 
   form-data@4.0.4:
     dependencies:
@@ -25608,12 +25591,10 @@ snapshots:
     transitivePeerDependencies:
       - pg-native
 
-  graphql-request@5.2.0(encoding@0.1.13)(graphql@16.11.0):
+  graphql-request@6.1.0(encoding@0.1.13)(graphql@16.11.0):
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.11.0)
       cross-fetch: 3.2.0(encoding@0.1.13)
-      extract-files: 9.0.0
-      form-data: 3.0.4
       graphql: 16.11.0
     transitivePeerDependencies:
       - encoding

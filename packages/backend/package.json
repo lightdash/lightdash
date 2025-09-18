@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2013.0",
+    "version": "0.2013.1",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -103,7 +103,7 @@
         "googleapis": "105",
         "graphile-worker": "^0.13.0",
         "graphql": "^16.8.1",
-        "graphql-request": "^5.2.0",
+        "graphql-request": "^6.1.0",
         "helmet": "^7.1.0",
         "immer": "^10.1.1",
         "jose": "^5.2.3",

@@ -17,8 +17,7 @@
     "overrides": {
         "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
         "hono": "^4.9.6",
-        "linkifyjs": "^4.3.2",
-        "form-data": "^3.0.4"
+        "linkifyjs": "^4.3.2"
     },
 
     "dependencies": {
