@@ -769,6 +769,40 @@ Cypress.Commands.add('getMonacoEditorText', () => {
     });
 });
 
+/*
+ * The following is a set of commands that are used to measure inteaction performance.
+ * They make if possible to start a user-flow measurement at a time, add a step,
+ * and end the flow when a specific element is visible.
+ *
+ * Metrics get written to the window object, and there are functions to collect and write out the metrics as a perf artifact.
+ */
+
+// --- Performance artifact types ---
+type PerfArtifact = {
+    meta: {
+        runId: string;
+        build: string;
+        url: string;
+        ts: number;
+    };
+    webVitals: AnyType[];
+    profiler: AnyType[];
+    userTiming: {
+        measures: { name: string; duration: number; startTime: number }[];
+        marks: { name: string; startTime: number }[];
+    };
+    flows: {
+        [flowId: string]: {
+            total: { duration: number; startTime: number } | null;
+            steps: { name: string; duration: number; startTime: number }[];
+        };
+    };
+    nav: {
+        durationMs: number;
+        transferSize?: number;
+    };
+};
+
 // --- Flow timing helpers (Cypress-only, no app instrumentation) ---
 declare global {
     namespace Cypress {
@@ -798,6 +832,12 @@ declare global {
                     steps: PerformanceMeasure[];
                 };
             }>;
+            collectAndWritePerfArtifact(options: {
+                flows?: string[];
+                runId?: string;
+                filenamePrefix?: string;
+                expectMedianDuration?: number;
+            }): Chainable<void>;
         }
     }
 }
@@ -952,4 +992,133 @@ Cypress.Commands.add('flowCollectMultiple', (ids: string[]) =>
 
         return result;
     }),
+);
+
+Cypress.Commands.add(
+    'collectAndWritePerfArtifact',
+    (options: {
+        flows?: string[];
+        runId?: string;
+        filenamePrefix?: string;
+        expectMedianDuration?: number;
+    }) => {
+        const {
+            flows = [],
+            runId = Cypress.env('RUN_ID') || `${Date.now()}`,
+            filenamePrefix = 'perf',
+            expectMedianDuration,
+        } = options;
+
+        return cy.window({ log: false }).then((win) => {
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            const build = (win as AnyType)['__BUILD_SHA'] || 'dev';
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            const webVitals = (win as AnyType)['__webVitals'] || [];
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            const profiler = (win as AnyType)['__profiling'] || [];
+
+            const measures = win.performance.getEntriesByType(
+                'measure',
+            ) as PerformanceMeasure[];
+            const marks = win.performance.getEntriesByType(
+                'mark',
+            ) as PerformanceMark[];
+
+            // Basic nav stats (from nav timing v2)
+            const navEntries = win.performance.getEntriesByType(
+                'navigation',
+            ) as PerformanceNavigationTiming[];
+            const nav = navEntries[0]
+                ? {
+                      durationMs: navEntries[0].duration,
+                      transferSize: (navEntries[0] as AnyType).transferSize,
+                  }
+                : { durationMs: NaN };
+
+            // Collect flow timing data if flows are specified
+            const collectFlows =
+                flows.length > 0 ? cy.flowCollectMultiple(flows) : cy.wrap({});
+
+            return collectFlows.then((allFlowData) => {
+                const flowsData: {
+                    [flowId: string]: {
+                        total: { duration: number; startTime: number } | null;
+                        steps: {
+                            name: string;
+                            duration: number;
+                            startTime: number;
+                        }[];
+                    };
+                } = {};
+
+                // Process each flow's data
+                Object.entries(
+                    allFlowData as Record<
+                        string,
+                        {
+                            total: PerformanceMeasure[];
+                            steps: PerformanceMeasure[];
+                        }
+                    >,
+                ).forEach(([flowId, flowData]) => {
+                    flowsData[flowId] = {
+                        total: flowData.total[0]
+                            ? {
+                                  duration: flowData.total[0].duration,
+                                  startTime: flowData.total[0].startTime,
+                              }
+                            : null,
+                        steps: flowData.steps.map((s: PerformanceMeasure) => ({
+                            name: s.name,
+                            duration: s.duration,
+                            startTime: s.startTime,
+                        })),
+                    };
+                });
+
+                const artifact: PerfArtifact = {
+                    meta: {
+                        runId,
+                        build,
+                        url: win.location.pathname + win.location.search,
+                        ts: win.performance.now(),
+                    },
+                    webVitals,
+                    profiler,
+                    userTiming: {
+                        measures: measures.map((m) => ({
+                            name: m.name,
+                            duration: m.duration,
+                            startTime: m.startTime,
+                        })),
+                        marks: marks.map((m) => ({
+                            name: m.name,
+                            startTime: m.startTime,
+                        })),
+                    },
+                    flows: flowsData,
+                    nav,
+                };
+
+                // Optional profiler duration check
+                if (expectMedianDuration !== undefined) {
+                    const commitDurations = artifact.profiler.map(
+                        (p: AnyType) => p.actualDuration,
+                    );
+                    if (commitDurations.length) {
+                        const median = commitDurations.sort(
+                            (a: number, b: number) => a - b,
+                        )[Math.floor(commitDurations.length / 2)];
+                        expect(median, 'median actualDuration').to.be.lessThan(
+                            expectMedianDuration,
+                        );
+                    }
+                }
+
+                // Persist JSON
+                const filename = `${filenamePrefix}-${artifact.meta.build}-${artifact.meta.runId}.json`;
+                return cy.task('writeArtifact', { filename, data: artifact });
+            });
+        });
+    },
 );

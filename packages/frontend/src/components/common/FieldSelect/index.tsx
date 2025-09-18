@@ -255,6 +255,7 @@ const FieldSelect = <T extends Item = Item>({
                 size: rest.size,
             }))}
             onChange={handleChange}
+            data-testid="FieldSelect"
         />
     );
 };

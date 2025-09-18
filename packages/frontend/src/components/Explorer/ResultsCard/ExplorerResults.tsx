@@ -271,7 +271,7 @@ export const ExplorerResults = memo(() => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <Box px="xs" py="lg">
+            <Box px="xs" py="lg" data-testid="results-table-container">
                 <Table
                     status={status}
                     errorDetail={apiError?.error}
