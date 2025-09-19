@@ -1,5 +1,6 @@
 import { AiAgent } from '@lightdash/common';
 import { ModelMessage } from 'ai';
+import PrometheusMetrics from '../../../../prometheus';
 import { AiModel } from '../models/types';
 import {
     AppendInstructionFn,
@@ -61,6 +62,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     appendInstruction: AppendInstructionFn;
+    prometheusMetrics: PrometheusMetrics;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;

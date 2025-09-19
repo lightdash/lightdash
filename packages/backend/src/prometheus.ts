@@ -16,6 +16,10 @@ export default class PrometheusMetrics {
     // Add query status metrics
     public queryStatusCounter: prometheus.Counter<string> | null = null;
 
+    // AI Agent response time metrics
+    public aiAgentResponseDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
     }
@@ -46,6 +50,31 @@ export default class PrometheusMetrics {
                     labelNames: ['status', 'warehouse_type', 'context'],
                     ...rest,
                 });
+
+                // Initialize AI Agent response time histogram
+                this.aiAgentResponseDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_agent_response_duration_ms',
+                        help: 'Histogram of AI Agent response time in milliseconds',
+                        labelNames: ['agent_name', 'model', 'response_type'],
+                        buckets: [
+                            100, // 100ms
+                            250, // 250ms
+                            500, // 500ms
+                            1000, // 1 second
+                            2500, // 2.5 seconds
+                            5000, // 5 seconds
+                            10000, // 10 seconds
+                            25000, // 25 seconds
+                            50000, // 50 seconds
+                            60000, // 1 minute
+                            120000, // 2 minutes
+                            180000, // 3 minutes
+                            240000, // 4 minutes
+                            300000, // 5 minutes
+                        ],
+                        ...rest,
+                    });
 
                 const app = express();
                 this.server = http.createServer(app);
