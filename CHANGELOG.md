@@ -1,3 +1,10 @@
+# [0.2015.0](https://github.com/lightdash/lightdash/compare/0.2014.0...0.2015.0) (2025-09-19)
+
+
+### Features
+
+* Improve artifact error UI ([#17002](https://github.com/lightdash/lightdash/issues/17002)) ([03f0b74](https://github.com/lightdash/lightdash/commit/03f0b74edffa5d8024180ea4cb515f9603c0ac65))
+
 # [0.2014.0](https://github.com/lightdash/lightdash/compare/0.2013.4...0.2014.0) (2025-09-19)
 
 
