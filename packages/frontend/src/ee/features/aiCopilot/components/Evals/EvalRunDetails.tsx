@@ -19,12 +19,12 @@ import {
     IconPlayerPlay,
     IconX,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentEvaluationRunResults } from '../../hooks/useAiAgentEvaluations';
+import { useEvalTabContext } from '../../hooks/useEvalTabContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
-import { EvalThread } from './EvalThread';
 
 type Props = {
     projectUuid: string;
@@ -155,8 +155,7 @@ export const EvalRunDetails: FC<Props> = ({
     runUuid,
 }) => {
     const navigate = useNavigate();
-    const [selectedResult, setSelectedResult] =
-        useState<AiAgentEvaluationRunResult | null>(null);
+    const { setSelectedThreadUuid } = useEvalTabContext();
 
     const { data: runData, isLoading } = useAiAgentEvaluationRunResults(
         projectUuid,
@@ -172,11 +171,9 @@ export const EvalRunDetails: FC<Props> = ({
     };
 
     const handleViewThread = (result: AiAgentEvaluationRunResult) => {
-        setSelectedResult(result);
-    };
-
-    const handleCloseThread = () => {
-        setSelectedResult(null);
+        if (result.threadUuid) {
+            setSelectedThreadUuid(result.threadUuid);
+        }
     };
 
     // Calculate summary stats
@@ -343,16 +340,6 @@ export const EvalRunDetails: FC<Props> = ({
                     )}
                 </Stack>
             </Card>
-
-            {selectedResult && (
-                <EvalThread
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={selectedResult.threadUuid!}
-                    isOpened={!!selectedResult}
-                    onClose={handleCloseThread}
-                />
-            )}
         </Stack>
     );
 };

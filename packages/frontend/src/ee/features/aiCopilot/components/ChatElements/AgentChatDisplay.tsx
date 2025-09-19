@@ -1,7 +1,14 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { Box, Divider, Flex, getDefaultZIndex, Stack } from '@mantine-8/core';
-import { Fragment, useRef, type FC, type PropsWithChildren } from 'react';
+import {
+    Fragment,
+    useRef,
+    useState,
+    type FC,
+    type PropsWithChildren,
+} from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { AddToEvalModal } from '../Admin/AddToEvalModal';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import { UserBubble } from './AgentChatUserBubble';
 import ThreadScrollToBottom from './ScrollToBottom';
@@ -18,6 +25,7 @@ type Props = {
     debug?: boolean;
     projectUuid?: string;
     agentUuid?: string;
+    showAddToEvalsButton?: boolean;
 };
 
 export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
@@ -28,8 +36,12 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     debug,
     projectUuid,
     agentUuid,
+    showAddToEvalsButton,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
+    const [addToEvalsPromptUuid, setAddToEvalsPromptUuid] = useState<
+        string | null
+    >(null);
 
     return (
         <Flex
@@ -75,6 +87,12 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                             debug={debug}
                                             projectUuid={projectUuid}
                                             agentUuid={agentUuid}
+                                            showAddToEvalsButton={
+                                                showAddToEvalsButton
+                                            }
+                                            onAddToEvals={
+                                                setAddToEvalsPromptUuid
+                                            }
                                         />
                                     )}
                                 </ErrorBoundary>
@@ -96,6 +114,20 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     {children}
                 </Box>
             </Stack>
+
+            {showAddToEvalsButton &&
+                projectUuid &&
+                agentUuid &&
+                addToEvalsPromptUuid && (
+                    <AddToEvalModal
+                        isOpen={!!addToEvalsPromptUuid}
+                        onClose={() => setAddToEvalsPromptUuid(null)}
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        threadUuid={thread.uuid}
+                        promptUuid={addToEvalsPromptUuid}
+                    />
+                )}
         </Flex>
     );
 };

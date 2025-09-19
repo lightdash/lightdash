@@ -7116,6 +7116,18 @@
                 },
                 "type": "object"
             },
+            "ApiAppendEvaluationRequest": {
+                "properties": {
+                    "prompts": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreateEvaluationPrompt"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["prompts"],
+                "type": "object"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {

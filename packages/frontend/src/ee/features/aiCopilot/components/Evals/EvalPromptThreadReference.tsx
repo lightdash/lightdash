@@ -11,6 +11,7 @@ import {
 import { IconExternalLink, IconMessageCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useEvalTabContext } from '../../hooks/useEvalTabContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 
 type Props = {
@@ -18,13 +19,15 @@ type Props = {
     agentUuid: string;
     threadUuid: string;
     promptUuid: string;
+    openInSidebar?: boolean;
 };
 
 export const EvalPromptThreadReference: FC<Props> = ({
     projectUuid,
     agentUuid,
     threadUuid,
-    promptUuid: _promptUuid,
+    promptUuid,
+    openInSidebar = false,
 }) => {
     const {
         data: thread,
@@ -32,8 +35,14 @@ export const EvalPromptThreadReference: FC<Props> = ({
         error,
     } = useAiAgentThread(projectUuid, agentUuid, threadUuid);
 
+    const { setSelectedThreadUuid } = useEvalTabContext();
+
     const handleOpenThread = () => {
-        if (thread) {
+        if (!thread) return;
+
+        if (openInSidebar) {
+            setSelectedThreadUuid(thread.uuid);
+        } else {
             const url = `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`;
             window.open(url, '_blank');
         }
@@ -64,6 +73,10 @@ export const EvalPromptThreadReference: FC<Props> = ({
         );
     }
 
+    const promptMessage = thread.messages.find(
+        (msg) => msg.role === 'user' && msg.uuid === promptUuid,
+    );
+
     return (
         <Card
             p="sm"
@@ -81,18 +94,21 @@ export const EvalPromptThreadReference: FC<Props> = ({
                             <Stack gap="xs"></Stack>
                             <Group gap="xs" align="center">
                                 <Title order={6} lineClamp={1} lh={1.2}>
-                                    {thread.title || 'Untitled Thread'}
+                                    {thread.title ??
+                                        thread.firstMessage.message}
                                 </Title>
-                                <MantineIcon
-                                    icon={IconExternalLink}
-                                    size="sm"
-                                    color="dimmed"
-                                />
+                                {!openInSidebar && (
+                                    <MantineIcon
+                                        icon={IconExternalLink}
+                                        size="sm"
+                                        color="dimmed"
+                                    />
+                                )}
                             </Group>
                             <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
-                                {thread.firstMessage
-                                    ? thread.firstMessage.message
-                                    : ''}{' '}
+                                {promptMessage
+                                    ? promptMessage.message
+                                    : 'No prompt found'}{' '}
                                 •{' '}
                                 {new Date(
                                     thread.createdAt,
@@ -100,9 +116,11 @@ export const EvalPromptThreadReference: FC<Props> = ({
                             </Text>
                         </Box>
                     </Group>
-                    <Group gap="xs">
-                        <MantineIcon icon={IconExternalLink} color="blue" />
-                    </Group>
+                    {!openInSidebar && (
+                        <Group gap="xs">
+                            <MantineIcon icon={IconExternalLink} color="blue" />
+                        </Group>
+                    )}
                 </Group>
             </Stack>
         </Card>

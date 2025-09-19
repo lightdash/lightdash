@@ -5,12 +5,14 @@ import type {
     ApiAiAgentEvaluationRunResultsResponse,
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
+    ApiAppendEvaluationRequest,
     ApiCreateEvaluationRequest,
     ApiCreateEvaluationResponse,
     ApiError,
     ApiSuccessEmpty,
     ApiUpdateEvaluationRequest,
 } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
@@ -284,6 +286,19 @@ const updateEvaluation = async (
         body: JSON.stringify(data),
     });
 
+const appendToEvaluation = async (
+    projectUuid: string,
+    agentUuid: string,
+    evalUuid: string,
+    data: ApiAppendEvaluationRequest,
+): Promise<ApiAiAgentEvaluationResponse['results']> =>
+    lightdashApi<ApiAiAgentEvaluationResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/evaluations/${evalUuid}/append`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
 const deleteEvaluation = async (
     projectUuid: string,
     agentUuid: string,
@@ -299,6 +314,7 @@ const deleteEvaluation = async (
 export const useCreateEvaluation = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
+    { showToastButton = false }: { showToastButton?: boolean } = {},
 ) => {
     const handleError = useEvaluationErrorHandler(
         projectUuid,
@@ -306,13 +322,25 @@ export const useCreateEvaluation = (
     );
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     return useMutation({
         mutationFn: (data: ApiCreateEvaluationRequest) =>
             createEvaluation(projectUuid!, agentUuid!, data),
-        onSuccess: () => {
+        onSuccess: (result) => {
             showToastSuccess({
                 title: 'Evaluation created successfully',
+                action: showToastButton
+                    ? {
+                          children: 'Go to Evaluation',
+                          icon: IconArrowRight,
+                          onClick: () => {
+                              void navigate(
+                                  `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/evals/${result.evalUuid}`,
+                              );
+                          },
+                      }
+                    : undefined,
             });
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_EVALUATIONS_KEY, projectUuid, agentUuid],
@@ -375,6 +403,55 @@ export const useUpdateEvaluation = (
         onSuccess: (_, { evalUuid }) => {
             showToastSuccess({
                 title: 'Evaluation updated successfully',
+            });
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_EVALUATIONS_KEY, projectUuid, agentUuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_EVALUATIONS_KEY,
+                    projectUuid,
+                    agentUuid,
+                    evalUuid,
+                ],
+            });
+        },
+        onError: handleError,
+    });
+};
+
+export const useAppendToEvaluation = (
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+) => {
+    const handleError = useEvaluationErrorHandler(
+        projectUuid,
+        'Failed to add to evaluation',
+    );
+    const { showToastSuccess } = useToaster();
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+
+    return useMutation({
+        mutationFn: ({
+            evalUuid,
+            data,
+        }: {
+            evalUuid: string;
+            data: ApiAppendEvaluationRequest;
+        }) => appendToEvaluation(projectUuid!, agentUuid!, evalUuid, data),
+        onSuccess: (_, { evalUuid }) => {
+            showToastSuccess({
+                title: 'Prompt added to evaluation successfully',
+                action: {
+                    children: 'Go to Evaluation',
+                    icon: IconArrowRight,
+                    onClick: () => {
+                        void navigate(
+                            `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/evals/${evalUuid}`,
+                        );
+                    },
+                },
             });
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_EVALUATIONS_KEY, projectUuid, agentUuid],

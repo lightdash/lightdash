@@ -435,6 +435,10 @@ export type ApiUpdateEvaluationRequest = {
     prompts?: CreateEvaluationPrompt[];
 };
 
+export type ApiAppendEvaluationRequest = {
+    prompts: CreateEvaluationPrompt[];
+};
+
 // API Response types
 export type ApiAiAgentEvaluationSummaryListResponse = ApiSuccess<
     AiAgentEvaluationSummary[]

@@ -138,7 +138,9 @@ export const AiAgentsAdminLayout = () => {
                         >
                             {!!selectedThread && (
                                 <ThreadPreviewSidebar
-                                    thread={selectedThread}
+                                    projectUuid={selectedThread.project.uuid}
+                                    agentUuid={selectedThread.agent.uuid}
+                                    threadUuid={selectedThread.uuid}
                                     isOpen={isSidebarOpen}
                                     onClose={handleCloseSidebar}
                                 />

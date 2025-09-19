@@ -23,6 +23,7 @@ import {
     useUpdateEvaluation,
 } from '../../hooks/useAiAgentEvaluations';
 import { EvalFormModal } from './EvalFormModal';
+import { EvalPromptText } from './EvalPromptText';
 import { EvalPromptThreadReference } from './EvalPromptThreadReference';
 import { EvalRuns } from './EvalRuns';
 
@@ -174,9 +175,9 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                             </Text>
                                             <Box style={{ flex: 1 }}>
                                                 {prompt.type === 'string' ? (
-                                                    <Text size="sm">
-                                                        {prompt.prompt}
-                                                    </Text>
+                                                    <EvalPromptText
+                                                        prompt={prompt.prompt}
+                                                    />
                                                 ) : prompt.type === 'thread' ? (
                                                     <EvalPromptThreadReference
                                                         projectUuid={
@@ -189,6 +190,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                                         promptUuid={
                                                             prompt.promptUuid
                                                         }
+                                                        openInSidebar={true}
                                                     />
                                                 ) : (
                                                     <Text

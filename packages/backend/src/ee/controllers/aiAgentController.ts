@@ -19,6 +19,7 @@ import {
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAppendEvaluationRequest,
     ApiCloneWebAppThreadResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
@@ -798,6 +799,32 @@ export class AiAgentController extends BaseController {
         this.setStatus(200);
 
         const evaluation = await this.getAiAgentService().updateEval(
+            req.user!,
+            agentUuid,
+            evalUuid,
+            body,
+        );
+
+        return {
+            status: 'ok',
+            results: evaluation,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/evaluations/{evalUuid}/append')
+    @OperationId('appendToEvaluation')
+    async appendToEvaluation(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() evalUuid: string,
+        @Body() body: ApiAppendEvaluationRequest,
+    ): Promise<ApiAiAgentEvaluationResponse> {
+        this.setStatus(200);
+
+        const evaluation = await this.getAiAgentService().appendToEval(
             req.user!,
             agentUuid,
             evalUuid,

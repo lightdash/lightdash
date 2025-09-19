@@ -156,7 +156,7 @@ export const EvalRuns: FC<Props> = ({
                     </Text>
                 </Paper>
             ) : (
-                <ScrollArea h={600}>
+                <ScrollArea mah={600}>
                     <Stack gap="sm">
                         {runs.map((run) => (
                             <EvalRunItem
