@@ -1,3 +1,10 @@
+## [0.2016.1](https://github.com/lightdash/lightdash/compare/0.2016.0...0.2016.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* AI agent bug when streaming long text ([#17001](https://github.com/lightdash/lightdash/issues/17001)) ([77878c4](https://github.com/lightdash/lightdash/commit/77878c4de3213482b2b7537ab8199c5e80f44fbb))
+
 # [0.2016.0](https://github.com/lightdash/lightdash/compare/0.2015.1...0.2016.0) (2025-09-19)
 
 
