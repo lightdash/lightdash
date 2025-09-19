@@ -422,6 +422,11 @@ export const generateAgentResponse = async ({
                             }),
                     );
                 }
+
+                void dependencies.updatePrompt({
+                    response: step.text,
+                    promptUuid: args.promptUuid,
+                });
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'generateAgentResponse',

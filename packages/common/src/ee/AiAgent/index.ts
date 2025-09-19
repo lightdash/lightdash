@@ -6,6 +6,7 @@ import type {
     ApiSuccessEmpty,
     CacheMetadata,
     ItemsMap,
+    KnexPaginatedData,
     ToolDashboardArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
@@ -352,3 +353,97 @@ export type AiArtifactTSOACompat = Omit<
 export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;
 export type ApiAiAgentArtifactResponseTSOACompat =
     ApiSuccess<AiArtifactTSOACompat>;
+
+export type AiAgentEvaluationPrompt = {
+    promptUuid: string;
+    prompt: string | null;
+    aiPromptUuid: string | null;
+    aiThreadUuid: string | null;
+    createdAt: Date;
+};
+
+export type AiAgentEvaluation = {
+    evalUuid: string;
+    agentUuid: string;
+    title: string;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    prompts: AiAgentEvaluationPrompt[];
+};
+
+export type AiAgentEvaluationSummary = Pick<
+    AiAgentEvaluation,
+    | 'evalUuid'
+    | 'agentUuid'
+    | 'title'
+    | 'description'
+    | 'createdAt'
+    | 'updatedAt'
+>;
+
+export type AiAgentEvaluationRunSummary = {
+    runUuid: string;
+    evalUuid: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    completedAt: Date | null;
+    createdAt: Date;
+};
+
+export type AiAgentEvaluationRun = AiAgentEvaluationRunSummary & {
+    results: AiAgentEvaluationRunResult[];
+};
+
+export type AiAgentEvaluationRunResult = {
+    resultUuid: string;
+    evalPromptUuid: string | null;
+    threadUuid: string | null;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    errorMessage: string | null;
+    completedAt: Date | null;
+    createdAt: Date;
+};
+
+/**
+ * Represents a prompt for evaluation that can be either:
+ * - A string containing the prompt text directly
+ * - An object referencing an existing prompt and thread by their UUIDs
+ */
+export type CreateEvaluationPrompt =
+    | string
+    | {
+          promptUuid: string;
+          threadUuid: string;
+      };
+
+export type ApiCreateEvaluationRequest = {
+    title: string;
+    description?: string;
+    prompts: CreateEvaluationPrompt[];
+};
+
+export type ApiUpdateEvaluationRequest = {
+    title?: string;
+    description?: string;
+    prompts?: CreateEvaluationPrompt[];
+};
+
+// API Response types
+export type ApiAiAgentEvaluationSummaryListResponse = ApiSuccess<
+    AiAgentEvaluationSummary[]
+>;
+export type ApiAiAgentEvaluationResponse = ApiSuccess<AiAgentEvaluation>;
+export type ApiAiAgentEvaluationRunResponse =
+    ApiSuccess<AiAgentEvaluationRunSummary>;
+export type ApiAiAgentEvaluationRunSummaryListResponse = ApiSuccess<
+    KnexPaginatedData<{
+        runs: AiAgentEvaluationRunSummary[];
+    }>
+>;
+export type ApiAiAgentEvaluationRunResultsResponse =
+    ApiSuccess<AiAgentEvaluationRun>;
+
+export type ApiCreateEvaluationResponse = ApiSuccess<
+    Pick<AiAgentEvaluation, 'evalUuid'>
+>;
+export type ApiUpdateEvaluationResponse = ApiSuccess<AiAgentEvaluation>;
