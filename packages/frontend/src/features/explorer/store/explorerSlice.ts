@@ -23,6 +23,9 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.tableName = action.payload;
             state.unsavedChartVersion.metricQuery.exploreName = action.payload;
         },
+        setIsEditMode: (state, action: PayloadAction<boolean>) => {
+            state.isEditMode = action.payload;
+        },
         setPreviouslyFetchedState: (
             state,
             action: PayloadAction<MetricQuery>,

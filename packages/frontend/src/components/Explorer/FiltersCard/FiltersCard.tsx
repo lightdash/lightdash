@@ -18,8 +18,9 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectCustomDimensions,
-    selectExpandedSections,
     selectFilters,
+    selectIsEditMode,
+    selectIsFiltersExpanded,
     selectTableCalculations,
     useExplorerDispatch,
     useExplorerSelector,
@@ -39,27 +40,25 @@ const FiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
 
-    // Redux selectors - gradually migrating from context
-    const reduxExpandedSections = useExplorerSelector(selectExpandedSections);
-    const reduxAdditionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const reduxCustomDimensions = useExplorerSelector(selectCustomDimensions);
-    const reduxTableCalculations = useExplorerSelector(selectTableCalculations);
-    const reduxFilters = useExplorerSelector(selectFilters);
+    // Redux selectors - using component-specific selector for performance
+    const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const filters = useExplorerSelector(selectFilters);
+    const isEditMode = useExplorerSelector(selectIsEditMode);
     const dispatch = useExplorerDispatch();
 
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
     const { data } = useExplore(tableName);
 
-    const refreshRequiredFiltersProperty = (filters: Filters): Filters => {
-        if (!filters.dimensions) return filters;
+    const refreshRequiredFiltersProperty = (inputFilters: Filters): Filters => {
+        if (!inputFilters.dimensions) return inputFilters;
         // The table metadata model required filters may have been updated.
         // We need to refresh the required filters property in the filter group to reflect any changes on the metadata model.
-        if (!data || !data.tables[tableName]) return filters;
+        if (!data || !data.tables[tableName]) return inputFilters;
 
         const requiredFilters = data.tables[tableName].requiredFilters || [];
         // We transform the required filters to filter rules
@@ -76,12 +75,12 @@ const FiltersCard: FC = memo(() => {
         // We update the existing filter group with the required filters
         // If the required filter has been removed from the metadata model we remove the required flag from the filter
         const updatedDimensionFilters = resetRequiredFilterRules(
-            filters.dimensions,
+            inputFilters.dimensions,
             allFilterRefs,
         );
 
         return {
-            ...filters,
+            ...inputFilters,
             dimensions: updatedDimensionFilters,
         };
     };
@@ -139,9 +138,9 @@ const FiltersCard: FC = memo(() => {
         return unsavedQueryFilters;
     };
 
-    // Use Redux filters with the same complex logic applied
-    const filters = useMemo(() => {
-        let unsavedQueryFilters = reduxFilters;
+    // Apply complex filter logic
+    const processedFilters = useMemo(() => {
+        let unsavedQueryFilters = filters;
 
         // Refresh the required filters property as the required filters can change when the table dbt metadata changes
         unsavedQueryFilters =
@@ -157,7 +156,7 @@ const FiltersCard: FC = memo(() => {
         return unsavedQueryFilters;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        reduxFilters,
+        filters,
         data,
         tableName,
         hasDefaultFiltersApplied,
@@ -166,33 +165,26 @@ const FiltersCard: FC = memo(() => {
         resetDimensionFiltersIfNoModelSelected,
     ]);
 
-    // Use Redux selectors instead of context for these values
-    const additionalMetrics = reduxAdditionalMetrics;
-    const customDimensions = reduxCustomDimensions;
-    const tableCalculations = reduxTableCalculations;
     const rows = useExplorerContext((context) => context.queryResults.rows);
 
-    // Use Redux action instead of context for setFilters
+    // TODO: Migration - dispatching directly to Redux for isolated re-renders.
+    // Once migration is complete, context actions can be removed
     const setFilters = useCallback(
         (newFilters: Filters) => {
             dispatch(explorerActions.setFilters(newFilters));
         },
         [dispatch],
     );
-    // Use Redux action instead of context
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
             dispatch(explorerActions.toggleExpandedSection(section));
         },
         [dispatch],
     );
-    const filterIsOpen = useMemo(
-        () => reduxExpandedSections.includes(ExplorerSection.FILTERS),
-        [reduxExpandedSections],
-    );
+    // filterIsOpen now comes directly from Redux selector above
     const totalActiveFilters: number = useMemo(
-        () => countTotalFilterRules(filters),
-        [filters],
+        () => countTotalFilterRules(processedFilters),
+        [processedFilters],
     );
 
     useExplorerContext((context) => {
@@ -233,7 +225,7 @@ const FiltersCard: FC = memo(() => {
                 metrics: undefined,
                 tableCalculations: undefined,
                 dimensions: overrideFilterGroupWithFilterRules(
-                    filters.dimensions,
+                    processedFilters.dimensions,
                     reducedRules,
                     undefined,
                 ),
@@ -249,8 +241,8 @@ const FiltersCard: FC = memo(() => {
         tableCalculations,
     });
     const allFilterRules = useMemo(
-        () => getTotalFilterRules(filters),
-        [filters],
+        () => getTotalFilterRules(processedFilters),
+        [processedFilters],
     );
 
     const renderFilterRule = useCallback(
@@ -349,7 +341,7 @@ const FiltersCard: FC = memo(() => {
             >
                 <FiltersForm
                     isEditMode={isEditMode}
-                    filters={filters}
+                    filters={processedFilters}
                     setFilters={setFilters}
                 />
             </FiltersProvider>

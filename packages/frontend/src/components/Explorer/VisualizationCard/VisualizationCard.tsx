@@ -21,6 +21,13 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
+import {
+    explorerActions,
+    selectIsEditMode,
+    selectIsVisualizationExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -84,14 +91,17 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const setChartConfig = useExplorerContext(
         (context) => context.actions.setChartConfig,
     );
-    const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
-    );
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
+    // Redux selectors for performance - using component-specific selector
+    const isOpen = useExplorerSelector(selectIsVisualizationExpanded);
+    const isEditMode = useExplorerSelector(selectIsEditMode);
+    const dispatch = useExplorerDispatch();
+
+    // TODO: Migration - dispatching directly to Redux for isolated re-renders
+    const toggleExpandedSection = useCallback(
+        (section: ExplorerSection) => {
+            dispatch(explorerActions.toggleExpandedSection(section));
+        },
+        [dispatch],
     );
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
@@ -103,10 +113,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         (context) => context.actions.getDownloadQueryUuid,
     );
 
-    const isOpen = useMemo(
-        () => expandedSections.includes(ExplorerSection.VISUALIZATION),
-        [expandedSections],
-    );
+    // isOpen now comes directly from Redux selector above
 
     const toggleSection = useCallback(
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),

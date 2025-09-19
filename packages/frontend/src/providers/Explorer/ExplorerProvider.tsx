@@ -913,10 +913,16 @@ const ExplorerProvider: FC<
     );
     const { unsavedChartVersion } = reducerState;
 
-    useExplorerInitialization(
-        initialState || defaultStateWithConfig,
-        savedChart,
+    // Create initial state with isEditMode
+    const initialStateWithEditMode = useMemo(
+        () => ({
+            ...(initialState || defaultStateWithConfig),
+            isEditMode,
+        }),
+        [initialState, defaultStateWithConfig, isEditMode],
     );
+
+    useExplorerInitialization(initialStateWithEditMode, savedChart);
 
     const reduxFilters = useExplorerSelector(selectFilters);
 
@@ -958,23 +964,15 @@ const ExplorerProvider: FC<
         });
     }, [defaultStateWithConfig, initialState]);
 
-    const setTableName = useCallback(
-        (tableName: string) => {
-            dispatch({
-                type: ActionType.SET_TABLE_NAME,
-                payload: tableName,
-            });
-            reduxDispatch(explorerActions.setTableName(tableName));
-        },
-        [reduxDispatch],
-    );
-
-    const toggleExpandedSection = useCallback((payload: ExplorerSection) => {
+    const setTableName = useCallback((tableName: string) => {
         dispatch({
-            type: ActionType.TOGGLE_EXPANDED_SECTION,
-            payload,
+            type: ActionType.SET_TABLE_NAME,
+            payload: tableName,
         });
+        // Not syncing to Redux - tableName doesn't need Redux for performance
     }, []);
+
+    // toggleExpandedSection removed - all components now use Redux directly
 
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
@@ -1072,6 +1070,7 @@ const ExplorerProvider: FC<
             type: ActionType.SET_FILTERS,
             payload: filters,
         });
+        // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
     }, []);
 
     const setParameter = useCallback(
@@ -1408,6 +1407,7 @@ const ExplorerProvider: FC<
 
     const state = useMemo(
         () => ({
+            // Don't use Redux state directly here to avoid re-renders
             ...reducerState,
             isEditMode,
             activeFields,
@@ -1656,6 +1656,7 @@ const ExplorerProvider: FC<
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
+        // Reset Redux store for filters and other migrated state
         reduxDispatch(explorerActions.reset(defaultStateWithConfig));
         resetQueryResults();
     }, [
@@ -1784,7 +1785,6 @@ const ExplorerProvider: FC<
             setChartConfig,
             fetchResults,
             cancelQuery,
-            toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
@@ -1828,7 +1828,6 @@ const ExplorerProvider: FC<
             setChartConfig,
             fetchResults,
             cancelQuery,
-            toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
