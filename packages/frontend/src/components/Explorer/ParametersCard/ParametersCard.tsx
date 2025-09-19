@@ -1,6 +1,13 @@
 import { Box } from '@mantine-8/core';
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
+import {
+    explorerActions,
+    selectIsEditMode,
+    selectIsParametersExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { ParameterSelection } from '../../../features/parameters';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
@@ -9,20 +16,22 @@ import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 const ParametersCard = memo(
     ({ parameterReferences }: { parameterReferences?: string[] }) => {
         const { projectUuid } = useParams<{ projectUuid: string }>();
-        const expandedSections = useExplorerContext(
-            (context) => context.state.expandedSections,
-        );
 
-        const isEditMode = useExplorerContext(
-            (context) => context.state.isEditMode,
-        );
+        // Redux selectors for performance - using component-specific selector
+        const paramsIsOpen = useExplorerSelector(selectIsParametersExpanded);
+        const isEditMode = useExplorerSelector(selectIsEditMode);
+        const dispatch = useExplorerDispatch();
 
         const tableName = useExplorerContext(
             (context) => context.state.unsavedChartVersion.tableName,
         );
 
-        const toggleExpandedSection = useExplorerContext(
-            (context) => context.actions.toggleExpandedSection,
+        // TODO: Migration - dispatching directly to Redux for isolated re-renders
+        const toggleExpandedSection = useCallback(
+            (section: ExplorerSection) => {
+                dispatch(explorerActions.toggleExpandedSection(section));
+            },
+            [dispatch],
         );
 
         const parameterDefinitions = useExplorerContext(
@@ -56,9 +65,7 @@ const ParametersCard = memo(
             setParameter(paramKey, value);
         };
 
-        const paramsIsOpen = expandedSections.includes(
-            ExplorerSection.PARAMETERS,
-        );
+        // paramsIsOpen now comes directly from Redux selector above
 
         const missingRequiredParameters = useExplorerContext(
             (context) => context.state.missingRequiredParameters,

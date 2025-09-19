@@ -6,34 +6,96 @@ import {
     type FilterableField,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
+import {
+    explorerActions,
+    selectFilters,
+    selectIsFiltersExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import { ExplorerSection } from '../providers/Explorer/types';
-import useExplorerContext from '../providers/Explorer/useExplorerContext';
+
+// Lightweight hook for tree components - only subscribes to filter data, not panel state
+export const useFilteredFields = () => {
+    const filters = useExplorerSelector(selectFilters);
+    const dispatch = useExplorerDispatch();
+
+    // Create a normalized lookup Set for O(1) performance instead of O(n) array iteration
+    const filteredFieldIds = useMemo(() => {
+        const allFilterRules = getTotalFilterRules(filters);
+        return new Set(allFilterRules.map((rule) => rule.target.fieldId));
+    }, [filters]);
+
+    const isFilteredField = useCallback(
+        (field: Field): boolean => {
+            const fieldId = getItemId(field);
+            return filteredFieldIds.has(fieldId);
+        },
+        [filteredFieldIds],
+    );
+
+    const addFilter = useCallback(
+        (field: FilterableField, value: any) => {
+            const newFilters = addFilterRule({ filters, field, value });
+            dispatch(explorerActions.setFilters(newFilters));
+
+            // TODO: Check if filters panel is open first, but for now keep original behavior
+            // This might cause panel to toggle if already open, but that's rare
+            dispatch(
+                explorerActions.toggleExpandedSection(ExplorerSection.FILTERS),
+            );
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        },
+        [filters, dispatch],
+    );
+
+    return useMemo(
+        () => ({
+            isFilteredField,
+            addFilter,
+        }),
+        [isFilteredField, addFilter],
+    );
+};
 
 export const useFilters = () => {
-    const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
+    // Full hook for components that need panel state too
+    const filters = useExplorerSelector(selectFilters);
+    const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
+    const dispatch = useExplorerDispatch();
+
+    // Memoize these functions to prevent unnecessary re-renders of components using this hook
+    const setFilters = useCallback(
+        (newFilters: typeof filters) => {
+            dispatch(explorerActions.setFilters(newFilters));
+        },
+        [dispatch], // filters removed from deps - dispatch is stable
     );
-    const filters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.filters,
+
+    const toggleExpandedSection = useCallback(
+        (section: ExplorerSection) => {
+            dispatch(explorerActions.toggleExpandedSection(section));
+        },
+        [dispatch],
     );
-    const setFilters = useExplorerContext(
-        (context) => context.actions.setFilters,
-    );
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
-    );
-    const filterIsOpen = expandedSections.includes(ExplorerSection.FILTERS);
 
     const allFilterRules = useMemo(
         () => getTotalFilterRules(filters),
         [filters],
     );
 
+    // Optimize isFilteredField to prevent re-renders in tree components
     const isFilteredField = useCallback(
-        (field: Field): boolean =>
-            !!allFilterRules.find(
-                (rule) => rule.target.fieldId === getItemId(field),
-            ),
+        (field: Field): boolean => {
+            const fieldId = getItemId(field);
+            return allFilterRules.some(
+                (rule) => rule.target.fieldId === fieldId,
+            );
+        },
         [allFilterRules],
     );
 

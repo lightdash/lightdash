@@ -50,6 +50,13 @@ import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
 } from '../../components/RunQuerySettings/defaults';
+import {
+    explorerActions,
+    selectFilters,
+    useExplorerDispatch,
+    useExplorerInitialization,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
@@ -906,6 +913,29 @@ const ExplorerProvider: FC<
     );
     const { unsavedChartVersion } = reducerState;
 
+    // Create initial state with isEditMode
+    const initialStateWithEditMode = useMemo(
+        () => ({
+            ...(initialState || defaultStateWithConfig),
+            isEditMode,
+        }),
+        [initialState, defaultStateWithConfig, isEditMode],
+    );
+
+    useExplorerInitialization(initialStateWithEditMode, savedChart);
+
+    const reduxFilters = useExplorerSelector(selectFilters);
+
+    const reduxDispatch = useExplorerDispatch();
+
+    const computedMetricQuery = useMemo(
+        () => ({
+            ...unsavedChartVersion.metricQuery,
+            filters: reduxFilters,
+        }),
+        [unsavedChartVersion.metricQuery, reduxFilters],
+    );
+
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
     >(() => {
@@ -939,14 +969,10 @@ const ExplorerProvider: FC<
             type: ActionType.SET_TABLE_NAME,
             payload: tableName,
         });
+        // Not syncing to Redux - tableName doesn't need Redux for performance
     }, []);
 
-    const toggleExpandedSection = useCallback((payload: ExplorerSection) => {
-        dispatch({
-            type: ActionType.TOGGLE_EXPANDED_SECTION,
-            payload,
-        });
-    }, []);
+    // toggleExpandedSection removed - all components now use Redux directly
 
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
@@ -1044,6 +1070,7 @@ const ExplorerProvider: FC<
             type: ActionType.SET_FILTERS,
             payload: filters,
         });
+        // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
     }, []);
 
     const setParameter = useCallback(
@@ -1380,6 +1407,7 @@ const ExplorerProvider: FC<
 
     const state = useMemo(
         () => ({
+            // Don't use Redux state directly here to avoid re-renders
             ...reducerState,
             isEditMode,
             activeFields,
@@ -1521,15 +1549,13 @@ const ExplorerProvider: FC<
     // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {
         const fields = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ),
+            ...computedMetricQuery.dimensions,
+            ...computedMetricQuery.metrics,
+            ...computedMetricQuery.tableCalculations.map(({ name }) => name),
         ]);
         const hasFields = fields.size > 0;
         if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
-            const metricQuery = unsavedChartVersion.metricQuery;
+            const metricQuery = computedMetricQuery; // Use computed metricQuery with Redux filters
             let pivotConfiguration: PivotConfiguration | undefined;
 
             if (!explore) {
@@ -1576,6 +1602,7 @@ const ExplorerProvider: FC<
             );
         }
     }, [
+        computedMetricQuery, // Use computed metricQuery instead of context metricQuery
         unsavedChartVersion.metricQuery,
         unsavedChartVersion.tableName,
         unsavedChartVersion.parameters,
@@ -1629,6 +1656,8 @@ const ExplorerProvider: FC<
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
+        // Reset Redux store for filters and other migrated state
+        reduxDispatch(explorerActions.reset(defaultStateWithConfig));
         resetQueryResults();
     }, [
         queryClient,
@@ -1636,6 +1665,7 @@ const ExplorerProvider: FC<
         defaultStateWithConfig,
         mainSetQueryUuidHistory,
         unpivotedSetQueryUuidHistory,
+        reduxDispatch,
     ]);
 
     const navigate = useNavigate();
@@ -1755,7 +1785,6 @@ const ExplorerProvider: FC<
             setChartConfig,
             fetchResults,
             cancelQuery,
-            toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
@@ -1799,7 +1828,6 @@ const ExplorerProvider: FC<
             setChartConfig,
             fetchResults,
             cancelQuery,
-            toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
