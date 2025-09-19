@@ -22,6 +22,7 @@ import {
     IconExclamationCircle,
     IconLayoutDashboard,
     IconRefresh,
+    IconTestPipe,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
@@ -269,14 +270,25 @@ type Props = {
     debug?: boolean;
     projectUuid: string;
     agentUuid: string;
+    showAddToEvalsButton?: boolean;
+    onAddToEvals?: (promptUuid: string) => void;
 };
 
 export const AssistantBubble: FC<Props> = memo(
-    ({ message, isActive = false, debug = false, projectUuid, agentUuid }) => {
+    ({
+        message,
+        isActive = false,
+        debug = false,
+        projectUuid,
+        agentUuid,
+        showAddToEvalsButton,
+        onAddToEvals,
+    }) => {
         const artifact = useAiAgentStoreSelector(
             (state) => state.aiArtifact.artifact,
         );
         const dispatch = useAiAgentStoreDispatch();
+
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
@@ -434,6 +446,20 @@ export const AssistantBubble: FC<Props> = memo(
                                 }
                             />
                         </ActionIcon>
+                    )}
+
+                    {showAddToEvalsButton && onAddToEvals && (
+                        <Tooltip label="Add this response to evals">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                aria-label="Add to evaluation set"
+                                onClick={() => onAddToEvals(message.uuid)}
+                                display={isLoading ? 'none' : 'block'}
+                            >
+                                <MantineIcon icon={IconTestPipe} color="gray" />
+                            </ActionIcon>
+                        </Tooltip>
                     )}
 
                     {isArtifactAvailable && (

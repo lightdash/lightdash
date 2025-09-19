@@ -237,6 +237,7 @@ import {
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
 import {
+    AiAgentToolCallTable,
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
@@ -272,6 +273,16 @@ import {
     AiArtifactVersionsTable,
     AiArtifactVersionsTableName,
 } from '../ee/database/entities/aiArtifacts';
+import {
+    AiEvalPromptTable,
+    AiEvalPromptTableName,
+    AiEvalRunResultTable,
+    AiEvalRunResultTableName,
+    AiEvalRunTable,
+    AiEvalRunTableName,
+    AiEvalTable,
+    AiEvalTableName,
+} from '../ee/database/entities/aiEvals';
 import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
@@ -387,5 +398,9 @@ declare module 'knex/types/tables' {
         [ProjectParametersTableName]: ProjectParametersTable;
         [RolesTableName]: RoleTable;
         [ScopedRolesTableName]: ScopedRoleTable;
+        [AiEvalTableName]: AiEvalTable;
+        [AiEvalPromptTableName]: AiEvalPromptTable;
+        [AiEvalRunTableName]: AiEvalRunTable;
+        [AiEvalRunResultTableName]: AiEvalRunResultTable;
     }
 }

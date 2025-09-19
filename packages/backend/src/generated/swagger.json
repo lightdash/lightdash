@@ -6397,6 +6397,9 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiCloneWebAppThreadResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
+            },
             "AiAgentExploreAccessSummary": {
                 "properties": {
                     "metrics": {
@@ -6569,7 +6572,8 @@
                     "time_series_chart",
                     "vertical_bar_chart",
                     "table",
-                    "dashboard"
+                    "dashboard",
+                    "improve_context"
                 ],
                 "type": "string"
             },
@@ -6660,6 +6664,468 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_AiAgentEvaluation.evalUuid_": {
+                "properties": {
+                    "evalUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["evalUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiSuccess_Pick_AiAgentEvaluation.evalUuid__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Pick_AiAgentEvaluation.evalUuid_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateEvaluationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_Pick_AiAgentEvaluation.evalUuid__"
+            },
+            "CreateEvaluationPrompt": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "properties": {
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "promptUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["threadUuid", "promptUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Represents a prompt for evaluation that can be either:\n- A string containing the prompt text directly\n- An object referencing an existing prompt and thread by their UUIDs"
+            },
+            "ApiCreateEvaluationRequest": {
+                "properties": {
+                    "prompts": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreateEvaluationPrompt"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompts", "title"],
+                "type": "object"
+            },
+            "AiAgentEvaluationRunSummary": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "completedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "running", "completed", "failed"]
+                    },
+                    "evalUuid": {
+                        "type": "string"
+                    },
+                    "runUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "completedAt",
+                    "status",
+                    "evalUuid",
+                    "runUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentEvaluationRunSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentEvaluationRunSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentEvaluationRunResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentEvaluationRunSummary_"
+            },
+            "Pick_AiAgentEvaluation.evalUuid-or-agentUuid-or-title-or-description-or-createdAt-or-updatedAt_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "evalUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "description",
+                    "createdAt",
+                    "updatedAt",
+                    "title",
+                    "evalUuid",
+                    "agentUuid"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentEvaluationSummary": {
+                "$ref": "#/components/schemas/Pick_AiAgentEvaluation.evalUuid-or-agentUuid-or-title-or-description-or-createdAt-or-updatedAt_"
+            },
+            "ApiSuccess_AiAgentEvaluationSummary-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentEvaluationSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentEvaluationSummaryListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentEvaluationSummary-Array_"
+            },
+            "AiAgentEvaluationPrompt": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "evalPromptUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["createdAt", "evalPromptUuid"],
+                        "type": "object"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "prompt": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["string"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["prompt", "type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "threadUuid": {
+                                        "type": "string"
+                                    },
+                                    "promptUuid": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["thread"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "threadUuid",
+                                    "promptUuid",
+                                    "type"
+                                ],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "AiAgentEvaluation": {
+                "properties": {
+                    "prompts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentEvaluationPrompt"
+                        },
+                        "type": "array"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "evalUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "prompts",
+                    "updatedAt",
+                    "createdAt",
+                    "description",
+                    "title",
+                    "agentUuid",
+                    "evalUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentEvaluation_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentEvaluation"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentEvaluationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentEvaluation_"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData__runs-AiAgentEvaluationRunSummary-Array__": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "properties": {
+                            "runs": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentEvaluationRunSummary"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["runs"],
+                        "type": "object"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData__runs-AiAgentEvaluationRunSummary-Array___": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData__runs-AiAgentEvaluationRunSummary-Array__"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentEvaluationRunSummaryListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData__runs-AiAgentEvaluationRunSummary-Array___"
+            },
+            "AiAgentEvaluationRunResult": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "completedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "running", "completed", "failed"]
+                    },
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "evalPromptUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "resultUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "completedAt",
+                    "errorMessage",
+                    "status",
+                    "threadUuid",
+                    "evalPromptUuid",
+                    "resultUuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentEvaluationRun": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentEvaluationRunSummary"
+                    },
+                    {
+                        "properties": {
+                            "results": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentEvaluationRunResult"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["results"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_AiAgentEvaluationRun_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentEvaluationRun"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentEvaluationRunResultsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentEvaluationRun_"
+            },
+            "ApiUpdateEvaluationRequest": {
+                "properties": {
+                    "prompts": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreateEvaluationPrompt"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ApiAppendEvaluationRequest": {
+                "properties": {
+                    "prompts": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreateEvaluationPrompt"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["prompts"],
                 "type": "object"
             },
             "Role": {
@@ -6937,20 +7403,6 @@
                     }
                 },
                 "required": ["threads"],
-                "type": "object"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
                 "type": "object"
             },
             "KnexPaginatedData_AiAgentAdminConversationsSummary_": {
@@ -10807,6 +11259,7 @@
                 "type": "string",
                 "enum": [
                     "slackAiPrompt",
+                    "aiAgentEvalResult",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -14059,22 +14512,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -19477,7 +19930,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2011.0",
+        "version": "0.2013.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -13,16 +13,13 @@ import {
     DbPersonalAccessToken,
     PersonalAccessTokenTableName,
 } from '../../database/entities/personalAccessTokens';
+import { hash } from '../../utils/hash';
 
 export class PersonalAccessTokenModel {
     private readonly database: Knex;
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
-    }
-
-    static _hash(s: string): string {
-        return crypto.createHash('sha256').update(s).digest('hex');
     }
 
     static mapDbObjectToPersonalAccessToken(
@@ -89,7 +86,7 @@ export class PersonalAccessTokenModel {
         expiresAt: Date;
     }): Promise<PersonalAccessTokenWithToken> {
         const token = crypto.randomBytes(16).toString('hex');
-        const tokenHash = PersonalAccessTokenModel._hash(token);
+        const tokenHash = await hash(token);
         const [row] = await this.database(PersonalAccessTokenTableName)
             .update({
                 rotated_at: new Date(),
@@ -128,7 +125,7 @@ export class PersonalAccessTokenModel {
         user: Pick<SessionUser, 'userId'>,
         data: CreatePersonalAccessToken & { token: string },
     ): Promise<PersonalAccessTokenWithToken> {
-        const tokenHash = PersonalAccessTokenModel._hash(data.token);
+        const tokenHash = await hash(data.token);
         const [row] = await this.database(PersonalAccessTokenTableName)
             .insert({
                 created_by_user_id: user.userId,

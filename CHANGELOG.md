@@ -1,3 +1,35 @@
+# [0.2016.0](https://github.com/lightdash/lightdash/compare/0.2015.1...0.2016.0) (2025-09-19)
+
+
+### Features
+
+* add ability to add prompts to evaluation sets from AI Agents admin ([#16989](https://github.com/lightdash/lightdash/issues/16989)) ([01ca616](https://github.com/lightdash/lightdash/commit/01ca616637428a83642a1d54af7c73325aafcf48))
+* add AI Agent eval database schema and migrations ([#16900](https://github.com/lightdash/lightdash/issues/16900)) ([9db9c5e](https://github.com/lightdash/lightdash/commit/9db9c5e1b179756169312582900f5f072806a850))
+* add thread cloning functionality to AI agents ([#16968](https://github.com/lightdash/lightdash/issues/16968)) ([f11dcb2](https://github.com/lightdash/lightdash/commit/f11dcb2f69c341bdce97cdde969fc092b16929fa))
+* **backend:** eval framework for AI Agents ([#16901](https://github.com/lightdash/lightdash/issues/16901)) ([cb28207](https://github.com/lightdash/lightdash/commit/cb282075e3022625a6f5c581e79071ec0790a133))
+* **frontend:** UI for defining and batch-running AI Agent prompts  ([#16902](https://github.com/lightdash/lightdash/issues/16902)) ([3722fb6](https://github.com/lightdash/lightdash/commit/3722fb6946caa9e0e1f4c5fc2132a2cf08932d26))
+
+## [0.2015.1](https://github.com/lightdash/lightdash/compare/0.2015.0...0.2015.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* improve token hash ([#16918](https://github.com/lightdash/lightdash/issues/16918)) ([3990a7c](https://github.com/lightdash/lightdash/commit/3990a7c59846d137370601179aa2713c8daadb38))
+
+# [0.2015.0](https://github.com/lightdash/lightdash/compare/0.2014.0...0.2015.0) (2025-09-19)
+
+
+### Features
+
+* Improve artifact error UI ([#17002](https://github.com/lightdash/lightdash/issues/17002)) ([03f0b74](https://github.com/lightdash/lightdash/commit/03f0b74edffa5d8024180ea4cb515f9603c0ac65))
+
+# [0.2014.0](https://github.com/lightdash/lightdash/compare/0.2013.4...0.2014.0) (2025-09-19)
+
+
+### Features
+
+* add searchFieldValues tool for AI agents ([#16994](https://github.com/lightdash/lightdash/issues/16994)) ([57a891c](https://github.com/lightdash/lightdash/commit/57a891c9b733ab0393c8869616fae4c6a05cb398)), closes [#16993](https://github.com/lightdash/lightdash/issues/16993)
+
 ## [0.2013.4](https://github.com/lightdash/lightdash/compare/0.2013.3...0.2013.4) (2025-09-18)
 
 

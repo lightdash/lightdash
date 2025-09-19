@@ -126,6 +126,11 @@ import { type ValidationResponse } from './types/validation';
 import type {
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentEvaluationResponse,
+    ApiAiAgentEvaluationRunResponse,
+    ApiAiAgentEvaluationRunResultsResponse,
+    ApiAiAgentEvaluationRunSummaryListResponse,
+    ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
@@ -133,6 +138,7 @@ import type {
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiCreateEvaluationResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -954,7 +960,13 @@ type ApiResults =
     | ApiAiAgentThreadGenerateTitleResponse['results']
     | ApiAiAgentThreadSummaryListResponse['results']
     | Account
-    | ApiAiAgentAdminConversationsResponse['results'];
+    | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentEvaluationSummaryListResponse['results']
+    | ApiAiAgentEvaluationResponse['results']
+    | ApiAiAgentEvaluationRunResponse['results']
+    | ApiAiAgentEvaluationRunSummaryListResponse['results']
+    | ApiAiAgentEvaluationRunResultsResponse['results']
+    | ApiCreateEvaluationResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

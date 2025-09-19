@@ -63,6 +63,9 @@ import { useProject } from '../../../hooks/useProject';
 import { useProjectUsersWithRoles } from '../../../hooks/useProjectUsersWithRoles';
 import useApp from '../../../providers/App/useApp';
 import { AiAgentEditPageLayout } from '../../features/aiCopilot/components/AiAgentEditPageLayout/AiAgentEditPageLayout';
+import { EvalDetail } from '../../features/aiCopilot/components/Evals/EvalDetail';
+import { EvalRunDetails } from '../../features/aiCopilot/components/Evals/EvalRunDetails';
+import { EvalTabLayout } from '../../features/aiCopilot/components/Evals/EvalTabLayout';
 import {
     InstructionsGuidelines,
     InstructionsTemplates,
@@ -77,6 +80,7 @@ import {
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 import AiExploreAccessTree from './AiExploreAccessTree';
+import { EvalsTab } from './EvalsTab';
 
 const formSchema = z.object({
     name: z.string().min(1),
@@ -99,9 +103,11 @@ type Props = {
 };
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
-    const { agentUuid, projectUuid } = useParams<{
+    const { agentUuid, projectUuid, evalUuid, runUuid } = useParams<{
         agentUuid: string;
         projectUuid: string;
+        evalUuid?: string;
+        runUuid?: string;
     }>();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -488,10 +494,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             }
         >
             <Stack gap="xs">
-                <Tabs defaultValue="setup" keepMounted={false}>
+                <Tabs
+                    defaultValue={evalUuid || runUuid ? 'evals' : 'setup'}
+                    keepMounted={false}
+                >
                     {!isCreateMode && (
                         <Tabs.List>
                             <Tabs.Tab value="setup">Setup</Tabs.Tab>
+                            <Tabs.Tab value="evals">Evals</Tabs.Tab>
                         </Tabs.List>
                     )}
 
@@ -1203,6 +1213,30 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 )}
                             </Stack>
                         </form>
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="evals" pt="lg">
+                        <EvalTabLayout>
+                            {runUuid ? (
+                                <EvalRunDetails
+                                    projectUuid={projectUuid!}
+                                    agentUuid={actualAgentUuid!}
+                                    evalUuid={evalUuid!}
+                                    runUuid={runUuid}
+                                />
+                            ) : evalUuid ? (
+                                <EvalDetail
+                                    projectUuid={projectUuid!}
+                                    agentUuid={actualAgentUuid!}
+                                    evalUuid={evalUuid}
+                                />
+                            ) : (
+                                <EvalsTab
+                                    projectUuid={projectUuid!}
+                                    agentUuid={actualAgentUuid!}
+                                />
+                            )}
+                        </EvalTabLayout>
                     </Tabs.Panel>
                 </Tabs>
                 <MantineModal
