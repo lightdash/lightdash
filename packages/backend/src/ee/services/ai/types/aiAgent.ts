@@ -44,6 +44,11 @@ export type AiAgentArgs<P extends string = string> = AiModel<P> & {
     canManageAgent: boolean;
 };
 
+export type PerformanceMetrics = {
+    measureGenerateResponseTime: (durationMs: number) => void;
+    measureStreamResponseTime: (durationMs: number) => void;
+};
+
 export type AiAgentDependencies = {
     findCharts: FindChartsFn;
     findDashboards: FindDashboardsFn;
@@ -61,6 +66,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     appendInstruction: AppendInstructionFn;
+    perf: PerformanceMetrics;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;
