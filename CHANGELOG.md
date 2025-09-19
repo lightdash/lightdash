@@ -1,3 +1,38 @@
+## [0.2015.1](https://github.com/lightdash/lightdash/compare/0.2015.0...0.2015.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* improve token hash ([#16918](https://github.com/lightdash/lightdash/issues/16918)) ([3990a7c](https://github.com/lightdash/lightdash/commit/3990a7c59846d137370601179aa2713c8daadb38))
+
+# [0.2015.0](https://github.com/lightdash/lightdash/compare/0.2014.0...0.2015.0) (2025-09-19)
+
+
+### Features
+
+* Improve artifact error UI ([#17002](https://github.com/lightdash/lightdash/issues/17002)) ([03f0b74](https://github.com/lightdash/lightdash/commit/03f0b74edffa5d8024180ea4cb515f9603c0ac65))
+
+# [0.2014.0](https://github.com/lightdash/lightdash/compare/0.2013.4...0.2014.0) (2025-09-19)
+
+
+### Features
+
+* add searchFieldValues tool for AI agents ([#16994](https://github.com/lightdash/lightdash/issues/16994)) ([57a891c](https://github.com/lightdash/lightdash/commit/57a891c9b733ab0393c8869616fae4c6a05cb398)), closes [#16993](https://github.com/lightdash/lightdash/issues/16993)
+
+## [0.2013.4](https://github.com/lightdash/lightdash/compare/0.2013.3...0.2013.4) (2025-09-18)
+
+
+### Bug Fixes
+
+* increase AI agent step count limit from 10 to 20 ([#16997](https://github.com/lightdash/lightdash/issues/16997)) ([62b6032](https://github.com/lightdash/lightdash/commit/62b6032e88093fe78184368e24f73a4acafe1370))
+
+## [0.2013.3](https://github.com/lightdash/lightdash/compare/0.2013.2...0.2013.3) (2025-09-18)
+
+
+### Bug Fixes
+
+* normalize date formats for subtotal comparison ([#16967](https://github.com/lightdash/lightdash/issues/16967)) ([806ca29](https://github.com/lightdash/lightdash/commit/806ca2936507b061062a7caff329031f56094d37))
+
 ## [0.2013.2](https://github.com/lightdash/lightdash/compare/0.2013.1...0.2013.2) (2025-09-18)
 
 

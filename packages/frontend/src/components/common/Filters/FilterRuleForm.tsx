@@ -92,7 +92,12 @@ const FilterRuleForm: FC<Props> = ({
     }
 
     return (
-        <Group noWrap align="start" spacing="xs">
+        <Group
+            noWrap
+            align="start"
+            spacing="xs"
+            data-testid="FilterRuleForm/filter-rule"
+        >
             <FieldSelect
                 size="xs"
                 disabled={!isEditMode}

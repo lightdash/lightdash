@@ -8,6 +8,7 @@ import {
     Center,
     Group,
     Loader,
+    Paper,
     Stack,
     Text,
     Title,
@@ -77,9 +78,8 @@ export const AiChartVisualization: FC<Props> = ({
 
     if (isQueryLoading) {
         return (
-            <Center>
+            <Center h="100%">
                 <Loader
-                    type="dots"
                     color="gray"
                     delayedMessage="Loading visualization..."
                 />
@@ -89,12 +89,29 @@ export const AiChartVisualization: FC<Props> = ({
 
     if (isQueryError) {
         return (
-            <Stack gap="xs" align="center" justify="center">
-                <MantineIcon icon={IconExclamationCircle} color="gray" />
-                <Text size="xs" c="dimmed" ta="center">
-                    Something went wrong loading the visualization data. Please
-                    try again.
-                </Text>
+            <Stack h="100%">
+                <Group justify="flex-end">
+                    <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="gray"
+                        onClick={() => dispatch(clearArtifact())}
+                    >
+                        <MantineIcon icon={IconX} color="gray" />
+                    </ActionIcon>
+                </Group>
+                <Paper h="100%" bg="gray.0">
+                    <Stack gap="xs" align="center" justify="center" h="100%">
+                        <MantineIcon
+                            icon={IconExclamationCircle}
+                            color="gray"
+                        />
+                        <Text size="xs" c="dimmed" ta="center">
+                            Something went wrong loading the visualization data.
+                            Please try again.
+                        </Text>
+                    </Stack>
+                </Paper>
             </Stack>
         );
     }
