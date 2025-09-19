@@ -643,6 +643,7 @@ export class AiAgentController extends BaseController {
 
         const evaluation = await this.getAiAgentService().createEval(
             req.user!,
+            projectUuid,
             agentUuid,
             body,
         );
@@ -667,6 +668,7 @@ export class AiAgentController extends BaseController {
 
         const evalRun = await this.getAiAgentService().runEval(
             req.user!,
+            projectUuid,
             agentUuid,
             evalUuid,
         );
@@ -690,6 +692,7 @@ export class AiAgentController extends BaseController {
 
         const evaluations = await this.getAiAgentService().getEvalsByAgent(
             req.user!,
+            projectUuid,
             agentUuid,
         );
 
@@ -713,6 +716,7 @@ export class AiAgentController extends BaseController {
 
         const evaluation = await this.getAiAgentService().getEval(
             req.user!,
+            projectUuid,
             agentUuid,
             evalUuid,
         );
@@ -747,6 +751,7 @@ export class AiAgentController extends BaseController {
 
         const runs = await this.getAiAgentService().getEvalRuns(
             req.user!,
+            projectUuid,
             agentUuid,
             evalUuid,
             paginateArgs,
@@ -773,6 +778,7 @@ export class AiAgentController extends BaseController {
 
         const runResults = await this.getAiAgentService().getEvalRunWithResults(
             req.user!,
+            projectUuid,
             agentUuid,
             evalUuid,
             runUuid,
@@ -800,6 +806,7 @@ export class AiAgentController extends BaseController {
 
         const evaluation = await this.getAiAgentService().updateEval(
             req.user!,
+            projectUuid,
             agentUuid,
             evalUuid,
             body,
@@ -826,6 +833,7 @@ export class AiAgentController extends BaseController {
 
         const evaluation = await this.getAiAgentService().appendToEval(
             req.user!,
+            projectUuid,
             agentUuid,
             evalUuid,
             body,
@@ -851,6 +859,7 @@ export class AiAgentController extends BaseController {
 
         await this.getAiAgentService().deleteEval(
             req.user!,
+            projectUuid,
             agentUuid,
             evalUuid,
         );
