@@ -47,6 +47,7 @@
                 bigquery = "1.4.5";
                 databricks = "1.4.3";
                 trino = "1.4.2";
+                clickhouse = "1.4.9";
               };
             };
             dbt1_5 = {
@@ -59,6 +60,7 @@
                 bigquery = "1.5.9";
                 databricks = "1.5.7";
                 trino = "1.5.1";
+                clickhouse = "1.5.0";
               };
             };
             dbt1_6 = {
@@ -71,6 +73,7 @@
                 bigquery = "1.6.0";
                 databricks = "1.6.0";
                 trino = "1.6.0";
+                clickhouse = "1.6.0";
               };
             };
             dbt1_7 = {
@@ -83,6 +86,7 @@
                 bigquery = "1.7.0";
                 databricks = "1.7.0";
                 trino = "1.7.0";
+                clickhouse = "1.7.0";
               };
             };
             dbt1_8 = {
@@ -95,6 +99,7 @@
                 bigquery = "1.8.0";
                 databricks = "1.8.0";
                 trino = "1.8.0";
+                clickhouse = "1.8.0";
               };
             };
             dbt1_9 = {
@@ -107,6 +112,7 @@
                 bigquery = "1.9.0";
                 databricks = "1.9.0";
                 trino = "1.9.0";
+                clickhouse = "1.9.0";
               };
             };
           };
@@ -154,6 +160,7 @@
                   "dbt-bigquery~=${adapterVersions.bigquery}" \
                   "dbt-databricks~=${adapterVersions.databricks}" \
                   "dbt-trino~=${adapterVersions.trino}" \
+                  "dbt-clickhouse~=${adapterVersions.clickhouse}" \
                   "pytz" \
                   "psycopg2-binary==2.9.6" \
                   --disable-pip-version-check --no-warn-script-location || { echo "Failed to install adapters"; exit 1; }
