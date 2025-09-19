@@ -23,6 +23,7 @@ import { getGenerateDashboard } from '../tools/generateDashboard';
 import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import { getImproveContext } from '../tools/improveContext';
+import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -222,6 +223,10 @@ const getAgentTools = (
         organizationId: args.organizationId,
     });
 
+    const searchFieldValues = getSearchFieldValues({
+        searchFieldValues: dependencies.searchFieldValues,
+    });
+
     const tools = {
         findCharts,
         findDashboards,
@@ -232,6 +237,7 @@ const getAgentTools = (
         generateTimeSeriesVizConfig,
         generateTableVizConfig,
         ...(args.canManageAgent ? { improveContext } : {}),
+        ...(args.enableDataAccess ? { searchFieldValues } : {}),
     };
 
     if (args.debugLoggingEnabled) {

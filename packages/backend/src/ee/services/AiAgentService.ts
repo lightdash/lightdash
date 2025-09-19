@@ -92,6 +92,7 @@ import {
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
+    SearchFieldValuesFn,
     SendFileFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -1896,6 +1897,29 @@ export class AiAgentService {
             };
         };
 
+        const searchFieldValues: SearchFieldValuesFn = async (args) => {
+            const dimensionFilters = args.filters?.dimensions;
+            const andFilters =
+                dimensionFilters && 'and' in dimensionFilters
+                    ? dimensionFilters
+                    : undefined;
+
+            const { results } =
+                await this.projectService.searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    args.table,
+                    args.fieldId,
+                    args.query,
+                    100,
+                    andFilters,
+                    false,
+                    undefined,
+                );
+
+            return results;
+        };
+
         return {
             findCharts,
             findDashboards,
@@ -1908,6 +1932,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            searchFieldValues,
         };
     }
 
@@ -1980,6 +2005,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            searchFieldValues,
         } = this.getAiAgentDependencies(user, prompt);
 
         const modelProperties = getModel(this.lightdashConfig.ai.copilot);
@@ -2026,6 +2052,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            searchFieldValues,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
