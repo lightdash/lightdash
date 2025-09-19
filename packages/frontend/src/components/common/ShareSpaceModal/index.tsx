@@ -49,6 +49,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
         <>
             <Box>
                 <Button
+                    radius="md"
                     leftIcon={
                         selectedAccess.value === SpaceAccessType.PRIVATE ? (
                             <IconLock size={18} />
