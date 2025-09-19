@@ -33,6 +33,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    NotImplementedError,
     SlackPrompt,
     ToolName,
     UpdateSlackResponse,
@@ -101,6 +102,16 @@ export class AiAgentModel {
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+    }
+
+    static async withTrx<T>(
+        db: Knex | Knex.Transaction,
+        callback: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        if (db.isTransaction) {
+            return callback(db as Knex.Transaction);
+        }
+        return db.transaction(callback);
     }
 
     async getAgent({
@@ -1861,8 +1872,11 @@ export class AiAgentModel {
             .first();
     }
 
-    async createWebAppThread(data: CreateWebAppThread) {
-        return this.database.transaction(async (trx) => {
+    async createWebAppThread(
+        data: CreateWebAppThread,
+        { db }: { db: Knex } = { db: this.database },
+    ) {
+        return AiAgentModel.withTrx(db, async (trx) => {
             const [row] = await trx(AiThreadTableName)
                 .insert({
                     organization_uuid: data.organizationUuid,
@@ -1878,12 +1892,16 @@ export class AiAgentModel {
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
             });
+
             return row.ai_thread_uuid;
         });
     }
 
-    async createWebAppPrompt(data: CreateWebAppPrompt) {
-        return this.database.transaction(async (trx) => {
+    async createWebAppPrompt(
+        data: CreateWebAppPrompt,
+        { db }: { db: Knex } = { db: this.database },
+    ) {
+        return AiAgentModel.withTrx(db, async (trx) => {
             const [row] = await trx(AiPromptTableName)
                 .insert({
                     ai_thread_uuid: data.threadUuid,
@@ -2485,11 +2503,18 @@ export class AiAgentModel {
                 createdAt: evalRecord.created_at,
                 updatedAt: evalRecord.updated_at,
                 prompts: promptRecords.map((p) => ({
-                    promptUuid: p.ai_eval_prompt_uuid,
-                    prompt: p.prompt,
-                    aiPromptUuid: p.ai_prompt_uuid,
-                    aiThreadUuid: p.ai_thread_uuid,
+                    evalPromptUuid: p.ai_eval_prompt_uuid,
                     createdAt: p.created_at,
+                    ...(p.prompt
+                        ? {
+                              type: 'string' as const,
+                              prompt: p.prompt,
+                          }
+                        : {
+                              type: 'thread' as const,
+                              promptUuid: p.ai_prompt_uuid!,
+                              threadUuid: p.ai_thread_uuid!,
+                          }),
                 })),
             };
         });
@@ -2531,11 +2556,18 @@ export class AiAgentModel {
             createdAt: evalRecord.created_at,
             updatedAt: evalRecord.updated_at,
             prompts: prompts.map((p) => ({
-                promptUuid: p.ai_eval_prompt_uuid,
-                prompt: p.prompt,
-                aiPromptUuid: p.ai_prompt_uuid,
-                aiThreadUuid: p.ai_thread_uuid,
+                evalPromptUuid: p.ai_eval_prompt_uuid,
                 createdAt: p.created_at,
+                ...(p.prompt
+                    ? {
+                          type: 'string' as const,
+                          prompt: p.prompt,
+                      }
+                    : {
+                          type: 'thread' as const,
+                          promptUuid: p.ai_prompt_uuid!,
+                          threadUuid: p.ai_thread_uuid!,
+                      }),
             })),
         };
     }
@@ -2561,52 +2593,51 @@ export class AiAgentModel {
         evalUuid: string,
         data: ApiUpdateEvaluationRequest,
     ): Promise<AiAgentEvaluation> {
-        const trx = await this.database.transaction();
+        await AiAgentModel.withTrx(this.database, async (trx) => {
+            if (data.title !== undefined || data.description !== undefined) {
+                await trx(AiEvalTableName)
+                    .where('ai_eval_uuid', evalUuid)
+                    .update({
+                        ...(data.title !== undefined
+                            ? { title: data.title }
+                            : {}),
+                        ...(data.description !== undefined
+                            ? { description: data.description }
+                            : {}),
+                        updated_at: trx.fn.now(),
+                    });
+            }
 
-        console.dir({ data });
-        if (data.title !== undefined || data.description !== undefined) {
-            await trx(AiEvalTableName)
-                .where('ai_eval_uuid', evalUuid)
-                .update({
-                    ...(data.title !== undefined ? { title: data.title } : {}),
-                    ...(data.description !== undefined
-                        ? { description: data.description }
-                        : {}),
-                    updated_at: trx.fn.now(),
-                });
-        }
+            if (data.prompts !== undefined) {
+                // Delete existing prompts
+                await trx(AiEvalPromptTableName)
+                    .where('ai_eval_uuid', evalUuid)
+                    .delete();
 
-        if (data.prompts !== undefined) {
-            // Delete existing prompts
-            await trx(AiEvalPromptTableName)
-                .where('ai_eval_uuid', evalUuid)
-                .delete();
-
-            // Insert new prompts - handle both string and object format
-            if (data.prompts.length > 0) {
-                const promptRecords = data.prompts.map((promptData) => {
-                    if (typeof promptData === 'string') {
-                        // Legacy string format
+                // Insert new prompts - handle both string and object format
+                if (data.prompts.length > 0) {
+                    const promptRecords = data.prompts.map((promptData) => {
+                        if (typeof promptData === 'string') {
+                            // Legacy string format
+                            return {
+                                ai_eval_uuid: evalUuid,
+                                prompt: promptData,
+                                ai_prompt_uuid: null,
+                                ai_thread_uuid: null,
+                            };
+                        }
+                        // New object format with referenced prompt/thread
                         return {
                             ai_eval_uuid: evalUuid,
-                            prompt: promptData,
-                            ai_prompt_uuid: null,
-                            ai_thread_uuid: null,
+                            prompt: null,
+                            ai_prompt_uuid: promptData.promptUuid,
+                            ai_thread_uuid: promptData.threadUuid,
                         };
-                    }
-                    // New object format with referenced prompt/thread
-                    return {
-                        ai_eval_uuid: evalUuid,
-                        prompt: null,
-                        ai_prompt_uuid: promptData.promptUuid,
-                        ai_thread_uuid: promptData.threadUuid,
-                    };
-                });
-                await trx(AiEvalPromptTableName).insert(promptRecords);
+                    });
+                    await trx(AiEvalPromptTableName).insert(promptRecords);
+                }
             }
-        }
-
-        await trx.commit();
+        });
 
         return this.getEval({ evalUuid });
     }
@@ -2825,6 +2856,307 @@ export class AiAgentModel {
                         completed_at: new Date(),
                     });
             }
+        });
+    }
+
+    private async cloneThreadArtifacts({
+        sourceThreadUuid,
+        targetThreadUuid,
+        db,
+    }: {
+        sourceThreadUuid: string;
+        targetThreadUuid: string;
+        db?: Knex;
+    }): Promise<Map<string, string>> {
+        return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            const sourceArtifacts = await trx<AiArtifactsTable>(
+                AiArtifactsTableName,
+            )
+                .select('ai_artifact_uuid', 'artifact_type', 'created_at')
+                .where('ai_thread_uuid', sourceThreadUuid);
+
+            const artifactMapping = new Map<string, string>();
+
+            const clonePromises = sourceArtifacts.map(
+                async (sourceArtifact) => {
+                    const [newArtifact] = await trx<AiArtifactsTable>(
+                        AiArtifactsTableName,
+                    )
+                        .insert({
+                            ai_thread_uuid: targetThreadUuid,
+                            artifact_type: sourceArtifact.artifact_type,
+                        })
+                        .returning('ai_artifact_uuid');
+
+                    if (!newArtifact) {
+                        throw new Error(
+                            `Failed to clone artifact ${sourceArtifact.ai_artifact_uuid}`,
+                        );
+                    }
+
+                    return {
+                        oldUuid: sourceArtifact.ai_artifact_uuid,
+                        newUuid: newArtifact.ai_artifact_uuid,
+                    };
+                },
+            );
+
+            const clonedArtifacts = await Promise.all(clonePromises);
+            clonedArtifacts.forEach(({ oldUuid, newUuid }) => {
+                artifactMapping.set(oldUuid, newUuid);
+            });
+
+            return artifactMapping;
+        });
+    }
+
+    private async cloneWebAppPrompt({
+        sourcePromptUuid,
+        targetThreadUuid,
+        targetUserUuid,
+        artifactMapping,
+        includeAssistantResponse = true,
+        db,
+    }: {
+        sourcePromptUuid: string;
+        targetThreadUuid: string;
+        targetUserUuid: string;
+        artifactMapping: Map<string, string>;
+        includeAssistantResponse?: boolean;
+        db?: Knex;
+    }): Promise<string> {
+        return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            const sourcePrompt = await trx(AiPromptTableName)
+                .select(
+                    'prompt',
+                    'response',
+                    'responded_at',
+                    'created_by_user_uuid',
+                    'created_at',
+                    // we dont copy legacy fields
+                    // we don't copy saved chart link
+                    // we don't copy human score
+                )
+                .where('ai_prompt_uuid', sourcePromptUuid)
+                .first();
+
+            if (!sourcePrompt) {
+                throw new NotFoundError(
+                    `Source prompt ${sourcePromptUuid} not found`,
+                );
+            }
+
+            const newPromptUuid = await this.createWebAppPrompt(
+                {
+                    threadUuid: targetThreadUuid,
+                    createdByUserUuid: targetUserUuid,
+                    prompt: sourcePrompt.prompt,
+                },
+                { db: trx },
+            );
+
+            // Update with assistant response data if needed
+            if (includeAssistantResponse) {
+                if (
+                    sourcePrompt.created_at ||
+                    (sourcePrompt.response && sourcePrompt.responded_at)
+                ) {
+                    await trx(AiPromptTableName)
+                        .where('ai_prompt_uuid', newPromptUuid)
+                        // @ts-expect-error - responded_at is a date and update works `created_at` is not in the update type but we just need it for cloning
+                        .update({
+                            ...(sourcePrompt.created_at && {
+                                created_at: sourcePrompt.created_at,
+                            }),
+                            ...(sourcePrompt.response &&
+                                sourcePrompt.responded_at && {
+                                    response: sourcePrompt.response,
+
+                                    responded_at: sourcePrompt.responded_at,
+                                }),
+                        });
+                }
+            }
+
+            // Clone assistant response data if requested
+            if (includeAssistantResponse) {
+                // Clone tool calls
+                const toolCalls = await trx(AiAgentToolCallTableName)
+                    .select(
+                        'tool_call_id',
+                        'tool_name',
+                        'tool_args',
+                        'created_at',
+                    )
+                    .where('ai_prompt_uuid', sourcePromptUuid);
+
+                const toolCallUpdates = toolCalls.map((toolCall) => ({
+                    ai_prompt_uuid: newPromptUuid,
+                    tool_call_id: toolCall.tool_call_id,
+                    tool_name: toolCall.tool_name,
+                    tool_args: toolCall.tool_args,
+                }));
+
+                // Clone tool results
+                const toolResults = await trx(AiAgentToolResultTableName)
+                    .select('tool_call_id', 'tool_name', 'result', 'created_at')
+                    .where('ai_prompt_uuid', sourcePromptUuid);
+
+                const toolResultUpdates = toolResults.map((toolResult) => ({
+                    ai_prompt_uuid: newPromptUuid,
+                    tool_call_id: toolResult.tool_call_id,
+                    tool_name: toolResult.tool_name,
+                    result: toolResult.result,
+                }));
+
+                await Promise.all([
+                    trx(AiAgentToolCallTableName).insert(toolCallUpdates),
+                    trx(AiAgentToolResultTableName).insert(toolResultUpdates),
+                ]);
+
+                // Clone artifact versions
+                const artifactVersions = await trx(AiArtifactVersionsTableName)
+                    .select(
+                        'ai_artifact_uuid',
+                        'version_number',
+                        'title',
+                        'description',
+                        'chart_config',
+                        'dashboard_config',
+                        // we don't copy saved query or dashboard uuid
+                    )
+                    .where('ai_prompt_uuid', sourcePromptUuid);
+
+                const artifactVersionInserts = artifactVersions.map(
+                    (artifactVersion) => {
+                        const newArtifactUuid = artifactMapping.get(
+                            artifactVersion.ai_artifact_uuid,
+                        );
+
+                        if (!newArtifactUuid) {
+                            throw new Error(
+                                `No mapping found for artifact ${artifactVersion.ai_artifact_uuid}`,
+                            );
+                        }
+                        return {
+                            ai_artifact_uuid: newArtifactUuid,
+                            ai_prompt_uuid: newPromptUuid,
+                            version_number: artifactVersion.version_number,
+                            title: artifactVersion.title,
+                            description: artifactVersion.description,
+                            chart_config: artifactVersion.chart_config,
+                            dashboard_config: artifactVersion.dashboard_config,
+                        };
+                    },
+                );
+
+                await trx(AiArtifactVersionsTableName).insert(
+                    artifactVersionInserts,
+                );
+            }
+
+            return newPromptUuid;
+        });
+    }
+
+    async cloneWebAppThread({
+        sourceThreadUuid,
+        sourcePromptUuid,
+        targetUserUuid,
+        createdFrom,
+        db,
+    }: {
+        sourceThreadUuid: string;
+        sourcePromptUuid: string;
+        targetUserUuid: string;
+        createdFrom?: 'web_app' | 'evals';
+        db?: Knex;
+    }): Promise<string> {
+        return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            // Get source thread metadata
+            const sourceThread = await trx(AiThreadTableName)
+                .select(
+                    'organization_uuid',
+                    'project_uuid',
+                    'agent_uuid',
+                    'created_from',
+                    'title',
+                )
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .first();
+
+            if (!sourceThread) {
+                throw new NotFoundError(
+                    `Source thread ${sourceThreadUuid} not found`,
+                );
+            }
+
+            if (sourceThread.created_from === 'slack') {
+                throw new NotImplementedError(
+                    'Slack threads are not supported for cloning',
+                );
+            }
+
+            // Create new thread using existing method
+            const newThreadUuid = await this.createWebAppThread(
+                {
+                    organizationUuid: sourceThread.organization_uuid,
+                    projectUuid: sourceThread.project_uuid,
+                    agentUuid: sourceThread.agent_uuid,
+                    userUuid: targetUserUuid,
+                    createdFrom: createdFrom ?? sourceThread.created_from,
+                },
+                { db: trx },
+            );
+
+            // Clone thread artifacts and get mapping
+            const artifactMapping = await this.cloneThreadArtifacts({
+                sourceThreadUuid,
+                targetThreadUuid: newThreadUuid,
+                db: trx,
+            });
+
+            // Get all prompts up to the specified prompt (inclusive)
+            const sourcePrompts = await trx(AiPromptTableName)
+                .select('ai_prompt_uuid', 'created_at')
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .orderBy('created_at', 'asc');
+
+            // Find the target prompt index
+            const targetPromptIndex = sourcePrompts.findIndex(
+                (p) => p.ai_prompt_uuid === sourcePromptUuid,
+            );
+
+            if (targetPromptIndex === -1) {
+                throw new NotFoundError(
+                    `Source prompt ${sourcePromptUuid} not found in thread ${sourceThreadUuid}`,
+                );
+            }
+
+            // Get prompts up to and including the target prompt
+            const promptsToClone = sourcePrompts.slice(
+                0,
+                targetPromptIndex + 1,
+            );
+
+            // Clone each prompt sequentially to maintain chronological order
+            // eslint-disable-next-line no-await-in-loop
+            for (let i = 0; i < promptsToClone.length; i += 1) {
+                const promptToClone = promptsToClone[i];
+                const isLastPrompt = i === promptsToClone.length - 1;
+
+                // eslint-disable-next-line no-await-in-loop
+                await this.cloneWebAppPrompt({
+                    sourcePromptUuid: promptToClone.ai_prompt_uuid,
+                    targetThreadUuid: newThreadUuid,
+                    targetUserUuid,
+                    artifactMapping,
+                    includeAssistantResponse: !isLastPrompt,
+                    db: trx,
+                });
+            }
+
+            return newThreadUuid;
         });
     }
 }

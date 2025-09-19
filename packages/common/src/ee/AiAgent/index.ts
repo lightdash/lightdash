@@ -355,12 +355,19 @@ export type ApiAiAgentArtifactResponseTSOACompat =
     ApiSuccess<AiArtifactTSOACompat>;
 
 export type AiAgentEvaluationPrompt = {
-    promptUuid: string;
-    prompt: string | null;
-    aiPromptUuid: string | null;
-    aiThreadUuid: string | null;
+    evalPromptUuid: string;
     createdAt: Date;
-};
+} & (
+    | {
+          type: 'string';
+          prompt: string;
+      }
+    | {
+          type: 'thread';
+          promptUuid: string;
+          threadUuid: string;
+      }
+);
 
 export type AiAgentEvaluation = {
     evalUuid: string;
@@ -447,3 +454,5 @@ export type ApiCreateEvaluationResponse = ApiSuccess<
     Pick<AiAgentEvaluation, 'evalUuid'>
 >;
 export type ApiUpdateEvaluationResponse = ApiSuccess<AiAgentEvaluation>;
+
+export type ApiCloneWebAppThreadResponse = ApiSuccess<AiAgentThreadSummary>;

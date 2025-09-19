@@ -6397,6 +6397,9 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiCloneWebAppThreadResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
+            },
             "AiAgentExploreAccessSummary": {
                 "properties": {
                     "metrics": {
@@ -6835,35 +6838,60 @@
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentEvaluationSummary-Array_"
             },
             "AiAgentEvaluationPrompt": {
-                "properties": {
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
+                "allOf": [
+                    {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "evalPromptUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["createdAt", "evalPromptUuid"],
+                        "type": "object"
                     },
-                    "aiThreadUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "aiPromptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "prompt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "promptUuid": {
-                        "type": "string"
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "prompt": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["string"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["prompt", "type"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "threadUuid": {
+                                        "type": "string"
+                                    },
+                                    "promptUuid": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["thread"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "threadUuid",
+                                    "promptUuid",
+                                    "type"
+                                ],
+                                "type": "object"
+                            }
+                        ]
                     }
-                },
-                "required": [
-                    "createdAt",
-                    "aiThreadUuid",
-                    "aiPromptUuid",
-                    "prompt",
-                    "promptUuid"
-                ],
-                "type": "object"
+                ]
             },
             "AiAgentEvaluation": {
                 "properties": {

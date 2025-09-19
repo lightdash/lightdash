@@ -3110,6 +3110,76 @@ export class AiAgentService {
         return exploreAccessSummary;
     }
 
+    async cloneWebAppThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+        promptUuid: string,
+        { createdFrom }: { createdFrom?: 'web_app' | 'evals' },
+    ): Promise<AiAgentThreadSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const sourceThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!sourceThread) {
+            throw new NotFoundError(`Source thread not found: ${threadUuid}`);
+        }
+
+        // Check if user has access to the source thread
+        const hasSourceAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            sourceThread.user.uuid,
+        );
+        if (!hasSourceAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access source thread',
+            );
+        }
+
+        // Clone the thread
+        const clonedThreadUuid = await this.aiAgentModel.cloneWebAppThread({
+            sourceThreadUuid: threadUuid,
+            sourcePromptUuid: promptUuid,
+            targetUserUuid: user.userUuid,
+            createdFrom,
+        });
+
+        // Return the cloned thread summary
+        const clonedThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid: clonedThreadUuid,
+        });
+
+        if (!clonedThread) {
+            throw new Error('Failed to retrieve cloned thread');
+        }
+
+        return clonedThread;
+    }
+
     // Evaluation methods
 
     async createEval(
@@ -3171,33 +3241,34 @@ export class AiAgentService {
 
         // Create threads, prompts, and schedule jobs for each eval prompt
         const promises = evaluation.prompts.map(async (evalPrompt) => {
-            // Check if this prompt references existing thread/prompt (new feature)
-            if (
-                evalPrompt.aiPromptUuid !== null ||
-                evalPrompt.aiThreadUuid !== null
-            ) {
-                throw new NotImplementedError(
-                    'Evaluation prompts that reference existing threads or prompts are not yet implemented',
+            let thread: AiAgentThreadSummary;
+
+            if (evalPrompt.type === 'thread') {
+                thread = await this.cloneWebAppThread(
+                    user,
+                    agentUuid,
+                    evalPrompt.threadUuid,
+                    evalPrompt.promptUuid,
+                    { createdFrom: 'evals' },
+                );
+            } else if (evalPrompt.type === 'string') {
+                thread = await this.createAgentThread(
+                    user,
+                    agentUuid,
+                    {
+                        prompt: evalPrompt.prompt,
+                    },
+                    'evals',
+                );
+            } else {
+                throw new Error(
+                    'Evaluation prompt must be either string or thread type',
                 );
             }
 
-            // Ensure we have a string prompt for the current implementation
-            if (!evalPrompt.prompt) {
-                throw new Error('Evaluation prompt must have a prompt text');
-            }
-
-            const thread = await this.createAgentThread(
-                user,
-                agentUuid,
-                {
-                    prompt: evalPrompt.prompt,
-                },
-                'evals',
-            );
-
             const resultUuid = await this.aiAgentModel.createEvalRunResult(
                 evalRun.runUuid,
-                evalPrompt.promptUuid,
+                evalPrompt.evalPromptUuid,
                 thread.uuid,
             );
 

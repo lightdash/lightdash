@@ -32,16 +32,18 @@ export type DbAiArtifactVersion = {
 
 export type AiArtifactVersionsTable = Knex.CompositeTableType<
     DbAiArtifactVersion,
-    Pick<
-        DbAiArtifactVersion,
-        | 'ai_artifact_uuid'
-        | 'ai_prompt_uuid'
-        | 'version_number'
-        | 'title'
-        | 'description'
-        | 'saved_query_uuid'
-        | 'saved_dashboard_uuid'
-        | 'chart_config'
-        | 'dashboard_config'
+    Partial<
+        Pick<
+            DbAiArtifactVersion,
+            | 'ai_artifact_uuid'
+            | 'ai_prompt_uuid'
+            | 'version_number'
+            | 'title'
+            | 'description'
+            | 'saved_query_uuid'
+            | 'saved_dashboard_uuid'
+            | 'chart_config'
+            | 'dashboard_config'
+        >
     >
 >;
