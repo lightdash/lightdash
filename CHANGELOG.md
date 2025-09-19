@@ -1,3 +1,10 @@
+# [0.2014.0](https://github.com/lightdash/lightdash/compare/0.2013.4...0.2014.0) (2025-09-19)
+
+
+### Features
+
+* add searchFieldValues tool for AI agents ([#16994](https://github.com/lightdash/lightdash/issues/16994)) ([57a891c](https://github.com/lightdash/lightdash/commit/57a891c9b733ab0393c8869616fae4c6a05cb398)), closes [#16993](https://github.com/lightdash/lightdash/issues/16993)
+
 ## [0.2013.4](https://github.com/lightdash/lightdash/compare/0.2013.3...0.2013.4) (2025-09-18)
 
 
