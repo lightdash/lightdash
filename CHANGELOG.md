@@ -1,3 +1,14 @@
+# [0.2016.0](https://github.com/lightdash/lightdash/compare/0.2015.1...0.2016.0) (2025-09-19)
+
+
+### Features
+
+* add ability to add prompts to evaluation sets from AI Agents admin ([#16989](https://github.com/lightdash/lightdash/issues/16989)) ([01ca616](https://github.com/lightdash/lightdash/commit/01ca616637428a83642a1d54af7c73325aafcf48))
+* add AI Agent eval database schema and migrations ([#16900](https://github.com/lightdash/lightdash/issues/16900)) ([9db9c5e](https://github.com/lightdash/lightdash/commit/9db9c5e1b179756169312582900f5f072806a850))
+* add thread cloning functionality to AI agents ([#16968](https://github.com/lightdash/lightdash/issues/16968)) ([f11dcb2](https://github.com/lightdash/lightdash/commit/f11dcb2f69c341bdce97cdde969fc092b16929fa))
+* **backend:** eval framework for AI Agents ([#16901](https://github.com/lightdash/lightdash/issues/16901)) ([cb28207](https://github.com/lightdash/lightdash/commit/cb282075e3022625a6f5c581e79071ec0790a133))
+* **frontend:** UI for defining and batch-running AI Agent prompts  ([#16902](https://github.com/lightdash/lightdash/issues/16902)) ([3722fb6](https://github.com/lightdash/lightdash/commit/3722fb6946caa9e0e1f4c5fc2132a2cf08932d26))
+
 ## [0.2015.1](https://github.com/lightdash/lightdash/compare/0.2015.0...0.2015.1) (2025-09-19)
 
 
