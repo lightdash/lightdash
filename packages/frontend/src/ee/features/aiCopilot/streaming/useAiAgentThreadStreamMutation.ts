@@ -83,18 +83,28 @@ export function useAiAgentThreadStreamMutation() {
                 });
                 try {
                     for await (const uiMessage of stream) {
+                        if (abortController.signal.aborted) return;
+
+                        // Extract and combine all text content from the complete message
+                        const fullTextContent = uiMessage.parts
+                            .filter((part) => part.type === 'text')
+                            .map((part) => part.text)
+                            .join('\n');
+
+                        // Update message content with complete text
+                        if (fullTextContent) {
+                            dispatch(
+                                setMessage({
+                                    threadUuid,
+                                    content: fullTextContent,
+                                }),
+                            );
+                        }
+
+                        // Process tool calls from the complete message
                         for (const part of uiMessage.parts) {
                             if (abortController.signal.aborted) return;
-
                             switch (part.type) {
-                                case 'text':
-                                    dispatch(
-                                        setMessage({
-                                            threadUuid,
-                                            content: part.text,
-                                        }),
-                                    );
-                                    break;
                                 // TODO: this is a temporary solution
                                 // there should be a way of leveraging ToolUIPart based on the tools available
                                 case 'tool-generateBarVizConfig':
@@ -137,6 +147,7 @@ export function useAiAgentThreadStreamMutation() {
                                         captureException(error);
                                     }
                                     break;
+                                case 'text':
                                 case 'dynamic-tool':
                                 case 'file':
                                 case 'reasoning':
@@ -144,7 +155,7 @@ export function useAiAgentThreadStreamMutation() {
                                 case 'source-url':
                                 case 'step-start':
                                 default:
-                                    // not implemented
+                                    // text content is handled above, other parts not implemented
                                     break;
                             }
                         }

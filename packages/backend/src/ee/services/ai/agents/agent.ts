@@ -30,6 +30,13 @@ import type {
     AiStreamAgentResponseArgs,
 } from '../types/aiAgent';
 
+const createAiAgentLogger =
+    (debugLoggingEnabled: boolean) => (context: string, message: string) => {
+        if (debugLoggingEnabled) {
+            Logger.debug(`[AiAgent][${context}] ${message}`);
+        }
+    };
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
     stopWhen: stepCountIs(20),
@@ -63,27 +70,23 @@ const getAgentTelemetryConfig = (
 const getRepairToolCall =
     (args: AiAgentArgs, tools: ToolSet): ToolCallRepairFunction<typeof tools> =>
     async ({ messages: conversationHistory, error, toolCall, inputSchema }) => {
-        if (args.debugLoggingEnabled) {
-            Logger.debug(
-                `[AiAgent][Repair Tool Call] Attempting to repair tool call: ${toolCall.toolName}`,
-            );
-            Logger.debug(
-                `[AiAgent][Repair Tool Call] Original tool call arguments: ${JSON.stringify(
-                    toolCall.input,
-                )}`,
-            );
-            if (error) {
-                Logger.debug(
-                    `[AiAgent][Repair Tool Call] Error encountered: ${error.message}`,
-                );
-            }
+        const logger = createAiAgentLogger(args.debugLoggingEnabled);
+        logger(
+            'Repair Tool Call',
+            `Attempting to repair tool call: ${toolCall.toolName}`,
+        );
+        logger(
+            'Repair Tool Call',
+            `Original tool call arguments: ${JSON.stringify(toolCall.input)}`,
+        );
+        if (error) {
+            logger('Repair Tool Call', `Error encountered: ${error.message}`);
         }
         if (NoSuchToolError.isInstance(error)) {
-            if (args.debugLoggingEnabled) {
-                Logger.debug(
-                    `[AiAgent][Repair Tool Call] No such tool error for ${toolCall.toolName}. Returning null.`,
-                );
-            }
+            logger(
+                'Repair Tool Call',
+                `No such tool error for ${toolCall.toolName}. Returning null.`,
+            );
             return null;
         }
 
@@ -98,11 +101,10 @@ const getRepairToolCall =
         }
 
         // TODO: extract this as separate agent
-        if (args.debugLoggingEnabled) {
-            Logger.debug(
-                `[AiAgent][Repair Tool Call] Generating repaired object for tool: ${toolCall.toolName}`,
-            );
-        }
+        logger(
+            'Repair Tool Call',
+            `Generating repaired object for tool: ${toolCall.toolName}`,
+        );
         const { object: repairedArgs } = await generateObject({
             model: args.model,
             schema: tool.inputSchema,
@@ -126,13 +128,10 @@ const getRepairToolCall =
             ),
         });
 
-        if (args.debugLoggingEnabled) {
-            Logger.debug(
-                `[AiAgent][Repair Tool Call] Repaired arguments: ${JSON.stringify(
-                    repairedArgs,
-                )}`,
-            );
-        }
+        logger(
+            'Repair Tool Call',
+            `Repaired arguments: ${JSON.stringify(repairedArgs)}`,
+        );
         return { ...toolCall, args: JSON.stringify(repairedArgs) };
     };
 
@@ -140,11 +139,11 @@ const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
 ) => {
-    if (args.debugLoggingEnabled) {
-        Logger.debug(
-            `[AiAgent][Agent Tools] Getting agent tools for agent: ${args.agentSettings.name}`,
-        );
-    }
+    const logger = createAiAgentLogger(args.debugLoggingEnabled);
+    logger(
+        'Agent Tools',
+        `Getting agent tools for agent: ${args.agentSettings.name}`,
+    );
 
     const findExplores = getFindExplores({
         maxDescriptionLength: args.findExploresMaxDescriptionLength,
@@ -240,13 +239,10 @@ const getAgentTools = (
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
     };
 
-    if (args.debugLoggingEnabled) {
-        Logger.debug(
-            `[AiAgent][Agent Tools] Successfully retrieved agent tools: ${Object.keys(
-                tools,
-            ).join(', ')}`,
-        );
-    }
+    logger(
+        'Agent Tools',
+        `Successfully retrieved agent tools: ${Object.keys(tools).join(', ')}`,
+    );
     return tools;
 };
 
@@ -254,9 +250,8 @@ const getAgentMessages = async (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
 ) => {
-    if (args.debugLoggingEnabled) {
-        Logger.debug('[AiAgent][Agent Messages] Getting agent messages.');
-    }
+    const logger = createAiAgentLogger(args.debugLoggingEnabled);
+    logger('Agent Messages', 'Getting agent messages.');
 
     const availableExplores = await dependencies.findExplores({
         page: 1,
@@ -277,25 +272,23 @@ const getAgentMessages = async (
         ...args.messageHistory,
     ];
 
-    if (args.debugLoggingEnabled) {
-        Logger.debug(
-            `[AiAgent][Agent Messages] Retrieved ${messages.length} messages.`,
-        );
+    logger('Agent Messages', `Retrieved ${messages.length} messages.`);
 
+    if (args.debugLoggingEnabled) {
         for (const msg of messages) {
             switch (msg.role) {
                 case 'system':
-                    Logger.debug(
-                        `[AiAgent][Agent Messages] ${msg.role} message - content skipped`,
+                    logger(
+                        'Agent Messages',
+                        `${msg.role} message - content skipped`,
                     );
                     break;
                 case 'assistant':
                 case 'tool':
                 case 'user':
-                    Logger.debug(
-                        `[AiAgent][Agent Messages] ${
-                            msg.role
-                        } message: ${JSON.stringify(msg.content)}`,
+                    logger(
+                        'Agent Messages',
+                        `${msg.role} message: ${JSON.stringify(msg.content)}`,
                     );
                     break;
                 default:
@@ -313,29 +306,25 @@ export const generateAgentResponse = async ({
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
 }): Promise<string> => {
-    if (args.debugLoggingEnabled) {
-        Logger.debug(
-            `[AiAgent][Generate Agent Response] Starting generation for prompt UUID: ${args.promptUuid}`,
-        );
-        Logger.debug(
-            `[AiAgent][Generate Agent Response] Agent settings: ${JSON.stringify(
-                args.agentSettings,
-            )}`,
-        );
-    }
+    const logger = createAiAgentLogger(args.debugLoggingEnabled);
+    logger(
+        'Generate Agent Response',
+        `Starting generation for prompt UUID: ${args.promptUuid}`,
+    );
+    logger(
+        'Generate Agent Response',
+        `Agent settings: ${JSON.stringify(args.agentSettings)}`,
+    );
     const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
     try {
-        if (args.debugLoggingEnabled) {
-            Logger.debug(
-                `[AiAgent][Generate Agent Response] Calling generateText with model: ${
-                    typeof args.model === 'string'
-                        ? args.model
-                        : args.model.modelId
-                }`,
-            );
-        }
+        logger(
+            'Generate Agent Response',
+            `Calling generateText with model: ${
+                typeof args.model === 'string' ? args.model : args.model.modelId
+            }`,
+        );
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -345,27 +334,26 @@ export const generateAgentResponse = async ({
             messages,
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onStepFinish: async (step) => {
-                if (args.debugLoggingEnabled) {
-                    for (const toolCall of step.toolCalls) {
-                        if (toolCall) {
-                            Logger.debug(
-                                `[AiAgent][On Step Finish] Step finished. Tool call: ${toolCall.toolName}`,
-                            );
-                        }
+                for (const toolCall of step.toolCalls) {
+                    if (toolCall) {
+                        logger(
+                            'On Step Finish',
+                            `Step finished. Tool call: ${toolCall.toolName}`,
+                        );
                     }
                 }
                 if (step.toolCalls && step.toolCalls.length > 0) {
-                    if (args.debugLoggingEnabled) {
-                        Logger.debug(
-                            `[AiAgent][On Step Finish] Storing ${step.toolCalls.length} tool calls.`,
-                        );
-                    }
+                    logger(
+                        'On Step Finish',
+                        `Storing ${step.toolCalls.length} tool calls.`,
+                    );
                     await Promise.all(
                         step.toolCalls.map(async (toolCall) => {
                             // Store immediately when tool call happens
-                            if (args.debugLoggingEnabled && toolCall) {
-                                Logger.debug(
-                                    `[AiAgent][On Step Finish] Storing tool call for Prompt UUID ${
+                            if (toolCall) {
+                                logger(
+                                    'On Step Finish',
+                                    `Storing tool call for Prompt UUID ${
                                         args.promptUuid
                                     }: ${toolCall.toolName} (ID: ${
                                         toolCall.toolCallId
@@ -386,11 +374,10 @@ export const generateAgentResponse = async ({
                     );
                 }
                 if (step.toolResults && step.toolResults.length > 0) {
-                    if (args.debugLoggingEnabled) {
-                        Logger.debug(
-                            `[AiAgent][On Step Finish] Storing ${step.toolResults.length} tool results.`,
-                        );
-                    }
+                    logger(
+                        'On Step Finish',
+                        `Storing ${step.toolResults.length} tool results.`,
+                    );
 
                     await dependencies.storeToolResults(
                         step.toolResults
@@ -402,17 +389,16 @@ export const generateAgentResponse = async ({
                                 > => toolResult !== null,
                             )
                             .map((toolResult) => {
-                                if (args.debugLoggingEnabled) {
-                                    Logger.debug(
-                                        `[AiAgent][On Step Finish] Storing tool result for Prompt UUID ${
-                                            args.promptUuid
-                                        }: ${toolResult.toolName} (ID: ${
-                                            toolResult.toolCallId
-                                        }) (RESULT: ${JSON.stringify(
-                                            toolResult.output,
-                                        )})`,
-                                    );
-                                }
+                                logger(
+                                    'On Step Finish',
+                                    `Storing tool result for Prompt UUID ${
+                                        args.promptUuid
+                                    }: ${toolResult.toolName} (ID: ${
+                                        toolResult.toolCallId
+                                    }) (RESULT: ${JSON.stringify(
+                                        toolResult.output,
+                                    )})`,
+                                );
                                 return {
                                     promptUuid: args.promptUuid,
                                     toolCallId: toolResult.toolCallId,
@@ -434,11 +420,10 @@ export const generateAgentResponse = async ({
             ),
         });
 
-        if (args.debugLoggingEnabled) {
-            Logger.debug(
-                `[AiAgent][Generate Agent Response] Generation complete. Result text length: ${result.text.length}`,
-            );
-        }
+        logger(
+            'Generate Agent Response',
+            `Generation complete. Result text length: ${result.text.length}`,
+        );
         return result.text;
     } catch (error) {
         Logger.error(
@@ -458,29 +443,25 @@ export const streamAgentResponse = async ({
     args: AiStreamAgentResponseArgs;
     dependencies: AiAgentDependencies;
 }) => {
-    if (args.debugLoggingEnabled) {
-        Logger.debug(
-            `[AiAgent][Stream Agent Response] Starting stream generation for prompt UUID: ${args.promptUuid}`,
-        );
-        Logger.debug(
-            `[AiAgent][Stream Agent Response] Agent settings: ${JSON.stringify(
-                args.agentSettings,
-            )}`,
-        );
-    }
+    const logger = createAiAgentLogger(args.debugLoggingEnabled);
+    logger(
+        'Stream Agent Response',
+        `Starting stream generation for prompt UUID: ${args.promptUuid}`,
+    );
+    logger(
+        'Stream Agent Response',
+        `Agent settings: ${JSON.stringify(args.agentSettings)}`,
+    );
     const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
     try {
-        if (args.debugLoggingEnabled) {
-            Logger.debug(
-                `[AiAgent][Stream Agent Response] Calling streamText with model: ${
-                    typeof args.model === 'string'
-                        ? args.model
-                        : args.model.modelId
-                }`,
-            );
-        }
+        logger(
+            'Stream Agent Response',
+            `Calling streamText with model: ${
+                typeof args.model === 'string' ? args.model : args.model.modelId
+            }`,
+        );
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -491,18 +472,15 @@ export const streamAgentResponse = async ({
             experimental_repairToolCall: getRepairToolCall(args, tools),
             onChunk: (event) => {
                 switch (event.chunk.type) {
-                    case 'tool-call':
-                        if (args.debugLoggingEnabled) {
-                            Logger.debug(
-                                `[AiAgent][Chunk Tool Call] Storing tool call for Prompt UUID ${
-                                    args.promptUuid
-                                }: ${event.chunk.toolName} (ID: ${
-                                    event.chunk.toolCallId
-                                }) (ARGS: ${JSON.stringify(
-                                    event.chunk.input,
-                                )})`,
-                            );
-                        }
+                    case 'tool-call': {
+                        logger(
+                            'Chunk Tool Call',
+                            `Storing tool call for Prompt UUID ${
+                                args.promptUuid
+                            }: ${event.chunk.toolName} (ID: ${
+                                event.chunk.toolCallId
+                            }) (ARGS: ${JSON.stringify(event.chunk.input)})`,
+                        );
                         void dependencies
                             .storeToolCall({
                                 promptUuid: args.promptUuid,
@@ -518,18 +496,16 @@ export const streamAgentResponse = async ({
                                 Sentry.captureException(error);
                             });
                         break;
-                    case 'tool-result':
-                        if (args.debugLoggingEnabled) {
-                            Logger.debug(
-                                `[AiAgent][Chunk Tool Result] Storing tool result for Prompt UUID ${
-                                    args.promptUuid
-                                }: ${event.chunk.toolName} (ID: ${
-                                    event.chunk.toolCallId
-                                }) (RESULT: ${JSON.stringify(
-                                    event.chunk.output,
-                                )})`,
-                            );
-                        }
+                    }
+                    case 'tool-result': {
+                        logger(
+                            'Chunk Tool Result',
+                            `Storing tool result for Prompt UUID ${
+                                args.promptUuid
+                            }: ${event.chunk.toolName} (ID: ${
+                                event.chunk.toolCallId
+                            }) (RESULT: ${JSON.stringify(event.chunk.output)})`,
+                        );
                         void dependencies
                             .storeToolResults([
                                 {
@@ -547,13 +523,14 @@ export const streamAgentResponse = async ({
                                 Sentry.captureException(error);
                             });
                         break;
-                    case 'text-delta':
-                        if (args.debugLoggingEnabled) {
-                            Logger.debug(
-                                `[AiAgent][Chunk Text Delta] Received text chunk: ${event.chunk.text}`,
-                            );
-                        }
+                    }
+                    case 'text-delta': {
+                        logger(
+                            'Chunk Text Delta',
+                            `Received text chunk: ${event.chunk.text}`,
+                        );
                         break;
+                    }
                     case 'raw':
                     case 'reasoning-delta':
                     case 'source':
@@ -566,21 +543,25 @@ export const streamAgentResponse = async ({
                 }
             },
             onFinish: ({ text, usage, steps }) => {
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        '[AiAgent][On Finish] Stream finished. Updating prompt with response.',
-                    );
-                }
+                logger(
+                    'On Finish',
+                    'Stream finished. Updating prompt with response.',
+                );
+
+                // Extract complete response from all steps instead of just the last text
+                const completeResponse = steps
+                    .flatMap((step) => step.text || [])
+                    .join('\n');
+
                 void dependencies.updatePrompt({
-                    response: text,
+                    response: completeResponse,
                     promptUuid: args.promptUuid,
                 });
 
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][On Finish] Tracking event 'ai_agent.response_streamed'.`,
-                    );
-                }
+                logger(
+                    'On Finish',
+                    "Tracking event 'ai_agent.response_streamed'.",
+                );
                 dependencies.trackEvent({
                     event: 'ai_agent.response_streamed',
                     userId: args.userId,
@@ -597,11 +578,10 @@ export const streamAgentResponse = async ({
                                 : args.model.modelId,
                     },
                 });
-                if (args.debugLoggingEnabled) {
-                    Logger.debug(
-                        `[AiAgent][On Finish] Total tokens used: ${usage.totalTokens}, steps: ${steps.length}`,
-                    );
-                }
+                logger(
+                    'On Finish',
+                    `Total tokens used: ${usage.totalTokens}, steps: ${steps.length}`,
+                );
             },
             experimental_transform: smoothStream({
                 delayInMs: 20,
@@ -620,11 +600,7 @@ export const streamAgentResponse = async ({
                 args,
             ),
         });
-        if (args.debugLoggingEnabled) {
-            Logger.debug(
-                '[AiAgent][Stream Agent Response] Returning stream result.',
-            );
-        }
+        logger('Stream Agent Response', 'Returning stream result.');
         return result;
     } catch (error) {
         Logger.error(

@@ -30,7 +30,7 @@ const AiAgentHeader = forwardRef<HTMLDivElement, PropsWithChildren>(
                 data-fixed={fixed}
                 style={{ top: NAVBAR_HEIGHT }}
             >
-                <Container px="xxl" py="sm">
+                <Container py="sm" maw="75%">
                     {children}
                 </Container>
             </Box>

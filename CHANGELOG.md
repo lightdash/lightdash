@@ -1,3 +1,18 @@
+## [0.2016.2](https://github.com/lightdash/lightdash/compare/0.2016.1...0.2016.2) (2025-09-19)
+
+
+### Bug Fixes
+
+* Fix header size in agent settings ([#17013](https://github.com/lightdash/lightdash/issues/17013)) ([ae06288](https://github.com/lightdash/lightdash/commit/ae06288eb160b7b077a024f6d377b73dca433470))
+* Improve user access field performance in AI Agent configuration ([#16975](https://github.com/lightdash/lightdash/issues/16975)) ([44faaf8](https://github.com/lightdash/lightdash/commit/44faaf8503e02e69c99ae9ad3fde7e978ea94e5d)), closes [#16957](https://github.com/lightdash/lightdash/issues/16957)
+
+## [0.2016.1](https://github.com/lightdash/lightdash/compare/0.2016.0...0.2016.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* AI agent bug when streaming long text ([#17001](https://github.com/lightdash/lightdash/issues/17001)) ([77878c4](https://github.com/lightdash/lightdash/commit/77878c4de3213482b2b7537ab8199c5e80f44fbb))
+
 # [0.2016.0](https://github.com/lightdash/lightdash/compare/0.2015.1...0.2016.0) (2025-09-19)
 
 

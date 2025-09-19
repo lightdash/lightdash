@@ -10,7 +10,8 @@ overrides:
   '@types/react-dom': 19.0.2
   typescript: 5.5.4
   hono: ^4.9.6
-  trino-client>axios: ^1.12.0
+  linkifyjs: ^4.3.2
+  axios: ^1.12.0
   form-data@2.5.3: 2.5.5
   form-data@3.0.1: 3.0.4
   form-data@4.0.0: 4.0.4
@@ -331,7 +332,7 @@ importers:
         version: 2.5.1(pg@8.13.1)
       langchain:
         specifier: ^0.3.13
-        version: 0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.7.7)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
+        version: 0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -8458,16 +8459,10 @@ packages:
   axios-retry@4.5.0:
     resolution: {integrity: sha512-aR99oXhpEDGo0UuAlYcn2iGRds30k366Zfa05XWScR9QaQD4JYiP3/1Qt1u7YlefUOK+cn0CcwoL1oefavQUlQ==}
     peerDependencies:
-      axios: 0.x || 1.x
+      axios: ^1.12.0
 
   axios@1.12.2:
     resolution: {integrity: sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==}
-
-  axios@1.7.7:
-    resolution: {integrity: sha512-S4kL7XrjgBmvdGut0sN3yJxqYzrDOnivkBiN0OFs6hLiUam3UPvswUo0kqGyhqUZGEOytHyumEdXsAkgCOUf3Q==}
-
-  axios@1.9.0:
-    resolution: {integrity: sha512-re4CqKTJaURpzbLHtIi6XpDv20/CnpXOtjRY5/CU32L8gU8ek9UIivcfvSWvmKEngmVbrUtPpdDwWDWL7DNHvg==}
 
   axobject-query@2.2.0:
     resolution: {integrity: sha512-Td525n+iPOOyUQIeBfcASuG6uJsDOITl7Mds5gFyerkWiX7qhUTdYUBlSgNMyVqtSJqwpt1kXGLdUt6SykLMRA==}
@@ -10641,15 +10636,6 @@ packages:
   fn.name@1.1.0:
     resolution: {integrity: sha512-GRnmB5gPyJpAhTQdSZTSp9uaPSvl09KoYcMQtsB9rQoOmzs9dH6ffeccH+Z+cv6P68Hu5bC6JjRh4Ah/mHSNRw==}
 
-  follow-redirects@1.15.6:
-    resolution: {integrity: sha512-wWN62YITEaOpSK584EZXJafH1AGpO8RVgElfkuXbTOrPX4fIfOyEpW/CsiNd8JdYrAoOvafRTOEnvsO++qCqFA==}
-    engines: {node: '>=4.0'}
-    peerDependencies:
-      debug: '*'
-    peerDependenciesMeta:
-      debug:
-        optional: true
-
   follow-redirects@1.15.9:
     resolution: {integrity: sha512-gew4GsXizNgdoRyqmyfMHyAmXsZDk6mHkSxZFCzW9gwlbtOW44CDtYavM+y+72qD/Vq2l550kMF52DT8fOLJqQ==}
     engines: {node: '>=4.0'}
@@ -12230,7 +12216,7 @@ packages:
       '@langchain/groq': '*'
       '@langchain/mistralai': '*'
       '@langchain/ollama': '*'
-      axios: '*'
+      axios: ^1.12.0
       cheerio: '*'
       handlebars: ^4.7.8
       peggy: ^3.0.2
@@ -12378,8 +12364,8 @@ packages:
   linkify-it@5.0.0:
     resolution: {integrity: sha512-5aHCbzQRADcdP+ATqnDuhhJ/MRIqDkZX5pyjFHRRysS8vZ5AbqGEoFIb6pYHPZ+L/OC2Lc+xT8uHVVR5CAK/wQ==}
 
-  linkifyjs@4.1.3:
-    resolution: {integrity: sha512-auMesunaJ8yfkHvK4gfg1K0SaKX/6Wn9g2Aac/NwX+l5VdmFZzo/hdPGxEOETj+ryRa4/fiOPjeeKURSAJx1sg==}
+  linkifyjs@4.3.2:
+    resolution: {integrity: sha512-NT1CJtq3hHIreOianA8aSXn6Cw0JzYOuDQbOrSPe7gqFnCpKP++MQe3ODgO3oh2GJFORkAAdqredOa60z63GbA==}
 
   lint-staged@12.1.2:
     resolution: {integrity: sha512-bSMcQVqMW98HLLLR2c2tZ+vnDCnx4fd+0QJBQgN/4XkdspGRPc8DGp7UuOEBe1ApCfJ+wXXumYnJmU+wDo7j9A==}
@@ -23014,8 +23000,8 @@ snapshots:
 
   '@rudderstack/rudder-sdk-node@2.1.1(tslib@2.8.1)':
     dependencies:
-      axios: 1.7.7
-      axios-retry: 4.5.0(axios@1.7.7)
+      axios: 1.12.2
+      axios-retry: 4.5.0(axios@1.12.2)
       component-type: 2.0.0
       join-component: 1.1.0
       lodash.clonedeep: 4.5.0
@@ -23389,7 +23375,7 @@ snapshots:
       '@types/express': 4.17.14
       '@types/promise.allsettled': 1.0.3
       '@types/tsscmp': 1.0.0
-      axios: 1.7.7
+      axios: 1.12.2
       express: 4.21.2
       path-to-regexp: 8.1.0
       promise.allsettled: 1.0.6
@@ -24982,7 +24968,7 @@ snapshots:
     dependencies:
       '@tiptap/core': 2.2.4(@tiptap/pm@2.2.4)
       '@tiptap/pm': 2.2.4
-      linkifyjs: 4.1.3
+      linkifyjs: 4.3.2
 
   '@tiptap/extension-list-item@2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))':
     dependencies:
@@ -26753,28 +26739,12 @@ snapshots:
 
   axe-core@4.4.3: {}
 
-  axios-retry@4.5.0(axios@1.7.7):
+  axios-retry@4.5.0(axios@1.12.2):
     dependencies:
-      axios: 1.7.7
+      axios: 1.12.2
       is-retry-allowed: 2.2.0
 
   axios@1.12.2:
-    dependencies:
-      follow-redirects: 1.15.9
-      form-data: 4.0.4
-      proxy-from-env: 1.1.0
-    transitivePeerDependencies:
-      - debug
-
-  axios@1.7.7:
-    dependencies:
-      follow-redirects: 1.15.6
-      form-data: 4.0.4
-      proxy-from-env: 1.1.0
-    transitivePeerDependencies:
-      - debug
-
-  axios@1.9.0:
     dependencies:
       follow-redirects: 1.15.9
       form-data: 4.0.4
@@ -29496,8 +29466,6 @@ snapshots:
 
   fn.name@1.1.0: {}
 
-  follow-redirects@1.15.6: {}
-
   follow-redirects@1.15.9: {}
 
   for-each@0.3.3:
@@ -31534,7 +31502,7 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.7.7)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
+  langchain@0.3.13(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
     dependencies:
       '@langchain/core': 0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))
       '@langchain/openai': 0.4.2(@langchain/core@0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(encoding@0.1.13)(ws@8.18.0)
@@ -31550,7 +31518,7 @@ snapshots:
       zod: 3.25.55
       zod-to-json-schema: 3.24.6(zod@3.25.55)
     optionalDependencies:
-      axios: 1.7.7
+      axios: 1.12.2
       handlebars: 4.7.8
     transitivePeerDependencies:
       - encoding
@@ -31655,7 +31623,7 @@ snapshots:
     dependencies:
       uc.micro: 2.0.0
 
-  linkifyjs@4.1.3: {}
+  linkifyjs@4.3.2: {}
 
   lint-staged@12.1.2:
     dependencies:
@@ -33550,13 +33518,13 @@ snapshots:
 
   posthog-node@4.18.0:
     dependencies:
-      axios: 1.9.0
+      axios: 1.12.2
     transitivePeerDependencies:
       - debug
 
   posthog-node@4.2.0:
     dependencies:
-      axios: 1.7.7
+      axios: 1.12.2
       rusha: 0.8.14
     transitivePeerDependencies:
       - debug
@@ -35190,7 +35158,7 @@ snapshots:
       asn1.js: 5.4.1
       asn1.js-rfc2560: 5.0.1(asn1.js@5.4.1)
       asn1.js-rfc5280: 3.0.0
-      axios: 1.9.0
+      axios: 1.12.2
       big-integer: 1.6.52
       bignumber.js: 9.3.0
       binascii: 0.0.2
