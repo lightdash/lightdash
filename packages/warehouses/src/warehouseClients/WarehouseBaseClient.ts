@@ -64,13 +64,20 @@ export default abstract class WarehouseBaseClient<
         streamCallback: (data: WarehouseResults) => void,
         options: {
             values?: AnyType[];
+            queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
         },
     ): Promise<void>;
 
     async executeAsyncQuery(
-        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        {
+            sql,
+            values,
+            queryParams,
+            tags,
+            timezone,
+        }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
@@ -87,6 +94,7 @@ export default abstract class WarehouseBaseClient<
             },
             {
                 values,
+                queryParams,
                 tags,
                 timezone,
             },
@@ -106,6 +114,7 @@ export default abstract class WarehouseBaseClient<
         tags?: Record<string, string>,
         timezone?: string,
         values?: AnyType[],
+        queryParams?: Record<string, AnyType>,
     ) {
         let fields: WarehouseResults['fields'] = {};
         const rows: WarehouseResults['rows'] = [];
@@ -118,6 +127,7 @@ export default abstract class WarehouseBaseClient<
             },
             {
                 values,
+                queryParams,
                 tags,
                 timezone,
             },

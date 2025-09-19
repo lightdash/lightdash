@@ -22,6 +22,7 @@ import FormCollapseButton from './FormCollapseButton';
 import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
+import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
 import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
@@ -149,6 +150,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return SnowflakeSchemaInput;
             case WarehouseTypes.DATABRICKS:
                 return DatabricksSchemaInput;
+            case WarehouseTypes.CLICKHOUSE:
+                return ClickhouseSchemaInput;
             default: {
                 return assertUnreachable(
                     warehouseType,
