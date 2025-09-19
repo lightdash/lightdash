@@ -3,9 +3,9 @@ import {
     AnyType,
     CreateClickhouseCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
-    getErrorMessage as originalGetErrorMessage,
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -61,8 +61,6 @@ interface TableInfo {
     schema?: string;
     table: string;
 }
-
-const getErrorMessage = (e: Error) => originalGetErrorMessage(e);
 
 const convertDataTypeToDimensionType = (
     type: ClickhouseTypes | string,
@@ -271,14 +269,14 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                     });
                 },
             );
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
                 stream.on('end', () => {
-                    resolve(0);
+                    resolve();
                 });
                 stream.on('error', reject);
             });
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e as Error));
+            throw new WarehouseQueryError(getErrorMessage(e));
         }
     }
 
@@ -313,7 +311,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 },
             );
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e as Error));
+            throw new WarehouseQueryError(getErrorMessage(e));
         }
 
         return catalogToSchema(results);
@@ -405,7 +403,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 format: 'JSON',
             });
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(getErrorMessage(e as Error));
+            throw new WarehouseConnectionError(getErrorMessage(e));
         }
     }
 }

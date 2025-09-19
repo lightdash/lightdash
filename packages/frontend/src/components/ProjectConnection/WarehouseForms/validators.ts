@@ -59,6 +59,5 @@ export const warehouseValueValidators: Record<
         schema: hasNoWhiteSpaces('Schema'),
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
-        dbname: hasNoWhiteSpaces('Database name'),
     },
 } as const;
