@@ -128,24 +128,26 @@ export default class SchedulerApp {
             utils,
         });
 
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,
             context: new OperationContext({
                 operationId: 'SchedulerApp#ctor',
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
+                prometheusMetrics: this.prometheusMetrics,
             }),
             models: this.models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
                 operationId: 'SchedulerApp#ctor',
+                prometheusMetrics: this.prometheusMetrics,
             }),
             clients: this.clients,
             models: this.models,

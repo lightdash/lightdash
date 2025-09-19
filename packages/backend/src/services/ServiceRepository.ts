@@ -157,19 +157,24 @@ export class OperationContext extends BaseService {
 
     public readonly lightdashConfig: LightdashConfig;
 
+    public readonly prometheusMetrics: PrometheusMetrics;
+
     constructor({
         operationId,
         lightdashAnalytics,
         lightdashConfig,
+        prometheusMetrics,
     }: {
         operationId: string;
         lightdashAnalytics: LightdashAnalytics;
         lightdashConfig: LightdashConfig;
+        prometheusMetrics: PrometheusMetrics;
     }) {
         super();
         this.operationId = operationId;
         this.lightdashAnalytics = lightdashAnalytics;
         this.lightdashConfig = lightdashConfig;
+        this.prometheusMetrics = prometheusMetrics;
     }
 }
 

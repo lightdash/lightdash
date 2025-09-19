@@ -318,12 +318,13 @@ export const generateAgentResponse = async ({
     const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
+    const startTime = Date.now();
+    const modelName = args.model.modelId;
+
     try {
         logger(
             'Generate Agent Response',
-            `Calling generateText with model: ${
-                typeof args.model === 'string' ? args.model : args.model.modelId
-            }`,
+            `Calling generateText with model: ${modelName}`,
         );
         const result = await generateText({
             ...defaultAgentOptions,
@@ -424,8 +425,35 @@ export const generateAgentResponse = async ({
             'Generate Agent Response',
             `Generation complete. Result text length: ${result.text.length}`,
         );
+
+        // Record metrics
+        const duration = Date.now() - startTime;
+        if (dependencies.prometheusMetrics.aiAgentResponseDurationHistogram) {
+            dependencies.prometheusMetrics.aiAgentResponseDurationHistogram.observe(
+                {
+                    agent_name: args.agentSettings.name,
+                    model: modelName,
+                    response_type: 'generate',
+                },
+                duration,
+            );
+        }
+
         return result.text;
     } catch (error) {
+        // Record metrics even on error
+        const duration = Date.now() - startTime;
+        if (dependencies.prometheusMetrics.aiAgentResponseDurationHistogram) {
+            dependencies.prometheusMetrics.aiAgentResponseDurationHistogram.observe(
+                {
+                    agent_name: args.agentSettings.name,
+                    model: modelName,
+                    response_type: 'generate',
+                },
+                duration,
+            );
+        }
+
         Logger.error(
             `[AiAgent][Generate Agent Response] Error during agent response generation: ${
                 error instanceof Error ? error.message : 'Unknown error'
@@ -455,12 +483,14 @@ export const streamAgentResponse = async ({
     const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
+    const startTime = Date.now();
+    const modelName =
+        typeof args.model === 'string' ? args.model : args.model.modelId;
+
     try {
         logger(
             'Stream Agent Response',
-            `Calling streamText with model: ${
-                typeof args.model === 'string' ? args.model : args.model.modelId
-            }`,
+            `Calling streamText with model: ${modelName}`,
         );
         const result = streamText({
             ...defaultAgentOptions,
@@ -582,6 +612,22 @@ export const streamAgentResponse = async ({
                     'On Finish',
                     `Total tokens used: ${usage.totalTokens}, steps: ${steps.length}`,
                 );
+
+                // Record metrics
+                const duration = Date.now() - startTime;
+                if (
+                    dependencies.prometheusMetrics
+                        .aiAgentResponseDurationHistogram
+                ) {
+                    dependencies.prometheusMetrics.aiAgentResponseDurationHistogram.observe(
+                        {
+                            agent_name: args.agentSettings.name,
+                            model: modelName,
+                            response_type: 'stream',
+                        },
+                        duration,
+                    );
+                }
             },
             experimental_transform: smoothStream({
                 delayInMs: 20,
@@ -594,6 +640,22 @@ export const streamAgentResponse = async ({
                     }`,
                 );
                 Sentry.captureException(error);
+
+                // Record metrics even on error
+                const duration = Date.now() - startTime;
+                if (
+                    dependencies.prometheusMetrics
+                        .aiAgentResponseDurationHistogram
+                ) {
+                    dependencies.prometheusMetrics.aiAgentResponseDurationHistogram.observe(
+                        {
+                            agent_name: args.agentSettings.name,
+                            model: modelName,
+                            response_type: 'stream',
+                        },
+                        duration,
+                    );
+                }
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'streamAgentResponse',

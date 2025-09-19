@@ -210,24 +210,26 @@ export default class App {
             database: this.database,
             utils: this.utils,
         });
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,
             context: new OperationContext({
                 operationId: 'App#ctor',
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
+                prometheusMetrics: this.prometheusMetrics,
             }),
             models: this.models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
                 operationId: 'App#ctor',
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
+                prometheusMetrics: this.prometheusMetrics,
             }),
             clients: this.clients,
             models: this.models,
