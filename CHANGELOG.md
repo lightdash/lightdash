@@ -1,3 +1,10 @@
+## [0.2015.1](https://github.com/lightdash/lightdash/compare/0.2015.0...0.2015.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* improve token hash ([#16918](https://github.com/lightdash/lightdash/issues/16918)) ([3990a7c](https://github.com/lightdash/lightdash/commit/3990a7c59846d137370601179aa2713c8daadb38))
+
 # [0.2015.0](https://github.com/lightdash/lightdash/compare/0.2014.0...0.2015.0) (2025-09-19)
 
 
