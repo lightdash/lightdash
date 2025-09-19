@@ -13095,9 +13095,6 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "dbname": {
-                        "type": "string"
-                    },
                     "timeoutSeconds": {
                         "type": "number",
                         "format": "double"
@@ -13106,7 +13103,7 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["type", "host", "port", "dbname"],
+                "required": ["type", "schema", "host", "port"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -16499,9 +16496,6 @@
                     "schema": {
                         "type": "string"
                     },
-                    "dbname": {
-                        "type": "string"
-                    },
                     "port": {
                         "type": "number",
                         "format": "double"
@@ -16523,7 +16517,7 @@
                     }
                 },
                 "required": [
-                    "dbname",
+                    "schema",
                     "port",
                     "password",
                     "user",

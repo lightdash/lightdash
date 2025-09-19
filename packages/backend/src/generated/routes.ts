@@ -12268,13 +12268,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    schema: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
+                    schema: { dataType: 'string', required: true },
                     startOfWeek: {
                         dataType: 'union',
                         subSchemas: [
@@ -12285,7 +12279,6 @@ const models: TsoaRoute.Models = {
                     },
                     host: { dataType: 'string', required: true },
                     port: { dataType: 'double', required: true },
-                    dbname: { dataType: 'string', required: true },
                     timeoutSeconds: {
                         dataType: 'union',
                         subSchemas: [
@@ -15526,8 +15519,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 secure: { dataType: 'boolean' },
-                schema: { dataType: 'string' },
-                dbname: { dataType: 'string', required: true },
+                schema: { dataType: 'string', required: true },
                 port: { dataType: 'double', required: true },
                 requireUserCredentials: { dataType: 'boolean' },
                 password: { dataType: 'string', required: true },
