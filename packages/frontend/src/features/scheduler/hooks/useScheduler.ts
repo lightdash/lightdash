@@ -131,6 +131,62 @@ export const usePaginatedSchedulers = ({
     });
 };
 
+const getUserSchedulers = async (
+    paginateArgs?: KnexPaginateArgs,
+    searchQuery?: string,
+    sortBy?: string,
+    sortDirection?: 'asc' | 'desc',
+) => {
+    const urlParams = new URLSearchParams({
+        ...(paginateArgs
+            ? {
+                  page: String(paginateArgs.page),
+                  pageSize: String(paginateArgs.pageSize),
+              }
+            : {}),
+        ...(searchQuery ? { searchQuery } : {}),
+        ...(sortBy ? { sortBy } : {}),
+        ...(sortDirection ? { sortDirection } : {}),
+    }).toString();
+
+    return lightdashApi<ApiSchedulersResponse['results']>({
+        url: `/schedulers/user/list${
+            urlParams ? `?${urlParams}` : ''
+        }`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useUserSchedulers = ({
+    paginateArgs,
+    searchQuery,
+    sortBy,
+    sortDirection,
+}: {
+    paginateArgs?: KnexPaginateArgs;
+    searchQuery?: string;
+    sortBy?: 'name' | 'created_at';
+    sortDirection?: 'asc' | 'desc';
+}) => {
+    return useQuery<ApiSchedulersResponse['results'], ApiError>({
+        queryKey: [
+            'userSchedulers',
+            paginateArgs,
+            searchQuery,
+            sortBy,
+            sortDirection,
+        ],
+        queryFn: () =>
+            getUserSchedulers(
+                paginateArgs,
+                searchQuery,
+                sortBy,
+                sortDirection,
+            ),
+    });
+};
+
 const getJobStatus = async (
     jobId: string,
     onComplete: (response: Record<string, AnyType> | null) => void,

@@ -745,6 +745,46 @@ export class SchedulerModel {
         return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
     }
 
+    async getSchedulersByUser(
+        userUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        let baseQuery = SchedulerModel.getBaseSchedulerQuery(this.database)
+            .where(`${SchedulerTableName}.created_by`, userUuid);
+
+        // Apply search query if present
+        if (searchQuery) {
+            baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
+                `${SchedulerTableName}.name`,
+            ]);
+        }
+
+        // Apply sorting if present, default to created_at desc (most recent first)
+        if (sort && sort.column && sort.direction) {
+            baseQuery = baseQuery.orderBy(sort.column, sort.direction);
+        } else {
+            baseQuery = baseQuery.orderBy([
+                {
+                    column: `created_at`,
+                    order: 'desc',
+                },
+            ]);
+        }
+
+        const data = await KnexPaginate.paginate(
+            baseQuery,
+            paginateArgs?.page ?? 1,
+            paginateArgs?.pageSize ?? 10,
+        );
+
+        return {
+            pagination: data.pagination,
+            data: await this.getSchedulersWithTargets(data.data),
+        };
+    }
+
     async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
         const schedulers = await this.getSchedulerForProject(projectUuid);
         const { schedulerUuids, userUuids, chartUuids, dashboardUuids } =

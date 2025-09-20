@@ -116,6 +116,58 @@ export class SchedulerController extends BaseController {
     }
 
     /**
+     * Get schedulers owned by the current user across all projects
+     * @param req express request
+     * @param pageSize number of items per page
+     * @param page page number
+     * @param searchQuery search query to filter schedulers by name
+     * @param sortBy column to sort by
+     * @param sortDirection sort direction (asc or desc)
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/user/list')
+    @OperationId('getUserSchedulers')
+    async getUserSchedulers(
+        @Request() req: express.Request,
+        @Query() pageSize?: number,
+        @Query() page?: number,
+        @Query() searchQuery?: string,
+        @Query() sortBy?: 'name' | 'created_at',
+        @Query() sortDirection?: 'asc' | 'desc',
+    ): Promise<ApiSchedulersResponse> {
+        this.setStatus(200);
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
+        let sort: { column: string; direction: 'asc' | 'desc' } | undefined;
+        if (sortBy && sortDirection) {
+            sort = {
+                column: sortBy,
+                direction: sortDirection,
+            };
+        }
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getSchedulersByUser(
+                    req.user!,
+                    paginateArgs,
+                    searchQuery,
+                    sort,
+                ),
+        };
+    }
+
+    /**
      * Get a scheduler
      * @param schedulerUuid The uuid of the scheduler to update
      * @param req express request
