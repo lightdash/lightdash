@@ -26,6 +26,7 @@ import {
     IconBell,
     IconCirclePlus,
     IconCirclesRelation,
+    IconCode,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -583,6 +584,21 @@ const SavedChartsHeader: FC = () => {
                                         Version history
                                     </Menu.Item>
                                 )}
+                                {userCanManageChart &&
+                                    savedChart?.chartKind === 'custom' && (
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                            onClick={() =>
+                                                navigate({
+                                                    pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/json-history`,
+                                                })
+                                            }
+                                        >
+                                            Custom JSON History
+                                        </Menu.Item>
+                                    )}
                                 {
                                     <Tooltip
                                         label={
