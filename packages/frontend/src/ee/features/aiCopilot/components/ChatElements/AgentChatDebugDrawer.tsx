@@ -1,3 +1,7 @@
+import type {
+    AiArtifact,
+    ApiAiAgentThreadMessageVizQuery,
+} from '@lightdash/common';
 import { Accordion, Drawer, Text } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconChartBar, IconMathFunction, IconTools } from '@tabler/icons-react';
@@ -7,8 +11,9 @@ type Props = {
     isVisualizationAvailable: boolean;
     isDrawerOpen: boolean;
     closeDrawer: () => void;
-    vizConfig: object | null;
-    metricQuery: object | null;
+    _artifactData: AiArtifact | null;
+    vizQueryData: ApiAiAgentThreadMessageVizQuery | null;
+    echartsConfig: object | null;
     toolCalls: object | null;
 };
 
@@ -16,8 +21,9 @@ const AgentChatDebugDrawer = ({
     isVisualizationAvailable,
     isDrawerOpen,
     closeDrawer,
-    metricQuery,
-    vizConfig,
+    _artifactData,
+    vizQueryData,
+    echartsConfig,
     toolCalls,
 }: Props) => {
     return (
@@ -38,7 +44,11 @@ const AgentChatDebugDrawer = ({
                     </Accordion.Control>
                     <Accordion.Panel>
                         <Prism language="json" withLineNumbers>
-                            {JSON.stringify(metricQuery, null, 2)}
+                            {JSON.stringify(
+                                vizQueryData?.query.metricQuery ?? null,
+                                null,
+                                2,
+                            )}
                         </Prism>
                     </Accordion.Panel>
                 </Accordion.Item>
@@ -47,11 +57,11 @@ const AgentChatDebugDrawer = ({
                     <Accordion.Control
                         icon={<MantineIcon icon={IconChartBar} color="gray" />}
                     >
-                        <Text fw={500}>Visualization configuration</Text>
+                        <Text fw={500}>ECharts Configuration</Text>
                     </Accordion.Control>
                     <Accordion.Panel>
                         <Prism language="json" withLineNumbers>
-                            {JSON.stringify(vizConfig, null, 2)}
+                            {JSON.stringify(echartsConfig, null, 2)}
                         </Prism>
                     </Accordion.Panel>
                 </Accordion.Item>
