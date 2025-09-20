@@ -146,6 +146,7 @@ export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
     pinnedParameters?: string[];
+    requiredFiltersMessage?: string;
 };
 
 export type Dashboard = {
