@@ -3373,6 +3373,20 @@ export class AiAgentService {
         await this.aiAgentModel.deleteEval(evalUuid);
     }
 
+    async updateEvalRunResult(
+        evalRunUuid: string,
+        resultUuid: string,
+        error: Error | string,
+    ) {
+        await this.aiAgentModel.updateEvalRunResult(resultUuid, {
+            status: 'failed',
+            errorMessage:
+                error instanceof Error ? error.message : String(error),
+            completedAt: new Date(),
+        });
+        await this.aiAgentModel.checkAndUpdateEvalRunCompletion(evalRunUuid);
+    }
+
     async executeEvalResult({
         evalRunResultUuid,
         evalRunUuid,
