@@ -95,6 +95,10 @@ export default function mockHealthResponse(
             enabled: false,
             events: undefined,
         },
+        ai: {
+            analyticsProjectUuid: undefined,
+            analyticsDashboardUuid: undefined,
+        },
         ...overrides,
     };
 }
