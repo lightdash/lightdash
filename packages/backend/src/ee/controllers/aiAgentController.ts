@@ -20,7 +20,7 @@ import {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAppendEvaluationRequest,
-    ApiCloneWebAppThreadResponse,
+    ApiCloneThreadResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiCreateEvaluationRequest,
@@ -402,10 +402,10 @@ export class AiAgentController extends BaseController {
         @Path() threadUuid: string,
         @Path() promptUuid: string,
         @Query() createdFrom?: 'web_app' | 'evals',
-    ): Promise<ApiCloneWebAppThreadResponse> {
+    ): Promise<ApiCloneThreadResponse> {
         this.setStatus(200);
 
-        const clonedThread = await this.getAiAgentService().cloneWebAppThread(
+        const clonedThread = await this.getAiAgentService().cloneThread(
             req.user!,
             agentUuid,
             threadUuid,

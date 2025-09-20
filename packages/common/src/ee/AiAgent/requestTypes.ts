@@ -98,7 +98,7 @@ export type AiAgentEvalRunJobPayload = TraceTaskBase & {
     threadUuid: string;
 };
 
-export type CloneWebAppThread = {
+export type CloneThread = {
     sourceThreadUuid: string;
     sourcePromptUuid: string;
     targetUserUuid: string;

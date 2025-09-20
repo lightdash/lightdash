@@ -3111,7 +3111,7 @@ export class AiAgentService {
         return exploreAccessSummary;
     }
 
-    async cloneWebAppThread(
+    async cloneThread(
         user: SessionUser,
         agentUuid: string,
         threadUuid: string,
@@ -3160,7 +3160,7 @@ export class AiAgentService {
         }
 
         // Clone the thread
-        const clonedThreadUuid = await this.aiAgentModel.cloneWebAppThread({
+        const clonedThreadUuid = await this.aiAgentModel.cloneThread({
             sourceThreadUuid: threadUuid,
             sourcePromptUuid: promptUuid,
             targetUserUuid: user.userUuid,
@@ -3245,7 +3245,7 @@ export class AiAgentService {
             let thread: AiAgentThreadSummary;
 
             if (evalPrompt.type === 'thread') {
-                thread = await this.cloneWebAppThread(
+                thread = await this.cloneThread(
                     user,
                     agentUuid,
                     evalPrompt.threadUuid,
