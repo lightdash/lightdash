@@ -1,3 +1,10 @@
+# [0.2017.0](https://github.com/lightdash/lightdash/compare/0.2016.3...0.2017.0) (2025-09-22)
+
+
+### Features
+
+* Update Enable Data Access styles ([#17015](https://github.com/lightdash/lightdash/issues/17015)) ([e7c20cb](https://github.com/lightdash/lightdash/commit/e7c20cb407565be6195bb98b5d4cbf9e529e1474))
+
 ## [0.2016.3](https://github.com/lightdash/lightdash/compare/0.2016.2...0.2016.3) (2025-09-22)
 
 
