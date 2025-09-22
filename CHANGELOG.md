@@ -1,3 +1,10 @@
+# [0.2019.0](https://github.com/lightdash/lightdash/compare/0.2018.1...0.2019.0) (2025-09-22)
+
+
+### Features
+
+* add analytics tracking for AI agent evaluations ([#17037](https://github.com/lightdash/lightdash/issues/17037)) ([a48cbc7](https://github.com/lightdash/lightdash/commit/a48cbc7a41e11f35a39eddae41cc0611afda75e1))
+
 ## [0.2018.1](https://github.com/lightdash/lightdash/compare/0.2018.0...0.2018.1) (2025-09-22)
 
 
