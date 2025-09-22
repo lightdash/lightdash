@@ -5,7 +5,8 @@ const RUN_ID = Cypress.env('RUN_ID') || `${Date.now()}`;
 /**
  * This test is used to measure the interaction performance of the explore page.
  * It measures time between interactins and renders for a few different critical interactions,
- * then writes out an artifact showing the durations of interactions we are trying to improve.
+ * then writes out an artifact showing the durations of interactions we are trying to improve
+ * and profiler data for the whole spec.
  *
  * NOTE: data is not mocked, but measurements happen from interactionts to the resulting renders.
  * We could improve this by mocking data, but this will give us a baseline for FE interactions.
