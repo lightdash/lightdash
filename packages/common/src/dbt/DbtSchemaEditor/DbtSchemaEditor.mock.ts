@@ -87,6 +87,13 @@ export const SCHEMA_JSON = {
     ],
 };
 
+export const SIMPLE_SCHEMA = `version: 2
+models:
+  - name: test_table
+    columns:
+      - name: test_column
+        description: A test column`;
+
 // invalid schema: models require a `name` field
 export const INVALID_SCHEMA_YML = `
 version: 2
