@@ -3099,7 +3099,7 @@ export class AiAgentModel {
         });
     }
 
-    async cloneWebAppThread({
+    async cloneThread({
         sourceThreadUuid,
         sourcePromptUuid,
         targetUserUuid,
@@ -3131,12 +3131,6 @@ export class AiAgentModel {
                 );
             }
 
-            if (sourceThread.created_from === 'slack') {
-                throw new NotImplementedError(
-                    'Slack threads are not supported for cloning',
-                );
-            }
-
             // Create new thread using existing method
             const newThreadUuid = await this.createWebAppThread(
                 {
@@ -3144,7 +3138,8 @@ export class AiAgentModel {
                     projectUuid: sourceThread.project_uuid,
                     agentUuid: sourceThread.agent_uuid,
                     userUuid: targetUserUuid,
-                    createdFrom: createdFrom ?? sourceThread.created_from,
+                    // If `createdFrom` is not passed, default all cloned threads to web_app
+                    createdFrom: createdFrom ?? 'web_app',
                 },
                 { db: trx },
             );

@@ -459,4 +459,4 @@ export type ApiCreateEvaluationResponse = ApiSuccess<
 >;
 export type ApiUpdateEvaluationResponse = ApiSuccess<AiAgentEvaluation>;
 
-export type ApiCloneWebAppThreadResponse = ApiSuccess<AiAgentThreadSummary>;
+export type ApiCloneThreadResponse = ApiSuccess<AiAgentThreadSummary>;

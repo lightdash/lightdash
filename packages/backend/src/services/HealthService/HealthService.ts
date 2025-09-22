@@ -182,6 +182,12 @@ export class HealthService extends BaseService {
                     ? this.lightdashConfig.embedding.events
                     : undefined,
             },
+            ai: {
+                analyticsProjectUuid:
+                    this.lightdashConfig.ai.analyticsProjectUuid,
+                analyticsDashboardUuid:
+                    this.lightdashConfig.ai.analyticsDashboardUuid,
+            },
         };
     }
 
