@@ -10,16 +10,20 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
-import { IconArrowLeft, IconEdit, IconPlayerPlay } from '@tabler/icons-react';
+import {
+    IconArrowLeft,
+    IconEdit,
+    IconInfoCircle,
+    IconTarget,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentEvaluation,
-    useAiAgentEvaluationRuns,
     useDeleteEvaluation,
-    useRunEvaluation,
     useUpdateEvaluation,
 } from '../../hooks/useAiAgentEvaluations';
 import { EvalFormModal } from './EvalFormModal';
@@ -44,13 +48,6 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         evalUuid,
     );
 
-    const { data: runsData } = useAiAgentEvaluationRuns(
-        projectUuid,
-        agentUuid,
-        evalUuid,
-    );
-
-    const runEvaluationMutation = useRunEvaluation(projectUuid, agentUuid);
     const updateEvaluationMutation = useUpdateEvaluation(
         projectUuid,
         agentUuid,
@@ -62,11 +59,6 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
 
     // Modal state from URL params
     const isEditModalOpen = searchParams.get('modal') === 'edit-eval';
-
-    // Check if there's an active evaluation running
-    const hasActiveRun = runsData?.data?.runs?.some(
-        (run) => run.status === 'pending' || run.status === 'running',
-    );
 
     const handleBack = () => {
         void navigate(`/projects/${projectUuid}/ai-agents/${agentUuid}/edit`);
@@ -82,10 +74,6 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('modal');
         setSearchParams(newParams);
-    };
-
-    const handleRunEvaluation = () => {
-        void runEvaluationMutation.mutate(evalUuid);
     };
 
     if (isLoadingEval) {
@@ -111,68 +99,64 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
     }
 
     return (
-        <Stack gap="md">
-            <Group justify="space-between" align="center">
-                <Button
-                    variant="subtle"
-                    onClick={handleBack}
-                    size="sm"
-                    leftSection={<MantineIcon icon={IconArrowLeft} size="md" />}
-                >
-                    Evaluations
-                </Button>
-                <Button
-                    leftSection={<MantineIcon icon={IconPlayerPlay} />}
-                    size="sm"
-                    loading={runEvaluationMutation.isLoading}
-                    disabled={hasActiveRun || runEvaluationMutation.isLoading}
-                    onClick={handleRunEvaluation}
-                >
-                    Run Evaluation
-                </Button>
-            </Group>
+        <Stack gap="xs">
+            <Paper>
+                <Group justify="space-between" align="center" p="sm">
+                    <Group align="center" gap="xs">
+                        <Paper p="xxs" withBorder radius="sm">
+                            <MantineIcon icon={IconTarget} size="md" />
+                        </Paper>
+                        <Title order={5} c="gray.9" fw={500}>
+                            Details: {evaluation.title}
+                        </Title>
+                        <Tooltip
+                            label={
+                                <>
+                                    {evaluation.description && (
+                                        <Text fz="xs">
+                                            {evaluation.description}
+                                        </Text>
+                                    )}
 
-            <Paper p="md" withBorder>
-                <Stack gap="md">
-                    <Group justify="space-between" align="flex-start">
-                        <Stack gap="xs" style={{ flex: 1 }}>
-                            <Title order={4}>{evaluation.title}</Title>
-                            {evaluation.description && (
-                                <Text size="sm" c="dimmed">
-                                    {evaluation.description}
-                                </Text>
-                            )}
-                        </Stack>
-                        <Button
-                            variant="subtle"
-                            size="sm"
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={handleEditModalOpen}
+                                    <Text fz="xs">
+                                        Created{' '}
+                                        {new Date(
+                                            evaluation.createdAt,
+                                        ).toLocaleDateString()}
+                                    </Text>
+                                </>
+                            }
                         >
-                            Edit
-                        </Button>
+                            <MantineIcon icon={IconInfoCircle} size="sm" />
+                        </Tooltip>
                     </Group>
+                    <Button
+                        variant="subtle"
+                        size="sm"
+                        leftSection={<MantineIcon icon={IconEdit} />}
+                        onClick={handleEditModalOpen}
+                    >
+                        Edit
+                    </Button>
+                </Group>
 
+                <Stack>
                     {evaluation.prompts && evaluation.prompts.length > 0 && (
                         <>
                             <Divider />
-                            <Stack gap="sm">
-                                <Title order={5}>Prompts</Title>
-                                <Stack gap="xs">
-                                    {evaluation.prompts.map((prompt, index) => (
+                            <Stack gap="sm" px="sm" pb="sm">
+                                <Group align="center" gap="xs">
+                                    <Title order={6} c="gray.8" fw={500}>
+                                        Test Prompts
+                                    </Title>
+                                </Group>
+                                <Stack gap="sm">
+                                    {evaluation.prompts.map((prompt) => (
                                         <Group
-                                            key={prompt.evalPromptUuid}
                                             gap="sm"
                                             align="flex-start"
+                                            key={prompt.evalPromptUuid}
                                         >
-                                            <Text
-                                                size="sm"
-                                                fw={500}
-                                                c="dimmed"
-                                                style={{ minWidth: 20 }}
-                                            >
-                                                {index + 1}.
-                                            </Text>
                                             <Box style={{ flex: 1 }}>
                                                 {prompt.type === 'string' ? (
                                                     <EvalPromptText

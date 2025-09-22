@@ -1,9 +1,10 @@
 import type { AiAgentEvaluationRunResult } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Button,
-    Card,
     Center,
+    Divider,
     Group,
     Loader,
     Paper,
@@ -11,19 +12,21 @@ import {
     Table,
     Text,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
 import {
-    IconAlertCircle,
     IconCheck,
     IconClock,
     IconPlayerPlay,
+    IconTarget,
     IconX,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentEvaluationRunResults } from '../../hooks/useAiAgentEvaluations';
-import { useEvalTabContext } from '../../hooks/useEvalTabContext';
+import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 
 type Props = {
@@ -108,41 +111,28 @@ const PromptRow: FC<PromptRowProps> = ({
                     {index + 1}
                 </Text>
             </Table.Td>
-            <Table.Td>
+            <Table.Td maw="300px">
                 <Text size="sm" title={promptText} truncate>
                     {promptText}
                 </Text>
             </Table.Td>
             <Table.Td style={{ width: 120 }}>
-                <Badge
-                    variant="light"
-                    color={statusConfig.color}
-                    leftSection={
+                <Tooltip
+                    label={result.errorMessage}
+                    disabled={result.status !== 'failed'}
+                >
+                    <Badge
+                        variant="light"
+                        radius="sm"
+                        color={statusConfig.color}
+                        p="xxs"
+                    >
                         <MantineIcon
                             icon={statusConfig.icon}
                             color={statusConfig.color}
-                            size="sm"
                         />
-                    }
-                >
-                    {result.status}
-                </Badge>
-            </Table.Td>
-            <Table.Td style={{ width: 100 }}>
-                {result.status === 'failed' && result.errorMessage && (
-                    <Button
-                        variant="subtle"
-                        size="xs"
-                        color="red"
-                        leftSection={
-                            <MantineIcon icon={IconAlertCircle} size="sm" />
-                        }
-                        title={result.errorMessage}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        Error
-                    </Button>
-                )}
+                    </Badge>
+                </Tooltip>
             </Table.Td>
         </Table.Tr>
     );
@@ -155,7 +145,7 @@ export const EvalRunDetails: FC<Props> = ({
     runUuid,
 }) => {
     const navigate = useNavigate();
-    const { setSelectedThreadUuid } = useEvalTabContext();
+    const { setSelectedThreadUuid } = useEvalSectionContext();
 
     const { data: runData, isLoading } = useAiAgentEvaluationRunResults(
         projectUuid,
@@ -221,125 +211,123 @@ export const EvalRunDetails: FC<Props> = ({
         );
     }
 
-    return (
-        <Stack gap="md">
-            <Group justify="space-between" align="center">
-                <Button variant="subtle" onClick={handleBack} size="sm">
-                    ← Back to Evaluation
-                </Button>
-            </Group>
+    const runDuration = dayjs
+        .utc(
+            dayjs
+                .duration(
+                    dayjs(runData.completedAt).diff(dayjs(runData.createdAt)),
+                )
+                .asMilliseconds(),
+        )
+        .format('mm[m]ss[s]');
 
-            <Card p="md" withBorder>
-                <Stack gap="sm">
-                    <Group justify="space-between" align="center">
-                        <Title order={4}>
-                            Evaluation Run {runUuid.slice(-8)}
+    return (
+        <Stack gap="sm" pr="sm">
+            <Paper>
+                <Group
+                    justify="space-between"
+                    align="center"
+                    gap="xs"
+                    py="sm"
+                    px="sm"
+                >
+                    <Group gap="xs">
+                        <Paper p="xxs" withBorder radius="sm">
+                            <MantineIcon icon={IconTarget} size="md" />
+                        </Paper>
+                        <Title order={5} c="gray.9" fw={700}>
+                            Run Overview
                         </Title>
+                    </Group>
+
+                    <Group>
+                        <Tooltip
+                            label={
+                                <Text size="xs" c="dimmed">
+                                    Started{' '}
+                                    {new Date(
+                                        runData.createdAt,
+                                    ).toLocaleString()}
+                                    {runData.completedAt && (
+                                        <>
+                                            {' '}
+                                            • Completed{' '}
+                                            {new Date(
+                                                runData.completedAt,
+                                            ).toLocaleString()}
+                                        </>
+                                    )}
+                                </Text>
+                            }
+                        >
+                            <Text size="xs" c="dimmed">
+                                Duration: {runDuration}
+                            </Text>
+                        </Tooltip>
                         <Badge
                             variant="light"
                             color={getStatusConfig(runData.status).color}
+                            radius="sm"
                             leftSection={
                                 <MantineIcon
                                     icon={getStatusConfig(runData.status).icon}
-                                    size="sm"
                                 />
                             }
                         >
                             {runData.status}
                         </Badge>
                     </Group>
+                </Group>
 
-                    {summaryStats && (
-                        <Group gap="md">
-                            <Text size="sm" c="dimmed">
-                                <Text component="span" fw={500} c="green">
-                                    {summaryStats.completed}
-                                </Text>{' '}
-                                completed
-                            </Text>
-                            {summaryStats.failed > 0 && (
-                                <Text size="sm" c="dimmed">
-                                    <Text component="span" fw={500} c="red">
-                                        {summaryStats.failed}
-                                    </Text>{' '}
-                                    failed
-                                </Text>
-                            )}
-                            {summaryStats.running > 0 && (
-                                <Text size="sm" c="dimmed">
-                                    <Text component="span" fw={500} c="yellow">
-                                        {summaryStats.running}
-                                    </Text>{' '}
-                                    running
-                                </Text>
-                            )}
-                            {summaryStats.pending > 0 && (
-                                <Text size="sm" c="dimmed">
-                                    <Text component="span" fw={500} c="gray">
-                                        {summaryStats.pending}
-                                    </Text>{' '}
-                                    pending
-                                </Text>
-                            )}
-                        </Group>
-                    )}
+                <Divider />
+                <Box>
+                    <Table highlightOnHover>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>#</Table.Th>
+                                <Table.Th>Prompt</Table.Th>
+                                <Table.Th>Status</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {runData.results.map((result, index) => (
+                                <PromptRow
+                                    key={result.resultUuid}
+                                    projectUuid={projectUuid}
+                                    agentUuid={agentUuid}
+                                    result={result}
+                                    index={index}
+                                    onViewThread={handleViewThread}
+                                />
+                            ))}
+                        </Table.Tbody>
+                    </Table>
 
-                    <Group gap="md">
-                        <Text size="sm" c="dimmed">
-                            Started:{' '}
-                            {new Date(runData.createdAt).toLocaleString()}
-                        </Text>
-                        {runData.completedAt && (
-                            <Text size="sm" c="dimmed">
-                                Completed:{' '}
-                                {new Date(runData.completedAt).toLocaleString()}
+                    <Group justify="flex-end" pr="sm" pb="sm">
+                        {summaryStats && (
+                            <Text size="xs" fw={500} fs="italic" c="dimmed">
+                                {summaryStats.completed + summaryStats.failed} /{' '}
+                                {summaryStats.total} completed
                             </Text>
                         )}
                     </Group>
-                </Stack>
-            </Card>
+                </Box>
+            </Paper>
 
-            <Card p="md" withBorder>
-                <Stack gap="sm">
-                    <Title order={5}>Prompt Results</Title>
-
-                    {!runData.results || runData.results.length === 0 ? (
-                        <Paper
-                            p="md"
-                            withBorder
-                            style={{ borderStyle: 'dashed' }}
-                        >
-                            <Text size="sm" c="dimmed" ta="center">
-                                No results available for this run.
-                            </Text>
-                        </Paper>
-                    ) : (
-                        <Table highlightOnHover>
-                            <Table.Thead>
-                                <Table.Tr>
-                                    <Table.Th style={{ width: 50 }}>#</Table.Th>
-                                    <Table.Th>Prompt</Table.Th>
-                                    <Table.Th style={{ width: 120 }}>
-                                        Status
-                                    </Table.Th>
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {runData.results.map((result, index) => (
-                                    <PromptRow
-                                        key={result.resultUuid}
-                                        projectUuid={projectUuid}
-                                        agentUuid={agentUuid}
-                                        result={result}
-                                        index={index}
-                                        onViewThread={handleViewThread}
-                                    />
-                                ))}
-                            </Table.Tbody>
-                        </Table>
-                    )}
-                </Stack>
-            </Card>
+            {(!runData.results || runData.results.length === 0) && (
+                <Paper
+                    p="xl"
+                    withBorder
+                    style={{
+                        borderStyle: 'dashed',
+                        backgroundColor: 'transparent',
+                    }}
+                >
+                    <Text size="sm" c="dimmed" ta="center">
+                        No results available for this run.
+                    </Text>
+                </Paper>
+            )}
         </Stack>
     );
 };

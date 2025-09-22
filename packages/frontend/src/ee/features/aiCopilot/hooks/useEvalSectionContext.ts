@@ -1,14 +1,14 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 
-export type EvalTabContextType = {
+export type EvalSectionContextType = {
     selectedThreadUuid: string | null;
     setSelectedThreadUuid: (threadUuid: string | null) => void;
     clearThread: () => void;
     isSidebarOpen: boolean;
 };
 
-export const useEvalTabContext = (): EvalTabContextType => {
+export const useEvalSectionContext = (): EvalSectionContextType => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const selectedThreadUuid = searchParams.get('evalThreadUuid');
