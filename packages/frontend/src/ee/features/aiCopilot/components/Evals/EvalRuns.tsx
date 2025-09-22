@@ -10,8 +10,10 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
 import { IconChevronRight, IconClock } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -54,6 +56,14 @@ const EvalRunItem: FC<RunItemProps> = ({
     // Start polling for this run if it's pending or running
     useEvaluationRunPolling(projectUuid, agentUuid, evalUuid, run);
 
+    const runDuration = dayjs
+        .utc(
+            dayjs
+                .duration(dayjs(run.completedAt).diff(dayjs(run.createdAt)))
+                .asMilliseconds(),
+        )
+        .format('mm[m]ss[s]');
+
     return (
         <Card
             key={run.runUuid}
@@ -75,27 +85,45 @@ const EvalRunItem: FC<RunItemProps> = ({
             <Group justify="space-between" align="center">
                 <Stack gap="xs" style={{ flex: 1 }}>
                     <Group gap="xs">
+                        <Text size="sm" fw={500}>
+                            Run {run.runUuid.slice(-8)}
+                        </Text>
                         <Badge
                             color={statusColors[run.status]}
                             variant="light"
                             size="sm"
+                            radius="sm"
                         >
                             {run.status}
                         </Badge>
-                        <Text size="sm" fw={500}>
-                            Run {run.runUuid.slice(-8)}
-                        </Text>
                     </Group>
-                    <Text size="xs" c="dimmed">
-                        Started {new Date(run.createdAt).toLocaleString()}
-                        {run.completedAt && (
-                            <>
-                                {' '}
-                                • Completed{' '}
-                                {new Date(run.completedAt).toLocaleString()}
-                            </>
-                        )}
-                    </Text>
+                    <Tooltip
+                        label={
+                            <Text size="xs" c="dimmed">
+                                Started{' '}
+                                {new Date(run.createdAt).toLocaleString()}
+                                {run.completedAt && (
+                                    <>
+                                        {' '}
+                                        • Completed{' '}
+                                        {new Date(
+                                            run.completedAt,
+                                        ).toLocaleString()}
+                                    </>
+                                )}
+                            </Text>
+                        }
+                    >
+                        <Text
+                            size="xs"
+                            c="dimmed"
+                            display={
+                                run.status === 'pending' ? 'none' : 'block'
+                            }
+                        >
+                            Duration: {runDuration}
+                        </Text>
+                    </Tooltip>
                 </Stack>
                 <Group gap="sm">
                     {run.status !== 'pending' && (
@@ -136,7 +164,9 @@ export const EvalRuns: FC<Props> = ({
 
     return (
         <Stack gap="md">
-            <Title order={5}>Previous Runs</Title>
+            <Title order={5} c="gray.9" fw={500}>
+                Previous Runs
+            </Title>
 
             {!runs || runs.length === 0 ? (
                 <Paper
@@ -157,7 +187,7 @@ export const EvalRuns: FC<Props> = ({
                 </Paper>
             ) : (
                 <ScrollArea mah={600}>
-                    <Stack gap="sm">
+                    <Stack gap="xs">
                         {runs.map((run) => (
                             <EvalRunItem
                                 key={run.runUuid}

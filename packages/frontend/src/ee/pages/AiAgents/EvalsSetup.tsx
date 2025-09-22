@@ -1,10 +1,9 @@
 import type { ApiCreateEvaluationRequest } from '@lightdash/common';
 import {
-    Box,
     Button,
     Card,
     Group,
-    Loader,
+    LoadingOverlay,
     Paper,
     Stack,
     Text,
@@ -12,7 +11,7 @@ import {
 } from '@mantine-8/core';
 import { IconChevronRight, IconList, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { EvalFormModal } from '../../features/aiCopilot/components/Evals/EvalFormModal';
 import {
@@ -25,8 +24,7 @@ type Props = {
     agentUuid: string;
 };
 
-export const EvalsTab: FC<Props> = ({ projectUuid, agentUuid }) => {
-    const navigate = useNavigate();
+export const EvalsSetup: FC<Props> = ({ projectUuid, agentUuid }) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const { data: evaluations, isLoading } = useAiAgentEvaluations(
@@ -76,31 +74,31 @@ export const EvalsTab: FC<Props> = ({ projectUuid, agentUuid }) => {
     ) : null;
 
     if (isLoading) {
-        return (
-            <Box style={{ display: 'flex', justifyContent: 'center', p: 20 }}>
-                <Loader />
-            </Box>
-        );
+        return <LoadingOverlay visible loaderProps={{ size: 'lg' }} />;
     }
 
     if (!evaluations || evaluations.length === 0) {
         return (
-            <>
+            <Stack gap="sm">
                 <Paper
                     p="xl"
-                    shadow="subtle"
                     component={Stack}
-                    gap="xxs"
+                    gap="md"
                     align="center"
                     withBorder
-                    style={{ borderStyle: 'dashed' }}
+                    style={{
+                        borderStyle: 'dashed',
+                        backgroundColor: 'transparent',
+                    }}
                 >
                     <MantineIcon icon={IconList} size="lg" color="dimmed" />
-                    <Title order={5}>No evaluations found</Title>
-                    <Text size="sm" c="dimmed" ta="center">
-                        Create an evaluation to start testing your AI agent with
-                        predefined prompts.
-                    </Text>
+                    <Stack gap="xs" align="center">
+                        <Title order={5}>No evaluations found</Title>
+                        <Text size="sm" c="dimmed" ta="center" maw={400}>
+                            Create an evaluation to start testing your AI agent
+                            with predefined prompts and measure its performance.
+                        </Text>
+                    </Stack>
                     <Button
                         leftSection={<MantineIcon icon={IconPlus} />}
                         size="sm"
@@ -111,39 +109,24 @@ export const EvalsTab: FC<Props> = ({ projectUuid, agentUuid }) => {
                     </Button>
                 </Paper>
                 {evalCreationModal}
-            </>
+            </Stack>
         );
     }
 
     return (
-        <Stack gap="md">
-            <Group justify="space-between" align="center">
-                <Title order={4}>Evaluations</Title>
-                <Button
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    size="sm"
-                    onClick={handleCreateModalOpen}
-                >
-                    Create Evaluation
-                </Button>
-            </Group>
-
+        <Stack gap="sm">
             <Stack gap="sm">
                 {evaluations.map((evaluation) => (
                     <Card
                         key={evaluation.evalUuid}
                         p="md"
                         withBorder
-                        style={{ cursor: 'pointer' }}
-                        onClick={() =>
-                            navigate(
-                                `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/evals/${evaluation.evalUuid}`,
-                            )
-                        }
+                        component={Link}
+                        to={`/projects/${projectUuid}/ai-agents/${agentUuid}/edit/evals/${evaluation.evalUuid}`}
                     >
-                        <Group justify="space-between" align="center">
+                        <Group justify="space-between" align="flex-start">
                             <Stack gap="xs" style={{ flex: 1 }}>
-                                <Group gap="xs">
+                                <Group gap="xs" align="center">
                                     <Title order={5} lineClamp={1}>
                                         {evaluation.title}
                                     </Title>
@@ -161,11 +144,16 @@ export const EvalsTab: FC<Props> = ({ projectUuid, agentUuid }) => {
                                 </Text>
                             </Stack>
 
-                            <MantineIcon icon={IconChevronRight} />
+                            <MantineIcon
+                                icon={IconChevronRight}
+                                color="dimmed"
+                                size="sm"
+                            />
                         </Group>
                     </Card>
                 ))}
             </Stack>
+
             {evalCreationModal}
         </Stack>
     );

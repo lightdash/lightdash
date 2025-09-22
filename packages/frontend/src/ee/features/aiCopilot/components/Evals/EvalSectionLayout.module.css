@@ -10,10 +10,6 @@
     background-color: var(--mantine-color-gray-3) !important;
 }
 
-.evalContent {
-    margin: 0 var(--mantine-spacing-lg);
-}
-
 .threadPanel {
     max-height: 100%;
 }

@@ -1,20 +1,24 @@
-import { type SchedulerWithLogs } from '@lightdash/common';
+import { SchedulerJobStatus, type SchedulerWithLogs } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Box,
     Center,
     Collapse,
     Group,
+    Menu,
     Stack,
     Table,
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronDown, IconDots, IconSend } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import groupBy from 'lodash/groupBy';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
+import { useSendNowSchedulerByUuid } from '../../features/scheduler/hooks/useScheduler';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
 import {
@@ -58,6 +62,11 @@ const Logs: FC<LogsProps> = ({
 }) => {
     const { classes, theme } = useTableStyles();
     const [openedUuids, setOpenedUuids] = useState<Set<string>>(new Set());
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [selectedScheduler, setSelectedScheduler] = useState<{
+        uuid: string;
+        name: string;
+    } | null>(null);
     const handleTogle = useCallback(
         (uuid: string) => {
             if (openedUuids.has(uuid)) {
@@ -73,6 +82,10 @@ const Logs: FC<LogsProps> = ({
     const groupedLogs = useMemo(
         () => Object.entries(groupBy(logs, 'jobGroup')),
         [logs],
+    );
+
+    const sendNowMutation = useSendNowSchedulerByUuid(
+        selectedScheduler?.uuid ?? '',
     );
 
     const columns = useMemo<Column[]>(() => {
@@ -274,6 +287,65 @@ const Logs: FC<LogsProps> = ({
                     style: { width: '1px' },
                 },
             },
+            {
+                id: 'actions',
+                label: '',
+                cell: (item, currentLogs) => {
+                    const latestStatus = currentLogs[0]?.status;
+                    if (latestStatus !== SchedulerJobStatus.ERROR) {
+                        return <></>;
+                    }
+                    return (
+                        <Box
+                            component="div"
+                            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                            }}
+                        >
+                            <Menu
+                                withinPortal
+                                position="bottom-start"
+                                withArrow
+                                arrowPosition="center"
+                                shadow="md"
+                                offset={-4}
+                                closeOnItemClick
+                                closeOnClickOutside
+                            >
+                                <Menu.Target>
+                                    <ActionIcon
+                                        sx={(mtheme) => ({
+                                            ':hover': {
+                                                backgroundColor:
+                                                    mtheme.colors.gray[1],
+                                            },
+                                        })}
+                                    >
+                                        <IconDots size={16} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown maw={280}>
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        icon={<IconSend size={18} />}
+                                        onClick={() => {
+                                            setSelectedScheduler({
+                                                uuid: item.schedulerUuid,
+                                                name: item.name,
+                                            });
+                                            setIsConfirmOpen(true);
+                                        }}
+                                    >
+                                        Send now
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        </Box>
+                    );
+                },
+            },
         ];
     }, [
         users,
@@ -286,42 +358,54 @@ const Logs: FC<LogsProps> = ({
     ]);
 
     return (
-        <Table className={classes.root} highlightOnHover>
-            <thead>
-                <tr>
-                    {columns.map((column) => {
-                        return (
-                            <th key={column.id} style={column?.meta?.style}>
-                                {column?.label}
-                            </th>
+        <>
+            <Table className={classes.root} highlightOnHover>
+                <thead>
+                    <tr>
+                        {columns.map((column) => {
+                            return (
+                                <th key={column.id} style={column?.meta?.style}>
+                                    {column?.label}
+                                </th>
+                            );
+                        })}
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {groupedLogs.map(([jobGroup, schedulerLogs]) => {
+                        const schedulerItem = schedulers.find(
+                            (item) =>
+                                item.schedulerUuid ===
+                                schedulerLogs[0].schedulerUuid,
+                        );
+                        return !schedulerItem ? null : (
+                            <tr key={jobGroup}>
+                                {columns.map((column) => (
+                                    <td key={column.id}>
+                                        {column.cell(
+                                            schedulerItem,
+                                            schedulerLogs,
+                                            jobGroup,
+                                        )}
+                                    </td>
+                                ))}
+                            </tr>
                         );
                     })}
-                </tr>
-            </thead>
-
-            <tbody>
-                {groupedLogs.map(([jobGroup, schedulerLogs]) => {
-                    const schedulerItem = schedulers.find(
-                        (item) =>
-                            item.schedulerUuid ===
-                            schedulerLogs[0].schedulerUuid,
-                    );
-                    return !schedulerItem ? null : (
-                        <tr key={jobGroup}>
-                            {columns.map((column) => (
-                                <td key={column.id}>
-                                    {column.cell(
-                                        schedulerItem,
-                                        schedulerLogs,
-                                        jobGroup,
-                                    )}
-                                </td>
-                            ))}
-                        </tr>
-                    );
-                })}
-            </tbody>
-        </Table>
+                </tbody>
+            </Table>
+            <ConfirmSendNowModal
+                opened={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                schedulerName={selectedScheduler?.name || ''}
+                loading={sendNowMutation.isLoading}
+                onConfirm={() => {
+                    sendNowMutation.mutate();
+                    setIsConfirmOpen(false);
+                }}
+            />
+        </>
     );
 };
 
