@@ -1,3 +1,11 @@
+## [0.2018.1](https://github.com/lightdash/lightdash/compare/0.2018.0...0.2018.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* add config to dbt 1.10 on write back ([#17025](https://github.com/lightdash/lightdash/issues/17025)) ([16f345f](https://github.com/lightdash/lightdash/commit/16f345f619b9451c1b851068397d3aa7eb1d13e9))
+* add option to validate only specified explores ([#17026](https://github.com/lightdash/lightdash/issues/17026)) ([39474ff](https://github.com/lightdash/lightdash/commit/39474ff071aa7abd4316abb313dcd8e348634576))
+
 # [0.2018.0](https://github.com/lightdash/lightdash/compare/0.2017.0...0.2018.0) (2025-09-22)
 
 

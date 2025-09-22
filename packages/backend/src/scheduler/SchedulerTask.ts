@@ -1622,6 +1622,7 @@ export default class SchedulerTask {
                 projectUuid: payload.projectUuid,
                 organizationUuid: payload.organizationUuid,
                 createdByUserUuid: payload.userUuid,
+                onlyValidateExploresInArgs: payload.onlyValidateExploresInArgs,
             },
         });
 
@@ -1640,6 +1641,7 @@ export default class SchedulerTask {
                 payload.projectUuid,
                 payload.explores,
                 validationTargetsSet,
+                payload.onlyValidateExploresInArgs,
             );
 
             const contentIds = errors.map((validation) => {

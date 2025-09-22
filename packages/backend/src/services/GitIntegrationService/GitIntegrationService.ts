@@ -8,9 +8,11 @@ import {
     DbtGitlabProjectConfig,
     DbtProjectType,
     DbtSchemaEditor,
+    DbtVersionOptionLatest,
     ForbiddenError,
     friendlyName,
     getErrorMessage,
+    getLatestSupportDbtVersion,
     GitIntegrationConfiguration,
     isUserWithOrg,
     ParameterError,
@@ -20,6 +22,7 @@ import {
     SavedChart,
     SessionUser,
     snakeCaseName,
+    SupportedDbtVersions,
     UnexpectedServerError,
     VizColumn,
 } from '@lightdash/common';
@@ -58,6 +61,7 @@ type GitProps = {
     quoteChar: `"` | `'`;
     hostDomain?: string; // For GitLab or GitHub Enterprise
     type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
+    dbtVersion?: SupportedDbtVersions;
 };
 
 // Keep backward compatibility
@@ -252,7 +256,18 @@ Affected charts:
             hostDomain,
         });
 
-        const yamlSchema = new DbtSchemaEditor(fileContent, fileName);
+        // Get the dbt version from the project
+        const project = await this.projectModel.get(projectUuid);
+        const dbtVersion =
+            project.dbtVersion === DbtVersionOptionLatest.LATEST
+                ? getLatestSupportDbtVersion()
+                : project.dbtVersion;
+
+        const yamlSchema = new DbtSchemaEditor(
+            fileContent,
+            fileName,
+            dbtVersion,
+        );
 
         if (!yamlSchema.hasModels()) {
             throw new ParseError(`No models found in ${fileName}`);
@@ -475,6 +490,13 @@ Affected charts:
         )}${snakeCaseName(user.lastName)}`;
         const branchName = `lightdash-${userName}-${nanoid(4)}`;
 
+        // Get the dbt version from the project
+        const project = await this.projectModel.get(projectUuid);
+        const dbtVersion =
+            project.dbtVersion === DbtVersionOptionLatest.LATEST
+                ? getLatestSupportDbtVersion()
+                : project.dbtVersion;
+
         const gitProps: GitProps = {
             owner,
             repo,
@@ -486,6 +508,7 @@ Affected charts:
             type,
             installationId,
             quoteChar,
+            dbtVersion,
         };
         return gitProps;
     }
