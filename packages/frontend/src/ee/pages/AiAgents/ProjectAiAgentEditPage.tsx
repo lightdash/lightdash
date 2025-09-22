@@ -2,6 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Badge,
     Box,
     Button,
     Card,
@@ -674,6 +675,74 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 </Collapse>
                                             ) : null}
                                         </Box>
+
+                                        <Stack gap="sm">
+                                            <Box>
+                                                <Group gap="xs" c="gray.7">
+                                                    <Title
+                                                        order={6}
+                                                        size="sm"
+                                                        fw={500}
+                                                    >
+                                                        Enable Data Access
+                                                    </Title>
+                                                    <Tooltip
+                                                        label="When enabled, the AI agent can analyze chart data and provide insights. When disabled, the agent only creates visualizations without accessing the underlying data."
+                                                        withArrow
+                                                        withinPortal
+                                                        multiline
+                                                        position="right"
+                                                        maw="300px"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                    <Badge
+                                                        size="xs"
+                                                        color="violet"
+                                                        variant="light"
+                                                    >
+                                                        New
+                                                    </Badge>
+                                                </Group>
+                                                <Text c="dimmed" size="xs">
+                                                    <>
+                                                        Allows the agent to
+                                                        access and analyze the
+                                                        actual data behind
+                                                        charts to provide
+                                                        detailed insights and
+                                                        answer questions about
+                                                        the data.{' '}
+                                                        <Anchor
+                                                            href="https://docs.lightdash.com/guides/ai-agents#data-access-control"
+                                                            target="_blank"
+                                                            size="xs"
+                                                        >
+                                                            Learn more
+                                                        </Anchor>
+                                                    </>
+                                                </Text>
+                                            </Box>
+                                            <Switch
+                                                variant="subtle"
+                                                color="blue.4"
+                                                label={
+                                                    form.values.enableDataAccess
+                                                        ? 'Enabled'
+                                                        : 'Disabled'
+                                                }
+                                                {...form.getInputProps(
+                                                    'enableDataAccess',
+                                                    {
+                                                        type: 'checkbox',
+                                                    },
+                                                )}
+                                            />
+                                        </Stack>
                                     </Stack>
                                 </Paper>
 
@@ -772,52 +841,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                 and how they work.
                                             </Text>
                                         </Stack>
-                                        <Switch
-                                            variant="subtle"
-                                            label={
-                                                <Group gap="xs">
-                                                    <Text fz="sm" fw={500}>
-                                                        Enable Data Access
-                                                    </Text>
-                                                    <Tooltip
-                                                        label="When enabled, the AI agent can analyze chart data and provide insights. When disabled, the agent only creates visualizations without accessing the underlying data."
-                                                        withArrow
-                                                        withinPortal
-                                                        multiline
-                                                        position="right"
-                                                        maw="300px"
-                                                    >
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconInfoCircle
-                                                            }
-                                                        />
-                                                    </Tooltip>
-                                                </Group>
-                                            }
-                                            description={
-                                                <>
-                                                    Allows the agent to access
-                                                    and analyze the actual data
-                                                    behind charts to provide
-                                                    detailed insights and answer
-                                                    questions about the data.{' '}
-                                                    <Anchor
-                                                        href="https://docs.lightdash.com/guides/ai-agents#data-access-control"
-                                                        target="_blank"
-                                                        size="xs"
-                                                    >
-                                                        Learn more
-                                                    </Anchor>
-                                                </>
-                                            }
-                                            {...form.getInputProps(
-                                                'enableDataAccess',
-                                                {
-                                                    type: 'checkbox',
-                                                },
-                                            )}
-                                        />
                                     </Stack>
                                 </Paper>
 
