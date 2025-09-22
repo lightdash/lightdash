@@ -1,3 +1,15 @@
+# [0.2018.0](https://github.com/lightdash/lightdash/compare/0.2017.0...0.2018.0) (2025-09-22)
+
+
+### Bug Fixes
+
+* only render insights if set up in ai agent admin ([#16987](https://github.com/lightdash/lightdash/issues/16987)) ([9068e69](https://github.com/lightdash/lightdash/commit/9068e694f3d30e37751e13b28a48d12f88ea0f60))
+
+
+### Features
+
+* support AI Agent evals for slack based threads ([#17011](https://github.com/lightdash/lightdash/issues/17011)) ([5ab0a4f](https://github.com/lightdash/lightdash/commit/5ab0a4f4cd7d976b96e0ad292165490cfc69d175))
+
 # [0.2017.0](https://github.com/lightdash/lightdash/compare/0.2016.3...0.2017.0) (2025-09-22)
 
 
