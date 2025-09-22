@@ -1,4 +1,5 @@
 import { Button, Flex, Text } from '@mantine/core';
+import { IconSend } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 
@@ -22,6 +23,7 @@ const ConfirmSendNowModal: FC<ConfirmSendNowModalProps> = ({
             opened={opened}
             onClose={onClose}
             title={`Send “${schedulerName}” now?`}
+            icon={IconSend}
             size="xl"
             actions={
                 <Flex gap="sm">
