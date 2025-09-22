@@ -14,6 +14,10 @@ export interface AiAgentThreadStreamingState {
     isStreaming: boolean;
     toolCalls: ToolCall[];
     error?: string;
+    improveContextNotifaction?: {
+        toolCallId: string;
+        suggestedInstruction: string;
+    };
 }
 
 type State = Record<string, AiAgentThreadStreamingState>;
@@ -112,6 +116,34 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.error = error;
             }
         },
+        showImproveContextNotification: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                toolCallId: string;
+                suggestedInstruction: string;
+            }>,
+        ) => {
+            const { threadUuid, toolCallId, suggestedInstruction } =
+                action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.improveContextNotifaction = {
+                    toolCallId,
+                    suggestedInstruction,
+                };
+            }
+        },
+        hideImproveContextNotification: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const { threadUuid } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.improveContextNotifaction = undefined;
+            }
+        },
     },
 });
 
@@ -121,4 +153,6 @@ export const {
     stopStreaming,
     setError,
     addToolCall,
+    showImproveContextNotification,
+    hideImproveContextNotification,
 } = aiAgentThreadStreamSlice.actions;

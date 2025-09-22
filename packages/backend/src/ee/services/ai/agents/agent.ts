@@ -214,13 +214,7 @@ const getAgentTools = (
         maxLimit: args.maxQueryLimit,
     });
 
-    const improveContext = getImproveContext({
-        appendInstruction: dependencies.appendInstruction,
-        projectUuid: args.agentSettings.projectUuid,
-        agentUuid: args.agentSettings.uuid,
-        userId: args.userId,
-        organizationId: args.organizationId,
-    });
+    const improveContext = getImproveContext();
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,

@@ -138,6 +138,7 @@ import type {
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAppendInstructionResponse,
     ApiCreateEvaluationResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
@@ -966,7 +967,8 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResponse['results']
     | ApiAiAgentEvaluationRunSummaryListResponse['results']
     | ApiAiAgentEvaluationRunResultsResponse['results']
-    | ApiCreateEvaluationResponse['results'];
+    | ApiCreateEvaluationResponse['results']
+    | ApiAppendInstructionResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

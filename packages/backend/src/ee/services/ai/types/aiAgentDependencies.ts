@@ -135,18 +135,3 @@ export type CheckUserPermissionFn = (args: {
     organizationId: string;
     permission: string;
 }) => Promise<boolean>;
-
-export type AppendInstructionFn = (args: {
-    projectUuid: string;
-    agentUuid: string;
-    instruction: string;
-    metadata?: {
-        originalQuery: string;
-        incorrectResponse: string;
-        correctResponse: string;
-        category: string;
-        confidence: number;
-        createdByUserId: string;
-        createdAt: string;
-    };
-}) => Promise<string>; // Returns instruction ID
