@@ -1,3 +1,15 @@
+# [0.2020.0](https://github.com/lightdash/lightdash/compare/0.2019.0...0.2020.0) (2025-09-22)
+
+
+### Bug Fixes
+
+* improve error messages for email sending and screenshot failures ([#17030](https://github.com/lightdash/lightdash/issues/17030)) ([cd8936e](https://github.com/lightdash/lightdash/commit/cd8936e90caf12a0c3025968e22e2d94f75a31f2))
+
+
+### Features
+
+* add "send now" functionality to schedulers ([#17038](https://github.com/lightdash/lightdash/issues/17038)) ([7c3f591](https://github.com/lightdash/lightdash/commit/7c3f591a16ca1258964bc995dbed6601db643172))
+
 # [0.2019.0](https://github.com/lightdash/lightdash/compare/0.2018.1...0.2019.0) (2025-09-22)
 
 
