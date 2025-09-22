@@ -30,10 +30,6 @@ export const TOOL_IMPROVE_CONTEXT_DESCRIPTION = `
     Feedback: "The customer_count should exclude test accounts"
     Generated instruction: "When calculating customer_count, always exclude test accounts using the filter is_test_account = false"
 
-    Category: calculation
-    Feedback: "Conversion rate should be conversions divided by total visits, not unique visitors"
-    Generated instruction: "When calculating conversion rate, use conversions / total_visits instead of conversions / unique_visitors"
-
     Category: other
     Feedback1: "Always show results in descending order by default"
     Generated instruction1: "When showing metric results, default to descending order unless explicitly requested otherwise"
