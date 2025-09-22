@@ -1,7 +1,10 @@
 import {
+    type AdditionalMetric,
     type CustomDimension,
+    type FieldId,
     type MetricQuery,
     type ParameterValue,
+    type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
@@ -56,6 +59,114 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.filters = action.payload;
         },
 
+        // Dimensions and Metrics
+        setDimensions: (state, action: PayloadAction<FieldId[]>) => {
+            state.unsavedChartVersion.metricQuery.dimensions = action.payload;
+        },
+        setMetrics: (state, action: PayloadAction<FieldId[]>) => {
+            state.unsavedChartVersion.metricQuery.metrics = action.payload;
+        },
+
+        // Sorts
+        setSorts: (state, action: PayloadAction<SortField[]>) => {
+            state.unsavedChartVersion.metricQuery.sorts = action.payload;
+        },
+
+        // Row limit
+        setRowLimit: (state, action: PayloadAction<number>) => {
+            state.unsavedChartVersion.metricQuery.limit = action.payload;
+        },
+
+        // Additional Metrics
+        addAdditionalMetric: (
+            state,
+            action: PayloadAction<AdditionalMetric>,
+        ) => {
+            if (!state.unsavedChartVersion.metricQuery.additionalMetrics) {
+                state.unsavedChartVersion.metricQuery.additionalMetrics = [];
+            }
+            state.unsavedChartVersion.metricQuery.additionalMetrics.push(
+                action.payload,
+            );
+        },
+        removeAdditionalMetric: (state, action: PayloadAction<FieldId>) => {
+            if (state.unsavedChartVersion.metricQuery.additionalMetrics) {
+                state.unsavedChartVersion.metricQuery.additionalMetrics =
+                    state.unsavedChartVersion.metricQuery.additionalMetrics.filter(
+                        (metric) => metric.uuid !== action.payload,
+                    );
+            }
+        },
+        editAdditionalMetric: (
+            state,
+            action: PayloadAction<{
+                metric: AdditionalMetric;
+                previousName: string;
+            }>,
+        ) => {
+            if (state.unsavedChartVersion.metricQuery.additionalMetrics) {
+                const index =
+                    state.unsavedChartVersion.metricQuery.additionalMetrics.findIndex(
+                        (m) => m.uuid === action.payload.metric.uuid,
+                    );
+                if (index !== -1) {
+                    state.unsavedChartVersion.metricQuery.additionalMetrics[
+                        index
+                    ] = action.payload.metric;
+                }
+            }
+        },
+
+        // Custom Dimensions
+        addCustomDimension: (state, action: PayloadAction<CustomDimension>) => {
+            if (!state.unsavedChartVersion.metricQuery.customDimensions) {
+                state.unsavedChartVersion.metricQuery.customDimensions = [];
+            }
+            state.unsavedChartVersion.metricQuery.customDimensions.push(
+                action.payload,
+            );
+        },
+        removeCustomDimension: (state, action: PayloadAction<FieldId>) => {
+            if (state.unsavedChartVersion.metricQuery.customDimensions) {
+                state.unsavedChartVersion.metricQuery.customDimensions =
+                    state.unsavedChartVersion.metricQuery.customDimensions.filter(
+                        (dimension) => dimension.id !== action.payload,
+                    );
+            }
+        },
+
+        // Table Calculations
+        addTableCalculation: (
+            state,
+            action: PayloadAction<TableCalculation>,
+        ) => {
+            state.unsavedChartVersion.metricQuery.tableCalculations.push(
+                action.payload,
+            );
+        },
+        removeTableCalculation: (state, action: PayloadAction<string>) => {
+            state.unsavedChartVersion.metricQuery.tableCalculations =
+                state.unsavedChartVersion.metricQuery.tableCalculations.filter(
+                    (calc) => calc.name !== action.payload,
+                );
+        },
+        updateTableCalculation: (
+            state,
+            action: PayloadAction<{
+                oldName: string;
+                tableCalculation: TableCalculation;
+            }>,
+        ) => {
+            const index =
+                state.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
+                    (calc) => calc.name === action.payload.oldName,
+                );
+            if (index !== -1) {
+                state.unsavedChartVersion.metricQuery.tableCalculations[index] =
+                    action.payload.tableCalculation;
+            }
+        },
+
         // Parameters
         setParameter: (
             state,
@@ -88,6 +199,36 @@ const explorerSlice = createSlice({
         },
         closeVisualizationConfig: (state) => {
             state.isVisualizationConfigOpen = false;
+        },
+
+        // Modal actions
+        toggleAdditionalMetricModal: (
+            state,
+            action?: PayloadAction<{
+                isEditing?: boolean;
+                item?: any;
+                type?: any;
+            }>,
+        ) => {
+            state.modals.additionalMetric.isOpen =
+                !state.modals.additionalMetric.isOpen;
+            if (action?.payload) {
+                Object.assign(state.modals.additionalMetric, action.payload);
+            }
+        },
+        toggleCustomDimensionModal: (
+            state,
+            action?: PayloadAction<{
+                isEditing?: boolean;
+                table?: string;
+                item?: any;
+            }>,
+        ) => {
+            state.modals.customDimension.isOpen =
+                !state.modals.customDimension.isOpen;
+            if (action?.payload) {
+                Object.assign(state.modals.customDimension, action.payload);
+            }
         },
 
         // Table calculations

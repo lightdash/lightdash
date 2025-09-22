@@ -32,6 +32,16 @@ import {
     type TableColumn,
 } from '../components/common/Table/types';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import {
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectDimensions,
+    selectMetrics,
+    selectSorts,
+    selectTableCalculations,
+    selectTableName,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -62,27 +72,23 @@ export const getValueCell = (info: CellContext<RawResultRow, string>) => {
 };
 
 export const useColumns = (): TableColumn[] => {
-    const activeFields = useExplorerContext(
-        (context) => context.state.activeFields,
-    );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-    const sorts = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
-    );
+    // Use Redux selectors for performance - prevents re-renders from context cascades
+    const tableName = useExplorerSelector(selectTableName);
+    const dimensions = useExplorerSelector(selectDimensions);
+    const metrics = useExplorerSelector(selectMetrics);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const sorts = useExplorerSelector(selectSorts);
+
+    // activeFields is calculated from dimensions + metrics + tableCalculations
+    const activeFields = useMemo(() => {
+        return new Set([
+            ...dimensions,
+            ...metrics,
+            ...tableCalculations.map(({ name }) => name),
+        ]);
+    }, [dimensions, metrics, tableCalculations]);
     const resultsMetricQuery = useExplorerContext(
         (context) => context.query.data?.metricQuery,
     );

@@ -26,6 +26,7 @@ import {
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -98,6 +99,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const isVisualizationConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
     );
+    const tableName = useExplorerSelector(selectTableName);
     const dispatch = useExplorerDispatch();
 
     const toggleExpandedSection = useCallback(
@@ -124,7 +126,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         (context) => context.state.savedChart?.projectUuid || fallBackUUid,
     );
 
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const { data: explore } = useExplore(tableName);
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
@@ -194,7 +196,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         missingRequiredParameters,
     ]);
 
-    if (!unsavedChartVersion.tableName) {
+    if (!tableName) {
         return <CollapsableCard title="Charts" disabled />;
     }
 

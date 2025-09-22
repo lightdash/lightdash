@@ -48,7 +48,7 @@ export const selectIsResultsExpanded = createSelector(
     (expandedSections) => expandedSections.includes(ExplorerSection.RESULTS),
 );
 
-// const selectPreviouslyFetchedState = createSelector(
+// export const selectPreviouslyFetchedState = createSelector(
 //     [selectExplorerState],
 //     (explorer) => explorer.previouslyFetchedState,
 // );
@@ -89,17 +89,28 @@ export const selectTableCalculations = createSelector(
     (metricQuery) => metricQuery.tableCalculations,
 );
 
-// const selectDimensions = createSelector(
+// Query-specific selectors for component performance
+export const selectTableName = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.tableName,
+);
+
+export const selectDimensions = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.dimensions,
+);
+
+export const selectMetrics = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.metrics,
+);
+
+export const selectSorts = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.sorts,
+);
+
+// const selectRowLimit = createSelector(
 //     [selectMetricQuery],
-//     (metricQuery) => metricQuery.dimensions,
-// );
-//
-// const selectMetrics = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.metrics,
-// );
-//
-// const selectTableName = createSelector(
-//     [selectUnsavedChartVersion],
-//     (unsavedChartVersion) => unsavedChartVersion.tableName,
+//     (metricQuery) => metricQuery.limit,
 // );

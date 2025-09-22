@@ -52,7 +52,10 @@ import {
 } from '../../components/RunQuerySettings/defaults';
 import {
     explorerActions,
+    selectDimensions,
     selectFilters,
+    selectMetrics,
+    selectTableCalculations,
     useExplorerDispatch,
     useExplorerInitialization,
     useExplorerSelector,
@@ -930,18 +933,21 @@ const ExplorerProvider: FC<
         [unsavedChartVersion.metricQuery, reduxFilters],
     );
 
+    // Use Redux selectors for activeFields calculation to prevent re-renders from context state changes
+    const reduxDimensions = useExplorerSelector(selectDimensions);
+    const reduxMetrics = useExplorerSelector(selectMetrics);
+    const reduxTableCalculations = useExplorerSelector(selectTableCalculations);
+
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
     >(() => {
         const fields = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ),
+            ...reduxDimensions,
+            ...reduxMetrics,
+            ...reduxTableCalculations.map(({ name }) => name),
         ]);
         return [fields, fields.size > 0];
-    }, [unsavedChartVersion]);
+    }, [reduxDimensions, reduxMetrics, reduxTableCalculations]);
 
     const cachedChartConfig = useRef<Partial<ConfigCacheMap>>({});
 
@@ -972,14 +978,21 @@ const ExplorerProvider: FC<
 
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
-            dispatch({
-                type: isDimension
-                    ? ActionType.TOGGLE_DIMENSION
-                    : ActionType.TOGGLE_METRIC,
-                payload: fieldId,
-            });
+            if (isDimension) {
+                const current = reduxDimensions;
+                const newDimensions = current.includes(fieldId)
+                    ? current.filter((id) => id !== fieldId)
+                    : [...current, fieldId];
+                reduxDispatch(explorerActions.setDimensions(newDimensions));
+            } else {
+                const current = reduxMetrics;
+                const newMetrics = current.includes(fieldId)
+                    ? current.filter((id) => id !== fieldId)
+                    : [...current, fieldId];
+                reduxDispatch(explorerActions.setMetrics(newMetrics));
+            }
         },
-        [],
+        [reduxDispatch, reduxDimensions, reduxMetrics],
     );
 
     const removeActiveField = useCallback((fieldId: FieldId) => {

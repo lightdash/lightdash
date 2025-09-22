@@ -1,6 +1,13 @@
 import { subject } from '@casl/ability';
 import { Stack } from '@mantine/core';
-import { memo, useEffect, type FC } from 'react';
+import { memo, useCallback, useEffect, type FC } from 'react';
+import {
+    explorerActions,
+    selectIsEditMode,
+    selectTableName,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import { useExplore } from '../../hooks/useExplore';
@@ -23,14 +30,15 @@ import { WriteBackModal } from './WriteBackModal';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
-        const unsavedChartVersionTableName = useExplorerContext(
-            (context) => context.state.unsavedChartVersion.tableName,
-        );
+        // Redux selectors for core query state - prevents re-renders from context cascades
+        const unsavedChartVersionTableName =
+            useExplorerSelector(selectTableName);
+        const isEditMode = useExplorerSelector(selectIsEditMode);
+        const dispatch = useExplorerDispatch();
+
+        // Still use context for complex objects until fully migrated
         const unsavedChartVersionMetricQuery = useExplorerContext(
             (context) => context.state.unsavedChartVersion.metricQuery,
-        );
-        const isEditMode = useExplorerContext(
-            (context) => context.state.isEditMode,
         );
         const projectUuid = useProjectUuid();
 
@@ -38,8 +46,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             (context) => context.query?.data?.queryUuid,
         );
 
-        const setParameterReferences = useExplorerContext(
-            (context) => context.actions.setParameterReferences,
+        // Redux action dispatch instead of context action
+        const setParameterReferences = useCallback(
+            (refs: string[] | null) => {
+                dispatch(explorerActions.setParameterReferences(refs));
+            },
+            [dispatch],
         );
 
         const { data: explore } = useExplore(unsavedChartVersionTableName);

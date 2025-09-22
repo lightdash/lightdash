@@ -6,6 +6,8 @@ import {
     explorerActions,
     selectIsEditMode,
     selectIsResultsExpanded,
+    selectSorts,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -31,13 +33,9 @@ const ResultsCard: FC = memo(() => {
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
+    const tableName = useExplorerSelector(selectTableName);
+    const sorts = useExplorerSelector(selectSorts);
     const dispatch = useExplorerDispatch();
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const sorts = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
-    );
 
     const totalResults = useExplorerContext(
         (context) => context.queryResults.totalResults,
