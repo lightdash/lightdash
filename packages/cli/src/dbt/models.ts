@@ -5,6 +5,7 @@ import {
     DimensionType,
     ParseError,
     patchPathParts,
+    SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import execa from 'execa';
@@ -68,24 +69,41 @@ type GenerateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
     includeMeta: boolean;
+    dbtVersion?: SupportedDbtVersions;
 };
+
+// Check if we should use dbt 1.10+ metadata structure
+const wrapInConfig = (
+    dbtVersion: SupportedDbtVersions | undefined,
+    meta: Record<string, unknown>,
+) => {
+    const useDbt110Metadata =
+        dbtVersion &&
+        Object.values(SupportedDbtVersions).indexOf(dbtVersion) >=
+            Object.values(SupportedDbtVersions).indexOf(
+                SupportedDbtVersions.V1_10,
+            );
+    return useDbt110Metadata ? { config: { meta } } : { meta };
+};
+
 const generateModelYml = ({
     model,
     table,
     includeMeta,
+    dbtVersion,
 }: GenerateModelYamlArgs) => ({
     name: model.name,
     columns: Object.entries(table).map(([columnName, dimensionType]) => ({
         name: columnName,
         description: '',
         ...(includeMeta
-            ? {
+            ? wrapInConfig(dbtVersion, {
                   meta: {
                       dimension: {
                           type: dimensionType,
                       },
                   },
-              }
+              })
             : {}),
     })),
 });
@@ -143,6 +161,7 @@ type FindAndUpdateModelYamlArgs = {
     projectDir: string;
     projectName: string;
     assumeYes: boolean;
+    dbtVersion?: SupportedDbtVersions;
 };
 export const findAndUpdateModelYaml = async ({
     model,
@@ -152,6 +171,7 @@ export const findAndUpdateModelYaml = async ({
     projectDir,
     projectName,
     assumeYes,
+    dbtVersion,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: DbtSchemaEditor;
     outputFilePath: string;
@@ -160,6 +180,7 @@ export const findAndUpdateModelYaml = async ({
         model,
         table,
         includeMeta,
+        dbtVersion,
     });
     const filenames = [];
     const { patchPath, packageName } = model;
@@ -196,7 +217,9 @@ export const findAndUpdateModelYaml = async ({
     const match = await searchForModel({
         modelName: model.name,
         filenames,
+        dbtVersion,
     });
+
     if (match) {
         const { schemaEditor } = match;
         const docsNames = Object.values(docs).map((doc) => doc.name);
@@ -238,7 +261,7 @@ export const findAndUpdateModelYaml = async ({
                 columnName: column.name,
                 properties: {
                     description,
-                    meta,
+                    ...(meta ? wrapInConfig(dbtVersion, meta) : {}),
                 },
             });
         }
@@ -292,7 +315,9 @@ export const findAndUpdateModelYaml = async ({
     }
 
     return {
-        updatedYml: new DbtSchemaEditor().addModel(generatedModel),
+        updatedYml: new DbtSchemaEditor('', '', dbtVersion).addModel(
+            generatedModel,
+        ),
         outputFilePath,
     };
 };

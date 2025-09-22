@@ -11,7 +11,6 @@ import {
 } from 'yaml';
 import { parseAllReferences } from '../../compiler/exploreCompiler';
 import lightdashDbtYamlSchema from '../../schemas/json/lightdash-dbt-2.0.json';
-import { type DeepPartialNullable } from '../../types/deepPartial';
 import { ParseError } from '../../types/errors';
 import {
     defaultSql,
@@ -402,7 +401,7 @@ export default class DbtSchemaEditor {
     }: {
         modelName: string;
         columnName: string;
-        properties?: DeepPartialNullable<YamlColumn>;
+        properties?: Record<string, unknown>;
     }) {
         const column = this.getColumnByName(modelName, columnName);
 

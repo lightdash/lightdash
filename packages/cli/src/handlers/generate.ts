@@ -1,5 +1,7 @@
 import {
+    DbtVersionOptionLatest,
     getErrorMessage,
+    getLatestSupportDbtVersion,
     getModelsFromManifest,
     ParseError,
 } from '@lightdash/common';
@@ -105,6 +107,15 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 warehouseClient,
                 preserveColumnCase: options.preserveColumnCase,
             });
+            // Resolve dbt version for metadata structure
+            const resolvedDbtVersion =
+                dbtVersion.versionOption === DbtVersionOptionLatest.LATEST
+                    ? getLatestSupportDbtVersion()
+                    : dbtVersion.versionOption;
+            GlobalState.debug(
+                `Using detected dbt version ${resolvedDbtVersion} for metadata structure`,
+            );
+
             const { updatedYml, outputFilePath } = await findAndUpdateModelYaml(
                 {
                     model: compiledModel,
@@ -114,6 +125,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     projectDir: absoluteProjectPath,
                     projectName: context.projectName,
                     assumeYes: options.assumeYes,
+                    dbtVersion: resolvedDbtVersion,
                 },
             );
             try {
