@@ -86,6 +86,7 @@ export const useValidation = (
 type ValidationBody = {
     explores?: (Explore | ExploreError)[];
     validationTargets?: ValidationTarget[];
+    onlyValidateExploresInArgs?: boolean;
 };
 const updateValidation = async (
     projectUuid: string,

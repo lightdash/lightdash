@@ -24668,6 +24668,7 @@ export function RegisterRoutes(app: Router) {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'AnyType' },
                 },
+                onlyValidateExploresInArgs: { dataType: 'boolean' },
             },
         },
     };

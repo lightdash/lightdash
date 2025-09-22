@@ -699,6 +699,7 @@ export class SchedulerClient {
                 projectUuid: payload.projectUuid,
                 organizationUuid: payload.organizationUuid,
                 context: payload.context,
+                onlyValidateExploresInArgs: payload.onlyValidateExploresInArgs,
             },
         });
 
