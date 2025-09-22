@@ -573,6 +573,7 @@ export class ValidationService extends BaseService {
         projectUuid: string,
         compiledExplores?: (Explore | ExploreError)[],
         validationTargets?: Set<ValidationTarget>,
+        onlyValidateExploresInArgs?: boolean,
     ): Promise<CreateValidation[]> {
         const hasValidationTargets =
             validationTargets && validationTargets.size > 0;
@@ -676,7 +677,7 @@ export class ValidationService extends BaseService {
                 ? await this.validateCharts(
                       projectUuid,
                       exploreFields,
-                      compiledExplores,
+                      onlyValidateExploresInArgs ? compiledExplores : undefined,
                   )
                 : [];
 
@@ -699,6 +700,7 @@ export class ValidationService extends BaseService {
         context?: RequestMethod,
         explores?: (Explore | ExploreError)[],
         validationTargets?: ValidationTarget[],
+        onlyValidateExploresInArgs?: boolean,
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -725,6 +727,7 @@ export class ValidationService extends BaseService {
             organizationUuid,
             explores,
             validationTargets,
+            onlyValidateExploresInArgs,
         });
         return jobId;
     }

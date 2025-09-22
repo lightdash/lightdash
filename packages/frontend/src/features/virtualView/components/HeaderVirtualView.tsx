@@ -431,6 +431,7 @@ export const HeaderVirtualView: FC<{
         await getValidation({
             explores: [virtualExplore],
             validationTargets: [ValidationTarget.CHARTS],
+            onlyValidateExploresInArgs: true,
             onComplete: async (response: ValidationResponse[]) => {
                 if (response.length === 0) {
                     // No errors , we don't need to show warning

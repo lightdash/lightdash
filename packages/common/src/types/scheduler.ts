@@ -501,6 +501,7 @@ export type ValidateProjectPayload = TraceTaskBase & {
     context: 'lightdash_app' | 'dbt_refresh' | 'test_and_compile' | 'cli';
     explores?: (Explore | ExploreError)[];
     validationTargets?: ValidationTarget[];
+    onlyValidateExploresInArgs?: boolean;
 };
 
 export type ApiJobScheduledResponse = {
