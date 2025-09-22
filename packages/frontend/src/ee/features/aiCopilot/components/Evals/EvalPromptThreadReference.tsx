@@ -11,7 +11,7 @@ import {
 import { IconExternalLink, IconMessageCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useEvalTabContext } from '../../hooks/useEvalTabContext';
+import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 
 type Props = {
@@ -35,7 +35,7 @@ export const EvalPromptThreadReference: FC<Props> = ({
         error,
     } = useAiAgentThread(projectUuid, agentUuid, threadUuid);
 
-    const { setSelectedThreadUuid } = useEvalTabContext();
+    const { setSelectedThreadUuid } = useEvalSectionContext();
 
     const handleOpenThread = () => {
         if (!thread) return;

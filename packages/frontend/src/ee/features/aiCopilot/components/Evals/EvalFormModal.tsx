@@ -15,7 +15,7 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -156,7 +156,7 @@ export const EvalFormModal: FC<Props> = ({
         <Group justify="space-between" w="100%">
             {mode === 'edit' && onDelete ? (
                 <Button
-                    variant="subtle"
+                    variant="outline"
                     color="red"
                     type="button"
                     leftSection={<MantineIcon icon={IconTrash} />}
@@ -173,7 +173,7 @@ export const EvalFormModal: FC<Props> = ({
 
             <Group gap="sm">
                 <Button
-                    variant="subtle"
+                    variant="outline"
                     type="button"
                     onClick={handleClose}
                     disabled={isLoading || isDeleting}
@@ -196,6 +196,7 @@ export const EvalFormModal: FC<Props> = ({
         <MantineModal
             opened={isOpened}
             onClose={handleClose}
+            icon={IconSettings}
             title={modalTitle}
             size="lg"
             actions={actions}
@@ -276,10 +277,7 @@ export const EvalFormModal: FC<Props> = ({
                                         onClick={() => removePrompt(index)}
                                         mt={4}
                                     >
-                                        <MantineIcon
-                                            icon={IconTrash}
-                                            size="sm"
-                                        />
+                                        <MantineIcon icon={IconTrash} />
                                     </ActionIcon>
                                 </Group>
                             ))}
