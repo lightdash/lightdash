@@ -1325,6 +1325,43 @@ export type AiAgentResponseStreamed = BaseTrack & {
     };
 };
 
+export type AiAgentEvalCreatedEvent = BaseTrack & {
+    event: 'ai_agent_eval.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        evalId: string;
+        promptsCount: number;
+    };
+};
+
+export type AiAgentEvalRunEvent = BaseTrack & {
+    event: 'ai_agent_eval.run';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        evalId: string;
+        runId: string;
+        promptsCount: number;
+    };
+};
+
+export type AiAgentEvalAppendedEvent = BaseTrack & {
+    event: 'ai_agent_eval.appended';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        evalId: string;
+        promptsCount: number;
+    };
+};
+
 export type RenameResourceEvent = BaseTrack & {
     event:
         | 'rename_chart.executed'
@@ -1465,6 +1502,9 @@ type TypedEvent =
     | AiAgentUpdatedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
+    | AiAgentEvalCreatedEvent
+    | AiAgentEvalRunEvent
+    | AiAgentEvalAppendedEvent
     | McpToolCallEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
