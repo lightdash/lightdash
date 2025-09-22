@@ -1,3 +1,10 @@
+## [0.2016.3](https://github.com/lightdash/lightdash/compare/0.2016.2...0.2016.3) (2025-09-22)
+
+
+### Bug Fixes
+
+* handle empty arrays in AI agent database operations and add timeout handling ([#17010](https://github.com/lightdash/lightdash/issues/17010)) ([3c3030f](https://github.com/lightdash/lightdash/commit/3c3030f674295c94dad7b49f6be8e88de6a7d212))
+
 ## [0.2016.2](https://github.com/lightdash/lightdash/compare/0.2016.1...0.2016.2) (2025-09-19)
 
 

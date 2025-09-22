@@ -62,6 +62,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     helpers.job,
                     AI_AGENT_EVAL_TIMEOUT_MS,
                     async (job, e) => {
+                        await this.aiAgentService.updateEvalRunResult(
+                            payload.evalRunUuid,
+                            payload.evalRunResultUuid,
+                            new Error('Evaluation task timed out', {
+                                cause: e,
+                            }),
+                        );
                         await this.schedulerService.logSchedulerJob({
                             task: EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT,
                             jobId: job.id,

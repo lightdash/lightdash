@@ -3044,8 +3044,12 @@ export class AiAgentModel {
                 }));
 
                 await Promise.all([
-                    trx(AiAgentToolCallTableName).insert(toolCallUpdates),
-                    trx(AiAgentToolResultTableName).insert(toolResultUpdates),
+                    toolCallUpdates.length > 0 &&
+                        trx(AiAgentToolCallTableName).insert(toolCallUpdates),
+                    toolResultUpdates.length > 0 &&
+                        trx(AiAgentToolResultTableName).insert(
+                            toolResultUpdates,
+                        ),
                 ]);
 
                 // Clone artifact versions
@@ -3084,9 +3088,11 @@ export class AiAgentModel {
                     },
                 );
 
-                await trx(AiArtifactVersionsTableName).insert(
-                    artifactVersionInserts,
-                );
+                if (artifactVersionInserts.length > 0) {
+                    await trx(AiArtifactVersionsTableName).insert(
+                        artifactVersionInserts,
+                    );
+                }
             }
 
             return newPromptUuid;
