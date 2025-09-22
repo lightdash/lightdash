@@ -81,6 +81,13 @@ const sendNowScheduler = async (scheduler: CreateSchedulerAndTargets) =>
         body: JSON.stringify(scheduler),
     });
 
+const sendNowSchedulerByUuid = async (uuid: string) =>
+    lightdashApi<ApiTestSchedulerResponse['results']>({
+        url: `/schedulers/${uuid}/send`,
+        method: 'POST',
+        body: undefined,
+    });
+
 export const useScheduler = (
     uuid: string | null,
     useQueryOptions?: UseQueryOptions<SchedulerAndTargets, ApiError>,
@@ -189,6 +196,152 @@ export const useSendNowScheduler = () => {
         },
         {
             mutationKey: ['sendNowScheduler'],
+            onSuccess: (res) => {
+                pollJobStatus(res.jobId || '')
+                    .then((data) => {
+                        if (data?.status === SchedulerJobStatus.ERROR) {
+                            throw new Error(data?.details?.error);
+                        }
+                    })
+                    .catch((e) => {
+                        throw e;
+                    });
+            },
+            onError: (apiError: ApiError) => {
+                showToastApiError({
+                    key: 'toast-info-job-status',
+                    title: 'Failed to send scheduled delivery',
+                    apiError: apiError.error,
+                });
+            },
+        },
+    );
+
+    const { data: sendNowData } = sendNowMutation;
+
+    const { data: scheduledDeliveryJobStatus } = useQuery<
+        ApiJobStatusResponse['results'] | undefined,
+        ApiError
+    >(
+        ['jobStatus', sendNowData?.jobId],
+        () => {
+            if (!sendNowData?.jobId) return;
+
+            setTimeout(() => {
+                notifications.hide('toast-info-job-status');
+            }, 1000);
+
+            return getSchedulerJobStatus(sendNowData.jobId);
+        },
+        {
+            refetchInterval: (data) => {
+                if (
+                    data?.status === SchedulerJobStatus.COMPLETED ||
+                    data?.status === SchedulerJobStatus.ERROR
+                )
+                    return false;
+
+                return 2000;
+            },
+            onSuccess: (data) => {
+                if (data) {
+                    showToastInfo({
+                        key: 'toast-info-job-scheduled-delivery-status',
+                        title: 'Processing Scheduled delivery...',
+                        loading: true,
+                        autoClose: false,
+                    });
+                }
+                if (data?.status === SchedulerJobStatus.COMPLETED) {
+                    showToastSuccess({
+                        title: 'Scheduled delivery sent successfully',
+                    });
+
+                    return setTimeout(
+                        () =>
+                            notifications.hide(
+                                'toast-info-job-scheduled-delivery-status',
+                            ),
+                        1000,
+                    );
+                }
+                if (data?.status === SchedulerJobStatus.ERROR) {
+                    showToastError({
+                        title: 'Failed to send scheduled delivery',
+                        ...(data?.details?.error && {
+                            subtitle: data.details.error,
+                        }),
+                    });
+                    return setTimeout(
+                        () =>
+                            notifications.hide(
+                                'toast-info-job-scheduled-delivery-status',
+                            ),
+                        1000,
+                    );
+                }
+            },
+            onError: async ({ error }) => {
+                showToastApiError({
+                    title: 'Error polling job status',
+                    apiError: error,
+                });
+
+                setTimeout(
+                    () =>
+                        notifications.hide(
+                            'toast-info-job-scheduled-delivery-status',
+                        ),
+                    1000,
+                );
+
+                await queryClient.cancelQueries([
+                    'jobStatus',
+                    sendNowData?.jobId,
+                ]);
+            },
+            enabled: Boolean(sendNowData && sendNowData?.jobId !== undefined),
+        },
+    );
+
+    const isLoading = useMemo(
+        () =>
+            sendNowMutation.isLoading ||
+            scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED,
+        [scheduledDeliveryJobStatus?.status, sendNowMutation.isLoading],
+    );
+
+    return {
+        ...sendNowMutation,
+        isLoading,
+    };
+};
+
+export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
+    const queryClient = useQueryClient();
+    const {
+        showToastError,
+        showToastInfo,
+        showToastSuccess,
+        showToastApiError,
+    } = useToaster();
+
+    const sendNowMutation = useMutation<
+        ApiTestSchedulerResponse['results'],
+        ApiError,
+        void
+    >(
+        async () => {
+            showToastInfo({
+                key: 'toast-info-job-status',
+                title: 'Processing job...',
+                loading: true,
+                autoClose: false,
+            });
+            return sendNowSchedulerByUuid(schedulerUuid);
+        },
+        {
+            mutationKey: ['sendNowSchedulerByUuid', schedulerUuid],
             onSuccess: (res) => {
                 pollJobStatus(res.jobId || '')
                     .then((data) => {
