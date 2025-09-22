@@ -1140,8 +1140,7 @@ export class UnfurlService extends BaseService {
                     });
 
                     const isConnectionError =
-                        errorMessage.includes('ECONNREFUSED') ||
-                        errorMessage.includes('500 Internal Server Error');
+                        errorMessage.includes('ECONNREFUSED');
 
                     throw new ScreenshotError(
                         `Screenshot ${errorType}: ${
