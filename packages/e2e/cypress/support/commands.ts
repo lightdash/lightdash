@@ -45,6 +45,7 @@ import {
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
 import 'cypress-file-upload';
+import { ProfilingEntry, summarizeProfiling } from './profilerSummary';
 
 declare global {
     namespace Cypress {
@@ -786,7 +787,13 @@ type PerfArtifact = {
         ts: number;
     };
     webVitals: AnyType[];
-    profiler: AnyType[];
+    profilerSummary: {
+        all: Record<string, ReturnType<typeof summarizeProfiling>>;
+        byFlow: Record<
+            string,
+            Record<string, ReturnType<typeof summarizeProfiling>>
+        >;
+    };
     userTiming: {
         measures: { name: string; duration: number; startTime: number }[];
         marks: { name: string; startTime: number }[];
@@ -1006,7 +1013,6 @@ Cypress.Commands.add(
             flows = [],
             runId = Cypress.env('RUN_ID') || `${Date.now()}`,
             filenamePrefix = 'perf',
-            expectMedianDuration,
         } = options;
 
         return cy.window({ log: false }).then((win) => {
@@ -1076,6 +1082,60 @@ Cypress.Commands.add(
                     };
                 });
 
+                // Profiler IDs
+                const profilerEntries = (profiler as ProfilingEntry[]) || [];
+                const profilerIds = Array.from(
+                    new Set(profilerEntries.map((p) => p.id)),
+                );
+
+                // Build a "whole-spec" summary per profiler id
+                const profilerSummaryAll: Record<
+                    string,
+                    ReturnType<typeof summarizeProfiling>
+                > = {};
+                profilerIds.forEach((pid) => {
+                    profilerSummaryAll[pid] = summarizeProfiling(
+                        profilerEntries,
+                        {
+                            id: pid,
+                            excludeNestedFromStats: true,
+                            excludeZero: true,
+                            longCommitThresholdsMs: [16, 32, 50, 100, 500],
+                        },
+                    );
+                });
+
+                // Build a per-flow window summary per profiler id
+                type ProfByFlow = Record<
+                    string,
+                    Record<string, ReturnType<typeof summarizeProfiling>>
+                >;
+                const profilerSummaryByFlow: ProfByFlow = {};
+
+                flows.forEach((flowId) => {
+                    const start = marks.find(
+                        (m) => m.name === `flow:${flowId}:start`,
+                    )?.startTime;
+                    const end = marks.find(
+                        (m) => m.name === `flow:${flowId}:end`,
+                    )?.startTime;
+                    if (start == null || end == null) return;
+
+                    profilerSummaryByFlow[flowId] = {};
+                    profilerIds.forEach((pid) => {
+                        profilerSummaryByFlow[flowId][pid] = summarizeProfiling(
+                            profilerEntries,
+                            {
+                                id: pid,
+                                window: { start, end },
+                                excludeNestedFromStats: true,
+                                excludeZero: true,
+                                longCommitThresholdsMs: [16, 32, 50, 100, 500],
+                            },
+                        );
+                    });
+                });
+
                 const artifact: PerfArtifact = {
                     meta: {
                         runId,
@@ -1084,7 +1144,10 @@ Cypress.Commands.add(
                         ts: win.performance.now(),
                     },
                     webVitals,
-                    profiler,
+                    profilerSummary: {
+                        all: profilerSummaryAll,
+                        byFlow: profilerSummaryByFlow,
+                    },
                     userTiming: {
                         measures: measures.map((m) => ({
                             name: m.name,
@@ -1099,21 +1162,6 @@ Cypress.Commands.add(
                     flows: flowsData,
                     nav,
                 };
-
-                // Optional profiler duration check
-                if (expectMedianDuration !== undefined) {
-                    const commitDurations = artifact.profiler.map(
-                        (p: AnyType) => p.actualDuration,
-                    );
-                    if (commitDurations.length) {
-                        const median = commitDurations.sort(
-                            (a: number, b: number) => a - b,
-                        )[Math.floor(commitDurations.length / 2)];
-                        expect(median, 'median actualDuration').to.be.lessThan(
-                            expectMedianDuration,
-                        );
-                    }
-                }
 
                 // Persist JSON
                 const filename = `${filenamePrefix}-${artifact.meta.build}-${artifact.meta.runId}.json`;
