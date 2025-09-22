@@ -1,5 +1,6 @@
 import {
     CreateProjectMember,
+    getErrorMessage,
     InviteLink,
     PasswordResetLink,
     ProjectMemberRole,
@@ -173,10 +174,16 @@ export default class EmailClient {
                             error.message.includes('Connection timeout'));
 
                     if (isLastAttempt || !isRetryableError) {
+                        const isFileError =
+                            error instanceof Error &&
+                            error.message.includes('ENOENT');
+                        const errorMessage = isFileError
+                            ? 'There was an unexpected error when processing the attached file. Please contact your admin or support team.'
+                            : getErrorMessage(error);
                         throw new SmptError(
-                            `Failed to send email after ${attempt} attempts. ${error}`,
+                            `Failed to send email after ${attempt} attempts. ${errorMessage}`,
                             {
-                                error,
+                                error, // log the original error
                             },
                         );
                     }

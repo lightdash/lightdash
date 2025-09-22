@@ -1084,6 +1084,7 @@ export class UnfurlService extends BaseService {
                         e instanceof playwright.errors.TimeoutError ||
                         // Following error messages were taken from the Playwright source code
                         errorMessage.includes('Protocol error') ||
+                        errorMessage.includes('ECONNREFUSED') ||
                         errorMessage.includes('Target crashed') ||
                         errorMessage.includes(
                             'Target page, context or browser has been closed',
@@ -1138,8 +1139,16 @@ export class UnfurlService extends BaseService {
                         code: 2, // Error
                     });
 
+                    const isConnectionError =
+                        errorMessage.includes('ECONNREFUSED') ||
+                        errorMessage.includes('500 Internal Server Error');
+
                     throw new ScreenshotError(
-                        `Screenshot ${errorType}: ${errorMessage}`,
+                        `Screenshot ${errorType}: ${
+                            isConnectionError
+                                ? 'There was a connection error while capturing the screenshot. Please contact your admin or support team.'
+                                : errorMessage
+                        }`,
                         {
                             url,
                             lightdashPage,
