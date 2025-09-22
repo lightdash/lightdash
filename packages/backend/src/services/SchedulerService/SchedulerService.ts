@@ -584,6 +584,29 @@ export class SchedulerService extends BaseService {
         );
     }
 
+    async sendSchedulerByUuid(user: SessionUser, schedulerUuid: string) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const {
+            scheduler,
+            resource: { organizationUuid, projectUuid },
+        } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+
+        return this.schedulerClient.addScheduledDeliveryJob(
+            new Date(),
+            {
+                ...scheduler,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                schedulerUuid,
+            },
+            schedulerUuid,
+        );
+    }
+
     async updateSchedulersWithDefaultTimezone(
         user: SessionUser,
         projectUuid: string,

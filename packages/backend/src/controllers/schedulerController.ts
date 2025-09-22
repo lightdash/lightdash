@@ -302,4 +302,35 @@ export class SchedulerController extends BaseController {
             },
         };
     }
+
+    /**
+     * Send an existing scheduler now by its uuid
+     * @summary Send scheduler by uuid
+     * @param schedulerUuid The uuid of the scheduler to send now
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{schedulerUuid}/send')
+    @OperationId('sendSchedulerByUuid')
+    async postByUuid(
+        @Path() schedulerUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiTestSchedulerResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                jobId: (
+                    await this.services
+                        .getSchedulerService()
+                        .sendSchedulerByUuid(req.user!, schedulerUuid)
+                ).jobId,
+            },
+        };
+    }
 }
