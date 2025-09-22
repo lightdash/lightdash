@@ -1,4 +1,4 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT } from '@lightdash/common';
 
 const RUN_ID = Cypress.env('RUN_ID') || `${Date.now()}`;
 
@@ -46,6 +46,15 @@ describe('Explore perf', () => {
         let flowId = '';
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+        // Enable profiling capture and clear any existing data after navigation
+        cy.window().then((w) => {
+            // eslint-disable-next-line no-underscore-dangle, no-param-reassign
+            (w as AnyType).__captureProfiling = true;
+            // eslint-disable-next-line no-underscore-dangle, no-param-reassign
+            (w as AnyType).__profiling = [];
+        });
+
         cy.findByTestId('page-spinner').should('not.exist');
 
         cy.findByText('Generated a').click();
