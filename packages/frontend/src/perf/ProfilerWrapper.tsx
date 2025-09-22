@@ -13,6 +13,9 @@ export function ProfilerWrapper({
         startTime,
         commitTime,
     ) => {
+        // Gate capture to test window to reduce noise
+        if ((window as AnyType).__captureProfiling === false) return;
+
         (window as AnyType).__profiling = (window as AnyType).__profiling || [];
         (window as AnyType).__profiling.push({
             id: profId,

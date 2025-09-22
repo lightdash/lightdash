@@ -64,6 +64,9 @@ import slackifyMarkdown from 'slackify-markdown';
 import {
     AiAgentCreatedEvent,
     AiAgentDeletedEvent,
+    AiAgentEvalAppendedEvent,
+    AiAgentEvalCreatedEvent,
+    AiAgentEvalRunEvent,
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentResponseStreamed,
@@ -3189,9 +3192,9 @@ export class AiAgentService {
         data: ApiCreateEvaluationRequest,
     ) {
         // Reuse existing access control
-        await this.getAgent(user, agentUuid);
+        const agent = await this.getAgent(user, agentUuid);
 
-        return this.aiAgentModel.createEval(
+        const evaluation = await this.aiAgentModel.createEval(
             agentUuid,
             {
                 title: data.title,
@@ -3200,6 +3203,20 @@ export class AiAgentService {
             },
             user.userUuid,
         );
+
+        this.analytics.track<AiAgentEvalCreatedEvent>({
+            event: 'ai_agent_eval.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: agent.organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                evalId: evaluation.evalUuid,
+                promptsCount: data.prompts.length,
+            },
+        });
+
+        return evaluation;
     }
 
     async getEval(user: SessionUser, agentUuid: string, evalUuid: string) {
@@ -3226,11 +3243,6 @@ export class AiAgentService {
         agentUuid: string,
         evalUuid: string,
     ): Promise<AiAgentEvaluationRun> {
-        if (!user.organizationUuid) {
-            throw new ForbiddenError('User does not have an organization');
-        }
-        const { organizationUuid } = user;
-
         const agent = await this.getAgent(user, agentUuid);
 
         const evaluation = await this.aiAgentModel.getEval({
@@ -3239,6 +3251,20 @@ export class AiAgentService {
         });
 
         const evalRun = await this.aiAgentModel.createEvalRun(evalUuid);
+
+        // Track eval run analytics
+        this.analytics.track<AiAgentEvalRunEvent>({
+            event: 'ai_agent_eval.run',
+            userId: user.userUuid,
+            properties: {
+                organizationId: agent.organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                evalId: evalUuid,
+                runId: evalRun.runUuid,
+                promptsCount: evaluation.prompts.length,
+            },
+        });
 
         // Create threads, prompts, and schedule jobs for each eval prompt
         const promises = evaluation.prompts.map(async (evalPrompt) => {
@@ -3278,7 +3304,7 @@ export class AiAgentService {
                 evalRunResultUuid: resultUuid,
                 evalRunUuid: evalRun.runUuid,
                 userUuid: user.userUuid,
-                organizationUuid,
+                organizationUuid: agent.organizationUuid,
                 projectUuid: agent.projectUuid,
                 agentUuid,
                 threadUuid: thread.uuid,
@@ -3351,14 +3377,29 @@ export class AiAgentService {
         data: ApiAppendEvaluationRequest,
     ) {
         // Check access to agent
-        await this.getAgent(user, agentUuid);
+        const agent = await this.getAgent(user, agentUuid);
 
-        await this.aiAgentModel.getEval({
+        const evaluation = await this.aiAgentModel.getEval({
             agentUuid,
             evalUuid,
         });
 
-        return this.aiAgentModel.appendToEval(evalUuid, data);
+        const result = await this.aiAgentModel.appendToEval(evalUuid, data);
+
+        // Track analytics for appending to eval
+        this.analytics.track<AiAgentEvalAppendedEvent>({
+            event: 'ai_agent_eval.appended',
+            userId: user.userUuid,
+            properties: {
+                organizationId: agent.organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                evalId: evalUuid,
+                promptsCount: data.prompts.length,
+            },
+        });
+
+        return result;
     }
 
     async deleteEval(user: SessionUser, agentUuid: string, evalUuid: string) {
