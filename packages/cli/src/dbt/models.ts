@@ -3,6 +3,7 @@ import {
     DbtModelNode,
     DbtSchemaEditor,
     DimensionType,
+    SupportedDbtVersions,
     ParseError,
     patchPathParts,
 } from '@lightdash/common';
@@ -143,6 +144,7 @@ type FindAndUpdateModelYamlArgs = {
     projectDir: string;
     projectName: string;
     assumeYes: boolean;
+    dbtVersion: SupportedDbtVersions;
 };
 export const findAndUpdateModelYaml = async ({
     model,
@@ -152,6 +154,7 @@ export const findAndUpdateModelYaml = async ({
     projectDir,
     projectName,
     assumeYes,
+    dbtVersion,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: DbtSchemaEditor;
     outputFilePath: string;
@@ -196,6 +199,7 @@ export const findAndUpdateModelYaml = async ({
     const match = await searchForModel({
         modelName: model.name,
         filenames,
+        dbtVersion,
     });
     if (match) {
         const { schemaEditor } = match;
@@ -292,7 +296,7 @@ export const findAndUpdateModelYaml = async ({
     }
 
     return {
-        updatedYml: new DbtSchemaEditor().addModel(generatedModel),
+        updatedYml: new DbtSchemaEditor('', '', dbtVersion).addModel(generatedModel),
         outputFilePath,
     };
 };
