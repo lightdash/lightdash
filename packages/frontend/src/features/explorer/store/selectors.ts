@@ -89,12 +89,6 @@ export const selectTableCalculations = createSelector(
     (metricQuery) => metricQuery.tableCalculations,
 );
 
-// Query-specific selectors for component performance
-export const selectTableName = createSelector(
-    [selectUnsavedChartVersion],
-    (unsavedChartVersion) => unsavedChartVersion.tableName,
-);
-
 export const selectDimensions = createSelector(
     [selectMetricQuery],
     (metricQuery) => metricQuery.dimensions,

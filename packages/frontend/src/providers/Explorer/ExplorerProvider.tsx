@@ -978,21 +978,34 @@ const ExplorerProvider: FC<
 
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
+            // Calculate new state (using the same logic as the context reducer)
             if (isDimension) {
-                const current = reduxDimensions;
+                const current = unsavedChartVersion.metricQuery.dimensions;
                 const newDimensions = current.includes(fieldId)
                     ? current.filter((id) => id !== fieldId)
                     : [...current, fieldId];
+
+                // Update both stores with the same calculated state
+                dispatch({
+                    type: ActionType.TOGGLE_DIMENSION,
+                    payload: fieldId,
+                });
                 reduxDispatch(explorerActions.setDimensions(newDimensions));
             } else {
-                const current = reduxMetrics;
+                const current = unsavedChartVersion.metricQuery.metrics;
                 const newMetrics = current.includes(fieldId)
                     ? current.filter((id) => id !== fieldId)
                     : [...current, fieldId];
+
+                // Update both stores with the same calculated state
+                dispatch({
+                    type: ActionType.TOGGLE_METRIC,
+                    payload: fieldId,
+                });
                 reduxDispatch(explorerActions.setMetrics(newMetrics));
             }
         },
-        [reduxDispatch, reduxDimensions, reduxMetrics],
+        [dispatch, reduxDispatch, unsavedChartVersion.metricQuery],
     );
 
     const removeActiveField = useCallback((fieldId: FieldId) => {
