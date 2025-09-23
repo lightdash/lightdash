@@ -10,6 +10,7 @@ import {
 
 // assets
 import BigQuery from './Assets/bigquery.svg';
+import ClickHouse from './Assets/clickhouse.svg';
 import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
 import Redshift from './Assets/redshift.svg';
@@ -52,6 +53,12 @@ export const WarehouseTypeLabels: WarehouseLabel[] = [
         key: WarehouseTypes.SNOWFLAKE,
         iconType: 'image',
         image: Snowflake,
+    },
+    {
+        label: 'ClickHouse',
+        key: WarehouseTypes.CLICKHOUSE,
+        iconType: 'image',
+        image: ClickHouse,
     },
     {
         label: 'Other',

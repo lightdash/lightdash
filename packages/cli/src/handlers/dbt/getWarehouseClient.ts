@@ -143,6 +143,18 @@ function getMockCredentials(
                 http_scheme: '',
             };
             break;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            credentials = {
+                type: WarehouseTypes.CLICKHOUSE,
+                host: '',
+                user: '',
+                password: '',
+                port: 8443,
+                schema: '',
+                secure: true,
+                timeoutSeconds: 300,
+            };
+            break;
         default:
             assertUnreachable(
                 dbtAdaptorType,

@@ -62,6 +62,7 @@ export class UserWarehouseCredentialsModel {
                 case WarehouseTypes.POSTGRES:
                 case WarehouseTypes.TRINO:
                 case WarehouseTypes.SNOWFLAKE:
+                case WarehouseTypes.CLICKHOUSE:
                     credentials = {
                         type: credentialsWithSecrets.type,
                         user: credentialsWithSecrets.user,

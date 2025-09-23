@@ -1345,6 +1345,9 @@ importers:
 
   packages/warehouses:
     dependencies:
+      '@clickhouse/client':
+        specifier: ^1.12.1
+        version: 1.12.1
       '@databricks/sql':
         specifier: 1.8.4
         version: 1.8.4(encoding@0.1.13)
@@ -2347,6 +2350,13 @@ packages:
 
   '@clack/prompts@0.8.2':
     resolution: {integrity: sha512-6b9Ab2UiZwJYA9iMyboYyW9yJvAO9V753ZhS+DHKEjZRKAxPPOb7MXXu84lsPFG+vZt6FRFniZ8rXi+zCIw4yQ==}
+
+  '@clickhouse/client-common@1.12.1':
+    resolution: {integrity: sha512-ccw1N6hB4+MyaAHIaWBwGZ6O2GgMlO99FlMj0B0UEGfjxM9v5dYVYql6FpP19rMwrVAroYs/IgX2vyZEBvzQLg==}
+
+  '@clickhouse/client@1.12.1':
+    resolution: {integrity: sha512-7ORY85rphRazqHzImNXMrh4vsaPrpetFoTWpZYueCO2bbO6PXYDXp/GQ4DgxnGIqbWB/Di1Ai+Xuwq2o7DJ36A==}
+    engines: {node: '>=16'}
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -14139,6 +14149,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.13.0:
@@ -18915,6 +18926,12 @@ snapshots:
       '@clack/core': 0.3.5
       picocolors: 1.1.1
       sisteransi: 1.0.5
+
+  '@clickhouse/client-common@1.12.1': {}
+
+  '@clickhouse/client@1.12.1':
+    dependencies:
+      '@clickhouse/client-common': 1.12.1
 
   '@colors/colors@1.5.0': {}
 

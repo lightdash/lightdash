@@ -88,6 +88,9 @@ const convertTimezone = (
             return timestampSql;
         case SupportedDbtAdapter.TRINO:
             return timestampSql;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            // DateTime: stored in server timezone, returns in server timezone
+            return timestampSql;
         default:
             return assertUnreachable(
                 adapterType,

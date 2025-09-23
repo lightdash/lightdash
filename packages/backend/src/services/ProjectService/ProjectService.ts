@@ -917,6 +917,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -4088,9 +4089,10 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
                 return credentials.dbname;
+            case WarehouseTypes.CLICKHOUSE:
+                return ''; // Clickhouse doesn't have a database
             case WarehouseTypes.SNOWFLAKE:
                 return credentials.database.toLowerCase();
-
             case WarehouseTypes.DATABRICKS:
                 return credentials.catalog;
             default:
@@ -4240,7 +4242,7 @@ export class ProjectService extends BaseService {
 
         let database =
             databaseName ?? ProjectService.getWarehouseDatabase(credentials);
-        if (!database) {
+        if (database === undefined) {
             throw new NotFoundError(
                 'Database not found in warehouse credentials',
             );
