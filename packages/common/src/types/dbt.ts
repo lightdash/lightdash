@@ -36,6 +36,7 @@ export enum SupportedDbtAdapter {
     REDSHIFT = 'redshift',
     POSTGRES = 'postgres',
     TRINO = 'trino',
+    CLICKHOUSE = 'clickhouse',
 }
 
 export type DbtNodeConfig = {
@@ -208,6 +209,8 @@ export const normaliseModelDatabase = (
                 );
             }
             return { ...model, database: model.database as string };
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return { ...model, database: '' }; // Clickhouse doesn't have a database field
         case SupportedDbtAdapter.DATABRICKS:
             return { ...model, database: model.database || 'DEFAULT' };
         default:

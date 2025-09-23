@@ -1,3 +1,10 @@
+# [0.2021.0](https://github.com/lightdash/lightdash/compare/0.2020.0...0.2021.0) (2025-09-23)
+
+
+### Features
+
+* add ClickHouse warehouse support ([#16988](https://github.com/lightdash/lightdash/issues/16988)) ([986cb0a](https://github.com/lightdash/lightdash/commit/986cb0ad986e12132ffc2b71f6a7a8f475f062a4))
+
 # [0.2020.0](https://github.com/lightdash/lightdash/compare/0.2019.0...0.2020.0) (2025-09-22)
 
 

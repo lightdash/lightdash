@@ -318,12 +318,13 @@ export const generateAgentResponse = async ({
     const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
+    const startTime = Date.now();
+    const modelName = args.model.modelId;
+
     try {
         logger(
             'Generate Agent Response',
-            `Calling generateText with model: ${
-                typeof args.model === 'string' ? args.model : args.model.modelId
-            }`,
+            `Calling generateText with model: ${modelName}`,
         );
         const result = await generateText({
             ...defaultAgentOptions,
@@ -424,6 +425,9 @@ export const generateAgentResponse = async ({
             'Generate Agent Response',
             `Generation complete. Result text length: ${result.text.length}`,
         );
+
+        dependencies.perf.measureGenerateResponseTime(Date.now() - startTime);
+
         return result.text;
     } catch (error) {
         Logger.error(
@@ -455,12 +459,14 @@ export const streamAgentResponse = async ({
     const messages = await getAgentMessages(args, dependencies);
     const tools = getAgentTools(args, dependencies);
 
+    const startTime = Date.now();
+    const modelName =
+        typeof args.model === 'string' ? args.model : args.model.modelId;
+
     try {
         logger(
             'Stream Agent Response',
-            `Calling streamText with model: ${
-                typeof args.model === 'string' ? args.model : args.model.modelId
-            }`,
+            `Calling streamText with model: ${modelName}`,
         );
         const result = streamText({
             ...defaultAgentOptions,
@@ -581,6 +587,10 @@ export const streamAgentResponse = async ({
                 logger(
                     'On Finish',
                     `Total tokens used: ${usage.totalTokens}, steps: ${steps.length}`,
+                );
+
+                dependencies.perf.measureStreamResponseTime(
+                    Date.now() - startTime,
                 );
             },
             experimental_transform: smoothStream({

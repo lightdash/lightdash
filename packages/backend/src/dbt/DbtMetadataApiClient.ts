@@ -18,6 +18,7 @@ const quoteChars: Record<SupportedDbtAdapter, string> = {
     redshift: `"`,
     postgres: `"`,
     trino: `"`,
+    clickhouse: `"`,
 };
 
 const PAGE_SIZE = 500;

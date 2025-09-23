@@ -56,7 +56,8 @@ export type WarehousePaginationArgs = {
 export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
     timezone?: string;
-    values?: AnyType[];
+    values?: AnyType[]; // same as queryParams but in array form
+    queryParams?: Record<string, AnyType>; // same as values but in object form
     sql: string;
 };
 

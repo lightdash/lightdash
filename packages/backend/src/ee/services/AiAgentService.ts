@@ -84,6 +84,7 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
+import PrometheusMetrics from '../../prometheus';
 import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
@@ -142,6 +143,7 @@ type AiAgentServiceDependencies = {
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     spaceService: SpaceService;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 export class AiAgentService {
@@ -177,6 +179,8 @@ export class AiAgentService {
 
     private readonly spaceService: SpaceService;
 
+    private readonly prometheusMetrics?: PrometheusMetrics;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.analytics = dependencies.analytics;
@@ -194,6 +198,7 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
+        this.prometheusMetrics = dependencies.prometheusMetrics;
     }
 
     private async getIsCopilotEnabled(
@@ -2086,6 +2091,19 @@ export class AiAgentService {
                     agentUuid: data.agentUuid,
                     instruction: data.instruction,
                 }),
+
+            perf: {
+                measureGenerateResponseTime: (durationMs) => {
+                    this.prometheusMetrics?.aiAgentGenerateResponseDurationHistogram?.observe(
+                        durationMs,
+                    );
+                },
+                measureStreamResponseTime: (durationMs) => {
+                    this.prometheusMetrics?.aiAgentStreamResponseDurationHistogram?.observe(
+                        durationMs,
+                    );
+                },
+            },
         };
 
         return stream

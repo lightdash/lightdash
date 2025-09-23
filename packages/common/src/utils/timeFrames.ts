@@ -320,6 +320,76 @@ const trinoConfig: WarehouseConfig = {
     },
 };
 
+const clickhouseConfig: WarehouseConfig = {
+    getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
+        if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
+            const intervalDiff = startOfWeek;
+            return `addDays(toStartOfWeek(addDays(${originalSql}, -${intervalDiff})), ${intervalDiff})`;
+        }
+
+        switch (timeFrame) {
+            case TimeFrames.DAY:
+                return `toStartOfDay(${originalSql})`;
+            case TimeFrames.WEEK:
+                return `toStartOfWeek(${originalSql})`;
+            case TimeFrames.MONTH:
+                return `toStartOfMonth(${originalSql})`;
+            case TimeFrames.QUARTER:
+                return `toStartOfQuarter(${originalSql})`;
+            case TimeFrames.YEAR:
+                return `toStartOfYear(${originalSql})`;
+            case TimeFrames.HOUR:
+                return `toStartOfHour(${originalSql})`;
+            case TimeFrames.MINUTE:
+                return `toStartOfMinute(${originalSql})`;
+            default:
+                throw new ParseError(
+                    `Cannot recognise truncate function for ${timeFrame}`,
+                );
+        }
+    },
+    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+        const clickhouseTimeFrameMap: Record<TimeFrames, string | null> = {
+            ...timeFrameToDatePartMap,
+            [TimeFrames.DAY_OF_WEEK_INDEX]: 'toDayOfWeek',
+            [TimeFrames.DAY_OF_MONTH_NUM]: 'toDayOfMonth',
+            [TimeFrames.DAY_OF_YEAR_NUM]: 'toDayOfYear',
+            [TimeFrames.WEEK_NUM]: 'toWeek',
+            [TimeFrames.MONTH_NUM]: 'toMonth',
+            [TimeFrames.QUARTER_NUM]: 'toQuarter',
+            [TimeFrames.YEAR_NUM]: 'toYear',
+            [TimeFrames.HOUR_OF_DAY_NUM]: 'toHour',
+            [TimeFrames.MINUTE_OF_HOUR_NUM]: 'toMinute',
+        };
+
+        const extractFunction = clickhouseTimeFrameMap[timeFrame];
+        if (!extractFunction) {
+            throw new ParseError(
+                `Cannot recognise extract function for ${timeFrame}`,
+            );
+        }
+        return `${extractFunction}(${originalSql})`;
+    },
+    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+        const timeFrameExpressions: Record<TimeFrames, string | null> = {
+            ...nullTimeFrameMap,
+            [TimeFrames.DAY_OF_WEEK_NAME]: 'toDayOfWeekName',
+            [TimeFrames.MONTH_NAME]: 'toMonthName',
+            [TimeFrames.QUARTER_NAME]: `concat('Q', toString(toQuarter(${originalSql})))`,
+        };
+        const formatExpression = timeFrameExpressions[timeFrame];
+        if (!formatExpression) {
+            throw new ParseError(
+                `Cannot recognise format expression for ${timeFrame}`,
+            );
+        }
+        if (timeFrame === TimeFrames.QUARTER_NAME) {
+            return formatExpression;
+        }
+        return `${formatExpression}(${originalSql})`;
+    },
+};
+
 const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.BIGQUERY]: bigqueryConfig,
     [SupportedDbtAdapter.SNOWFLAKE]: snowflakeConfig,
@@ -327,6 +397,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
     [SupportedDbtAdapter.TRINO]: trinoConfig,
+    [SupportedDbtAdapter.CLICKHOUSE]: clickhouseConfig,
 };
 
 export const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (

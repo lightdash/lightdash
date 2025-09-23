@@ -77,7 +77,9 @@ const TableItem: FC<TableItemProps> = memo(
         const dispatch = useAppDispatch();
         const sql = useAppSelector((state) => state.sqlRunner.sql);
         const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
-        const quotedTable = `${quoteChar}${database}${quoteChar}.${quoteChar}${schema}${quoteChar}.${quoteChar}${table}${quoteChar}`;
+        const quotedTable = database
+            ? `${quoteChar}${database}${quoteChar}.${quoteChar}${schema}${quoteChar}.${quoteChar}${table}${quoteChar}`
+            : `${quoteChar}${schema}${quoteChar}.${quoteChar}${table}${quoteChar}`;
         return (
             <Box ref={hoverRef} pos="relative" {...rest}>
                 <UnstyledButton
@@ -285,7 +287,7 @@ export const Tables: FC = () => {
         | undefined = useMemo(() => {
         if (!data || isEmpty(data)) return undefined;
         const [database] = Object.keys(data);
-        if (!database) return undefined;
+        if (database === undefined) return undefined;
 
         const tablesBySchema = Object.entries(data).flatMap(([, schemas]) =>
             Object.entries(schemas).map(([schema, tables]) => ({

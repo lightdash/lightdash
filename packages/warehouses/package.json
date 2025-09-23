@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.2020.0",
+    "version": "0.2021.0",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -8,6 +8,7 @@
         "dist/**/*"
     ],
     "dependencies": {
+        "@clickhouse/client": "^1.12.1",
         "@databricks/sql": "1.8.4",
         "@google-cloud/bigquery": "^7.9.2",
         "@lightdash/common": "workspace:*",
