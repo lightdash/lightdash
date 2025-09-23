@@ -36,7 +36,7 @@ const getAiAgentArtifactVersion = async (
 type UseAiAgentArtifactProps = {
     projectUuid: string;
     agentUuid: string;
-    artifactUuid: string;
+    artifactUuid?: string;
     versionUuid?: string;
     options?: UseQueryOptions<AiArtifact, ApiError>;
 };
@@ -67,10 +67,10 @@ export const useAiAgentArtifact = ({
               getAiAgentArtifactVersion(
                   projectUuid,
                   agentUuid,
-                  artifactUuid,
+                  artifactUuid!,
                   versionUuid,
               )
-        : () => getAiAgentArtifact(projectUuid, agentUuid, artifactUuid);
+        : () => getAiAgentArtifact(projectUuid, agentUuid, artifactUuid!);
 
     return useQuery<AiArtifact, ApiError>({
         queryKey,
@@ -91,6 +91,7 @@ export const useAiAgentArtifact = ({
             }
             options?.onError?.(error);
         },
+        enabled: !!artifactUuid && !!versionUuid && options?.enabled,
         ...options,
     });
 };
