@@ -1626,9 +1626,7 @@ export class AiAgentService {
                         catalogSearch: {
                             type: CatalogType.Table,
                             yamlTags: agentSettings.tags ?? undefined,
-                            tables: args.tableName
-                                ? [args.tableName]
-                                : undefined,
+                            baseTable: args.tableName ?? undefined,
                         },
                         userAttributes,
                         context: CatalogSearchContext.AI_AGENT,
@@ -1667,7 +1665,7 @@ export class AiAgentService {
                                 catalogSearch: {
                                     type: CatalogType.Field,
                                     yamlTags: agentSettings.tags ?? undefined,
-                                    tables: [table.name],
+                                    baseTable: table.name,
                                 },
                                 userAttributes,
                                 context: CatalogSearchContext.AI_AGENT,
@@ -1757,6 +1755,7 @@ export class AiAgentService {
                         type: CatalogType.Field,
                         searchQuery: args.fieldSearchQuery.label,
                         yamlTags: agentSettings.tags ?? undefined,
+                        baseTable: args.table,
                     },
                     context: CatalogSearchContext.AI_AGENT,
                     paginateArgs: {

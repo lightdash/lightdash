@@ -242,6 +242,7 @@ export class CatalogModel {
             type,
             yamlTags,
             tables,
+            baseTable,
         },
         excludeUnmatched = true,
         tablesConfiguration,
@@ -500,32 +501,59 @@ export class CatalogModel {
                                             [yamlTags],
                                         );
                                 })
-                                // AND crucially, check that NO fields within that same explore have any tags.
-                                // This enforces the precedence rule.
+                                // AND crucially, check that NO fields in base or joined tables have any tags.
+                                // This enforces the precedence rule across the entire table family.
                                 .whereNotExists(function anyFieldIsTagged() {
                                     void this.select('name')
                                         .from(
-                                            `${CatalogTableName} as any_field_in_explore`,
-                                        )
-                                        .andWhereRaw(
-                                            `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                            `${CatalogTableName} as any_field`,
                                         )
                                         .andWhere(
-                                            'any_field_in_explore.project_uuid',
+                                            'any_field.project_uuid',
                                             projectUuid,
                                         )
-                                        .andWhere(
-                                            'any_field_in_explore.type',
-                                            'field',
-                                        )
-                                        .whereNotNull(
-                                            `any_field_in_explore.yaml_tags`,
+                                        .andWhere('any_field.type', 'field')
+                                        .whereNotNull(`any_field.yaml_tags`)
+                                        // Field must be from a table that has matching tags or from tables it joins
+                                        .whereExists(
+                                            function fieldBelongsToTaggedTableFamily() {
+                                                void this.select('name')
+                                                    .from(
+                                                        `${CatalogTableName} as tagged_table`,
+                                                    )
+                                                    .andWhere(
+                                                        'tagged_table.project_uuid',
+                                                        projectUuid,
+                                                    )
+                                                    .andWhere(
+                                                        'tagged_table.type',
+                                                        'table',
+                                                    )
+                                                    .andWhereRaw(
+                                                        'tagged_table.yaml_tags && ?::text[]',
+                                                        [yamlTags],
+                                                    )
+                                                    .where(
+                                                        function tableOrJoinedTable() {
+                                                            void this
+                                                                // Field belongs directly to the tagged table
+                                                                .whereRaw(
+                                                                    'any_field.table_name = tagged_table.name',
+                                                                )
+                                                                // Or field belongs to a table that the tagged table joins
+                                                                .orWhereRaw(
+                                                                    'tagged_table.joined_tables @> ARRAY[any_field.table_name]::text[]',
+                                                                );
+                                                        },
+                                                    );
+                                            },
                                         );
                                 });
                         })
 
                         // Condition 3: The item is a table, and at least one of its
-                        // child fields has a matching tag. This ensures the parent table is
+                        // child fields has a matching tag. This includes fields from
+                        // base table or any joined tables. This ensures the parent table is
                         // always included if any of its fields are visible.
                         .orWhere(function isTableWithTaggedChildren() {
                             void this.where(
@@ -538,16 +566,126 @@ export class CatalogModel {
                                         'child_field.project_uuid',
                                         projectUuid,
                                     )
-                                    .whereRaw(
-                                        `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                    )
                                     .andWhereNot('child_field.type', 'table')
                                     .andWhereRaw(
                                         `child_field.yaml_tags && ?::text[]`,
                                         [yamlTags],
-                                    );
+                                    )
+                                    // Field can be from base table or any joined table
+                                    .where(function fieldFromBaseOrJoined() {
+                                        void this
+                                            // Direct child of this table (table's name matches field's table_name)
+                                            .whereRaw(
+                                                `child_field.table_name = ${CatalogTableName}.name`,
+                                            )
+                                            // Or from any table that this table joins
+                                            .orWhereRaw(
+                                                `${CatalogTableName}.joined_tables @> ARRAY[child_field.table_name]::text[]`,
+                                            );
+                                    });
                             });
-                        });
+                        })
+
+                        // Condition 4: Only apply when baseTable is provided - fields from joined tables
+                        // where the specific base table is tagged
+                        .orWhere(
+                            function isFieldFromJoinedTableWithSpecificTaggedBase() {
+                                if (!baseTable) {
+                                    void this.whereRaw('false'); // Skip this condition if baseTable not provided
+                                    return;
+                                }
+
+                                void this
+                                    // Must be a field (not a table)
+                                    .where(`${CatalogTableName}.type`, 'field')
+                                    // Field itself has no tags
+                                    .whereNull(`${CatalogTableName}.yaml_tags`)
+                                    // The field belongs to a joined table (exists in base table's joined_tables array)
+                                    .whereExists(
+                                        function fieldBelongsToJoinedTable() {
+                                            void this.select('name')
+                                                .from(
+                                                    `${CatalogTableName} as cs`,
+                                                )
+                                                .andWhere(
+                                                    'cs.project_uuid',
+                                                    projectUuid,
+                                                )
+                                                .andWhere('cs.type', 'table')
+                                                .andWhere(
+                                                    'cs.table_name',
+                                                    baseTable,
+                                                )
+                                                .whereRaw(
+                                                    `cs.joined_tables @> ARRAY[${CatalogTableName}.table_name]::text[]`,
+                                                );
+                                        },
+                                    )
+                                    // The base table has matching tags
+                                    .whereExists(function baseTableIsTagged() {
+                                        void this.select('name')
+                                            .from(`${CatalogTableName} as cs`)
+                                            .andWhere(
+                                                'cs.project_uuid',
+                                                projectUuid,
+                                            )
+                                            .andWhere('cs.type', 'table')
+                                            .andWhere('cs.name', baseTable)
+                                            .whereRaw(
+                                                'cs.yaml_tags && ?::text[]',
+                                                [yamlTags],
+                                            );
+                                    })
+                                    // No joined tables have any tags
+                                    .whereNotExists(
+                                        function joinedTablesHaveNoTags() {
+                                            void this.select('name')
+                                                .from(
+                                                    `${CatalogTableName} as cs`,
+                                                )
+                                                .andWhere(
+                                                    'cs.project_uuid',
+                                                    projectUuid,
+                                                )
+                                                .andWhere('cs.type', 'table')
+                                                .whereRaw(
+                                                    `cs.name in (select unnest(joined_tables) from ${CatalogTableName} ccss where ccss.project_uuid = ? and ccss.table_name = ?)`,
+                                                    [projectUuid, baseTable],
+                                                )
+                                                .whereNotNull('cs.yaml_tags');
+                                        },
+                                    )
+                                    // No fields anywhere in the entire explore have any tags (joined or base)
+                                    .whereNotExists(
+                                        function noFieldsHaveTags() {
+                                            void this.select('name')
+                                                .from(
+                                                    `${CatalogTableName} as cs`,
+                                                )
+                                                .andWhere(
+                                                    'cs.project_uuid',
+                                                    projectUuid,
+                                                )
+                                                .andWhere('cs.type', 'field')
+                                                .where(
+                                                    function fieldInBaseOrJoined() {
+                                                        void this.where(
+                                                            'cs.table_name',
+                                                            baseTable,
+                                                        ).orWhereRaw(
+                                                            `cs.table_name in (select unnest(joined_tables) from ${CatalogTableName} c where c.project_uuid = ? and c.table_name = ?)`,
+                                                            [
+                                                                projectUuid,
+                                                                baseTable,
+                                                            ],
+                                                        );
+                                                    },
+                                                )
+                                                .whereNotNull('cs.yaml_tags');
+                                        },
+                                    );
+                            },
+                        );
                 },
             );
         }

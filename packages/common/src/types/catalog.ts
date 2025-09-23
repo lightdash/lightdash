@@ -40,6 +40,7 @@ export type ApiCatalogSearch = {
     catalogTags?: string[];
     yamlTags?: string[];
     tables?: string[];
+    baseTable?: string;
 };
 
 type EmojiIcon = {
