@@ -1,3 +1,10 @@
+## [0.2021.1](https://github.com/lightdash/lightdash/compare/0.2021.0...0.2021.1) (2025-09-23)
+
+
+### Bug Fixes
+
+* reduce email socket timeout to prevent scheduler conflicts ([#17050](https://github.com/lightdash/lightdash/issues/17050)) ([1333dba](https://github.com/lightdash/lightdash/commit/1333dba87d6a2b51ec75541a842ac6ce085d5f9c))
+
 # [0.2021.0](https://github.com/lightdash/lightdash/compare/0.2020.0...0.2021.0) (2025-09-23)
 
 
