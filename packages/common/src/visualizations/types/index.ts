@@ -105,6 +105,7 @@ export type PivotValuesColumn = {
     pivotValues: {
         referenceField: string;
         value: unknown;
+        formatted?: string;
     }[];
     columnIndex?: number;
 };
