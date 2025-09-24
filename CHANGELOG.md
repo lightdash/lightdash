@@ -1,3 +1,10 @@
+## [0.2023.1](https://github.com/lightdash/lightdash/compare/0.2023.0...0.2023.1) (2025-09-24)
+
+
+### Bug Fixes
+
+* use formatted value in pivot col references ([#17069](https://github.com/lightdash/lightdash/issues/17069)) ([7d8a2e1](https://github.com/lightdash/lightdash/commit/7d8a2e14445b27ad32e4b1527d87195d6e85837a))
+
 # [0.2023.0](https://github.com/lightdash/lightdash/compare/0.2022.0...0.2023.0) (2025-09-24)
 
 
