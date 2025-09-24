@@ -1,6 +1,6 @@
 import { AiAgent } from '@lightdash/common';
 import { ModelMessage } from 'ai';
-import { AiModel } from '../models/types';
+import { AiModel, AiProvider } from '../models/types';
 import {
     AppendInstructionFn,
     CreateOrUpdateArtifactFn,
@@ -20,7 +20,9 @@ import {
     UpdatePromptFn,
 } from './aiAgentDependencies';
 
-export type AiAgentArgs<P extends string = string> = AiModel<P> & {
+type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
+
+export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
     messageHistory: ModelMessage[];
     promptUuid: string;

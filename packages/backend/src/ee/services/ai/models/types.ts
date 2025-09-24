@@ -1,11 +1,23 @@
+import { AnthropicProviderOptions } from '@ai-sdk/anthropic';
+import { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import { JSONValue, LanguageModel } from 'ai';
+import { AiCopilotConfigSchemaType } from '../../../../config/aiConfigSchema';
 
-export type AiModel<P extends string> = {
+export type AiProvider = keyof AiCopilotConfigSchemaType['providers'];
+
+export type ProviderOptionsMap = {
+    openai: OpenAIResponsesProviderOptions;
+    azure: OpenAIResponsesProviderOptions;
+    anthropic: AnthropicProviderOptions;
+    openrouter: Record<string, JSONValue>;
+};
+
+export type AiModel<P extends AiProvider> = {
     model: Exclude<LanguageModel, string>;
     callOptions: { temperature: number };
     providerOptions:
         | {
-              [K in P]: Record<string, JSONValue>;
+              [K in P]: ProviderOptionsMap[K];
           }
         | undefined;
 };

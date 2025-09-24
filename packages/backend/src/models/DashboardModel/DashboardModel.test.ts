@@ -216,6 +216,62 @@ describe('DashboardModel', () => {
         expect(tracker.history.select).toHaveLength(2);
     });
 
+    test('should check if saved chart exists in dashboard', async () => {
+        const testProjectUuid = 'test-project-uuid';
+        const testDashboardUuid = 'test-dashboard-uuid';
+        const testChartUuid = 'test-chart-uuid';
+
+        // Mock any select query that contains these parameters
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes('latest_dashboard_version_cte') &&
+                    bindings.includes(testDashboardUuid) &&
+                    bindings.includes(testProjectUuid) &&
+                    bindings.includes(testChartUuid),
+            )
+            .response([
+                {
+                    dashboard_uuid: testDashboardUuid,
+                },
+            ]);
+
+        const result = await model.savedChartExistsInDashboard(
+            testProjectUuid,
+            testDashboardUuid,
+            testChartUuid,
+        );
+
+        expect(result).toBe(true);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    test('should return false when saved chart does not exist in dashboard', async () => {
+        const testProjectUuid = 'test-project-uuid';
+        const testDashboardUuid = 'test-dashboard-uuid';
+        const testChartUuid = 'test-chart-uuid';
+
+        // Mock any select query that contains these parameters with empty response
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes('latest_dashboard_version_cte') &&
+                    bindings.includes(testDashboardUuid) &&
+                    bindings.includes(testProjectUuid) &&
+                    bindings.includes(testChartUuid),
+            )
+            .response([]);
+
+        const result = await model.savedChartExistsInDashboard(
+            testProjectUuid,
+            testDashboardUuid,
+            testChartUuid,
+        );
+
+        expect(result).toBe(false);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
     test('should create dashboard with tile ids', async () => {
         tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
         tracker.on.insert(DashboardsTableName).responseOnce([dashboardEntry]);

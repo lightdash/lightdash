@@ -1,8 +1,8 @@
 import { Box, Drawer, Flex } from '@mantine-8/core';
 import { useMediaQuery } from '@mantine-8/hooks';
 import {
-    IconLayoutSidebar,
-    IconLayoutSidebarLeftCollapseFilled,
+    IconLayoutSidebarLeftCollapse,
+    IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import {
     Fragment,
@@ -100,43 +100,19 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             }
                             onExpand={() => setIsAgentSidebarCollapsed?.(false)}
                         >
-                            <Flex
-                                w={isAgentSidebarCollapsed ? 'xs' : 'auto'}
-                                justify="flex-end"
-                            >
+                            <Flex justify="flex-end">
                                 <SidebarButton
-                                    display={
-                                        isAgentSidebarCollapsed
-                                            ? 'none'
-                                            : 'flex'
-                                    }
                                     size="sm"
                                     leftSection={
                                         <MantineIcon
                                             size="md"
-                                            icon={IconLayoutSidebar}
-                                            stroke={1.8}
-                                            color="gray.7"
-                                        />
-                                    }
-                                    onClick={toggleSidebar}
-                                />
-
-                                <SidebarButton
-                                    display={
-                                        isAgentSidebarCollapsed
-                                            ? 'flex'
-                                            : 'none'
-                                    }
-                                    size="sm"
-                                    leftSection={
-                                        <MantineIcon
-                                            size="md"
-                                            stroke={1.8}
-                                            color="gray.7"
                                             icon={
-                                                IconLayoutSidebarLeftCollapseFilled
+                                                isAgentSidebarCollapsed
+                                                    ? IconLayoutSidebarLeftExpand
+                                                    : IconLayoutSidebarLeftCollapse
                                             }
+                                            stroke={1.8}
+                                            color="gray.7"
                                         />
                                     }
                                     onClick={toggleSidebar}

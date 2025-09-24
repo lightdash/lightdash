@@ -213,6 +213,22 @@ export function getDeepLinkBlocks(
         return [];
     }
 
+    // Check if any artifacts have dashboard configs
+    const hasDashboard = artifacts.some((artifact) => artifact.dashboardConfig);
+
+    // Add prominent dashboard link if dashboard artifact exists
+    if (hasDashboard) {
+        return [
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
+                },
+            },
+        ];
+    }
+
     return [
         {
             type: 'section',

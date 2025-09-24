@@ -595,12 +595,13 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const chartInDashboards = await this.dashboardModel.getAllByProject(
-            projectUuid,
-            chartUuid,
-        );
-        const chartInDashboardUuids = chartInDashboards.map((d) => d.uuid);
-        if (!chartInDashboardUuids.includes(dashboardUuid)) {
+        const chartExists =
+            await this.dashboardModel.savedChartExistsInDashboard(
+                projectUuid,
+                dashboardUuid,
+                chartUuid,
+            );
+        if (!chartExists) {
             throw new ForbiddenError(
                 `This chart does not belong to dashboard ${dashboardUuid}`,
             );

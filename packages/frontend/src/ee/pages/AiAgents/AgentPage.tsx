@@ -8,6 +8,7 @@ import {
     Menu,
     NavLink,
     Paper,
+    rem,
     Stack,
     Text,
     Title,
@@ -54,10 +55,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         key={thread.uuid}
         to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
         px="xs"
-        py={4}
-        ml={-8}
-        // to compensate for negative left margin and balanced visual alignment
-        w={`calc(100% + 1rem)`}
+        py={rem(4)}
         style={(theme) => ({
             borderRadius: theme.radius.sm,
         })}
@@ -88,7 +86,7 @@ const AgentSidebar: FC<{
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 
     return (
-        <Stack gap="md">
+        <Stack gap="md" style={{ flexGrow: 1, overflowY: 'auto' }}>
             <Box>
                 <SidebarButton
                     leftSection={<MantineIcon icon={IconCirclePlus} />}
@@ -99,7 +97,6 @@ const AgentSidebar: FC<{
                     {...(!isAgentSidebarCollapsed && {
                         fullWidth: true,
                         justify: 'flex-start',
-                        w: 'calc(100% + 1rem)',
                     })}
                 >
                     {isAgentSidebarCollapsed ? '' : 'New thread'}
@@ -107,12 +104,17 @@ const AgentSidebar: FC<{
             </Box>
 
             {projectUuid && threads && !isAgentSidebarCollapsed && (
-                <Stack gap="xs">
-                    <Group justify="space-between">
-                        <Title order={6} c="dimmed" tt="uppercase" size="xs">
-                            Recent
-                        </Title>
-                    </Group>
+                <Stack gap="xs" style={{ flexGrow: 1, overflowY: 'auto' }}>
+                    <Title
+                        order={6}
+                        c="dimmed"
+                        tt="uppercase"
+                        size="xs"
+                        ml="xs"
+                    >
+                        Recent
+                    </Title>
+
                     <Stack gap={2}>
                         {threads.length === 0 && (
                             <Paper
@@ -133,19 +135,22 @@ const AgentSidebar: FC<{
                                 </Text>
                             </Paper>
                         )}
-                        {threads.slice(0, showMaxItems).map((thread) => (
-                            <ThreadNavLink
-                                key={thread.uuid}
-                                thread={thread}
-                                isActive={thread.uuid === threadUuid}
-                                projectUuid={projectUuid}
-                            />
-                        ))}
+
+                        <Box>
+                            {threads.slice(0, showMaxItems).map((thread) => (
+                                <ThreadNavLink
+                                    key={thread.uuid}
+                                    thread={thread}
+                                    isActive={thread.uuid === threadUuid}
+                                    projectUuid={projectUuid}
+                                />
+                            ))}
+                        </Box>
                     </Stack>
+
                     <Box>
                         {threads.length >= showMaxItems && (
                             <Button
-                                mx={-8}
                                 size="compact-xs"
                                 variant="subtle"
                                 onClick={() =>
@@ -226,17 +231,16 @@ const AgentPage = () => {
             }
             Header={
                 <Group align="center" justify="space-between">
-                    <Group gap="sm">
-                        <Box maw={300}>
-                            {agentsList && agentsList.length && (
-                                <AgentSwitcher
-                                    projectUuid={projectUuid!}
-                                    agents={agentsList}
-                                    selectedAgent={agent}
-                                />
-                            )}
-                        </Box>
-                    </Group>
+                    <Box>
+                        {agentsList && agentsList.length && (
+                            <AgentSwitcher
+                                projectUuid={projectUuid!}
+                                agents={agentsList}
+                                selectedAgent={agent}
+                            />
+                        )}
+                    </Box>
+
                     <Group gap="sm">
                         {canManageAgents && (
                             <Menu>

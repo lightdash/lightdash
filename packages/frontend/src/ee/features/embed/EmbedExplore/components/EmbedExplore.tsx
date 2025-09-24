@@ -2,10 +2,12 @@ import { ChartType, type SavedChart } from '@lightdash/common';
 import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Provider } from 'react-redux';
 import Page from '../../../../../components/common/Page/Page';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../../../../../components/Explorer';
 import ExploreSideBar from '../../../../../components/Explorer/ExploreSideBar';
+import { explorerStore } from '../../../../../features/explorer/store';
 import { useExplore } from '../../../../../hooks/useExplore';
 import ExplorerProvider from '../../../../../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
@@ -20,6 +22,7 @@ const themeOverride: MantineThemeOverride = {
 };
 
 const getInitialState = (exploreId: string, savedChart: SavedChart) => ({
+    isEditMode: true,
     parameters: {},
     parameterDefinitions: {},
     parameterReferences: [],
@@ -116,23 +119,25 @@ const EmbedExplore: FC<Props> = ({
 
     return (
         <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
-            <ExplorerProvider
-                isEditMode={true}
-                projectUuid={projectUuid}
-                initialState={getInitialState(exploreId, savedChart)}
-                defaultLimit={500}
-            >
-                <MantineProvider inherit theme={themeOverride}>
-                    <Page
-                        title={data ? data?.label : 'Tables'}
-                        sidebar={<ExploreSideBar />}
-                        withFullHeight
-                        withPaddedContent
-                    >
-                        <Explorer />
-                    </Page>
-                </MantineProvider>
-            </ExplorerProvider>
+            <Provider store={explorerStore}>
+                <ExplorerProvider
+                    isEditMode={true}
+                    projectUuid={projectUuid}
+                    initialState={getInitialState(exploreId, savedChart)}
+                    defaultLimit={500}
+                >
+                    <MantineProvider inherit theme={themeOverride}>
+                        <Page
+                            title={data ? data?.label : 'Tables'}
+                            sidebar={<ExploreSideBar />}
+                            withFullHeight
+                            withPaddedContent
+                        >
+                            <Explorer />
+                        </Page>
+                    </MantineProvider>
+                </ExplorerProvider>
+            </Provider>
         </div>
     );
 };

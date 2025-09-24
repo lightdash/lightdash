@@ -162,7 +162,7 @@
                   "dbt-trino~=${adapterVersions.trino}" \
                   "dbt-clickhouse~=${adapterVersions.clickhouse}" \
                   "pytz" \
-                  "psycopg2-binary==2.9.6" \
+                  "psycopg2-binary==2.9.10" \
                   --disable-pip-version-check --no-warn-script-location || { echo "Failed to install adapters"; exit 1; }
 
                 deactivate # Deactivate after installation

@@ -2377,7 +2377,7 @@ export class AiAgentModel {
         threadUuid: string,
         artifactType?: AiArtifact['artifactType'],
     ): Promise<AiArtifact[]> {
-        const results = await this.database
+        const query = this.database
             .select({
                 artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
                 threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
@@ -2402,10 +2402,6 @@ export class AiAgentModel {
             )
             .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
-                `${AiArtifactsTableName}.artifact_type`,
-                artifactType ?? `${AiArtifactsTableName}.artifact_type`,
-            )
-            .andWhere(
                 `${AiArtifactVersionsTableName}.version_number`,
                 this.database
                     .select(this.database.raw('MAX(version_number)'))
@@ -2419,6 +2415,14 @@ export class AiAgentModel {
             )
             .orderBy(`${AiArtifactsTableName}.created_at`, 'desc');
 
+        if (artifactType) {
+            void query.andWhere(
+                `${AiArtifactsTableName}.artifact_type`,
+                artifactType,
+            );
+        }
+
+        const results = await query;
         return results;
     }
 

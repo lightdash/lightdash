@@ -14,7 +14,6 @@ export const SidebarButton = polymorphicFactory<ButtonFactory>(
                 size="xs"
                 variant="subtle"
                 color="gray"
-                mx={-12}
                 {...props}
             />
         );

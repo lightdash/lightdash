@@ -1,3 +1,57 @@
+## [0.2024.1](https://github.com/lightdash/lightdash/compare/0.2024.0...0.2024.1) (2025-09-24)
+
+
+### Bug Fixes
+
+* improve performance when checking if a chart exists on a dashboard ([#17072](https://github.com/lightdash/lightdash/issues/17072)) ([870df93](https://github.com/lightdash/lightdash/commit/870df93d6cfec42120adf9ae84f1e4d32ce8c618))
+* prevent search input focus loss in Settings Groups view ([#17074](https://github.com/lightdash/lightdash/issues/17074)) ([09211f8](https://github.com/lightdash/lightdash/commit/09211f832c8a828819731470afa479c2fea49305)), closes [#17068](https://github.com/lightdash/lightdash/issues/17068)
+
+# [0.2024.0](https://github.com/lightdash/lightdash/compare/0.2023.1...0.2024.0) (2025-09-24)
+
+
+### Bug Fixes
+
+* return formatted pivot column headers ([#17076](https://github.com/lightdash/lightdash/issues/17076)) ([90d2965](https://github.com/lightdash/lightdash/commit/90d2965527efa65edff2332cd14416ea833014bf))
+
+
+### Features
+
+* migrate FiltersCard to Redux store ([#16996](https://github.com/lightdash/lightdash/issues/16996)) ([245f5eb](https://github.com/lightdash/lightdash/commit/245f5eb8cd625d9096b7a630b1589df0c9a6949f))
+
+## [0.2023.1](https://github.com/lightdash/lightdash/compare/0.2023.0...0.2023.1) (2025-09-24)
+
+
+### Bug Fixes
+
+* use formatted value in pivot col references ([#17069](https://github.com/lightdash/lightdash/issues/17069)) ([7d8a2e1](https://github.com/lightdash/lightdash/commit/7d8a2e14445b27ad32e4b1527d87195d6e85837a))
+
+# [0.2023.0](https://github.com/lightdash/lightdash/compare/0.2022.0...0.2023.0) (2025-09-24)
+
+
+### Bug Fixes
+
+* feedback, follow up tools, explore in lightdash and links not being sent to slack after agent response ([#17062](https://github.com/lightdash/lightdash/issues/17062)) ([0b2cdf2](https://github.com/lightdash/lightdash/commit/0b2cdf2ec4ef5c7a04b4a2cd5a35b3c8b0dd27d1))
+* update Slack tag regex pattern ([#17064](https://github.com/lightdash/lightdash/issues/17064)) ([7e43151](https://github.com/lightdash/lightdash/commit/7e4315180ce3724b2e4126078872202ca89630b6))
+
+
+### Features
+
+* add dashboard link in Slack for artifacts with dashboard config ([#17063](https://github.com/lightdash/lightdash/issues/17063)) ([721d63e](https://github.com/lightdash/lightdash/commit/721d63e23aaee0b501b0a1512bf4ce5d6a964cad))
+* improve AI provider type system with schema-derived types ([#17017](https://github.com/lightdash/lightdash/issues/17017)) ([fc1fdec](https://github.com/lightdash/lightdash/commit/fc1fdec9d9e2bb3ef09c81161d7a92d33abb0791))
+
+# [0.2022.0](https://github.com/lightdash/lightdash/compare/0.2021.1...0.2022.0) (2025-09-24)
+
+
+### Bug Fixes
+
+* enhance agent chat input focus styling ([#17052](https://github.com/lightdash/lightdash/issues/17052)) ([545dc4a](https://github.com/lightdash/lightdash/commit/545dc4acfa3fe37887d67f735a1138dd33a3cb52))
+* improve AI agent sidebar layout and collapse functionality ([#17051](https://github.com/lightdash/lightdash/issues/17051)) ([eb02498](https://github.com/lightdash/lightdash/commit/eb02498f3e365ca08d9130e60a3a1323409574d9))
+
+
+### Features
+
+* enhance AgentChatDebugDrawer with artifact visualization support ([#17053](https://github.com/lightdash/lightdash/issues/17053)) ([2f3f010](https://github.com/lightdash/lightdash/commit/2f3f010a5f1b528f9b40ea6aeaefc476812acae6))
+
 ## [0.2021.1](https://github.com/lightdash/lightdash/compare/0.2021.0...0.2021.1) (2025-09-23)
 
 
