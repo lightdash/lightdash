@@ -9,6 +9,7 @@ import {
     Anchor,
     Button,
     CopyButton,
+    Divider,
     Group,
     Loader,
     Paper,
@@ -25,6 +26,7 @@ import {
     IconExclamationCircle,
     IconLayoutDashboard,
     IconRefresh,
+    IconTestPipe,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
@@ -164,6 +166,7 @@ const AssistantBubbleContent: FC<{
                     style={{ padding: `0.5rem 0`, fontSize: '0.875rem' }}
                     rehypePlugins={[rehypeAiAgentContentLinks]}
                     components={{
+                        hr: () => <Divider color="gray.4" my="sm" />,
                         a: ({ node, children, ...props }) => {
                             const contentType =
                                 'data-content-type' in props &&
@@ -277,18 +280,31 @@ type Props = {
     debug?: boolean;
     projectUuid: string;
     agentUuid: string;
+    showAddToEvalsButton?: boolean;
+    onAddToEvals?: (promptUuid: string) => void;
 };
 
 export const AssistantBubble: FC<Props> = memo(
-    ({ message, isActive = false, debug = false, projectUuid, agentUuid }) => {
+    ({
+        message,
+        isActive = false,
+        debug = false,
+        projectUuid,
+        agentUuid,
+        showAddToEvalsButton,
+        onAddToEvals,
+    }) => {
         const artifact = useAiAgentStoreSelector(
             (state) => state.aiArtifact.artifact,
         );
         const dispatch = useAiAgentStoreDispatch();
+
         if (!projectUuid) throw new Error(`Project Uuid not found`);
         if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
-        const isArtifactAvailable = !!message.artifact;
+        const isArtifactAvailable = !!(
+            message.artifacts && message.artifacts.length > 0
+        );
 
         const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
             useDisclosure(debug);
@@ -395,33 +411,41 @@ export const AssistantBubble: FC<Props> = memo(
                 />
 
                 {isArtifactAvailable && projectUuid && agentUuid && (
-                    <AiArtifactButton
-                        onClick={() => {
-                            if (
-                                artifact?.artifactUuid ===
-                                    message.artifact?.uuid &&
-                                artifact?.versionUuid ===
-                                    message.artifact?.versionUuid
-                            ) {
-                                return;
-                            }
-                            dispatch(
-                                setArtifact({
-                                    artifactUuid: message.artifact!.uuid,
-                                    versionUuid: message.artifact!.versionUuid,
-                                    message: message,
-                                    projectUuid: projectUuid,
-                                    agentUuid: agentUuid,
-                                }),
-                            );
-                        }}
-                        isArtifactOpen={
-                            artifact?.artifactUuid === message.artifact?.uuid &&
-                            artifact?.versionUuid ===
-                                message.artifact?.versionUuid
-                        }
-                        artifact={message.artifact}
-                    />
+                    <Stack gap="xs">
+                        {message.artifacts!.map((messageArtifact) => (
+                            <AiArtifactButton
+                                key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
+                                onClick={() => {
+                                    if (
+                                        artifact?.artifactUuid ===
+                                            messageArtifact.artifactUuid &&
+                                        artifact?.versionUuid ===
+                                            messageArtifact.versionUuid
+                                    ) {
+                                        return;
+                                    }
+                                    dispatch(
+                                        setArtifact({
+                                            artifactUuid:
+                                                messageArtifact.artifactUuid,
+                                            versionUuid:
+                                                messageArtifact.versionUuid,
+                                            message: message,
+                                            projectUuid: projectUuid,
+                                            agentUuid: agentUuid,
+                                        }),
+                                    );
+                                }}
+                                isArtifactOpen={
+                                    artifact?.artifactUuid ===
+                                        messageArtifact.artifactUuid &&
+                                    artifact?.versionUuid ===
+                                        messageArtifact.versionUuid
+                                }
+                                artifact={messageArtifact}
+                            />
+                        ))}
+                    </Stack>
                 )}
                 <Group gap={0}>
                     <CopyButton value={message.message ?? ''}>
@@ -487,6 +511,20 @@ export const AssistantBubble: FC<Props> = memo(
                         </ActionIcon>
                     )}
 
+                    {showAddToEvalsButton && onAddToEvals && (
+                        <Tooltip label="Add this response to evals">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                aria-label="Add to evaluation set"
+                                onClick={() => onAddToEvals(message.uuid)}
+                                display={isLoading ? 'none' : 'block'}
+                            >
+                                <MantineIcon icon={IconTestPipe} color="gray" />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+
                     {isArtifactAvailable && (
                         <ActionIcon
                             variant="subtle"
@@ -500,13 +538,13 @@ export const AssistantBubble: FC<Props> = memo(
                 </Group>
 
                 <AgentChatDebugDrawer
+                    agentUuid={agentUuid}
+                    projectUuid={projectUuid}
+                    artifacts={message.artifacts}
+                    toolCalls={message.toolCalls}
                     isVisualizationAvailable={isArtifactAvailable}
                     isDrawerOpen={isDrawerOpen}
-                    closeDrawer={closeDrawer}
-                    toolCalls={message.toolCalls}
-                    _artifactData={artifactData ?? null}
-                    vizQueryData={vizQueryData ?? null}
-                    echartsConfig={echartsConfig}
+
                 />
             </Stack>
         );

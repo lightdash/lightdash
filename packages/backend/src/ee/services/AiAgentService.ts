@@ -2,6 +2,11 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AiAgent,
+    AiAgentEvalRunJobPayload,
+    AiAgentEvaluation,
+    AiAgentEvaluationRun,
+    AiAgentEvaluationRunResult,
+    AiAgentEvaluationSummary,
     AiAgentNotFoundError,
     AiAgentThread,
     AiAgentThreadSummary,
@@ -15,8 +20,11 @@ import {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
+    ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
+    ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
+    ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     CatalogFilter,
     CatalogType,
@@ -25,8 +33,10 @@ import {
     followUpToolsText,
     ForbiddenError,
     isSlackPrompt,
+    KnexPaginateArgs,
     LightdashUser,
     NotFoundError,
+    NotImplementedError,
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
@@ -42,18 +52,21 @@ import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
-    CoreAssistantMessage,
-    CoreMessage,
-    CoreToolMessage,
-    CoreUserMessage,
+    AssistantModelMessage,
+    ModelMessage,
     ToolCallPart,
+    ToolModelMessage,
     ToolResultPart,
+    UserModelMessage,
 } from 'ai';
 import _ from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import {
     AiAgentCreatedEvent,
     AiAgentDeletedEvent,
+    AiAgentEvalAppendedEvent,
+    AiAgentEvalCreatedEvent,
+    AiAgentEvalRunEvent,
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentResponseStreamed,
@@ -71,6 +84,7 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
+import PrometheusMetrics from '../../prometheus';
 import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
 import { CatalogService } from '../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
@@ -92,6 +106,7 @@ import {
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
+    SearchFieldValuesFn,
     SendFileFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -128,6 +143,7 @@ type AiAgentServiceDependencies = {
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     spaceService: SpaceService;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 export class AiAgentService {
@@ -163,6 +179,8 @@ export class AiAgentService {
 
     private readonly spaceService: SpaceService;
 
+    private readonly prometheusMetrics?: PrometheusMetrics;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.analytics = dependencies.analytics;
@@ -180,6 +198,7 @@ export class AiAgentService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
+        this.prometheusMetrics = dependencies.prometheusMetrics;
     }
 
     private async getIsCopilotEnabled(
@@ -469,6 +488,7 @@ export class AiAgentService {
             agentUuid,
             // Only filter by userUuid if not requesting all users or if user lacks admin permissions
             userUuid: canViewAllThreads ? undefined : user.userUuid,
+            createdFrom: ['web_app', 'slack'],
         });
 
         const slackUserIds = _.uniq(
@@ -603,6 +623,7 @@ export class AiAgentService {
         user: SessionUser,
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
+        createdFrom: 'web_app' | 'evals' = 'web_app',
     ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -634,7 +655,7 @@ export class AiAgentService {
             organizationUuid,
             projectUuid: agent.projectUuid,
             userUuid: user.userUuid,
-            createdFrom: 'web_app',
+            createdFrom,
             agentUuid,
         });
 
@@ -769,6 +790,7 @@ export class AiAgentService {
             instruction: body.instruction,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            enableDataAccess: body.enableDataAccess,
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -824,6 +846,7 @@ export class AiAgentService {
             imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
+            enableDataAccess: body.enableDataAccess,
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -986,12 +1009,21 @@ export class AiAgentService {
                 threadUuid,
             });
 
+            const canManageAgent = user.ability.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                }),
+            );
+
             const response = await this.generateOrStreamAgentResponse(
                 validatedUser,
                 chatHistoryMessages,
                 {
                     prompt,
                     stream: true,
+                    canManageAgent,
                 },
             );
             return response;
@@ -1020,6 +1052,13 @@ export class AiAgentService {
                 agentUuid,
                 threadUuid,
             });
+            const canManageAgent = user.ability.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                }),
+            );
 
             const response = await this.generateOrStreamAgentResponse(
                 validatedUser,
@@ -1027,12 +1066,16 @@ export class AiAgentService {
                 {
                     prompt,
                     stream: false,
+                    canManageAgent,
                 },
             );
             return response;
         } catch (e) {
+            console.error(e);
             Logger.error('Failed to generate agent thread response:', e);
-            throw new Error('Failed to generate agent thread response');
+            throw new Error('Failed to generate agent thread response', {
+                cause: e,
+            });
         }
     }
 
@@ -1494,14 +1537,14 @@ export class AiAgentService {
         threadMessages: Awaited<
             ReturnType<typeof AiAgentModel.prototype.getThreadMessages>
         >,
-    ): Promise<CoreMessage[]> {
+    ): Promise<ModelMessage[]> {
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message) => {
-                const messages: CoreMessage[] = [
+                const messages: ModelMessage[] = [
                     {
                         role: 'user',
                         content: message.prompt,
-                    } satisfies CoreUserMessage,
+                    } satisfies UserModelMessage,
                 ];
 
                 const toolCallsAndResults =
@@ -1518,10 +1561,10 @@ export class AiAgentService {
                                     type: 'tool-call',
                                     toolCallId: toolCallAndResult.tool_call_id,
                                     toolName: toolCallAndResult.tool_name,
-                                    args: toolCallAndResult.tool_args,
+                                    input: toolCallAndResult.tool_args,
                                 } satisfies ToolCallPart),
                         ),
-                    } satisfies CoreAssistantMessage);
+                    } satisfies AssistantModelMessage);
 
                     messages.push({
                         role: 'tool',
@@ -1531,17 +1574,20 @@ export class AiAgentService {
                                     type: 'tool-result',
                                     toolCallId: toolCallAndResult.tool_call_id,
                                     toolName: toolCallAndResult.tool_name,
-                                    result: toolCallAndResult.result,
+                                    output: {
+                                        type: 'json',
+                                        value: toolCallAndResult.result,
+                                    },
                                 } satisfies ToolResultPart),
                         ),
-                    } satisfies CoreToolMessage);
+                    } satisfies ToolModelMessage);
                 }
 
                 if (message.response) {
                     messages.push({
                         role: 'assistant',
                         content: message.response,
-                    } satisfies CoreAssistantMessage);
+                    } satisfies AssistantModelMessage);
                 }
 
                 if (message.human_score) {
@@ -1552,7 +1598,7 @@ export class AiAgentService {
                             message.human_score > 0
                                 ? 'I liked this response'
                                 : 'I did not like this response',
-                    } satisfies CoreUserMessage);
+                    } satisfies UserModelMessage);
                 }
 
                 return messages;
@@ -1874,6 +1920,29 @@ export class AiAgentService {
             };
         };
 
+        const searchFieldValues: SearchFieldValuesFn = async (args) => {
+            const dimensionFilters = args.filters?.dimensions;
+            const andFilters =
+                dimensionFilters && 'and' in dimensionFilters
+                    ? dimensionFilters
+                    : undefined;
+
+            const { results } =
+                await this.projectService.searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    args.table,
+                    args.fieldId,
+                    args.query,
+                    100,
+                    andFilters,
+                    false,
+                    undefined,
+                );
+
+            return results;
+        };
+
         return {
             findCharts,
             findDashboards,
@@ -1886,49 +1955,56 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            searchFieldValues,
         };
     }
 
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+        messageHistory: ModelMessage[],
         options: {
             prompt: AiWebAppPrompt;
             stream: true;
+            canManageAgent: boolean;
         },
     ): Promise<ReturnType<typeof streamAgentResponse>>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+        messageHistory: ModelMessage[],
         options: {
             prompt: AiWebAppPrompt;
             stream: false;
+            canManageAgent: boolean;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+        messageHistory: ModelMessage[],
         options: {
             prompt: SlackPrompt;
             stream: false;
+            canManageAgent: boolean;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
-        messageHistory: CoreMessage[],
+
+        messageHistory: ModelMessage[],
         options:
-            | {
-                  prompt: AiWebAppPrompt;
-                  stream: true;
-              }
-            | {
-                  prompt: SlackPrompt;
-                  stream: false;
-              }
-            | {
-                  prompt: AiWebAppPrompt;
-                  stream: false;
-              },
+            | { canManageAgent: boolean } & (
+                  | {
+                        prompt: AiWebAppPrompt;
+                        stream: true;
+                    }
+                  | {
+                        prompt: SlackPrompt;
+                        stream: false;
+                    }
+                  | {
+                        prompt: AiWebAppPrompt;
+                        stream: false;
+                    }
+              ),
     ): Promise<string | ReturnType<typeof streamAgentResponse>> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
@@ -1952,28 +2028,28 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            searchFieldValues,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const { model, callOptions } = getModel(
-            this.lightdashConfig.ai.copilot,
-        );
+        const modelProperties = getModel(this.lightdashConfig.ai.copilot);
         const agentSettings = await this.getAgentSettings(user, prompt);
 
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
 
-            threadUuid: prompt.threadUuid,
-            promptUuid: prompt.promptUuid,
+            ...modelProperties,
 
             agentSettings,
-            model,
-            callOptions,
+
             messageHistory,
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
+            enableDataAccess: agentSettings.enableDataAccess,
 
             availableExploresPageSize: 100,
             findExploresPageSize: 15,
@@ -1985,6 +2061,7 @@ export class AiAgentService {
             findChartsPageSize: 5,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
+            canManageAgent: options.canManageAgent,
         };
 
         const dependencies: AiAgentDependencies = {
@@ -1998,6 +2075,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
+            searchFieldValues,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -2007,6 +2085,25 @@ export class AiAgentService {
 
             createOrUpdateArtifact: (data) =>
                 this.aiAgentModel.createOrUpdateArtifact(data),
+
+            appendInstruction: (data) =>
+                this.aiAgentModel.appendInstruction({
+                    agentUuid: data.agentUuid,
+                    instruction: data.instruction,
+                }),
+
+            perf: {
+                measureGenerateResponseTime: (durationMs) => {
+                    this.prometheusMetrics?.aiAgentGenerateResponseDurationHistogram?.observe(
+                        durationMs,
+                    );
+                },
+                measureStreamResponseTime: (durationMs) => {
+                    this.prometheusMetrics?.aiAgentStreamResponseDurationHistogram?.observe(
+                        durationMs,
+                    );
+                },
+            },
         };
 
         return stream
@@ -2203,6 +2300,14 @@ export class AiAgentService {
             slackPrompt.organizationUuid,
         );
 
+        const canManageAgent = user.ability.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid: slackPrompt.organizationUuid,
+                projectUuid: slackPrompt.projectUuid,
+            }),
+        );
+
         const threadMessages = await this.aiAgentModel.getThreadMessages(
             slackPrompt.organizationUuid,
             slackPrompt.projectUuid,
@@ -2232,6 +2337,7 @@ export class AiAgentService {
                 {
                     prompt: slackPrompt,
                     stream: false,
+                    canManageAgent,
                 },
             );
         } catch (e) {
@@ -3024,6 +3130,383 @@ export class AiAgentService {
         }));
 
         return exploreAccessSummary;
+    }
+
+    async cloneThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+        promptUuid: string,
+        { createdFrom }: { createdFrom?: 'web_app' | 'evals' },
+    ): Promise<AiAgentThreadSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const sourceThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!sourceThread) {
+            throw new NotFoundError(`Source thread not found: ${threadUuid}`);
+        }
+
+        // Check if user has access to the source thread
+        const hasSourceAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            sourceThread.user.uuid,
+        );
+        if (!hasSourceAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access source thread',
+            );
+        }
+
+        // Clone the thread
+        const clonedThreadUuid = await this.aiAgentModel.cloneThread({
+            sourceThreadUuid: threadUuid,
+            sourcePromptUuid: promptUuid,
+            targetUserUuid: user.userUuid,
+            createdFrom,
+        });
+
+        // Return the cloned thread summary
+        const clonedThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid: clonedThreadUuid,
+        });
+
+        if (!clonedThread) {
+            throw new Error('Failed to retrieve cloned thread');
+        }
+
+        return clonedThread;
+    }
+
+    // Evaluation methods
+
+    async createEval(
+        user: SessionUser,
+        agentUuid: string,
+        data: ApiCreateEvaluationRequest,
+    ) {
+        // Reuse existing access control
+        const agent = await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.createEval(
+            agentUuid,
+            {
+                title: data.title,
+                description: data.description,
+                prompts: data.prompts,
+            },
+            user.userUuid,
+        );
+
+        this.analytics.track<AiAgentEvalCreatedEvent>({
+            event: 'ai_agent_eval.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: agent.organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                evalId: evaluation.evalUuid,
+                promptsCount: data.prompts.length,
+            },
+        });
+
+        return evaluation;
+    }
+
+    async getEval(user: SessionUser, agentUuid: string, evalUuid: string) {
+        await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        return evaluation;
+    }
+
+    async getEvalsByAgent(
+        user: SessionUser,
+        agentUuid: string,
+    ): Promise<AiAgentEvaluationSummary[]> {
+        await this.getAgent(user, agentUuid);
+        return this.aiAgentModel.getEvalsByAgent(agentUuid);
+    }
+
+    async runEval(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+    ): Promise<AiAgentEvaluationRun> {
+        const agent = await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        const evalRun = await this.aiAgentModel.createEvalRun(evalUuid);
+
+        // Track eval run analytics
+        this.analytics.track<AiAgentEvalRunEvent>({
+            event: 'ai_agent_eval.run',
+            userId: user.userUuid,
+            properties: {
+                organizationId: agent.organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                evalId: evalUuid,
+                runId: evalRun.runUuid,
+                promptsCount: evaluation.prompts.length,
+            },
+        });
+
+        // Create threads, prompts, and schedule jobs for each eval prompt
+        const promises = evaluation.prompts.map(async (evalPrompt) => {
+            let thread: AiAgentThreadSummary;
+
+            if (evalPrompt.type === 'thread') {
+                thread = await this.cloneThread(
+                    user,
+                    agentUuid,
+                    evalPrompt.threadUuid,
+                    evalPrompt.promptUuid,
+                    { createdFrom: 'evals' },
+                );
+            } else if (evalPrompt.type === 'string') {
+                thread = await this.createAgentThread(
+                    user,
+                    agentUuid,
+                    {
+                        prompt: evalPrompt.prompt,
+                    },
+                    'evals',
+                );
+            } else {
+                throw new Error(
+                    'Evaluation prompt must be either string or thread type',
+                );
+            }
+
+            const resultUuid = await this.aiAgentModel.createEvalRunResult(
+                evalRun.runUuid,
+                evalPrompt.evalPromptUuid,
+                thread.uuid,
+            );
+
+            // Schedule a job for this specific result
+            await this.schedulerClient.aiAgentEvalResult({
+                evalRunResultUuid: resultUuid,
+                evalRunUuid: evalRun.runUuid,
+                userUuid: user.userUuid,
+                organizationUuid: agent.organizationUuid,
+                projectUuid: agent.projectUuid,
+                agentUuid,
+                threadUuid: thread.uuid,
+            });
+        });
+
+        await Promise.all(promises);
+
+        return this.aiAgentModel.getEvalRunWithResults(evalRun.runUuid)!;
+    }
+
+    async getEvalRuns(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ) {
+        await this.getAgent(user, agentUuid);
+
+        const evalData = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        return this.aiAgentModel.getEvalRuns(evalUuid, paginateArgs);
+    }
+
+    async getEvalRunWithResults(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        runUuid: string,
+    ) {
+        await this.getAgent(user, agentUuid);
+
+        const evalData = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        const runData = await this.aiAgentModel.getEvalRunWithResults(runUuid);
+        if (!runData || runData.evalUuid !== evalUuid) {
+            throw new NotFoundError('Evaluation run not found');
+        }
+
+        return runData;
+    }
+
+    async updateEval(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        data: ApiUpdateEvaluationRequest,
+    ) {
+        // Check access to agent
+        await this.getAgent(user, agentUuid);
+
+        await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        return this.aiAgentModel.updateEval(evalUuid, data);
+    }
+
+    async appendToEval(
+        user: SessionUser,
+        agentUuid: string,
+        evalUuid: string,
+        data: ApiAppendEvaluationRequest,
+    ) {
+        // Check access to agent
+        const agent = await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        const result = await this.aiAgentModel.appendToEval(evalUuid, data);
+
+        // Track analytics for appending to eval
+        this.analytics.track<AiAgentEvalAppendedEvent>({
+            event: 'ai_agent_eval.appended',
+            userId: user.userUuid,
+            properties: {
+                organizationId: agent.organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                evalId: evalUuid,
+                promptsCount: data.prompts.length,
+            },
+        });
+
+        return result;
+    }
+
+    async deleteEval(user: SessionUser, agentUuid: string, evalUuid: string) {
+        // Check access to agent
+        await this.getAgent(user, agentUuid);
+
+        const evaluation = await this.aiAgentModel.getEval({
+            agentUuid,
+            evalUuid,
+        });
+
+        await this.aiAgentModel.deleteEval(evalUuid);
+    }
+
+    async updateEvalRunResult(
+        evalRunUuid: string,
+        resultUuid: string,
+        error: Error | string,
+    ) {
+        await this.aiAgentModel.updateEvalRunResult(resultUuid, {
+            status: 'failed',
+            errorMessage:
+                error instanceof Error ? error.message : String(error),
+            completedAt: new Date(),
+        });
+        await this.aiAgentModel.checkAndUpdateEvalRunCompletion(evalRunUuid);
+    }
+
+    async executeEvalResult({
+        evalRunResultUuid,
+        evalRunUuid,
+        userUuid,
+        organizationUuid,
+        agentUuid,
+        threadUuid,
+    }: AiAgentEvalRunJobPayload): Promise<void> {
+        const result = await this.aiAgentModel.getEvalRunResult(
+            evalRunResultUuid,
+        );
+
+        try {
+            await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
+                status: 'running',
+            });
+
+            if (!result.threadUuid) {
+                throw new NotFoundError(
+                    `Thread UUID ${result.threadUuid} not found for evaluation result ${result.resultUuid}`,
+                );
+            }
+
+            const sessionUser =
+                await this.userModel.findSessionUserAndOrgByUuid(
+                    userUuid,
+                    organizationUuid,
+                );
+
+            // Generate the agent response
+            await this.generateAgentThreadResponse(sessionUser, {
+                agentUuid,
+                threadUuid,
+            });
+
+            // Mark as completed
+            await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
+                status: 'completed',
+                completedAt: new Date(),
+            });
+
+            // Check if all results for this run are complete
+            await this.aiAgentModel.checkAndUpdateEvalRunCompletion(
+                evalRunUuid,
+            );
+        } catch (error) {
+            // Update result as failed
+            await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
+                status: 'failed',
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
+                completedAt: new Date(),
+            });
+
+            // Check run completion status even on failure
+            await this.aiAgentModel.checkAndUpdateEvalRunCompletion(
+                evalRunUuid,
+            );
+
+            throw error;
+        }
     }
 
     async getArtifact(

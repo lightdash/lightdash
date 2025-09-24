@@ -21,6 +21,7 @@ import {
     type CustomSqlDimension,
 } from '../../types/field';
 import { type AdditionalMetric } from '../../types/metricQuery';
+import { SupportedDbtVersions } from '../../types/projects';
 import {
     type WarehouseClient,
     type WarehouseSqlBuilder,
@@ -46,8 +47,15 @@ import { convertCustomMetricToDbt } from '../../utils/convertCustomMetricsToYaml
 export default class DbtSchemaEditor {
     private readonly doc: Document;
 
-    constructor(doc: string = '', filename: string = '') {
+    private readonly dbtVersion?: SupportedDbtVersions;
+
+    constructor(
+        doc: string = '',
+        filename: string = '',
+        dbtVersion?: SupportedDbtVersions,
+    ) {
         this.doc = parseDocument(doc);
+        this.dbtVersion = dbtVersion;
         const ajvCompiler = new Ajv({
             coerceTypes: true,
             allowUnionTypes: true,
@@ -65,6 +73,19 @@ export default class DbtSchemaEditor {
             );
             throw new ParseError(`Invalid schema file: ${filename}\n${errors}`);
         }
+    }
+
+    isDbtVersion110OrHigher(): boolean {
+        if (!this.dbtVersion) {
+            return false;
+        }
+        // Get all enum values as an array in order
+        const versions = Object.values(SupportedDbtVersions);
+        const v110Index = versions.indexOf(SupportedDbtVersions.V1_10);
+        const currentIndex = versions.indexOf(this.dbtVersion);
+
+        // If the current version is at or after v1.10 in the enum order
+        return currentIndex >= v110Index;
     }
 
     findModelByName(name: string) {
@@ -214,10 +235,19 @@ export default class DbtSchemaEditor {
                     `Column ${metric.baseDimensionName} not found in model ${metric.table}`,
                 );
             }
-            column.setIn(
-                ['meta', 'metrics', metric.name],
-                convertCustomMetricToDbt(metric),
-            );
+
+            // For dbt >= 1.10, meta should be inside config
+            if (this.isDbtVersion110OrHigher()) {
+                column.setIn(
+                    ['config', 'meta', 'metrics', metric.name],
+                    convertCustomMetricToDbt(metric),
+                );
+            } else {
+                column.setIn(
+                    ['meta', 'metrics', metric.name],
+                    convertCustomMetricToDbt(metric),
+                );
+            }
         });
         return this;
     }
@@ -271,14 +301,26 @@ export default class DbtSchemaEditor {
             baseDimensionSql = columnSql.value;
         }
 
-        column.setIn(
-            ['meta', 'additional_dimensions', customDimension.id],
-            convertCustomBinDimensionToDbt({
-                customDimension,
-                baseDimensionSql,
-                warehouseSqlBuilder,
-            }),
-        );
+        // For dbt >= 1.10, meta should be inside config
+        if (this.isDbtVersion110OrHigher()) {
+            column.setIn(
+                ['config', 'meta', 'additional_dimensions', customDimension.id],
+                convertCustomBinDimensionToDbt({
+                    customDimension,
+                    baseDimensionSql,
+                    warehouseSqlBuilder,
+                }),
+            );
+        } else {
+            column.setIn(
+                ['meta', 'additional_dimensions', customDimension.id],
+                convertCustomBinDimensionToDbt({
+                    customDimension,
+                    baseDimensionSql,
+                    warehouseSqlBuilder,
+                }),
+            );
+        }
         return this;
     }
 
@@ -322,10 +364,18 @@ export default class DbtSchemaEditor {
                 `Column ${firstRefFromSameTable} not found in model ${customDimension.table}`,
             );
         }
-        column.setIn(
-            ['meta', 'additional_dimensions', customDimension.id],
-            additionalDimension,
-        );
+        // For dbt >= 1.10, meta should be inside config
+        if (this.isDbtVersion110OrHigher()) {
+            column.setIn(
+                ['config', 'meta', 'additional_dimensions', customDimension.id],
+                additionalDimension,
+            );
+        } else {
+            column.setIn(
+                ['meta', 'additional_dimensions', customDimension.id],
+                additionalDimension,
+            );
+        }
         return this;
     }
 

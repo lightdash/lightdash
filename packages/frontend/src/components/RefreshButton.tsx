@@ -96,6 +96,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                         borderTopRightRadius: 0,
                         borderBottomRightRadius: 0,
                     })}
+                    data-testid="RefreshButton/RunQueryButton"
                 >
                     Run query ({limit})
                 </Button>

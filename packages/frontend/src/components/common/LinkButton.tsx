@@ -29,10 +29,10 @@ const LinkButton: FC<LinkButtonProps> = ({
 
     return (
         <Button
+            variant="subtle"
             {...rest}
             component="a"
             compact
-            variant="subtle"
             href={href}
             leftIcon={leftIcon && <MantineIcon icon={leftIcon} />}
             target={target}

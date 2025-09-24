@@ -1,36 +1,43 @@
 import {
     Box,
+    Button,
     Divider,
     Group,
     Text,
     useMantineTheme,
     type GroupProps,
 } from '@mantine-8/core';
-import { memo, useCallback, type FC } from 'react';
+import { IconTrash } from '@tabler/icons-react';
+import { memo, type FC } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import AgentsFilter from './AgentsFilter';
 import { FeedbackFilter } from './FeedbackFilter';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 import { SourceFilter } from './SourceFilter';
 
-type AiAgentAdminTopToolbarProps = GroupProps & {
-    search: string | undefined;
-    setSearch: (search: string) => void;
-    selectedProjectUuids: string[];
-    setSelectedProjectUuids: (projectUuids: string[]) => void;
-    selectedAgentUuids: string[];
-    setSelectedAgentUuids: (agentUuids: string[]) => void;
-    selectedSource: 'all' | 'web_app' | 'slack';
-    setSelectedSource: (source: 'all' | 'web_app' | 'slack') => void;
-    selectedFeedback: 'all' | 'thumbs_up' | 'thumbs_down';
-    setSelectedFeedback: (
-        feedback: 'all' | 'thumbs_up' | 'thumbs_down',
-    ) => void;
-    totalResults: number;
-    isFetching: boolean;
-    hasNextPage: boolean;
-    currentResultsCount: number;
-};
+type AiAgentAdminTopToolbarProps = GroupProps &
+    Pick<
+        ReturnType<typeof useAiAgentAdminFilters>,
+        | 'search'
+        | 'selectedProjectUuids'
+        | 'selectedAgentUuids'
+        | 'selectedSource'
+        | 'selectedFeedback'
+        | 'setSearch'
+        | 'setSelectedProjectUuids'
+        | 'setSelectedAgentUuids'
+        | 'setSelectedSource'
+        | 'setSelectedFeedback'
+    > & {
+        totalResults: number;
+        isFetching: boolean;
+        hasNextPage: boolean;
+        currentResultsCount: number;
+        hasActiveFilters?: boolean;
+        onClearFilters?: () => void;
+    };
 
 export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
     ({
@@ -48,10 +55,11 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
         isFetching,
         hasNextPage,
         currentResultsCount,
+        hasActiveFilters,
+        onClearFilters,
         ...props
     }) => {
         const theme = useMantineTheme();
-        const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
         return (
             <Box>
@@ -61,11 +69,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                     {...props}
                 >
                     <Group gap="xs">
-                        <SearchFilter
-                            search={search}
-                            setSearch={setSearch}
-                            clearSearch={clearSearch}
-                        />
+                        <SearchFilter search={search} setSearch={setSearch} />
 
                         <Divider
                             orientation="vertical"
@@ -118,6 +122,32 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             selectedSource={selectedSource}
                             setSelectedSource={setSelectedSource}
                         />
+
+                        {hasActiveFilters && onClearFilters && (
+                            <>
+                                <Divider
+                                    orientation="vertical"
+                                    w={1}
+                                    h={20}
+                                    style={{
+                                        alignSelf: 'center',
+                                    }}
+                                />
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            size="sm"
+                                        />
+                                    }
+                                    onClick={onClearFilters}
+                                >
+                                    Clear all filters
+                                </Button>
+                            </>
+                        )}
                     </Group>
 
                     {/* Results count */}

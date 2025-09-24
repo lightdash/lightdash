@@ -1,5 +1,6 @@
 import {
     CreateProjectMember,
+    getErrorMessage,
     InviteLink,
     PasswordResetLink,
     ProjectMemberRole,
@@ -17,11 +18,11 @@ import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
-// Timeout configurations aligned with Nodemailer defaults and RFC 5321
+// Timeout configurations based on Nodemailer defaults, adjusted for scheduler compatibility
 export const SMTP_CONNECTION_CONFIG = {
     connectionTimeout: 120000, // 2 minutes - max time to establish connection (default)
     greetingTimeout: 30000, // 30 seconds - max time to wait for greeting (default)
-    socketTimeout: 600000, // 10 minutes - max time for idle socket (default)
+    socketTimeout: 180000, // 3 minutes - reduced from default to allow retry logic within default scheduler timeout (10min)
 } as const;
 
 export type AttachmentUrl = {
@@ -173,10 +174,16 @@ export default class EmailClient {
                             error.message.includes('Connection timeout'));
 
                     if (isLastAttempt || !isRetryableError) {
+                        const isFileError =
+                            error instanceof Error &&
+                            error.message.includes('ENOENT');
+                        const errorMessage = isFileError
+                            ? 'There was an unexpected error when processing the attached file. Please contact your admin or support team.'
+                            : getErrorMessage(error);
                         throw new SmptError(
-                            `Failed to send email after ${attempt} attempts. ${error}`,
+                            `Failed to send email after ${attempt} attempts. ${errorMessage}`,
                             {
-                                error,
+                                error, // log the original error
                             },
                         );
                     }

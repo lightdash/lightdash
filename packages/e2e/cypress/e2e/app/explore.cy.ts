@@ -428,4 +428,75 @@ describe('Explore', () => {
             .should('have.text', 'Tables/Orders');
         cy.findByText('Pick a metric & select its dimensions').should('exist');
     });
+
+    it('Should search tables and select fields', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        cy.findByTestId('page-spinner').should('not.exist');
+
+        // Select the Orders table from search results
+        cy.findByText('Orders').click();
+
+        // Wait for the explore page to load
+        cy.findByText('Dimensions').should('exist');
+
+        // Search for tables using the search input
+        cy.findByTestId('ExploreTree/SearchInput')
+            .should('exist')
+            .type('First name');
+
+        // Select some fields to query
+        cy.findByText('First name').click();
+
+        // Run the query
+        cy.get('button').contains('Run query').click();
+
+        // Wait for query to finish loading
+        cy.findByText('Loading results').should('not.exist');
+
+        // Check that the results table exists and has the expected columns
+        cy.get('table').should('exist');
+        cy.get('th').contains('Customers First name').should('exist');
+
+        // Verify that we have actual data in the table
+        cy.get('tbody tr').should('have.length.greaterThan', 0);
+
+        // Check specific data - first row should have a customer name
+        cy.get('tbody tr').first().find('td').eq(1).should('not.be.empty');
+    });
+
+    it('Should add a custom dimension', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        cy.findByTestId('page-spinner').should('not.exist');
+
+        // Select the Orders table
+        cy.findByText('Orders').click();
+
+        // Wait for the explore page to load
+        cy.findByText('Dimensions').should('exist');
+
+        // Click the Add Custom Dimension button
+        cy.findByTestId('TableTreeSections/AddCustomDimensionButton').click();
+
+        cy.findByTestId('CustomSqlDimensionModal/LabelInput').type(
+            'A custom dimension',
+        );
+        cy.get('#ace-editor').type('true');
+        cy.findByText('Create').click();
+
+        // Run query
+        cy.findAllByTestId('RefreshButton/RunQueryButton').first().click();
+
+        // Wait for query to finish loading
+        cy.findByText('Loading results').should('not.exist');
+
+        // Check that the results table exists and has the expected columns
+        cy.get('table').should('exist');
+        cy.get('th').contains('A custom dimension').should('exist');
+
+        // Verify that we have actual data in the table
+        cy.get('tbody tr').should('have.length.greaterThan', 0);
+
+        // Check specific data - first row should have a customer name
+        cy.get('tbody tr').first().find('td').eq(1).should('not.be.empty');
+    });
 });

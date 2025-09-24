@@ -11,6 +11,7 @@ import { DownloadFileModel } from './DownloadFileModel';
 import { EmailModel } from './EmailModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppInstallationsModel';
+import { GitlabAppInstallationsModel } from './GitlabAppInstallations/GitlabAppInstallationsModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
@@ -58,6 +59,7 @@ export type ModelManifest = {
     downloadFileModel: DownloadFileModel;
     emailModel: EmailModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     groupsModel: GroupsModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
@@ -238,6 +240,17 @@ export class ModelRepository
             'githubAppInstallationsModel',
             () =>
                 new GithubAppInstallationsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getGitlabAppInstallationsModel(): GitlabAppInstallationsModel {
+        return this.getModel(
+            'gitlabAppInstallationsModel',
+            () =>
+                new GitlabAppInstallationsModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),

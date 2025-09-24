@@ -69,6 +69,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                     }),
                     projectService: repository.getProjectService(),
+                    asyncQueryService: repository.getAsyncQueryService(),
                     dashboardModel: models.getDashboardModel(),
                     embedModel: models.getEmbedModel(),
                     projectModel: models.getProjectModel(),
@@ -86,7 +87,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectService: repository.getProjectService(),
                     openAi: new OpenAi(), // TODO This should go in client repository as soon as it is available
                 }),
-            aiAgentService: ({ models, repository, clients, context }) =>
+            aiAgentService: ({
+                models,
+                repository,
+                clients,
+                context,
+                prometheusMetrics,
+            }) =>
                 new AiAgentService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -107,10 +114,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
                     spaceService: repository.getSpaceService(),
+                    prometheusMetrics,
                 }),
-            aiAgentAdminService: ({ models }) =>
+            aiAgentAdminService: ({ models, context }) =>
                 new AiAgentAdminService({
                     aiAgentModel: models.getAiAgentModel(),
+                    lightdashConfig: context.lightdashConfig,
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

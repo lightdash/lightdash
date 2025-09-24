@@ -27,6 +27,7 @@ import {
     IconChartLine,
     IconDashboard,
     IconDatabase,
+    IconSchool,
     IconSearch,
     IconSelector,
     IconTable,
@@ -42,12 +43,14 @@ const getToolIcon = (toolName: ToolName) => {
         {
             findExplores: IconDatabase,
             findFields: IconSearch,
+            searchFieldValues: IconSelector,
             generateBarVizConfig: IconChartHistogram,
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
             generateDashboard: IconDashboard,
             findDashboards: IconDashboard,
             findCharts: IconChartDots3,
+            improveContext: IconSchool,
         };
 
     return iconMap[toolName];
@@ -58,6 +61,50 @@ type ToolCallSummary = Omit<
     AiAgentToolCall,
     'createdAt' | 'uuid' | 'promptUuid'
 >;
+
+const ImproveContextToolCall: FC<{
+    toolCall: ToolCallSummary;
+}> = ({ toolCall }) => {
+    const toolNameParsed = ToolNameSchema.safeParse(toolCall.toolName);
+    const toolArgsParsed = AgentToolCallArgsSchema.safeParse(toolCall.toolArgs);
+
+    if (!toolNameParsed.success || !toolArgsParsed.success) {
+        console.error(
+            `Failed to parse tool call ${toolCall.toolName} ${toolCall.toolCallId}`,
+            toolNameParsed.error ?? toolArgsParsed.error,
+        );
+        return null;
+    }
+
+    const toolArgs = toolArgsParsed.data;
+
+    if (toolArgs.type === 'improve_context') {
+        return (
+            <Paper bg="white" p="xs" mb="xs">
+                <Group gap="xs" align="flex-start" wrap="nowrap">
+                    <MantineIcon icon={IconSchool} size="md" color="violet.6" />
+                    <Stack gap="two">
+                        <Text fz="xs" fw={500} c="gray.7" lh="normal" m={0}>
+                            Saved instruction
+                        </Text>
+                        <Text
+                            fz="xs"
+                            fw={400}
+                            c="gray.6"
+                            lh="normal"
+                            m={0}
+                            fs="italic"
+                        >
+                            {toolArgs.suggestedInstruction}
+                        </Text>
+                    </Stack>
+                </Group>
+            </Paper>
+        );
+    }
+
+    return null;
+};
 
 const ToolCallContainer = ({
     children,
@@ -142,6 +189,45 @@ const ToolCallDescription: FC<{
                             {query.label}
                         </Badge>
                     ))}
+                </Text>
+            );
+        case 'search_field_values':
+            const searchFieldValuesArgs = toolArgs as any;
+            return (
+                <Text c="dimmed" size="xs">
+                    Searched for values in field{' '}
+                    <Badge
+                        color="gray"
+                        variant="light"
+                        size="xs"
+                        mx={rem(2)}
+                        radius="sm"
+                        style={{
+                            textTransform: 'none',
+                            fontWeight: 400,
+                        }}
+                    >
+                        {searchFieldValuesArgs.fieldId}
+                    </Badge>
+                    {searchFieldValuesArgs.query && (
+                        <>
+                            {' '}
+                            matching{' '}
+                            <Badge
+                                color="gray"
+                                variant="light"
+                                size="xs"
+                                mx={rem(2)}
+                                radius="sm"
+                                style={{
+                                    textTransform: 'none',
+                                    fontWeight: 400,
+                                }}
+                            >
+                                "{searchFieldValuesArgs.query}"
+                            </Badge>
+                        </>
+                    )}
                 </Text>
             );
         case AiResultType.VERTICAL_BAR_RESULT:
@@ -237,6 +323,8 @@ const ToolCallDescription: FC<{
                     {dashboardToolArgs.visualizations.length !== 1 ? 's' : ''}
                 </Text>
             );
+        case AiResultType.IMPROVE_CONTEXT:
+            return <> </>;
         default:
             return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
     }
@@ -256,60 +344,76 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
             ? TOOL_DISPLAY_MESSAGES
             : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL;
 
+    const improveContextToolCall = toolCalls?.find(
+        (toolCall) => toolCall.toolName === 'improveContext',
+    );
+    const calculationToolCalls = toolCalls?.filter(
+        (toolCall) => toolCall.toolName !== 'improveContext',
+    );
+
     if (!toolCalls || toolCalls.length === 0) return null;
     return (
-        <ToolCallContainer defaultOpened={type !== 'persisted'}>
-            <Stack pt="xs">
-                <Timeline
-                    active={toolCalls.length - 1}
-                    bulletSize={16}
-                    lineWidth={1}
-                    color="gray"
-                >
-                    {toolCalls.map((toolCall) => {
-                        const toolNameParsed = ToolNameSchema.safeParse(
-                            toolCall.toolName,
-                        );
-                        if (!toolNameParsed.success) {
-                            return null;
-                        }
+        <Stack gap="xs">
+            {calculationToolCalls && calculationToolCalls.length > 0 && (
+                <ToolCallContainer defaultOpened={type !== 'persisted'}>
+                    <Stack pt="xs">
+                        <Timeline
+                            active={calculationToolCalls.length - 1}
+                            bulletSize={16}
+                            lineWidth={1}
+                            color="gray"
+                        >
+                            {calculationToolCalls.map((toolCall) => {
+                                const toolNameParsed = ToolNameSchema.safeParse(
+                                    toolCall.toolName,
+                                );
+                                if (!toolNameParsed.success) {
+                                    return null;
+                                }
 
-                        const toolName = toolNameParsed.data;
-                        const IconComponent = getToolIcon(toolName);
+                                const toolName = toolNameParsed.data;
+                                const IconComponent = getToolIcon(toolName);
 
-                        return (
-                            <Timeline.Item
-                                key={toolCall.toolCallId}
-                                radius="sm"
-                                bullet={
-                                    <Paper
-                                        bg="white"
-                                        p="two"
+                                return (
+                                    <Timeline.Item
+                                        key={toolCall.toolCallId}
                                         radius="sm"
-                                        shadow="subtle"
+                                        bullet={
+                                            <Paper
+                                                bg="white"
+                                                p="two"
+                                                radius="sm"
+                                                shadow="subtle"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconComponent}
+                                                    size={12}
+                                                    stroke={1.8}
+                                                    color="indigo.3"
+                                                />
+                                            </Paper>
+                                        }
+                                        mt="xs"
+                                        title={
+                                            <Text fw={400} size="xs" c="gray.7">
+                                                {texts[toolName]}
+                                            </Text>
+                                        }
+                                        lineVariant={'dashed'}
                                     >
-                                        <MantineIcon
-                                            icon={IconComponent}
-                                            size={12}
-                                            stroke={1.8}
-                                            color="indigo.3"
+                                        <ToolCallDescription
+                                            toolCall={toolCall}
                                         />
-                                    </Paper>
-                                }
-                                mt="xs"
-                                title={
-                                    <Text fw={400} size="xs" c="gray.7">
-                                        {texts[toolName]}
-                                    </Text>
-                                }
-                                lineVariant={'dashed'}
-                            >
-                                <ToolCallDescription toolCall={toolCall} />
-                            </Timeline.Item>
-                        );
-                    })}
-                </Timeline>
-            </Stack>
-        </ToolCallContainer>
+                                    </Timeline.Item>
+                                );
+                            })}
+                        </Timeline>
+                    </Stack>
+                </ToolCallContainer>
+            )}
+            {!!improveContextToolCall && (
+                <ImproveContextToolCall toolCall={improveContextToolCall} />
+            )}
+        </Stack>
     );
 };

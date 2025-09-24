@@ -37,8 +37,6 @@ export const getGenerateDashboard = ({
     getPrompt,
     createOrUpdateArtifact,
 }: Dependencies) => {
-    const schema = toolDashboardArgsSchema;
-
     const validateVisualization = (
         visualization: ToolDashboardArgsTransformed['visualizations'][0],
         explore: Explore,
@@ -61,7 +59,7 @@ export const getGenerateDashboard = ({
 
     return tool({
         description: toolDashboardArgsSchema.description,
-        parameters: schema,
+        inputSchema: toolDashboardArgsSchema,
         execute: async (toolArgs) => {
             try {
                 const args = toolDashboardArgsSchemaTransformed.parse(toolArgs);

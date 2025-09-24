@@ -126,6 +126,11 @@ import { type ValidationResponse } from './types/validation';
 import type {
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentEvaluationResponse,
+    ApiAiAgentEvaluationRunResponse,
+    ApiAiAgentEvaluationRunResultsResponse,
+    ApiAiAgentEvaluationRunSummaryListResponse,
+    ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
@@ -133,6 +138,7 @@ import type {
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiCreateEvaluationResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -201,6 +207,7 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/parameters';
 export * from './compiler/translator';
 export * from './constants/pivot';
+export * from './constants/sessionStorageKeys';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/validation';
@@ -953,7 +960,13 @@ type ApiResults =
     | ApiAiAgentThreadGenerateTitleResponse['results']
     | ApiAiAgentThreadSummaryListResponse['results']
     | Account
-    | ApiAiAgentAdminConversationsResponse['results'];
+    | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentEvaluationSummaryListResponse['results']
+    | ApiAiAgentEvaluationResponse['results']
+    | ApiAiAgentEvaluationRunResponse['results']
+    | ApiAiAgentEvaluationRunSummaryListResponse['results']
+    | ApiAiAgentEvaluationRunResultsResponse['results']
+    | ApiCreateEvaluationResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1102,6 +1115,7 @@ export type HealthState = {
     };
     hasSlack: boolean;
     hasGithub: boolean;
+    hasGitlab: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
@@ -1123,6 +1137,10 @@ export type HealthState = {
                   enablePostMessage: boolean;
               }
             | undefined;
+    };
+    ai: {
+        analyticsProjectUuid?: string;
+        analyticsDashboardUuid?: string;
     };
 };
 
@@ -1403,7 +1421,7 @@ export function itemsInMetricQuery(
           ];
 }
 
-function formatRawValue(
+export function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
     value: AnyType,
 ) {

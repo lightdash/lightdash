@@ -34,6 +34,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
         temperature: process.env.OPENAI_TEMPERATURE
             ? parseFloat(process.env.OPENAI_TEMPERATURE)
             : 0.2,
+        responsesApi: false,
     });
 
     beforeAll(async () => {
@@ -112,6 +113,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 {
                     prompt: promptData!,
                     stream: false,
+                    canManageAgent: true,
                 },
             );
 

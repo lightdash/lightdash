@@ -1,3 +1,389 @@
+# [0.2022.0](https://github.com/lightdash/lightdash/compare/0.2021.1...0.2022.0) (2025-09-24)
+
+
+### Bug Fixes
+
+* enhance agent chat input focus styling ([#17052](https://github.com/lightdash/lightdash/issues/17052)) ([545dc4a](https://github.com/lightdash/lightdash/commit/545dc4acfa3fe37887d67f735a1138dd33a3cb52))
+* improve AI agent sidebar layout and collapse functionality ([#17051](https://github.com/lightdash/lightdash/issues/17051)) ([eb02498](https://github.com/lightdash/lightdash/commit/eb02498f3e365ca08d9130e60a3a1323409574d9))
+
+
+### Features
+
+* enhance AgentChatDebugDrawer with artifact visualization support ([#17053](https://github.com/lightdash/lightdash/issues/17053)) ([2f3f010](https://github.com/lightdash/lightdash/commit/2f3f010a5f1b528f9b40ea6aeaefc476812acae6))
+
+## [0.2021.1](https://github.com/lightdash/lightdash/compare/0.2021.0...0.2021.1) (2025-09-23)
+
+
+### Bug Fixes
+
+* reduce email socket timeout to prevent scheduler conflicts ([#17050](https://github.com/lightdash/lightdash/issues/17050)) ([1333dba](https://github.com/lightdash/lightdash/commit/1333dba87d6a2b51ec75541a842ac6ce085d5f9c))
+
+# [0.2021.0](https://github.com/lightdash/lightdash/compare/0.2020.0...0.2021.0) (2025-09-23)
+
+
+### Features
+
+* add ClickHouse warehouse support ([#16988](https://github.com/lightdash/lightdash/issues/16988)) ([986cb0a](https://github.com/lightdash/lightdash/commit/986cb0ad986e12132ffc2b71f6a7a8f475f062a4))
+
+# [0.2020.0](https://github.com/lightdash/lightdash/compare/0.2019.0...0.2020.0) (2025-09-22)
+
+
+### Bug Fixes
+
+* improve error messages for email sending and screenshot failures ([#17030](https://github.com/lightdash/lightdash/issues/17030)) ([cd8936e](https://github.com/lightdash/lightdash/commit/cd8936e90caf12a0c3025968e22e2d94f75a31f2))
+
+
+### Features
+
+* add "send now" functionality to schedulers ([#17038](https://github.com/lightdash/lightdash/issues/17038)) ([7c3f591](https://github.com/lightdash/lightdash/commit/7c3f591a16ca1258964bc995dbed6601db643172))
+
+# [0.2019.0](https://github.com/lightdash/lightdash/compare/0.2018.1...0.2019.0) (2025-09-22)
+
+
+### Features
+
+* add analytics tracking for AI agent evaluations ([#17037](https://github.com/lightdash/lightdash/issues/17037)) ([a48cbc7](https://github.com/lightdash/lightdash/commit/a48cbc7a41e11f35a39eddae41cc0611afda75e1))
+
+## [0.2018.1](https://github.com/lightdash/lightdash/compare/0.2018.0...0.2018.1) (2025-09-22)
+
+
+### Bug Fixes
+
+* add config to dbt 1.10 on write back ([#17025](https://github.com/lightdash/lightdash/issues/17025)) ([16f345f](https://github.com/lightdash/lightdash/commit/16f345f619b9451c1b851068397d3aa7eb1d13e9))
+* add option to validate only specified explores ([#17026](https://github.com/lightdash/lightdash/issues/17026)) ([39474ff](https://github.com/lightdash/lightdash/commit/39474ff071aa7abd4316abb313dcd8e348634576))
+
+# [0.2018.0](https://github.com/lightdash/lightdash/compare/0.2017.0...0.2018.0) (2025-09-22)
+
+
+### Bug Fixes
+
+* only render insights if set up in ai agent admin ([#16987](https://github.com/lightdash/lightdash/issues/16987)) ([9068e69](https://github.com/lightdash/lightdash/commit/9068e694f3d30e37751e13b28a48d12f88ea0f60))
+
+
+### Features
+
+* support AI Agent evals for slack based threads ([#17011](https://github.com/lightdash/lightdash/issues/17011)) ([5ab0a4f](https://github.com/lightdash/lightdash/commit/5ab0a4f4cd7d976b96e0ad292165490cfc69d175))
+
+# [0.2017.0](https://github.com/lightdash/lightdash/compare/0.2016.3...0.2017.0) (2025-09-22)
+
+
+### Features
+
+* Update Enable Data Access styles ([#17015](https://github.com/lightdash/lightdash/issues/17015)) ([e7c20cb](https://github.com/lightdash/lightdash/commit/e7c20cb407565be6195bb98b5d4cbf9e529e1474))
+
+## [0.2016.3](https://github.com/lightdash/lightdash/compare/0.2016.2...0.2016.3) (2025-09-22)
+
+
+### Bug Fixes
+
+* handle empty arrays in AI agent database operations and add timeout handling ([#17010](https://github.com/lightdash/lightdash/issues/17010)) ([3c3030f](https://github.com/lightdash/lightdash/commit/3c3030f674295c94dad7b49f6be8e88de6a7d212))
+
+## [0.2016.2](https://github.com/lightdash/lightdash/compare/0.2016.1...0.2016.2) (2025-09-19)
+
+
+### Bug Fixes
+
+* Fix header size in agent settings ([#17013](https://github.com/lightdash/lightdash/issues/17013)) ([ae06288](https://github.com/lightdash/lightdash/commit/ae06288eb160b7b077a024f6d377b73dca433470))
+* Improve user access field performance in AI Agent configuration ([#16975](https://github.com/lightdash/lightdash/issues/16975)) ([44faaf8](https://github.com/lightdash/lightdash/commit/44faaf8503e02e69c99ae9ad3fde7e978ea94e5d)), closes [#16957](https://github.com/lightdash/lightdash/issues/16957)
+
+## [0.2016.1](https://github.com/lightdash/lightdash/compare/0.2016.0...0.2016.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* AI agent bug when streaming long text ([#17001](https://github.com/lightdash/lightdash/issues/17001)) ([77878c4](https://github.com/lightdash/lightdash/commit/77878c4de3213482b2b7537ab8199c5e80f44fbb))
+
+# [0.2016.0](https://github.com/lightdash/lightdash/compare/0.2015.1...0.2016.0) (2025-09-19)
+
+
+### Features
+
+* add ability to add prompts to evaluation sets from AI Agents admin ([#16989](https://github.com/lightdash/lightdash/issues/16989)) ([01ca616](https://github.com/lightdash/lightdash/commit/01ca616637428a83642a1d54af7c73325aafcf48))
+* add AI Agent eval database schema and migrations ([#16900](https://github.com/lightdash/lightdash/issues/16900)) ([9db9c5e](https://github.com/lightdash/lightdash/commit/9db9c5e1b179756169312582900f5f072806a850))
+* add thread cloning functionality to AI agents ([#16968](https://github.com/lightdash/lightdash/issues/16968)) ([f11dcb2](https://github.com/lightdash/lightdash/commit/f11dcb2f69c341bdce97cdde969fc092b16929fa))
+* **backend:** eval framework for AI Agents ([#16901](https://github.com/lightdash/lightdash/issues/16901)) ([cb28207](https://github.com/lightdash/lightdash/commit/cb282075e3022625a6f5c581e79071ec0790a133))
+* **frontend:** UI for defining and batch-running AI Agent prompts  ([#16902](https://github.com/lightdash/lightdash/issues/16902)) ([3722fb6](https://github.com/lightdash/lightdash/commit/3722fb6946caa9e0e1f4c5fc2132a2cf08932d26))
+
+## [0.2015.1](https://github.com/lightdash/lightdash/compare/0.2015.0...0.2015.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* improve token hash ([#16918](https://github.com/lightdash/lightdash/issues/16918)) ([3990a7c](https://github.com/lightdash/lightdash/commit/3990a7c59846d137370601179aa2713c8daadb38))
+
+# [0.2015.0](https://github.com/lightdash/lightdash/compare/0.2014.0...0.2015.0) (2025-09-19)
+
+
+### Features
+
+* Improve artifact error UI ([#17002](https://github.com/lightdash/lightdash/issues/17002)) ([03f0b74](https://github.com/lightdash/lightdash/commit/03f0b74edffa5d8024180ea4cb515f9603c0ac65))
+
+# [0.2014.0](https://github.com/lightdash/lightdash/compare/0.2013.4...0.2014.0) (2025-09-19)
+
+
+### Features
+
+* add searchFieldValues tool for AI agents ([#16994](https://github.com/lightdash/lightdash/issues/16994)) ([57a891c](https://github.com/lightdash/lightdash/commit/57a891c9b733ab0393c8869616fae4c6a05cb398)), closes [#16993](https://github.com/lightdash/lightdash/issues/16993)
+
+## [0.2013.4](https://github.com/lightdash/lightdash/compare/0.2013.3...0.2013.4) (2025-09-18)
+
+
+### Bug Fixes
+
+* increase AI agent step count limit from 10 to 20 ([#16997](https://github.com/lightdash/lightdash/issues/16997)) ([62b6032](https://github.com/lightdash/lightdash/commit/62b6032e88093fe78184368e24f73a4acafe1370))
+
+## [0.2013.3](https://github.com/lightdash/lightdash/compare/0.2013.2...0.2013.3) (2025-09-18)
+
+
+### Bug Fixes
+
+* normalize date formats for subtotal comparison ([#16967](https://github.com/lightdash/lightdash/issues/16967)) ([806ca29](https://github.com/lightdash/lightdash/commit/806ca2936507b061062a7caff329031f56094d37))
+
+## [0.2013.2](https://github.com/lightdash/lightdash/compare/0.2013.1...0.2013.2) (2025-09-18)
+
+
+### Bug Fixes
+
+* limit number of ai agent slack channels on dropdown ([#16969](https://github.com/lightdash/lightdash/issues/16969)) ([a617c4f](https://github.com/lightdash/lightdash/commit/a617c4f00d2b8cf27ccb0d3b1653e3e156492fb8))
+
+## [0.2013.1](https://github.com/lightdash/lightdash/compare/0.2013.0...0.2013.1) (2025-09-18)
+
+
+### Bug Fixes
+
+* fix regular expression ([#16955](https://github.com/lightdash/lightdash/issues/16955)) ([43a0657](https://github.com/lightdash/lightdash/commit/43a06570107bb0d62187f66ab0e375d7e63d3797))
+
+# [0.2013.0](https://github.com/lightdash/lightdash/compare/0.2012.1...0.2013.0) (2025-09-17)
+
+
+### Features
+
+* add ability for agent to learn from context provided ([#16951](https://github.com/lightdash/lightdash/issues/16951)) ([b430942](https://github.com/lightdash/lightdash/commit/b430942c3c49f914961da41e80ca78f2125645fa))
+
+## [0.2012.1](https://github.com/lightdash/lightdash/compare/0.2012.0...0.2012.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* truncate large job payloads in scheduler worker logs ([#16950](https://github.com/lightdash/lightdash/issues/16950)) ([80ddb4a](https://github.com/lightdash/lightdash/commit/80ddb4a5d60e42ca432bd289772efd54e35f5fa9))
+
+# [0.2012.0](https://github.com/lightdash/lightdash/compare/0.2011.1...0.2012.0) (2025-09-17)
+
+
+### Bug Fixes
+
+* upgrade form-data dependency 2 ([#16952](https://github.com/lightdash/lightdash/issues/16952)) ([041fb66](https://github.com/lightdash/lightdash/commit/041fb663a17adfb10f6b76623451d43dcd70e095))
+
+
+### Features
+
+* add async query endpoint for embedded dashboard tiles ([#16896](https://github.com/lightdash/lightdash/issues/16896)) ([5f50139](https://github.com/lightdash/lightdash/commit/5f50139110998a0498ea27d9a49dc2f04e199e64))
+* enable sentry&mcp monitoring ([#16963](https://github.com/lightdash/lightdash/issues/16963)) ([117eed9](https://github.com/lightdash/lightdash/commit/117eed97cfb4adb48ccc18a56b5eafd83f702fc9))
+
+## [0.2011.1](https://github.com/lightdash/lightdash/compare/0.2011.0...0.2011.1) (2025-09-17)
+
+
+### Bug Fixes
+
+* improve table visualization handling for empty results in AI tools ([#16960](https://github.com/lightdash/lightdash/issues/16960)) ([7041472](https://github.com/lightdash/lightdash/commit/7041472c570434e1ef795d469bfbbe7e3e3ed8f7))
+
+# [0.2011.0](https://github.com/lightdash/lightdash/compare/0.2010.0...0.2011.0) (2025-09-17)
+
+
+### Features
+
+* apply user attributes to sql runner queries ([#16903](https://github.com/lightdash/lightdash/issues/16903)) ([c0dd2aa](https://github.com/lightdash/lightdash/commit/c0dd2aa06299e65f181a881583139ccb74638ef6))
+
+# [0.2010.0](https://github.com/lightdash/lightdash/compare/0.2009.6...0.2010.0) (2025-09-17)
+
+
+### Features
+
+* change user attribute value to text ([#16947](https://github.com/lightdash/lightdash/issues/16947)) ([73d4f50](https://github.com/lightdash/lightdash/commit/73d4f504aa8250666adfccecf930b51b5f40e7f1))
+
+## [0.2009.6](https://github.com/lightdash/lightdash/compare/0.2009.5...0.2009.6) (2025-09-17)
+
+
+### Bug Fixes
+
+* update form-data dependencies ([#16916](https://github.com/lightdash/lightdash/issues/16916)) ([7527462](https://github.com/lightdash/lightdash/commit/7527462fa0f561bb88c3044a29276460d657b54b))
+* upgrade axios dependencies ([#16917](https://github.com/lightdash/lightdash/issues/16917)) ([bf18a14](https://github.com/lightdash/lightdash/commit/bf18a140e78b74e18091c5f6763f1b6c1553b95d))
+
+## [0.2009.5](https://github.com/lightdash/lightdash/compare/0.2009.4...0.2009.5) (2025-09-17)
+
+
+### Bug Fixes
+
+* update linkifyjs to version 4.3.2 ([#16944](https://github.com/lightdash/lightdash/issues/16944)) ([6b2aab6](https://github.com/lightdash/lightdash/commit/6b2aab68d08079bf2262cf81b9496bb25c1e2b10))
+
+## [0.2009.4](https://github.com/lightdash/lightdash/compare/0.2009.3...0.2009.4) (2025-09-17)
+
+
+### Bug Fixes
+
+* remove backslash agent settings ([#16946](https://github.com/lightdash/lightdash/issues/16946)) ([111623d](https://github.com/lightdash/lightdash/commit/111623dff2a0102d8b6e1a8d8acc15308b38a0e2))
+
+## [0.2009.3](https://github.com/lightdash/lightdash/compare/0.2009.2...0.2009.3) (2025-09-17)
+
+
+### Bug Fixes
+
+* replace custom stream processing with ChatStreamParser in AI agent thread ([#16938](https://github.com/lightdash/lightdash/issues/16938)) ([634aace](https://github.com/lightdash/lightdash/commit/634aaced3764e76336f18da46757c2a5386591e4))
+
+## [0.2009.2](https://github.com/lightdash/lightdash/compare/0.2009.1...0.2009.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* change validation columns from string to text ([#16936](https://github.com/lightdash/lightdash/issues/16936)) ([5ab8c3f](https://github.com/lightdash/lightdash/commit/5ab8c3f948ef767b4728b4ce12cc54a8362bc35d))
+
+## [0.2009.1](https://github.com/lightdash/lightdash/compare/0.2009.0...0.2009.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* add thread length warning with new thread link in agent chat ([#16874](https://github.com/lightdash/lightdash/issues/16874)) ([392df5a](https://github.com/lightdash/lightdash/commit/392df5a6dd8f36fbffc1ee0f475d6035afe82630))
+* address incomplete chunks of text when streaming ai response ([#16933](https://github.com/lightdash/lightdash/issues/16933)) ([5c024de](https://github.com/lightdash/lightdash/commit/5c024de4f1de4ab7880d8ce9c0d74d1422ab9cf5))
+
+# [0.2009.0](https://github.com/lightdash/lightdash/compare/0.2008.0...0.2009.0) (2025-09-16)
+
+
+### Features
+
+* add analytics dashboard embed to AI agent admin page ([#16894](https://github.com/lightdash/lightdash/issues/16894)) ([b61b55b](https://github.com/lightdash/lightdash/commit/b61b55b4d62497cb6afb0f864a987e018dd3f3ac))
+* add console log for jsonLine in AI agent thread stream processing ([#16931](https://github.com/lightdash/lightdash/issues/16931)) ([188f49c](https://github.com/lightdash/lightdash/commit/188f49caa082d71c3bcf42ad40e6e7d0af734cf8))
+
+# [0.2008.0](https://github.com/lightdash/lightdash/compare/0.2007.6...0.2008.0) (2025-09-16)
+
+
+### Bug Fixes
+
+* downloading pivoted tables ([#16928](https://github.com/lightdash/lightdash/issues/16928)) ([ff6fafd](https://github.com/lightdash/lightdash/commit/ff6fafd3a9dc7960919d1b73a19569e70f939ff1))
+
+
+### Features
+
+* add (optional) query data access for AI agents ([#16910](https://github.com/lightdash/lightdash/issues/16910)) ([b6e70a8](https://github.com/lightdash/lightdash/commit/b6e70a84a437e0eb4550e17163a14a9d0f5af075)), closes [#16582](https://github.com/lightdash/lightdash/issues/16582)
+
+## [0.2007.6](https://github.com/lightdash/lightdash/compare/0.2007.5...0.2007.6) (2025-09-16)
+
+
+### Bug Fixes
+
+* increase validations error column size from string to text ([#16925](https://github.com/lightdash/lightdash/issues/16925)) ([506b553](https://github.com/lightdash/lightdash/commit/506b553b0dfd8adb1e5a4261355485195d337159))
+
+## [0.2007.5](https://github.com/lightdash/lightdash/compare/0.2007.4...0.2007.5) (2025-09-16)
+
+
+### Bug Fixes
+
+* support multiple artifacts per AI agent message ([#16877](https://github.com/lightdash/lightdash/issues/16877)) ([2084a01](https://github.com/lightdash/lightdash/commit/2084a0106dfe9ba7d89369c986f66f81eea02c58))
+
+## [0.2007.4](https://github.com/lightdash/lightdash/compare/0.2007.3...0.2007.4) (2025-09-16)
+
+
+### Bug Fixes
+
+* handle undefined columns in Snowflake SDK getColumns method ([#16919](https://github.com/lightdash/lightdash/issues/16919)) ([e0e3cba](https://github.com/lightdash/lightdash/commit/e0e3cbac71a65f7296843f7db91ac9d836202638))
+
+## [0.2007.3](https://github.com/lightdash/lightdash/compare/0.2007.2...0.2007.3) (2025-09-16)
+
+
+### Bug Fixes
+
+* hidding values columns ([#16899](https://github.com/lightdash/lightdash/issues/16899)) ([374530c](https://github.com/lightdash/lightdash/commit/374530ce0b872de4e2a6478a5d230921581089cb))
+
+## [0.2007.2](https://github.com/lightdash/lightdash/compare/0.2007.1...0.2007.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* scheduled deliveries send now URL too long error ([#16875](https://github.com/lightdash/lightdash/issues/16875)) ([0232db3](https://github.com/lightdash/lightdash/commit/0232db3c51dbaf86c20b0fad08eb6bf8d94ec364))
+* subtotals column orders not being respected ([#16898](https://github.com/lightdash/lightdash/issues/16898)) ([e8ef3fe](https://github.com/lightdash/lightdash/commit/e8ef3fef26e2846a2c1ad8d24e5c03ac867d00e9))
+
+## [0.2007.1](https://github.com/lightdash/lightdash/compare/0.2007.0...0.2007.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* explore from here consistency ([#16876](https://github.com/lightdash/lightdash/issues/16876)) ([834131f](https://github.com/lightdash/lightdash/commit/834131f604013ffa55788ae8356fe24e79724006))
+
+# [0.2007.0](https://github.com/lightdash/lightdash/compare/0.2006.3...0.2007.0) (2025-09-16)
+
+
+### Features
+
+* add API endpoint to create dashboard with charts in one operation ([#16865](https://github.com/lightdash/lightdash/issues/16865)) ([0888dad](https://github.com/lightdash/lightdash/commit/0888dadf831c8025c17758f5049ed0bb2a112544))
+
+## [0.2006.3](https://github.com/lightdash/lightdash/compare/0.2006.2...0.2006.3) (2025-09-16)
+
+
+### Bug Fixes
+
+* free up disk space on build-docker.yml ([#16915](https://github.com/lightdash/lightdash/issues/16915)) ([62487a1](https://github.com/lightdash/lightdash/commit/62487a1fffb5c80dc77f18e3f2ae5fdc56cd56d4))
+
+## [0.2006.2](https://github.com/lightdash/lightdash/compare/0.2006.1...0.2006.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* filter invalid users from AI agent userAccess list ([#16908](https://github.com/lightdash/lightdash/issues/16908)) ([9faaacd](https://github.com/lightdash/lightdash/commit/9faaacde48a7d8e7dca817b5394a8576b6aeede6))
+
+## [0.2006.1](https://github.com/lightdash/lightdash/compare/0.2006.0...0.2006.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* improve Slack channel caching with filter-specific cache keys ([#16904](https://github.com/lightdash/lightdash/issues/16904)) ([fe41dcd](https://github.com/lightdash/lightdash/commit/fe41dcdf5610495e316b16844d90f0c21fd8b342))
+
+# [0.2006.0](https://github.com/lightdash/lightdash/compare/0.2005.0...0.2006.0) (2025-09-15)
+
+
+### Bug Fixes
+
+* improve pivot query sorting with grouped values and multiple columns ([#16880](https://github.com/lightdash/lightdash/issues/16880)) ([2274de7](https://github.com/lightdash/lightdash/commit/2274de76072d611d53159ab86b5d99aa4621189f))
+
+
+### Features
+
+* add OpenAI responses API support option ([#16897](https://github.com/lightdash/lightdash/issues/16897)) ([aadc215](https://github.com/lightdash/lightdash/commit/aadc215fb64d30ee703c88799d3275fb34ad2910))
+* add provider-specific options to AI agent models ([#16895](https://github.com/lightdash/lightdash/issues/16895)) ([115881c](https://github.com/lightdash/lightdash/commit/115881c7bfdae6b09a63dc26b7325776e4ea0c9c))
+
+# [0.2005.0](https://github.com/lightdash/lightdash/compare/0.2004.0...0.2005.0) (2025-09-15)
+
+
+### Features
+
+* upgrade to ai sdk 5 ([#16771](https://github.com/lightdash/lightdash/issues/16771)) ([b2d7695](https://github.com/lightdash/lightdash/commit/b2d7695ffcab7414fadc031a90d199c71584a17a))
+
+# [0.2004.0](https://github.com/lightdash/lightdash/compare/0.2003.0...0.2004.0) (2025-09-15)
+
+
+### Features
+
+* gitlab integration ([#16633](https://github.com/lightdash/lightdash/issues/16633)) ([43c4b82](https://github.com/lightdash/lightdash/commit/43c4b8235221b328b14ce79b3b1dd21e14fe8998))
+
+# [0.2003.0](https://github.com/lightdash/lightdash/compare/0.2002.0...0.2003.0) (2025-09-15)
+
+
+### Features
+
+* go to ai agent conversations to filtered admin panel ([#16893](https://github.com/lightdash/lightdash/issues/16893)) ([bab6681](https://github.com/lightdash/lightdash/commit/bab6681dc16c77fb0e2285419d624c870c16aca0))
+
+# [0.2002.0](https://github.com/lightdash/lightdash/compare/0.2001.2...0.2002.0) (2025-09-15)
+
+
+### Features
+
+* set filters in url when interacting with ai admin threads ([#16738](https://github.com/lightdash/lightdash/issues/16738)) ([8596ff2](https://github.com/lightdash/lightdash/commit/8596ff27d54456a947a6938fe9336a0a22256b72))
+
+## [0.2001.2](https://github.com/lightdash/lightdash/compare/0.2001.1...0.2001.2) (2025-09-15)
+
+
+### Bug Fixes
+
+* remove unique project uuid name constraint from tags ([#16879](https://github.com/lightdash/lightdash/issues/16879)) ([df994cc](https://github.com/lightdash/lightdash/commit/df994cccd990881f4a6fb7f34a2de54bbaf0441d))
+
 ## [0.2001.1](https://github.com/lightdash/lightdash/compare/0.2001.0...0.2001.1) (2025-09-12)
 
 

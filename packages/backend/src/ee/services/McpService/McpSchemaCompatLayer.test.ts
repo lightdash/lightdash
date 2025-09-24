@@ -593,11 +593,3 @@ describe('McpSchemaCompatLayer', () => {
         });
     });
 });
-// console.dir(
-//   applyCompatLayer({
-//     schema,
-//     compatLayers: [mcpSchemaCompatLayer],
-//     mode: "jsonSchema",
-//   }),
-//   { depth: null }
-// );

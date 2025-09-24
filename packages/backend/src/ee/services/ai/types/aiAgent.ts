@@ -1,6 +1,8 @@
 import { AiAgent } from '@lightdash/common';
-import { CoreMessage, LanguageModelV1 } from 'ai';
+import { ModelMessage } from 'ai';
+import { AiModel } from '../models/types';
 import {
+    AppendInstructionFn,
     CreateOrUpdateArtifactFn,
     FindChartsFn,
     FindDashboardsFn,
@@ -9,6 +11,7 @@ import {
     GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
+    SearchFieldValuesFn,
     SendFileFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -17,17 +20,16 @@ import {
     UpdatePromptFn,
 } from './aiAgentDependencies';
 
-export type AiAgentArgs = {
-    model: LanguageModelV1;
+export type AiAgentArgs<P extends string = string> = AiModel<P> & {
     agentSettings: AiAgent;
-    messageHistory: CoreMessage[];
+    messageHistory: ModelMessage[];
     promptUuid: string;
     threadUuid: string;
     organizationId: string;
     userId: string;
     debugLoggingEnabled: boolean;
     telemetryEnabled: boolean;
-    callOptions: { temperature: number };
+    enableDataAccess: boolean;
 
     availableExploresPageSize: number;
     findExploresPageSize: number;
@@ -39,6 +41,12 @@ export type AiAgentArgs = {
     findChartsPageSize: number;
     maxQueryLimit: number;
     siteUrl?: string;
+    canManageAgent: boolean;
+};
+
+export type PerformanceMetrics = {
+    measureGenerateResponseTime: (durationMs: number) => void;
+    measureStreamResponseTime: (durationMs: number) => void;
 };
 
 export type AiAgentDependencies = {
@@ -54,8 +62,11 @@ export type AiAgentDependencies = {
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
+    searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    appendInstruction: AppendInstructionFn;
+    perf: PerformanceMetrics;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;

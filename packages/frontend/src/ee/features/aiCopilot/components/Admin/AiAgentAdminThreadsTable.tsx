@@ -53,6 +53,7 @@ import { useGetSlack } from '../../../../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useInfiniteAiAgentAdminThreads } from '../../hooks/useAiAgentAdmin';
+import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import { AiAgentAdminTopToolbar } from './AiAgentAdminTopToolbar';
 
 type AiAgentAdminThreadsTableProps = {
@@ -70,75 +71,74 @@ const AiAgentAdminThreadsTable = ({
     const navigate = useNavigate();
     const slack = useGetSlack();
 
-    const [sorting, setSorting] = useState<MRT_SortingState>([
-        { id: 'createdAt', desc: true },
-    ]);
-    const [search, setSearch] = useState<string | undefined>(undefined);
+    const {
+        search,
+        selectedProjectUuids,
+        selectedAgentUuids,
+        selectedSource,
+        selectedFeedback,
+        sortField,
+        sortDirection,
+        apiFilters,
+        setSearch,
+        setSelectedProjectUuids,
+        setSelectedAgentUuids,
+        setSelectedSource,
+        setSelectedFeedback,
+        setSorting,
+        hasActiveFilters,
+        resetFilters,
+    } = useAiAgentAdminFilters();
+
     const deferredSearch = useDeferredValue(search);
-    const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
-        [],
+
+    const sorting = useMemo<MRT_SortingState>(
+        () => [{ id: sortField, desc: sortDirection === 'desc' }],
+        [sortField, sortDirection],
     );
-    const [selectedAgentUuids, setSelectedAgentUuids] = useState<string[]>([]);
-    const [selectedSource, setSelectedSource] = useState<
-        'all' | 'web_app' | 'slack'
-    >('all');
-    const [selectedFeedback, setSelectedFeedback] = useState<
-        'all' | 'thumbs_up' | 'thumbs_down'
-    >('all');
+
+    const handleSortingChange = useCallback(
+        (
+            updaterOrValue:
+                | MRT_SortingState
+                | ((old: MRT_SortingState) => MRT_SortingState),
+        ) => {
+            const newSorting =
+                typeof updaterOrValue === 'function'
+                    ? updaterOrValue(sorting)
+                    : updaterOrValue;
+
+            if (newSorting.length > 0) {
+                const { id, desc } = newSorting[0];
+                let newSortField: AiAgentAdminSortField = 'createdAt';
+
+                if (id === 'title') {
+                    newSortField = 'title';
+                } else if (id === 'createdAt') {
+                    newSortField = 'createdAt';
+                }
+
+                setSorting(newSortField, desc ? 'desc' : 'asc');
+            }
+        },
+        [sorting, setSorting],
+    );
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
-
-    const sortBy:
-        | {
-              sortField: AiAgentAdminSortField;
-              sortDirection: 'asc' | 'desc';
-          }
-        | undefined = useMemo(() => {
-        if (sorting.length === 0) return undefined;
-
-        const firstSorting = sorting[0];
-        let sortField: AiAgentAdminSortField = 'createdAt';
-
-        if (firstSorting.id === 'title') {
-            sortField = 'title';
-        } else if (firstSorting.id === 'createdAt') {
-            sortField = 'createdAt';
-        }
-
-        return {
-            sortField,
-            sortDirection: firstSorting.desc ? 'desc' : 'asc',
-        };
-    }, [sorting]);
 
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteAiAgentAdminThreads(
             {
                 pagination: {},
                 filters: {
+                    ...apiFilters,
                     ...(deferredSearch && { search: deferredSearch }),
-                    projectUuids:
-                        selectedProjectUuids.length > 0
-                            ? selectedProjectUuids
-                            : undefined,
-                    agentUuids:
-                        selectedAgentUuids.length > 0
-                            ? selectedAgentUuids
-                            : undefined,
-                    createdFrom:
-                        selectedSource !== 'all' ? selectedSource : undefined,
-                    humanScore:
-                        selectedFeedback === 'thumbs_up'
-                            ? 1
-                            : selectedFeedback === 'thumbs_down'
-                            ? -1
-                            : undefined,
                 },
                 sort: {
-                    field: sortBy?.sortField ?? 'createdAt',
-                    direction: sortBy?.sortDirection ?? 'desc',
+                    field: sortField,
+                    direction: sortDirection,
                 },
             },
             { keepPreviousData: true },
@@ -492,7 +492,7 @@ const AiAgentAdminThreadsTable = ({
         },
         enableSorting: true,
         manualSorting: true,
-        onSortingChange: setSorting,
+        onSortingChange: handleSortingChange,
         enableTopToolbar: true,
         positionGlobalFilter: 'left',
         mantinePaperProps: {
@@ -658,6 +658,8 @@ const AiAgentAdminThreadsTable = ({
                 isFetching={isFetching}
                 hasNextPage={hasNextPage ?? false}
                 currentResultsCount={flatData.length}
+                hasActiveFilters={hasActiveFilters}
+                onClearFilters={resetFilters}
             />
         ),
         renderBottomToolbar: () => (

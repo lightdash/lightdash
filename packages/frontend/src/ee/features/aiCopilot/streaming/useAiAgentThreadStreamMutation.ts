@@ -1,12 +1,12 @@
 import { AgentToolCallArgsSchema, ToolNameSchema } from '@lightdash/common';
 import { captureException } from '@sentry/react';
-import { processDataStream } from 'ai';
+import { DefaultChatTransport, readUIMessageStream, type UIMessage } from 'ai';
 import { useCallback } from 'react';
 import { lightdashApiStream } from '../../../../api';
 import {
     addToolCall,
-    appendToMessage,
     setError,
+    setMessage,
     startStreaming,
     stopStreaming,
 } from '../store/aiAgentThreadStreamSlice';
@@ -22,18 +22,30 @@ export interface AiAgentThreadStreamOptions {
     onError?: (error: string) => void;
 }
 
-const streamAgentThreadResponse = async (
+const getAgentThreadReadableStream = async (
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
     { signal }: { signal: AbortSignal },
-) =>
-    lightdashApiStream({
+) => {
+    const res = await lightdashApiStream({
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/stream`,
         method: 'POST',
         body: JSON.stringify({ threadUuid }),
         signal,
     });
+
+    const body = res.body;
+    if (!body) throw new Error('No body found');
+
+    return body;
+};
+
+class ChatStreamParser extends DefaultChatTransport<UIMessage> {
+    public parseStream(stream: ReadableStream<Uint8Array>) {
+        return this.processResponseStream(stream);
+    }
+}
 
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
@@ -55,7 +67,7 @@ export function useAiAgentThreadStreamMutation() {
             try {
                 dispatch(startStreaming({ threadUuid, messageUuid }));
 
-                const response = await streamAgentThreadResponse(
+                const response = await getAgentThreadReadableStream(
                     projectUuid,
                     agentUuid,
                     threadUuid,
@@ -64,57 +76,100 @@ export function useAiAgentThreadStreamMutation() {
                     },
                 );
 
-                await processDataStream({
-                    stream: response.body!,
-                    onTextPart: (text) => {
-                        if (abortController.signal.aborted) return;
-                        dispatch(
-                            appendToMessage({
-                                threadUuid,
-                                content: text,
-                            }),
-                        );
-                    },
-                    onFinishMessagePart: async (_finishMessage) => {
+                const parser = new ChatStreamParser();
+                const chunkStream = parser.parseStream(response);
+                const stream = readUIMessageStream({
+                    stream: chunkStream,
+                });
+                try {
+                    for await (const uiMessage of stream) {
                         if (abortController.signal.aborted) return;
 
-                        await onFinish?.();
+                        // Extract and combine all text content from the complete message
+                        const fullTextContent = uiMessage.parts
+                            .filter((part) => part.type === 'text')
+                            .map((part) => part.text)
+                            .join('\n');
 
-                        dispatch(stopStreaming({ threadUuid }));
-                    },
-                    onToolCallPart: (toolCall) => {
-                        if (abortController.signal.aborted) return;
-                        try {
-                            const toolName = ToolNameSchema.parse(
-                                toolCall.toolName,
-                            );
-                            const toolArgs = AgentToolCallArgsSchema.parse(
-                                toolCall.args,
-                            );
-
+                        // Update message content with complete text
+                        if (fullTextContent) {
                             dispatch(
-                                addToolCall({
+                                setMessage({
                                     threadUuid,
-                                    toolCallId: toolCall.toolCallId,
-                                    toolName,
-                                    toolArgs: toolArgs,
+                                    content: fullTextContent,
                                 }),
                             );
-                        } catch (error) {
-                            console.error('Error parsing tool call:', error);
-                            captureException(error);
                         }
-                    },
-                    onErrorPart: (error) => {
-                        if (abortController.signal.aborted) return;
-                        console.error('Stream processing error:', error);
-                        throw new Error(error);
-                    },
-                });
+
+                        // Process tool calls from the complete message
+                        for (const part of uiMessage.parts) {
+                            if (abortController.signal.aborted) return;
+                            switch (part.type) {
+                                // TODO: this is a temporary solution
+                                // there should be a way of leveraging ToolUIPart based on the tools available
+                                case 'tool-generateBarVizConfig':
+                                case 'tool-generateTableVizConfig':
+                                case 'tool-generateTimeSeriesVizConfig':
+                                case 'tool-findExplores':
+                                case 'tool-findFields':
+                                case 'tool-findDashboards':
+                                case 'tool-findCharts':
+                                case 'tool-improveContext':
+                                case 'tool-searchFieldValues':
+                                    if (part.state !== 'input-available') break;
+
+                                    const toolNameUnsafe =
+                                        part.type.split('-')[1];
+
+                                    try {
+                                        const toolName =
+                                            ToolNameSchema.parse(
+                                                toolNameUnsafe,
+                                            );
+                                        const toolArgs =
+                                            AgentToolCallArgsSchema.parse(
+                                                part.input,
+                                            );
+
+                                        dispatch(
+                                            addToolCall({
+                                                threadUuid,
+                                                toolCallId: part.toolCallId,
+                                                toolName,
+                                                toolArgs,
+                                            }),
+                                        );
+                                    } catch (error) {
+                                        console.error(
+                                            'Error parsing tool call:',
+                                            error,
+                                        );
+                                        captureException(error);
+                                    }
+                                    break;
+                                case 'text':
+                                case 'dynamic-tool':
+                                case 'file':
+                                case 'reasoning':
+                                case 'source-document':
+                                case 'source-url':
+                                case 'step-start':
+                                default:
+                                    // text content is handled above, other parts not implemented
+                                    break;
+                            }
+                        }
+                    }
+
+                    onFinish?.();
+                    dispatch(stopStreaming({ threadUuid }));
+                } catch (error) {
+                    console.error('Error processing stream:', error);
+                    captureException(error);
+                }
             } catch (error) {
                 if (error instanceof Error && error.name === 'AbortError') {
                     dispatch(stopStreaming({ threadUuid }));
-                    return;
                 }
                 const errorMessage =
                     error instanceof Error

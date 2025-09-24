@@ -64,7 +64,7 @@ const TableHeader: FC<TableHeaderProps> = ({
     }
 
     return (
-        <thead>
+        <thead data-testid="table-header">
             {table.getHeaderGroups().map((headerGroup) => (
                 <HeaderDndContext
                     key={headerGroup.id}

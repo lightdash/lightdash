@@ -683,6 +683,7 @@ export type LightdashConfig = {
         minConnections: number | undefined;
     };
     allowMultiOrgs: boolean;
+    useRedux: boolean;
     maxPayloadSize: string;
     query: {
         maxLimit: number;
@@ -740,6 +741,8 @@ export type LightdashConfig = {
     logging: LoggingConfig;
     ai: {
         copilot: AiCopilotConfigSchemaType;
+        analyticsProjectUuid?: string;
+        analyticsDashboardUuid?: string;
     };
     embedding: {
         enabled: boolean;
@@ -761,6 +764,11 @@ export type LightdashConfig = {
     };
     github: {
         appName: string;
+        redirectDomain: string;
+    };
+    gitlab: {
+        clientId: string | undefined;
+        clientSecret: string | undefined;
         redirectDomain: string;
     };
     contentAsCode: {
@@ -828,6 +836,7 @@ export type LightdashConfig = {
     customRoles: {
         enabled: boolean;
     };
+    analyticsEmbedSecret?: string;
 };
 
 export type SlackConfig = {
@@ -1084,6 +1093,7 @@ export const parseConfig = (): LightdashConfig => {
                       baseUrl: process.env.OPENAI_BASE_URL,
                       temperature:
                           getFloatFromEnvironmentVariable('OPENAI_TEMPERATURE'),
+                      responsesApi: process.env.OPENAI_RESPONSES_API === 'true',
                   }
                 : undefined,
             anthropic: process.env.ANTHROPIC_API_KEY
@@ -1385,6 +1395,7 @@ export const parseConfig = (): LightdashConfig => {
             ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
+        useRedux: process.env.USE_REDUX === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
         query: {
             maxLimit:
@@ -1532,6 +1543,8 @@ export const parseConfig = (): LightdashConfig => {
         },
         ai: {
             copilot: copilotConfig,
+            analyticsProjectUuid: process.env.AI_ANALYTICS_PROJECT_UUID,
+            analyticsDashboardUuid: process.env.AI_ANALYTICS_DASHBOARD_UUID,
         },
         embedding: {
             enabled: process.env.EMBEDDING_ENABLED === 'true',
@@ -1565,6 +1578,13 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.GITHUB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
         },
+        gitlab: {
+            clientId: process.env.GITLAB_CLIENT_ID,
+            clientSecret: process.env.GITLAB_CLIENT_SECRET,
+            redirectDomain:
+                process.env.GITLAB_REDIRECT_DOMAIN ||
+                siteUrl.split('.')[0].split('//')[1],
+        },
         contentAsCode: {
             maxDownloads:
                 getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
@@ -1591,5 +1611,6 @@ export const parseConfig = (): LightdashConfig => {
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
+        analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
     };
 };

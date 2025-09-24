@@ -11,6 +11,7 @@ export enum AiResultType {
     VERTICAL_BAR_RESULT = 'vertical_bar_chart',
     TABLE_RESULT = 'table',
     DASHBOARD_RESULT = 'dashboard',
+    IMPROVE_CONTEXT = 'improve_context',
 }
 
 export type AiMetricQuery = Pick<

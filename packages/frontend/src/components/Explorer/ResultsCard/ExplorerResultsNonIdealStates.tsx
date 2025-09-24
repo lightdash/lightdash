@@ -214,7 +214,7 @@ export const ExploreEmptyQueryState = () => (
 
 export const ExploreLoadingState = () => (
     <EmptyState title="Loading results">
-        <Loader color="gray" />
+        <Loader color="gray" data-testid="results-table-loading" />
     </EmptyState>
 );
 

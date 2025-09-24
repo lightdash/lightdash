@@ -14,12 +14,14 @@ import { defaultAgentOptions } from '../../agent';
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
+    searchFieldValues: 'search_field_values',
     findDashboards: 'find_dashboards',
     findCharts: 'find_charts',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
     generateDashboard: 'generate_dashboard',
+    improveContext: 'improve_context',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {

@@ -1,10 +1,8 @@
 import {
-    Explore,
-    getTotalFilterRules,
     isSlackPrompt,
+    metricQueryTableViz,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
-    ToolTableVizArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -14,40 +12,38 @@ import type {
     RunMiniMetricQueryFn,
     SendFileFn,
     UpdateProgressFn,
-    UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateTableVizConfig } from '../utils/validateTableVizConfig';
-import { renderTableViz } from '../visualizations/vizTable';
 
 type Dependencies = {
     getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
-    updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
+    enableDataAccess: boolean;
 };
+
 export const getGenerateTableVizConfig = ({
     getExplore,
     runMiniMetricQuery,
     getPrompt,
     sendFile,
-    updatePrompt,
     updateProgress,
     createOrUpdateArtifact,
     maxLimit,
-}: Dependencies) => {
-    const schema = toolTableVizArgsSchema;
-
-    return tool({
+    enableDataAccess,
+}: Dependencies) =>
+    tool({
         description: toolTableVizArgsSchema.description,
-        parameters: schema,
+        inputSchema: toolTableVizArgsSchema,
         execute: async (toolArgs) => {
-            let isOneRow = false;
             try {
                 await updateProgress('🔢 Querying the data...');
 
@@ -74,17 +70,24 @@ export const getGenerateTableVizConfig = ({
                     vizConfig: toolArgs,
                 });
 
-                const { csv, results } = await renderTableViz({
-                    runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
-                    vizTool,
+                const metricQuery = metricQueryTableViz({
+                    vizConfig: vizTool.vizConfig,
+                    filters: vizTool.filters,
                     maxLimit,
+                    customMetrics: vizTool.customMetrics ?? null,
                 });
+                const queryResults = await runMiniMetricQuery(
+                    metricQuery,
+                    maxLimit,
+                    populateCustomMetricsSQL(vizTool.customMetrics, explore),
+                );
                 await updateProgress('✅ Done.');
 
-                isOneRow = results.rows.length === 1;
+                const rowCount = queryResults.rows.length;
+                const csv = convertQueryResultsToCsv(queryResults);
 
-                // Always send CSV file to Slack if it's a Slack prompt, regardless of row count
-                if (isSlackPrompt(prompt)) {
+                // Always send CSV file to Slack if it's a Slack prompt, unless there are no results
+                if (isSlackPrompt(prompt) && rowCount > 0) {
                     await sendFile({
                         channelId: prompt.slackChannelId,
                         threadTs: prompt.slackThreadTs,
@@ -96,20 +99,27 @@ export const getGenerateTableVizConfig = ({
                     });
                 }
 
-                if (isOneRow) {
-                    return `Here's the result:
-                    ${serializeData(csv, 'csv')}`;
+                if (rowCount === 0) {
+                    return `The query returned no results`;
                 }
 
-                return `Success.`;
+                if (!enableDataAccess) {
+                    if (rowCount === 1) {
+                        return `Here's the result:\n${serializeData(
+                            csv,
+                            'csv',
+                        )}`;
+                    }
+
+                    return `Success`;
+                }
+
+                return serializeData(csv, 'csv');
             } catch (e) {
                 return toolErrorHandler(
                     e,
-                    `Error generating ${
-                        isOneRow ? 'one row' : 'table'
-                    } result.`,
+                    `Error generating table visualization`,
                 );
             }
         },
     });
-};

@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { deprecatedHash, hash } from '../../utils/hash';
 import {
     DbServiceAccounts,
     ServiceAccountsTableName,
@@ -19,10 +20,6 @@ export class ServiceAccountModel {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
-    }
-
-    static _hash(s: string): string {
-        return crypto.createHash('sha256').update(s).digest('hex');
     }
 
     static mapDbObjectToServiceAccount(
@@ -63,7 +60,7 @@ export class ServiceAccountModel {
         data: CreateServiceAccount,
         token: string,
     ): Promise<ServiceAccountWithToken> {
-        const tokenHash = ServiceAccountModel._hash(token);
+        const tokenHash = await hash(token);
         const [row] = await this.database('service_accounts')
             .insert({
                 created_by_user_uuid: user?.userUuid || null,
@@ -111,7 +108,7 @@ export class ServiceAccountModel {
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
         const token = ServiceAccountModel.generateToken(prefix);
-        const tokenHash = ServiceAccountModel._hash(token);
+        const tokenHash = await hash(token);
 
         const [row] = await this.database(ServiceAccountsTableName)
             .update({
@@ -153,10 +150,11 @@ export class ServiceAccountModel {
     }
 
     async getByToken(token: string): Promise<ServiceAccount> {
-        const hashedToken = ServiceAccountModel._hash(token);
+        const hashedToken = await hash(token);
         const [row] = await this.database('service_accounts')
             .select('*')
-            .where('token_hash', hashedToken);
+            .where('token_hash', hashedToken)
+            .orWhere('token_hash', deprecatedHash(token)); // Adding old sha256 hash for backwards compatibility
         const mappedRow = ServiceAccountModel.mapDbObjectToServiceAccount(row);
         return mappedRow;
     }

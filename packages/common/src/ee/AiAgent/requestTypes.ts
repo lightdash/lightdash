@@ -23,7 +23,7 @@ export type CreateWebAppThread = {
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;
-    createdFrom: 'web_app';
+    createdFrom: 'web_app' | 'evals';
     agentUuid: string | null;
 };
 
@@ -89,4 +89,18 @@ export type UpdateSlackResponseTs = {
 
 export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
+};
+
+export type AiAgentEvalRunJobPayload = TraceTaskBase & {
+    evalRunResultUuid: string;
+    evalRunUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+};
+
+export type CloneThread = {
+    sourceThreadUuid: string;
+    sourcePromptUuid: string;
+    targetUserUuid: string;
+    createdFrom?: 'web_app' | 'evals';
 };

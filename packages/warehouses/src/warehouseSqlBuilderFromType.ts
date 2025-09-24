@@ -3,6 +3,7 @@ import {
     isSupportedDbtAdapterType,
 } from '@lightdash/common';
 import { BigquerySqlBuilder } from './warehouseClients/BigqueryWarehouseClient';
+import { ClickhouseSqlBuilder } from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksSqlBuilder } from './warehouseClients/DatabricksWarehouseClient';
 import { PostgresSqlBuilder } from './warehouseClients/PostgresWarehouseClient';
 import { RedshiftSqlBuilder } from './warehouseClients/RedshiftWarehouseClient';
@@ -25,6 +26,8 @@ export const warehouseSqlBuilderFromType = (
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
             return new BigquerySqlBuilder(...args);
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return new ClickhouseSqlBuilder(...args);
         case SupportedDbtAdapter.DATABRICKS:
             return new DatabricksSqlBuilder(...args);
         case SupportedDbtAdapter.POSTGRES:

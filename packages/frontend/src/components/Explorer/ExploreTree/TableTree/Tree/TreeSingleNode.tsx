@@ -164,10 +164,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         },
         [isFiltered, addFilter, item, track],
     );
-    const handleClick = useCallback(
-        () => onItemClick(node.key, item),
-        [onItemClick, node.key, item],
-    );
+    const handleClick = useCallback(() => {
+        onItemClick(node.key, item);
+    }, [onItemClick, node.key, item]);
     const handleMouseEnter = useCallback(
         () => toggleHover(true),
         [toggleHover],

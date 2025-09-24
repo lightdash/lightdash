@@ -72,6 +72,10 @@ Sentry.init({
             return 1.0;
         }
 
+        if (request?.url?.includes('mcp')) {
+            return 1.0;
+        }
+
         if (context.parentSampled) {
             return context.parentSampled;
         }

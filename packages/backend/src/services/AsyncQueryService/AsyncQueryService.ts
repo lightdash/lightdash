@@ -34,11 +34,13 @@ import {
     Explore,
     FieldType,
     ForbiddenError,
+    formatRawValue,
     formatRow,
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
+    getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
     isCartesianChartConfig,
@@ -64,6 +66,7 @@ import {
     QueryExecutionContext,
     type QueryHistory,
     QueryHistoryStatus,
+    type ReadyQueryResultsPage,
     type ResultColumns,
     ResultRow,
     type RunQueryTags,
@@ -100,7 +103,10 @@ import {
     ReferenceMap,
     SqlQueryBuilder,
 } from '../../utils/QueryBuilder/SqlQueryBuilder';
-import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
+import {
+    applyLimitToSqlQuery,
+    replaceUserAttributesAsStrings,
+} from '../../utils/QueryBuilder/utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
@@ -384,6 +390,46 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    /**
+     * Get the pivot details from the query history, this is a utility function to get the pivot details from the query history
+     * @param queryHistory Query history
+     * @returns Pivot details
+     */
+    private static getPivotDetailsFromQueryHistory(
+        queryHistory: QueryHistory,
+    ): ReadyQueryResultsPage['pivotDetails'] {
+        const {
+            pivotConfiguration,
+            pivotValuesColumns,
+            pivotTotalColumnCount,
+            originalColumns,
+        } = queryHistory;
+
+        const isPivoted = pivotConfiguration && pivotValuesColumns;
+
+        if (!isPivoted) {
+            return null;
+        }
+
+        const sortedValuesColumns = Object.values(pivotValuesColumns).sort(
+            (a, b) => {
+                if (a.columnIndex && b.columnIndex) {
+                    return a.columnIndex - b.columnIndex;
+                }
+                return 0;
+            },
+        );
+
+        return {
+            valuesColumns: sortedValuesColumns,
+            totalColumnCount: pivotTotalColumnCount,
+            indexColumn: pivotConfiguration.indexColumn,
+            groupByColumns: pivotConfiguration.groupByColumns,
+            sortBy: pivotConfiguration.sortBy,
+            originalColumns: originalColumns || {},
+        };
+    }
+
     async getAsyncQueryResults({
         account,
         projectUuid,
@@ -557,19 +603,13 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const {
-            pivotConfiguration,
-            pivotValuesColumns,
-            pivotTotalColumnCount,
-        } = queryHistory;
-
         if (!columns) {
             throw new UnexpectedServerError(
                 `No columns found for query ${queryUuid}`,
             );
         }
 
-        const returnObject = {
+        return {
             rows,
             columns,
             totalPageCount: pageCount,
@@ -583,34 +623,8 @@ export class AsyncQueryService extends ProjectService {
                 queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
             resultsPageExecutionMs: roundedDurationMs,
             status,
-            pivotDetails: null,
-        };
-
-        const isPivoted = pivotConfiguration && pivotValuesColumns;
-
-        if (!isPivoted) {
-            return returnObject;
-        }
-
-        const sortedValuesColumns = Object.values(pivotValuesColumns).sort(
-            (a, b) => {
-                if (a.columnIndex && b.columnIndex) {
-                    return a.columnIndex - b.columnIndex;
-                }
-                return 0;
-            },
-        );
-
-        return {
-            ...returnObject,
-            pivotDetails: {
-                totalColumnCount: pivotTotalColumnCount,
-                valuesColumns: sortedValuesColumns,
-                indexColumn: pivotConfiguration.indexColumn,
-                groupByColumns: pivotConfiguration.groupByColumns,
-                sortBy: pivotConfiguration.sortBy,
-                originalColumns: originalColumns || {},
-            },
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
         };
     }
 
@@ -869,6 +883,10 @@ export class AsyncQueryService extends ProjectService {
                         metricQuery: queryHistory.metricQuery,
                         projectUuid,
                         storageClient: this.storageClient,
+                        pivotDetails:
+                            AsyncQueryService.getPivotDetailsFromQueryHistory(
+                                queryHistory,
+                            ),
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -906,6 +924,10 @@ export class AsyncQueryService extends ProjectService {
                         metricQuery: queryHistory.metricQuery,
                         storageClient: this.storageClient,
                         lightdashConfig: this.lightdashConfig,
+                        pivotDetails:
+                            AsyncQueryService.getPivotDetailsFromQueryHistory(
+                                queryHistory,
+                            ),
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -1034,12 +1056,14 @@ export class AsyncQueryService extends ProjectService {
         queryTags,
         write,
         pivotConfiguration,
+        itemsMap,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
         queryTags: RunQueryTags;
         write?: (rows: Record<string, unknown>[]) => void;
         pivotConfiguration?: PivotConfiguration;
+        itemsMap: ItemsMap;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1147,7 +1171,11 @@ export class AsyncQueryService extends ProjectService {
                               aggregation: col.aggregation,
                               pivotValues: groupByColumns?.map((c) => ({
                                   referenceField: c.reference,
-                                  value: row[c.reference],
+                                  // value needs to be raw formatted so that dates match the subtotals and the formatted rows which always use `formatRawValue`
+                                  value: formatRawValue(
+                                      itemsMap[c.reference],
+                                      row[c.reference],
+                                  ),
                               })),
                               columnIndex: row.column_index,
                           });
@@ -1310,6 +1338,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 write: stream?.write,
                 pivotConfiguration,
+                itemsMap: fieldsMap,
             });
 
             this.analytics.track({
@@ -2615,10 +2644,22 @@ export class AsyncQueryService extends ProjectService {
         // Get one row to get the column definitions
         const columns: { name: string; type: DimensionType }[] = [];
 
-        // Replace parameters in SQL before running column discovery query
+        // Get user attributes for replacement
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes({ account });
+
+        // Replace user attributes first
+        const sqlWithUserAttributes = replaceUserAttributesAsStrings(
+            sql,
+            intrinsicUserAttributes,
+            userAttributes,
+            warehouseConnection.warehouseClient,
+        );
+
+        // Then replace parameters in SQL before running column discovery query
         const { replacedSql: columnDiscoverySql } =
             safeReplaceParametersWithSqlBuilder(
-                sql,
+                sqlWithUserAttributes,
                 parameters ?? {},
                 warehouseConnection.warehouseClient,
             );
@@ -2659,7 +2700,7 @@ export class AsyncQueryService extends ProjectService {
 
         const virtualView = createVirtualViewObject(
             SQL_QUERY_MOCK_EXPLORER_NAME,
-            sql,
+            sqlWithUserAttributes,
             vizColumns,
             warehouseConnection.warehouseClient,
         );
@@ -2741,7 +2782,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 referenceMap,
                 select: selectColumns,
-                from: { name: 'sql_query', sql },
+                from: { name: 'sql_query', sql: sqlWithUserAttributes },
                 filters: appliedDashboardFilters
                     ? {
                           id: uuidv4(),

@@ -299,6 +299,7 @@ const TableTreeSections: FC<Props> = ({
                                 compact
                                 leftIcon={<MantineIcon icon={IconPlus} />}
                                 onClick={handleAddCustomDimension}
+                                data-testid="TableTreeSections/AddCustomDimensionButton"
                             >
                                 Add
                             </Button>

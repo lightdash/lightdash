@@ -3,8 +3,14 @@ import {
     AiAgentAdminFilters,
     AiAgentAdminSort,
     AiAgentAdminThreadSummary,
+    AiAgentEvaluation,
+    AiAgentEvaluationRun,
+    AiAgentEvaluationRunResult,
+    AiAgentEvaluationRunSummary,
+    AiAgentEvaluationSummary,
     AiAgentMessage,
     AiAgentMessageAssistant,
+    AiAgentMessageAssistantArtifact,
     AiAgentMessageUser,
     AiAgentNotFoundError,
     AiAgentSummary,
@@ -14,8 +20,11 @@ import {
     AiArtifact,
     AiThread,
     AiWebAppPrompt,
+    ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
+    ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
+    ApiUpdateEvaluationRequest,
     assertUnreachable,
     CreateSlackPrompt,
     CreateSlackThread,
@@ -25,6 +34,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    NotImplementedError,
     SlackPrompt,
     ToolName,
     UpdateSlackResponse,
@@ -73,6 +83,16 @@ import {
     AiArtifactVersionsTableName,
     DbAiArtifactVersion,
 } from '../database/entities/aiArtifacts';
+import {
+    AiEvalPromptTableName,
+    AiEvalRunResultTableName,
+    AiEvalRunTableName,
+    AiEvalTableName,
+    DbAiEval,
+    DbAiEvalPrompt,
+    DbAiEvalRun,
+    DbAiEvalRunResult,
+} from '../database/entities/aiEvals';
 
 type Dependencies = {
     database: Knex;
@@ -83,6 +103,16 @@ export class AiAgentModel {
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+    }
+
+    static async withTrx<T>(
+        db: Knex | Knex.Transaction,
+        callback: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        if (db.isTransaction) {
+            return callback(db as Knex.Transaction);
+        }
+        return db.transaction(callback);
     }
 
     async getAgent({
@@ -160,6 +190,7 @@ export class AiAgentModel {
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -266,6 +297,7 @@ export class AiAgentModel {
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -345,6 +377,7 @@ export class AiAgentModel {
             | 'instruction'
             | 'groupAccess'
             | 'userAccess'
+            | 'enableDataAccess'
         > & {
             organizationUuid: string;
         },
@@ -358,6 +391,7 @@ export class AiAgentModel {
                     tags: args.tags,
                     description: null,
                     image_url: null,
+                    enable_data_access: args.enableDataAccess,
                 })
                 .returning('*');
 
@@ -427,6 +461,7 @@ export class AiAgentModel {
                 imageUrl: agent.image_url,
                 groupAccess,
                 userAccess,
+                enableDataAccess: agent.enable_data_access,
             };
         });
     }
@@ -452,6 +487,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.projectUuid !== undefined
                         ? { project_uuid: args.projectUuid }
+                        : {}),
+                    ...(args.enableDataAccess !== undefined
+                        ? { enable_data_access: args.enableDataAccess }
                         : {}),
                 })
                 .returning('*');
@@ -537,6 +575,7 @@ export class AiAgentModel {
                 imageUrl: agent.image_url,
                 groupAccess,
                 userAccess,
+                enableDataAccess: agent.enable_data_access,
             };
         });
     }
@@ -668,11 +707,13 @@ export class AiAgentModel {
         agentUuid,
         threadUuid,
         userUuid,
+        createdFrom,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
+        createdFrom?: ('web_app' | 'slack' | 'evals')[];
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -736,6 +777,14 @@ export class AiAgentModel {
                 `${AiSlackThreadTableName}.slack_user_id`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
+
+        if (createdFrom) {
+            void query.andWhere(
+                `${AiThreadTableName}.created_from`,
+                'in',
+                createdFrom,
+            );
+        }
 
         if (threadUuid) {
             void query.andWhere(
@@ -919,7 +968,9 @@ export class AiAgentModel {
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
                 organizationUuid,
-            );
+            )
+            // Exclude eval threads by default - only show web_app and slack threads
+            .whereIn(`${AiThreadTableName}.created_from`, ['web_app', 'slack']);
 
         const finalQuery = threadsWithFeedbackQuery;
 
@@ -1077,7 +1128,7 @@ export class AiAgentModel {
 
         if (rows.length !== 1) {
             throw new AiAgentNotFoundError(
-                `AI agent thread not found for uuid: ${threadUuid}`,
+                `AI agent thread not found for uuid: ${agentUuid}/${threadUuid}`,
             );
         }
 
@@ -1097,7 +1148,7 @@ export class AiAgentModel {
             slackUserId: string | null;
         }>[]
     > {
-        const rows = await this.database(AiPromptTableName)
+        const promptRows = await this.database(AiPromptTableName)
             .join(
                 UserTableName,
                 `${AiPromptTableName}.created_by_user_uuid`,
@@ -1127,12 +1178,6 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
-                        ai_artifact_uuid: string | null;
-                        version_number: number | null;
-                        ai_artifact_version_uuid: string | null;
-                        title: string | null;
-                        description: string | null;
-                        artifact_type: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -1149,12 +1194,6 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-                `${AiArtifactVersionsTableName}.version_number`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.title`,
-                `${AiArtifactVersionsTableName}.description`,
-                `${AiArtifactsTableName}.artifact_type`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -1169,16 +1208,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
             )
-            .leftJoin(
-                AiArtifactVersionsTableName,
-                `${AiPromptTableName}.ai_prompt_uuid`,
-                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-            )
-            .leftJoin(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
@@ -1186,7 +1215,11 @@ export class AiAgentModel {
             )
             .orderBy(`${AiPromptTableName}.created_at`, 'asc');
 
-        const messagesPromises = rows.map(async (row) => {
+        const promptUuids = promptRows.map((row) => row.ai_prompt_uuid);
+
+        const artifactsMap = await this.findThreadArtifacts({ promptUuids });
+
+        const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
                 uuid: string;
                 name: string;
@@ -1211,6 +1244,8 @@ export class AiAgentModel {
             );
 
             if (row.responded_at != null) {
+                const artifacts = artifactsMap.get(row.ai_prompt_uuid) || [];
+
                 messages.push({
                     role: 'assistant',
                     uuid: row.ai_prompt_uuid,
@@ -1218,18 +1253,7 @@ export class AiAgentModel {
                     message: row.response,
                     createdAt: row.responded_at.toISOString(),
                     humanScore: row.human_score,
-                    artifact: row.ai_artifact_uuid
-                        ? {
-                              uuid: row.ai_artifact_uuid,
-                              versionNumber: row.version_number ?? 1,
-                              versionUuid: row.ai_artifact_version_uuid!,
-                              title: row.title,
-                              description: row.description,
-                              artifactType: row.artifact_type as
-                                  | 'chart'
-                                  | 'dashboard',
-                          }
-                        : null,
+                    artifacts: artifacts.length > 0 ? artifacts : null,
                     toolCalls: toolCalls
                         .filter(
                             (
@@ -1254,6 +1278,61 @@ export class AiAgentModel {
         });
 
         return (await Promise.all(messagesPromises)).flat();
+    }
+
+    async findThreadArtifacts({
+        promptUuids,
+    }: {
+        promptUuids: string[];
+    }): Promise<Map<string, AiAgentMessageAssistantArtifact[]>> {
+        const artifactsMap = new Map<
+            string,
+            AiAgentMessageAssistantArtifact[]
+        >();
+
+        if (promptUuids.length > 0) {
+            const artifactRows = await this.database(
+                AiArtifactVersionsTableName,
+            )
+                .join(
+                    AiArtifactsTableName,
+                    `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                    `${AiArtifactsTableName}.ai_artifact_uuid`,
+                )
+                .select(
+                    `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                    `${AiArtifactsTableName}.ai_artifact_uuid`,
+                    `${AiArtifactVersionsTableName}.version_number`,
+                    `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                    `${AiArtifactVersionsTableName}.title`,
+                    `${AiArtifactVersionsTableName}.description`,
+                    `${AiArtifactsTableName}.artifact_type`,
+                )
+                .whereIn(
+                    `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                    promptUuids,
+                )
+                .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
+
+            for (const artifactRow of artifactRows) {
+                const promptUuid = artifactRow.ai_prompt_uuid;
+                if (!artifactsMap.has(promptUuid)) {
+                    artifactsMap.set(promptUuid, []);
+                }
+                artifactsMap.get(promptUuid)!.push({
+                    artifactUuid: artifactRow.ai_artifact_uuid,
+                    versionNumber: artifactRow.version_number ?? 1,
+                    versionUuid: artifactRow.ai_artifact_version_uuid,
+                    title: artifactRow.title,
+                    description: artifactRow.description,
+                    artifactType: artifactRow.artifact_type as
+                        | 'chart'
+                        | 'dashboard',
+                });
+            }
+        }
+
+        return artifactsMap;
     }
 
     async findThreadMessage(
@@ -1312,12 +1391,6 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
-                        ai_artifact_uuid: string | null;
-                        version_number: number | null;
-                        ai_artifact_version_uuid: string | null;
-                        title: string | null;
-                        description: string | null;
-                        artifact_type: string | null;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -1334,12 +1407,6 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-                `${AiArtifactVersionsTableName}.version_number`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.title`,
-                `${AiArtifactVersionsTableName}.description`,
-                `${AiArtifactsTableName}.artifact_type`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
@@ -1364,16 +1431,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
             )
-            .leftJoin(
-                AiArtifactVersionsTableName,
-                `${AiPromptTableName}.ai_prompt_uuid`,
-                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-            )
-            .leftJoin(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
@@ -1388,6 +1445,36 @@ export class AiAgentModel {
                 `AI agent message not found for uuid: ${messageUuid}`,
             );
         }
+
+        const artifactRows = await this.database(AiArtifactVersionsTableName)
+            .select<
+                (DbAiArtifactVersion & {
+                    artifact_type: 'chart' | 'dashboard';
+                })[]
+            >(
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+                `${AiArtifactVersionsTableName}.version_number`,
+                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                `${AiArtifactVersionsTableName}.title`,
+                `${AiArtifactVersionsTableName}.description`,
+                `${AiArtifactsTableName}.artifact_type`,
+            )
+            .join(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, messageUuid)
+            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
+
+        const artifacts = artifactRows.map((artifactRow) => ({
+            artifactUuid: artifactRow.ai_artifact_uuid,
+            versionNumber: artifactRow.version_number,
+            versionUuid: artifactRow.ai_artifact_version_uuid,
+            title: artifactRow.title,
+            description: artifactRow.description,
+            artifactType: artifactRow.artifact_type as 'chart' | 'dashboard',
+        }));
 
         switch (role) {
             case 'user':
@@ -1416,18 +1503,7 @@ export class AiAgentModel {
                     createdAt: row.responded_at?.toString() ?? '',
 
                     humanScore: row.human_score,
-                    artifact: row.ai_artifact_uuid
-                        ? {
-                              uuid: row.ai_artifact_uuid,
-                              versionNumber: row.version_number ?? 1,
-                              versionUuid: row.ai_artifact_version_uuid!,
-                              title: row.title,
-                              description: row.description,
-                              artifactType: row.artifact_type as
-                                  | 'chart'
-                                  | 'dashboard',
-                          }
-                        : null,
+                    artifacts: artifacts.length > 0 ? artifacts : null,
                     toolCalls: toolCalls
                         .filter(
                             (
@@ -1797,8 +1873,11 @@ export class AiAgentModel {
             .first();
     }
 
-    async createWebAppThread(data: CreateWebAppThread) {
-        return this.database.transaction(async (trx) => {
+    async createWebAppThread(
+        data: CreateWebAppThread,
+        { db }: { db: Knex } = { db: this.database },
+    ) {
+        return AiAgentModel.withTrx(db, async (trx) => {
             const [row] = await trx(AiThreadTableName)
                 .insert({
                     organization_uuid: data.organizationUuid,
@@ -1814,12 +1893,16 @@ export class AiAgentModel {
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
             });
+
             return row.ai_thread_uuid;
         });
     }
 
-    async createWebAppPrompt(data: CreateWebAppPrompt) {
-        return this.database.transaction(async (trx) => {
+    async createWebAppPrompt(
+        data: CreateWebAppPrompt,
+        { db }: { db: Knex } = { db: this.database },
+    ) {
+        return AiAgentModel.withTrx(db, async (trx) => {
             const [row] = await trx(AiPromptTableName)
                 .insert({
                     ai_thread_uuid: data.threadUuid,
@@ -2352,5 +2435,763 @@ export class AiAgentModel {
                 title,
                 title_generated_at: new Date(),
             });
+    }
+
+    async appendInstruction(data: {
+        agentUuid: string;
+        instruction: string;
+    }): Promise<string> {
+        const currentInstruction = await this.getAgentLastInstruction({
+            agentUuid: data.agentUuid,
+        });
+
+        const updatedInstruction = currentInstruction
+            ? `${currentInstruction}\n\n${data.instruction}`
+            : data.instruction;
+
+        await this.database(AiAgentInstructionVersionsTableName).insert({
+            ai_agent_uuid: data.agentUuid,
+            instruction: updatedInstruction,
+        });
+
+        return updatedInstruction;
+    }
+
+    async createEval(
+        agentUuid: string,
+        data: ApiCreateEvaluationRequest,
+        createdByUserUuid: string,
+    ): Promise<AiAgentEvaluation> {
+        return this.database.transaction(async (trx) => {
+            const [evalRecord] = await trx(AiEvalTableName)
+                .insert({
+                    agent_uuid: agentUuid,
+                    title: data.title,
+                    description: data.description ?? null,
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning('*');
+
+            // Create prompts - handle both string and object format
+            const promptInserts = data.prompts.map((promptData) => {
+                if (typeof promptData === 'string') {
+                    // Legacy string format
+                    return {
+                        ai_eval_uuid: evalRecord.ai_eval_uuid,
+                        prompt: promptData,
+                        ai_prompt_uuid: null,
+                        ai_thread_uuid: null,
+                    };
+                }
+                // New object format with referenced prompt/thread
+                return {
+                    ai_eval_uuid: evalRecord.ai_eval_uuid,
+                    prompt: null,
+                    ai_prompt_uuid: promptData.promptUuid,
+                    ai_thread_uuid: promptData.threadUuid,
+                };
+            });
+
+            const promptRecords = await trx(AiEvalPromptTableName)
+                .insert(promptInserts)
+                .returning('*');
+
+            return {
+                evalUuid: evalRecord.ai_eval_uuid,
+                agentUuid: evalRecord.agent_uuid,
+                title: evalRecord.title,
+                description: evalRecord.description,
+                createdAt: evalRecord.created_at,
+                updatedAt: evalRecord.updated_at,
+                prompts: promptRecords.map((p) => ({
+                    evalPromptUuid: p.ai_eval_prompt_uuid,
+                    createdAt: p.created_at,
+                    ...(p.prompt
+                        ? {
+                              type: 'string' as const,
+                              prompt: p.prompt,
+                          }
+                        : {
+                              type: 'thread' as const,
+                              promptUuid: p.ai_prompt_uuid!,
+                              threadUuid: p.ai_thread_uuid!,
+                          }),
+                })),
+            };
+        });
+    }
+
+    async getEval({
+        evalUuid,
+        agentUuid,
+    }: {
+        evalUuid: string;
+        agentUuid?: string;
+    }): Promise<AiAgentEvaluation> {
+        const evalQuery = this.database(AiEvalTableName).where(
+            'ai_eval_uuid',
+            evalUuid,
+        );
+
+        if (agentUuid) {
+            void evalQuery.andWhere('agent_uuid', agentUuid);
+        }
+
+        const [evalRecord, prompts] = await Promise.all([
+            evalQuery.first(),
+            this.database(AiEvalPromptTableName)
+                .where('ai_eval_uuid', evalUuid)
+                .orderBy('created_at', 'asc'),
+        ]);
+
+        if (!evalRecord)
+            throw new NotFoundError(
+                `Evaluation not found for uuid: ${evalUuid}`,
+            );
+
+        return {
+            evalUuid: evalRecord.ai_eval_uuid,
+            agentUuid: evalRecord.agent_uuid,
+            title: evalRecord.title,
+            description: evalRecord.description,
+            createdAt: evalRecord.created_at,
+            updatedAt: evalRecord.updated_at,
+            prompts: prompts.map((p) => ({
+                evalPromptUuid: p.ai_eval_prompt_uuid,
+                createdAt: p.created_at,
+                ...(p.prompt
+                    ? {
+                          type: 'string' as const,
+                          prompt: p.prompt,
+                      }
+                    : {
+                          type: 'thread' as const,
+                          promptUuid: p.ai_prompt_uuid!,
+                          threadUuid: p.ai_thread_uuid!,
+                      }),
+            })),
+        };
+    }
+
+    async getEvalsByAgent(
+        agentUuid: string,
+    ): Promise<AiAgentEvaluationSummary[]> {
+        const evals = await this.database(AiEvalTableName)
+            .where('agent_uuid', agentUuid)
+            .orderBy('created_at', 'desc');
+
+        return evals.map((evalRecord) => ({
+            evalUuid: evalRecord.ai_eval_uuid,
+            agentUuid: evalRecord.agent_uuid,
+            title: evalRecord.title,
+            description: evalRecord.description,
+            createdAt: evalRecord.created_at,
+            updatedAt: evalRecord.updated_at,
+        }));
+    }
+
+    async updateEval(
+        evalUuid: string,
+        data: ApiUpdateEvaluationRequest,
+    ): Promise<AiAgentEvaluation> {
+        await AiAgentModel.withTrx(this.database, async (trx) => {
+            if (data.title !== undefined || data.description !== undefined) {
+                await trx(AiEvalTableName)
+                    .where('ai_eval_uuid', evalUuid)
+                    .update({
+                        ...(data.title !== undefined
+                            ? { title: data.title }
+                            : {}),
+                        ...(data.description !== undefined
+                            ? { description: data.description }
+                            : {}),
+                        updated_at: trx.fn.now(),
+                    });
+            }
+
+            if (data.prompts !== undefined) {
+                // Delete existing prompts
+                await trx(AiEvalPromptTableName)
+                    .where('ai_eval_uuid', evalUuid)
+                    .delete();
+
+                // Insert new prompts - handle both string and object format
+                if (data.prompts.length > 0) {
+                    const promptRecords = data.prompts.map((promptData) => {
+                        if (typeof promptData === 'string') {
+                            // Legacy string format
+                            return {
+                                ai_eval_uuid: evalUuid,
+                                prompt: promptData,
+                                ai_prompt_uuid: null,
+                                ai_thread_uuid: null,
+                            };
+                        }
+                        // New object format with referenced prompt/thread
+                        return {
+                            ai_eval_uuid: evalUuid,
+                            prompt: null,
+                            ai_prompt_uuid: promptData.promptUuid,
+                            ai_thread_uuid: promptData.threadUuid,
+                        };
+                    });
+                    await trx(AiEvalPromptTableName).insert(promptRecords);
+                }
+            }
+        });
+
+        return this.getEval({ evalUuid });
+    }
+
+    async appendToEval(
+        evalUuid: string,
+        data: ApiAppendEvaluationRequest,
+    ): Promise<AiAgentEvaluation> {
+        await AiAgentModel.withTrx(this.database, async (trx) => {
+            if (data.prompts.length === 0) return;
+
+            await trx(AiEvalTableName).where('ai_eval_uuid', evalUuid).update({
+                updated_at: trx.fn.now(),
+            });
+
+            const promptRecords = data.prompts.map((promptData) => {
+                if (typeof promptData === 'string') {
+                    return {
+                        ai_eval_uuid: evalUuid,
+                        prompt: promptData,
+                        ai_prompt_uuid: null,
+                        ai_thread_uuid: null,
+                    };
+                }
+                return {
+                    ai_eval_uuid: evalUuid,
+                    prompt: null,
+                    ai_prompt_uuid: promptData.promptUuid,
+                    ai_thread_uuid: promptData.threadUuid,
+                };
+            });
+            await trx(AiEvalPromptTableName).insert(promptRecords);
+        });
+
+        return this.getEval({ evalUuid });
+    }
+
+    async deleteEval(evalUuid: string): Promise<void> {
+        await this.database(AiEvalTableName)
+            .where('ai_eval_uuid', evalUuid)
+            .delete();
+    }
+
+    async createEvalRun(
+        evalUuid: string,
+    ): Promise<AiAgentEvaluationRunSummary> {
+        const [runRecord] = await this.database(AiEvalRunTableName)
+            .insert({ ai_eval_uuid: evalUuid })
+            .returning('*');
+
+        return {
+            runUuid: runRecord.ai_eval_run_uuid,
+            evalUuid: runRecord.ai_eval_uuid,
+            status: runRecord.status,
+            completedAt: runRecord.completed_at,
+            createdAt: runRecord.created_at,
+        };
+    }
+
+    async updateEvalRunStatus(
+        runUuid: string,
+        status: DbAiEvalRun['status'],
+        completedAt?: Date,
+    ): Promise<void> {
+        const update: Partial<DbAiEvalRun> = { status };
+        if (completedAt) update.completed_at = completedAt;
+
+        await this.database(AiEvalRunTableName)
+            .where('ai_eval_run_uuid', runUuid)
+            .update(update);
+    }
+
+    async createEvalRunResult(
+        runUuid: string,
+        promptUuid: string,
+        threadUuid: string,
+    ): Promise<string> {
+        const [evalRunResult] = await this.database(AiEvalRunResultTableName)
+            .insert({
+                ai_eval_run_uuid: runUuid,
+                ai_eval_prompt_uuid: promptUuid,
+                ai_thread_uuid: threadUuid,
+            })
+            .returning(['ai_eval_run_result_uuid']);
+
+        if (!evalRunResult) {
+            throw new Error('Failed to create evaluation run result');
+        }
+
+        return evalRunResult.ai_eval_run_result_uuid;
+    }
+
+    async updateEvalRunResult(
+        resultUuid: string,
+        data: {
+            status?: DbAiEvalRunResult['status'];
+            threadUuid?: string;
+            errorMessage?: string;
+            completedAt?: Date;
+        },
+    ): Promise<void> {
+        const update: Partial<DbAiEvalRunResult> = {};
+
+        if (data.status !== undefined) update.status = data.status;
+        if (data.threadUuid !== undefined)
+            update.ai_thread_uuid = data.threadUuid;
+        if (data.errorMessage !== undefined)
+            update.error_message = data.errorMessage;
+        if (data.completedAt !== undefined)
+            update.completed_at = data.completedAt;
+
+        await this.database(AiEvalRunResultTableName)
+            .where('ai_eval_run_result_uuid', resultUuid)
+            .update(update);
+    }
+
+    async getEvalRunResult(
+        resultUuid: string,
+    ): Promise<AiAgentEvaluationRunResult> {
+        const result = await this.database(AiEvalRunResultTableName)
+            .where('ai_eval_run_result_uuid', resultUuid)
+            .first();
+
+        if (!result) {
+            throw new NotFoundError(
+                `Evaluation run result not found for uuid: ${resultUuid}`,
+            );
+        }
+
+        return {
+            resultUuid: result.ai_eval_run_result_uuid,
+            evalPromptUuid: result.ai_eval_prompt_uuid,
+            threadUuid: result.ai_thread_uuid,
+            status: result.status,
+            errorMessage: result.error_message,
+            completedAt: result.completed_at,
+            createdAt: result.created_at,
+        };
+    }
+
+    async getEvalRuns(
+        evalUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<{ runs: AiAgentEvaluationRunSummary[] }>> {
+        const query = this.database(AiEvalRunTableName)
+            .select<DbAiEvalRun[]>('*')
+            .where('ai_eval_uuid', evalUuid)
+            .orderBy('created_at', 'desc');
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        const runs: AiAgentEvaluationRunSummary[] = data.map(
+            (run: DbAiEvalRun) => ({
+                runUuid: run.ai_eval_run_uuid,
+                evalUuid: run.ai_eval_uuid,
+                status: run.status,
+                completedAt: run.completed_at,
+                createdAt: run.created_at,
+            }),
+        );
+
+        return {
+            data: {
+                runs,
+            },
+            pagination,
+        };
+    }
+
+    async getEvalRunWithResults(
+        runUuid: string,
+    ): Promise<AiAgentEvaluationRun> {
+        const run = await this.database(AiEvalRunTableName)
+            .where('ai_eval_run_uuid', runUuid)
+            .first();
+
+        if (!run)
+            throw new NotFoundError(
+                `Evaluation run not found for uuid: ${runUuid}`,
+            );
+
+        const results = await this.database(AiEvalRunResultTableName)
+            .leftJoin(
+                AiEvalPromptTableName,
+                `${AiEvalRunResultTableName}.ai_eval_prompt_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .where(`${AiEvalRunResultTableName}.ai_eval_run_uuid`, runUuid)
+            .select<
+                (Pick<
+                    DbAiEvalRunResult,
+                    | 'ai_eval_run_result_uuid'
+                    | 'error_message'
+                    | 'completed_at'
+                    | 'created_at'
+                    | 'status'
+                    | 'ai_thread_uuid'
+                > &
+                    Pick<DbAiEvalPrompt, 'ai_eval_prompt_uuid'>)[]
+            >(
+                `${AiEvalRunResultTableName}.ai_eval_run_result_uuid`,
+                `${AiEvalRunResultTableName}.error_message`,
+                `${AiEvalRunResultTableName}.completed_at`,
+                `${AiEvalRunResultTableName}.created_at`,
+                `${AiEvalRunResultTableName}.status`,
+                `${AiEvalRunResultTableName}.ai_thread_uuid`,
+                `${AiEvalPromptTableName}.ai_eval_prompt_uuid`,
+            )
+            .orderBy(`${AiEvalRunResultTableName}.created_at`, 'asc');
+
+        return {
+            runUuid: run.ai_eval_run_uuid,
+            evalUuid: run.ai_eval_uuid,
+            status: run.status,
+            completedAt: run.completed_at,
+            createdAt: run.created_at,
+            results: results.map((result) => ({
+                resultUuid: result.ai_eval_run_result_uuid,
+                evalPromptUuid: result.ai_eval_prompt_uuid,
+                threadUuid: result.ai_thread_uuid,
+                status: result.status,
+                errorMessage: result.error_message,
+                completedAt: result.completed_at,
+                createdAt: result.created_at,
+            })),
+        };
+    }
+
+    async checkAndUpdateEvalRunCompletion(evalRunUuid: string): Promise<void> {
+        return this.database.transaction(async (trx) => {
+            const runData = await this.getEvalRunWithResults(evalRunUuid);
+            if (!runData) return;
+
+            const allCompleted = runData.results.every(
+                (r) => r.status === 'completed' || r.status === 'failed',
+            );
+
+            if (allCompleted) {
+                const hasFailures = runData.results.some(
+                    (r) => r.status === 'failed',
+                );
+                await trx(AiEvalRunTableName)
+                    .where('ai_eval_run_uuid', evalRunUuid)
+                    .update({
+                        status: hasFailures ? 'failed' : 'completed',
+                        completed_at: new Date(),
+                    });
+            }
+        });
+    }
+
+    private async cloneThreadArtifacts({
+        sourceThreadUuid,
+        targetThreadUuid,
+        db,
+    }: {
+        sourceThreadUuid: string;
+        targetThreadUuid: string;
+        db?: Knex;
+    }): Promise<Map<string, string>> {
+        return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            const sourceArtifacts = await trx<AiArtifactsTable>(
+                AiArtifactsTableName,
+            )
+                .select('ai_artifact_uuid', 'artifact_type', 'created_at')
+                .where('ai_thread_uuid', sourceThreadUuid);
+
+            const artifactMapping = new Map<string, string>();
+
+            const clonePromises = sourceArtifacts.map(
+                async (sourceArtifact) => {
+                    const [newArtifact] = await trx<AiArtifactsTable>(
+                        AiArtifactsTableName,
+                    )
+                        .insert({
+                            ai_thread_uuid: targetThreadUuid,
+                            artifact_type: sourceArtifact.artifact_type,
+                        })
+                        .returning('ai_artifact_uuid');
+
+                    if (!newArtifact) {
+                        throw new Error(
+                            `Failed to clone artifact ${sourceArtifact.ai_artifact_uuid}`,
+                        );
+                    }
+
+                    return {
+                        oldUuid: sourceArtifact.ai_artifact_uuid,
+                        newUuid: newArtifact.ai_artifact_uuid,
+                    };
+                },
+            );
+
+            const clonedArtifacts = await Promise.all(clonePromises);
+            clonedArtifacts.forEach(({ oldUuid, newUuid }) => {
+                artifactMapping.set(oldUuid, newUuid);
+            });
+
+            return artifactMapping;
+        });
+    }
+
+    private async cloneWebAppPrompt({
+        sourcePromptUuid,
+        targetThreadUuid,
+        targetUserUuid,
+        artifactMapping,
+        includeAssistantResponse = true,
+        db,
+    }: {
+        sourcePromptUuid: string;
+        targetThreadUuid: string;
+        targetUserUuid: string;
+        artifactMapping: Map<string, string>;
+        includeAssistantResponse?: boolean;
+        db?: Knex;
+    }): Promise<string> {
+        return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            const sourcePrompt = await trx(AiPromptTableName)
+                .select(
+                    'prompt',
+                    'response',
+                    'responded_at',
+                    'created_by_user_uuid',
+                    'created_at',
+                    // we dont copy legacy fields
+                    // we don't copy saved chart link
+                    // we don't copy human score
+                )
+                .where('ai_prompt_uuid', sourcePromptUuid)
+                .first();
+
+            if (!sourcePrompt) {
+                throw new NotFoundError(
+                    `Source prompt ${sourcePromptUuid} not found`,
+                );
+            }
+
+            const newPromptUuid = await this.createWebAppPrompt(
+                {
+                    threadUuid: targetThreadUuid,
+                    createdByUserUuid: targetUserUuid,
+                    prompt: sourcePrompt.prompt,
+                },
+                { db: trx },
+            );
+
+            // Update with assistant response data if needed
+            if (includeAssistantResponse) {
+                if (
+                    sourcePrompt.created_at ||
+                    (sourcePrompt.response && sourcePrompt.responded_at)
+                ) {
+                    await trx(AiPromptTableName)
+                        .where('ai_prompt_uuid', newPromptUuid)
+                        // @ts-expect-error - responded_at is a date and update works `created_at` is not in the update type but we just need it for cloning
+                        .update({
+                            ...(sourcePrompt.created_at && {
+                                created_at: sourcePrompt.created_at,
+                            }),
+                            ...(sourcePrompt.response &&
+                                sourcePrompt.responded_at && {
+                                    response: sourcePrompt.response,
+
+                                    responded_at: sourcePrompt.responded_at,
+                                }),
+                        });
+                }
+            }
+
+            // Clone assistant response data if requested
+            if (includeAssistantResponse) {
+                // Clone tool calls
+                const toolCalls = await trx(AiAgentToolCallTableName)
+                    .select(
+                        'tool_call_id',
+                        'tool_name',
+                        'tool_args',
+                        'created_at',
+                    )
+                    .where('ai_prompt_uuid', sourcePromptUuid);
+
+                const toolCallUpdates = toolCalls.map((toolCall) => ({
+                    ai_prompt_uuid: newPromptUuid,
+                    tool_call_id: toolCall.tool_call_id,
+                    tool_name: toolCall.tool_name,
+                    tool_args: toolCall.tool_args,
+                }));
+
+                // Clone tool results
+                const toolResults = await trx(AiAgentToolResultTableName)
+                    .select('tool_call_id', 'tool_name', 'result', 'created_at')
+                    .where('ai_prompt_uuid', sourcePromptUuid);
+
+                const toolResultUpdates = toolResults.map((toolResult) => ({
+                    ai_prompt_uuid: newPromptUuid,
+                    tool_call_id: toolResult.tool_call_id,
+                    tool_name: toolResult.tool_name,
+                    result: toolResult.result,
+                }));
+
+                await Promise.all([
+                    toolCallUpdates.length > 0 &&
+                        trx(AiAgentToolCallTableName).insert(toolCallUpdates),
+                    toolResultUpdates.length > 0 &&
+                        trx(AiAgentToolResultTableName).insert(
+                            toolResultUpdates,
+                        ),
+                ]);
+
+                // Clone artifact versions
+                const artifactVersions = await trx(AiArtifactVersionsTableName)
+                    .select(
+                        'ai_artifact_uuid',
+                        'version_number',
+                        'title',
+                        'description',
+                        'chart_config',
+                        'dashboard_config',
+                        // we don't copy saved query or dashboard uuid
+                    )
+                    .where('ai_prompt_uuid', sourcePromptUuid);
+
+                const artifactVersionInserts = artifactVersions.map(
+                    (artifactVersion) => {
+                        const newArtifactUuid = artifactMapping.get(
+                            artifactVersion.ai_artifact_uuid,
+                        );
+
+                        if (!newArtifactUuid) {
+                            throw new Error(
+                                `No mapping found for artifact ${artifactVersion.ai_artifact_uuid}`,
+                            );
+                        }
+                        return {
+                            ai_artifact_uuid: newArtifactUuid,
+                            ai_prompt_uuid: newPromptUuid,
+                            version_number: artifactVersion.version_number,
+                            title: artifactVersion.title,
+                            description: artifactVersion.description,
+                            chart_config: artifactVersion.chart_config,
+                            dashboard_config: artifactVersion.dashboard_config,
+                        };
+                    },
+                );
+
+                if (artifactVersionInserts.length > 0) {
+                    await trx(AiArtifactVersionsTableName).insert(
+                        artifactVersionInserts,
+                    );
+                }
+            }
+
+            return newPromptUuid;
+        });
+    }
+
+    async cloneThread({
+        sourceThreadUuid,
+        sourcePromptUuid,
+        targetUserUuid,
+        createdFrom,
+        db,
+    }: {
+        sourceThreadUuid: string;
+        sourcePromptUuid: string;
+        targetUserUuid: string;
+        createdFrom?: 'web_app' | 'evals';
+        db?: Knex;
+    }): Promise<string> {
+        return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            // Get source thread metadata
+            const sourceThread = await trx(AiThreadTableName)
+                .select(
+                    'organization_uuid',
+                    'project_uuid',
+                    'agent_uuid',
+                    'created_from',
+                    'title',
+                )
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .first();
+
+            if (!sourceThread) {
+                throw new NotFoundError(
+                    `Source thread ${sourceThreadUuid} not found`,
+                );
+            }
+
+            // Create new thread using existing method
+            const newThreadUuid = await this.createWebAppThread(
+                {
+                    organizationUuid: sourceThread.organization_uuid,
+                    projectUuid: sourceThread.project_uuid,
+                    agentUuid: sourceThread.agent_uuid,
+                    userUuid: targetUserUuid,
+                    // If `createdFrom` is not passed, default all cloned threads to web_app
+                    createdFrom: createdFrom ?? 'web_app',
+                },
+                { db: trx },
+            );
+
+            // Clone thread artifacts and get mapping
+            const artifactMapping = await this.cloneThreadArtifacts({
+                sourceThreadUuid,
+                targetThreadUuid: newThreadUuid,
+                db: trx,
+            });
+
+            // Get all prompts up to the specified prompt (inclusive)
+            const sourcePrompts = await trx(AiPromptTableName)
+                .select('ai_prompt_uuid', 'created_at')
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .orderBy('created_at', 'asc');
+
+            // Find the target prompt index
+            const targetPromptIndex = sourcePrompts.findIndex(
+                (p) => p.ai_prompt_uuid === sourcePromptUuid,
+            );
+
+            if (targetPromptIndex === -1) {
+                throw new NotFoundError(
+                    `Source prompt ${sourcePromptUuid} not found in thread ${sourceThreadUuid}`,
+                );
+            }
+
+            // Get prompts up to and including the target prompt
+            const promptsToClone = sourcePrompts.slice(
+                0,
+                targetPromptIndex + 1,
+            );
+
+            // Clone each prompt sequentially to maintain chronological order
+            // eslint-disable-next-line no-await-in-loop
+            for (let i = 0; i < promptsToClone.length; i += 1) {
+                const promptToClone = promptsToClone[i];
+                const isLastPrompt = i === promptsToClone.length - 1;
+
+                // eslint-disable-next-line no-await-in-loop
+                await this.cloneWebAppPrompt({
+                    sourcePromptUuid: promptToClone.ai_prompt_uuid,
+                    targetThreadUuid: newThreadUuid,
+                    targetUserUuid,
+                    artifactMapping,
+                    includeAssistantResponse: !isLastPrompt,
+                    db: trx,
+                });
+            }
+
+            return newThreadUuid;
+        });
     }
 }

@@ -50,7 +50,7 @@ export class GithubAppInstallationsModel {
     async getInstallationId(
         organizationUuid: string,
     ): Promise<string | undefined> {
-        const installationId = this.findInstallationId(organizationUuid);
+        const installationId = await this.findInstallationId(organizationUuid);
 
         if (!installationId) {
             throw new NotFoundError('Installation not found');

@@ -129,3 +129,24 @@ export type CreateOrUpdateArtifactFn = (data: {
     description?: string;
     vizConfig: Record<string, unknown>;
 }) => Promise<AiArtifact>;
+
+export type CheckUserPermissionFn = (args: {
+    userId: string;
+    organizationId: string;
+    permission: string;
+}) => Promise<boolean>;
+
+export type AppendInstructionFn = (args: {
+    projectUuid: string;
+    agentUuid: string;
+    instruction: string;
+    metadata?: {
+        originalQuery: string;
+        incorrectResponse: string;
+        correctResponse: string;
+        category: string;
+        confidence: number;
+        createdByUserId: string;
+        createdAt: string;
+    };
+}) => Promise<string>; // Returns instruction ID

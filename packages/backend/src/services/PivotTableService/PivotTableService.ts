@@ -8,6 +8,7 @@ import {
     MissingConfigError,
     PivotConfig,
     pivotResultsAsCsv,
+    type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
@@ -93,12 +94,14 @@ export class PivotTableService extends BaseService {
         projectUuid,
         storageClient,
         options,
+        pivotDetails,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
         metricQuery: MetricQuery;
         projectUuid: string;
         storageClient: S3ResultsFileStorageClient;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -109,14 +112,7 @@ export class PivotTableService extends BaseService {
             attachmentDownloadName?: string;
         };
     }): Promise<{ fileUrl: string; truncated: boolean }> {
-        const {
-            onlyRaw,
-            showTableNames,
-            customLabels,
-            columnOrder,
-            hiddenFields,
-            pivotConfig,
-        } = options;
+        const { onlyRaw, customLabels, pivotConfig } = options;
 
         // Load rows from the results file using shared streaming utility
         // Use the same logic as regular CSV exports - respect csvCellsLimit with field count
@@ -165,6 +161,7 @@ export class PivotTableService extends BaseService {
             onlyRaw,
             truncated: finalTruncated,
             customLabels,
+            pivotDetails,
         });
 
         return {
@@ -188,6 +185,7 @@ export class PivotTableService extends BaseService {
         onlyRaw,
         truncated,
         customLabels,
+        pivotDetails,
     }: {
         name?: string;
         projectUuid: string;
@@ -195,6 +193,7 @@ export class PivotTableService extends BaseService {
         itemMap: ItemsMap;
         metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         exploreId: string;
         onlyRaw: boolean;
         truncated: boolean;
@@ -213,6 +212,7 @@ export class PivotTableService extends BaseService {
             customLabels,
             onlyRaw,
             maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            pivotDetails,
         });
 
         const csvContent = await new Promise<string>((resolve, reject) => {

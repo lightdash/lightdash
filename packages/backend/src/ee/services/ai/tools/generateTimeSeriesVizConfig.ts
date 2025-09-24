@@ -1,10 +1,8 @@
 import {
-    Explore,
-    getTotalFilterRules,
     isSlackPrompt,
+    metricQueryTimeSeriesViz,
     toolTimeSeriesArgsSchema,
     toolTimeSeriesArgsSchemaTransformed,
-    ToolTimeSeriesArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -14,9 +12,11 @@ import type {
     RunMiniMetricQueryFn,
     SendFileFn,
     UpdateProgressFn,
-    UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
+import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateTimeSeriesVizConfig } from '../utils/validateTimeSeriesVizConfig';
 import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
@@ -26,26 +26,25 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
-    updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
+    enableDataAccess: boolean;
 };
+
 export const getGenerateTimeSeriesVizConfig = ({
     getExplore,
     updateProgress,
     runMiniMetricQuery,
     getPrompt,
     sendFile,
-    updatePrompt,
     createOrUpdateArtifact,
     maxLimit,
-}: Dependencies) => {
-    const schema = toolTimeSeriesArgsSchema;
-
-    return tool({
+    enableDataAccess,
+}: Dependencies) =>
+    tool({
         description: toolTimeSeriesArgsSchema.description,
-        parameters: schema,
+        inputSchema: toolTimeSeriesArgsSchema,
         execute: async (toolArgs) => {
             try {
                 await updateProgress('📈 Generating your line chart...');
@@ -71,11 +70,27 @@ export const getGenerateTimeSeriesVizConfig = ({
                     vizConfig: toolArgs,
                 });
 
+                if (!enableDataAccess && !isSlackPrompt(prompt)) {
+                    return `Success`;
+                }
+
+                const metricQuery = metricQueryTimeSeriesViz({
+                    vizConfig: vizTool.vizConfig,
+                    filters: vizTool.filters,
+                    maxLimit,
+                    customMetrics: vizTool.customMetrics ?? null,
+                });
+                const queryResults = await runMiniMetricQuery(
+                    metricQuery,
+                    maxLimit,
+                    populateCustomMetricsSQL(vizTool.customMetrics, explore),
+                );
+
                 if (isSlackPrompt(prompt)) {
                     const { chartOptions } = await renderTimeSeriesViz({
-                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        queryResults,
                         vizTool,
-                        maxLimit,
+                        metricQuery,
                     });
 
                     const file = await renderEcharts(chartOptions);
@@ -93,10 +108,15 @@ export const getGenerateTimeSeriesVizConfig = ({
                     await sendFile(sentfileArgs);
                 }
 
-                return `Success`;
+                if (!enableDataAccess) {
+                    return `Success`;
+                }
+
+                const csv = convertQueryResultsToCsv(queryResults);
+
+                return serializeData(csv, 'csv');
             } catch (e) {
                 return toolErrorHandler(e, `Error generating line chart.`);
             }
         },
     });
-};

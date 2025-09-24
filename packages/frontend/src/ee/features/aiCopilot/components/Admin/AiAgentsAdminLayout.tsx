@@ -1,30 +1,43 @@
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
 import {
     Box,
+    Button,
     Group,
+    Modal,
     Stack,
     Text,
     Title,
     useMantineTheme,
 } from '@mantine-8/core';
-import { IconGripVertical, IconLock, IconPlus } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine-8/hooks';
+import {
+    IconChartDots,
+    IconGripVertical,
+    IconLock,
+    IconMessageCircleShare,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
+import useHealth from '../../../../../hooks/health/useHealth';
 import useApp from '../../../../../providers/App/useApp';
 import AiAgentAdminThreadsTable from './AiAgentAdminThreadsTable';
 import styles from './AiAgentsAdminLayout.module.css';
+import { AnalyticsEmbedDashboard } from './AnalyticsEmbedDashboard';
 import { ThreadPreviewSidebar } from './ThreadPreviewSidebar';
 
 export const AiAgentsAdminLayout = () => {
     const { user } = useApp();
+    const { data: health } = useHealth();
     const theme = useMantineTheme();
     const [selectedThread, setSelectedThread] =
         useState<AiAgentAdminThreadSummary | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isAnalyticsEmbedOpen, { toggle: toggleAnalyticsEmbed }] =
+        useDisclosure(false);
 
     const canManageOrganization = user.data?.ability.can(
         'manage',
@@ -34,12 +47,18 @@ export const AiAgentsAdminLayout = () => {
     const handleThreadSelect = (thread: AiAgentAdminThreadSummary): void => {
         setSelectedThread(thread);
         setIsSidebarOpen(true);
+        if (isAnalyticsEmbedOpen) {
+            toggleAnalyticsEmbed();
+        }
     };
 
     const handleCloseSidebar = () => {
         setIsSidebarOpen(false);
         setSelectedThread(null);
     };
+
+    const isAnalyticsEmbedEnabled =
+        health?.ai.analyticsProjectUuid && health?.ai.analyticsDashboardUuid;
 
     if (!canManageOrganization) {
         return (
@@ -67,17 +86,33 @@ export const AiAgentsAdminLayout = () => {
                     minSize={50}
                     className={styles.threadsTable}
                 >
-                    <Group justify="space-between" my="lg">
+                    <Group justify="space-between" my="md">
                         <Box>
-                            <Title order={2}>AI Agents Admin Panel</Title>
+                            <Group>
+                                <Title order={2}>AI Agents Admin Panel</Title>
+                                {isAnalyticsEmbedEnabled && (
+                                    <Button
+                                        onClick={toggleAnalyticsEmbed}
+                                        variant="filled"
+                                        size="compact-sm"
+                                        color="indigo"
+                                        leftSection={
+                                            <MantineIcon icon={IconChartDots} />
+                                        }
+                                    >
+                                        Insights
+                                    </Button>
+                                )}
+                            </Group>
                             <Text c="gray.6" size="sm" fw={400}>
                                 View and manage AI Agents threads
                             </Text>
                         </Box>
                         <LinkButton
                             href="/ai-agents"
-                            leftIcon={IconPlus}
-                            variant="filled"
+                            leftIcon={IconMessageCircleShare}
+                            variant="default"
+                            radius="md"
                         >
                             New Thread
                         </LinkButton>
@@ -117,7 +152,9 @@ export const AiAgentsAdminLayout = () => {
                         >
                             {!!selectedThread && (
                                 <ThreadPreviewSidebar
-                                    thread={selectedThread}
+                                    projectUuid={selectedThread.project.uuid}
+                                    agentUuid={selectedThread.agent.uuid}
+                                    threadUuid={selectedThread.uuid}
                                     isOpen={isSidebarOpen}
                                     onClose={handleCloseSidebar}
                                 />
@@ -126,6 +163,22 @@ export const AiAgentsAdminLayout = () => {
                     </>
                 )}
             </PanelGroup>
+            <Modal
+                opened={isAnalyticsEmbedOpen}
+                size="xl"
+                onClose={toggleAnalyticsEmbed}
+                title={<Text fw={700}>AI Agents Insights</Text>}
+                padding="0"
+                centered
+                styles={{
+                    header: {
+                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        padding: theme.spacing.md,
+                    },
+                }}
+            >
+                <AnalyticsEmbedDashboard />
+            </Modal>
         </Stack>
     );
 };

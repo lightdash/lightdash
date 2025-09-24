@@ -1,27 +1,31 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { AiModel } from './types';
+
+const PROVIDER = 'openai';
 
 export const getOpenaiGptmodel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['openai']
     >,
-) => {
+): AiModel<typeof PROVIDER> => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
-        compatibility: 'strict',
-        ...(config.baseUrl
-            ? { baseURL: config.baseUrl, compatibility: 'compatible' }
-            : {}),
+        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });
 
-    const model = openai(config.modelName, {
-        structuredOutputs: true,
-    });
+    // TODO: Use config.responsesApi to determine if we should use the responses API.
+    const model = openai(config.modelName);
 
     return {
         model,
         callOptions: {
             temperature: config.temperature,
+        },
+        providerOptions: {
+            [PROVIDER]: {
+                strictJsonSchema: true,
+            },
         },
     };
 };
