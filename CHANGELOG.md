@@ -1,3 +1,15 @@
+# [0.2024.0](https://github.com/lightdash/lightdash/compare/0.2023.1...0.2024.0) (2025-09-24)
+
+
+### Bug Fixes
+
+* return formatted pivot column headers ([#17076](https://github.com/lightdash/lightdash/issues/17076)) ([90d2965](https://github.com/lightdash/lightdash/commit/90d2965527efa65edff2332cd14416ea833014bf))
+
+
+### Features
+
+* migrate FiltersCard to Redux store ([#16996](https://github.com/lightdash/lightdash/issues/16996)) ([245f5eb](https://github.com/lightdash/lightdash/commit/245f5eb8cd625d9096b7a630b1589df0c9a6949f))
+
 ## [0.2023.1](https://github.com/lightdash/lightdash/compare/0.2023.0...0.2023.1) (2025-09-24)
 
 
