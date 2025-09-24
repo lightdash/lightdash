@@ -157,6 +157,8 @@ export const AiAgentsAdminLayout = () => {
                                     threadUuid={selectedThread.uuid}
                                     isOpen={isSidebarOpen}
                                     onClose={handleCloseSidebar}
+                                    showAddToEvalsButton
+                                    renderArtifactsInline
                                 />
                             )}
                         </Panel>

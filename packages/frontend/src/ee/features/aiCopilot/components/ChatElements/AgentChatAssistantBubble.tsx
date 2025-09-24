@@ -45,6 +45,7 @@ import {
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
+import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
@@ -275,8 +276,9 @@ type Props = {
     debug?: boolean;
     projectUuid: string;
     agentUuid: string;
-    showAddToEvalsButton?: boolean;
     onAddToEvals?: (promptUuid: string) => void;
+    renderArtifactsInline?: boolean;
+    showAddToEvalsButton?: boolean;
 };
 
 export const AssistantBubble: FC<Props> = memo(
@@ -286,8 +288,9 @@ export const AssistantBubble: FC<Props> = memo(
         debug = false,
         projectUuid,
         agentUuid,
-        showAddToEvalsButton,
         onAddToEvals,
+        renderArtifactsInline = false,
+        showAddToEvalsButton = false,
     }) => {
         const artifact = useAiAgentStoreSelector(
             (state) => state.aiArtifact.artifact,
@@ -354,39 +357,51 @@ export const AssistantBubble: FC<Props> = memo(
 
                 {isArtifactAvailable && projectUuid && agentUuid && (
                     <Stack gap="xs">
-                        {message.artifacts!.map((messageArtifact) => (
-                            <AiArtifactButton
-                                key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
-                                onClick={() => {
-                                    if (
-                                        artifact?.artifactUuid ===
-                                            messageArtifact.artifactUuid &&
-                                        artifact?.versionUuid ===
-                                            messageArtifact.versionUuid
-                                    ) {
-                                        return;
-                                    }
-                                    dispatch(
-                                        setArtifact({
-                                            artifactUuid:
-                                                messageArtifact.artifactUuid,
-                                            versionUuid:
-                                                messageArtifact.versionUuid,
-                                            message: message,
-                                            projectUuid: projectUuid,
-                                            agentUuid: agentUuid,
-                                        }),
-                                    );
-                                }}
-                                isArtifactOpen={
-                                    artifact?.artifactUuid ===
-                                        messageArtifact.artifactUuid &&
-                                    artifact?.versionUuid ===
-                                        messageArtifact.versionUuid
-                                }
-                                artifact={messageArtifact}
-                            />
-                        ))}
+                        {renderArtifactsInline
+                            ? // Render artifacts inline directly
+                              message.artifacts!.map((messageArtifact) => (
+                                  <AiArtifactInline
+                                      key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
+                                      artifact={messageArtifact}
+                                      message={message}
+                                      projectUuid={projectUuid}
+                                      agentUuid={agentUuid}
+                                  />
+                              ))
+                            : // Render artifact buttons that open modals
+                              message.artifacts!.map((messageArtifact) => (
+                                  <AiArtifactButton
+                                      key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
+                                      onClick={() => {
+                                          if (
+                                              artifact?.artifactUuid ===
+                                                  messageArtifact.artifactUuid &&
+                                              artifact?.versionUuid ===
+                                                  messageArtifact.versionUuid
+                                          ) {
+                                              return;
+                                          }
+                                          dispatch(
+                                              setArtifact({
+                                                  artifactUuid:
+                                                      messageArtifact.artifactUuid,
+                                                  versionUuid:
+                                                      messageArtifact.versionUuid,
+                                                  message: message,
+                                                  projectUuid: projectUuid,
+                                                  agentUuid: agentUuid,
+                                              }),
+                                          );
+                                      }}
+                                      isArtifactOpen={
+                                          artifact?.artifactUuid ===
+                                              messageArtifact.artifactUuid &&
+                                          artifact?.versionUuid ===
+                                              messageArtifact.versionUuid
+                                      }
+                                      artifact={messageArtifact}
+                                  />
+                              ))}
                     </Stack>
                 )}
                 <Group gap={0}>
