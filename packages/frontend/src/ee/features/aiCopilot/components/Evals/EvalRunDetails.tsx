@@ -25,7 +25,10 @@ import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useAiAgentEvaluationRunResults } from '../../hooks/useAiAgentEvaluations';
+import {
+    useAiAgentEvaluationRunResults,
+    useEvaluationRunPolling,
+} from '../../hooks/useAiAgentEvaluations';
 import { useEvalSectionContext } from '../../hooks/useEvalSectionContext';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 
@@ -92,12 +95,17 @@ const PromptRow: FC<PromptRowProps> = ({
     }, [thread?.messages, index]);
 
     const handleRowClick = () => {
-        if (result.status === 'completed' && result.threadUuid) {
+        if (
+            (result.status === 'completed' || result.status === 'failed') &&
+            result.threadUuid
+        ) {
             onViewThread(result);
         }
     };
 
-    const isClickable = result.status === 'completed' && result.threadUuid;
+    const isClickable =
+        (result.status === 'completed' || result.status === 'failed') &&
+        result.threadUuid;
 
     return (
         <Table.Tr
@@ -152,6 +160,18 @@ export const EvalRunDetails: FC<Props> = ({
         agentUuid,
         evalUuid,
         runUuid,
+    );
+
+    useEvaluationRunPolling(
+        projectUuid,
+        agentUuid,
+        evalUuid,
+        runData
+            ? {
+                  runUuid: runData.runUuid,
+                  status: runData.status,
+              }
+            : undefined,
     );
 
     const handleBack = () => {
@@ -241,37 +261,47 @@ export const EvalRunDetails: FC<Props> = ({
                     </Group>
 
                     <Group>
-                        <Tooltip
-                            label={
-                                <Text size="xs" c="dimmed">
-                                    Started{' '}
-                                    {new Date(
-                                        runData.createdAt,
-                                    ).toLocaleString()}
-                                    {runData.completedAt && (
-                                        <>
-                                            {' '}
-                                            • Completed{' '}
+                        {runData.status === 'completed' ||
+                            (runData.status === 'failed' && (
+                                <Tooltip
+                                    label={
+                                        <Text size="xs" c="dimmed">
+                                            Started{' '}
                                             {new Date(
-                                                runData.completedAt,
+                                                runData.createdAt,
                                             ).toLocaleString()}
-                                        </>
-                                    )}
-                                </Text>
-                            }
-                        >
-                            <Text size="xs" c="dimmed">
-                                Duration: {runDuration}
-                            </Text>
-                        </Tooltip>
+                                            {runData.completedAt && (
+                                                <>
+                                                    {' '}
+                                                    • Completed{' '}
+                                                    {new Date(
+                                                        runData.completedAt,
+                                                    ).toLocaleString()}
+                                                </>
+                                            )}
+                                        </Text>
+                                    }
+                                >
+                                    <Text size="xs" c="dimmed">
+                                        Duration: {runDuration}
+                                    </Text>
+                                </Tooltip>
+                            ))}
                         <Badge
                             variant="light"
                             color={getStatusConfig(runData.status).color}
                             radius="sm"
                             leftSection={
-                                <MantineIcon
-                                    icon={getStatusConfig(runData.status).icon}
-                                />
+                                runData.status === 'pending' ||
+                                runData.status === 'running' ? (
+                                    <Loader size="12px" color="gray" />
+                                ) : (
+                                    <MantineIcon
+                                        icon={
+                                            getStatusConfig(runData.status).icon
+                                        }
+                                    />
+                                )
                             }
                         >
                             {runData.status}

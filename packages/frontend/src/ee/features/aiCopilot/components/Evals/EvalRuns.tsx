@@ -70,16 +70,13 @@ const EvalRunItem: FC<RunItemProps> = ({
             p="sm"
             withBorder
             style={{
-                cursor: run.status === 'pending' ? 'not-allowed' : 'pointer',
-                opacity: run.status === 'pending' ? 0.6 : 1,
+                cursor: 'pointer',
                 borderColor: isSelected
                     ? 'var(--mantine-color-blue-5)'
                     : undefined,
             }}
             onClick={() => {
-                if (run.status !== 'pending') {
-                    onSelectRun(run);
-                }
+                onSelectRun(run);
             }}
         >
             <Group justify="space-between" align="center">
@@ -97,38 +94,32 @@ const EvalRunItem: FC<RunItemProps> = ({
                             {run.status}
                         </Badge>
                     </Group>
-                    <Tooltip
-                        label={
-                            <Text size="xs" c="dimmed">
-                                Started{' '}
-                                {new Date(run.createdAt).toLocaleString()}
-                                {run.completedAt && (
-                                    <>
-                                        {' '}
-                                        • Completed{' '}
-                                        {new Date(
-                                            run.completedAt,
-                                        ).toLocaleString()}
-                                    </>
-                                )}
-                            </Text>
-                        }
-                    >
-                        <Text
-                            size="xs"
-                            c="dimmed"
-                            display={
-                                run.status === 'pending' ? 'none' : 'block'
+                    {run.completedAt && (
+                        <Tooltip
+                            label={
+                                <Text size="xs" c="dimmed">
+                                    Started{' '}
+                                    {new Date(run.createdAt).toLocaleString()}
+                                    {run.completedAt && (
+                                        <>
+                                            {' '}
+                                            • Completed{' '}
+                                            {new Date(
+                                                run.completedAt,
+                                            ).toLocaleString()}
+                                        </>
+                                    )}
+                                </Text>
                             }
                         >
-                            Duration: {runDuration}
-                        </Text>
-                    </Tooltip>
+                            <Text size="xs" c="dimmed">
+                                Duration: {runDuration}
+                            </Text>
+                        </Tooltip>
+                    )}
                 </Stack>
                 <Group gap="sm">
-                    {run.status !== 'pending' && (
-                        <MantineIcon icon={IconChevronRight} />
-                    )}
+                    <MantineIcon icon={IconChevronRight} />
                 </Group>
             </Group>
         </Card>
