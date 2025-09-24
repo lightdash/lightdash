@@ -119,6 +119,20 @@ export type DbCatalogItemsMigrateIn = Pick<
 
 export const CatalogTagsTableName = 'catalog_search_tags';
 
+export const CatalogSearchRelationsTableName = 'catalog_search_relations';
+
+export type DbCatalogSearchRelation = {
+    explore_catalog_uuid: string;
+    field_catalog_uuid: string;
+};
+
+export type DbCatalogSearchRelationIn = DbCatalogSearchRelation;
+
+export type CatalogSearchRelationsTable = Knex.CompositeTableType<
+    DbCatalogSearchRelation,
+    DbCatalogSearchRelationIn
+>;
+
 export type DbMetricsTreeEdge = {
     source_metric_catalog_search_uuid: string;
     target_metric_catalog_search_uuid: string;

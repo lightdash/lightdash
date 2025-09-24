@@ -123,6 +123,8 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
+    CatalogSearchRelationsTable,
+    CatalogSearchRelationsTableName,
     CatalogTable,
     CatalogTableName,
     CatalogTagsTable,
@@ -386,6 +388,7 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;
         [CatalogTableName]: CatalogTable;
+        [CatalogSearchRelationsTableName]: CatalogSearchRelationsTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [TagsTableName]: TagsTable;
