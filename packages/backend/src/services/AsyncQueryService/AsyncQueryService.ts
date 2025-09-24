@@ -1150,12 +1150,24 @@ export class AsyncQueryService extends ProjectService {
                               currentRowIndex = row.row_index;
                           }
                       }
+
+                      const pivotValues =
+                          groupByColumns?.map((c) => ({
+                              referenceField: c.reference,
+                              // value needs to be raw formatted so that dates match the subtotals and the formatted rows
+                              value: formatRawValue(
+                                  itemsMap[c.reference],
+                                  row[c.reference],
+                              ),
+                          })) ?? [];
+
                       // Suffix the value column with the group by columns to avoid collisions.
                       // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
                       // then the value column will be 'value_1_a_b'
-                      const valueSuffix = groupByColumns
-                          ?.map((col) => row[col.reference])
-                          .join('_');
+                      const valueSuffix =
+                          pivotValues.length > 0
+                              ? pivotValues.map((p) => p.value).join('_')
+                              : '';
 
                       valuesColumns.forEach((col) => {
                           const valueColumnField =
@@ -1163,20 +1175,15 @@ export class AsyncQueryService extends ProjectService {
                                   col.reference,
                                   col.aggregation,
                               );
-                          const valueColumnReference = `${valueColumnField}_${valueSuffix}`;
+                          const valueColumnReference = valueSuffix
+                              ? `${valueColumnField}_${valueSuffix}`
+                              : valueColumnField;
 
                           valuesColumnData.set(valueColumnReference, {
                               referenceField: col.reference, // The original y field name
                               pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
                               aggregation: col.aggregation,
-                              pivotValues: groupByColumns?.map((c) => ({
-                                  referenceField: c.reference,
-                                  // value needs to be raw formatted so that dates match the subtotals and the formatted rows which always use `formatRawValue`
-                                  value: formatRawValue(
-                                      itemsMap[c.reference],
-                                      row[c.reference],
-                                  ),
-                              })),
+                              pivotValues,
                               columnIndex: row.column_index,
                           });
 
