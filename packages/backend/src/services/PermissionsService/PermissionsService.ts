@@ -34,13 +34,13 @@ export class PermissionsService extends BaseService {
             );
         }
 
-        const chartInDashboards = await this.dashboardModel.getAllByProject(
-            projectUuid,
-            savedChartUuid,
-        );
-
-        const chartInDashboardUuids = chartInDashboards.map((d) => d.uuid);
-        if (!chartInDashboardUuids.includes(dashboardUuid)) {
+        const chartExists =
+            await this.dashboardModel.savedChartExistsInDashboard(
+                projectUuid,
+                dashboardUuid,
+                savedChartUuid,
+            );
+        if (!chartExists) {
             throw new ForbiddenError(
                 `This chart does not belong to dashboard ${dashboardUuid}`,
             );
