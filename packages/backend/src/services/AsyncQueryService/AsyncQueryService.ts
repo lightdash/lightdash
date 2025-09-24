@@ -34,6 +34,7 @@ import {
     Explore,
     FieldType,
     ForbiddenError,
+    formatItemValue,
     formatRawValue,
     formatRow,
     getDashboardFilterRulesForTables,
@@ -1152,14 +1153,27 @@ export class AsyncQueryService extends ProjectService {
                       }
 
                       const pivotValues =
-                          groupByColumns?.map((c) => ({
-                              referenceField: c.reference,
-                              // value needs to be raw formatted so that dates match the subtotals and the formatted rows
-                              value: formatRawValue(
-                                  itemsMap[c.reference],
+                          groupByColumns?.map((c) => {
+                              const field = itemsMap[c.reference];
+                              const rawValue = formatRawValue(
+                                  field,
                                   row[c.reference],
-                              ),
-                          })) ?? [];
+                              );
+                              const formattedValue = field
+                                  ? formatItemValue(
+                                        field,
+                                        row[c.reference],
+                                        false,
+                                    )
+                                  : String(rawValue);
+                              return {
+                                  referenceField: c.reference,
+                                  // value needs to be raw formatted so that dates match the subtotals and the formatted rows
+                                  value: rawValue,
+                                  // formatted value to match the display value in the frontend
+                                  formatted: formattedValue,
+                              };
+                          }) ?? [];
 
                       // Suffix the value column with the group by columns to avoid collisions.
                       // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],

@@ -975,9 +975,11 @@ export const convertSqlPivotedRowsToPivotData = ({
             );
             if (pivotValue) {
                 const field = getField(pivotValue.referenceField);
-                const formattedValue = field
-                    ? formatItemValue(field, pivotValue.value)
-                    : String(pivotValue.value);
+                const formattedValue =
+                    pivotValue.formatted ||
+                    (field
+                        ? formatItemValue(field, pivotValue.value, true)
+                        : String(pivotValue.value));
                 const allColumnsWithSamePivotValues = columns.filter(
                     (matchingColumn) => {
                         const referencesToMatch = (
