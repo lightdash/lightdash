@@ -475,12 +475,13 @@ export const AssistantBubble: FC<Props> = memo(
                 </Group>
 
                 <AgentChatDebugDrawer
+                    agentUuid={agentUuid}
+                    projectUuid={projectUuid}
+                    artifacts={message.artifacts}
+                    toolCalls={message.toolCalls}
                     isVisualizationAvailable={isArtifactAvailable}
                     isDrawerOpen={isDrawerOpen}
-                    closeDrawer={closeDrawer}
-                    toolCalls={message.toolCalls}
-                    vizConfig={null}
-                    metricQuery={null}
+                    onClose={closeDrawer}
                 />
             </Stack>
         );
