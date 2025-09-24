@@ -6,8 +6,10 @@ import {
 import {
     ActionIcon,
     Badge,
+    Box,
     Button,
     Group,
+    LoadingOverlay,
     Modal,
     Paper,
     Stack,
@@ -17,6 +19,7 @@ import {
     Title,
     type ModalProps,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconEdit,
@@ -32,7 +35,6 @@ import {
     useOrganizationGroups,
 } from '../../../hooks/useOrganizationGroups';
 import useApp from '../../../providers/App/useApp';
-import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import CreateGroupModal from './CreateGroupModal';
@@ -177,6 +179,7 @@ const GroupsView: FC = () => {
     const { mutate, isLoading: isDeleting } = useGroupDeleteMutation();
 
     const [search, setSearch] = useState('');
+    const [debouncedSearch] = useDebouncedValue(search, 300);
 
     const isGroupManagementEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
@@ -185,7 +188,7 @@ const GroupsView: FC = () => {
     const { data: groups, isInitialLoading: isLoadingGroups } =
         useOrganizationGroups(
             {
-                searchInput: search,
+                searchInput: debouncedSearch,
                 includeMembers: GROUP_MEMBERS_PER_PAGE, // TODO: pagination
             },
             { enabled: isGroupManagementEnabled },
@@ -202,9 +205,6 @@ const GroupsView: FC = () => {
         console.error(userGroupsFeatureFlagQuery.error);
         throw new Error('Error fetching user groups feature flag');
     }
-    if (isLoadingGroups) {
-        return <LoadingState title="Loading groups" />;
-    }
 
     return (
         <Stack spacing="xs">
@@ -213,7 +213,7 @@ const GroupsView: FC = () => {
                     <Group align="center" position="apart">
                         <TextInput
                             size="xs"
-                            placeholder="Search groups by name, members or member email "
+                            placeholder="Search groups by name, members or member email"
                             onChange={(e) => setSearch(e.target.value)}
                             value={search}
                             w={320}
@@ -244,8 +244,19 @@ const GroupsView: FC = () => {
                             <th />
                         </tr>
                     </thead>
-                    <tbody>
-                        {groups && groups.length ? (
+                    <tbody style={{ position: 'relative' }}>
+                        {isLoadingGroups ? (
+                            <tr>
+                                <td colSpan={3}>
+                                    <Box py="lg">
+                                        <LoadingOverlay
+                                            visible={true}
+                                            transitionDuration={200}
+                                        />
+                                    </Box>
+                                </td>
+                            </tr>
+                        ) : groups && groups.length > 0 ? (
                             groups.map((group) => {
                                 if (!isGroupWithMembers(group)) {
                                     return null;
