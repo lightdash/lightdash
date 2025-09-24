@@ -1,6 +1,5 @@
 import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
 import {
@@ -76,7 +75,6 @@ const App = () => (
                     </ModalsProvider>
                 </Mantine8Provider>
             </MantineProvider>
-            <ReactQueryDevtools initialIsOpen={false} />
         </ReactQueryProvider>
     </>
 );

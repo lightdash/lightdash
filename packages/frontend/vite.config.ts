@@ -21,6 +21,9 @@ export default defineConfig(async () => {
         publicDir: 'public',
         define: {
             __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+            REACT_SCAN_ENABLED: process.env.REACT_SCAN_ENABLED ?? true,
+            REACT_QUERY_DEVTOOLS_ENABLED:
+                process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true,
         },
         plugins: [
             svgrPlugin(),
