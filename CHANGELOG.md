@@ -1,3 +1,11 @@
+## [0.2024.1](https://github.com/lightdash/lightdash/compare/0.2024.0...0.2024.1) (2025-09-24)
+
+
+### Bug Fixes
+
+* improve performance when checking if a chart exists on a dashboard ([#17072](https://github.com/lightdash/lightdash/issues/17072)) ([870df93](https://github.com/lightdash/lightdash/commit/870df93d6cfec42120adf9ae84f1e4d32ce8c618))
+* prevent search input focus loss in Settings Groups view ([#17074](https://github.com/lightdash/lightdash/issues/17074)) ([09211f8](https://github.com/lightdash/lightdash/commit/09211f832c8a828819731470afa479c2fea49305)), closes [#17068](https://github.com/lightdash/lightdash/issues/17068)
+
 # [0.2024.0](https://github.com/lightdash/lightdash/compare/0.2023.1...0.2024.0) (2025-09-24)
 
 
