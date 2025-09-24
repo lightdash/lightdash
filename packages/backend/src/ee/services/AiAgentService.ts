@@ -2254,7 +2254,7 @@ export class AiAgentService {
             );
         }
 
-        const slackTagRegex = /^.*?(<@U\d+\w*?>)/g;
+        const slackTagRegex = /<@U\d+\w*?>/g;
 
         const uuid = await this.aiAgentModel.createSlackPrompt({
             threadUuid,
