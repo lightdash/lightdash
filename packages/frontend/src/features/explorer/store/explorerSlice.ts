@@ -1,4 +1,5 @@
 import {
+    type CustomDimension,
     type MetricQuery,
     type ParameterValue,
     type TableCalculation,
@@ -120,6 +121,47 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.tableCalculations =
                 state.unsavedChartVersion.metricQuery.tableCalculations.filter(
                     (tc) => tc.name !== nameToRemove,
+                );
+        },
+
+        // Custom dimensions
+        addCustomDimension: (state, action: PayloadAction<CustomDimension>) => {
+            if (!state.unsavedChartVersion.metricQuery.customDimensions) {
+                state.unsavedChartVersion.metricQuery.customDimensions = [];
+            }
+            state.unsavedChartVersion.metricQuery.customDimensions.push(
+                action.payload,
+            );
+        },
+        updateCustomDimension: (
+            state,
+            action: PayloadAction<{
+                oldId: string;
+                customDimension: CustomDimension;
+            }>,
+        ) => {
+            const { oldId, customDimension } = action.payload;
+            if (!state.unsavedChartVersion.metricQuery.customDimensions) {
+                state.unsavedChartVersion.metricQuery.customDimensions = [];
+                return;
+            }
+            const index =
+                state.unsavedChartVersion.metricQuery.customDimensions.findIndex(
+                    (cd) => cd.id === oldId,
+                );
+            if (index > -1) {
+                state.unsavedChartVersion.metricQuery.customDimensions[index] =
+                    customDimension;
+            }
+        },
+        removeCustomDimension: (state, action: PayloadAction<string>) => {
+            const idToRemove = action.payload;
+            if (!state.unsavedChartVersion.metricQuery.customDimensions) {
+                return;
+            }
+            state.unsavedChartVersion.metricQuery.customDimensions =
+                state.unsavedChartVersion.metricQuery.customDimensions.filter(
+                    (cd) => cd.id !== idToRemove,
                 );
         },
     },

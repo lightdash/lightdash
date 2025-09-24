@@ -1258,10 +1258,10 @@ const ExplorerProvider: FC<
                 type: ActionType.ADD_CUSTOM_DIMENSION,
                 payload: customDimension,
             });
-
-            // TODO: add dispatch toggle
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.addCustomDimension(customDimension));
         },
-        [],
+        [reduxDispatch],
     );
 
     const editCustomDimension = useCallback(
@@ -1273,17 +1273,28 @@ const ExplorerProvider: FC<
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
                 payload: { customDimension, previousCustomDimensionId },
             });
-            // TODO: add dispatch toggle
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(
+                explorerActions.updateCustomDimension({
+                    oldId: previousCustomDimensionId,
+                    customDimension,
+                }),
+            );
         },
-        [],
+        [reduxDispatch],
     );
 
-    const removeCustomDimension = useCallback((key: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_CUSTOM_DIMENSION,
-            payload: key,
-        });
-    }, []);
+    const removeCustomDimension = useCallback(
+        (key: FieldId) => {
+            dispatch({
+                type: ActionType.REMOVE_CUSTOM_DIMENSION,
+                payload: key,
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.removeCustomDimension(key));
+        },
+        [reduxDispatch],
+    );
 
     const toggleCustomDimensionModal = useCallback(
         (
