@@ -1,3 +1,17 @@
+# [0.2023.0](https://github.com/lightdash/lightdash/compare/0.2022.0...0.2023.0) (2025-09-24)
+
+
+### Bug Fixes
+
+* feedback, follow up tools, explore in lightdash and links not being sent to slack after agent response ([#17062](https://github.com/lightdash/lightdash/issues/17062)) ([0b2cdf2](https://github.com/lightdash/lightdash/commit/0b2cdf2ec4ef5c7a04b4a2cd5a35b3c8b0dd27d1))
+* update Slack tag regex pattern ([#17064](https://github.com/lightdash/lightdash/issues/17064)) ([7e43151](https://github.com/lightdash/lightdash/commit/7e4315180ce3724b2e4126078872202ca89630b6))
+
+
+### Features
+
+* add dashboard link in Slack for artifacts with dashboard config ([#17063](https://github.com/lightdash/lightdash/issues/17063)) ([721d63e](https://github.com/lightdash/lightdash/commit/721d63e23aaee0b501b0a1512bf4ce5d6a964cad))
+* improve AI provider type system with schema-derived types ([#17017](https://github.com/lightdash/lightdash/issues/17017)) ([fc1fdec](https://github.com/lightdash/lightdash/commit/fc1fdec9d9e2bb3ef09c81161d7a92d33abb0791))
+
 # [0.2022.0](https://github.com/lightdash/lightdash/compare/0.2021.1...0.2022.0) (2025-09-24)
 
 
