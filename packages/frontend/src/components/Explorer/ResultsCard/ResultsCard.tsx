@@ -2,6 +2,13 @@ import { subject } from '@casl/ability';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
+import {
+    explorerActions,
+    selectIsEditMode,
+    selectIsResultsExpanded,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
@@ -21,12 +28,10 @@ import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
-    const expandedSections = useExplorerContext(
-        (context) => context.state.expandedSections,
-    );
+
+    const isEditMode = useExplorerSelector(selectIsEditMode);
+    const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
+    const dispatch = useExplorerDispatch();
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -37,8 +42,11 @@ const ResultsCard: FC = memo(() => {
     const totalResults = useExplorerContext(
         (context) => context.queryResults.totalResults,
     );
-    const toggleExpandedSection = useExplorerContext(
-        (context) => context.actions.toggleExpandedSection,
+    const toggleExpandedSection = useCallback(
+        (section: ExplorerSection) => {
+            dispatch(explorerActions.toggleExpandedSection(section));
+        },
+        [dispatch],
     );
     const metricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
@@ -57,10 +65,6 @@ const ResultsCard: FC = memo(() => {
 
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
-    const resultsIsOpen = useMemo(
-        () => expandedSections.includes(ExplorerSection.RESULTS),
-        [expandedSections],
-    );
     const toggleCard = useCallback(
         () => toggleExpandedSection(ExplorerSection.RESULTS),
         [toggleExpandedSection],

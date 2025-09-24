@@ -1,8 +1,10 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { type FC, useMemo } from 'react';
+import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
+import { explorerStore } from '../features/explorer/store';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useSearchParams from '../hooks/useSearchParams';
@@ -93,53 +95,55 @@ const MinimalSavedExplorer: FC = () => {
     }
 
     return (
-        <ExplorerProvider
-            minimal={true}
-            viewModeQueryArgs={
-                savedQueryUuid
-                    ? { chartUuid: savedQueryUuid, context }
-                    : undefined
-            }
-            dateZoomGranularity={dateZoomGranularity}
-            savedChart={data}
-            initialState={
-                data
-                    ? {
-                          parameterReferences: Object.keys(
-                              data.parameters ?? {},
-                          ),
-                          parameterDefinitions: {},
-                          expandedSections: [ExplorerSection.VISUALIZATION],
-                          unsavedChartVersion: {
-                              tableName: data.tableName,
-                              chartConfig: data.chartConfig,
-                              metricQuery: data.metricQuery,
-                              tableConfig: data.tableConfig,
-                              pivotConfig: data.pivotConfig,
-                              parameters: data.parameters,
-                          },
-                          modals: {
-                              format: {
-                                  isOpen: false,
+        <Provider store={explorerStore}>
+            <ExplorerProvider
+                minimal={true}
+                viewModeQueryArgs={
+                    savedQueryUuid
+                        ? { chartUuid: savedQueryUuid, context }
+                        : undefined
+                }
+                dateZoomGranularity={dateZoomGranularity}
+                savedChart={data}
+                initialState={
+                    data
+                        ? {
+                              parameterReferences: Object.keys(
+                                  data.parameters ?? {},
+                              ),
+                              parameterDefinitions: {},
+                              expandedSections: [ExplorerSection.VISUALIZATION],
+                              unsavedChartVersion: {
+                                  tableName: data.tableName,
+                                  chartConfig: data.chartConfig,
+                                  metricQuery: data.metricQuery,
+                                  tableConfig: data.tableConfig,
+                                  pivotConfig: data.pivotConfig,
+                                  parameters: data.parameters,
                               },
-                              additionalMetric: {
-                                  isOpen: false,
+                              modals: {
+                                  format: {
+                                      isOpen: false,
+                                  },
+                                  additionalMetric: {
+                                      isOpen: false,
+                                  },
+                                  customDimension: {
+                                      isOpen: false,
+                                  },
+                                  writeBack: {
+                                      isOpen: false,
+                                  },
                               },
-                              customDimension: {
-                                  isOpen: false,
-                              },
-                              writeBack: {
-                                  isOpen: false,
-                              },
-                          },
-                      }
-                    : undefined
-            }
-        >
-            <MantineProvider inherit theme={themeOverride}>
-                <MinimalExplorer />
-            </MantineProvider>
-        </ExplorerProvider>
+                          }
+                        : undefined
+                }
+            >
+                <MantineProvider inherit theme={themeOverride}>
+                    <MinimalExplorer />
+                </MantineProvider>
+            </ExplorerProvider>
+        </Provider>
     );
 };
 

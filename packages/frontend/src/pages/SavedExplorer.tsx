@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
@@ -6,6 +7,7 @@ import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import { explorerStore } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
@@ -52,58 +54,61 @@ const SavedExplorer = () => {
     }
 
     return (
-        <ExplorerProvider
-            isEditMode={isEditMode}
-            viewModeQueryArgs={
-                savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined
-            }
-            initialState={
-                data
-                    ? {
-                          parameterReferences: Object.keys(
-                              data.parameters ?? {},
-                          ),
-                          parameterDefinitions: {},
-                          expandedSections: [ExplorerSection.VISUALIZATION],
-                          unsavedChartVersion: {
-                              tableName: data.tableName,
-                              chartConfig: data.chartConfig,
-                              metricQuery: data.metricQuery,
-                              tableConfig: data.tableConfig,
-                              pivotConfig: data.pivotConfig,
-                              parameters: data.parameters,
-                          },
-                          modals: {
-                              format: {
-                                  isOpen: false,
+        <Provider store={explorerStore}>
+            <ExplorerProvider
+                isEditMode={isEditMode}
+                viewModeQueryArgs={
+                    savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined
+                }
+                initialState={
+                    data
+                        ? {
+                              isEditMode,
+                              parameterReferences: Object.keys(
+                                  data.parameters ?? {},
+                              ),
+                              parameterDefinitions: {},
+                              expandedSections: [ExplorerSection.VISUALIZATION],
+                              unsavedChartVersion: {
+                                  tableName: data.tableName,
+                                  chartConfig: data.chartConfig,
+                                  metricQuery: data.metricQuery,
+                                  tableConfig: data.tableConfig,
+                                  pivotConfig: data.pivotConfig,
+                                  parameters: data.parameters,
                               },
-                              additionalMetric: {
-                                  isOpen: false,
+                              modals: {
+                                  format: {
+                                      isOpen: false,
+                                  },
+                                  additionalMetric: {
+                                      isOpen: false,
+                                  },
+                                  customDimension: {
+                                      isOpen: false,
+                                  },
+                                  writeBack: {
+                                      isOpen: false,
+                                  },
                               },
-                              customDimension: {
-                                  isOpen: false,
-                              },
-                              writeBack: {
-                                  isOpen: false,
-                              },
-                          },
-                      }
-                    : undefined
-            }
-            savedChart={data}
-            defaultLimit={health.data?.query.defaultLimit}
-        >
-            <Page
-                title={data?.name}
-                header={<SavedChartsHeader />}
-                sidebar={<ExplorePanel />}
-                isSidebarOpen={isEditMode}
-                withFullHeight
-                withPaddedContent
+                          }
+                        : undefined
+                }
+                savedChart={data}
+                defaultLimit={health.data?.query.defaultLimit}
             >
-                <Explorer />
-            </Page>
-        </ExplorerProvider>
+                <Page
+                    title={data?.name}
+                    header={<SavedChartsHeader />}
+                    sidebar={<ExplorePanel />}
+                    isSidebarOpen={isEditMode}
+                    withFullHeight
+                    withPaddedContent
+                >
+                    <Explorer />
+                </Page>
+            </ExplorerProvider>
+        </Provider>
     );
 };
 

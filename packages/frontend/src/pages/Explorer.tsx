@@ -1,12 +1,14 @@
 import { subject } from '@casl/ability';
 import { memo } from 'react';
+import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 
 import { useHotkeys } from '@mantine/hooks';
+import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import Page from '../components/common/Page/Page';
+import { explorerStore } from '../features/explorer/store';
 import { useExplore } from '../hooks/useExplore';
 import {
     useDateZoomGranularitySearch,
@@ -15,6 +17,7 @@ import {
 } from '../hooks/useExplorerRoute';
 import { ProfilerWrapper } from '../perf/ProfilerWrapper';
 import useApp from '../providers/App/useApp';
+import { defaultState } from '../providers/Explorer/defaultState';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 
@@ -72,14 +75,20 @@ const ExplorerPage = memo(() => {
     }
 
     return (
-        <ExplorerProvider
-            isEditMode={true}
-            initialState={explorerUrlState}
-            defaultLimit={health.data?.query.defaultLimit}
-            dateZoomGranularity={dateZoomGranularity}
-        >
-            <ExplorerWithUrlParams />
-        </ExplorerProvider>
+        <Provider store={explorerStore}>
+            <ExplorerProvider
+                isEditMode={true}
+                initialState={
+                    explorerUrlState
+                        ? { ...explorerUrlState, isEditMode: true }
+                        : { ...defaultState, isEditMode: true }
+                }
+                defaultLimit={health.data?.query.defaultLimit}
+                dateZoomGranularity={dateZoomGranularity}
+            >
+                <ExplorerWithUrlParams />
+            </ExplorerProvider>
+        </Provider>
     );
 });
 

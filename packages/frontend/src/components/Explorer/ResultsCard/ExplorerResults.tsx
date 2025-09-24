@@ -2,6 +2,10 @@ import { FeatureFlags, getItemMap } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 
+import {
+    selectIsEditMode,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
@@ -47,9 +51,7 @@ const getQueryStatus = (
 
 export const ExplorerResults = memo(() => {
     const columns = useColumns();
-    const isEditMode = useExplorerContext(
-        (context) => context.state.isEditMode,
-    );
+    const isEditMode = useExplorerSelector(selectIsEditMode);
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );

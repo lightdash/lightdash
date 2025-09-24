@@ -50,6 +50,13 @@ import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
 } from '../../components/RunQuerySettings/defaults';
+import {
+    explorerActions,
+    selectFilters,
+    useExplorerDispatch,
+    useExplorerInitialization,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
@@ -833,16 +840,6 @@ export function reducer(
             }
             return state;
         }
-        case ActionType.OPEN_VISUALIZATION_CONFIG: {
-            return produce(state, (draft) => {
-                draft.isVisualizationConfigOpen = true;
-            });
-        }
-        case ActionType.CLOSE_VISUALIZATION_CONFIG: {
-            return produce(state, (draft) => {
-                draft.isVisualizationConfigOpen = false;
-            });
-        }
         case ActionType.SET_PARAMETER_REFERENCES: {
             return produce(state, (draft) => {
                 draft.parameterReferences = action.payload;
@@ -906,6 +903,33 @@ const ExplorerProvider: FC<
     );
     const { unsavedChartVersion } = reducerState;
 
+    // Create initial state with isEditMode
+    const initialStateWithEditMode = useMemo(
+        () => ({
+            ...(initialState || defaultStateWithConfig),
+            isEditMode,
+        }),
+        [initialState, defaultStateWithConfig, isEditMode],
+    );
+
+    useExplorerInitialization(initialStateWithEditMode);
+
+    const reduxFilters = useExplorerSelector(selectFilters);
+    const reduxDispatch = useExplorerDispatch();
+
+    // Keep Redux isEditMode in sync with prop changes
+    useEffect(() => {
+        reduxDispatch(explorerActions.setIsEditMode(isEditMode));
+    }, [isEditMode, reduxDispatch]);
+
+    const computedMetricQuery = useMemo(
+        () => ({
+            ...unsavedChartVersion.metricQuery,
+            filters: reduxFilters,
+        }),
+        [unsavedChartVersion.metricQuery, reduxFilters],
+    );
+
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
     >(() => {
@@ -934,19 +958,17 @@ const ExplorerProvider: FC<
         });
     }, [defaultStateWithConfig, initialState]);
 
-    const setTableName = useCallback((tableName: string) => {
-        dispatch({
-            type: ActionType.SET_TABLE_NAME,
-            payload: tableName,
-        });
-    }, []);
-
-    const toggleExpandedSection = useCallback((payload: ExplorerSection) => {
-        dispatch({
-            type: ActionType.TOGGLE_EXPANDED_SECTION,
-            payload,
-        });
-    }, []);
+    const setTableName = useCallback(
+        (tableName: string) => {
+            dispatch({
+                type: ActionType.SET_TABLE_NAME,
+                payload: tableName,
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.setTableName(tableName));
+        },
+        [reduxDispatch],
+    );
 
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
@@ -1044,6 +1066,7 @@ const ExplorerProvider: FC<
             type: ActionType.SET_FILTERS,
             payload: filters,
         });
+        // TODO: Migration - currently double dispatch. Once all components use Redux directly, this context action can be removed
     }, []);
 
     const setParameter = useCallback(
@@ -1184,8 +1207,12 @@ const ExplorerProvider: FC<
                 type: ActionType.ADD_TABLE_CALCULATION,
                 payload: tableCalculation,
             });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(
+                explorerActions.addTableCalculation(tableCalculation),
+            );
         },
-        [unsavedChartVersion],
+        [unsavedChartVersion, reduxDispatch],
     );
     const updateTableCalculation = useCallback(
         (oldName: string, tableCalculation: TableCalculation) => {
@@ -1203,15 +1230,27 @@ const ExplorerProvider: FC<
                 type: ActionType.UPDATE_TABLE_CALCULATION,
                 payload: { oldName, tableCalculation },
             });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(
+                explorerActions.updateTableCalculation({
+                    oldName,
+                    tableCalculation,
+                }),
+            );
         },
-        [unsavedChartVersion],
+        [unsavedChartVersion, reduxDispatch],
     );
-    const deleteTableCalculation = useCallback((name: string) => {
-        dispatch({
-            type: ActionType.DELETE_TABLE_CALCULATION,
-            payload: name,
-        });
-    }, []);
+    const deleteTableCalculation = useCallback(
+        (name: string) => {
+            dispatch({
+                type: ActionType.DELETE_TABLE_CALCULATION,
+                payload: name,
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.deleteTableCalculation(name));
+        },
+        [reduxDispatch],
+    );
 
     const addCustomDimension = useCallback(
         (customDimension: CustomDimension) => {
@@ -1219,10 +1258,10 @@ const ExplorerProvider: FC<
                 type: ActionType.ADD_CUSTOM_DIMENSION,
                 payload: customDimension,
             });
-
-            // TODO: add dispatch toggle
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.addCustomDimension(customDimension));
         },
-        [],
+        [reduxDispatch],
     );
 
     const editCustomDimension = useCallback(
@@ -1234,17 +1273,28 @@ const ExplorerProvider: FC<
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
                 payload: { customDimension, previousCustomDimensionId },
             });
-            // TODO: add dispatch toggle
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(
+                explorerActions.updateCustomDimension({
+                    oldId: previousCustomDimensionId,
+                    customDimension,
+                }),
+            );
         },
-        [],
+        [reduxDispatch],
     );
 
-    const removeCustomDimension = useCallback((key: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_CUSTOM_DIMENSION,
-            payload: key,
-        });
-    }, []);
+    const removeCustomDimension = useCallback(
+        (key: FieldId) => {
+            dispatch({
+                type: ActionType.REMOVE_CUSTOM_DIMENSION,
+                payload: key,
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.removeCustomDimension(key));
+        },
+        [reduxDispatch],
+    );
 
     const toggleCustomDimensionModal = useCallback(
         (
@@ -1380,6 +1430,7 @@ const ExplorerProvider: FC<
 
     const state = useMemo(
         () => ({
+            // Don't use Redux state directly here to avoid re-renders
             ...reducerState,
             isEditMode,
             activeFields,
@@ -1521,15 +1572,13 @@ const ExplorerProvider: FC<
     // Prepares and executes query if all required parameters exist
     const runQuery = useCallback(() => {
         const fields = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ),
+            ...computedMetricQuery.dimensions,
+            ...computedMetricQuery.metrics,
+            ...computedMetricQuery.tableCalculations.map(({ name }) => name),
         ]);
         const hasFields = fields.size > 0;
         if (!!unsavedChartVersion.tableName && hasFields && projectUuid) {
-            const metricQuery = unsavedChartVersion.metricQuery;
+            const metricQuery = computedMetricQuery; // Use computed metricQuery with Redux filters
             let pivotConfiguration: PivotConfiguration | undefined;
 
             if (!explore) {
@@ -1576,6 +1625,7 @@ const ExplorerProvider: FC<
             );
         }
     }, [
+        computedMetricQuery, // Use computed metricQuery instead of context metricQuery
         unsavedChartVersion.metricQuery,
         unsavedChartVersion.tableName,
         unsavedChartVersion.parameters,
@@ -1629,6 +1679,8 @@ const ExplorerProvider: FC<
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
+        // Reset Redux store for filters and other migrated state
+        reduxDispatch(explorerActions.reset(defaultStateWithConfig));
         resetQueryResults();
     }, [
         queryClient,
@@ -1636,6 +1688,7 @@ const ExplorerProvider: FC<
         defaultStateWithConfig,
         mainSetQueryUuidHistory,
         unpivotedSetQueryUuidHistory,
+        reduxDispatch,
     ]);
 
     const navigate = useNavigate();
@@ -1706,12 +1759,12 @@ const ExplorerProvider: FC<
     ]);
 
     const openVisualizationConfig = useCallback(() => {
-        dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
-    }, []);
+        reduxDispatch(explorerActions.openVisualizationConfig());
+    }, [reduxDispatch]);
 
     const closeVisualizationConfig = useCallback(() => {
-        dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
-    }, []);
+        reduxDispatch(explorerActions.closeVisualizationConfig());
+    }, [reduxDispatch]);
 
     const setParameterReferences = useCallback(
         (parameterReferences: string[] | null) => {
@@ -1755,7 +1808,6 @@ const ExplorerProvider: FC<
             setChartConfig,
             fetchResults,
             cancelQuery,
-            toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
@@ -1799,7 +1851,6 @@ const ExplorerProvider: FC<
             setChartConfig,
             fetchResults,
             cancelQuery,
-            toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
             removeCustomDimension,
