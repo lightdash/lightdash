@@ -1,3 +1,16 @@
+# [0.2022.0](https://github.com/lightdash/lightdash/compare/0.2021.1...0.2022.0) (2025-09-24)
+
+
+### Bug Fixes
+
+* enhance agent chat input focus styling ([#17052](https://github.com/lightdash/lightdash/issues/17052)) ([545dc4a](https://github.com/lightdash/lightdash/commit/545dc4acfa3fe37887d67f735a1138dd33a3cb52))
+* improve AI agent sidebar layout and collapse functionality ([#17051](https://github.com/lightdash/lightdash/issues/17051)) ([eb02498](https://github.com/lightdash/lightdash/commit/eb02498f3e365ca08d9130e60a3a1323409574d9))
+
+
+### Features
+
+* enhance AgentChatDebugDrawer with artifact visualization support ([#17053](https://github.com/lightdash/lightdash/issues/17053)) ([2f3f010](https://github.com/lightdash/lightdash/commit/2f3f010a5f1b528f9b40ea6aeaefc476812acae6))
+
 ## [0.2021.1](https://github.com/lightdash/lightdash/compare/0.2021.0...0.2021.1) (2025-09-23)
 
 
