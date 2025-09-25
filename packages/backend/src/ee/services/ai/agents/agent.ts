@@ -253,11 +253,9 @@ const getAgentMessages = async (
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const availableExplores = await dependencies.findExplores({
+    const availableExplores = await dependencies.listExplores({
         page: 1,
         pageSize: args.availableExploresPageSize,
-        tableName: null,
-        includeFields: false,
     });
 
     const messages = [

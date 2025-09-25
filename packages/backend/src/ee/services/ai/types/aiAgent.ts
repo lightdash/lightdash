@@ -10,6 +10,7 @@ import {
     FindFieldFn,
     GetExploreFn,
     GetPromptFn,
+    ListExploresFn,
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
@@ -52,6 +53,7 @@ export type PerformanceMetrics = {
 };
 
 export type AiAgentDependencies = {
+    listExplores: ListExploresFn;
     findCharts: FindChartsFn;
     findDashboards: FindDashboardsFn;
     findExplores: FindExploresFn;

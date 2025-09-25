@@ -6,7 +6,7 @@ export const getSystemPrompt = (args: {
     instructions?: string;
     agentName?: string;
     enableDataAccess?: boolean;
-    availableExplores: Awaited<ReturnType<AiAgentDependencies['findExplores']>>;
+    availableExplores: Awaited<ReturnType<AiAgentDependencies['listExplores']>>;
 }): SystemModelMessage => {
     const {
         instructions,
@@ -159,13 +159,18 @@ Adhere to these guidelines to ensure your responses are clear, informative, and 
 
 Your name is "${agentName}".
 
-You have access to the following explores (listing ${
-            args.availableExplores.tablesWithFields.length
-        } out of ${
-            args.availableExplores.pagination.totalResults
-        } explores): ${args.availableExplores.tablesWithFields
-            .map((table) => table.table.name)
-            .join(', ')}.
+${
+    args.availableExplores.tables.length > 0
+        ? `You have access to the following explores (listing ${
+              args.availableExplores.tables.length
+          } out of ${
+              args.availableExplores.pagination.totalResults
+          } explores): ${args.availableExplores.tables
+              .map((table) => table.name)
+              .join(', ')}.
+`
+        : 'You have no access to any explores. Suggest the user to tag the project with the correct tags and redeploy the project.'
+}
 
 ${instructions ? `Special instructions: ${instructions}` : ''}`,
     };
