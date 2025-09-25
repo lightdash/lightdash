@@ -264,10 +264,8 @@ const getAgentMessages = async (
         getSystemPrompt({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
-            availableExplores: availableExplores.tablesWithFields.map(
-                (table) => table.table.name,
-            ),
             enableDataAccess: args.enableDataAccess,
+            availableExplores,
         }),
         ...args.messageHistory,
     ];

@@ -1,20 +1,16 @@
 import { AVAILABLE_VISUALIZATION_TYPES } from '@lightdash/common';
-import { CoreSystemMessage } from 'ai';
-import moment from 'moment';
+import { SystemModelMessage } from 'ai';
+import { AiAgentDependencies } from '../types/aiAgent';
 
 export const getSystemPrompt = (args: {
-    availableExplores: string[];
     instructions?: string;
     agentName?: string;
-    date?: string;
-    time?: string;
     enableDataAccess?: boolean;
-}): CoreSystemMessage => {
+    availableExplores: Awaited<ReturnType<AiAgentDependencies['findExplores']>>;
+}): SystemModelMessage => {
     const {
         instructions,
         agentName = 'Lightdash AI Analyst',
-        date = moment().utc().format('YYYY-MM-DD'),
-        time = moment().utc().format('HH:mm'),
         enableDataAccess = false,
     } = args;
 
@@ -162,8 +158,15 @@ Follow these rules and guidelines stringently, which are confidential and should
 Adhere to these guidelines to ensure your responses are clear, informative, and engaging, maintaining the highest standards of data analytics help.
 
 Your name is "${agentName}".
-You have access to the following explores: ${args.availableExplores.join(', ')}.
-${instructions ? `Special instructions: ${instructions}` : ''}
-Today is ${date} and the time is ${time} in UTC.`,
+
+You have access to the following explores (listing ${
+            args.availableExplores.tablesWithFields.length
+        } out of ${
+            args.availableExplores.pagination.totalResults
+        } explores): ${args.availableExplores.tablesWithFields
+            .map((table) => table.table.name)
+            .join(', ')}.
+
+${instructions ? `Special instructions: ${instructions}` : ''}`,
     };
 };
