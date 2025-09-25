@@ -116,7 +116,7 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.error = error;
             }
         },
-        showImproveContextNotification: (
+        setImproveContextNotification: (
             state,
             action: PayloadAction<{
                 threadUuid: string;
@@ -128,20 +128,20 @@ export const aiAgentThreadStreamSlice = createSlice({
                 action.payload;
             const streamingThread = state[threadUuid];
             if (streamingThread) {
-                streamingThread.improveContextNotifaction = {
+                streamingThread.improveContextNotification = {
                     toolCallId,
                     suggestedInstruction,
                 };
             }
         },
-        hideImproveContextNotification: (
+        clearImproveContextNotification: (
             state,
             action: PayloadAction<{ threadUuid: string }>,
         ) => {
             const { threadUuid } = action.payload;
             const streamingThread = state[threadUuid];
             if (streamingThread) {
-                streamingThread.improveContextNotifaction = undefined;
+                streamingThread.improveContextNotification = undefined;
             }
         },
     },
@@ -153,6 +153,6 @@ export const {
     stopStreaming,
     setError,
     addToolCall,
-    showImproveContextNotification,
-    hideImproveContextNotification,
+    setImproveContextNotification,
+    clearImproveContextNotification,
 } = aiAgentThreadStreamSlice.actions;

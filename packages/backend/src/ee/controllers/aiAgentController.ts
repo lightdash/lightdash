@@ -887,6 +887,7 @@ export class AiAgentController extends BaseController {
         const updatedInstruction =
             await this.getAiAgentService().appendInstruction(
                 req.user!,
+                projectUuid,
                 agentUuid,
                 body.instruction,
             );

@@ -3534,11 +3534,12 @@ export class AiAgentService {
 
     async appendInstruction(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         instruction: string,
     ): Promise<string> {
         // Check user has access to the agent
-        await this.getAgent(user, agentUuid);
+        await this.getAgent(user, agentUuid, projectUuid);
 
         return this.aiAgentModel.appendInstruction({
             agentUuid,

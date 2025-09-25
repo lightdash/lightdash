@@ -10,8 +10,8 @@ import { lightdashApiStream } from '../../../../api';
 import {
     addToolCall,
     setError,
+    setImproveContextNotification,
     setMessage,
-    showImproveContextNotification,
     startStreaming,
     stopStreaming,
 } from '../store/aiAgentThreadStreamSlice';
@@ -151,7 +151,7 @@ export function useAiAgentThreadStreamMutation() {
                                                 AiResultType.IMPROVE_CONTEXT
                                         ) {
                                             dispatch(
-                                                showImproveContextNotification({
+                                                setImproveContextNotification({
                                                     threadUuid,
                                                     toolCallId: part.toolCallId,
                                                     suggestedInstruction:

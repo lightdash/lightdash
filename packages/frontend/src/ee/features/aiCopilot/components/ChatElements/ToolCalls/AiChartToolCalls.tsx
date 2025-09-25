@@ -38,7 +38,7 @@ import {
 import { type FC, type JSX } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useAppendInstructionMutation } from '../../../hooks/useProjectAiAgents';
-import { hideImproveContextNotification } from '../../../store/aiAgentThreadStreamSlice';
+import { clearImproveContextNotification } from '../../../store/aiAgentThreadStreamSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -300,7 +300,7 @@ const ImproveContextToolCall: FC<{
 }> = ({ projectUuid, agentUuid, threadUuid }) => {
     const improveContextNotification = useAiAgentStoreSelector(
         (state) =>
-            state.aiAgentThreadStream[threadUuid]?.improveContextNotifaction,
+            state.aiAgentThreadStream[threadUuid]?.improveContextNotification,
     );
     const dispatch = useAiAgentStoreDispatch();
 
@@ -321,7 +321,7 @@ const ImproveContextToolCall: FC<{
         });
 
         dispatch(
-            hideImproveContextNotification({
+            clearImproveContextNotification({
                 threadUuid,
             }),
         );
@@ -329,7 +329,7 @@ const ImproveContextToolCall: FC<{
 
     const handleDismiss = () => {
         dispatch(
-            hideImproveContextNotification({
+            clearImproveContextNotification({
                 threadUuid,
             }),
         );
