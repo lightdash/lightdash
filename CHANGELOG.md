@@ -1,3 +1,10 @@
+## [0.2024.2](https://github.com/lightdash/lightdash/compare/0.2024.1...0.2024.2) (2025-09-25)
+
+
+### Bug Fixes
+
+* add projectUuid parameter to AI agent evaluation methods ([#17012](https://github.com/lightdash/lightdash/issues/17012)) ([b35402c](https://github.com/lightdash/lightdash/commit/b35402cf5919b3e93267c93ef5dcfffd8f146256))
+
 ## [0.2024.1](https://github.com/lightdash/lightdash/compare/0.2024.0...0.2024.1) (2025-09-24)
 
 
