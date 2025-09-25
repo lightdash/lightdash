@@ -1,3 +1,10 @@
+## [0.2024.3](https://github.com/lightdash/lightdash/compare/0.2024.2...0.2024.3) (2025-09-25)
+
+
+### Bug Fixes
+
+* allow viewing pending eval and improve polling ([#17061](https://github.com/lightdash/lightdash/issues/17061)) ([f227d44](https://github.com/lightdash/lightdash/commit/f227d441995de6e50df2bc3df1d4764953251216))
+
 ## [0.2024.2](https://github.com/lightdash/lightdash/compare/0.2024.1...0.2024.2) (2025-09-25)
 
 
