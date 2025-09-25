@@ -14,7 +14,7 @@ export interface AiAgentThreadStreamingState {
     isStreaming: boolean;
     toolCalls: ToolCall[];
     error?: string;
-    improveContextNotifaction?: {
+    improveContextNotification?: {
         toolCallId: string;
         suggestedInstruction: string;
     };
