@@ -3206,11 +3206,12 @@ export class AiAgentService {
 
     async createEval(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         data: ApiCreateEvaluationRequest,
     ) {
         // Reuse existing access control
-        const agent = await this.getAgent(user, agentUuid);
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
 
         const evaluation = await this.aiAgentModel.createEval(
             agentUuid,
@@ -3237,8 +3238,13 @@ export class AiAgentService {
         return evaluation;
     }
 
-    async getEval(user: SessionUser, agentUuid: string, evalUuid: string) {
-        await this.getAgent(user, agentUuid);
+    async getEval(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        evalUuid: string,
+    ) {
+        await this.getAgent(user, agentUuid, projectUuid);
 
         const evaluation = await this.aiAgentModel.getEval({
             agentUuid,
@@ -3250,18 +3256,20 @@ export class AiAgentService {
 
     async getEvalsByAgent(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
     ): Promise<AiAgentEvaluationSummary[]> {
-        await this.getAgent(user, agentUuid);
+        await this.getAgent(user, agentUuid, projectUuid);
         return this.aiAgentModel.getEvalsByAgent(agentUuid);
     }
 
     async runEval(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         evalUuid: string,
     ): Promise<AiAgentEvaluationRun> {
-        const agent = await this.getAgent(user, agentUuid);
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
 
         const evaluation = await this.aiAgentModel.getEval({
             agentUuid,
@@ -3336,11 +3344,12 @@ export class AiAgentService {
 
     async getEvalRuns(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         evalUuid: string,
         paginateArgs?: KnexPaginateArgs,
     ) {
-        await this.getAgent(user, agentUuid);
+        await this.getAgent(user, agentUuid, projectUuid);
 
         const evalData = await this.aiAgentModel.getEval({
             agentUuid,
@@ -3352,11 +3361,12 @@ export class AiAgentService {
 
     async getEvalRunWithResults(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         evalUuid: string,
         runUuid: string,
     ) {
-        await this.getAgent(user, agentUuid);
+        await this.getAgent(user, agentUuid, projectUuid);
 
         const evalData = await this.aiAgentModel.getEval({
             agentUuid,
@@ -3373,12 +3383,13 @@ export class AiAgentService {
 
     async updateEval(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         evalUuid: string,
         data: ApiUpdateEvaluationRequest,
     ) {
         // Check access to agent
-        await this.getAgent(user, agentUuid);
+        await this.getAgent(user, agentUuid, projectUuid);
 
         await this.aiAgentModel.getEval({
             agentUuid,
@@ -3390,12 +3401,13 @@ export class AiAgentService {
 
     async appendToEval(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         evalUuid: string,
         data: ApiAppendEvaluationRequest,
     ) {
         // Check access to agent
-        const agent = await this.getAgent(user, agentUuid);
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
 
         const evaluation = await this.aiAgentModel.getEval({
             agentUuid,
@@ -3420,9 +3432,14 @@ export class AiAgentService {
         return result;
     }
 
-    async deleteEval(user: SessionUser, agentUuid: string, evalUuid: string) {
+    async deleteEval(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        evalUuid: string,
+    ) {
         // Check access to agent
-        await this.getAgent(user, agentUuid);
+        await this.getAgent(user, agentUuid, projectUuid);
 
         const evaluation = await this.aiAgentModel.getEval({
             agentUuid,
