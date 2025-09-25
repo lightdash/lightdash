@@ -533,7 +533,7 @@ export class CatalogModel {
             .andWhere(
                 CatalogModel.whereTablesConfiguration(tablesConfiguration),
             )
-            .andWhere(CatalogModel.whereYamlTags(projectUuid, yamlTags))
+            .andWhere(CatalogModel.whereYamlTags(projectUuid, yamlTags ?? null)) // TODO: fixme
             .andWhere(CatalogModel.whereUserAttributes(userAttributes));
 
         if (context === CatalogSearchContext.SPOTLIGHT) {
@@ -710,22 +710,20 @@ export class CatalogModel {
         };
     }
 
-    async searchExplores({
+    private _getSearchQuery({
         projectUuid,
         searchQuery,
-        yamlTags,
-        userAttributes,
         tablesConfiguration,
-        paginateArgs,
+        userAttributes,
+        type,
     }: {
         projectUuid: string;
         searchQuery: string | null;
-        yamlTags: string[] | null;
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
-        paginateArgs: KnexPaginateArgs;
+        type: CatalogType;
     }) {
-        const catalogItemsQuery = this.database(CatalogTableName)
+        return this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.*`,
                 `${CachedExploreTableName}.explore`,
@@ -747,17 +745,170 @@ export class CatalogModel {
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
-            .andWhere(`${CatalogTableName}.type`, CatalogType.Table)
-            .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
-            .andWhere(
-                CatalogModel.whereTablesConfiguration(tablesConfiguration),
-            )
-            .andWhere(CatalogModel.whereUserAttributes(userAttributes))
-            .andWhere(CatalogModel.whereYamlTags(projectUuid, yamlTags))
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .where(`${CatalogTableName}.type`, type)
+            .where(CatalogModel.whereTablesConfiguration(tablesConfiguration))
+            .where(CatalogModel.whereUserAttributes(userAttributes))
             .orderBy([
                 { column: 'search_rank', order: 'desc' },
                 { column: 'name', order: 'asc' },
             ]);
+    }
+
+    async searchExploreFields({
+        projectUuid,
+        exploreName,
+        fieldType,
+        searchQuery,
+        yamlTags,
+        userAttributes,
+        tablesConfiguration,
+        paginateArgs,
+    }: {
+        fieldType: FieldType | null;
+        projectUuid: string;
+        exploreName: string;
+        searchQuery: string | null;
+        yamlTags: string[] | null;
+        userAttributes: UserAttributeValueMap;
+        tablesConfiguration: TablesConfiguration;
+        paginateArgs?: KnexPaginateArgs;
+    }) {
+        let catalogItemsQuery = this._getSearchQuery({
+            projectUuid,
+            searchQuery,
+            tablesConfiguration,
+            userAttributes,
+            type: CatalogType.Field,
+        });
+
+        if (fieldType) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTableName}.field_type`,
+                fieldType,
+            );
+        }
+
+        catalogItemsQuery = catalogItemsQuery.whereExists(
+            function fieldBelongsToExplore() {
+                void this.select(`${CatalogTableName}.name`)
+                    .from(CatalogSearchRelationsTableName)
+                    .whereRaw(
+                        `${CatalogSearchRelationsTableName}.field_catalog_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                    )
+                    .whereRaw(
+                        `${CatalogSearchRelationsTableName}.explore_catalog_uuid = (
+                        SELECT ${CatalogTableName}.catalog_search_uuid
+                        FROM ${CatalogTableName}
+                        WHERE ${CatalogTableName}.name = ? AND ${CatalogTableName}.type = ? AND ${CatalogTableName}.project_uuid = ?
+                    )`,
+                        [exploreName, CatalogType.Table, projectUuid],
+                    );
+            },
+        );
+
+        const catalogItemsQueryCTE = this.database
+            .with('all_available_catalog_fields_cte', catalogItemsQuery)
+            .select<(DbCatalog & { explore: Explore; search_rank: number })[]>()
+            .from('all_available_catalog_fields_cte')
+            .where(function yamlTagsFiltering(this: Knex.QueryBuilder) {
+                if (!yamlTags) {
+                    void this.whereRaw(`true`);
+                    return;
+                }
+
+                void this.whereRaw(
+                    `all_available_catalog_fields_cte.yaml_tags && ?::text[]`,
+                    [yamlTags],
+                ).orWhere(function noTagsOnFieldsButExploresAreTagged() {
+                    void this.whereRaw(
+                        `NOT EXISTS (SELECT 1 FROM all_available_catalog_fields_cte WHERE all_available_catalog_fields_cte.yaml_tags IS NOT NULL)`,
+                    ).andWhereRaw(
+                        `EXISTS (SELECT 1 from ${CatalogTableName} WHERE ${CatalogTableName}.yaml_tags IS NOT NULL AND ${CatalogTableName}.yaml_tags && ?::text[] AND ${CatalogTableName}.name = ? AND ${CatalogTableName}.type = ? AND ${CatalogTableName}.project_uuid = ?)`,
+                        [yamlTags, exploreName, CatalogType.Table, projectUuid],
+                    );
+                });
+            });
+
+        const paginatedCatalogItems = await KnexPaginate.paginate(
+            catalogItemsQueryCTE,
+            {
+                page: paginateArgs?.page ?? 1,
+                pageSize: paginateArgs?.pageSize ?? 50,
+            },
+        );
+
+        return {
+            data: paginatedCatalogItems.data
+                .map((item) => parseCatalog({ ...item, catalog_tags: [] }))
+                .filter(isCatalogField),
+            pagination: paginatedCatalogItems.pagination,
+        };
+    }
+
+    async searchExplores({
+        projectUuid,
+        searchQuery,
+        exploreName,
+        yamlTags,
+        userAttributes,
+        tablesConfiguration,
+        paginateArgs,
+    }: {
+        projectUuid: string;
+        searchQuery: string | null;
+        exploreName: string | null;
+        yamlTags: string[] | null;
+        tablesConfiguration: TablesConfiguration;
+        userAttributes: UserAttributeValueMap;
+        paginateArgs: KnexPaginateArgs;
+    }) {
+        let catalogItemsQuery = this._getSearchQuery({
+            projectUuid,
+            searchQuery,
+            tablesConfiguration,
+            userAttributes,
+            type: CatalogType.Table,
+        });
+
+        if (yamlTags) {
+            catalogItemsQuery = catalogItemsQuery.where(
+                function yamlTagsFiltering() {
+                    void this.whereRaw(
+                        `${CatalogTableName}.yaml_tags && ?::text[]`,
+                        [yamlTags],
+                    ).orWhere(function noTagOnExploreButItsFieldsAreTagged() {
+                        void this.where(
+                            `${CatalogTableName}.yaml_tags`,
+                            null,
+                        ).andWhereRaw(
+                            `EXISTS (
+                                SELECT 1 FROM ${CatalogSearchRelationsTableName}
+                                LEFT JOIN ${CatalogTableName} AS ct
+                                    ON ct.catalog_search_uuid = ${CatalogSearchRelationsTableName}.field_catalog_uuid
+                                    AND ct.table_name = ${CatalogTableName}.table_name
+                                    AND ct.yaml_tags && ?
+                                WHERE
+                                    ct.type = ?
+                                    AND ${CatalogSearchRelationsTableName}.explore_catalog_uuid = ${CatalogTableName}.catalog_search_uuid
+                            )`,
+                            [yamlTags, CatalogType.Field],
+                        );
+                    });
+                },
+            );
+        }
+
+        if (exploreName) {
+            catalogItemsQuery = catalogItemsQuery.where(
+                `${CatalogTableName}.name`,
+                exploreName,
+            );
+        }
+
+        console.log('🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌');
+        console.log(catalogItemsQuery.toString());
+        console.log('🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌🍌');
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
             catalogItemsQuery.select<

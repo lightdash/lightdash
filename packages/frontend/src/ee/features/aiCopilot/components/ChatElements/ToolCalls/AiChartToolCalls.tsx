@@ -41,7 +41,7 @@ import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCal
 const getToolIcon = (toolName: ToolName) => {
     const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
         {
-            findExplores: IconDatabase,
+            inspectExplore: IconDatabase,
             findFields: IconSearch,
             searchFieldValues: IconSelector,
             generateBarVizConfig: IconChartHistogram,
@@ -163,10 +163,23 @@ const ToolCallDescription: FC<{
     const toolArgs = toolArgsParsed.data;
 
     switch (toolArgs.type) {
-        case 'find_explores':
+        case 'inspect_explore':
             return (
                 <Text c="dimmed" size="xs">
-                    Searched relevant explores
+                    Inspected explore{' '}
+                    <Badge
+                        color="gray"
+                        variant="light"
+                        size="xs"
+                        mx={rem(2)}
+                        radius="sm"
+                        style={{
+                            textTransform: 'none',
+                            fontWeight: 400,
+                        }}
+                    >
+                        {toolArgs.exploreName}
+                    </Badge>
                 </Text>
             );
         case 'find_fields':

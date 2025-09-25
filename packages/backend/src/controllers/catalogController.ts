@@ -63,16 +63,12 @@ export class CatalogController extends BaseController {
         @Query() search?: ApiCatalogSearch['searchQuery'],
         @Query() type?: ApiCatalogSearch['type'],
         @Query() filter?: ApiCatalogSearch['filter'],
-        @Query() yamlTags?: ApiCatalogSearch['yamlTags'],
-        @Query() tables?: ApiCatalogSearch['tables'],
     ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
         this.setStatus(200);
         const query: ApiCatalogSearch = {
             searchQuery: search,
             type,
             filter,
-            yamlTags,
-            tables,
         };
 
         const { data: results } = await this.services
