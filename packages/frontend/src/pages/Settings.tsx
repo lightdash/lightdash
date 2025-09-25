@@ -77,6 +77,10 @@ const Settings: FC = () => {
         CommercialFeatureFlags.Scim,
     );
 
+    const { data: isAiCopilotEnabled } = useFeatureFlag(
+        CommercialFeatureFlags.AiCopilot,
+    );
+
     const isServiceAccountFeatureFlagEnabled = useFeatureFlagEnabled(
         CommercialFeatureFlags.ServiceAccounts,
     );
@@ -590,20 +594,23 @@ const Settings: FC = () => {
                                             }
                                         />
                                     )}
-                                {user.ability.can(
-                                    'manage',
-                                    subject('AiAgent', {
-                                        organizationUuid:
-                                            organization.organizationUuid,
-                                    }),
-                                ) && (
-                                    <RouterNavLink
-                                        label="AI Agents"
-                                        exact
-                                        to="/ai-agents/admin"
-                                        icon={<MantineIcon icon={IconBrain} />}
-                                    />
-                                )}
+                                {isAiCopilotEnabled?.enabled &&
+                                    user.ability.can(
+                                        'manage',
+                                        subject('AiAgent', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                        }),
+                                    ) && (
+                                        <RouterNavLink
+                                            label="AI Agents"
+                                            exact
+                                            to="/ai-agents/admin"
+                                            icon={
+                                                <MantineIcon icon={IconBrain} />
+                                            }
+                                        />
+                                    )}
                             </Box>
 
                             {organization &&
