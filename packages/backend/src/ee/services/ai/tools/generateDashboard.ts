@@ -65,6 +65,7 @@ export const getGenerateDashboard = ({
                 const args = toolDashboardArgsSchemaTransformed.parse(toolArgs);
 
                 const errors: string[] = [];
+                const failedVisualizations: string[] = [];
 
                 const vizPromises = args.visualizations.map(
                     async (viz, index) => {
@@ -83,32 +84,56 @@ export const getGenerateDashboard = ({
                                 } (${viz.title})`,
                             );
                             errors.push(errorMessage);
+                            failedVisualizations.push(viz.title);
                             return null;
                         }
                     },
                 );
 
-                await Promise.all(vizPromises);
+                const validatedVisualizations = await Promise.all(vizPromises);
 
+                // Filter out null values (failed validations)
+                const validVisualizations = validatedVisualizations.filter(
+                    (
+                        viz,
+                    ): viz is ToolDashboardArgsTransformed['visualizations'][0] =>
+                        viz !== null,
+                );
+
+                // Check if we have at least one valid visualization
+                if (validVisualizations.length === 0) {
+                    return `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
+                        '\n',
+                    )}
+                    Please fix these issues and try again.
+                    `;
+                }
+
+                // Create dashboard with valid visualizations only
                 const prompt = await getPrompt();
-                // Create dashboard-level artifact
+                const dashboardWithValidViz = {
+                    ...toolArgs,
+                    visualizations: validVisualizations,
+                };
+
                 await createOrUpdateArtifact({
                     threadUuid: prompt.threadUuid,
                     promptUuid: prompt.promptUuid,
                     artifactType: 'dashboard',
                     title: toolArgs.title,
                     description: toolArgs.description,
-                    vizConfig: toolArgs,
+                    vizConfig: dashboardWithValidViz,
                 });
 
-                // Return summary of generated dashboard
-
+                // Return appropriate message based on whether some visualizations failed
                 if (errors.length > 0) {
-                    return `Generated dashboard with errors:\n${errors.join(
-                        '\n',
-                    )}
-                    Try again if you believe the error(s) can be resolved, if not, try again with the visualizations that did not fail.
-                    `;
+                    return `Dashboard created with ${
+                        validVisualizations.length
+                    } visualization${
+                        validVisualizations.length > 1 ? 's' : ''
+                    }.\n\nThe following visualizations were excluded due to validation errors:\n${failedVisualizations
+                        .map((title) => `- ${title}`)
+                        .join('\n')}\n\nErrors:\n${errors.join('\n')}`;
                 }
 
                 return `Success`;

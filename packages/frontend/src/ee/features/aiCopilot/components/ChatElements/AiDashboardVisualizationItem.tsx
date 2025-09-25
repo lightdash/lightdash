@@ -1,6 +1,4 @@
 import {
-    AiResultType,
-    assertUnreachable,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
@@ -9,18 +7,15 @@ import {
     Box,
     Center,
     Group,
+    HoverCard,
     Loader,
     Paper,
     Stack,
     Text,
     Title,
 } from '@mantine-8/core';
-import {
-    IconChartBar,
-    IconChartLine,
-    IconExclamationCircle,
-    IconTable,
-} from '@tabler/icons-react';
+import { Prism } from '@mantine/prism';
+import { IconExclamationCircle } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -47,25 +42,6 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         versionUuid,
         index,
     }) => {
-        const getVisualizationIcon = () => {
-            const type = visualization.type;
-            switch (type) {
-                case AiResultType.TABLE_RESULT:
-                    return IconTable;
-                case AiResultType.VERTICAL_BAR_RESULT:
-                    return IconChartBar;
-                case AiResultType.TIME_SERIES_RESULT:
-                    return IconChartLine;
-                default:
-                    return assertUnreachable(
-                        type,
-                        `invalid visualization type ${type}`,
-                    );
-            }
-        };
-
-        const VisualizationIcon = getVisualizationIcon();
-
         // Fetch the chart query data
         const queryExecutionHandle = useAiAgentDashboardChartVizQuery({
             projectUuid,
@@ -84,30 +60,26 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
             queryExecutionHandle.isLoading || queryResults.isFetchingRows;
         const queryError = queryExecutionHandle.error || queryResults.error;
 
+        const VisualizationHeader = () => (
+            <Stack gap="two" flex={1}>
+                <Title order={4} size="h6">
+                    {visualization.title}
+                </Title>
+                {visualization.description && (
+                    <Text c="dimmed" size="11px" fw={400}>
+                        {visualization.description}
+                    </Text>
+                )}
+            </Stack>
+        );
+
         if (isQueryLoading) {
             return (
                 <Stack gap="sm">
-                    {/* Visualization Header */}
-                    <Group align="start">
-                        <MantineIcon
-                            icon={VisualizationIcon}
-                            color="blue"
-                            size="lg"
-                        />
-                        <Stack gap="xs" flex={1}>
-                            <Title order={4} size="h5">
-                                {visualization.title}
-                            </Title>
-                            {visualization.description && (
-                                <Text c="dimmed" size="sm">
-                                    {visualization.description}
-                                </Text>
-                            )}
-                        </Stack>
-                    </Group>
+                    <VisualizationHeader />
 
                     {/* Loading State */}
-                    <Paper p="md" withBorder radius="md" bg="gray.0">
+                    <Paper p="md" bg="gray.0">
                         <Center h={200}>
                             <Stack gap="xs" align="center">
                                 <Loader type="dots" color="gray" />
@@ -124,35 +96,48 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         if (queryError || !queryExecutionHandle.data) {
             return (
                 <Stack gap="sm">
-                    {/* Visualization Header */}
-                    <Group align="start">
-                        <MantineIcon
-                            icon={VisualizationIcon}
-                            color="blue"
-                            size="lg"
-                        />
-                        <Stack gap="xs" flex={1}>
-                            <Title order={4} size="h5">
-                                {visualization.title}
-                            </Title>
-                            {visualization.description && (
-                                <Text c="dimmed" size="sm">
-                                    {visualization.description}
-                                </Text>
-                            )}
-                        </Stack>
-                    </Group>
-
+                    <VisualizationHeader />
                     {/* Error State */}
-                    <Paper p="md" withBorder radius="md" bg="gray.0">
-                        <Center h={200}>
+                    <Paper p="md" bg="gray.0">
+                        <Center h={100}>
                             <Stack gap="xs" align="center">
-                                <MantineIcon
-                                    icon={IconExclamationCircle}
-                                    color="red"
-                                />
-                                <Text size="sm" c="dimmed" ta="center">
-                                    Failed to load visualization
+                                <HoverCard withinPortal position="left">
+                                    <HoverCard.Target>
+                                        <MantineIcon
+                                            icon={IconExclamationCircle}
+                                        />
+                                    </HoverCard.Target>
+                                    <HoverCard.Dropdown p={0} maw={500}>
+                                        <Prism
+                                            language="json"
+                                            withLineNumbers
+                                            styles={{
+                                                code: {
+                                                    fontSize: 10,
+                                                },
+                                            }}
+                                        >
+                                            {JSON.stringify(
+                                                visualization,
+                                                null,
+                                                2,
+                                            )}
+                                        </Prism>
+                                    </HoverCard.Dropdown>
+                                </HoverCard>
+
+                                <Group>
+                                    <Text
+                                        size="xs"
+                                        c="dimmed"
+                                        fw={500}
+                                        ta="center"
+                                    >
+                                        Failed to load visualization
+                                    </Text>
+                                </Group>
+                                <Text size="xs" c="dimmed" ta="center">
+                                    {queryError?.error.message}
                                 </Text>
                             </Stack>
                         </Center>
@@ -163,24 +148,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
 
         return (
             <Stack gap="sm">
-                {/* Visualization Header */}
-                <Group align="start">
-                    <MantineIcon
-                        icon={VisualizationIcon}
-                        color="blue"
-                        size="lg"
-                    />
-                    <Stack gap="xs" flex={1}>
-                        <Title order={4} size="h5">
-                            {visualization.title}
-                        </Title>
-                        {visualization.description && (
-                            <Text c="dimmed" size="sm">
-                                {visualization.description}
-                            </Text>
-                        )}
-                    </Stack>
-                </Group>
+                <VisualizationHeader />
 
                 {/* Actual Visualization */}
                 <Box mih={300}>
