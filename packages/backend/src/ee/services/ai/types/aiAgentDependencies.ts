@@ -28,6 +28,11 @@ type Pagination = KnexPaginateArgs & {
     totalResults: number;
 };
 
+export type ListExploresFn = (args: KnexPaginateArgs) => Promise<{
+    tables: CatalogTable[];
+    pagination: Pagination;
+}>;
+
 export type FindExploresFn = (
     args: {
         tableName: string | null;

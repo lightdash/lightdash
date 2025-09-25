@@ -9,6 +9,8 @@ import {
     TableSelectionType,
     UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
+    isCatalogField,
+    isCatalogTable,
     isExploreError,
     type ApiCatalogSearch,
     type ApiSort,
@@ -312,6 +314,163 @@ export class CatalogModel {
         }, {});
     }
 
+    static whereTablesConfiguration(tablesConfiguration: TablesConfiguration) {
+        return function tablesConfigurationFiltering(this: Knex.QueryBuilder) {
+            const {
+                tableSelection: { type: tableSelectionType, value },
+            } = tablesConfiguration;
+
+            if (tableSelectionType === TableSelectionType.WITH_TAGS) {
+                // For tags, we need to check if ANY of the required tags exist in explore's tags array
+                void this.whereRaw(
+                    `
+                        EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements_text(?) AS required_tag
+                            WHERE required_tag = ANY(
+                                SELECT jsonb_array_elements_text(explore->'tags')
+                            )
+                        )
+                    `,
+                    [JSON.stringify(value ?? [])],
+                );
+            } else if (tableSelectionType === TableSelectionType.WITH_NAMES) {
+                // For table names, we check if the baseTable matches any of the required names
+                void this.whereIn(
+                    `${CatalogTableName}.table_name`,
+                    value ?? [],
+                );
+            }
+        };
+    }
+
+    static whereUserAttributes(userAttributes: UserAttributeValueMap) {
+        return function userAttributesFiltering(this: Knex.QueryBuilder) {
+            void this.whereJsonObject('required_attributes', {}).orWhereRaw(
+                `
+                    -- Main check: Ensure there are NO required attributes that fail to match user attributes
+                    -- If ANY required attribute is missing/mismatched, the whole check fails
+                    NOT EXISTS (
+                        -- Iterate through each key-value pair in required_attributes
+                        -- Example required_attributes: {"is_admin": "true", "department": ["sales", "marketing"]}
+                        SELECT 1
+                        FROM jsonb_each(required_attributes) AS ra(key, value)
+                        -- For each required attribute, check if it DOESN'T match user attributes
+                        -- The outer NOT EXISTS + WHERE NOT means ALL conditions must match
+                        WHERE NOT (
+                            CASE
+                                -- Case 1: Required attribute is an array (e.g., "department": ["sales", "marketing"])
+                                WHEN jsonb_typeof(value) = 'array' THEN
+                                    -- Check if ANY of the required values exist in user's attributes
+                                    EXISTS (
+                                        -- Get each value from the required array
+                                        SELECT 1
+                                        FROM jsonb_array_elements_text(value) AS req_value
+                                        -- Check if this required value exists in user's attributes array
+                                        WHERE req_value = ANY(
+                                            SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                        )
+                                    )
+
+                                -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
+                                ELSE
+                                    -- Extract the single value and check if it exists in user's attributes array
+                                    -- value #>> '{}' converts JSONB value to text
+                                    -- Example: "true" = ANY(["true", "false"])
+                                    (value #>> '{}') = ANY(
+                                        SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                    )
+                            END
+                        )
+                    )
+                `,
+                [
+                    JSON.stringify(userAttributes),
+                    JSON.stringify(userAttributes),
+                ],
+            );
+        };
+    }
+
+    static whereYamlTags(projectUuid: string, yamlTags: string[] | null) {
+        return function yamlTagsFiltering(this: Knex.QueryBuilder) {
+            if (!yamlTags) {
+                void this.whereRaw(`true`);
+                return;
+            }
+
+            void this
+                // Condition 1: The item itself has a matching tag.
+                // This is the highest priority rule. It includes any
+                // field or table that is explicitly tagged.
+                .whereRaw(`${CatalogTableName}.yaml_tags && ?::text[]`, [
+                    yamlTags,
+                ])
+
+                // Condition 2: The item is part of an explore where ONLY the explore's
+                // base table is tagged, making all items in that explore visible.
+                // This handles the "show all fields" scenario.
+                .orWhere(function exploreTaggedButFieldsAreNot() {
+                    void this
+                        // Check that the explore's base table has a matching tag.
+                        .whereExists(function exploreIsTagged() {
+                            void this.select('name')
+                                .from(`${CatalogTableName} as explore_table`)
+                                .andWhere(
+                                    'explore_table.project_uuid',
+                                    projectUuid,
+                                )
+                                .whereRaw(
+                                    `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                )
+                                .andWhere('explore_table.type', 'table')
+                                .andWhereRaw(
+                                    `explore_table.yaml_tags && ?::text[]`,
+                                    [yamlTags],
+                                );
+                        })
+                        // AND crucially, check that NO fields within that same explore have any tags.
+                        // This enforces the precedence rule.
+                        .whereNotExists(function anyFieldIsTagged() {
+                            void this.select('name')
+                                .from(
+                                    `${CatalogTableName} as any_field_in_explore`,
+                                )
+                                .andWhereRaw(
+                                    `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                                )
+                                .andWhere(
+                                    'any_field_in_explore.project_uuid',
+                                    projectUuid,
+                                )
+                                .andWhere('any_field_in_explore.type', 'field')
+                                .whereNotNull(`any_field_in_explore.yaml_tags`);
+                        });
+                })
+
+                // Condition 3: The item is a table, and at least one of its
+                // child fields has a matching tag. This ensures the parent table is
+                // always included if any of its fields are visible.
+                .orWhere(function isTableWithTaggedChildren() {
+                    void this.where(
+                        `${CatalogTableName}.type`,
+                        'table',
+                    ).whereExists(function hasTaggedChild() {
+                        void this.select('name')
+                            .from(`${CatalogTableName} as child_field`)
+                            .andWhere('child_field.project_uuid', projectUuid)
+                            .whereRaw(
+                                `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
+                            )
+                            .andWhereNot('child_field.type', 'table')
+                            .andWhereRaw(`child_field.yaml_tags && ?::text[]`, [
+                                yamlTags,
+                            ]);
+                    });
+                });
+        };
+    }
+
     async search({
         projectUuid,
         exploreName,
@@ -371,82 +530,11 @@ export class CatalogModel {
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
-            // tables configuration filtering
-            .andWhere(function tablesConfigurationFiltering() {
-                const {
-                    tableSelection: { type: tableSelectionType, value },
-                } = tablesConfiguration;
-
-                if (tableSelectionType === TableSelectionType.WITH_TAGS) {
-                    // For tags, we need to check if ANY of the required tags exist in explore's tags array
-                    void this.whereRaw(
-                        `
-                        EXISTS (
-                            SELECT 1
-                            FROM jsonb_array_elements_text(?) AS required_tag
-                            WHERE required_tag = ANY(
-                                SELECT jsonb_array_elements_text(explore->'tags')
-                            )
-                        )
-                    `,
-                        [JSON.stringify(value ?? [])],
-                    );
-                } else if (
-                    tableSelectionType === TableSelectionType.WITH_NAMES
-                ) {
-                    // For table names, we check if the baseTable matches any of the required names
-                    void this.whereIn(
-                        `${CatalogTableName}.table_name`,
-                        value ?? [],
-                    );
-                }
-            })
-            // user attributes filtering
-            .andWhere(function userAttributesFiltering() {
-                void this.whereJsonObject('required_attributes', {}).orWhereRaw(
-                    `
-                        -- Main check: Ensure there are NO required attributes that fail to match user attributes
-                        -- If ANY required attribute is missing/mismatched, the whole check fails
-                        NOT EXISTS (
-                            -- Iterate through each key-value pair in required_attributes
-                            -- Example required_attributes: {"is_admin": "true", "department": ["sales", "marketing"]}
-                            SELECT 1
-                            FROM jsonb_each(required_attributes) AS ra(key, value)
-                            -- For each required attribute, check if it DOESN'T match user attributes
-                            -- The outer NOT EXISTS + WHERE NOT means ALL conditions must match
-                            WHERE NOT (
-                                CASE
-                                    -- Case 1: Required attribute is an array (e.g., "department": ["sales", "marketing"])
-                                    WHEN jsonb_typeof(value) = 'array' THEN
-                                        -- Check if ANY of the required values exist in user's attributes
-                                        EXISTS (
-                                            -- Get each value from the required array
-                                            SELECT 1
-                                            FROM jsonb_array_elements_text(value) AS req_value
-                                            -- Check if this required value exists in user's attributes array
-                                            WHERE req_value = ANY(
-                                                SELECT jsonb_array_elements_text(?::jsonb -> key)
-                                            )
-                                        )
-
-                                    -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
-                                    ELSE
-                                        -- Extract the single value and check if it exists in user's attributes array
-                                        -- value #>> '{}' converts JSONB value to text
-                                        -- Example: "true" = ANY(["true", "false"])
-                                        (value #>> '{}') = ANY(
-                                            SELECT jsonb_array_elements_text(?::jsonb -> key)
-                                        )
-                                END
-                            )
-                        )
-                    `,
-                    [
-                        JSON.stringify(userAttributes),
-                        JSON.stringify(userAttributes),
-                    ],
-                );
-            });
+            .andWhere(
+                CatalogModel.whereTablesConfiguration(tablesConfiguration),
+            )
+            .andWhere(CatalogModel.whereYamlTags(projectUuid, yamlTags))
+            .andWhere(CatalogModel.whereUserAttributes(userAttributes));
 
         if (context === CatalogSearchContext.SPOTLIGHT) {
             catalogItemsQuery = catalogItemsQuery.where(
@@ -544,94 +632,6 @@ export class CatalogModel {
             );
         }
 
-        if (yamlTags) {
-            catalogItemsQuery = catalogItemsQuery.andWhere(
-                function yamlTagsFiltering() {
-                    void this
-                        // Condition 1: The item itself has a matching tag.
-                        // This is the highest priority rule. It includes any
-                        // field or table that is explicitly tagged.
-                        .whereRaw(
-                            `${CatalogTableName}.yaml_tags && ?::text[]`,
-                            [yamlTags],
-                        )
-
-                        // Condition 2: The item is part of an explore where ONLY the explore's
-                        // base table is tagged, making all items in that explore visible.
-                        // This handles the "show all fields" scenario.
-                        .orWhere(function exploreTaggedButFieldsAreNot() {
-                            void this
-                                // Check that the explore's base table has a matching tag.
-                                .whereExists(function exploreIsTagged() {
-                                    void this.select('name')
-                                        .from(
-                                            `${CatalogTableName} as explore_table`,
-                                        )
-                                        .andWhere(
-                                            'explore_table.project_uuid',
-                                            projectUuid,
-                                        )
-                                        .whereRaw(
-                                            `explore_table.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                        )
-                                        .andWhere('explore_table.type', 'table')
-                                        .andWhereRaw(
-                                            `explore_table.yaml_tags && ?::text[]`,
-                                            [yamlTags],
-                                        );
-                                })
-                                // AND crucially, check that NO fields within that same explore have any tags.
-                                // This enforces the precedence rule.
-                                .whereNotExists(function anyFieldIsTagged() {
-                                    void this.select('name')
-                                        .from(
-                                            `${CatalogTableName} as any_field_in_explore`,
-                                        )
-                                        .andWhereRaw(
-                                            `any_field_in_explore.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                        )
-                                        .andWhere(
-                                            'any_field_in_explore.project_uuid',
-                                            projectUuid,
-                                        )
-                                        .andWhere(
-                                            'any_field_in_explore.type',
-                                            'field',
-                                        )
-                                        .whereNotNull(
-                                            `any_field_in_explore.yaml_tags`,
-                                        );
-                                });
-                        })
-
-                        // Condition 3: The item is a table, and at least one of its
-                        // child fields has a matching tag. This ensures the parent table is
-                        // always included if any of its fields are visible.
-                        .orWhere(function isTableWithTaggedChildren() {
-                            void this.where(
-                                `${CatalogTableName}.type`,
-                                'table',
-                            ).whereExists(function hasTaggedChild() {
-                                void this.select('name')
-                                    .from(`${CatalogTableName} as child_field`)
-                                    .andWhere(
-                                        'child_field.project_uuid',
-                                        projectUuid,
-                                    )
-                                    .whereRaw(
-                                        `child_field.cached_explore_uuid = ${CatalogTableName}.cached_explore_uuid`,
-                                    )
-                                    .andWhereNot('child_field.type', 'table')
-                                    .andWhereRaw(
-                                        `child_field.yaml_tags && ?::text[]`,
-                                        [yamlTags],
-                                    );
-                            });
-                        });
-                },
-            );
-        }
-
         if (tables) {
             catalogItemsQuery = catalogItemsQuery.andWhere(
                 function joinedTablesFiltering() {
@@ -707,6 +707,70 @@ export class CatalogModel {
         return {
             pagination: paginatedCatalogItems.pagination,
             data: catalog,
+        };
+    }
+
+    async searchExplores({
+        projectUuid,
+        searchQuery,
+        yamlTags,
+        userAttributes,
+        tablesConfiguration,
+        paginateArgs,
+    }: {
+        projectUuid: string;
+        searchQuery: string | null;
+        yamlTags: string[] | null;
+        tablesConfiguration: TablesConfiguration;
+        userAttributes: UserAttributeValueMap;
+        paginateArgs: KnexPaginateArgs;
+    }) {
+        const catalogItemsQuery = this.database(CatalogTableName)
+            .column(
+                `${CatalogTableName}.*`,
+                `${CachedExploreTableName}.explore`,
+                {
+                    search_rank: searchQuery
+                        ? getFullTextSearchRankCalcSql({
+                              database: this.database,
+                              variables: {
+                                  searchVectorColumn: `${CatalogTableName}.search_vector`,
+                                  searchQuery,
+                              },
+                              fullTextSearchOperator: 'OR',
+                          })
+                        : this.database.raw('0::float'),
+                },
+            )
+            .leftJoin(
+                CachedExploreTableName,
+                `${CatalogTableName}.cached_explore_uuid`,
+                `${CachedExploreTableName}.cached_explore_uuid`,
+            )
+            .andWhere(`${CatalogTableName}.type`, CatalogType.Table)
+            .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
+            .andWhere(
+                CatalogModel.whereTablesConfiguration(tablesConfiguration),
+            )
+            .andWhere(CatalogModel.whereUserAttributes(userAttributes))
+            .andWhere(CatalogModel.whereYamlTags(projectUuid, yamlTags))
+            .orderBy([
+                { column: 'search_rank', order: 'desc' },
+                { column: 'name', order: 'asc' },
+            ]);
+
+        const paginatedCatalogItems = await KnexPaginate.paginate(
+            catalogItemsQuery.select<
+                (DbCatalog & { explore: Explore; search_rank: number })[]
+            >(),
+            paginateArgs,
+        );
+
+        return {
+            data: paginatedCatalogItems.data
+                .map((item) => parseCatalog({ ...item, catalog_tags: [] }))
+                .filter(isCatalogTable),
+            pagination: paginatedCatalogItems.pagination,
         };
     }
 

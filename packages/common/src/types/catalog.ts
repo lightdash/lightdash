@@ -99,6 +99,12 @@ export type CatalogTable = Pick<
 
 export type CatalogItem = CatalogField | CatalogTable;
 
+export const isCatalogField = (item: CatalogItem): item is CatalogField =>
+    item.type === CatalogType.Field;
+
+export const isCatalogTable = (item: CatalogItem): item is CatalogTable =>
+    item.type === CatalogType.Table;
+
 export type CatalogMetricsTreeNode = Pick<
     CatalogField,
     'catalogSearchUuid' | 'name' | 'tableName'
