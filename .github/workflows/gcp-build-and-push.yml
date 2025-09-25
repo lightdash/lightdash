@@ -37,5 +37,5 @@ jobs:
           SENTRY_BACKEND_PROJECT: lightdash-backend
           SENTRY_ENVIRONMENT: cloud_beta
           # Configure replica regions (comma-separated)
-          GCP_REPLICA_REGIONS: "europe-west2"
+          GCP_REPLICA_REGIONS: "europe,europe-west2"
         run: bash ./scripts/gcp-build-and-push.sh
