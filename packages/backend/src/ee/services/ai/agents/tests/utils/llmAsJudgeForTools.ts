@@ -12,7 +12,7 @@ import { getOpenaiGptmodel } from '../../../models/openai-gpt';
 import { defaultAgentOptions } from '../../agent';
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
-    findExplores: 'find_explores',
+    inspectExplore: 'inspect_explore',
     findFields: 'find_fields',
     searchFieldValues: 'search_field_values',
     findDashboards: 'find_dashboards',
@@ -299,7 +299,7 @@ Evaluate the tool usage across three dimensions:
    - adequate: Tools accomplished the expected outcome but with some issues
    - poor: Tools partially accomplished the expected outcome with significant issues
    - failed: Tools did not accomplish the expected outcome
-   
+
    Consider:
    - Did the tools accomplish the expected outcome?
    - Were the tool arguments appropriate and complete?

@@ -15,14 +15,14 @@ import Logger from '../../../../logging/logger';
 import { getSystemPrompt } from '../prompts/system';
 import { getFindCharts } from '../tools/findCharts';
 import { getFindDashboards } from '../tools/findDashboards';
-// eslint-disable-next-line import/extensions
-import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
 import { getGenerateDashboard } from '../tools/generateDashboard';
 import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import { getImproveContext } from '../tools/improveContext';
+// eslint-disable-next-line import/extensions
+import { getInspectExplore } from '../tools/inspectExplore';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
     AiAgentArgs,
@@ -145,12 +145,10 @@ const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const findExplores = getFindExplores({
-        maxDescriptionLength: args.findExploresMaxDescriptionLength,
-        pageSize: args.findExploresPageSize,
+    const inspectExplore = getInspectExplore({
+        pageSize: args.inspectExplorePageSize,
         fieldSearchSize: args.findExploresFieldSearchSize,
-        fieldOverviewSearchSize: args.findExploresFieldOverviewSearchSize,
-        findExplores: dependencies.findExplores,
+        inspectExplore: dependencies.inspectExplore,
     });
 
     const findFields = getFindFields({
@@ -229,7 +227,7 @@ const getAgentTools = (
     const tools = {
         findCharts,
         findDashboards,
-        findExplores,
+        inspectExplore,
         findFields,
         generateBarVizConfig,
         generateDashboard,
@@ -267,6 +265,8 @@ const getAgentMessages = async (
         }),
         ...args.messageHistory,
     ];
+
+    console.log(messages[0].content);
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
 

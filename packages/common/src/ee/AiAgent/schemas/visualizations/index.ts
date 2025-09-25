@@ -14,7 +14,7 @@ const VisualizationTools = [
 export const ToolNameSchema = z.enum([
     ...VisualizationTools,
     'generateDashboard',
-    'findExplores',
+    'inspectExplore',
     'findFields',
     'searchFieldValues',
     'findDashboards',
@@ -31,7 +31,7 @@ export const isToolName = (toolName: string): toolName is ToolName =>
 export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
-    findExplores: 'Finding relevant explores',
+    inspectExplore: 'Inspecting explore',
     findDashboards: 'Finding relevant dashboards',
     findFields: 'Finding relevant fields',
     searchFieldValues: 'Searching field values',
@@ -46,7 +46,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
 // after-tool-call messages
 export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
     ToolDisplayMessagesSchema.parse({
-        findExplores: 'Found relevant explores',
+        inspectExplore: 'Inspected explore',
         findDashboards: 'Found relevant dashboards',
         findFields: 'Found relevant fields',
         searchFieldValues: 'Found field values',

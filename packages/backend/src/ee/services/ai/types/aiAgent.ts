@@ -6,10 +6,10 @@ import {
     CreateOrUpdateArtifactFn,
     FindChartsFn,
     FindDashboardsFn,
-    FindExploresFn,
     FindFieldFn,
     GetExploreFn,
     GetPromptFn,
+    InspectExploreFn,
     ListExploresFn,
     RunMiniMetricQueryFn,
     SearchFieldValuesFn,
@@ -35,10 +35,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
 
     availableExploresPageSize: number;
-    findExploresPageSize: number;
-    findExploresFieldOverviewSearchSize: number;
+    inspectExplorePageSize: number;
     findExploresFieldSearchSize: number;
-    findExploresMaxDescriptionLength: number;
     findFieldsPageSize: number;
     findDashboardsPageSize: number;
     findChartsPageSize: number;
@@ -56,7 +54,7 @@ export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     findCharts: FindChartsFn;
     findDashboards: FindDashboardsFn;
-    findExplores: FindExploresFn;
+    inspectExplore: InspectExploreFn;
     findFields: FindFieldFn;
     getExplore: GetExploreFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;

@@ -3,9 +3,9 @@ import {
     toolDashboardArgsSchema,
     toolFindChartsArgsSchema,
     toolFindDashboardsArgsSchema,
-    toolFindExploresArgsSchema,
     toolFindFieldsArgsSchema,
     toolImproveContextArgsSchema,
+    toolInspectExploreArgsSchema,
     toolSearchFieldValuesArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
@@ -28,7 +28,7 @@ export const AgentToolCallArgsSchema = z.discriminatedUnion('type', [
     toolVerticalBarArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
-    toolFindExploresArgsSchema,
+    toolInspectExploreArgsSchema,
 ]);
 
 export type AgentToolCallArgs = z.infer<typeof AgentToolCallArgsSchema>;

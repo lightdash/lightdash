@@ -278,6 +278,69 @@ export class CatalogService<
         );
     }
 
+    public async searchExploreFields({
+        user,
+        ...args
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        exploreName: string;
+        searchQuery: string | null;
+        fieldType: FieldType | null;
+        yamlTags: string[] | null;
+        paginateArgs?: KnexPaginateArgs;
+    }) {
+        if (!user.organizationUuid) {
+            throw new Error('User organization not found');
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(args.projectUuid);
+
+        return this.catalogModel.searchExploreFields({
+            ...args,
+            userAttributes,
+            tablesConfiguration,
+        });
+    }
+
+    public async searchExplores({
+        user,
+        ...args
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        searchQuery: string | null;
+        exploreName: string | null;
+        yamlTags: string[] | null;
+        paginateArgs: KnexPaginateArgs;
+    }) {
+        if (!user.organizationUuid) {
+            throw new Error('User organization not found');
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(args.projectUuid);
+
+        return this.catalogModel.searchExplores({
+            ...args,
+            userAttributes,
+            tablesConfiguration,
+        });
+    }
+
     private async getFilteredExplores(
         user: SessionUser,
         organizationUuid: string,
