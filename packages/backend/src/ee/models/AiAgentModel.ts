@@ -2137,15 +2137,18 @@ export class AiAgentModel {
         return toolCallsAndResults;
     }
 
-    async createArtifact(data: {
-        threadUuid: string;
-        promptUuid: string;
-        artifactType: 'chart' | 'dashboard';
-        title?: string;
-        description?: string;
-        vizConfig: Record<string, unknown>;
-    }): Promise<AiArtifact> {
-        return this.database.transaction(async (trx) => {
+    async createArtifact(
+        data: {
+            threadUuid: string;
+            promptUuid: string;
+            artifactType: 'chart' | 'dashboard';
+            title?: string;
+            description?: string;
+            vizConfig: Record<string, unknown>;
+        },
+        { db }: { db: Knex } = { db: this.database },
+    ): Promise<AiArtifact> {
+        return AiAgentModel.withTrx(db, async (trx) => {
             // Insert artifact
             const [artifact] = await trx<AiArtifactsTable>(AiArtifactsTableName)
                 .insert({
@@ -2202,14 +2205,17 @@ export class AiAgentModel {
         });
     }
 
-    async createArtifactVersion(data: {
-        artifactUuid: string;
-        promptUuid: string;
-        title?: string;
-        description?: string;
-        vizConfig: Record<string, unknown>;
-    }): Promise<AiArtifact> {
-        return this.database.transaction(async (trx) => {
+    async createArtifactVersion(
+        data: {
+            artifactUuid: string;
+            promptUuid: string;
+            title?: string;
+            description?: string;
+            vizConfig: Record<string, unknown>;
+        },
+        { db }: { db: Knex } = { db: this.database },
+    ): Promise<AiArtifact> {
+        return AiAgentModel.withTrx(db, async (trx) => {
             // Get artifact to determine type
             const artifact = await trx<AiArtifactsTable>(AiArtifactsTableName)
                 .select('*')
@@ -2287,26 +2293,44 @@ export class AiAgentModel {
         title?: string;
         description?: string;
         vizConfig: Record<string, unknown>;
+        retry?: boolean;
     }): Promise<AiArtifact> {
-        const existingArtifacts = await this.findArtifactsByThreadUuid(
-            data.threadUuid,
-            data.artifactType,
-        );
+        try {
+            return await this.database.transaction(async (trx) => {
+                const existingArtifacts = await this.findArtifactsByThreadUuid(
+                    data.threadUuid,
+                    data.artifactType,
+                    { db: trx },
+                );
 
-        if (existingArtifacts.length > 0) {
-            // TODO: Currently assuming first artifact in array since we only support one artifact per thread per artifact type
-            // In the future, we may support multiple artifacts per thread
-            const existingArtifact = existingArtifacts[0];
-            return this.createArtifactVersion({
-                artifactUuid: existingArtifact.artifactUuid,
-                promptUuid: data.promptUuid,
-                title: data.title,
-                description: data.description,
-                vizConfig: data.vizConfig,
+                if (existingArtifacts.length > 0) {
+                    // TODO: Currently assuming first artifact in array since we only support one artifact per thread per artifact type
+                    // In the future, we may support multiple artifacts per thread
+                    const existingArtifact = existingArtifacts[0];
+                    return this.createArtifactVersion(
+                        {
+                            artifactUuid: existingArtifact.artifactUuid,
+                            promptUuid: data.promptUuid,
+                            title: data.title,
+                            description: data.description,
+                            vizConfig: data.vizConfig,
+                        },
+                        {
+                            db: trx,
+                        },
+                    );
+                }
+
+                return this.createArtifact({ ...data }, { db: trx });
             });
+        } catch (e) {
+            if (!data.retry) {
+                // TODO fix the race condition for version number
+                // this temporarily fixes the issue by retrying the operation
+                return this.createOrUpdateArtifact({ ...data, retry: true });
+            }
+            throw e;
         }
-
-        return this.createArtifact(data);
     }
 
     async getArtifact(
@@ -2376,54 +2400,57 @@ export class AiAgentModel {
     async findArtifactsByThreadUuid(
         threadUuid: string,
         artifactType?: AiArtifact['artifactType'],
+        { db }: { db: Knex } = { db: this.database },
     ): Promise<AiArtifact[]> {
-        const query = this.database
-            .select({
-                artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
-                threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
-                artifactType: `${AiArtifactsTableName}.artifact_type`,
-                savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
-                savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
-                createdAt: `${AiArtifactsTableName}.created_at`,
-                versionNumber: `${AiArtifactVersionsTableName}.version_number`,
-                versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                title: `${AiArtifactVersionsTableName}.title`,
-                description: `${AiArtifactVersionsTableName}.description`,
-                chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
-                dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
-                promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-                versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
-            } satisfies Record<keyof AiArtifact, string>)
-            .from(AiArtifactsTableName)
-            .join(
-                AiArtifactVersionsTableName,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-            )
-            .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
-            .andWhere(
-                `${AiArtifactVersionsTableName}.version_number`,
-                this.database
-                    .select(this.database.raw('MAX(version_number)'))
-                    .from(AiArtifactVersionsTableName)
-                    .where(
-                        'ai_artifact_uuid',
-                        this.database.ref(
-                            `${AiArtifactsTableName}.ai_artifact_uuid`,
+        return AiAgentModel.withTrx(db, async (trx) => {
+            const query = trx
+                .select({
+                    artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
+                    threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
+                    artifactType: `${AiArtifactsTableName}.artifact_type`,
+                    savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                    savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                    createdAt: `${AiArtifactsTableName}.created_at`,
+                    versionNumber: `${AiArtifactVersionsTableName}.version_number`,
+                    versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                    title: `${AiArtifactVersionsTableName}.title`,
+                    description: `${AiArtifactVersionsTableName}.description`,
+                    chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
+                    dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
+                    promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                    versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
+                } satisfies Record<keyof AiArtifact, string>)
+                .from(AiArtifactsTableName)
+                .join(
+                    AiArtifactVersionsTableName,
+                    `${AiArtifactsTableName}.ai_artifact_uuid`,
+                    `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                )
+                .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
+                .andWhere(
+                    `${AiArtifactVersionsTableName}.version_number`,
+                    this.database
+                        .select(this.database.raw('MAX(version_number)'))
+                        .from(AiArtifactVersionsTableName)
+                        .where(
+                            'ai_artifact_uuid',
+                            this.database.ref(
+                                `${AiArtifactsTableName}.ai_artifact_uuid`,
+                            ),
                         ),
-                    ),
-            )
-            .orderBy(`${AiArtifactsTableName}.created_at`, 'desc');
+                )
+                .orderBy(`${AiArtifactsTableName}.created_at`, 'desc');
 
-        if (artifactType) {
-            void query.andWhere(
-                `${AiArtifactsTableName}.artifact_type`,
-                artifactType,
-            );
-        }
+            if (artifactType) {
+                void query.andWhere(
+                    `${AiArtifactsTableName}.artifact_type`,
+                    artifactType,
+                );
+            }
 
-        const results = await query;
-        return results;
+            const results = await query;
+            return results;
+        });
     }
 
     async updateThreadTitle({

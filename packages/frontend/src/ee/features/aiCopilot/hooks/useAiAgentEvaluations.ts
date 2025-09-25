@@ -26,7 +26,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 
 const AI_AGENT_EVALUATIONS_KEY = 'aiAgentEvaluations';
 const AI_AGENT_EVALUATION_RUNS_KEY = 'aiAgentEvaluationRuns';
-const POLLING_INTERVAL = 2000;
+const POLLING_INTERVAL = 4000;
 
 const getEvaluations = async (
     projectUuid: string,
@@ -499,17 +499,20 @@ export const useEvaluationRunPolling = (
     projectUuid: string,
     agentUuid: string,
     evalUuid: string,
-    evalRun: AiAgentEvaluationRunSummary | undefined,
+    evalRun:
+        | Pick<AiAgentEvaluationRunSummary, 'status' | 'runUuid'>
+        | undefined,
 ) => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const queryClient = useQueryClient();
 
     const isPollingNeeded =
         evalRun?.status === 'pending' || evalRun?.status === 'running';
+    const runUuid = evalRun?.runUuid;
 
     useEffect(() => {
         if (
-            !evalRun ||
+            !runUuid ||
             !projectUuid ||
             !agentUuid ||
             !evalUuid ||
@@ -524,12 +527,25 @@ export const useEvaluationRunPolling = (
                     projectUuid,
                     agentUuid,
                     evalUuid,
-                    evalRun.runUuid,
+                    runUuid,
                 );
 
                 const shouldContinuePolling =
                     currentRunData?.status === 'pending' ||
                     currentRunData?.status === 'running';
+
+                queryClient.setQueryData<
+                    ApiAiAgentEvaluationRunResultsResponse['results']
+                >(
+                    [
+                        AI_AGENT_EVALUATION_RUNS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        evalUuid,
+                        runUuid,
+                    ],
+                    currentRunData,
+                );
 
                 if (shouldContinuePolling) {
                     timeoutRef.current = setTimeout(
@@ -563,7 +579,7 @@ export const useEvaluationRunPolling = (
         projectUuid,
         agentUuid,
         evalUuid,
-        evalRun,
+        runUuid,
         queryClient,
         isPollingNeeded,
     ]);
