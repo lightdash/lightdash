@@ -121,6 +121,9 @@ const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar() {
         return '"';
     },
+    getFloatingType() {
+        return 'FLOAT';
+    },
     escapeString(value) {
         return value;
     },

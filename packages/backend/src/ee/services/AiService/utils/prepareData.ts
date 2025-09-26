@@ -7,6 +7,7 @@ import {
     isCustomSqlDimension,
     isField,
     isMetric,
+    isSqlTableCalculation,
     isTableCalculation,
     Item,
     ResultRow,
@@ -72,7 +73,10 @@ export function fieldDesc(fieldName: string, item: Item) {
     }
 
     if (isTableCalculation(item)) {
-        return ` - ${fieldName}: this column is a table calculation which will be the result of the following SQL \`${item.sql}\``;
+        if (isSqlTableCalculation(item)) {
+            return ` - ${fieldName}: this column is a table calculation which will be the result of the following SQL \`${item.sql}\``;
+        }
+        return ` - ${fieldName}: this column is a table calculation`;
     }
 
     if (isAdditionalMetric(item)) {

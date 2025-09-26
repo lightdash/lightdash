@@ -18,6 +18,8 @@ import {
     isDashboardScheduler,
     isFilterRule,
     isOrFilterGroup,
+    isSqlTableCalculation,
+    isTemplateTableCalculation,
     MetricFilterRule,
     MetricQuery,
     NameChanges,
@@ -547,7 +549,21 @@ export const renameMetricQuery = (
         filters: renameFilters(metricQuery.filters, replaceId),
         tableCalculations: metricQuery.tableCalculations?.map((tc) => ({
             ...tc,
-            sql: replaceReference(tc.sql),
+            ...(isSqlTableCalculation(tc) && {
+                sql: replaceReference(tc.sql),
+            }),
+            ...(isTemplateTableCalculation(tc) && {
+                template: {
+                    ...tc.template,
+                    fieldId: replaceId(tc.template.fieldId),
+                    ...('orderBy' in tc.template && {
+                        orderBy: tc.template.orderBy.map((o) => ({
+                            ...o,
+                            fieldId: replaceId(o.fieldId),
+                        })),
+                    }),
+                },
+            }),
         })),
         additionalMetrics: metricQuery.additionalMetrics?.map((am) => ({
             ...am,
