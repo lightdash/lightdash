@@ -1,3 +1,10 @@
+## [0.2026.1](https://github.com/lightdash/lightdash/compare/0.2026.0...0.2026.1) (2025-09-26)
+
+
+### Bug Fixes
+
+* include table calcs in pivot values cols ([#17089](https://github.com/lightdash/lightdash/issues/17089)) ([b46c477](https://github.com/lightdash/lightdash/commit/b46c477bc1bf17b4fa1ab59b2795837f246816a2))
+
 # [0.2026.0](https://github.com/lightdash/lightdash/compare/0.2025.0...0.2026.0) (2025-09-26)
 
 
