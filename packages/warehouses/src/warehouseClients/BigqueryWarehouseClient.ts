@@ -156,6 +156,10 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
         return '`';
     }
 
+    getFloatingType(): string {
+        return 'FLOAT64';
+    }
+
     escapeString(value: string): string {
         if (typeof value !== 'string') {
             return value;

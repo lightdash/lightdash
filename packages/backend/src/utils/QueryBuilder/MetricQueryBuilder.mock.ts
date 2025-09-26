@@ -86,6 +86,7 @@ export const warehouseClientMock: WarehouseClient = {
         }
     },
     getFieldQuoteChar: () => '"',
+    getFloatingType: () => 'FLOAT',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -129,6 +130,7 @@ export const bigqueryClientMock: WarehouseClient = {
         type: WarehouseTypes.BIGQUERY,
     } as CreateWarehouseCredentials,
     getFieldQuoteChar: () => '`',
+    getFloatingType: () => 'FLOAT64',
     getCatalog: async () => ({
         default: {
             public: {

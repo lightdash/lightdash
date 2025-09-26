@@ -313,14 +313,58 @@ export enum TableCalculationType {
     BOOLEAN = 'boolean',
 }
 
+export enum TableCalculationTemplateType {
+    PERCENT_CHANGE_FROM_PREVIOUS = 'percent_change_from_previous',
+    PERCENT_OF_PREVIOUS_VALUE = 'percent_of_previous_value',
+    PERCENT_OF_COLUMN_TOTAL = 'percent_of_column_total',
+    RANK_IN_COLUMN = 'rank_in_column',
+    RUNNING_TOTAL = 'running_total',
+}
+
+export type TableCalculationTemplate =
+    | {
+          type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS;
+          fieldId: string;
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
+      }
+    | {
+          type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE;
+          fieldId: string;
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
+      }
+    | {
+          type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL;
+          fieldId: string;
+      }
+    | {
+          type: TableCalculationTemplateType.RANK_IN_COLUMN;
+          fieldId: string;
+      }
+    | {
+          type: TableCalculationTemplateType.RUNNING_TOTAL;
+          fieldId: string;
+      };
+
 export type TableCalculation = {
     index?: number;
     name: string;
     displayName: string; // This is a unique property of the table calculation
-    sql: string;
     format?: CustomFormat;
     type?: TableCalculationType;
-};
+} & (
+    | {
+          sql: string;
+      }
+    | {
+          template: TableCalculationTemplate;
+      }
+);
 
 export type TableCalculationMetadata = {
     oldName: string;
@@ -339,11 +383,22 @@ export const isTableCalculation = (
 ): item is TableCalculation =>
     item
         ? !isCustomDimension(item) &&
-          !!('sql' in item && item.sql) &&
+          (!!('sql' in item && item.sql) ||
+              !!('template' in item && item.template)) &&
           !('description' in item) &&
           !('tableName' in item) &&
           'displayName' in item
         : false;
+
+export const isSqlTableCalculation = (
+    calc: TableCalculation,
+): calc is TableCalculation & { sql: string } =>
+    !!calc && 'sql' in calc && !!calc.sql && calc.sql.length > 0;
+
+export const isTemplateTableCalculation = (
+    calc: TableCalculation,
+): calc is TableCalculation & { template: TableCalculationTemplate } =>
+    !!calc && 'template' in calc && !!calc.template;
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;

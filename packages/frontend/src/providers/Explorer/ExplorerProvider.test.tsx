@@ -4,6 +4,7 @@ import {
     CustomFormatType,
     FilterOperator,
     getItemId,
+    isSqlTableCalculation,
     type ChartConfig,
     type Filters,
     type SortField,
@@ -1464,9 +1465,10 @@ describe('ExplorerProvider reducer', () => {
             //     newState.unsavedChartVersion.metricQuery.filters.metrics
             //         ?.and?.[0]?.target?.fieldId,
             // ).toBe('orders_revenue_new');
+            const tableCalc =
+                newState.unsavedChartVersion.metricQuery.tableCalculations[0];
             expect(
-                newState.unsavedChartVersion.metricQuery.tableCalculations[0]
-                    .sql,
+                isSqlTableCalculation(tableCalc) ? tableCalc.sql : '',
             ).toContain('${orders.revenue_new}');
             expect(
                 newState.unsavedChartVersion.tableConfig.columnOrder,

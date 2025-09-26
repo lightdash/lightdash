@@ -46,6 +46,10 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.getFieldQuoteChar();
     }
 
+    getFloatingType(): string {
+        return this.sqlBuilder.getFloatingType();
+    }
+
     abstract getCatalog(
         config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog>;
