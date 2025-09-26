@@ -31,6 +31,7 @@ export type DownloadHandlerOptions = {
     project?: string;
     languageMap: boolean;
     skipSpaceCreate: boolean;
+    includeCharts: boolean;
 };
 
 const getDownloadFolder = (customPath?: string): string => {
@@ -561,6 +562,38 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     return { changes, total: filteredItems.length };
 };
 
+const getDashboardChartSlugs = async (
+    dashboardSlugs: string[],
+    customPath?: string,
+) => {
+    const dashboardItems = await readCodeFiles<DashboardAsCode>(
+        'dashboards',
+        customPath,
+    );
+
+    const filteredDashboardItems =
+        dashboardSlugs.length > 0
+            ? dashboardItems.filter((dashboard) =>
+                  dashboardSlugs.includes(dashboard.slug),
+              )
+            : dashboardItems;
+
+    return filteredDashboardItems.reduce<string[]>((acc, dashboard) => {
+        const dashboardChartSlugs = dashboard.tiles
+            .map((tile) =>
+                'chartSlug' in tile.properties
+                    ? tile.properties.chartSlug
+                    : undefined,
+            )
+            .filter(
+                (dashboardChartSlug): dashboardChartSlug is string =>
+                    !!dashboardChartSlug,
+            );
+
+        return [...acc, ...dashboardChartSlugs];
+    }, []);
+};
+
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -601,7 +634,20 @@ export const uploadHandler = async (
         const hasFilters =
             options.charts.length > 0 || options.dashboards.length > 0;
 
-        if (hasFilters && options.charts.length === 0) {
+        // Always include the charts from dashboards if includeCharts is true regardless of the charts filters
+        const chartSlugs = options.includeCharts
+            ? Array.from(
+                  new Set([
+                      ...options.charts,
+                      ...(await getDashboardChartSlugs(
+                          options.dashboards,
+                          options.path,
+                      )),
+                  ]),
+              )
+            : options.charts;
+
+        if (hasFilters && chartSlugs.length === 0) {
             console.info(
                 styles.warning(`No charts filters provided, skipping`),
             );
@@ -612,7 +658,7 @@ export const uploadHandler = async (
                     projectId,
                     changes,
                     options.force,
-                    options.charts,
+                    chartSlugs,
                     options.path,
                     options.skipSpaceCreate,
                 );
