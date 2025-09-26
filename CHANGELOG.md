@@ -1,3 +1,15 @@
+# [0.2025.0](https://github.com/lightdash/lightdash/compare/0.2024.4...0.2025.0) (2025-09-26)
+
+
+### Bug Fixes
+
+* only return valid tiles when generating ai dashboard artifact ([#17096](https://github.com/lightdash/lightdash/issues/17096)) ([5345fc8](https://github.com/lightdash/lightdash/commit/5345fc89836d115fe764b81cfdd274f8e0bf8329))
+
+
+### Features
+
+* show instruction notification on improvement of context ([#17033](https://github.com/lightdash/lightdash/issues/17033)) ([8f98150](https://github.com/lightdash/lightdash/commit/8f9815010ac4a4ea2617f716e7cf9af759711c34))
+
 ## [0.2024.4](https://github.com/lightdash/lightdash/compare/0.2024.3...0.2024.4) (2025-09-26)
 
 
