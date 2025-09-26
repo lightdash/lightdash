@@ -2086,12 +2086,6 @@ export class AiAgentService {
             createOrUpdateArtifact: (data) =>
                 this.aiAgentModel.createOrUpdateArtifact(data),
 
-            appendInstruction: (data) =>
-                this.aiAgentModel.appendInstruction({
-                    agentUuid: data.agentUuid,
-                    instruction: data.instruction,
-                }),
-
             perf: {
                 measureGenerateResponseTime: (durationMs) => {
                     this.prometheusMetrics?.aiAgentGenerateResponseDurationHistogram?.observe(
@@ -3536,5 +3530,20 @@ export class AiAgentService {
         await this.getAgent(user, agentUuid);
 
         return this.aiAgentModel.getArtifact(artifactUuid, versionUuid);
+    }
+
+    async appendInstruction(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        instruction: string,
+    ): Promise<string> {
+        // Check user has access to the agent
+        await this.getAgent(user, agentUuid, projectUuid);
+
+        return this.aiAgentModel.appendInstruction({
+            agentUuid,
+            instruction,
+        });
     }
 }

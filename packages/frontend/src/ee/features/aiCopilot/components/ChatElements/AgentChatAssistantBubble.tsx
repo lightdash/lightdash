@@ -141,13 +141,18 @@ const AssistantBubbleContent: FC<{
                 <AiChartToolCalls
                     toolCalls={streamingState?.toolCalls}
                     type="streaming"
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
                 />
             )}
-
             {!isStreaming && message.toolCalls.length > 0 && (
                 <AiChartToolCalls
                     toolCalls={message.toolCalls}
                     type="persisted"
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
                 />
             )}
             {messageContent.length > 0 ? (

@@ -460,3 +460,11 @@ export type ApiCreateEvaluationResponse = ApiSuccess<
 export type ApiUpdateEvaluationResponse = ApiSuccess<AiAgentEvaluation>;
 
 export type ApiCloneThreadResponse = ApiSuccess<AiAgentThreadSummary>;
+
+export type ApiAppendInstructionRequest = {
+    instruction: string;
+};
+
+export type ApiAppendInstructionResponse = ApiSuccess<{
+    updatedInstruction: string;
+}>;

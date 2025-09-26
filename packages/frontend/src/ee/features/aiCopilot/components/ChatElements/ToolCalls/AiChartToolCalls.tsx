@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    Button,
     Collapse,
     Group,
     Paper,
@@ -36,6 +37,12 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type JSX } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useAppendInstructionMutation } from '../../../hooks/useProjectAiAgents';
+import { clearImproveContextNotification } from '../../../store/aiAgentThreadStreamSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../../store/hooks';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 
 const getToolIcon = (toolName: ToolName) => {
@@ -61,50 +68,6 @@ type ToolCallSummary = Omit<
     AiAgentToolCall,
     'createdAt' | 'uuid' | 'promptUuid'
 >;
-
-const ImproveContextToolCall: FC<{
-    toolCall: ToolCallSummary;
-}> = ({ toolCall }) => {
-    const toolNameParsed = ToolNameSchema.safeParse(toolCall.toolName);
-    const toolArgsParsed = AgentToolCallArgsSchema.safeParse(toolCall.toolArgs);
-
-    if (!toolNameParsed.success || !toolArgsParsed.success) {
-        console.error(
-            `Failed to parse tool call ${toolCall.toolName} ${toolCall.toolCallId}`,
-            toolNameParsed.error ?? toolArgsParsed.error,
-        );
-        return null;
-    }
-
-    const toolArgs = toolArgsParsed.data;
-
-    if (toolArgs.type === 'improve_context') {
-        return (
-            <Paper bg="white" p="xs" mb="xs">
-                <Group gap="xs" align="flex-start" wrap="nowrap">
-                    <MantineIcon icon={IconSchool} size="md" color="violet.6" />
-                    <Stack gap="two">
-                        <Text fz="xs" fw={500} c="gray.7" lh="normal" m={0}>
-                            Saved instruction
-                        </Text>
-                        <Text
-                            fz="xs"
-                            fw={400}
-                            c="gray.6"
-                            lh="normal"
-                            m={0}
-                            fs="italic"
-                        >
-                            {toolArgs.suggestedInstruction}
-                        </Text>
-                    </Stack>
-                </Group>
-            </Paper>
-        );
-    }
-
-    return null;
-};
 
 const ToolCallContainer = ({
     children,
@@ -330,31 +293,130 @@ const ToolCallDescription: FC<{
     }
 };
 
+const ImproveContextToolCall: FC<{
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+}> = ({ projectUuid, agentUuid, threadUuid }) => {
+    const improveContextNotification = useAiAgentStoreSelector(
+        (state) =>
+            state.aiAgentThreadStream[threadUuid]?.improveContextNotification,
+    );
+    const dispatch = useAiAgentStoreDispatch();
+
+    const appendInstructionMutation = useAppendInstructionMutation(
+        projectUuid,
+        agentUuid,
+    );
+
+    if (!improveContextNotification) {
+        return null;
+    }
+
+    const handleSave = async () => {
+        if (!improveContextNotification) return;
+
+        await appendInstructionMutation.mutateAsync({
+            instruction: improveContextNotification.suggestedInstruction,
+        });
+
+        dispatch(
+            clearImproveContextNotification({
+                threadUuid,
+            }),
+        );
+    };
+
+    const handleDismiss = () => {
+        dispatch(
+            clearImproveContextNotification({
+                threadUuid,
+            }),
+        );
+    };
+
+    return (
+        <Paper bg="white" p="xs" mb="xs" withBorder>
+            <Group gap="xs" align="flex-start" wrap="nowrap">
+                <MantineIcon icon={IconSchool} size="md" color="indigo.6" />
+                <Stack gap="xs" style={{ flex: 1 }}>
+                    <Text fz="xs" fw={500} c="gray.9" lh="normal" m={0}>
+                        Save instruction to memory?
+                    </Text>
+
+                    <Text
+                        fz="xs"
+                        c="gray.7"
+                        bg="gray.0"
+                        p="xs"
+                        style={{
+                            borderRadius: '4px',
+                            fontStyle: 'italic',
+                        }}
+                    >
+                        {improveContextNotification.suggestedInstruction}
+                    </Text>
+                    <Group justify="flex-end" gap="xs">
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleDismiss}
+                            disabled={appendInstructionMutation.isLoading}
+                        >
+                            Dismiss
+                        </Button>
+                        <Button
+                            size="compact-xs"
+                            color="indigo"
+                            onClick={handleSave}
+                            loading={appendInstructionMutation.isLoading}
+                        >
+                            Save
+                        </Button>
+                    </Group>
+                </Stack>
+            </Group>
+        </Paper>
+    );
+};
+
 type AiChartToolCallsProps = {
     toolCalls: ToolCallSummary[] | undefined;
     type: ToolCallDisplayType;
+    projectUuid?: string;
+    agentUuid?: string;
+    threadUuid?: string;
 };
 
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     toolCalls,
     type,
+    projectUuid,
+    agentUuid,
+    threadUuid,
 }) => {
     const texts =
         type === 'streaming'
             ? TOOL_DISPLAY_MESSAGES
             : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL;
 
-    const improveContextToolCall = toolCalls?.find(
-        (toolCall) => toolCall.toolName === 'improveContext',
-    );
     const calculationToolCalls = toolCalls?.filter(
         (toolCall) => toolCall.toolName !== 'improveContext',
     );
 
     if (!toolCalls || toolCalls.length === 0) return null;
+
     return (
-        <Stack gap="xs">
-            {calculationToolCalls && calculationToolCalls.length > 0 && (
+        <>
+            {projectUuid && agentUuid && threadUuid && (
+                <ImproveContextToolCall
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={threadUuid}
+                />
+            )}
+            {!!calculationToolCalls?.length && (
                 <ToolCallContainer defaultOpened={type !== 'persisted'}>
                     <Stack pt="xs">
                         <Timeline
@@ -411,9 +473,6 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                     </Stack>
                 </ToolCallContainer>
             )}
-            {!!improveContextToolCall && (
-                <ImproveContextToolCall toolCall={improveContextToolCall} />
-            )}
-        </Stack>
+        </>
     );
 };
