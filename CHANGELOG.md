@@ -1,3 +1,10 @@
+## [0.2026.2](https://github.com/lightdash/lightdash/compare/0.2026.1...0.2026.2) (2025-09-26)
+
+
+### Bug Fixes
+
+* chart config tooltip cut off ([#17090](https://github.com/lightdash/lightdash/issues/17090)) ([ed78ef2](https://github.com/lightdash/lightdash/commit/ed78ef294095358913bfb26f31cf285a016844cb))
+
 ## [0.2026.1](https://github.com/lightdash/lightdash/compare/0.2026.0...0.2026.1) (2025-09-26)
 
 
