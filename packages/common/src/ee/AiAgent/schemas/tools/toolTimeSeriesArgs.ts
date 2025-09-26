@@ -6,6 +6,7 @@ import {
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import { timeSeriesMetricVizConfigSchema } from '../visualizations/timeSeriesViz';
@@ -19,6 +20,7 @@ export const toolTimeSeriesArgsSchema = createToolSchema(
     .extend({
         ...visualizationMetadataSchema.shape,
         customMetrics: customMetricsSchema,
+        tableCalculations: tableCalcsSchema,
         vizConfig: timeSeriesMetricVizConfigSchema,
         filters: filtersSchema
             .nullable()
@@ -49,6 +51,7 @@ export const toolTimeSeriesArgsSchemaTransformed = toolTimeSeriesArgsSchema
         }),
         // backwards compatibility for old viz configs without customMetrics
         customMetrics: customMetricsSchema.default(null),
+        tableCalculations: tableCalcsSchema.default(null),
         followUpTools: z.array(
             z.union([
                 z.literal(AiResultType.TABLE_RESULT),

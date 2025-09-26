@@ -1,5 +1,6 @@
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import {
+    convertAiTableCalcsSchemaToTableCalcs,
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
@@ -27,6 +28,9 @@ export const parseVizConfig = (
             filters: vizTool.filters,
             maxLimit: maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             customMetrics: vizTool.customMetrics ?? null,
+            tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                vizTool.tableCalculations,
+            ),
         });
         return {
             type: AiResultType.VERTICAL_BAR_RESULT,
@@ -44,6 +48,9 @@ export const parseVizConfig = (
             filters: vizTool.filters,
             maxLimit: maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             customMetrics: vizTool.customMetrics ?? null,
+            tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                vizTool.tableCalculations,
+            ),
         });
         return {
             type: AiResultType.TIME_SERIES_RESULT,
@@ -61,6 +68,9 @@ export const parseVizConfig = (
             filters: vizTool.filters,
             maxLimit: maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             customMetrics: vizTool.customMetrics ?? null,
+            tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                vizTool.tableCalculations,
+            ),
         });
         return {
             type: AiResultType.TABLE_RESULT,

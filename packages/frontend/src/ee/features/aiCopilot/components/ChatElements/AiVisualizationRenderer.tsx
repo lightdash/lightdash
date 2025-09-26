@@ -121,6 +121,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 columnOrder={[
                     ...metricQuery.dimensions,
                     ...metricQuery.metrics,
+                    ...metricQuery.tableCalculations.map((tc) => tc.name),
                 ]}
                 pivotTableMaxColumnLimit={
                     health?.pivotTable.maxColumnLimit ?? 60

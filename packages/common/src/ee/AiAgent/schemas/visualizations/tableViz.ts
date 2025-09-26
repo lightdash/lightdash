@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type TableCalculation } from '../../../../types/field';
 import type { Filters } from '../../../../types/filter';
 import type { AiMetricQueryWithFilters } from '../../types';
 import { getValidAiQueryLimit } from '../../validators';
@@ -45,11 +46,13 @@ export const metricQueryTableViz = ({
     filters,
     maxLimit,
     customMetrics,
+    tableCalculations,
 }: {
     vizConfig: TableVizConfigSchemaType;
     filters: Filters;
     maxLimit: number;
     customMetrics: ToolTableVizArgsTransformed['customMetrics'] | null;
+    tableCalculations: TableCalculation[];
 }): AiMetricQueryWithFilters => ({
     exploreName: vizConfig.exploreName,
     metrics: vizConfig.metrics,
@@ -61,4 +64,5 @@ export const metricQueryTableViz = ({
     limit: getValidAiQueryLimit(vizConfig.limit, maxLimit),
     filters,
     additionalMetrics: customMetrics ?? [],
+    tableCalculations,
 });
