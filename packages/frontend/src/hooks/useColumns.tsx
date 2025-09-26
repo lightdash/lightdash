@@ -32,6 +32,14 @@ import {
     type TableColumn,
 } from '../components/common/Table/types';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import {
+    selectAdditionalMetrics,
+    selectCustomDimensions,
+    selectSorts,
+    selectTableCalculations,
+    selectTableName,
+    useExplorerSelector,
+} from '../features/explorer/store';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -62,26 +70,16 @@ export const getValueCell = (info: CellContext<RawResultRow, string>) => {
 };
 
 export const useColumns = (): TableColumn[] => {
+    // Use Redux for state that's available
+    const tableName = useExplorerSelector(selectTableName);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const sorts = useExplorerSelector(selectSorts);
+
+    // Keep Context for computed state not in Redux
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
-    );
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const tableCalculations = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.tableCalculations,
-    );
-    const customDimensions = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.customDimensions,
-    );
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
-    );
-    const sorts = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
     const resultsMetricQuery = useExplorerContext(
         (context) => context.query.data?.metricQuery,

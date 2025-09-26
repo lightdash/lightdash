@@ -89,6 +89,17 @@ export const selectTableCalculations = createSelector(
     (metricQuery) => metricQuery.tableCalculations,
 );
 
+// ResultsCard specific selectors
+export const selectSorts = createSelector(
+    [selectMetricQuery],
+    (metricQuery) => metricQuery.sorts,
+);
+
+export const selectColumnOrder = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.tableConfig.columnOrder,
+);
+
 // const selectDimensions = createSelector(
 //     [selectMetricQuery],
 //     (metricQuery) => metricQuery.dimensions,
