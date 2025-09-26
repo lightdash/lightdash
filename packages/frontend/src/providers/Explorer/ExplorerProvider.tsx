@@ -922,6 +922,15 @@ const ExplorerProvider: FC<
         reduxDispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, reduxDispatch]);
 
+    // Keep Redux sorts in sync with Context sorts
+    useEffect(() => {
+        reduxDispatch(
+            explorerActions.setSortFields(
+                unsavedChartVersion.metricQuery.sorts,
+            ),
+        );
+    }, [unsavedChartVersion.metricQuery.sorts, reduxDispatch]);
+
     // Keep Redux table name in sync with Context state
     useEffect(() => {
         const contextTableName = reducerState.unsavedChartVersion.tableName;
@@ -1035,9 +1044,10 @@ const ExplorerProvider: FC<
                 descending: boolean;
             } = { descending: false },
         ) => {
+            const sortField = { fieldId, ...options };
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
-                payload: { fieldId, ...options },
+                payload: sortField,
             });
         },
         [],

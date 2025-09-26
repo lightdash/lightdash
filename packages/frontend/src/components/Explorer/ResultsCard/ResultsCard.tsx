@@ -4,8 +4,12 @@ import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
     explorerActions,
+    selectColumnOrder,
     selectIsEditMode,
     selectIsResultsExpanded,
+    selectMetricQuery,
+    selectSorts,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -32,35 +36,27 @@ const ResultsCard: FC = memo(() => {
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
     const dispatch = useExplorerDispatch();
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const sorts = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
-    );
+    const tableName = useExplorerSelector(selectTableName);
+    const sorts = useExplorerSelector(selectSorts);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const columnOrder = useExplorerSelector(selectColumnOrder);
 
+    // These remain in Context as they're not part of Redux state
     const totalResults = useExplorerContext(
         (context) => context.queryResults.totalResults,
     );
+    const getDownloadQueryUuid = useExplorerContext(
+        (context) => context.actions.getDownloadQueryUuid,
+    );
+    const savedChart = useExplorerContext(
+        (context) => context.state.savedChart,
+    );
+
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
             dispatch(explorerActions.toggleExpandedSection(section));
         },
         [dispatch],
-    );
-    const metricQuery = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery,
-    );
-
-    const columnOrder = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
-    );
-    const getDownloadQueryUuid = useExplorerContext(
-        (context) => context.actions.getDownloadQueryUuid,
-    );
-
-    const savedChart = useExplorerContext(
-        (context) => context.state.savedChart,
     );
 
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
