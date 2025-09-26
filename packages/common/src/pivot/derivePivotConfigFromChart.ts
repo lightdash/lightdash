@@ -121,17 +121,24 @@ function getTablePivotConfiguration(
         })
         .filter((col): col is NonNullable<typeof col> => col !== undefined);
 
-    // Create value columns for each metric
-    const valuesColumns = metricQuery.metrics
-        .map((metric) => ({
+    // Create value columns for each metric and table calculation
+    const valuesColumns = [
+        ...metricQuery.metrics.map((metric) => ({
             reference: metric,
             aggregation: VizAggregationOptions.ANY,
-        }))
-        .filter(
-            (col) =>
-                metricQuery.dimensions.includes(col.reference) ||
-                metricQuery.metrics.includes(col.reference),
-        );
+        })),
+        ...(metricQuery.tableCalculations || []).map((tc) => ({
+            reference: tc.name,
+            aggregation: VizAggregationOptions.ANY,
+        })),
+    ].filter(
+        (col) =>
+            metricQuery.dimensions.includes(col.reference) ||
+            metricQuery.metrics.includes(col.reference) ||
+            (metricQuery.tableCalculations || []).some(
+                (tc) => tc.name === col.reference,
+            ),
+    );
 
     // Group by columns are the pivot dimensions
     const groupByColumns = pivotColumns
@@ -184,7 +191,7 @@ function getCartesianPivotConfiguration(
             }))
             .filter((col) => metricQuery.dimensions.includes(col.reference));
 
-        // Extract value columns
+        // Extract value columns (metrics and table calculations from yField)
         const valuesColumns = yField
             .map((yf) => ({
                 reference: yf,
@@ -193,7 +200,10 @@ function getCartesianPivotConfiguration(
             .filter(
                 (col) =>
                     metricQuery.dimensions.includes(col.reference) ||
-                    metricQuery.metrics.includes(col.reference),
+                    metricQuery.metrics.includes(col.reference) ||
+                    (metricQuery.tableCalculations || []).some(
+                        (tc) => tc.name === col.reference,
+                    ),
             );
 
         const xAxisDimension = fields[xField];
