@@ -6,6 +6,7 @@ import { lazy, memo, Suspense, useCallback, type FC } from 'react';
 import {
     explorerActions,
     selectIsSqlExpanded,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -13,7 +14,6 @@ import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
@@ -35,9 +35,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const sqlIsOpen = useExplorerSelector(selectIsSqlExpanded);
     const dispatch = useExplorerDispatch();
 
-    const unsavedChartVersionTableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+    const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
