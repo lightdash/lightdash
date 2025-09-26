@@ -618,6 +618,20 @@ export default class App {
             }),
         );
 
+        // handling api 404s before frontend catch all
+        expressApp.use('/api/*', (req, res) => {
+            const apiErrorResponse = {
+                status: 'error',
+                error: {
+                    statusCode: 404,
+                    name: 'NotFoundError',
+                    message: `API endpoint not found`,
+                    data: {},
+                },
+            } satisfies ApiError;
+            res.status(404).json(apiErrorResponse);
+        });
+
         expressApp.get('*', (req, res) => {
             res.sendFile(
                 path.join(__dirname, '../../frontend/build', 'index.html'),
