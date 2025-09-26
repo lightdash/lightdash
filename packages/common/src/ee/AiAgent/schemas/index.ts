@@ -28,6 +28,7 @@ export * from './customMetrics';
 export * from './filters';
 export * from './outputMetadata';
 export * from './sortField';
+export * from './tableCalcs/tableCalcs';
 export * from './tools';
 export * from './visualizations';
 
