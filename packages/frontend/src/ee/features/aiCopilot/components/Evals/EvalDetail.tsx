@@ -19,7 +19,7 @@ import {
     IconTarget,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentEvaluation,
@@ -39,7 +39,6 @@ type Props = {
 
 export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
     const navigate = useNavigate();
-    const { runUuid } = useParams<{ runUuid?: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const { data: evaluation, isLoading: isLoadingEval } = useAiAgentEvaluation(
@@ -200,7 +199,6 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
                 evalUuid={evalUuid}
-                selectedRunUuid={runUuid}
             />
 
             {isEditModalOpen && evaluation && (

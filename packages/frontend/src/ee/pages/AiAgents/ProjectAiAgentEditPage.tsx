@@ -159,6 +159,9 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         }
     }, [canManageAgents, navigate, projectUuid]);
 
+    const navbarHeight =
+        NAVBAR_HEIGHT + (isCurrentProjectPreview ? BANNER_HEIGHT : 0);
+
     if (!isCreateMode && actualAgentUuid && !agent && !isLoadingAgent) {
         return (
             <Container py="xl">
@@ -197,9 +200,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         <AppShell
             padding="md"
             header={{
-                height:
-                    NAVBAR_HEIGHT +
-                    (isCurrentProjectPreview ? BANNER_HEIGHT : 0),
+                height: navbarHeight,
             }}
             navbar={{
                 width: 300,
@@ -314,7 +315,12 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     </Stack>
                 </Stack>
             </AppShell.Navbar>
-            <AppShell.Main pt={0} pr={0}>
+            <AppShell.Main
+                pt={0}
+                pr={0}
+                pb={0}
+                mih={`calc(100vh - ${navbarHeight}px)`}
+            >
                 <Box>
                     {activeTab === 'setup' && (
                         <Box pt="sm" pr="sm">
