@@ -1408,6 +1408,20 @@ export type McpToolCallEvent = BaseTrack & {
     };
 };
 
+export type AiAgentToolCallEvent = BaseTrack & {
+    event: 'ai_agent_tool_call';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        toolName: string;
+        threadId: string;
+        promptId: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1505,7 +1519,8 @@ type TypedEvent =
     | AiAgentEvalCreatedEvent
     | AiAgentEvalRunEvent
     | AiAgentEvalAppendedEvent
-    | McpToolCallEvent;
+    | McpToolCallEvent
+    | AiAgentToolCallEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

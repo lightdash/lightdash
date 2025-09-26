@@ -70,6 +70,7 @@ import {
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentResponseStreamed,
+    AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
@@ -2080,8 +2081,9 @@ export class AiAgentService {
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => this.aiAgentModel.updateModelResponse(update),
-            trackEvent: (event: AiAgentResponseStreamed) =>
-                this.analytics.track(event),
+            trackEvent: (
+                event: AiAgentResponseStreamed | AiAgentToolCallEvent,
+            ) => this.analytics.track(event),
 
             createOrUpdateArtifact: (data) =>
                 this.aiAgentModel.createOrUpdateArtifact(data),
