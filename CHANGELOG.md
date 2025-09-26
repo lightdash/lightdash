@@ -1,3 +1,50 @@
+## [0.2026.3](https://github.com/lightdash/lightdash/compare/0.2026.2...0.2026.3) (2025-09-26)
+
+
+### Bug Fixes
+
+* AI Agent link shows in settings without FF ([#17087](https://github.com/lightdash/lightdash/issues/17087)) ([028dab6](https://github.com/lightdash/lightdash/commit/028dab6fcab0f1f45014736f822156547da434f0)), closes [#17084](https://github.com/lightdash/lightdash/issues/17084)
+
+## [0.2026.2](https://github.com/lightdash/lightdash/compare/0.2026.1...0.2026.2) (2025-09-26)
+
+
+### Bug Fixes
+
+* chart config tooltip cut off ([#17090](https://github.com/lightdash/lightdash/issues/17090)) ([ed78ef2](https://github.com/lightdash/lightdash/commit/ed78ef294095358913bfb26f31cf285a016844cb))
+
+## [0.2026.1](https://github.com/lightdash/lightdash/compare/0.2026.0...0.2026.1) (2025-09-26)
+
+
+### Bug Fixes
+
+* include table calcs in pivot values cols ([#17089](https://github.com/lightdash/lightdash/issues/17089)) ([b46c477](https://github.com/lightdash/lightdash/commit/b46c477bc1bf17b4fa1ab59b2795837f246816a2))
+
+# [0.2026.0](https://github.com/lightdash/lightdash/compare/0.2025.0...0.2026.0) (2025-09-26)
+
+
+### Features
+
+* size improvements in tiles ([#17098](https://github.com/lightdash/lightdash/issues/17098)) ([d3cee6d](https://github.com/lightdash/lightdash/commit/d3cee6db769403039688a03982232a3b5e66b191)), closes [#9989](https://github.com/lightdash/lightdash/issues/9989)
+
+# [0.2025.0](https://github.com/lightdash/lightdash/compare/0.2024.4...0.2025.0) (2025-09-26)
+
+
+### Bug Fixes
+
+* only return valid tiles when generating ai dashboard artifact ([#17096](https://github.com/lightdash/lightdash/issues/17096)) ([5345fc8](https://github.com/lightdash/lightdash/commit/5345fc89836d115fe764b81cfdd274f8e0bf8329))
+
+
+### Features
+
+* show instruction notification on improvement of context ([#17033](https://github.com/lightdash/lightdash/issues/17033)) ([8f98150](https://github.com/lightdash/lightdash/commit/8f9815010ac4a4ea2617f716e7cf9af759711c34))
+
+## [0.2024.4](https://github.com/lightdash/lightdash/compare/0.2024.3...0.2024.4) (2025-09-26)
+
+
+### Bug Fixes
+
+* Improve 404 handling for API endpoints and improve cli error responses ([#17086](https://github.com/lightdash/lightdash/issues/17086)) ([cc559ff](https://github.com/lightdash/lightdash/commit/cc559ff1ffc968f7e79cd3bd9bee56441e0abd4c))
+
 ## [0.2024.3](https://github.com/lightdash/lightdash/compare/0.2024.2...0.2024.3) (2025-09-25)
 
 

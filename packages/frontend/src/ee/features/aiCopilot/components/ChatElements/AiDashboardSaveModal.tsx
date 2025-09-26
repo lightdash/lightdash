@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     type AiArtifact,
+    type ApiAiAgentThreadMessageVizQuery,
     type Dashboard,
     type ToolDashboardArgs,
 } from '@lightdash/common';
@@ -123,7 +124,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
 
     // Read cached viz-query results from react-query client using exported key
     const getCachedVizQueries = useCallback(() => {
-        const results: any[] = [];
+        const results: (ApiAiAgentThreadMessageVizQuery | undefined)[] = [];
         for (let i = 0; i < dashboardConfig.visualizations.length; i++) {
             const key = getAiAgentDashboardChartVizQueryKey({
                 projectUuid,
@@ -132,7 +133,8 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 versionUuid: artifactData.versionUuid,
                 chartIndex: i,
             });
-            const data = queryClient.getQueryData(key);
+            const data =
+                queryClient.getQueryData<ApiAiAgentThreadMessageVizQuery>(key);
             results.push(data);
         }
         return results;
@@ -198,22 +200,25 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 }
 
                 // Get all visualization query results from cache
-                const cached = getCachedVizQueries();
-                if (cached.some((q) => !q)) {
+                const cachedVizQueries = getCachedVizQueries();
+                if (cachedVizQueries.some((q) => !q)) {
                     showToastApiError({
-                        title: 'Dashboard save failed',
+                        title: 'Failed to save dashboard',
                         apiError: {
                             name: 'ValidationError',
                             message:
-                                'Visualization results not found in cache. Please preview the charts and try again.',
+                                "Some visualizations didn't run successfully. ",
                             statusCode: 400,
                             data: {},
-                        } as any,
+                        },
                     });
                     setCurrentStep(ModalStep.SelectDestination);
                     return;
                 }
-                const vizQueryResults = cached as any[];
+
+                const vizQueryResults = cachedVizQueries.filter(
+                    (c) => c !== undefined,
+                );
 
                 // Convert visualizations to chart data
                 const chartDataArray =

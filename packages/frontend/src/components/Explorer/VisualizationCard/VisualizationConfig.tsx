@@ -68,7 +68,7 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                     Configure chart
                 </Text>
 
-                <Tooltip label="Close visualization config">
+                <Tooltip label="Close visualization config" position="right">
                     <ActionIcon size="sm" onClick={onClose}>
                         <MantineIcon icon={IconX} />
                     </ActionIcon>

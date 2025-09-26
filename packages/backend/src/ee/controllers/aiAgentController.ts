@@ -20,6 +20,8 @@ import {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAppendEvaluationRequest,
+    ApiAppendInstructionRequest,
+    ApiAppendInstructionResponse,
     ApiCloneThreadResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
@@ -867,6 +869,34 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/append-instruction')
+    @OperationId('appendInstruction')
+    async appendInstruction(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Body() body: ApiAppendInstructionRequest,
+    ): Promise<ApiAppendInstructionResponse> {
+        this.setStatus(200);
+
+        const updatedInstruction =
+            await this.getAiAgentService().appendInstruction(
+                req.user!,
+                projectUuid,
+                agentUuid,
+                body.instruction,
+            );
+
+        return {
+            status: 'ok',
+            results: {
+                updatedInstruction,
+            },
         };
     }
 

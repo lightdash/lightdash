@@ -2,7 +2,6 @@ import { AiAgent } from '@lightdash/common';
 import { ModelMessage } from 'ai';
 import { AiModel, AiProvider } from '../models/types';
 import {
-    AppendInstructionFn,
     CreateOrUpdateArtifactFn,
     FindChartsFn,
     FindDashboardsFn,
@@ -67,7 +66,6 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    appendInstruction: AppendInstructionFn;
     perf: PerformanceMetrics;
 };
 

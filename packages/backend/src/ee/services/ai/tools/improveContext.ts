@@ -1,23 +1,9 @@
 import { toolImproveContextArgsSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
-import type { AppendInstructionFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-type Dependencies = {
-    appendInstruction: AppendInstructionFn;
-    projectUuid: string;
-    agentUuid: string;
-    userId: string;
-    organizationId: string;
-};
-
-export const getImproveContext = ({
-    appendInstruction,
-    projectUuid,
-    agentUuid,
-    userId,
-}: Dependencies) =>
+export const getImproveContext = () =>
     tool({
         description: toolImproveContextArgsSchema.description,
         inputSchema: toolImproveContextArgsSchema,
@@ -46,23 +32,8 @@ export const getImproveContext = ({
                     )`.trim();
                 }
 
-                const instructionResult = await appendInstruction({
-                    projectUuid,
-                    agentUuid,
-                    instruction: toolArgs.suggestedInstruction,
-                    metadata: {
-                        originalQuery: toolArgs.originalQuery,
-                        incorrectResponse: toolArgs.incorrectResponse,
-                        correctResponse: toolArgs.correctResponse,
-                        category: toolArgs.category,
-                        confidence: toolArgs.confidence,
-                        createdByUserId: userId,
-                        createdAt: new Date().toISOString(),
-                    },
-                });
-
                 Logger.info(
-                    `[AI Agent] Successfully improved context. ${instructionResult}`,
+                    `[AI Agent] Successfully got context improvement candidate:  ${toolArgs.suggestedInstruction}`,
                 );
 
                 return `

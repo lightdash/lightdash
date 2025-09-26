@@ -70,6 +70,7 @@ import {
     AiAgentPromptCreatedEvent,
     AiAgentPromptFeedbackEvent,
     AiAgentResponseStreamed,
+    AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
@@ -2080,17 +2081,12 @@ export class AiAgentService {
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => this.aiAgentModel.updateModelResponse(update),
-            trackEvent: (event: AiAgentResponseStreamed) =>
-                this.analytics.track(event),
+            trackEvent: (
+                event: AiAgentResponseStreamed | AiAgentToolCallEvent,
+            ) => this.analytics.track(event),
 
             createOrUpdateArtifact: (data) =>
                 this.aiAgentModel.createOrUpdateArtifact(data),
-
-            appendInstruction: (data) =>
-                this.aiAgentModel.appendInstruction({
-                    agentUuid: data.agentUuid,
-                    instruction: data.instruction,
-                }),
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {
@@ -3536,5 +3532,20 @@ export class AiAgentService {
         await this.getAgent(user, agentUuid);
 
         return this.aiAgentModel.getArtifact(artifactUuid, versionUuid);
+    }
+
+    async appendInstruction(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        instruction: string,
+    ): Promise<string> {
+        // Check user has access to the agent
+        await this.getAgent(user, agentUuid, projectUuid);
+
+        return this.aiAgentModel.appendInstruction({
+            agentUuid,
+            instruction,
+        });
     }
 }

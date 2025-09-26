@@ -1,4 +1,8 @@
-import { AgentToolCallArgsSchema, ToolNameSchema } from '@lightdash/common';
+import {
+    AgentToolCallArgsSchema,
+    AiResultType,
+    ToolNameSchema,
+} from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { DefaultChatTransport, readUIMessageStream, type UIMessage } from 'ai';
 import { useCallback } from 'react';
@@ -6,6 +10,7 @@ import { lightdashApiStream } from '../../../../api';
 import {
     addToolCall,
     setError,
+    setImproveContextNotification,
     setMessage,
     startStreaming,
     stopStreaming,
@@ -139,6 +144,21 @@ export function useAiAgentThreadStreamMutation() {
                                                 toolArgs,
                                             }),
                                         );
+
+                                        if (
+                                            toolName === 'improveContext' &&
+                                            toolArgs.type ===
+                                                AiResultType.IMPROVE_CONTEXT
+                                        ) {
+                                            dispatch(
+                                                setImproveContextNotification({
+                                                    threadUuid,
+                                                    toolCallId: part.toolCallId,
+                                                    suggestedInstruction:
+                                                        toolArgs.suggestedInstruction,
+                                                }),
+                                            );
+                                        }
                                     } catch (error) {
                                         console.error(
                                             'Error parsing tool call:',

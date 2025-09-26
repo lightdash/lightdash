@@ -42,10 +42,19 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         .then((r) => {
             GlobalState.debug(`> HTTP request returned status: ${r.status}`);
 
-            if (!r.ok)
-                return r.json().then((d) => {
-                    throw new LightdashError(d.error);
+            if (!r.ok) {
+                const contentType = r.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return r.json().then((d) => {
+                        throw new LightdashError(d.error);
+                    });
+                }
+                return r.text().then((text) => {
+                    throw new Error(
+                        `Received non-JSON response from server (status ${r.status}): ${text}`,
+                    );
                 });
+            }
             return r;
         })
         .then((r) => r.json())

@@ -20,7 +20,10 @@ import {
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
-import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytics';
+import {
+    AiAgentResponseStreamed,
+    AiAgentToolCallEvent,
+} from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 
 type Pagination = KnexPaginateArgs & {
@@ -112,7 +115,9 @@ export type StoreToolResultsFn = (
     }>,
 ) => Promise<void>;
 
-export type TrackEventFn = (event: AiAgentResponseStreamed) => void;
+export type TrackEventFn = (
+    event: AiAgentResponseStreamed | AiAgentToolCallEvent,
+) => void;
 
 export type SearchFieldValuesFn = (args: {
     table: string;
@@ -135,18 +140,3 @@ export type CheckUserPermissionFn = (args: {
     organizationId: string;
     permission: string;
 }) => Promise<boolean>;
-
-export type AppendInstructionFn = (args: {
-    projectUuid: string;
-    agentUuid: string;
-    instruction: string;
-    metadata?: {
-        originalQuery: string;
-        incorrectResponse: string;
-        correctResponse: string;
-        category: string;
-        confidence: number;
-        createdByUserId: string;
-        createdAt: string;
-    };
-}) => Promise<string>; // Returns instruction ID

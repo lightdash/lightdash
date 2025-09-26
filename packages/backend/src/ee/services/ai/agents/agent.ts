@@ -214,13 +214,7 @@ const getAgentTools = (
         maxLimit: args.maxQueryLimit,
     });
 
-    const improveContext = getImproveContext({
-        appendInstruction: dependencies.appendInstruction,
-        projectUuid: args.agentSettings.projectUuid,
-        agentUuid: args.agentSettings.uuid,
-        userId: args.userId,
-        organizationId: args.organizationId,
-    });
+    const improveContext = getImproveContext();
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
@@ -362,8 +356,22 @@ export const generateAgentResponse = async ({
                                         toolCall.input,
                                     )})`,
                                 );
-                            }
-                            if (toolCall) {
+
+                                dependencies.trackEvent({
+                                    event: 'ai_agent_tool_call',
+                                    userId: args.userId,
+                                    properties: {
+                                        organizationId: args.organizationId,
+                                        projectId:
+                                            args.agentSettings.projectUuid,
+                                        aiAgentId: args.agentSettings.uuid,
+                                        agentName: args.agentSettings.name,
+                                        toolName: toolCall.toolName,
+                                        threadId: args.threadUuid,
+                                        promptId: args.promptUuid,
+                                    },
+                                });
+
                                 await dependencies.storeToolCall({
                                     promptUuid: args.promptUuid,
                                     toolCallId: toolCall.toolCallId,
@@ -487,6 +495,22 @@ export const streamAgentResponse = async ({
                                 event.chunk.toolCallId
                             }) (ARGS: ${JSON.stringify(event.chunk.input)})`,
                         );
+
+                        // Track tool call analytics
+                        dependencies.trackEvent({
+                            event: 'ai_agent_tool_call',
+                            userId: args.userId,
+                            properties: {
+                                organizationId: args.organizationId,
+                                projectId: args.agentSettings.projectUuid,
+                                aiAgentId: args.agentSettings.uuid,
+                                agentName: args.agentSettings.name,
+                                toolName: event.chunk.toolName,
+                                threadId: args.threadUuid,
+                                promptId: args.promptUuid,
+                            },
+                        });
+
                         void dependencies
                             .storeToolCall({
                                 promptUuid: args.promptUuid,
