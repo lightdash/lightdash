@@ -10,7 +10,7 @@ import App from './App';
 
 // Trigger FE tests
 scan({
-    enabled: import.meta.env.DEV,
+    enabled: import.meta.env.DEV && REACT_SCAN_ENABLED,
 });
 
 const container = document.getElementById('root');
