@@ -114,7 +114,12 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             throw new Error('User is required to check if AI agent is enabled');
         }
 
-        if (!this.lightdashConfig.ai.copilot.enabled) {
+        const { enabled: isAiCopilotEnabled } = await this.getAiCopilotFlag({
+            featureFlagId,
+            user,
+        });
+
+        if (!isAiCopilotEnabled) {
             return {
                 id: featureFlagId,
                 enabled: false,
