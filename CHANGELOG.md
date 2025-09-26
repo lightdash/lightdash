@@ -1,3 +1,10 @@
+# [0.2026.0](https://github.com/lightdash/lightdash/compare/0.2025.0...0.2026.0) (2025-09-26)
+
+
+### Features
+
+* size improvements in tiles ([#17098](https://github.com/lightdash/lightdash/issues/17098)) ([d3cee6d](https://github.com/lightdash/lightdash/commit/d3cee6db769403039688a03982232a3b5e66b191)), closes [#9989](https://github.com/lightdash/lightdash/issues/9989)
+
 # [0.2025.0](https://github.com/lightdash/lightdash/compare/0.2024.4...0.2025.0) (2025-09-26)
 
 
