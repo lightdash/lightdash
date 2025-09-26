@@ -15,6 +15,7 @@ import {
 export * from './customMetrics';
 export * from './filters';
 export * from './sortField';
+export * from './tableCalcs/tableCalcs';
 export * from './tools';
 export * from './visualizations';
 

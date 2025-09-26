@@ -1,4 +1,5 @@
 import {
+    convertAiTableCalcsSchemaToTableCalcs,
     Explore,
     getItemLabelWithoutTableName,
     getTotalFilterRules,
@@ -6,6 +7,7 @@ import {
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
     ToolRunMetricQueryArgsTransformed,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -86,6 +88,9 @@ export const getRunMetricQuery = ({
                     filters: vizTool.filters,
                     maxLimit,
                     customMetrics: vizTool.customMetrics,
+                    tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                        vizTool.tableCalculations,
+                    ),
                 });
 
                 const results = await runMiniMetricQuery(

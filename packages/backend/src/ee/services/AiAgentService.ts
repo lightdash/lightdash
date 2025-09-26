@@ -360,8 +360,6 @@ export class AiAgentService {
                         metricQuery.additionalMetrics,
                         explore,
                     ),
-                    // TODO: add tableCalculations
-                    tableCalculations: [],
                 },
                 context: QueryExecutionContext.AI,
             },
@@ -1827,8 +1825,6 @@ export class AiAgentService {
                         metricQuery.additionalMetrics,
                         explore,
                     ),
-                    // TODO: add tableCalculations
-                    tableCalculations: [],
                 },
                 exploreName: metricQuery.exploreName,
                 csvLimit: metricQuery.limit,

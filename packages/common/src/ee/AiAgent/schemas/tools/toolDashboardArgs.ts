@@ -3,6 +3,7 @@ import assertUnreachable from '../../../../utils/assertUnreachable';
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema } from '../filters';
+import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import {
@@ -43,6 +44,7 @@ Usage tips:
 const baseVisualizationSchema = z.object({
     ...visualizationMetadataSchema.shape,
     customMetrics: customMetricsSchema,
+    tableCalculations: tableCalcsSchema,
     filters: filtersSchema
         .nullable()
         .describe(

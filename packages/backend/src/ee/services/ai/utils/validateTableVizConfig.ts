@@ -9,6 +9,7 @@ import {
     validateMetricDimensionFilterPlacement,
     validateSelectedFieldsExistence,
     validateSortFieldsAreSelected,
+    validateTableCalculations,
 } from './validators';
 
 export const validateTableVizConfig = (
@@ -36,6 +37,12 @@ export const validateTableVizConfig = (
     validateSortFieldsAreSelected(
         vizTool.vizConfig.sorts,
         vizTool.vizConfig.dimensions,
+        vizTool.vizConfig.metrics,
+        vizTool.customMetrics,
+    );
+    validateTableCalculations(
+        explore,
+        vizTool.tableCalculations,
         vizTool.vizConfig.metrics,
         vizTool.customMetrics,
     );

@@ -6,6 +6,7 @@ import {
 import { AiResultType } from '../../types';
 import { customMetricsSchema } from '../customMetrics';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
+import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
 import { tableVizConfigSchema } from '../visualizations';
@@ -19,6 +20,7 @@ export const toolTableVizArgsSchema = createToolSchema(
     .extend({
         ...visualizationMetadataSchema.shape,
         customMetrics: customMetricsSchema,
+        tableCalculations: tableCalcsSchema,
         vizConfig: tableVizConfigSchema,
         filters: filtersSchema
             .nullable()
@@ -44,6 +46,7 @@ export const toolTableVizArgsSchemaTransformed = toolTableVizArgsSchema
     .extend({
         // backwards compatibility for old viz configs without customMetrics
         customMetrics: customMetricsSchema.default(null),
+        tableCalculations: tableCalcsSchema.default(null),
         followUpTools: z.array(
             z.union([
                 z.literal(AiResultType.VERTICAL_BAR_RESULT),
