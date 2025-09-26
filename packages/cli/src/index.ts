@@ -594,6 +594,11 @@ program
         'Skip space creation if it does not exist',
         false,
     )
+    .option(
+        '--include-charts',
+        'Include charts updates when uploading dashboards',
+        false,
+    )
     .action(uploadHandler);
 
 program
