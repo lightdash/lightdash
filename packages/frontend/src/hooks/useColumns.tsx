@@ -33,10 +33,10 @@ import {
 } from '../components/common/Table/types';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
+    selectActiveFields,
     selectAdditionalMetrics,
     selectCustomDimensions,
-    selectDimensions,
-    selectMetrics,
+    selectParameters,
     selectSorts,
     selectTableCalculations,
     selectTableName,
@@ -74,29 +74,19 @@ export const getValueCell = (info: CellContext<RawResultRow, string>) => {
 export const useColumns = (): TableColumn[] => {
     // Use Redux selectors for performance - prevents re-renders from context cascades
     const tableName = useExplorerSelector(selectTableName);
-    const dimensions = useExplorerSelector(selectDimensions);
-    const metrics = useExplorerSelector(selectMetrics);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const sorts = useExplorerSelector(selectSorts);
+    const activeFields = useExplorerSelector(selectActiveFields);
+    const parameters = useExplorerSelector(selectParameters);
 
-    // activeFields is calculated from dimensions + metrics + tableCalculations
-    const activeFields = useMemo(() => {
-        return new Set([
-            ...dimensions,
-            ...metrics,
-            ...tableCalculations.map(({ name }) => name),
-        ]);
-    }, [dimensions, metrics, tableCalculations]);
+    // TODO: These still need to be migrated to Redux once query results are in Redux
     const resultsMetricQuery = useExplorerContext(
         (context) => context.query.data?.metricQuery,
     );
     const resultsFields = useExplorerContext(
         (context) => context.query.data?.fields,
-    );
-    const parameters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.parameters,
     );
 
     const { data: exploreData } = useExplore(tableName, {

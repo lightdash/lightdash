@@ -848,6 +848,16 @@ export function reducer(
                 draft.parameterReferences = action.payload;
             });
         }
+        case ActionType.OPEN_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = true;
+            });
+        }
+        case ActionType.CLOSE_VISUALIZATION_CONFIG: {
+            return produce(state, (draft) => {
+                draft.isVisualizationConfigOpen = false;
+            });
+        }
         default: {
             return assertUnreachable(
                 action,
@@ -906,11 +916,13 @@ const ExplorerProvider: FC<
     );
     const { unsavedChartVersion } = reducerState;
 
-    // Create initial state with isEditMode
+    // Create initial state with isEditMode and ensure all defaults are present
     const initialStateWithEditMode = useMemo(
         () => ({
-            ...(initialState || defaultStateWithConfig),
-            isEditMode,
+            ...defaultStateWithConfig, // Start with all defaults
+            ...(initialState || {}), // Override with any provided initial state
+            isEditMode, // Always set isEditMode
+            isVisualizationConfigOpen: false, // Always start with closed config
         }),
         [initialState, defaultStateWithConfig, isEditMode],
     );
@@ -1008,12 +1020,17 @@ const ExplorerProvider: FC<
         [dispatch, reduxDispatch, unsavedChartVersion.metricQuery],
     );
 
-    const removeActiveField = useCallback((fieldId: FieldId) => {
-        dispatch({
-            type: ActionType.REMOVE_FIELD,
-            payload: fieldId,
-        });
-    }, []);
+    const removeActiveField = useCallback(
+        (fieldId: FieldId) => {
+            dispatch({
+                type: ActionType.REMOVE_FIELD,
+                payload: fieldId,
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.removeActiveField(fieldId));
+        },
+        [reduxDispatch],
+    );
 
     const toggleSortField = useCallback((fieldId: FieldId) => {
         dispatch({
@@ -1071,21 +1088,31 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const setRowLimit = useCallback((limit: number) => {
-        dispatch({
-            type: ActionType.SET_ROW_LIMIT,
-            payload: limit,
-        });
-    }, []);
-
-    const setTimeZone = useCallback((timezone: string | null) => {
-        if (timezone && isTimeZone(timezone)) {
+    const setRowLimit = useCallback(
+        (limit: number) => {
             dispatch({
-                type: ActionType.SET_TIME_ZONE,
-                payload: timezone,
+                type: ActionType.SET_ROW_LIMIT,
+                payload: limit,
             });
-        }
-    }, []);
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.setRowLimit(limit));
+        },
+        [reduxDispatch],
+    );
+
+    const setTimeZone = useCallback(
+        (timezone: string | null) => {
+            if (timezone && isTimeZone(timezone)) {
+                dispatch({
+                    type: ActionType.SET_TIME_ZONE,
+                    payload: timezone,
+                });
+                // Sync to Redux for components that have been migrated
+                reduxDispatch(explorerActions.setTimeZone(timezone));
+            }
+        },
+        [reduxDispatch],
+    );
 
     const setFilters = useCallback((filters: MetricQuery['filters']) => {
         dispatch({
@@ -1114,41 +1141,61 @@ const ExplorerProvider: FC<
 
     const clearAllParameters = useCallback(() => {
         dispatch({ type: ActionType.CLEAR_ALL_PARAMETERS });
-    }, []);
+        // Sync to Redux for components that have been migrated
+        reduxDispatch(explorerActions.clearAllParameters());
+    }, [reduxDispatch]);
 
-    const setPivotFields = useCallback((fields: FieldId[] = []) => {
-        dispatch({
-            type: ActionType.SET_PIVOT_FIELDS,
-            payload: fields,
-        });
-    }, []);
+    const setPivotFields = useCallback(
+        (fields: FieldId[] = []) => {
+            dispatch({
+                type: ActionType.SET_PIVOT_FIELDS,
+                payload: fields,
+            });
+            // Sync to Redux for components that have been migrated
+            // Note: Redux expects an object with dimensions property
+            reduxDispatch(
+                explorerActions.setPivotFields({ dimensions: fields }),
+            );
+        },
+        [reduxDispatch],
+    );
 
-    const setChartType = useCallback((chartType: ChartType) => {
-        dispatch({
-            type: ActionType.SET_CHART_TYPE,
-            payload: {
-                chartType,
-                cachedConfigs: cachedChartConfig.current,
-            },
-        });
-    }, []);
+    const setChartType = useCallback(
+        (chartType: ChartType) => {
+            dispatch({
+                type: ActionType.SET_CHART_TYPE,
+                payload: {
+                    chartType,
+                    cachedConfigs: cachedChartConfig.current,
+                },
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.setChartType(chartType));
+        },
+        [reduxDispatch],
+    );
 
-    const setChartConfig = useCallback((chartConfig: ChartConfig) => {
-        if (chartConfig) {
-            cachedChartConfig.current = {
-                ...cachedChartConfig.current,
-                [chartConfig.type]: chartConfig.config,
-            };
-        }
+    const setChartConfig = useCallback(
+        (chartConfig: ChartConfig) => {
+            if (chartConfig) {
+                cachedChartConfig.current = {
+                    ...cachedChartConfig.current,
+                    [chartConfig.type]: chartConfig.config,
+                };
+            }
 
-        dispatch({
-            type: ActionType.SET_CHART_CONFIG,
-            payload: {
-                chartConfig,
-                cachedConfigs: cachedChartConfig.current,
-            },
-        });
-    }, []);
+            dispatch({
+                type: ActionType.SET_CHART_CONFIG,
+                payload: {
+                    chartConfig,
+                    cachedConfigs: cachedChartConfig.current,
+                },
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.setChartConfig(chartConfig));
+        },
+        [reduxDispatch],
+    );
 
     const addAdditionalMetric = useCallback(
         (additionalMetric: AdditionalMetric) => {
@@ -1211,12 +1258,17 @@ const ExplorerProvider: FC<
         [],
     );
 
-    const setColumnOrder = useCallback((order: string[]) => {
-        dispatch({
-            type: ActionType.SET_COLUMN_ORDER,
-            payload: order,
-        });
-    }, []);
+    const setColumnOrder = useCallback(
+        (order: string[]) => {
+            dispatch({
+                type: ActionType.SET_COLUMN_ORDER,
+                payload: order,
+            });
+            // Sync to Redux for components that have been migrated
+            reduxDispatch(explorerActions.setColumnOrder(order));
+        },
+        [reduxDispatch],
+    );
 
     const addTableCalculation = useCallback(
         (tableCalculation: TableCalculation) => {
@@ -1785,12 +1837,14 @@ const ExplorerProvider: FC<
     ]);
 
     const openVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.OPEN_VISUALIZATION_CONFIG });
         reduxDispatch(explorerActions.openVisualizationConfig());
-    }, [reduxDispatch]);
+    }, [dispatch, reduxDispatch]);
 
     const closeVisualizationConfig = useCallback(() => {
+        dispatch({ type: ActionType.CLOSE_VISUALIZATION_CONFIG });
         reduxDispatch(explorerActions.closeVisualizationConfig());
-    }, [reduxDispatch]);
+    }, [dispatch, reduxDispatch]);
 
     const setParameterReferences = useCallback(
         (parameterReferences: string[] | null) => {

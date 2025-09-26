@@ -53,11 +53,6 @@ export const selectIsResultsExpanded = createSelector(
 //     (explorer) => explorer.previouslyFetchedState,
 // );
 
-export const selectIsVisualizationConfigOpen = createSelector(
-    [selectExplorerState],
-    (explorer) => explorer.isVisualizationConfigOpen,
-);
-
 // FiltersCard specific selectors
 export const selectFilters = createSelector(
     [selectMetricQuery],
@@ -104,7 +99,18 @@ export const selectSorts = createSelector(
     (metricQuery) => metricQuery.sorts,
 );
 
-// const selectRowLimit = createSelector(
-//     [selectMetricQuery],
-//     (metricQuery) => metricQuery.limit,
-// );
+// Computed selector for active fields - combines dimensions, metrics, and table calculations
+export const selectActiveFields = createSelector(
+    [selectMetricQuery],
+    (metricQuery) =>
+        new Set([
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+            ...metricQuery.tableCalculations.map((tc) => tc.name),
+        ]),
+);
+
+export const selectParameters = createSelector(
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.parameters,
+);

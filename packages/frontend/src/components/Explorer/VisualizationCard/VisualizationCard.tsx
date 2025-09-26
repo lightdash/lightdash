@@ -24,9 +24,7 @@ import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
     selectIsEditMode,
-    selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
-    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -96,11 +94,21 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const isOpen = useExplorerSelector(selectIsVisualizationExpanded);
     const isEditMode = useExplorerSelector(selectIsEditMode);
-    const isVisualizationConfigOpen = useExplorerSelector(
-        selectIsVisualizationConfigOpen,
+    const isVisualizationConfigOpen = useExplorerContext(
+        (context) => context.state.isVisualizationConfigOpen ?? false,
     );
-    const tableName = useExplorerSelector(selectTableName);
+
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
     const dispatch = useExplorerDispatch();
+
+    const openVisualizationConfig = useExplorerContext(
+        (context) => context.actions.openVisualizationConfig,
+    );
+    const closeVisualizationConfig = useExplorerContext(
+        (context) => context.actions.closeVisualizationConfig,
+    );
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
@@ -111,6 +119,9 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
+
+    // Temporarily use Context to avoid undefined series error
+    const chartConfig = unsavedChartVersion.chartConfig;
     const tableCalculationsMetadata = useExplorerContext(
         (context) => context.state.metadata?.tableCalculations,
     );
@@ -130,15 +141,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
-
-    const openVisualizationConfig = useCallback(
-        () => dispatch(explorerActions.openVisualizationConfig()),
-        [dispatch],
-    );
-    const closeVisualizationConfig = useCallback(
-        () => dispatch(explorerActions.closeVisualizationConfig()),
-        [dispatch],
-    );
 
     const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
@@ -230,7 +232,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     return (
         <ErrorBoundary>
             <VisualizationProvider
-                chartConfig={unsavedChartVersion.chartConfig}
+                chartConfig={chartConfig}
                 initialPivotDimensions={
                     unsavedChartVersion.pivotConfig?.columns
                 }
@@ -300,10 +302,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                 {portalTarget &&
                                     createPortal(
                                         <VisualizationConfig
-                                            chartType={
-                                                unsavedChartVersion.chartConfig
-                                                    .type
-                                            }
+                                            chartType={chartConfig.type}
                                             onClose={closeVisualizationConfig}
                                         />,
                                         portalTarget,

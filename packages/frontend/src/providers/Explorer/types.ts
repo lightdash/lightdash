@@ -84,6 +84,8 @@ export enum ActionType {
     UPDATE_METRIC_FORMAT,
     REPLACE_FIELDS,
     SET_PARAMETER_REFERENCES,
+    OPEN_VISUALIZATION_CONFIG,
+    CLOSE_VISUALIZATION_CONFIG,
 }
 
 export type ConfigCacheMap = {
@@ -251,6 +253,12 @@ export type Action =
     | {
           type: ActionType.SET_PARAMETER_REFERENCES;
           payload: string[] | null;
+      }
+    | {
+          type: ActionType.OPEN_VISUALIZATION_CONFIG;
+      }
+    | {
+          type: ActionType.CLOSE_VISUALIZATION_CONFIG;
       };
 
 export interface ExplorerReduceState {
