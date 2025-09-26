@@ -1,3 +1,10 @@
+## [0.2024.4](https://github.com/lightdash/lightdash/compare/0.2024.3...0.2024.4) (2025-09-26)
+
+
+### Bug Fixes
+
+* Improve 404 handling for API endpoints and improve cli error responses ([#17086](https://github.com/lightdash/lightdash/issues/17086)) ([cc559ff](https://github.com/lightdash/lightdash/commit/cc559ff1ffc968f7e79cd3bd9bee56441e0abd4c))
+
 ## [0.2024.3](https://github.com/lightdash/lightdash/compare/0.2024.2...0.2024.3) (2025-09-25)
 
 
