@@ -2,17 +2,15 @@ import type { AiAgentEvaluationRunSummary } from '@lightdash/common';
 import {
     Badge,
     Box,
-    Card,
-    Group,
     Loader,
     Paper,
-    ScrollArea,
     Stack,
+    Table,
     Text,
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { IconChevronRight, IconClock } from '@tabler/icons-react';
+import { IconClock } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -33,105 +31,99 @@ type Props = {
     projectUuid: string;
     agentUuid: string;
     evalUuid: string;
-    selectedRunUuid?: string;
 };
 
-type RunItemProps = {
+type RunRowProps = {
     projectUuid: string;
     agentUuid: string;
     evalUuid: string;
     run: AiAgentEvaluationRunSummary;
-    isSelected: boolean;
     onSelectRun: (run: AiAgentEvaluationRunSummary) => void;
 };
 
-const EvalRunItem: FC<RunItemProps> = ({
+const EvalRunRow: FC<RunRowProps> = ({
     projectUuid,
     agentUuid,
     evalUuid,
     run,
-    isSelected,
     onSelectRun,
 }) => {
     // Start polling for this run if it's pending or running
     useEvaluationRunPolling(projectUuid, agentUuid, evalUuid, run);
 
-    const runDuration = dayjs
-        .utc(
-            dayjs
-                .duration(dayjs(run.completedAt).diff(dayjs(run.createdAt)))
-                .asMilliseconds(),
-        )
-        .format('mm[m]ss[s]');
+    const runDuration = run.completedAt
+        ? dayjs
+              .utc(
+                  dayjs
+                      .duration(
+                          dayjs(run.completedAt).diff(dayjs(run.createdAt)),
+                      )
+                      .asMilliseconds(),
+              )
+              .format('mm[m]ss[s]')
+        : '-';
+
+    const createdAt = run.createdAt
+        ? dayjs(run.createdAt).format('DD/MM/YYYY HH:mm:ss')
+        : '-';
+    const completedAt = run.completedAt
+        ? dayjs(run.completedAt).format('DD/MM/YYYY HH:mm:ss')
+        : '-';
 
     return (
-        <Card
+        <Table.Tr
             key={run.runUuid}
-            p="sm"
-            withBorder
             style={{
                 cursor: 'pointer',
-                borderColor: isSelected
-                    ? 'var(--mantine-color-blue-5)'
-                    : undefined,
             }}
-            onClick={() => {
-                onSelectRun(run);
-            }}
+            onClick={() => onSelectRun(run)}
         >
-            <Group justify="space-between" align="center">
-                <Stack gap="xs" style={{ flex: 1 }}>
-                    <Group gap="xs">
-                        <Text size="sm" fw={500}>
-                            Run {run.runUuid.slice(-8)}
+            <Table.Td>
+                <Text size="sm" fw={500}>
+                    {run.runUuid.slice(-8)}
+                </Text>
+            </Table.Td>
+            <Table.Td>
+                <Badge
+                    color={statusColors[run.status]}
+                    variant="light"
+                    size="sm"
+                    radius="sm"
+                >
+                    {run.status}
+                </Badge>
+            </Table.Td>
+            <Table.Td>
+                <Tooltip
+                    withinPortal
+                    position="left-start"
+                    label={
+                        <Text size="xs">
+                            Started {createdAt}
+                            {run.completedAt && (
+                                <>
+                                    <br />
+                                    Completed {completedAt}
+                                </>
+                            )}
                         </Text>
-                        <Badge
-                            color={statusColors[run.status]}
-                            variant="light"
-                            size="sm"
-                            radius="sm"
-                        >
-                            {run.status}
-                        </Badge>
-                    </Group>
-                    {run.completedAt && (
-                        <Tooltip
-                            label={
-                                <Text size="xs" c="dimmed">
-                                    Started{' '}
-                                    {new Date(run.createdAt).toLocaleString()}
-                                    {run.completedAt && (
-                                        <>
-                                            {' '}
-                                            • Completed{' '}
-                                            {new Date(
-                                                run.completedAt,
-                                            ).toLocaleString()}
-                                        </>
-                                    )}
-                                </Text>
-                            }
-                        >
-                            <Text size="xs" c="dimmed">
-                                Duration: {runDuration}
-                            </Text>
-                        </Tooltip>
-                    )}
-                </Stack>
-                <Group gap="sm">
-                    <MantineIcon icon={IconChevronRight} />
-                </Group>
-            </Group>
-        </Card>
+                    }
+                >
+                    <Text size="sm" c="dimmed">
+                        {createdAt}
+                    </Text>
+                </Tooltip>
+            </Table.Td>
+            <Table.Td>
+                <Text size="sm" c="dimmed">
+                    {runDuration}
+                </Text>
+            </Table.Td>
+        </Table.Tr>
     );
 };
 
-export const EvalRuns: FC<Props> = ({
-    projectUuid,
-    agentUuid,
-    evalUuid,
-    selectedRunUuid,
-}) => {
+export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
     const navigate = useNavigate();
 
     const { data: runsData, isLoading: isLoadingRuns } =
@@ -154,7 +146,7 @@ export const EvalRuns: FC<Props> = ({
     }
 
     return (
-        <Stack gap="md">
+        <Stack gap="xs">
             <Title order={5} c="gray.9" fw={500}>
                 Previous Runs
             </Title>
@@ -177,21 +169,32 @@ export const EvalRuns: FC<Props> = ({
                     </Text>
                 </Paper>
             ) : (
-                <ScrollArea mah={600}>
-                    <Stack gap="xs">
-                        {runs.map((run) => (
-                            <EvalRunItem
-                                key={run.runUuid}
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                evalUuid={evalUuid}
-                                run={run}
-                                isSelected={run.runUuid === selectedRunUuid}
-                                onSelectRun={handleSelectRun}
-                            />
-                        ))}
-                    </Stack>
-                </ScrollArea>
+                <Paper p="sm">
+                    <Table.ScrollContainer maxHeight={320} minWidth={500}>
+                        <Table highlightOnHover stickyHeader>
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th>Run ID</Table.Th>
+                                    <Table.Th>Status</Table.Th>
+                                    <Table.Th>Created</Table.Th>
+                                    <Table.Th>Duration</Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {runs.map((run) => (
+                                    <EvalRunRow
+                                        key={run.runUuid}
+                                        projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
+                                        evalUuid={evalUuid}
+                                        run={run}
+                                        onSelectRun={handleSelectRun}
+                                    />
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </Table.ScrollContainer>
+                </Paper>
             )}
         </Stack>
     );
