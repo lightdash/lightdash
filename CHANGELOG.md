@@ -1,3 +1,10 @@
+## [0.2026.3](https://github.com/lightdash/lightdash/compare/0.2026.2...0.2026.3) (2025-09-26)
+
+
+### Bug Fixes
+
+* AI Agent link shows in settings without FF ([#17087](https://github.com/lightdash/lightdash/issues/17087)) ([028dab6](https://github.com/lightdash/lightdash/commit/028dab6fcab0f1f45014736f822156547da434f0)), closes [#17084](https://github.com/lightdash/lightdash/issues/17084)
+
 ## [0.2026.2](https://github.com/lightdash/lightdash/compare/0.2026.1...0.2026.2) (2025-09-26)
 
 
